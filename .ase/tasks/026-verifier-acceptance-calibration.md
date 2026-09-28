@@ -75,3 +75,43 @@ Independent design review found no C25/delivery-priority blocker. It specificall
 distinguished circulation from meeting rubric criteria, claim-specific limitations
 from blanket disclaimers, and explicit emphasis from a newly invented requirement.
 Implementation, runtime quality and the new cases have not yet been accepted.
+
+Independent three-case inputs were frozen before candidate execution. Main has
+checked only interface, lengths and hashes, not case text or labels. Input SHA256
+1052047dbd403032ca996f72ab72db31f612de8a3f748a90fe7a0bd96087ee51;
+labels18d3a58a29a49284f3a63ff0c3ddd7629e9706c06763383dd23b8c2810a061a8;
+notes43ca730afa6996f9e9c623d890a48010995bcc090a8e031dddb16f2593eb7469.
+Files remain under ignored.analysis/task026 and labels/notes are not sent to models.
+
+The generator saved CRLF file line endings. The existing runner hashes read_text
+with universal-newline normalization, yielding input-text SHA256
+d3a99c3e5b6e6b572cff452ce5d47c614929a50bc45608a06d469c68d77f84cf.
+Track both raw-file and runner-text hashes; their difference is not a changed case
+or label. JSON report text remains as frozen. Strict runner input validation passes;
+the three report string lengths are2704/2800/2988characters.
+
+## Predeclared execution order (before any Task026 model call)
+
+After Task025's repeat and four H2 regressions terminate and their frozen code
+postflight is saved, implement and verify the optional paragraph. Run each of the
+three new cases once in each of two arms: artifact_grounded (control) and
+artifact_grounded_calibrated (candidate). Use frozen case-file order; control then
+candidate for cases0/2, candidate then control for case1, using the existing
+runner's alternating order. Calls are serial. Preserve all six outcomes, including
+incorrect feedback within a correct classification. No labels or review notes enter
+model input. An execution error is diagnosed before any replay and retained.
+
+Then run one candidate through the complete native author/re-review loop on a fresh
+copy of the original Task016 pre-review boundary, keeping the same models, parameters,
+sources, rubric and source-table representation. The two Task025 H2 native outcomes
+are existing controls with observed variability, not a contemporaneous randomized
+population. Independent review must examine saved revisions, valid repairs, new
+defects, honest limitations and unsupported positive conclusions. Synthetic outcomes
+do not substitute for this real trunk test or grant report acceptance.
+
+If a useful new behavior is observed, one unchanged fresh real repeat is the next
+discriminating observation before claiming reproducibility. If no useful change
+appears, preserve failure and select the next factor by information value instead
+of replaying until success. Neither branch establishes general reliability from
+this small sample. Task025's four old cases remain available regression evidence;
+the three new controls explicitly test this candidate's over-rejection risk.

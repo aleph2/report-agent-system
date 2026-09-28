@@ -264,3 +264,60 @@ over H3 at this point: H2 already recognized the quantity error. Task026 records
 candidate outcome paragraph, no mandatory investigation steps, and fresh independent
 positive/minor-imperfection controls. This does not alter Task025's in-flight prompt
 or predeclared repeat/regressions. Main has not accepted any candidate quality gain.
+
+## H2 repeat first-iteration disposition and audit conventions
+
+Independent review confirms a real K1318 right-side omission in the repeat's first
+needs_revision verdict. Main accepts P2-025-G04: the feedback merges different
+chainages/sides into one left12/right14 assertion. It blocks adopting that combined
+claim as verified, not addressing the actual omission or continuing the isolated
+trial. Main also accepts P3-025-G05: the proposed replacement of supported4.1.2
+with4.1.5 lacks evidence. It blocks that unverified citation edit, not the trial.
+Both remain open pending producer output; no developer correction is injected into
+the running author. Final review will distinguish propagation from containment.
+The repeat did not mention40/6 and did not receive designp97; the first H2's correct
+recognition is not attributed to this repeat. Differing outcomes remain side by side.
+
+The frozen Task025 synthetic input has raw-file SHA256
+c398b88af2b174c82c62c6fd7b0d481176c7d492f06483c2b627176fe633605a.
+The runner's read_text hashes universal-newline-normalized text, SHA256
+0b3b952febb9eddce87cd5cfd0931001e0787b194fe0278420cfc18d807bb85f.
+This CRLF normalization does not change JSON case content or labels. Keep both
+hash definitions explicit; do not compare them as if they were the same encoding.
+
+The audit helper's status field reads the stored report_status marker. The launcher
+returns project_state's derived delivery status after rubric reconciliation; these
+are different fields. For completed runs, a raw needs_attention/unreviewed_draft
+marker alone does not establish a stale-target or failed-run bug. Terminal output,
+public review events, selected draft/target identity and saved content determine
+what completed and what was actually accepted. No production status change is
+made on the strength of this audit-display difference.
+
+P3-025-A03 (local audit helper, fixed): Windows export failed while cleaning its
+temporary baseline copy because SQLite's transaction context manager did not close
+the connection. Main changed the ignored read-only audit helper to use explicit
+contextlib.closing for both connections. Re-running the same export succeeded;
+no model replay or frozen runtime change was needed. Scope is diagnostic export
+cleanup, not grader behavior or source integrity. It blocked completion of that
+audit export only; the live isolated trial continued. No production defect or
+quality gain is inferred from this helper repair.
+
+## H2 repeat completed; frozen four-case regression started
+
+Repeat exited0 with92 observed responses (80grader,12coordinator),6695250tokens,
+no missing response usage/errors. Iteration0 needs_revision led to two saved drafts;
+iteration1 satisfied targets3055b721-161a-4311-aa6e-f55467fb5ba3, body SHA256
+01908754ae726016a07b034449808dea050d1963e428448e65af3c82b13644b1,
+pinned DOCX c51140e39f0bdb495b6872d9e73bb8d47203cd2e28eb2ecf2670bec6e287fe50.
+Postflight has no failed baseline/source/code hashes; all original results remain
+unchanged. Initial effective system is identical to the first H2. Final independent
+saved-content/feedback-propagation review remains in progress; satisfied is the
+runtime outcome, not Main's acceptance. Its explanation repeats the contested
+left12/right14 assertion, which requires checking against the actual saved text.
+
+The predeclared four-case H2 regression started serially after repeat terminal at
+.runs/task025/holdout-h2, one artifact_grounded invocation per frozen case in file
+order. The batch reads only the inputs file, not labels/notes; same code/prompt/
+model/tool/schema settings remain frozen. No Task026 runtime implementation or
+candidate paid call has started. Completed observed usage including the repeat is
+302responses/18491861tokens; the in-flight four-case regression is excluded.
