@@ -15,7 +15,8 @@ async def test_effective_native_prompt_and_single_review_entry(ws):
         assert reviewer_prompt() in system
         assert GRADER_SYSTEM_PROMPT in system
         assert "# Report review responsibility" in system
-        assert "analyze_source_image" in system
+        # Capabilities are verified from the bound tool schemas below; the role
+        # prompt need not name or prescribe any particular tool.
         return verdict("satisfied")
 
     driver = Driver(coordinator=[save("Daytime access only [s]."), select, AIMessage("Ready")],
