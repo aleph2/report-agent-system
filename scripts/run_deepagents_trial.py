@@ -49,8 +49,9 @@ async def main(args):
         return
     if store.get("task006_call_intent") and not args.resume:
         raise RuntimeError("ALREADY_ATTEMPTED_INSPECT_CHECKPOINT_AND_RECEIPTS")
-    authorization = ("Task017: user authorized one isolated native review continuation with autonomous revision"
-                     if store.get("review_import017") else "user approved unlimited project GLM5.3 calls")
+    authorization = args.authorization_note or (
+        "Task017: user authorized one isolated native review continuation with autonomous revision"
+        if store.get("review_import017") else "user approved unlimited project GLM5.3 calls")
     store.set("task006_call_intent", {"authorization": authorization,
                                      "model": os.environ["REPORT_MODEL"], "resume": args.resume})
     store.event("trial_attempt_intent", {"model": os.environ["REPORT_MODEL"], "resume": args.resume})
@@ -76,6 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("--serve", action="store_true", help="Serve the workbench without starting a model run")
     parser.add_argument("--port", type=int, default=18140)
     parser.add_argument("--credential-container", default="hunan-highway-trial067-api-1")
+    parser.add_argument("--authorization-note", help="Record the existing user authorization for this invocation")
     args = parser.parse_args()
     if args.serve:
         import uvicorn

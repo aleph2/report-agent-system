@@ -48,3 +48,25 @@ independent review disposition in verification/018-reviewer-outcome-responsibili
 Finish by committing the scoped change with the configured Git author and showing
 the resulting prompt to the user. Distinguish changed instructions from verified
 model behavior.
+
+## Continuation after the user's correction
+
+The user asked why work stopped after implementation. Main acknowledges that the
+intended outcome includes real verification of the revised grader, and continues
+with one isolated native review/revision invocation using the unchanged GLM-5.3
+configuration. This supersedes the earlier implementation-only scope interpretation;
+it is not a new restriction inferred from that historical paragraph.
+
+Reuse the proven Task017 preparation path on the same pristine Task016 pre-review
+checkpoint. New destination: .runs/task018/review-continuation. Preserve Task016
+and Task017, sources/OCR and original results. No manual finding list or repairs
+enter runtime. Grader and author choose their actions under the native loop.
+Record this task's authorization accurately in launcher metadata, freeze code and
+prompt identities before launch, verify actual sent prompts, then independently
+assess any native feedback and revisions. Reuse valid Task017 content evidence;
+do not equate a native satisfied verdict with corrected report content.
+
+Read-only resume_assessment checks isolation/readiness. Independent postrun_review
+checks actual content after completion. These are development verification roles,
+not added runtime agents. Preserve meaningful failed outcomes without blind paid
+retries or an automatic sequence of prompt changes and more calls.
