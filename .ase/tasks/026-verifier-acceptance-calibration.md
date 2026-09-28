@@ -1,7 +1,7 @@
 # Task026: explicit acceptance boundaries for a limited draft
 
-2026-09-29. Prepared while Task025's unchanged H2 repeat is running. No Task026
-runtime implementation or model invocation has occurred. User approved the full
+2026-09-29. Originally predeclared while Task025's unchanged H2 repeat was running;
+at that point no Task026 runtime implementation or model invocation had occurred. User approved the full
 final-verifier approach and continued paid experiments/email communication.
 
 Stage: critical-risk validation on the real review/revision trunk. Task025 H1

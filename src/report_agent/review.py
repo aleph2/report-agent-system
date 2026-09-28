@@ -65,6 +65,9 @@ def reviewer_prompt(experiment=None):
     if experiment and experiment["grounded_verdict"]:
         from .review_context import GROUNDING_INSTRUCTION
         prompt += "\n\n# Public verdict grounds\n\n" + GROUNDING_INSTRUCTION
+    if experiment and experiment.get("calibrated_acceptance"):
+        from .review_context import ACCEPTANCE_INSTRUCTION
+        prompt += "\n\n# Acceptance boundaries\n\n" + ACCEPTANCE_INSTRUCTION
     return prompt
 
 

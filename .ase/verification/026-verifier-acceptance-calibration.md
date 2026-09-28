@@ -39,3 +39,33 @@ No candidate configuration has been bound and no Task026 runtime change or paid
 invocation has occurred at this point. Code/prompt/labels will be frozen and actual
 wire input checked before interpreting candidate outcomes. Preparation is not a
 successful review, recovery experiment or report improvement.
+
+## Implementation and independent development review
+
+After Task025's repeat and four-case H2 batch both exited0, Main implemented the
+optional calibrated_acceptance flag. Its true value is valid only with artifact
+input and grounded_verdict=true. Existing two-key configurations remain untouched;
+the launcher adds the key only when explicitly selected. The single frozen English
+paragraph is appended to the effective system prompt. Existing locked fresh-fork
+binding, resume identity, target configuration and prompt hash provide isolation;
+old approvals cannot become candidate approvals. No tool, schema, author permission,
+loop, model parameter or source-table change is bundled with it. The diagnostic
+adds one arm and an explicitly named raw-file input hash beside its existing
+newline-normalized text hash; it never reads label files.
+
+Main ran focused offline verification:38 tests passed in24.39s across acceptance
+calibration, context, effective reviewer entry, native feedback/revision behavior
+and diagnostic isolation. These check implementation behavior, including invalid
+configuration no-write, immutable reopen binding, exact native prompt/target,
+unchanged tool schemas and old-approval invalidation. They are not quality evidence
+or an actual in-flight interruption recovery experiment.
+
+Independent alignment_review then examined the diff, task packet and test logic
+read-only. It found no material alignment deviation or blocking implementation
+finding: paragraph matches predeclaration, defaults/old configuration stay intact,
+configuration and effective prompt bind the target, tools/schema/author loop are
+unchanged, and the runner preserves alternating serial order and label separation.
+It did not run tests, inspect frozen case text/labels or assess report quality.
+Main accepts that scoped finding; no extra runtime gate is introduced. Its minor
+documentation observation is addressed by labeling the task packet's initial
+not-yet-implemented statement as historical predeclaration.
