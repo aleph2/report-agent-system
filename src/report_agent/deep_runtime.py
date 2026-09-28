@@ -476,6 +476,9 @@ async def project_agent(workspace, model_factory=None, knowledge=None, rules="")
 
 async def run_report(workspace, model_factory=None, *, knowledge=None):
     with workspace.store.run_lock():
+        if model_factory is None:
+            from .deep_models import bind_grader_trial
+            bind_grader_trial(workspace.store)
         workspace.initialize()
         store = workspace.store
         rules = load_rules()
