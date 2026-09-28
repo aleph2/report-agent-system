@@ -62,3 +62,11 @@ Official sources opened2026-09-28:
 - https://www.alibabacloud.com/help/en/model-studio/deepseek-api (provider thinking,
   high effort and output limit). Provider reference takes precedence over community
   blog parameter descriptions; a synthetic actual call will verify acceptance.
+
+Completion2026-09-28: implementation/protocol/offline regressions, both fixed input
+cases and the one native isolated continuation are complete. All three report
+evaluations returned satisfied, with no target correction or author revision.
+Grader-quality acceptance remains open underP2-023-R01; the comparison itself is
+recorded, not a model promotion. Main accepts the independent alignment and content
+findings; details in023-deepseek-grader-comparison.md and023-postrun-content.md.
+No new paid rerun or global provider/model change is queued by this task.
