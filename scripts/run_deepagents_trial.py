@@ -32,6 +32,11 @@ async def main(args):
     if getattr(args, "grader_model", None):
         os.environ["REPORT_GRADER_MODEL"] = args.grader_model
     store = Store(args.project)
+    if getattr(args, "review_input_mode", None):
+        from report_agent.review_context import configure_context_experiment
+        selected = {"input_mode": args.review_input_mode,
+                    "grounded_verdict": bool(getattr(args, "grounded_verdict", False))}
+        configure_context_experiment(store, selected)
     if args.manifest:
         with store.run_lock():
             store.initialize(json.loads(args.manifest.read_text(encoding="utf-8")))
@@ -86,7 +91,13 @@ if __name__ == "__main__":
     parser.add_argument("--authorization-note", help="Record the existing user authorization for this invocation")
     parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash"],
                         help="Grader-only trial override; DeepSeek requires a fresh isolated review fork")
+    parser.add_argument("--review-input-mode", choices=["transcript", "artifact"],
+                        help="Opt into a context comparison on a fresh isolated review fork")
+    parser.add_argument("--grounded-verdict", action="store_true",
+                        help="Separate experimental public-grounding instruction (requires input mode)")
     args = parser.parse_args()
+    if args.grounded_verdict and not args.review_input_mode:
+        parser.error("--grounded-verdict requires --review-input-mode")
     if args.serve:
         import uvicorn
         from report_agent.webapp import create_app

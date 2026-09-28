@@ -1,7 +1,7 @@
 """Thin evidence and persistence adapter for DeepAgents' native rubric loop."""
 from pathlib import Path
 from inspect import iscoroutinefunction
-from typing import NotRequired
+from typing import Literal, NotRequired
 
 from deepagents import RubricMiddleware
 from deepagents.middleware.rubric import GRADER_SYSTEM_PROMPT, RubricState
@@ -58,10 +58,14 @@ def load_rules():
     return (Path(__file__).parent / "rules" / "report-review.md").read_text(encoding="utf-8")
 
 
-def reviewer_prompt():
+def reviewer_prompt(experiment=None):
     """Specialist purpose plus the installed framework's full grading contract."""
     role = (Path(__file__).parent / "rules" / "report-reviewer.md").read_text(encoding="utf-8")
-    return role + "\n\n# Native grading contract\n\n" + GRADER_SYSTEM_PROMPT
+    prompt = role + "\n\n# Native grading contract\n\n" + GRADER_SYSTEM_PROMPT
+    if experiment and experiment["grounded_verdict"]:
+        from .review_context import GROUNDING_INSTRUCTION
+        prompt += "\n\n# Public verdict grounds\n\n" + GROUNDING_INSTRUCTION
+    return prompt
 
 
 def export_configuration(workspace):
@@ -77,8 +81,20 @@ def observation_version(workspace, draft_id):
 
 
 def native_review(workspace, model, tools, rules, middleware=()):
+    from .review_context import ReviewContext, experiment_config
     context = {}
-    system_prompt = reviewer_prompt()
+    experiment = experiment_config(workspace.store)
+    system_prompt = reviewer_prompt(experiment)
+    review_context = ReviewContext(workspace) if experiment else None
+
+    def read_review_context(section: Literal["assignment", "state", "history"], offset: int = 0, limit: int = 12000) -> dict:
+        """Read this attempt's assignment, state or public history. Offset/limit are
+        characters; limit is 1..16000. Follow next_offset for the complete section.
+        Assignment includes the current goal, real feedback and human decisions.
+        State includes source catalog and saved-result metadata. History contains
+        public messages and tool calls; author assertions are not verified facts.
+        """
+        return review_context.read(section, offset, limit)
 
     def read_review_export(offset: int = 0, limit: int = 30) -> dict:
         """Read the exact DOCX text/structure snapshot bound to this grading attempt.
@@ -100,6 +116,8 @@ def native_review(workspace, model, tools, rules, middleware=()):
                        reviewer_prompt_hash=digest(system_prompt),
                        grader_model=getattr(model, "model_name", None),
                        export_configuration_hash=export_configuration(workspace))
+        if experiment:
+            context["review_context_experiment"] = experiment
         if draft_id:
             draft = workspace.result(draft_id)
             context["observation_version"] = observation_version(workspace, draft_id)
@@ -114,16 +132,29 @@ def native_review(workspace, model, tools, rules, middleware=()):
                                docx_sha256=preview["docx"]["sha256"], title=draft["title"])
         # The native grader truncates transcript excerpts; this small final observation
         # identifies the exact artifact being assessed.
+        if review_context:
+            packet = review_context.capture(messages, context)
+            if experiment["input_mode"] == "artifact":
+                return [HumanMessage(content=encode(packet))]
         return [*messages, HumanMessage(content=encode({"application_review_target": context,
                 "observation": "This is the selected saved report and pinned export for assessment. "
                 "No selected draft means no report is available for acceptance. "
-                "Project scope, changes, issues and corrections are available in the current project state."}))]
+                "Project scope, changes, issues and corrections are available in the current project state."
+                + (" Full assignment, state and public history are also available through read_review_context." if experiment else "")}))]
 
     def bind_target(state, iteration):
         key = state["_current_grading_run_id"] + ":" + str(iteration)
         targets = workspace.store.get("rubric_targets", {})
         if key in targets and targets[key] != context:
             raise RuntimeError("RUBRIC_TARGET_IDENTITY_CHANGED")
+        if review_context:
+            snapshots = workspace.store.get("review_context_snapshots", {})
+            snapshot = {"context_sha256": review_context.snapshot_sha256,
+                        "sections": dict(review_context.sections)}
+            if key in snapshots and snapshots[key] != snapshot:
+                raise RuntimeError("REVIEW_CONTEXT_SNAPSHOT_CHANGED")
+            snapshots.setdefault(key, snapshot)
+            workspace.store.set("review_context_snapshots", snapshots)
         targets.setdefault(key, dict(context))
         workspace.store.set("rubric_targets", targets)
         workspace.store.event("rubric_review_started", {"key": key, **context})
@@ -137,7 +168,8 @@ def native_review(workspace, model, tools, rules, middleware=()):
             "iteration": evaluation["iteration"], "result": evaluation["result"]})
 
     grader_tools = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
-                    else StructuredTool.from_function(t) for t in [*tools, read_review_export]]
+                    else StructuredTool.from_function(t) for t in
+                    [*tools, read_review_export, *([read_review_context] if experiment else [])]]
     return FeedbackRubric(model=model, tools=grader_tools, system_prompt=system_prompt,
                             grader_middleware=list(middleware),
                             target_observation=lambda: dict(context),
@@ -173,11 +205,14 @@ def review_delivery(workspace, draft_id):
     body_hash = sha256(draft["body"].encode("utf-8")).hexdigest()
     rule_hash = workspace.store.get("active_rubric_hash")
     prompt_hash = workspace.store.get("active_reviewer_prompt_hash")
+    from .review_context import experiment_config
+    experiment = experiment_config(workspace.store)
     candidates = [r for r in workspace.store.get("rubric_reviews", [])
                   if r["target"].get("draft_id") == draft_id
                   and r["target"].get("draft_body_sha256") == body_hash
                   and r["target"].get("rubric_hash") == rule_hash
                   and (not prompt_hash or r["target"].get("reviewer_prompt_hash") == prompt_hash)
+                  and r["target"].get("review_context_experiment") == experiment
                   and r["target"].get("export_configuration_hash") == export_configuration(workspace)]
     review = candidates[-1] if candidates else None
     status = "unreviewed_draft"
