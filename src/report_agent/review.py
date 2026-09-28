@@ -112,11 +112,11 @@ def native_review(workspace, model, tools, rules, middleware=()):
                                preview_version=preview["preview_version"],
                                docx_sha256=preview["docx"]["sha256"], title=draft["title"])
         # The native grader truncates transcript excerpts; this small final observation
-        # identifies the exact artifact its read tools must inspect.
+        # identifies the exact artifact being assessed.
         return [*messages, HumanMessage(content=encode({"application_review_target": context,
-                "observation": "Inspect this exact saved report and pinned preview with tools. "
+                "observation": "This is the selected saved report and pinned export for assessment. "
                 "No selected draft means no report is available for acceptance. "
-                "Use project_status for actual scope, change evidence, issues and corrections."}))]
+                "Project scope, changes, issues and corrections are available in the current project state."}))]
 
     def bind_target(state, iteration):
         key = state["_current_grading_run_id"] + ":" + str(iteration)
