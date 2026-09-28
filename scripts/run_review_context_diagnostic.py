@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from hashlib import sha256
 from datetime import datetime, timezone
 import json
 import os
@@ -30,6 +31,8 @@ ARMS = {
     "transcript": {"input_mode": "transcript", "grounded_verdict": False},
     "artifact": {"input_mode": "artifact", "grounded_verdict": False},
     "artifact_grounded": {"input_mode": "artifact", "grounded_verdict": True},
+    "artifact_grounded_calibrated": {"input_mode": "artifact", "grounded_verdict": True,
+                                      "calibrated_acceptance": True},
 }
 
 
@@ -124,6 +127,7 @@ async def main(args):
     args.output.mkdir(parents=True, exist_ok=False)
     write_json(args.output / "batch.json", {"authorization": args.authorization_note,
         "input_sha256": sha(args.inputs.read_text(encoding="utf-8")),
+        "input_file_sha256": sha256(args.inputs.read_bytes()).hexdigest(),
         "system_prompts": {arm: reviewer_prompt(ARMS[arm]) for arm in args.arms},
         "rubric": load_rules(), "order": [[c["id"], a, r] for c, a, r in order],
         "runner_sha256": sha(Path(__file__).read_text(encoding="utf-8"))})

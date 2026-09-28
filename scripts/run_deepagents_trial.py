@@ -36,6 +36,8 @@ async def main(args):
         from report_agent.review_context import configure_context_experiment
         selected = {"input_mode": args.review_input_mode,
                     "grounded_verdict": bool(getattr(args, "grounded_verdict", False))}
+        if getattr(args, "calibrated_acceptance", False):
+            selected["calibrated_acceptance"] = True
         configure_context_experiment(store, selected)
     if args.manifest:
         with store.run_lock():
@@ -95,9 +97,13 @@ if __name__ == "__main__":
                         help="Opt into a context comparison on a fresh isolated review fork")
     parser.add_argument("--grounded-verdict", action="store_true",
                         help="Separate experimental public-grounding instruction (requires input mode)")
+    parser.add_argument("--calibrated-acceptance", action="store_true",
+                        help="Experimental acceptance-boundary emphasis (requires artifact input and grounding)")
     args = parser.parse_args()
     if args.grounded_verdict and not args.review_input_mode:
         parser.error("--grounded-verdict requires --review-input-mode")
+    if args.calibrated_acceptance and (args.review_input_mode != "artifact" or not args.grounded_verdict):
+        parser.error("--calibrated-acceptance requires --review-input-mode artifact and --grounded-verdict")
     if args.serve:
         import uvicorn
         from report_agent.webapp import create_app
