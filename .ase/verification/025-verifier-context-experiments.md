@@ -49,7 +49,8 @@ excerpt limits, distinction between framework HumanMessages and operator decisio
 allowlisted public history, server-bound access and immutable experimental identity.
 Main implemented those as context snapshots/target hashes, explicit section paging,
 source metadata, no additional_kwargs serialization, fixed workspace closure and
-fresh-fork/resume guards. Detailed implementation review remains in progress.
+fresh-fork/resume guards. Detailed implementation review completed; dispositions
+and final scoped checks are recorded below.
 
 Current changes are opt-in and do not replace the production default. Two controlled
 arms both add the same context tool, so H1 cannot be attributed directly to the
@@ -87,3 +88,73 @@ Two real continuations are prepared at `.runs/task025/native-transcript` and
 new OCR, no prior review projection, same pre-review parent and unchanged baseline
 hashes. Public import receipts identify different isolated run IDs; no models were
 invoked by preparation. Both use the same added context tool in the actual contrast.
+
+## H1 completed synthetic comparison
+
+All eight planned sessions completed, with68 observed model responses and548943
+tokens (transcript33/269980; artifact35/278963), with no execution errors or missing
+response usage. Independent full-content scoring is in025-holdout-review.md. Both
+arms correctly accepted the two eligible cases and rejected the two material-error
+cases. Actual requests, source returns and verdict grounds were checked, not only
+labels. All eight system hashes match the frozen settings. Input/label hashes did
+not change. These four small synthetic cases do not discriminate the main verdict
+ability of the two arms; they do not establish general or engineering accuracy.
+
+Main accepts the independent findings and keeps them open:
+
+- P2-025-H1-01: transcript's packaging feedback permits leaving a determinate,
+  correctable error unresolved. Correct core detection remains valid. No writer
+  acted on this nested diagnostic; it blocks a reliable-correction claim, not
+  continuing the isolated experiments. Disposition: assess feedback and actual
+  saved revisions separately; do not feed the independent answer into the model.
+- P3-025-H1-02: transcript's scan feedback infers an unsupported approval status.
+  The unexecuted-work contradiction is valid. Disposition: track this unsupported
+  addition and ensure future saved changes are not accepted merely because the
+  core verdict was correct. It does not justify stopping this iteration.
+
+The two feedback differences are single observations, not a causal or stable
+advantage for artifact mode. The labels remain independent of model context.
+
+## H1 real native comparison in progress
+
+Code was frozen at9b2b73e in both prepared forks. Transcript control completed:
+22 grader responses,1710522 tokens, no missing response usage, iteration0 satisfied
+on all5 criteria. Four original saved results remain unchanged; no author revision
+occurred. Public postflight checks preserve baseline files, sources and29 frozen
+code files. Its broad positive explanation is not accepted as proof of report
+correctness. Independent content/evidence review is underway. Artifact continuation
+started only after the control finished, with the same model/rules/tools and fresh
+original checkpoint. Its result is still pending; no quality gain is claimed.
+
+## Predeclared H2 follow-up
+
+Before the H1 artifact verdict is available, Main declares one fresh real native
+artifact+grounded continuation as the next diagnostic, compared with artifact's
+unchanged-role result. Use the GROUNDING_INSTRUCTION already frozen at9b2b73e,
+same sources/checkpoint/model/tools/rubric/schema and ordinary author feedback loop.
+No H1 output, independent finding or label enters this new workspace. This tests
+the incremental public-grounding requirement, not a new model or output schema.
+
+Run serially after H1 finishes. If a valid gain appears, repeat the discriminating
+condition and replay the four frozen synthetic cases under artifact_grounded for
+non-regression and false-rejection checks. If it again produces only unsupported
+global acceptance, retain that failure and revise the next hypothesis rather than
+multiply nondiscriminating small-case calls. This is a declared information-value
+branch, not a new spending cap or a quality pass. Native runtime errors are diagnosed
+before any replay; existing authorization remains in force.
+
+## Interim public observations, not final candidate acceptance
+
+Independent review025-native-review.md confirms P2-025-N01: transcript's full
+acceptance leaves F01/F02/F03/N01/X21 unchanged despite complete body access.
+Main accepts the finding and its scope: blocks quality promotion and treating
+disputed inputs as established, does not block this isolated paired continuation.
+Containment remains explicit failure records and no automatic engineering sign-off;
+Main owns the next diagnosis and the report producer owns any actual revision.
+
+While artifact is still running, its first public GraderResponse requests revision
+for omitted candidate slopes and contradictory inclusion rules (related to F02).
+Author/coordinator responses have begun. This is a change in observed feedback,
+not yet a verified correction or a causal quality claim. Complete native execution
+and independent content checking remain necessary. No in-flight intervention or
+developer findings have been supplied to the author or grader.
