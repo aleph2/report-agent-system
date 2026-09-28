@@ -71,3 +71,26 @@ Private mail receipts and source/model data stay in ignored .analysis/.runs.
 Official extraction references consulted (2026-09-28):
 - https://pypdf.readthedocs.io/en/6.19.0/user/extract-text.html
 - https://github.com/jsvine/pdfplumber (table geometry, cells and extraction limits)
+
+## Post-run bounded diagnostic (declared before calls)
+
+Native run completed satisfied with no revision; its20actual page supplements did
+not include designp97. Do not blindly repeat this same invocation. Separately test
+whether the *automatic* representation is understandable when actually supplied.
+Reuse Task021 flat arm's29blocks/5documents, unchanged broad commission, complete
+original40 and quantity-corrected6 reports, role/rubric and GLM settings. Add the
+exact unedited runtime source_table_views for p97 as a separate derived supplement;
+all original flat blocks remain. No manual table, target instruction, old verdict,
+or reference label enters input. This necessarily makes that page more salient;
+record this limit rather than treating it as proof of one unique cause.
+
+Two fresh sessions, one initial call per report, native schema continuation allowed,
+stop on error. Original40 success requires explicit source-supported column/count
+mismatch; top-level status alone is not success. Corrected6: supported match,
+not-mentioned and false allegation are separate outcomes. Both retain other defects.
+Freeze full input and code before paid calls; inspect actual complete messages and
+safe usage. Existing Task021 flat/manual arms are historical references, not new
+replications or a causal estimate. No evidence tools/outer revision loop here:
+this tests automatic-source interpretation, never autonomous coverage or production
+quality acceptance. This diagnostic is within current paid authorization; production
+code/state and failed native result remain unchanged.
