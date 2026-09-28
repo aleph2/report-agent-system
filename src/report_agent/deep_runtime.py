@@ -476,6 +476,8 @@ async def project_agent(workspace, model_factory=None, knowledge=None, rules="")
 
 async def run_report(workspace, model_factory=None, *, knowledge=None):
     with workspace.store.run_lock():
+        from .review_context import bind_context_experiment, experiment_config
+        bind_context_experiment(workspace.store)
         if model_factory is None:
             from .deep_models import bind_grader_trial
             bind_grader_trial(workspace.store)
@@ -484,7 +486,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None):
         rules = load_rules()
         if rules:
             store.set("active_rubric_hash", digest(rules))
-            store.set("active_reviewer_prompt_hash", digest(reviewer_prompt()))
+            store.set("active_reviewer_prompt_hash", digest(reviewer_prompt(experiment_config(store))))
         if project_state(workspace)["status"] == "reviewed_draft" and not store.get("checkpoint_resume"):
             return project_state(workspace)
         # Do not throttle the framework's checkpoint executor: its writes have their
