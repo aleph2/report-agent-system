@@ -90,3 +90,8 @@ in this discussion:
 Clear outcomes, concise instructions and empirical assessment are design guidance.
 OpenAI model guidance is not evidence that this change improves GLM-5.3. No new
 model comparison, paid calibration set or end-to-end trial was run in this task.
+
+Subsequent user steering requested continued real verification. The isolated
+invocation and its negative content outcome are recorded separately in
+018-real-review-continuation.md and 018-postrun-content.md; the preceding sections
+remain the evidence from the earlier implementation-only step.
