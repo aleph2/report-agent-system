@@ -1,0 +1,12 @@
+{
+  "synthetic": true,
+  "goal": "Prepare a reusable, source-cited materials note for the pedestrian access section of the fictional Cedar maintenance report. Cover only access arrangements, timing and limits; do not design new safety measures or resolve conflicting sources.",
+  "sources": [
+    {"id": "brief", "title": "Synthetic project brief", "coverage": "complete", "content": "Fictional Cedar maintenance project. The report compiles supplied access arrangements, not structural assessment. Construction calculations are outside scope."},
+    {"id": "access", "title": "Synthetic access arrangements", "coverage": "complete", "content": "From 08:00 to 17:00, pedestrians use the east footpath. The west footpath is closed during maintenance. These arrangements apply to the maintenance week only."},
+    {"id": "notice", "title": "Synthetic operational notice", "coverage": "complete", "content": "Outside 08:00 to 17:00, this notice does not establish the pedestrian access arrangement. Do not infer a night-time route from the daytime arrangement."}
+  ],
+  "existing_artifacts": [
+    {"title": "Cedar access materials note", "body": "During the maintenance week from 08:00 to 17:00, pedestrians use the east footpath; the west footpath is closed [access]. No night-time arrangement is established by these sources [notice]. The scope is compilation of supplied access arrangements, not structural assessment or new design [brief].", "source_ids": ["brief", "access", "notice"]}
+  ]
+}
