@@ -137,6 +137,7 @@ class Catalog:
                 for first, last in windows.items():
                     matches.append({"source_id": source["id"], "ordinal": rows[first][0],
                         "ordinals": [r[0] for r in rows[first:last + 1]],
+                        "locators": [r[1] for r in rows[first:last + 1]],
                         "locator": rows[first][1] if first == last else rows[first][1] + " through " + rows[last][1],
                         "text": content[starts[first]:starts[last] + len(rows[last][2])]})
         page, total = matches[offset:offset + limit], len(matches)

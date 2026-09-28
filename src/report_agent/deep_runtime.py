@@ -164,8 +164,14 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         return project_view(workspace)
 
     def read_source_page(source_id: str, offset: int = 0, limit: int = 10) -> dict:
-        """Read source text blocks and locations; next_offset identifies unread content."""
-        return catalog.read(source_id, offset, limit)
+        """Read frozen text blocks with locations; next_offset identifies unread content.
+
+        source_table_views adds mechanical PDF table rows for the returned physical
+        pages when available. These separate whole-page supplements may be incomplete;
+        they do not replace the original text, perform OCR or verify column meanings.
+        """
+        from .source_tables import with_source_tables
+        return with_source_tables(workspace, catalog.read(source_id, offset, limit))
 
     def search_sources(query: str, offset: int = 0, limit: int = 10,
                        source_id: str | None = None) -> dict:
@@ -174,8 +180,11 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         Returns actual searched source IDs, located matches and next_offset. Omit
         source_id to search all current sources. No match is not proof of absence;
         read_source_page can read a specific historical version when needed.
+        source_table_views adds unverified mechanical PDF table rows from located
+        pages, separately from literal matches. No new OCR or semantic interpretation.
         """
-        return catalog.search(query, offset, limit, source_id=source_id)
+        from .source_tables import with_source_tables
+        return with_source_tables(workspace, catalog.search(query, offset, limit, source_id=source_id))
 
     def calculate(terms: list[list[str]]) -> dict:
         """Add the products of decimal factors: [["50","0.03"],["-0.2"]] gives 1.30.
@@ -188,8 +197,9 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
     def inspect_source_page(source_id: str, page: int) -> dict:
         """Inspect a 1-based physical PDF page, not a text-block offset or printed page label.
 
-        Returns original-page text, available frozen extraction and a source-page:// image
-        reference usable in Markdown figures. No new OCR and no visual interpretation.
+        Returns original-page text, frozen extraction, mechanical table rows and a
+        source-page:// image reference usable in Markdown figures. Table geometry
+        is unverified and may be incomplete. No new OCR or visual interpretation.
         """
         from .document_tools import source_page_info
         return source_page_info(workspace, source_id, page)
