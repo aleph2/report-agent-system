@@ -158,3 +158,109 @@ Author/coordinator responses have begun. This is a change in observed feedback,
 not yet a verified correction or a causal quality claim. Complete native execution
 and independent content checking remain necessary. No in-flight intervention or
 developer findings have been supplied to the author or grader.
+
+Independent completed-iteration review now confirms the two missing-candidate
+findings have support, while P2-025-N02 identifies a wrong implication in the same
+feedback: the26m candidate cannot satisfy the cited below20m clause merely by
+being potentially unstable. Main accepts this local feedback defect; it blocks
+accepting that implication as established, not the isolated revision continuation.
+Final saved text must be checked for propagation. In this artifact iteration,
+all907 export blocks and design p97's complete automatic table actually arrived,
+yet F01 and other known defects were not reported. This narrows the diagnosis:
+more retrieval alone does not explain or cure these remaining misses. It does not
+prove a unique attention/prompt/model cause. The producer has now saved a new
+draft; its correctness and final native re-review remain pending.
+
+## H1 native execution completed; H2 started
+
+Artifact finished with92 observed responses (79grader,13coordinator),6766415
+tokens, no missing response usage/errors. Iteration0 requested revision; two new
+drafts were saved; iteration1 accepted final857eb650-96c3-4ef7-a156-f6fdeb5f9341,
+raw body SHA2564b85eade0a7a1babd42a71b6f3863da721fe9e4e0807424877642bd7c7deb9b9.
+The selected target/preview identify that final version. All baseline/source/code
+postflight hashes match and all4 original results are unchanged. Independent final
+content/revision/non-regression review is underway; native acceptance is not ours.
+
+Both H1 native arms actually sent system SHA256
+f48d315c8246f9310a0cf27cd7308d14df099715531590958a5a1901f7f861b5.
+Their initial human inputs were31013 and5791characters respectively. Grader
+responses reportdeepseek-v4.1-flash; artifact's author responses reportglm-5.3.
+Differences in evidence chosen, reading depth and length are outcomes of this input
+organization experiment, not independently held variables or proof of a unique cause.
+
+H2 started serially after H1 exited0, using preparednative-artifact-grounded from
+the same original boundary. Actual first system equals reviewer_prompt with the
+frozen grounding switch true, SHA256
+9fc8bbdf0d34697901c5a0dc1253a0acbd974581e3d2c2419b2734b9c661bbd0,
+2741characters; human5790characters. H2 received no H1 revisions/developer findings.
+It remains running; do not claim a result or improvement yet.
+
+## Conditional H3 design advice
+
+Independentalignment_review reviewed a possible later compact source-table view,
+read-only and without inspecting in-flight author work. It supports a separate
+representation experiment after H2, not a diagnosis that formatting is the root
+cause. Reuse extractor, selected pages, original membership/hash checks and full
+text. Preserve raw cell text/order/empty-vs-null and locators. Geometric spans must
+come from complete extractor cell rectangles/grid boundaries; existing nonempty
+bounds alone cannot recover empty cells, and null must not be guessed as a merge.
+Do not semantically fill headers/units/values, filter drawing-frame candidates or
+hardcodep97. Full raw view/source remains reachable. Prefer unchanged tool catalog;
+any added parameter/tool is a separate choice-space factor. Test horizontal/vertical
+and empty merges, condition/value relationships, ambiguous geometry, and an
+independent unseen table. H3 has not been implemented or run in this record.
+
+## H1 final content disposition and H2 first outcome
+
+Independent H1 final review confirms a real F02 scope/coverage revision and
+preserved six original arithmetic totals. P2-025-N02's wrong26m implication was
+not adopted: the author explicitly distinguishes literal criteria from a pending
+conservative extension. Main records this containment without erasing the feedback
+defect. P2-025-N03 is accepted and open: newly added groundwater/design-completeness/
+investigation-point scores lack the stated mapping or contradict the report's own
+bands. F01/F03/N01/X21 also remain. This blocks full-quality/new-score acceptance,
+not continued isolated diagnosis. Main owns follow-up; the producer owns repairs.
+No global H1 superiority or quality promotion is claimed from this one pair.
+
+H2 completed28 grader responses/2770731tokens, no missing response usage/errors,
+iteration0 satisfied and no author revision. It explicitly identifies40 as the
+inclinometer count and6 as settlement plates, but describes the mislabel as
+non-consequential and accepts the staged report. This is new public recognition
+evidence, not corrected content or reliable acceptance. The separate independent
+H2 review is underway, including its additional58.05 arithmetic assertion.
+
+To follow the predeclared discriminating-observation branch, Main will repeat H2
+once from the same fresh original boundary and run the four frozen synthetic
+cases once under artifact_grounded, without changing code, prompt, labels or
+sources. The first outcome is retained in full; the repeat cannot replace it.
+This checks whether the recognition/acceptance behavior recurs and whether the
+new instruction preserves appropriate acceptance on the small controls. It does
+not claim a quality gain or require acceptance of every typo. If the repeat differs,
+record variability rather than selecting the better result. H3 remains conditional;
+the newly exposed judgment/calibration issue may be the higher-value next factor.
+
+Independent025-grounding-review.md now confirms H2's real F01 recognition and
+accepts neither the unsupported materiality waiver nor blanket acceptance. Main
+accepts P2-025-G01/G02, open: source correctness/recognition and commissioned-use
+judgment must be scored separately; F02/F03/N01/X21 remain. Scope is this frozen
+report/trial; no unique global cause is claimed. They block quality promotion,
+not the declared repeat or controlled draft review. No repair occurred.
+
+Main also accepts P3-025-G03: the public phrase exact58.05 is inaccurate. Exact
+7024/121=58.049586... rounds directly to the original correct58.0 at one decimal.
+58.05 is a possible intermediate rounded value; public evidence cannot establish
+the model's calculation route. Do not turn this into a false arithmetic allegation
+against the report. No writer received this as a correction in H2.
+
+First H2's postflight/export is retained; repeat started from fresh unchanged
+originals with import6c33bc52-8d59-493d-b1b1-9773b7ad59ee and grading run
+9ab60931-90db-4643-aeaa-1031085d7096. Its code freeze still covers the same29files.
+The completed-run usage so far is210observed responses/11796611tokens including
+13author responses; the in-flight repeat is not included. No hidden reasoning was
+needed for these judgments; public findings/observations and saved reports suffice.
+
+Focused independent design advice prioritizes a later acceptance-boundary emphasis
+over H3 at this point: H2 already recognized the quantity error. Task026 records the
+candidate outcome paragraph, no mandatory investigation steps, and fresh independent
+positive/minor-imperfection controls. This does not alter Task025's in-flight prompt
+or predeclared repeat/regressions. Main has not accepted any candidate quality gain.
