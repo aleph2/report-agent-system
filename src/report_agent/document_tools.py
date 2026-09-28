@@ -130,6 +130,23 @@ def _pdf_page(workspace, source_id, page):
     return source, data, reader, count
 
 
+def physical_page_number(locator):
+    """Read an explicit importer locator; block ordinals are never page numbers."""
+    if not isinstance(locator, str):
+        return None
+    if locator.startswith("{"):
+        try:
+            location, end = json.JSONDecoder().raw_decode(locator)
+        except ValueError:
+            return None
+        if not isinstance(location, dict) or not re.fullmatch(r"(?:; chars [1-9][0-9]*-[1-9][0-9]*)?", locator[end:]):
+            return None
+        page = location.get("page")
+        return page if type(page) is int and page > 0 else None
+    match = re.fullmatch(r"page ([1-9][0-9]*)(?:; chars [1-9][0-9]*-[1-9][0-9]*)?", locator)
+    return int(match[1]) if match else None
+
+
 def _frozen_page_blocks(workspace, source_id, page):
     """Match only the explicit physical-page locators written by our importers."""
     uri = workspace.store.path.resolve().as_uri() + "?mode=ro"
@@ -141,20 +158,7 @@ def _frozen_page_blocks(workspace, source_id, page):
         for ordinal, locator, text in db.execute(
             "SELECT ordinal, locator, text FROM source_blocks WHERE source_id=? ORDER BY ordinal", (source_id,)
         ):
-            physical_page = None
-            if locator.startswith("{"):
-                try:
-                    location, end = json.JSONDecoder().raw_decode(locator)
-                except ValueError:
-                    continue
-                if not re.fullmatch(r"(?:; chars [1-9][0-9]*-[1-9][0-9]*)?", locator[end:]):
-                    continue
-                physical_page = location.get("page")
-            else:
-                number = re.fullmatch(r"page ([1-9][0-9]*)(?:; chars [1-9][0-9]*-[1-9][0-9]*)?", locator)
-                if number:
-                    physical_page = int(number[1])
-            if type(physical_page) is int and physical_page == page:
+            if physical_page_number(locator) == page:
                 matched.append({"ordinal": ordinal, "locator": locator, "text": text})
     return matched
 
@@ -165,6 +169,8 @@ def source_page_info(workspace, source_id: str, page: int) -> dict:
     Text is the native text layer, not a new OCR result or figure interpretation.
     Printed page labels may differ from the physical index. No text is truncated.
     """
+    from .source_tables import source_tables
+
     source, _, reader, count = _pdf_page(workspace, source_id, page)
     try:
         text = reader.pages[page - 1].extract_text() or ""
@@ -185,6 +191,7 @@ def source_page_info(workspace, source_id: str, page: int) -> dict:
         "page_count": count,
         "locator": f"PDF physical page {page} of {count}",
         "native_text": text,
+        "table_view": source_tables(workspace, source_id, [page])[0],
         "frozen_text_blocks": _frozen_page_blocks(workspace, source_id, page),
         "frozen_text_note": "Existing stored extraction/OCR matched by explicit physical-page locator, not block ordinal. No OCR rerun; no match does not establish absent OCR.",
         "image_ref": f"source-page://{quote(source_id, safe='')}/{page}",
