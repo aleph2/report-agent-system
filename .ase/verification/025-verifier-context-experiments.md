@@ -321,3 +321,60 @@ order. The batch reads only the inputs file, not labels/notes; same code/prompt/
 model/tool/schema settings remain frozen. No Task026 runtime implementation or
 candidate paid call has started. Completed observed usage including the repeat is
 302responses/18491861tokens; the in-flight four-case regression is excluded.
+
+## Completed H2 follow-up: Main disposition
+
+Independent final repeat review confirms real F02 scope/handling improvements,
+preserved original six scoring rows/totals and correct4.1.2 citation. G05 did not
+propagate. G04 is partially contained by accurate detailed left/right subsegments
+and preservation of the12/14m source difference; do not erase that improvement
+or claim the whole left-side range was incorrectly copied. Summary grouping still
+does not validate all inputs of a shared assessment.
+
+Main accepts new P2-025-G06/G07 as open: the draft wrongly calls a candidate's
+available evidence only a general-summary entry despite existing detailedp142,
+and assigns the added candidate a groundwater score without evidence establishing
+the chosen band. Seven sums are arithmetically correct, but that does not validate
+R. G06 blocks using that absence claim as established; G07 blocks treating the
+new score/ranking as verified. The producer owns correction or accurate affected-
+claim limitation; Main owns the next development increment and quality decision.
+Neither blocks isolated trials or explicitly limited draft review. OldF01/F03/
+X21/N01 and final overbroad acceptance (G02) remain; no quality promotion follows.
+
+Independent target checking confirms full1027/1027 export blocks of the final body
+and the pinnedc51140e3 DOCX. The launcher's later export has SHA256
+eb70a036923d98e821643f36796a5ccd4a05ec00064df05fe3b3d754621816b7;
+only its two status/time paragraphs differ. This is not a new report revision or
+stale-target defect. Markdown raw CRLF bytes differ from normalized body hashing;
+body identity01908754 remains. No new visual page acceptance is claimed.
+
+The four H2 synthetic calls all exited0:33 responses/256901tokens, no missing
+response usage, actual system hashes match frozen H2 and actual response models
+aredeepseek-v4.1-flash. Main classifications match the earlier controls: two
+appropriate accepts and two revision requests. Detailed independent reason/gap
+assessment is pending separately. No author's corrective action occurs in these
+nested-grader cases. Task025 completed-run usage totals335responses/18748762tokens,
+including25author responses, and is not an exact billing statement.
+
+Task026 implementation began only after both repeat and synthetic H2 were terminal
+and the frozen Task025 postflight had been retained. No Task025 result was replaced
+or silently re-run under the new prompt. The next candidate is independently
+tracked; this report records a limited real revision gain and remaining failure,
+not a solved verifier or a unique prompt-root-cause claim.
+
+Independent four-case H2 review now confirms all four principal classifications
+with source/full-export evidence and actual prompt/input matching. Main accepts
+P2-025-H2-01: in the scan case, one failing criterion demands correcting a false
+completion assertion while another permits merely disclosing the conflict and
+leaving it to a human. It blocks treating that mixed repair advice as reliable;
+no author acted, so no propagated report defect is claimed. Producer-facing advice
+must distinguish known correctable facts from genuinely unresolved source limits.
+The next isolated prompt experiment may continue; this regression remains open.
+
+Main also accepts P3-025-H2-02: the library acceptance reason overstates an explicit
+draft/unapproved label that the body does not contain. It does not invalidate the
+otherwise supported acceptance or create a new approval requirement; preserve it
+as a limited explanation defect. The packaging feedback now requires the correct
+352 and does not repeat H1's inappropriate unresolved alternative. No false
+rejection of honest source conflict or outstanding installation was observed.
+These are four old regression cases, not fresh held-out generalization evidence.

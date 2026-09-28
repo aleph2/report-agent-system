@@ -69,3 +69,26 @@ It did not run tests, inspect frozen case text/labels or assess report quality.
 Main accepts that scoped finding; no extra runtime gate is introduced. Its minor
 documentation observation is addressed by labeling the task packet's initial
 not-yet-implemented statement as historical predeclaration.
+
+## Frozen candidate and first paired execution
+
+Implementation commit95d6781, author menglinsun <menglinsun@hotmail.com>. Runtime/
+rules/launchers are frozen across29 files for the upcoming native candidate.
+Strict case validation and all three input/label/note raw hashes match the earlier
+independent freeze; Main has not read their content/labels. Control system raw
+SHA2569fc8bbdf0d34697901c5a0dc1253a0acbd974581e3d2c2419b2734b9c661bbd0
+is byte-identical to Task025 H2; candidate system raw SHA256
+85caa16ad32d6ba3a8c772564ffc36a2e73e3e711594e9e0018ec37c71979476.
+Complete prompts/settings are saved under.analysis/task026/frozen-settings.json.
+
+The declared six-call batch started at.runs/task026/holdout-paired. Frozen case
+order638e15809d18,c1e4086f172b,2cdb1e2cc69b; first/third control→candidate,
+second candidate→control. Each is one independent native nested-grader invocation,
+serially, with no outer author revision loop. Outcome remains pending here. Native
+real-trunk execution will follow from the prepared original baseline, not from a
+synthetic case or a Task025 revised report.
+
+Milestone email sent in the established thread, message1a0ea6dc7e158dd3, containing
+the exact candidate paragraph, unchanged model/settings, completed Task025 result
+limits, implementation/test evidence and paired/native next steps. It does not
+claim either the new prompt or small controls establish real report reliability.
