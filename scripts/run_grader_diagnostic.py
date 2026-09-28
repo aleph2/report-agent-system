@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
 import re
 from datetime import datetime, timezone
 from importlib.metadata import version
@@ -142,6 +143,8 @@ async def main(args):
         "case_order": [case["id"] for case in data["cases"]], "input_hashes": data["hashes"],
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()})
     load_service_environment(args.credential_container)
+    if getattr(args, "grader_model", None):
+        os.environ["REPORT_GRADER_MODEL"] = args.grader_model
     for case in data["cases"]:
         print(json.dumps({"case_id": case["id"], "status": "starting"}), flush=True)
         receipt = await run_case(data, case, destination, real_factory)
@@ -157,4 +160,5 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--authorization-note", required=True)
     parser.add_argument("--credential-container", default="hunan-highway-trial067-api-1")
+    parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash"])
     asyncio.run(main(parser.parse_args()))

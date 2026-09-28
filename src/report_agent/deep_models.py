@@ -1,4 +1,4 @@
-"""Authorized GLM adapter; agent orchestration belongs to DeepAgents."""
+"""Authorized model adapters; agent orchestration belongs to DeepAgents."""
 from __future__ import annotations
 
 import os
@@ -68,7 +68,11 @@ def error_data(exc):
 
 
 class GLMChatOpenAI(ChatOpenAI):
-    """Preserve GLM's opaque tool-turn field using the existing SDK and harness."""
+    """Preserve opaque GLM/DeepSeek tool-turn fields with the SDK and harness.
+
+    The historical class name remains compatible with existing trials/checkpoints.
+    Provider-specific parameters are selected explicitly by configured_model.
+    """
 
     def _create_chat_result(self, response, generation_info=None):
         result = super()._create_chat_result(response, generation_info)
@@ -86,6 +90,8 @@ class GLMChatOpenAI(ChatOpenAI):
         payload = super()._get_request_payload(messages, stop=stop, **kwargs)
         if payload.get('stream') or 'messages' not in payload:
             raise ValueError('GLM_ADAPTER_REQUIRES_NONSTREAMING_CHAT_COMPLETIONS')
+        if self.model_name == 'deepseek-v4.1-flash' and 'max_completion_tokens' in payload:
+            payload['max_tokens'] = payload.pop('max_completion_tokens')
         for message, wire in zip(messages, payload['messages'], strict=True):
             if isinstance(message, AIMessage) and 'reasoning_content' in message.additional_kwargs:
                 reasoning = message.additional_kwargs['reasoning_content']
@@ -132,15 +138,43 @@ def configured_model(store, role):
     url, key = os.environ.get("REPORT_BASE_URL"), os.environ.get("REPORT_API_KEY")
     if name.lower().replace("-", "").replace(".", "") != "glm53" or not url or not key:
         raise RuntimeError("AUTHORIZED_GLM53_CONFIGURATION_REQUIRED")
+    if role in {"rubric_grader", "grader_diagnostic"} and "REPORT_GRADER_MODEL" in os.environ:
+        name = os.environ["REPORT_GRADER_MODEL"]
+        if name not in {"glm-5.3", "deepseek-v4.1-flash"}:
+            raise RuntimeError("AUTHORIZED_GRADER_MODEL_REQUIRED")
+    thinking = ({"enable_thinking": True} if name == "deepseek-v4.1-flash" else
+                {"thinking": {"type": "enabled", "clear_thinking": False}})
     # SDK retries only transport/transient status failures, not a failed business task.
     # Non-streaming responses do not execute partial tool calls. No whole-run deadline.
     return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
                       disable_streaming=True,
                       reasoning_effort="high", max_tokens=65536, max_retries=2,
-                      extra_body={"thinking": {"type": "enabled", "clear_thinking": False}},
+                      extra_body=thinking,
                       timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),
                       model_kwargs={"parallel_tool_calls": False},
                       callbacks=[LocalAudit(store, role)])
+
+
+def bind_grader_trial(store):
+    """Contain experimental model switching to a fresh isolated review fork.
+
+    Do not relabel an old GLM approval or switch a partially executed review.
+    Existing bindings survive recovery and require the same explicit selection.
+    This is an execution identity guard, not a content-review stage.
+    """
+    selected = os.environ.get("REPORT_GRADER_MODEL", os.environ.get("REPORT_MODEL", ""))
+    bound = store.get("grader_model_trial")
+    if bound:
+        if selected != bound["model"]:
+            raise RuntimeError("GRADER_MODEL_SWITCH_REQUIRES_FRESH_REVIEW_FORK")
+        return
+    if selected == "deepseek-v4.1-flash":
+        receipt = store.get("review_import017") or {}
+        if (receipt.get("next") != ["FeedbackRubric.after_agent"] or not store.get("checkpoint_resume")
+                or store.get("rubric_targets") or store.get("rubric_reviews")):
+            raise RuntimeError("GRADER_MODEL_SWITCH_REQUIRES_FRESH_REVIEW_FORK")
+        store.set("grader_model_trial", {"model": selected, "scope": "isolated_review_fork",
+                                        "import_attempt_id": receipt["attempt_id"]})
 
 
 def configured_vision_client():

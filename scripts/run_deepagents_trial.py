@@ -29,6 +29,8 @@ def load_service_environment(container):
 
 async def main(args):
     load_service_environment(args.credential_container)
+    if getattr(args, "grader_model", None):
+        os.environ["REPORT_GRADER_MODEL"] = args.grader_model
     store = Store(args.project)
     if args.manifest:
         with store.run_lock():
@@ -53,8 +55,12 @@ async def main(args):
         "Task017: user authorized one isolated native review continuation with autonomous revision"
         if store.get("review_import017") else "user approved unlimited project GLM5.3 calls")
     store.set("task006_call_intent", {"authorization": authorization,
-                                     "model": os.environ["REPORT_MODEL"], "resume": args.resume})
-    store.event("trial_attempt_intent", {"model": os.environ["REPORT_MODEL"], "resume": args.resume})
+                                     "model": os.environ["REPORT_MODEL"],
+                                     "grader_model": os.environ.get("REPORT_GRADER_MODEL", os.environ["REPORT_MODEL"]),
+                                     "resume": args.resume})
+    store.event("trial_attempt_intent", {"model": os.environ["REPORT_MODEL"],
+                                        "grader_model": os.environ.get("REPORT_GRADER_MODEL", os.environ["REPORT_MODEL"]),
+                                        "resume": args.resume})
     status = await run_report(Workspace(store))
     delivery = status.get("delivery")
     path = None
@@ -78,6 +84,8 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=18140)
     parser.add_argument("--credential-container", default="hunan-highway-trial067-api-1")
     parser.add_argument("--authorization-note", help="Record the existing user authorization for this invocation")
+    parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash"],
+                        help="Grader-only trial override; DeepSeek requires a fresh isolated review fork")
     args = parser.parse_args()
     if args.serve:
         import uvicorn

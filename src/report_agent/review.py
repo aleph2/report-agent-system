@@ -98,6 +98,7 @@ def native_review(workspace, model, tools, rules, middleware=()):
         context.clear()
         context.update(draft_id=draft_id, rubric_hash=digest(rules),
                        reviewer_prompt_hash=digest(system_prompt),
+                       grader_model=getattr(model, "model_name", None),
                        export_configuration_hash=export_configuration(workspace))
         if draft_id:
             draft = workspace.result(draft_id)
