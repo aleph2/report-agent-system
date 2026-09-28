@@ -49,7 +49,9 @@ async def main(args):
         return
     if store.get("task006_call_intent") and not args.resume:
         raise RuntimeError("ALREADY_ATTEMPTED_INSPECT_CHECKPOINT_AND_RECEIPTS")
-    store.set("task006_call_intent", {"authorization": "user approved unlimited project GLM5.3 calls",
+    authorization = ("Task017: user authorized one isolated native review continuation with autonomous revision"
+                     if store.get("review_import017") else "user approved unlimited project GLM5.3 calls")
+    store.set("task006_call_intent", {"authorization": authorization,
                                      "model": os.environ["REPORT_MODEL"], "resume": args.resume})
     store.event("trial_attempt_intent", {"model": os.environ["REPORT_MODEL"], "resume": args.resume})
     status = await run_report(Workspace(store))

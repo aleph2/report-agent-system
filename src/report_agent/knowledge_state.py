@@ -11,6 +11,8 @@ def inspect_evidence(workspace, result_ids, knowledge=None):
         return {"status": "not_used", "fact_ids": [], "facts": [], "checked_at": checked_at}
     owned = None
     try:
+        if hasattr(workspace, "store") and workspace.store.get("knowledge_enabled", True) is False:
+            raise RuntimeError("KNOWLEDGE_DISABLED_WITH_ADOPTED_FACTS")
         if knowledge is None:
             from .knowledge import Knowledge
             project_id = workspace.store.get("knowledge_project_id")

@@ -4,7 +4,7 @@ from inspect import iscoroutinefunction
 from typing import NotRequired
 
 from deepagents import RubricMiddleware
-from deepagents.middleware.rubric import RubricState
+from deepagents.middleware.rubric import GRADER_SYSTEM_PROMPT, RubricState
 from langchain.agents import AgentState
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import StructuredTool
@@ -58,6 +58,12 @@ def load_rules():
     return (Path(__file__).parent / "rules" / "report-review.md").read_text(encoding="utf-8")
 
 
+def reviewer_prompt():
+    """Specialist purpose plus the installed framework's full grading contract."""
+    role = (Path(__file__).parent / "rules" / "report-reviewer.md").read_text(encoding="utf-8")
+    return role + "\n\n# Native grading contract\n\n" + GRADER_SYSTEM_PROMPT
+
+
 def export_configuration(workspace):
     return digest({"options": workspace.store.manifest.get("export", {}),
                    "exporter": (Path(__file__).parent / "exporting.py").read_text(encoding="utf-8")})
@@ -72,6 +78,7 @@ def observation_version(workspace, draft_id):
 
 def native_review(workspace, model, tools, rules, middleware=()):
     context = {}
+    system_prompt = reviewer_prompt()
 
     def read_review_export(offset: int = 0, limit: int = 30) -> dict:
         """Read the exact DOCX text/structure snapshot bound to this grading attempt.
@@ -90,6 +97,7 @@ def native_review(workspace, model, tools, rules, middleware=()):
         draft_id = selected.get("draft_id")
         context.clear()
         context.update(draft_id=draft_id, rubric_hash=digest(rules),
+                       reviewer_prompt_hash=digest(system_prompt),
                        export_configuration_hash=export_configuration(workspace))
         if draft_id:
             draft = workspace.result(draft_id)
@@ -129,7 +137,7 @@ def native_review(workspace, model, tools, rules, middleware=()):
 
     grader_tools = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
                     else StructuredTool.from_function(t) for t in [*tools, read_review_export]]
-    return FeedbackRubric(model=model, tools=grader_tools,
+    return FeedbackRubric(model=model, tools=grader_tools, system_prompt=system_prompt,
                             grader_middleware=list(middleware),
                             target_observation=lambda: dict(context),
                             prepare_messages_for_grader=prepare, build_grader_state=bind_target,
@@ -163,10 +171,12 @@ def review_delivery(workspace, draft_id):
     draft = workspace.result(draft_id)
     body_hash = sha256(draft["body"].encode("utf-8")).hexdigest()
     rule_hash = workspace.store.get("active_rubric_hash")
+    prompt_hash = workspace.store.get("active_reviewer_prompt_hash")
     candidates = [r for r in workspace.store.get("rubric_reviews", [])
                   if r["target"].get("draft_id") == draft_id
                   and r["target"].get("draft_body_sha256") == body_hash
                   and r["target"].get("rubric_hash") == rule_hash
+                  and (not prompt_hash or r["target"].get("reviewer_prompt_hash") == prompt_hash)
                   and r["target"].get("export_configuration_hash") == export_configuration(workspace)]
     review = candidates[-1] if candidates else None
     status = "unreviewed_draft"
