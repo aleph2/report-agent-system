@@ -1,0 +1,264 @@
+{
+  "scope": "One source-grounded feedback recovery, not blind discovery, model training or feedback-only causal test",
+  "terminal_status": "reviewed_draft",
+  "raw_report_status": "unreviewed_draft",
+  "raw_status_note": "Raw legacy delivery fields exclude the native-rubric projection; project_state is the public effective status.",
+  "runtime_commit": "cce56fa90217ecb92d1273a0b22679eee0af7850",
+  "model_calls": 56,
+  "model_responses": 56,
+  "usage": {
+    "prompt_tokens": 4344601,
+    "completion_tokens": 45125,
+    "total_tokens": 4389726
+  },
+  "role_usage": {
+    "coordinator": {
+      "prompt_tokens": 1788905,
+      "completion_tokens": 27203,
+      "total_tokens": 1816108
+    },
+    "rubric_grader": {
+      "prompt_tokens": 2555696,
+      "completion_tokens": 17922,
+      "total_tokens": 2573618
+    }
+  },
+  "returned_models": {
+    "glm-5.3": 56
+  },
+  "finish_reasons": {
+    "tool_calls": 54,
+    "stop": 2
+  },
+  "vision_events": {},
+  "model_error_events": 0,
+  "tool_errors_reaching_model": [
+    {
+      "sequence": 367,
+      "tool": "read_review_export",
+      "received_in_request": 370,
+      "observation": {
+        "accepted": false,
+        "error": {
+          "http_status": null,
+          "message": "PREVIEW_INVALID_RANGE",
+          "type": "ActionRejected"
+        }
+      }
+    }
+  ],
+  "tools": {
+    "read_source_page": 2,
+    "calculate": 12,
+    "submit_result": 1,
+    "preview_report": 2,
+    "project_status": 2,
+    "select_delivery": 1,
+    "write_todos": 5,
+    "read_review_context": 2,
+    "read_review_export": 12,
+    "inspect_source_page": 6,
+    "search_sources": 8
+  },
+  "new_draft": {
+    "id": "49a0fd72-0228-4d09-86d5-a5193a5a0018",
+    "kind": "draft",
+    "title": "G4京港澳高速羊楼司（湘鄂界）至岳阳龙湾段扩容工程第1合同段路堑高边坡工程施工安全风险评估报告（总体·阶段性成果，修订版）",
+    "chars": 18934,
+    "sha256": "0acf099ed36fd270774f18e42dfc55ea38abb111f1da42590b0f2beead2681f4",
+    "replaces_id": "ad297419-5aa2-41fb-aa6f-c80f722fe352"
+  },
+  "review": {
+    "grading_run_id": "9c0763b0-f2b3-4b6e-8eaa-08723ead27b7",
+    "iteration": 0,
+    "result": "satisfied",
+    "statuses": [
+      "satisfied",
+      "satisfied",
+      "satisfied",
+      "satisfied",
+      "satisfied",
+      "satisfied"
+    ],
+    "unverified": false,
+    "target": {
+      "acceptance_criteria": {
+        "basis_hash": "774d02536b83f2f47798974f69d50c524e7c2f0832fd8ea52f369f6909167c79",
+        "body_hash": "e4a789d64947060be81a313a01a27fc6e7c84c3110058b15b86773e47465e013",
+        "criteria_id": "95f221a2-b318-4158-b1f8-235aa71c6273"
+      },
+      "docx_sha256": "e39c00665a816493cb8ee78cb219a4aff76494245508f1d3d59f83a438063bbd",
+      "draft_body_sha256": "0acf099ed36fd270774f18e42dfc55ea38abb111f1da42590b0f2beead2681f4",
+      "draft_id": "49a0fd72-0228-4d09-86d5-a5193a5a0018",
+      "export_configuration_hash": "80640654265d384b791b2180032730bdb516acdeb165a47057dc10b1343b31de",
+      "grader_model": "glm-5.3",
+      "observation_version": "4df300e24239ce718a555633e433025f01f17cb999cfc78a194ca2acbd424ac0",
+      "preview_version": "ba76487c4f24a8fcce1e92b25d5ee21f3363b1a60646675e331f08dbee5ca8d2-e39c00665a816493cb8ee78cb219a4aff76494245508f1d3d59f83a438063bbd",
+      "review_context_sha256": "83f5573c3aed9625da2178c2da7d7bfb5cc94e3b8f1c484e1939c248a3675337",
+      "review_context_version": "review-context-v1",
+      "review_response_contract": {
+        "sha256": "77fe6eba641cec1233b42c310fac0739b4512e0ce596bcaccf10a105440fc302",
+        "version": "requirement-acceptance-v1"
+      },
+      "reviewer_prompt_hash": "357fa04194ecc35b04f2a08814058b76dc4e8db6cb49a27556c4e41e8612ef57",
+      "rubric_hash": "dc8a39209ab66bd2f2c20d3fb6b2b24cdc64c40a0da5800fb7ff6b0cb3f489a6",
+      "title": "G4京港澳高速羊楼司（湘鄂界）至岳阳龙湾段扩容工程第1合同段路堑高边坡工程施工安全风险评估报告（总体·阶段性成果，修订版）"
+    },
+    "criterion_ids_match_active": true,
+    "criterion_ids": [
+      "criterion_9361eba76f2d4afaa62d96b1810a5a81",
+      "criterion_4ab8421166bb4776a0de28ec8383c695",
+      "criterion_662ef58cd3c94ea0b6ea46000c6a620b",
+      "criterion_725dfbf0f28f497f95ea3092c0666383",
+      "criterion_3f453ee0f9344c40be0a0679fe8e02b7",
+      "criterion_86f9f327246e4bef97e092e3d61a6d08"
+    ]
+  },
+  "corrections": [
+    {
+      "id": "17d1660d97d87554563fbc4494cbc21bf090f827b2310b316455f51c384822f3",
+      "result_id": "ad297419-5aa2-41fb-aa6f-c80f722fe352",
+      "status": "addressed",
+      "resolved": false,
+      "resolution": "replacement_committed_pending_review"
+    }
+  ],
+  "frozen_checks": {
+    "src/report_agent/__init__.py": true,
+    "src/report_agent/acceptance.py": true,
+    "src/report_agent/acceptance_review.py": true,
+    "src/report_agent/calculations.py": true,
+    "src/report_agent/catalog.py": true,
+    "src/report_agent/cli.py": true,
+    "src/report_agent/deep_models.py": true,
+    "src/report_agent/deep_runtime.py": true,
+    "src/report_agent/document_tools.py": true,
+    "src/report_agent/embeddings.py": true,
+    "src/report_agent/errors.py": true,
+    "src/report_agent/evidence_analysis.py": true,
+    "src/report_agent/exporting.py": true,
+    "src/report_agent/ingestion.py": true,
+    "src/report_agent/knowledge.py": true,
+    "src/report_agent/knowledge_state.py": true,
+    "src/report_agent/models.py": true,
+    "src/report_agent/report_preview.py": true,
+    "src/report_agent/report_runtime.py": true,
+    "src/report_agent/review.py": true,
+    "src/report_agent/review_context.py": true,
+    "src/report_agent/review_contract.py": true,
+    "src/report_agent/runtime.py": true,
+    "src/report_agent/source_tables.py": true,
+    "src/report_agent/store.py": true,
+    "src/report_agent/tools.py": true,
+    "src/report_agent/vision.py": true,
+    "src/report_agent/webapp.py": true,
+    "src/report_agent/workspace.py": true,
+    "src/report_agent/rules/acceptance-reviewer.md": true,
+    "src/report_agent/rules/report-review.md": true,
+    "src/report_agent/rules/report-reviewer.md": true,
+    "scripts/run_deepagents_trial.py": true,
+    "scripts/prepare_completed_feedback_recovery.py": true,
+    "scripts/prepare_review_trial017.py": true,
+    "pyproject.toml": true,
+    ".runs/task040/feedback-recovery/feedback-recovery-receipt.json": true,
+    ".analysis/task040/feedback.md": true,
+    ".analysis/task040/freeze.py": true
+  },
+  "baseline_checks": {
+    "checkpoints.db": true,
+    "exports/ad297419-5aa2-41fb-aa6f-c80f722fe352.docx": true,
+    "import-receipt.json": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77-4583aed0881a93ffa448717aa8ef921ebea1b55d04491a21405c388e0231f3e8/report.docx": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77-4583aed0881a93ffa448717aa8ef921ebea1b55d04491a21405c388e0231f3e8/summary.json": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77-4583aed0881a93ffa448717aa8ef921ebea1b55d04491a21405c388e0231f3e8/text.txt": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77-5dae90cd02180db6436415059dcc90829f42289b41ebef9ffd7e607dec83a189/report.docx": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77-5dae90cd02180db6436415059dcc90829f42289b41ebef9ffd7e607dec83a189/summary.json": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77-5dae90cd02180db6436415059dcc90829f42289b41ebef9ffd7e607dec83a189/text.txt": true,
+    "previews/471a8e4d6ccb044d42083c6470417a2d901da8eedecd012462a522bab73f5c77.json": true,
+    "run.lock": true,
+    "sources/1 第一册 路线工程地质勘察报告.pdf": true,
+    "sources/JTT 1375.1-2022 公路水运工程施工安全风险评估指南 第1部分：总体要求-18.pdf": true,
+    "sources/JTT 1375.2-2025 公路水运工程施工安全风险评估指南 第2部分：桥梁工程-59.pdf": true,
+    "sources/JTT 1375.3-2024 公路水运工程施工安全风险评估指南 第3部分：隧道工程-97.pdf": true,
+    "sources/报告编写范围说明.md": true,
+    "sources/报告编制格式标准.docx": true,
+    "sources/提取大纲.docx": true,
+    "sources/第1合同段 第二册 路基、路面 第一分册(3).pdf": true,
+    "sources/第1合同段 第四册 路线交叉（共三分册）第三分册 其他交叉1-3（0726）(1).pdf": true,
+    "sources/路堑高边坡施工安全评价指南.pdf": true,
+    "state.db": true,
+    "trial-freeze.json": true
+  },
+  "source_checks": {
+    "sources/JTT 1375.2-2025 公路水运工程施工安全风险评估指南 第2部分：桥梁工程-59.pdf": true,
+    "sources/第1合同段 第二册 路基、路面 第一分册(3).pdf": true,
+    "sources/第1合同段 第四册 路线交叉（共三分册）第三分册 其他交叉1-3（0726）(1).pdf": true,
+    "sources/路堑高边坡施工安全评价指南.pdf": true,
+    "sources/1 第一册 路线工程地质勘察报告.pdf": true,
+    "sources/JTT 1375.3-2024 公路水运工程施工安全风险评估指南 第3部分：隧道工程-97.pdf": true,
+    "sources/报告编制格式标准.docx": true,
+    "sources/JTT 1375.1-2022 公路水运工程施工安全风险评估指南 第1部分：总体要求-18.pdf": true,
+    "sources/提取大纲.docx": true,
+    "sources/报告编写范围说明.md": true
+  },
+  "all_frozen_match": true,
+  "baseline_unchanged": true,
+  "all_sources_match": true,
+  "new_review_id": true,
+  "acceptance_identity_unchanged": true,
+  "G1": "open; independent semantic review determines limits, native satisfied is not engineering approval",
+  "configuration_from_frozen_code": {
+    "model": "glm-5.3",
+    "reasoning_effort": "high",
+    "max_completion_tokens": 65536,
+    "streaming": false,
+    "parallel_tool_calls": false,
+    "thinking": {
+      "type": "enabled",
+      "clear_thinking": false
+    },
+    "transport_max_retries": 2,
+    "temperature": "unspecified",
+    "top_p": "unspecified",
+    "seed": "unspecified",
+    "native_max_iterations": 3,
+    "note": "Configuration evidence, not a wire-payload audit; LocalAudit counts responses not unseen transport retries."
+  },
+  "independent_disposition": {
+    "material_gain": "R31/R42 rule violations corrected with six consistent F values and site3 formal grade III; original standards preserved",
+    "full_acceptance": "Not established; native six-satisfied is contradicted by remaining X21 band violation with evidence delivered",
+    "remaining": "033 D02/D03/D04/C01; site2 no-river rationale provisionally unsupported in inspected evidence",
+    "G1": "open",
+    "persistent_learning": "not implemented or demonstrated",
+    "review_record": ".ase/verification/040-independent-results.md"
+  },
+  "public_artifact_sha256": {
+    ".analysis/task040/freeze.json": "ef8a768ca41dea233ae410fb1ea72bc285a49d04b290784506e18fa744e90e21",
+    ".analysis/task040/feedback.md": "e71998b1843579c23dd013aeba45b3cccfe94c388ac58290ef61869dac76f426",
+    ".analysis/task040/feedback-arrival.json": "822cb3158f06546b36d5ce209f23985e1da19e3944d7c5b5f33eac0eb1548ac5",
+    ".analysis/task040/action-observations.json": "7d590b12a78cec3774662f08c9c5186d428c146b7efb116c6c7b554cadcfaceb",
+    ".analysis/task040/terminal.json": "4519964f95120f79e7f72946f870c73c7fe2ab4e2e32cb99162cb67732a5ffab",
+    ".analysis/task040/actual/summary.json": "21f8b0f761d43c3cc48bc3af81da57c6292eaee44b9f2db9f239774544133f32",
+    ".analysis/task040/actual/state.json": "1405a2f253f31378818e746dce83edda92a3030d29fec28b743a2a9926462588",
+    ".analysis/task040/actual/results.json": "4b53ed03827d22f1a47f90f5c41b5c292b6e73fe01c637feaa62f5273a0548ad",
+    ".analysis/task040/actual/model-io.json": "462b995bf00b14f4b23e48a0fe583a575c6cc9265d4ccc22647c3dd2d2697fa5",
+    ".analysis/task040/actual/events.json": "08c078496eb7db8b598c5cf5abd1ccb8f6f505d618873402dfee2871e3b597db",
+    ".analysis/task040/actual/tools.json": "0f79f88a925ebabbece16f3b43a3c626e143f5aca7eeb93c3b073b7db21817c1",
+    ".analysis/task040/actual/review-events.json": "573ad6c7cc6d5c7cb2256075fcf646e9fbc07424bd6a9ae36083f8d10ac1c942",
+    ".analysis/task040/actual/project-state.json": "b2b0ec91e519049de597ba23da42d20c845aa4382698155a6821d26205c1e979",
+    ".analysis/task040/actual/active-criteria.json": "bbf29588dd8dd84775cc13b601dfeeedb056513b788e5e48d259d3135a43cd5b",
+    ".analysis/task040/actual/final-review.json": "b074cf0d9bb6f0d0082204d0fb52b4c201d6d37d24c7ad9557bbade3c421d59f",
+    ".analysis/task040/actual/first-request-coordinator.json": "79d871788a7023627a9fd39f12dc88951119cac6ee13d98ee847341089169710",
+    ".analysis/task040/actual/first-request-rubric_grader.json": "aa890cb0b3ff0ee54ccfa7074a6dc7cb9309fcfa91f86c57461803a83f5c3ae8",
+    ".analysis/task040/audit.py": "35dc8131bfe19149093bbb2f1bfb747495aef8ca530deb2ffe4848fa3978acb8",
+    ".analysis/task040/action_observations.py": "74e24d930bda44dde73abb265a8c4f12dec5bf7ba25c9e8ef517d5b929f05f5d",
+    ".analysis/task040/terminal.py": "d1ab82d285d045e0f5476d0204724d1f36ca41ce970ad0ccd8f634c6a0f27e1e",
+    ".analysis/task040/verify_feedback_arrival.py": "ad0696fca7f135d9f7aac91d7766136946dedc7a0554153db6183e688ff36f62",
+    ".analysis/task040/freeze.py": "28afce321f032ffd0eda004afea54908d98f2fa7c7fd8457d810bde0b971f9e0",
+    ".analysis/task040/manifest.py": "cce4f741a759da5ed13350eb9969d855c320f383fb8d54238905955fdf1671a6",
+    ".analysis/task040/mail-final-intent.json": "c5de7c94a1f319f9e272ce9b90a2b596c47d62407a69e29b1177a8a0bd78e3bd",
+    ".analysis/task040/mail-final-receipt.json": "918e0744f6f196b62283325ba597a84344f5844b5378baab7ba23b956f9c8752",
+    ".analysis/task040/mail-final-reconciled.json": "20a7b7b23e1ec1045006ccf78722e5c44e66f2ff934a7555ce6823862885ede0"
+  },
+  "artifact_note": "Public content only; full model I/O remains in ignored local artifacts, not committed business documents or hidden reasoning."
+}
