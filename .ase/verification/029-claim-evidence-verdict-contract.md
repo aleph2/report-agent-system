@@ -88,3 +88,26 @@ Task028's complete mixed result and this next design were emailed to the verifie
 user in the existing thread; Gmail receipt `1a0eabd16078a36c`, thread
 `1a0e8337bc8d5abd`. Ignored audit folders retain full inputs, outputs and receipts;
 versioned records avoid committing private source/report material.
+
+## Frozen start and actual first request
+
+Committed implementation `ac4ad42e51765d69f537e4c72d687e8911f8fc5f`;
+30 runtime/rule/launcher files frozen before the paid call. Preflight verified
+all baseline/source/code hashes, unchanged four original results and no new result.
+Selected configuration was durably bound before launch. Contract identity:
+`claim-evidence-v1`, SHA256
+`18656e4068f26338a426cd9a2810aaca10358539b43cbe6ebe6f285251749b8e`.
+Schema and converted GraderResponse tool definition are retained in
+`.analysis/task029/frozen-settings.json`; no HTTP capture is claimed.
+
+Actual first public grader request:system3343 characters, human6030 characters;
+raw system SHA256
+`85caa16ad32d6ba3a8c772564ffc36a2e73e3e711594e9e0018ec37c71979476`,
+matching the freeze and Task027 exactly. Rubric raw SHA256 remains
+`b63e7620378e6648fa9882db5c69e978a9744e0a5c095c1db0642792abc70ca5`.
+This proves system delivery, not instruction compliance or complete source coverage.
+Native execution is underway; no preliminary verdict is counted as completion.
+
+User email `1a0eaa3540d84f2a` asked for the next-step reasoning. Main replied in the
+same verified thread with rationale, actual scope and gain/regression criteria;
+sent receipt `1a0eac6ad38c127d`. No source attachments or credentials were emailed.
