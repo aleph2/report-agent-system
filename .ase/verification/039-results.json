@@ -1,0 +1,407 @@
+{
+  "summary": {
+    "status": "completed",
+    "planned": 2,
+    "terminal_attempts": 2,
+    "valid": 2,
+    "errors": 0,
+    "usage": {
+      "prompt_tokens": 37652,
+      "completion_tokens": 34818,
+      "total_tokens": 72470
+    },
+    "c2_labels_match": 2,
+    "all_frozen_files_match": true,
+    "all_originals_match": true,
+    "actual_input_matches": true,
+    "parameters_identical": true,
+    "returned_models": [
+      "glm-5.3"
+    ],
+    "model_requests": 2,
+    "model_responses": 2,
+    "rows": [
+      {
+        "case_id": "9c8c1f6128dc",
+        "repeat": 0,
+        "run": "9c8c1f6128dc-0",
+        "status": "completed",
+        "usage": [
+          {
+            "completion_tokens": 12903,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 9734,
+              "rejected_prediction_tokens": null
+            },
+            "prompt_tokens": 18826,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": null,
+              "cached_tokens": 1792
+            },
+            "total_tokens": 31729
+          }
+        ],
+        "model_requests": 1,
+        "model_responses": 1,
+        "finish_reasons": [
+          "tool_calls"
+        ],
+        "states": [
+          "satisfied",
+          "not_satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "undetermined"
+        ],
+        "c2_status": "not_satisfied",
+        "c2_expected": "not_satisfied",
+        "c2_label_matches": true,
+        "result": "needs_revision",
+        "c2_grounding": "requires_independent_semantic_review"
+      },
+      {
+        "case_id": "9c8c1f6128dc",
+        "repeat": 1,
+        "run": "9c8c1f6128dc-1",
+        "status": "completed",
+        "usage": [
+          {
+            "completion_tokens": 21915,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 17731,
+              "rejected_prediction_tokens": null
+            },
+            "prompt_tokens": 18826,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": null,
+              "cached_tokens": 18688
+            },
+            "total_tokens": 40741
+          }
+        ],
+        "model_requests": 1,
+        "model_responses": 1,
+        "finish_reasons": [
+          "tool_calls"
+        ],
+        "states": [
+          "satisfied",
+          "not_satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied"
+        ],
+        "c2_status": "not_satisfied",
+        "c2_expected": "not_satisfied",
+        "c2_label_matches": true,
+        "result": "needs_revision",
+        "c2_grounding": "requires_independent_semantic_review"
+      }
+    ],
+    "scope": "Broad criteria, developer-supplied pages; labels do not establish grounded detection or whole-report accuracy."
+  },
+  "actual_parameters": {
+    "extra_body": {
+      "thinking": {
+        "clear_thinking": false,
+        "type": "enabled"
+      }
+    },
+    "max_completion_tokens": 65536,
+    "model": "glm-5.3",
+    "model_name": "glm-5.3",
+    "parallel_tool_calls": false,
+    "reasoning_effort": "high",
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "description": "Acceptance of every named standard, distinct from permission to share a draft.",
+          "name": "GraderResponse",
+          "parameters": {
+            "properties": {
+              "criteria": {
+                "items": {
+                  "discriminator": {
+                    "mapping": {
+                      "False": "#/$defs/CriterionFail",
+                      "True": "#/$defs/CriterionPass"
+                    },
+                    "propertyName": "passed"
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "evidence": {
+                          "description": "Located observations supporting this conclusion, including counterevidence. Empty is honest when no evidence is available; it does not prove a defect.",
+                          "items": {
+                            "properties": {
+                              "locator": {
+                                "description": "Locatable report, source or commissioning observation; identify actual access limits honestly.",
+                                "title": "Locator",
+                                "type": "string"
+                              },
+                              "observation": {
+                                "description": "What that evidence establishes, distinct from the report assertion or your inference.",
+                                "title": "Observation",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator",
+                              "observation"
+                            ],
+                            "title": "EvidenceObservation",
+                            "type": "object"
+                          },
+                          "title": "Evidence",
+                          "type": "array"
+                        },
+                        "explanation": {
+                          "description": "Why the observations justify this criterion outcome, with actual coverage and limitations.",
+                          "minLength": 1,
+                          "title": "Explanation",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Descriptive, functional statement of exactly what this criterion checks in the agent's output or transcript -- specific enough that another grader could evaluate it without re-reading the rubric. Prefer 'Response cites a source for every statistic' over 'Sources'. Reuse the exact same wording whenever this criterion is graded again.",
+                          "title": "Name",
+                          "type": "string"
+                        },
+                        "needed_outcome": {
+                          "description": "What remains necessary within the commission and responsible party's authority, or no change needed. Unknown is not a request to invent a report correction.",
+                          "title": "Needed Outcome",
+                          "type": "string"
+                        },
+                        "passed": {
+                          "const": true,
+                          "title": "Passed",
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": [
+                            "satisfied",
+                            "not_satisfied",
+                            "undetermined"
+                          ],
+                          "title": "Status",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "passed",
+                        "status",
+                        "evidence",
+                        "explanation",
+                        "needed_outcome"
+                      ],
+                      "title": "CriterionPass",
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "evidence": {
+                          "description": "Located observations supporting this conclusion, including counterevidence. Empty is honest when no evidence is available; it does not prove a defect.",
+                          "items": {
+                            "properties": {
+                              "locator": {
+                                "description": "Locatable report, source or commissioning observation; identify actual access limits honestly.",
+                                "title": "Locator",
+                                "type": "string"
+                              },
+                              "observation": {
+                                "description": "What that evidence establishes, distinct from the report assertion or your inference.",
+                                "title": "Observation",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator",
+                              "observation"
+                            ],
+                            "title": "EvidenceObservation",
+                            "type": "object"
+                          },
+                          "title": "Evidence",
+                          "type": "array"
+                        },
+                        "explanation": {
+                          "description": "Why the observations justify this criterion outcome, with actual coverage and limitations.",
+                          "minLength": 1,
+                          "title": "Explanation",
+                          "type": "string"
+                        },
+                        "gap": {
+                          "description": "Short, actionable description of what is missing or incorrect, specific enough for the agent to act on without further clarification.",
+                          "title": "Gap",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Descriptive, functional statement of exactly what this criterion checks in the agent's output or transcript -- specific enough that another grader could evaluate it without re-reading the rubric. Prefer 'Response cites a source for every statistic' over 'Sources'. Reuse the exact same wording whenever this criterion is graded again.",
+                          "title": "Name",
+                          "type": "string"
+                        },
+                        "needed_outcome": {
+                          "description": "What remains necessary within the commission and responsible party's authority, or no change needed. Unknown is not a request to invent a report correction.",
+                          "title": "Needed Outcome",
+                          "type": "string"
+                        },
+                        "passed": {
+                          "const": false,
+                          "title": "Passed",
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": [
+                            "satisfied",
+                            "not_satisfied",
+                            "undetermined"
+                          ],
+                          "title": "Status",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "passed",
+                        "gap",
+                        "status",
+                        "evidence",
+                        "explanation",
+                        "needed_outcome"
+                      ],
+                      "title": "CriterionFail",
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "explanation": {
+                "description": "One or two sentence verdict summary that will be sent back to the agent as feedback if the task needs to be reattempted.",
+                "type": "string"
+              },
+              "result": {
+                "description": "satisfied only if all standards are satisfied; needs_revision for any established not_satisfied; undetermined if only unresolved assessment remains; failed only for an invalid rubric.",
+                "enum": [
+                  "satisfied",
+                  "needs_revision",
+                  "undetermined",
+                  "failed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "result",
+              "explanation",
+              "criteria"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "frozen_files": {
+    ".analysis/task039/frozen/model-inputs.json": "091ebccb990297a9a3e8d123c4b419c0f0adbdd064afe46d134c58e9125b62f3",
+    "pyproject.toml": "2ae936b3efa70853f19eb9ac955d14c76833625fbcc8c478be45f1982a8cafb0",
+    "scripts/run_deepagents_trial.py": "e9f8135c1688107d4f8e5c9b894ac33a14c084eb6c028a4808369d11a302ec26",
+    "scripts/run_grader_diagnostic.py": "4c0969d53b1ee26add7e48d33ca8f99d158c6711a763927f9d433dd6ebfbc1b4",
+    "scripts/run_stance_diagnostic.py": "5fe75816e63db79a83035cea6a3c723d9048ecd869af45e05fb4e25694711629",
+    "src/report_agent/__init__.py": "9b8b371fc59f6ff694196ea63d6d8909f4c1f1d753f81c0ef0d4dd3d143f7a16",
+    "src/report_agent/acceptance.py": "8975fc9f305033b92e60f5893c882c8db31ff1e5e1010de7398c444e9a955317",
+    "src/report_agent/acceptance_review.py": "44b26b209406a4d33424c91bce976c6ff14c01bd3f11a4875c421d400991f4ad",
+    "src/report_agent/calculations.py": "8f41fda46e450cddffb7e009bf37f12453792ee04f2c882862e867dc559e3726",
+    "src/report_agent/catalog.py": "195200e9da97bad325aa4634c884bcc26c68d647f676ddf26e7a9d5a04f7127c",
+    "src/report_agent/cli.py": "ac7eda9fc29261cc346a9e72df51f7c8cae4c1f6389bccfbf6b4b748491c0522",
+    "src/report_agent/deep_models.py": "074809346ae5964a5bdd11122f8d2d16c1a7b9dad3088fe0495b38a30cdc21a9",
+    "src/report_agent/deep_runtime.py": "ff2bfd908fec665535c4351923f66cc1851098bc30fe43a96580afda5a984b52",
+    "src/report_agent/document_tools.py": "2ceaad05db33b1624f428cb626666d34f62b4d1ad12164844e47439d06c88bab",
+    "src/report_agent/embeddings.py": "df679d6e5574f54088257ed31223a20268d32184f6a91cab10574396353e3096",
+    "src/report_agent/errors.py": "1808925149e6df2f4b3f80694c27513d0c6ccb11e38ede195f48f6472733b126",
+    "src/report_agent/evidence_analysis.py": "784c081c14a30305bfd3fa66f648c11c81a89041232d4eaaccd35a79448dc9c9",
+    "src/report_agent/exporting.py": "29070aeec90de8a1087d82accf11e8b36df38dccb08b98cb2c1f676886f3b3c5",
+    "src/report_agent/ingestion.py": "5742ef9eb744e5e1b6dd43a02c887f941ae0b983899e52d65996077a8df8215b",
+    "src/report_agent/knowledge.py": "35376d7f832b81704028bf864adbe98a96520ff74f90216bf37687c56d1c1410",
+    "src/report_agent/knowledge_state.py": "e86af5b669cfd505cdb0b754cccd72a491d5627f78283dec1a0a0630730286ca",
+    "src/report_agent/models.py": "0f0a4350cceae4c762223f9d7cf9e93749ab3858510279e02dd9e634296bf7b0",
+    "src/report_agent/report_preview.py": "8d0ac145d8e659cc987f6528822729c5fe839bd0aa9bd8c7326184a64af462ae",
+    "src/report_agent/report_runtime.py": "c9c79d72fdc0f293fa00c7dc2202dd924be368be1a4d196ade2853feae2fd1f5",
+    "src/report_agent/review.py": "89a210a8ad25d52cc778b2814e5807b7311e5d9815062287382567b9a0daf4f4",
+    "src/report_agent/review_context.py": "9727ee95c79e6dfdc8ea241aa04a56b1b0b237407ea2ca9daa9043ae5bb67970",
+    "src/report_agent/review_contract.py": "409b6e9f2ce679b5ebd440910ae3c1fc87c885e15609f367d68682d50328f32d",
+    "src/report_agent/rules/acceptance-reviewer.md": "340e74c063010a8957579a17ab2e9b20cd960e4858eb382e6f5521a86d70b2a4",
+    "src/report_agent/rules/report-review.md": "b63e7620378e6648fa9882db5c69e978a9744e0a5c095c1db0642792abc70ca5",
+    "src/report_agent/rules/report-reviewer.md": "b8d9cd106d0310c303c10f782505cd1a017d4d510c4c1648d11a6fb37b5fd905",
+    "src/report_agent/runtime.py": "ddc1508a69ed2327da04da965ed51506151eb58e52078db4021d590f308a2a8e",
+    "src/report_agent/source_tables.py": "a2815900b25f9bf5dce6d7f991eff710f3e682be074995b8d379bdadd906b052",
+    "src/report_agent/store.py": "97db1ba700c124848629db1875ea704fa93152aed291c12de247a6da2df9a4f0",
+    "src/report_agent/tools.py": "2a0af998284bbf0ce8f824fd035fcd2971c5737ec96918c61ddc2a8f2c5df05d",
+    "src/report_agent/vision.py": "b21ef850691ea88fb4e8a72f21a6ae7ccb0832ade3d63e0ee686b9ab4c4f460d",
+    "src/report_agent/webapp.py": "ed5322b547c5c58c897a7a553124ddff878ca21041f9939384326ce527260b7a",
+    "src/report_agent/workspace.py": "2f39f44398d5e763b81346c187875d67bc19ba200b6616b5d07d0f4351743d87",
+    "scripts/run_broad_criteria_diagnostic.py": "e7c9d3458b33385449ee058bc9b322017ff347b47003c297c4c335b9d2522755",
+    "scripts/prepare_broad_criteria_diagnostic.py": "900594581242fa65d72bd106104a3a981b18dead2796adac5a90534647038506"
+  },
+  "original_input_files": {
+    ".analysis/task038/frozen/model-inputs.json": "a196efb76a37c3201ca54e3ead7f0fb265041d881e6ed7d13de29860845544f5",
+    ".analysis/task038/frozen/input-receipt.json": "bd69e409f6a2d0358cbbdef82c214affac0afc386b6f1bb3fb9690f90e3a5094",
+    ".analysis/task034/probe-results.json": "c339d3be222c9f64d1ad6899d15da4fcb3ca02e14d3af66be30ad78bcfee0ebc",
+    ".runs/task034/native-probe/input.json": "620b799ed26ef918bec139227f3265c073ac2c6d245cf21bef129c7bfa0e8426",
+    ".runs/task034/native-probe/sources/路堑高边坡施工安全评价指南.pdf": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98"
+  },
+  "public_artifact_sha256": {
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-0/input.json": "8cdd06124366ce9ddf8ea0048ccdb00bc05de4b3f9d106890f1c108c8391ec52",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-0/output.json": "247c3f2ba1172b1a50d0c850a2367037e6f7c72bbc6a79ebfd3f26af9fc664bb",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-0/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-0/receipt.json": "2fb918d5c658513889f28e34c384221122684deb04b9f26b0a576d601f78bd13",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-0/model-io.json": "e6e87ea7e3a2160c2242468938efa4b80fd9f501465976b81aed1d601371b29e",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-1/input.json": "8cdd06124366ce9ddf8ea0048ccdb00bc05de4b3f9d106890f1c108c8391ec52",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-1/output.json": "e46f802abe2264476191e6598ce0389cea27a97a17cdb00ece7701801c8b808b",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-1/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-1/receipt.json": "d8c575f2207dbfdf4323b4d2030a4360b4dbc07224a55e4283e69af162d5253f",
+    ".runs/task039/broad-criteria-controls/9c8c1f6128dc-1/model-io.json": "3f5a7c435328f5329a6510f0535718d9cc664d1792d4f162ce3e365fe68f7422",
+    ".runs/task039/broad-criteria-controls/batch.json": "64bd9b94669392f5b92258b0bdf8575b9e3b64d7311a12fcc9061606366bee94",
+    ".analysis/task039/frozen/model-inputs.json": "091ebccb990297a9a3e8d123c4b419c0f0adbdd064afe46d134c58e9125b62f3",
+    ".analysis/task039/frozen/input-receipt.json": "01d516488ade4e8036faf3001cc7d253fad87954fc4b7ceeaa853ae06965cbb4",
+    ".analysis/task039/audit.py": "876ef1b7d2984a1da5aae2973c569d62f091b209a49bac6c870ea2f19afb49cd"
+  },
+  "errors": [],
+  "normalizations": [
+    {
+      "run": "9c8c1f6128dc-0",
+      "criterion": "criterion_2da0b1f9368c43348f7742095a73c545",
+      "normalization": "empty pass gap omitted by schema"
+    },
+    {
+      "run": "9c8c1f6128dc-0",
+      "criterion": "criterion_8016166b5a0149cbb9b9fa965cb67c1f",
+      "normalization": "empty pass gap omitted by schema"
+    },
+    {
+      "run": "9c8c1f6128dc-0",
+      "criterion": "criterion_4fbf90e3243c4711a90eddd9ad96bc61",
+      "normalization": "empty pass gap omitted by schema"
+    },
+    {
+      "run": "9c8c1f6128dc-0",
+      "criterion": "criterion_c10e3d74ec14450b9920d5644199501e",
+      "normalization": "empty pass gap omitted by schema"
+    }
+  ],
+  "independent_review": ".ase/verification/039-independent-results.md",
+  "private_reasoning_inspected": false,
+  "production_change_or_promotion": false
+}
