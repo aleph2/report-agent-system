@@ -167,3 +167,29 @@ normalized only the recorded path separators, then every original code hash pass
 The failure occurred before configuration/model invocation and did not modify the
 live first run or invalidate its frozen code. It blocked that repeat precheck until
 corrected, not the isolated running experiment. No paid retry resulted.
+
+## Completed first run and explicit user pause
+
+First native run subsequently completed (exit0) with final event885 satisfied and
+one saved revision. Total usage including the separate vision tool is91 responses /
+8,509,127 tokens. Postrun independent review records partial valid repairs plus
+remaining/new defects, not reliable whole-report acceptance. In particular the
+grader autonomously observed the original image, correctly recognized6 plates
+versus the unchanged40 in the report, and still waived the error because it did
+not change F/grade. This is recognition followed by unjustified acceptance.
+Main adopts P2-N10/N11 and the independent arithmetic correction P3-N12; see
+029-native-review.md. Keep positive repairs and adverse findings together.
+
+The stored report_status field remained unreviewed_draft, while the application's
+project_state/delivery_state projection uses the native satisfied verdict and
+reports reviewed_draft. These are distinct fields, not a missing native verdict.
+Neither projected status nor the recorded all-pass establishes engineering quality.
+
+The repeat began but was stopped on the user's explicit responsibility-design
+pause. It has26 recorded responses /1,118,221 reported tokens, no saved revision,
+no final verdict, and possible unobserved in-flight usage. Process termination was
+checked; do not treat its stale running field as an active process or completed
+assessment. All model work remains paused. The unused held-out runner/tests are
+preserved in `.analysis/task029/suspended/`; no paid held-out execution occurred.
+Task030 follows the newly confirmed requirement-derived acceptance responsibility.
+Emails: quality assessment1a0eaf02612ae2ba; criteria-owner proposal1a0eafaed53dab71.

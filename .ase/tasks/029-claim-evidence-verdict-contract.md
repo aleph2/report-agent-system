@@ -1,5 +1,24 @@
 # Task029: actual claim-evidence verdict contract in the native loop
 
+## User-directed pause and superseding direction (2026-09-29)
+
+The first native trial completed with partial saved improvements, regressions and
+an unjustified final all-pass; see `../verification/029-native-review.md`. The user
+paused the next repeat for responsibility changes. The running repeat was stopped
+(local process exit 1, no matching remaining process) with 26 recorded grader
+responses / 1,118,221 reported tokens, no saved revision and no final verdict.
+An in-flight remote response/usage may be unobserved; this is not final billed usage.
+Its public status field still says running; do not reinterpret it as a finished run.
+Preserve all evidence and do not resume automatically. Completed first-run usage
+is 91 responses / 8,509,127 tokens including the vision tool.
+
+The unused control runner/test WIP was preserved under
+`.analysis/task029/suspended/` after path verification. Its earlier result was
+1 failed / 3 passed (native schema equality check, no paid calls); it is neither
+a validated capability nor part of Task030's test claim. No held-out paid trials ran.
+Task030 supersedes the design direction with pre-production requirement-derived
+standards owned by the coordinator. Existing run configurations are historical.
+
 2026-09-29. Continue the approved final-verifier direction, paid trials and email
 reporting. Main owns implementation and integration; resume_assessment performed
 read-only architecture assessment; alignment_review reviews the material boundary;
