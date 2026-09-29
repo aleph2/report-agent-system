@@ -76,6 +76,10 @@ class Store:
             if old and old[0] != encode(manifest):
                 raise ValueError("PROJECT_INPUT_IMMUTABLE_CREATE_NEW_PROJECT")
             db.execute("INSERT OR IGNORE INTO state VALUES ('manifest', ?)", (encode(manifest),))
+            if old is None:
+                # Creation marker only; opening an old empty project is not migration.
+                db.execute("INSERT OR IGNORE INTO state VALUES ('acceptance_default', ?)",
+                           (encode("requirement-derived-v1"),))
             db.execute("INSERT OR IGNORE INTO state VALUES ('status', ?)", (encode("ready"),))
         for result in manifest.get("existing_artifacts", []):
             self.save_material(**result, owner="materials", origin="fixture_existing")

@@ -48,6 +48,9 @@ def delivery_state(workspace, draft_id, review_id="", knowledge=None):
 
 def project_state(workspace, knowledge=None):
     state = workspace.status()
+    limitation = workspace.store.get("acceptance_limitation") if hasattr(workspace, "store") else None
+    if limitation:
+        state["acceptance_limitation"] = limitation
     if state["delivery"]:
         old = state["delivery"]
         state["delivery"], _ = delivery_state(workspace, old["draft_id"], old["review_id"], knowledge)

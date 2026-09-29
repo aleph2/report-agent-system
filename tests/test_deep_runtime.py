@@ -162,6 +162,7 @@ def offline(monkeypatch):
 @pytest.fixture
 def ws(tmp_path):
     store = Store(tmp_path / "project")
+    store.set("acceptance_mode", "legacy")  # Preserve the historical delegated harness scenarios.
     store.initialize({"goal": "Compile the supplied daytime access note; no new design.",
                       "sources": [{"id": "source", "title": "Synthetic source",
                                    "coverage": "complete", "content": "The east path is open in daytime."}]})
