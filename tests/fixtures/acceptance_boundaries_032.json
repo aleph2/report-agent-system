@@ -1,0 +1,371 @@
+{
+  "schema_version": "task032-independent-controls-v1",
+  "provenance": {
+    "designer": "review_fork independent development tester",
+    "date": "2026-09-29",
+    "kind": "fresh synthetic non-engineering office compilation",
+    "source_origin": "Entirely invented for this diagnostic; no actual person, library, highway report or project data.",
+    "label_policy": "Labels fixed before any paid model results. Evaluator-only material must never be serialized into runtime inputs.",
+    "production_edits": false,
+    "paid_calls_by_designer": 0
+  },
+  "model_visible": {
+    "commission": "为图书馆后台编制一份简短的中央阅览室R7资料包调度汇总，成果是原始资料的忠实汇编，不开展现场复核，也不代替管理者批准排程。\n1. 主表列出中央阅览室、R7批次、活动中全部包件；说明其他登记记录的排除理由并保留可定位的来源。\n2. 每个包件列出原始平均处理时长、一位小数展示值和按适用规则判定的档位；已知数值不可遗漏或以假设替代。遵守原始值分档、展示值舍入的规则。\n3. 列出登记责任人与复核状态，主表和说明文字保持一致。真实资料缺项可以明确标注；尚未查阅、检索未完成或读取失败不得写成原始资料未提供。已知待复核可保留，不要求汇总者完成复核。\n4. 单独说明是否有充分原始记录证实全部合格包件均满足原始平均时长低于30.00分钟的统一排程门槛。该业务门槛本身是一个验收对象：能够如实交付阶段稿，不等于门槛已满足；真实时长缺项且无反证时须保留未确定，不得替缺项猜值或把它断言为超时。",
+    "scope_instruction": "仅依据给定合成原件完成所委托的资料汇总及业务时长门槛判定；不开展新的测量、复核或管理批准。",
+    "source_sets": {
+      "common": [
+        {
+          "id": "s_registry",
+          "title": "中央阅览室资料包登记簿（R7批次）",
+          "coverage": "complete",
+          "content": "合成记录，仅用于办公资料汇总试验。\n位置：登记簿表1。地点、批次和在册状态共同决定对象范围；空白时长表示此版登记簿未记录该值，不等于零。\n| 包件ID | 名称 | 地点 | 批次 | 在册状态 | 原始平均处理时长（分钟） |\n| P-17 | 榆叶 | 中央阅览室 | R7 | 活动中 | 14.96 |\n| P-28 | 松针 | 中央阅览室 | R7 | 活动中 | 15.00 |\n| P-39 | 柏果 | 中央阅览室 | R7 | 活动中 | 29.96 |\n| P-44 | 芦花 | 中央阅览室 | R7 | 活动中 | 未记录 |\n| P-52 | 槐角 | 北区阅览室 | R7 | 活动中 | 11.20 |\n| P-63 | 椴叶 | 中央阅览室 | R6 | 已归档 | 18.30 |\n登记说明：本版完整列出上述六条登记记录。P-44时长待补录，其他空缺不得据此推定。"
+        },
+        {
+          "id": "s_roster",
+          "title": "R7人员及复核清单（附件B）",
+          "coverage": "complete",
+          "content": "位置：附件B表B-1；本清单的人员和复核状态与登记簿表1按包件ID对应。\n| 包件ID | 登记责任人 | 复核状态 |\n| P-17 | 陈禾 | 已完成 |\n| P-28 | 许宁 | 已完成 |\n| P-39 | 周砚 | 待复核 |\n| P-44 | 林澈 | 待复核 |\n| P-52 | 吴槐 | 已完成 |\n| P-63 | 罗棠 | 已完成 |\nP-39及P-44的待复核状态是已知状态，不是本清单缺失。"
+        },
+        {
+          "id": "s_policy",
+          "title": "资料包调度与汇总规则（R7适用版）",
+          "coverage": "complete",
+          "content": "位置：规则§1。对象范围为地点=中央阅览室、批次=R7、在册状态=活动中的所有登记包件。其他地点或批次只可列于排除说明，不得混入主汇总表。\n位置：规则§2。分档使用登记的原始未舍入平均处理时长t：轻量档为0≤t<15.00分钟；常规档为15.00≤t<30.00分钟；长时档为t≥30.00分钟。原始值未记录时不得推定其分档。\n位置：规则§3。表中同时保留原始值，展示值按十进制四舍五入到一位小数。分档使用原始值，不使用展示值；展示值跨过档位端点不改变分档依据。\n位置：规则§4。本轮统一排程的时长门槛是全部合格包件的原始平均处理时长均低于30.00分钟。缺少某包件时长时，不能据此确认门槛满足，也不能推断该包件实际超过门槛。阶段汇总稿可先交，但不意味着时长门槛已获确认。人员复核未完成不改变已登记时长；必须如实标注，不要求本次汇总者完成现场或人员复核。\n位置：规则§5。上轮全馆统计共有18个轻量档包件；该统计不包含本轮逐包件ID，不能为本轮某个未记录时长的包件补值。"
+        }
+      ],
+      "completed": [
+        {
+          "id": "s_registry",
+          "title": "中央阅览室资料包登记簿（R7批次）",
+          "coverage": "complete",
+          "content": "合成记录，仅用于办公资料汇总试验。\n位置：登记簿表1。地点、批次和在册状态共同决定对象范围；空白时长表示此版登记簿未记录该值，不等于零。\n| 包件ID | 名称 | 地点 | 批次 | 在册状态 | 原始平均处理时长（分钟） |\n| P-17 | 榆叶 | 中央阅览室 | R7 | 活动中 | 14.96 |\n| P-28 | 松针 | 中央阅览室 | R7 | 活动中 | 15.00 |\n| P-39 | 柏果 | 中央阅览室 | R7 | 活动中 | 29.96 |\n| P-44 | 芦花 | 中央阅览室 | R7 | 活动中 | 未记录 |\n| P-52 | 槐角 | 北区阅览室 | R7 | 活动中 | 11.20 |\n| P-63 | 椴叶 | 中央阅览室 | R6 | 已归档 | 18.30 |\n登记说明：本版完整列出上述六条登记记录。P-44时长待补录，其他空缺不得据此推定。"
+        },
+        {
+          "id": "s_roster",
+          "title": "R7人员及复核清单（附件B）",
+          "coverage": "complete",
+          "content": "位置：附件B表B-1；本清单的人员和复核状态与登记簿表1按包件ID对应。\n| 包件ID | 登记责任人 | 复核状态 |\n| P-17 | 陈禾 | 已完成 |\n| P-28 | 许宁 | 已完成 |\n| P-39 | 周砚 | 待复核 |\n| P-44 | 林澈 | 待复核 |\n| P-52 | 吴槐 | 已完成 |\n| P-63 | 罗棠 | 已完成 |\nP-39及P-44的待复核状态是已知状态，不是本清单缺失。"
+        },
+        {
+          "id": "s_policy",
+          "title": "资料包调度与汇总规则（R7适用版）",
+          "coverage": "complete",
+          "content": "位置：规则§1。对象范围为地点=中央阅览室、批次=R7、在册状态=活动中的所有登记包件。其他地点或批次只可列于排除说明，不得混入主汇总表。\n位置：规则§2。分档使用登记的原始未舍入平均处理时长t：轻量档为0≤t<15.00分钟；常规档为15.00≤t<30.00分钟；长时档为t≥30.00分钟。原始值未记录时不得推定其分档。\n位置：规则§3。表中同时保留原始值，展示值按十进制四舍五入到一位小数。分档使用原始值，不使用展示值；展示值跨过档位端点不改变分档依据。\n位置：规则§4。本轮统一排程的时长门槛是全部合格包件的原始平均处理时长均低于30.00分钟。缺少某包件时长时，不能据此确认门槛满足，也不能推断该包件实际超过门槛。阶段汇总稿可先交，但不意味着时长门槛已获确认。人员复核未完成不改变已登记时长；必须如实标注，不要求本次汇总者完成现场或人员复核。\n位置：规则§5。上轮全馆统计共有18个轻量档包件；该统计不包含本轮逐包件ID，不能为本轮某个未记录时长的包件补值。"
+        },
+        {
+          "id": "s_addendum",
+          "title": "R7时长补录单（补录1）",
+          "coverage": "complete",
+          "content": "位置：补录1条目1。补充登记簿表1中P-44（芦花）的原始平均处理时长：22.48分钟。此条仅补充P-44此前未记录的时长，地点、批次、在册状态、登记责任人和复核状态均沿用原记录。不存在其他新增或变更。"
+        }
+      ]
+    },
+    "criteria_sets": {
+      "baseline": [
+        {
+          "requirement_refs": [
+            "委托第1项",
+            "s_policy/规则§1",
+            "s_registry/登记簿表1"
+          ],
+          "condition": "主汇总表准确覆盖委托范围内全部包件，排除范围外记录并给出可定位的来源。",
+          "scope": "中央阅览室、R7批次、活动中的登记包件及范围说明。",
+          "evidence_expectation": "范围规则与按ID对应的登记记录支持主表覆盖及排除理由。",
+          "allowed_limitations": "范围外包件可以出现在排除说明中；在册包件时长缺项不免除其入表要求。"
+        },
+        {
+          "requirement_refs": [
+            "委托第2项",
+            "s_policy/规则§2–3",
+            "s_registry/登记簿表1"
+          ],
+          "condition": "已提供的原始时长被准确采用，分档与未舍入原始值一致，一位小数展示值按规定舍入；真实未记录值不作假设分档。",
+          "scope": "主表时长、展示值及分档，不代替全体统一排程门槛结论。",
+          "evidence_expectation": "原始登记值、适用分档区间及舍入约定能够复现各行数值和档位。",
+          "allowed_limitations": "允许如实保留未记录时长及未确定档位；展示值舍入越过档位端点可与原始值档位并存。"
+        },
+        {
+          "requirement_refs": [
+            "委托第3项",
+            "s_roster/附件B表B-1",
+            "s_policy/规则§4"
+          ],
+          "condition": "登记责任人、复核状态及相关说明忠于原始记录且互不矛盾；真实缺项、待复核与尚未检索必须正确区分。",
+          "scope": "主表非数值字段和对应的来源、进度、缺项说明。",
+          "evidence_expectation": "按ID对应的人员及复核记录支持报告表格和概述；缺项陈述与实际资料状态相符。",
+          "allowed_limitations": "已知待复核以及真实缺少的时长可以明示保留；汇总者无需完成复核，但不得将未查阅说成资料未提供。"
+        },
+        {
+          "requirement_refs": [
+            "委托第4项",
+            "s_policy/规则§4",
+            "s_registry/登记簿表1"
+          ],
+          "condition": "有充分原始时长记录证实全部合格包件的原始平均处理时长均低于30.00分钟，即统一排程时长门槛满足。",
+          "scope": "业务时长门槛的证据状态，区别于阶段汇总稿可否交付。",
+          "evidence_expectation": "逐包件可归属的原始时长足以支持全体门槛结论；整体统计不能代替某包件缺失值。",
+          "allowed_limitations": "真实缺项且没有越界反证时，该门槛保留未确定，不判定为已满足或已违反；阶段稿仍可交付。"
+        }
+      ],
+      "clear_boundary": [
+        {
+          "requirement_refs": [
+            "委托第1项",
+            "s_policy/规则§1",
+            "s_registry/登记簿表1"
+          ],
+          "condition": "主汇总表准确覆盖委托范围内全部包件，排除范围外记录并给出可定位的来源。",
+          "scope": "中央阅览室、R7批次、活动中的登记包件及范围说明。",
+          "evidence_expectation": "满足：主表对象与地点、批次、在册状态三项范围条件一致，每个合格对象有对应行和可定位来源。未满足：有范围内对象漏列，或范围外对象混入主表，或排除理由与原始登记相矛盾。",
+          "allowed_limitations": "范围外对象只列于排除说明不构成混入；时长未记录不等于对象不在范围。只有对象身份或适用范围所需原始记录真实缺失、且现有证据不能决定时，相关覆盖判断才保留未确定；没有读到不等于原件没有。"
+        },
+        {
+          "requirement_refs": [
+            "委托第2项",
+            "s_policy/规则§2–3",
+            "s_registry/登记簿表1"
+          ],
+          "condition": "已提供的原始时长被准确采用，分档与未舍入原始值一致，一位小数展示值按规定舍入；真实未记录值不作假设分档。",
+          "scope": "主表时长、展示值及分档，不代替全体统一排程门槛结论。",
+          "evidence_expectation": "满足：已提供原始值及其档位、展示值均按适用规则成立。未满足：采用值与可用原始记录冲突，或档位不包含采用的未舍入原始值，或展示值舍入不符合约定。可复现的展示舍入本身不是事实错误。",
+          "allowed_limitations": "真实未记录的时长明示为未记录、档位明示为未确定，符合本项；不得用该允许项豁免对已有值的误写、漏用或无依据分档。允许展示值舍入越过端点，档位仍以原始值为准。只有核验某已作出的数值判断所需证据确实无法取得且尚无明确反证时，该判断才保留未确定。"
+        },
+        {
+          "requirement_refs": [
+            "委托第3项",
+            "s_roster/附件B表B-1",
+            "s_policy/规则§4"
+          ],
+          "condition": "登记责任人、复核状态及相关说明忠于原始记录且互不矛盾；真实缺项、待复核与尚未检索必须正确区分。",
+          "scope": "主表非数值字段和对应的来源、进度、缺项说明。",
+          "evidence_expectation": "满足：责任人、复核状态和概述与对应原始记录相容，且限制说明准确区分真实缺项与未完成的检索。未满足：字段与可用原始记录相反，表述之间对同一复核事实互相矛盾，或把尚未查阅而实际可用的记录写成来源未提供。",
+          "allowed_limitations": "已知待复核可以保留而不要求新增复核工作；真实时长缺项可如实披露且不单独导致本项失败。可纠正的报告错误不能用一般待确认措辞豁免。只有相关原始证据确实不足、且尚无直接反证能判定时，才保留未确定。"
+        },
+        {
+          "requirement_refs": [
+            "委托第4项",
+            "s_policy/规则§4",
+            "s_registry/登记簿表1"
+          ],
+          "condition": "有充分原始时长记录证实全部合格包件的原始平均处理时长均低于30.00分钟，即统一排程时长门槛满足。",
+          "scope": "业务时长门槛的证据状态，区别于阶段汇总稿可否交付。",
+          "evidence_expectation": "满足：每个合格包件均有可归属原始时长，且每个原始值都严格小于30.00分钟。未满足：存在合格包件的可归属原始时长达到或超过30.00分钟。只要存在这样的反证，就不因其他对象缺项而改为未确定。",
+          "allowed_limitations": "如果没有越界反证，但至少一个合格对象真实缺少原始时长，则门槛未确定；缺项本身不证明超时，也不证明达标。阶段稿可交付不改变本项结论。源内已有记录而尚未查阅属于检索未完成，不能改写成原始资料缺项；不指定调查工具或执行顺序。"
+        }
+      ]
+    },
+    "reports": [
+      {
+        "case_id": "packet_01",
+        "title": "中央阅览室R7资料包调度汇总（试编）",
+        "source_set": "common",
+        "body": "# 中央阅览室R7资料包调度汇总\n\n本稿汇编现有登记和复核记录，不宣称新做现场或人员复核。时长分档依据未舍入原始值，展示值按十进制四舍五入到一位小数；展示值不是分档输入。[s_policy，规则§2–4]\n\n| 包件ID | 名称 | 原始时长/分钟 | 展示值/分钟 | 档位 | 登记责任人 | 复核状态 |\n|---|---|---:|---:|---|---|---|\n| P-17 | 榆叶 | 14.96 | 15.0 | 轻量 | 陈禾 | 已完成 |\n| P-28 | 松针 | 15.00 | 15.0 | 常规 | 许宁 | 已完成 |\n| P-39 | 柏果 | 29.96 | 30.0 | 常规 | 周砚 | 待复核 |\n| P-44 | 芦花 | 未记录 | — | 未确定 | 林澈 | 待复核 |\n\n来源：包件范围和原始时长见[s_registry，登记簿表1]，人员与复核状态见[s_roster，附件B表B-1]。P-52在北区阅览室，P-63为R6已归档记录，因此仅作排除说明，不列入本轮主表。\n\n主表四件中，两件已完成复核，两件待复核。P-44的原始时长在完整登记簿中确实未记录，本稿未以零或整体统计替代；这与附件B已提供责任人和待复核状态是不同字段。展示值15.0或30.0不改变对应未舍入值的档位。\n\n统一排程时长门槛：已记录的三件原始时长均低于30.00分钟；P-44时长缺项，因此全体是否满足该门槛仍未确定，既不确认全部达标，也不推断P-44超时。阶段稿可供查看。"
+      },
+      {
+        "case_id": "packet_02",
+        "title": "中央阅览室R7资料包调度汇总（试编）",
+        "source_set": "common",
+        "body": "# 中央阅览室R7资料包调度汇总\n\n本稿汇编现有登记和复核记录，不宣称新做现场或人员复核。时长分档依据未舍入原始值，展示值按十进制四舍五入到一位小数；展示值不是分档输入。[s_policy，规则§2–4]\n\n| 包件ID | 名称 | 原始时长/分钟 | 展示值/分钟 | 档位 | 登记责任人 | 复核状态 |\n|---|---|---:|---:|---|---|---|\n| P-17 | 榆叶 | 14.96 | 15.0 | 常规 | 陈禾 | 已完成 |\n| P-28 | 松针 | 15.00 | 15.0 | 常规 | 许宁 | 已完成 |\n| P-39 | 柏果 | 29.96 | 30.0 | 常规 | 周砚 | 待复核 |\n| P-52 | 槐角 | 11.20 | 11.2 | 轻量 | 吴槐 | 已完成 |\n\n来源：[s_registry，登记簿表1]和[s_roster，附件B表B-1]。P-44因时长未记录而未列主表，P-52作为同批次活动中包件列入主表，P-63为R6已归档记录而排除。\n\n本表所列包件均已完成复核，不存在待复核项。P-17展示为15.0分钟，因此按常规档汇总；P-39的30.0仅为展示舍入，分档仍使用29.96。\n\n统一排程时长门槛：P-44原始时长缺项，现有记录不能确定全部委托对象都低于30.00分钟；本稿不据此断言P-44超时。"
+      },
+      {
+        "case_id": "packet_03",
+        "title": "中央阅览室R7资料包调度汇总（试编）",
+        "source_set": "common",
+        "body": "# 中央阅览室R7资料包调度汇总\n\n本稿汇编现有登记和复核记录，不宣称新做现场或人员复核。时长分档依据未舍入原始值，展示值按十进制四舍五入到一位小数；展示值不是分档输入。[s_policy，规则§2–4]\n\n| 包件ID | 名称 | 原始时长/分钟 | 展示值/分钟 | 档位 | 登记责任人 | 复核状态 |\n|---|---|---:|---:|---|---|---|\n| P-17 | 榆叶 | 14.96 | 15.0 | 轻量 | 陈禾 | 已完成 |\n| P-28 | 松针 | 15.00 | 15.0 | 常规 | 原资料未提供 | 已完成 |\n| P-39 | 柏果 | 29.96 | 30.0 | 常规 | 周砚 | 待复核 |\n| P-44 | 芦花 | 未记录 | — | 未确定 | 林澈 | 待复核 |\n\n范围和原始时长依据[s_registry，登记簿表1]；人员与复核状态引用[s_roster，附件B表B-1]。P-52因地点不符、P-63因批次及在册状态不符而仅列于排除说明。\n\n两件已完成复核，两件待复核。P-44时长在登记簿中未记录，档位未确定。P-28责任人资料未提供，需用户补充；该字段尚未检索附件B，本稿因此暂按来源缺项处理。时长展示舍入不改变按原始值确定的档位。\n\n统一排程时长门槛：三件已有原始时长低于30.00分钟，P-44的真实时长尚缺，故全体门槛未确定。本稿可先作阶段汇总使用，不作达标声明。"
+      },
+      {
+        "case_id": "packet_04",
+        "title": "中央阅览室R7资料包调度汇总（试编）",
+        "source_set": "completed",
+        "body": "# 中央阅览室R7资料包调度汇总\n\n本稿汇编现有登记和复核记录，不宣称新做现场或人员复核。时长分档依据未舍入原始值，展示值按十进制四舍五入到一位小数；展示值不是分档输入。[s_policy，规则§2–4]\n\n| 包件ID | 名称 | 原始时长/分钟 | 展示值/分钟 | 档位 | 登记责任人 | 复核状态 |\n|---|---|---:|---:|---|---|---|\n| P-17 | 榆叶 | 14.96 | 15.0 | 轻量 | 陈禾 | 已完成 |\n| P-28 | 松针 | 15.00 | 15.0 | 常规 | 许宁 | 已完成 |\n| P-39 | 柏果 | 29.96 | 30.0 | 常规 | 周砚 | 待复核 |\n| P-44 | 芦花 | 22.48 | 22.5 | 常规 | 林澈 | 待复核 |\n\n来源：对象范围及前三件原始时长见[s_registry，登记簿表1]；P-44时长见[s_addendum，补录1条目1]；人员和复核状态见[s_roster，附件B表B-1]。补录只补齐P-44时长，不改变其待复核状态。P-52因地点不符、P-63因批次及在册状态不符而仅列于排除说明。\n\n两件已完成复核，两件待复核；本稿未宣称完成待办复核。各档位依据原始值，15.0及30.0等展示舍入不替代原始值。\n\n统一排程时长门槛：四件原始时长14.96、15.00、29.96和22.48分钟均严格低于30.00分钟，因此现有逐件记录足以确认本轮统一排程的时长门槛满足。该结论仅涉及时长门槛，不代表人员复核已全部完成，也不代替管理者的排程批准。"
+      }
+    ]
+  },
+  "evaluator_only": {
+    "criterion_order": [
+      "scope_coverage",
+      "numeric_fidelity",
+      "factual_and_internal_consistency",
+      "all_items_duration_threshold"
+    ],
+    "binding_rule": "Criteria ordinal is evaluation metadata only. Native save assigns criterion IDs; preserve ordinal-to-ID mapping outside model prompt. Do not pass these shorthand names or expectations as semantic hints.",
+    "expected_by_case": {
+      "packet_01": {
+        "labels": [
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "undetermined"
+        ],
+        "overall": "undetermined",
+        "rationale": [
+          "Exactly P-17/P-28/P-39/P-44 satisfy all three scope filters; P-52/P-63 excluded with true reasons.",
+          "14.96<15 so light despite displayed15.0;15.00 is standard;29.96<30 is standard despite displayed30.0. All displays use Decimal ROUND_HALF_UP. Missing P-44 is explicitly unclassified.",
+          "Owners and review statuses all match. Two known pending checks and honestly missing P-44 duration are permitted, not report defects.",
+          "All known in-scope durations are<30; P-44 has no measurement. No evidence establishes all below30 or any breach. The threshold is genuinely undetermined."
+        ]
+      },
+      "packet_02": {
+        "labels": [
+          "not_satisfied",
+          "not_satisfied",
+          "not_satisfied",
+          "undetermined"
+        ],
+        "overall": "needs_revision",
+        "rationale": [
+          "Main table omits eligible P-44 solely due missing duration and includes out-of-scope P-52 solely due batch/status; both conflict with location+batch+status scope.",
+          "P-17 adopted raw14.96 is outside the reported standard interval15≤t<30. Its displayed15.0 cannot change input basis. P-39's displayed30.0 with standard band is independently valid and must not be added as an error.",
+          "Narrative says every main-table packet completed review while P-39 is marked pending both in that table and authoritative roster. This is a proven contradiction, not missing evidence.",
+          "Report explicitly leaves whole commissioned set threshold unresolved because P-44's duration is missing. Scope/report errors above do not prove a physical duration breach. C4 remains undetermined."
+        ]
+      },
+      "packet_03": {
+        "labels": [
+          "satisfied",
+          "satisfied",
+          "not_satisfied",
+          "undetermined"
+        ],
+        "overall": "needs_revision",
+        "rationale": [
+          "Correct four eligible objects and valid exclusions.",
+          "All known raw values, displays and bands correct; missing P-44 not filled by assumption.",
+          "P-28 responsibility is available as许宁 in s_roster/B-1. The report says source did not provide it while admitting that appendix was not searched. This is a correctable source-compilation error, not genuine missing data or merely unverifiable review.",
+          "P-44 duration genuinely remains missing despite P-28 owner being available; C3's failure does not resolve C4."
+        ]
+      },
+      "packet_04": {
+        "labels": [
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied"
+        ],
+        "overall": "satisfied",
+        "rationale": [
+          "Same four eligible objects and exclusions; addendum changes no scope.",
+          "P-44 raw22.48 becomes22.5 and standard; all prior rounding controls remain correct.",
+          "Addendum only fills duration. Two pending review statuses are retained honestly and are permitted. No invented completed work or approval.",
+          "All four raw durations14.96,15.00,29.96,22.48 are individually below30.00; genuine missing measurement has been supplied by explicit addendum. No remaining threshold uncertainty."
+        ]
+      }
+    },
+    "oracle_math": {
+      "policy": "Decimal arithmetic; ROUND_HALF_UP to1decimal; bands on unrounded value.",
+      "known_rows": [
+        {
+          "id": "P-17",
+          "raw": "14.96",
+          "display": "15.0",
+          "band": "轻量"
+        },
+        {
+          "id": "P-28",
+          "raw": "15.00",
+          "display": "15.0",
+          "band": "常规"
+        },
+        {
+          "id": "P-39",
+          "raw": "29.96",
+          "display": "30.0",
+          "band": "常规"
+        }
+      ],
+      "addendum_row": {
+        "id": "P-44",
+        "raw": "22.48",
+        "display": "22.5",
+        "band": "常规"
+      },
+      "common_eligible_ids": [
+        "P-17",
+        "P-28",
+        "P-39",
+        "P-44"
+      ],
+      "excluded_ids": [
+        "P-52",
+        "P-63"
+      ]
+    },
+    "scope_equivalence": "baseline and clear_boundary share all four condition/scope fields and requirement_refs exactly. Extra wording operationalizes those same commissioned outcomes, including permitted rounding and genuine missingness; it adds no new business requirement and no prescribed tool sequence.",
+    "expected_counts_per_full_case_set": {
+      "satisfied": 9,
+      "not_satisfied": 4,
+      "undetermined": 3
+    },
+    "suggested_matrix": {
+      "arms": {
+        "A": "baseline criteria + frozen original grader prompt",
+        "B": "clear_boundary criteria + frozen original grader prompt",
+        "C": "clear_boundary criteria + generic clarified grader prompt"
+      },
+      "repetitions": 2,
+      "cases": 4,
+      "total_direct_grader_assessments": 24,
+      "order_by_case": {
+        "packet_01": [
+          [
+            "A",
+            "B",
+            "C"
+          ],
+          [
+            "C",
+            "B",
+            "A"
+          ]
+        ],
+        "packet_02": [
+          [
+            "B",
+            "C",
+            "A"
+          ],
+          [
+            "A",
+            "C",
+            "B"
+          ]
+        ],
+        "packet_03": [
+          [
+            "C",
+            "A",
+            "B"
+          ],
+          [
+            "B",
+            "A",
+            "C"
+          ]
+        ],
+        "packet_04": [
+          [
+            "A",
+            "C",
+            "B"
+          ],
+          [
+            "B",
+            "C",
+            "A"
+          ]
+        ]
+      },
+      "state_policy": "Use fresh isolated review state per cell; no previous verdict, label, corrective developer feedback or wrong-answer exemplar in grader context.",
+      "interpretation": "24 assessments provide96 per-criterion observations but only4 independent synthetic cases. Report counts paired by case and repetition, not96 independent samples. Full trunk is separate and uses coordinator-produced standards."
+    },
+    "scoring_notes": [
+      "Map expectednot_satisfied->predictedsatisfied as a miss; expectednot_satisfied->undetermined as unresolved detection, separately from correct rejection.",
+      "Map expectedsatisfied->not_satisfied as false rejection; expectedsatisfied->undetermined as unjustified uncertainty; distinguish both from expectationundetermined.",
+      "Expectedundetermined->satisfied is unsupported positive certainty; expectedundetermined->not_satisfied is unsupported negative certainty.",
+      "An overall correct status does not excuse wrong per-criterion decisions or false rationales. Check the indicated raw/display distinction, exact source identity and true-vs-unread missingness in public evidence.",
+      "Schema/coverage failure is an execution-contract failure, not a semantic label. No request for private reasoning.",
+      "If baseline already solves every case, report a ceiling/no demonstrated gain. Do not relabel or edit heldout cases after observing outcomes.",
+      "These are independent designer-authored calibration controls, not proof of general reliability or a substitute for source-grounded highway report quality."
+    ]
+  }
+}
