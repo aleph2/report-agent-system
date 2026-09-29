@@ -83,3 +83,58 @@ failure. This blocks unsubstantiated actual-input verification, not valid diagno
 content. Eight focused/inherited tests passed in1.93s after both changes. No paid
 attempt or historical output needed repair. The candidate factory binding itself
 was independently confirmed; no extra review loop is required for these fixes.
+
+## Completed four-cell result and actual delivery
+
+All four calls completed serially with one response each, no errors/missing usage:
+327780 provider tokens. Actual model metadata isdeepseek-v4.1-flash in every case.
+All actual system/human hashes match the final freeze; full candidate bodies and
+the same103118-character source packet arrived intact. All36 frozen files remained
+unchanged. No evidence tool or author was invoked.
+
+| Case | Scope/candidate | Result | Independent judgment |
+| --- | --- | --- | --- |
+|30e4c1f260a1| broad/original | satisfied;85502 tokens | Monitoring target silent; acceptance overbroad despite suppliedp97 and body contradictions. |
+|264926551e6a| local/corrected | satisfied;67180 tokens | Explicit96/800/96/6 match and limited acceptance supported; supplementary reasons have precision defects. |
+|a725e7816f27| local/original | needs_revision;77097 tokens | Correctly identifies40 tubes/6 plates and requires6, but adds an out-of-scope repair requirement. |
+|fb42eb2d7e0b| broad/corrected | needs_revision;98001 tokens | Monitoring target silent; valid scope/fieldwork findings, other positive criteria remain overbroad. |
+
+The independent record is028-scope-review.md. Main accepts its scoped findings:
+
+- P2-028-O01: original/broad acceptance lacks support against supplied counterevidence.
+  Generic incomplete-source caveats do not excuse this. Quality promotion is blocked,
+  while contained diagnosis continues.
+- P3-028-O02: corrected/local identifies the four direct totals correctly but
+  misattributes source subrows to the report; auxiliary C15-per-pile reasoning
+  overgeneralizes a ratio with a first-row exception. Preserve the direct match;
+  do not reuse those supplementary reasons as proven observations.
+- P2-028-O03: original/local gap requires adding unquoted items or dropping a
+  completeness claim because of合计, although the local commission explicitly
+  excludes unquoted source items from requirements. This blocks adopting the whole
+  repair instruction; correcting40 to6 remains valid. No author received that gap
+  in this diagnostic, so no propagated damage is claimed.
+- Corrected/broad genuinely finds unhandledK1318/K1324 candidates and conflicting
+  fieldwork statements. Its Correctness pass still overlooksF03/X21; a correct
+  top-level rejection is not a globally correct review or a false whole acceptance.
+  A26m candidate needs reconciliation, not automatic qualification under an
+  under20m rule. The expert-review sentence may describe future procedure, so the
+  model's stronger“as done” allegation is not an independently established fake
+  review; marking planned status can clarify without alleging past misconduct.
+
+Main owns follow-up. P2 acceptance/repair defects block reliable-verifier promotion
+and uncritical adoption of all feedback; isolated development and clearly limited
+human-review drafts remain possible. Sources and original reports remain intact.
+The two candidate versions were predetermined inputs, not model repairs.
+
+In this known-case setup, explicit local responsibility elicited correct object/
+count distinction in both paired cases with full evidence unchanged. Repair
+boundaries were not fully reliable. Broad outputs varied and one found real other
+defects, so neither“broad always fails” nor universal attention/reliability claims
+follow. No unchanged paid replay is needed.
+
+Next Main-selected increment isTask029: actual claim/evidence/scope output contract,
+including criterion impact and author feedback, with autonomous investigation.
+Independent architecture assessment favors it over merely exposing current GLM
+source-only analyze_text. It is a new hypothesis; actual native repairs and
+regressions must establish usefulness. Task028 diagnosis is complete, while the
+higher-level reliable-verifier outcome remains unaccepted.

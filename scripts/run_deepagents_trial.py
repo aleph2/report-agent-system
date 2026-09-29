@@ -40,6 +40,8 @@ async def main(args):
             selected["calibrated_acceptance"] = True
         if getattr(args, "compact_table_observations", False):
             selected["compact_table_observations"] = True
+        if getattr(args, "claim_evidence_contract", False):
+            selected["claim_evidence_contract"] = True
         configure_context_experiment(store, selected)
     if args.manifest:
         with store.run_lock():
@@ -103,6 +105,8 @@ if __name__ == "__main__":
                         help="Experimental acceptance-boundary emphasis (requires artifact input and grounding)")
     parser.add_argument("--compact-table-observations", action="store_true",
                         help="Experimental compact table geometry for source reads/searches (requires calibrated acceptance)")
+    parser.add_argument("--claim-evidence-contract", action="store_true",
+                        help="Experimental native verdict grounds and author feedback (requires compact table observations)")
     args = parser.parse_args()
     if args.grounded_verdict and not args.review_input_mode:
         parser.error("--grounded-verdict requires --review-input-mode")
@@ -110,6 +114,8 @@ if __name__ == "__main__":
         parser.error("--calibrated-acceptance requires --review-input-mode artifact and --grounded-verdict")
     if args.compact_table_observations and not args.calibrated_acceptance:
         parser.error("--compact-table-observations requires --calibrated-acceptance")
+    if args.claim_evidence_contract and not args.compact_table_observations:
+        parser.error("--claim-evidence-contract requires --compact-table-observations")
     if args.serve:
         import uvicorn
         from report_agent.webapp import create_app

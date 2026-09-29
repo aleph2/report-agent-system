@@ -21,9 +21,39 @@ class FeedbackRubric(RubricMiddleware):
 
     state_schema = ReviewState
 
-    def __init__(self, *, target_observation=None, **kwargs):
+    def __init__(self, *, target_observation=None, claim_evidence_contract=False, **kwargs):
         super().__init__(**kwargs)
         self.target_observation = target_observation or (lambda: {})
+        self.claim_evidence_contract = claim_evidence_contract
+
+    def _ensure_grader(self):
+        if not self.claim_evidence_contract:
+            return super()._ensure_grader()
+        if self._grader is None:
+            # Thin construction hook for pinned DeepAgents0.7.19; keep its loop,
+            # coverage validation and evaluation serialization unchanged.
+            from deepagents._models import resolve_model
+            from deepagents.middleware.rubric import RUBRIC_GRADER_MESSAGE_SOURCE
+            from langchain.agents import create_agent
+            from .review_contract import GraderResponse
+            resolved_model = resolve_model(self._model)
+            self._resolved_model = resolved_model
+            self._grader = create_agent(
+                model=resolved_model, system_prompt=self._system_prompt, tools=self._tools,
+                middleware=self._grader_middleware, name=RUBRIC_GRADER_MESSAGE_SOURCE,
+                response_format=GraderResponse, state_schema=self._grader_state_schema,
+                context_schema=self._grader_context_schema)
+        return self._grader
+
+    @staticmethod
+    def _revision_prompt(evaluation):
+        base = RubricMiddleware._revision_prompt(evaluation)
+        grounds = [{"name": c["name"], "grounds": c["grounds"]}
+                   for c in evaluation["criteria"] if "grounds" in c]
+        if not grounds:
+            return base
+        from .review_contract import FEEDBACK_NOTE
+        return base + "\n\n" + FEEDBACK_NOTE + "\n" + encode(grounds)
 
     async def abefore_agent(self, state, runtime):
         if state.get("rubric_terminal_handoff"):
@@ -49,6 +79,9 @@ class FeedbackRubric(RubricMiddleware):
                     "Your response does not change the verdict; grading will not automatically "
                     "restart in this invocation. Do not claim a technical grader error proves "
                     "a report defect or that a revision is already approved."}
+        if any("grounds" in c for c in feedback["criteria"]):
+            from .review_contract import FEEDBACK_NOTE
+            feedback["grounds_status"] = FEEDBACK_NOTE
         return {**update, "rubric_terminal_handoff": True,
                 "messages": [HumanMessage(content=encode(feedback), name="rubric_terminal_feedback")],
                 "jump_to": "model"}
@@ -121,6 +154,10 @@ def native_review(workspace, model, tools, rules, middleware=()):
                        export_configuration_hash=export_configuration(workspace))
         if experiment:
             context["review_context_experiment"] = experiment
+        from .review_contract import contract_identity
+        contract = contract_identity(experiment)
+        if contract:
+            context["review_response_contract"] = contract
         if draft_id:
             draft = workspace.result(draft_id)
             context["observation_version"] = observation_version(workspace, draft_id)
@@ -174,6 +211,7 @@ def native_review(workspace, model, tools, rules, middleware=()):
                     else StructuredTool.from_function(t) for t in
                     [*tools, read_review_export, *([read_review_context] if experiment else [])]]
     return FeedbackRubric(model=model, tools=grader_tools, system_prompt=system_prompt,
+                            claim_evidence_contract=bool(experiment and experiment.get("claim_evidence_contract")),
                             grader_middleware=list(middleware),
                             target_observation=lambda: dict(context),
                             prepare_messages_for_grader=prepare, build_grader_state=bind_target,
@@ -210,12 +248,15 @@ def review_delivery(workspace, draft_id):
     prompt_hash = workspace.store.get("active_reviewer_prompt_hash")
     from .review_context import experiment_config
     experiment = experiment_config(workspace.store)
+    from .review_contract import contract_identity
+    contract = contract_identity(experiment)
     candidates = [r for r in workspace.store.get("rubric_reviews", [])
                   if r["target"].get("draft_id") == draft_id
                   and r["target"].get("draft_body_sha256") == body_hash
                   and r["target"].get("rubric_hash") == rule_hash
                   and (not prompt_hash or r["target"].get("reviewer_prompt_hash") == prompt_hash)
                   and r["target"].get("review_context_experiment") == experiment
+                  and r["target"].get("review_response_contract") == contract
                   and r["target"].get("export_configuration_hash") == export_configuration(workspace)]
     review = candidates[-1] if candidates else None
     status = "unreviewed_draft"
