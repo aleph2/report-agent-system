@@ -103,3 +103,47 @@ Probe declared/committed2f85066 and launched once. Normal preparation verifies/c
 original source files before model invocation; no duplicate preparation or paid retry.
 Email1a0eb97def363fb4 answers the user's status question with current failures, local
 results and exact read-only probe scope. Git author remainsmenglinsun@hotmail.com.
+
+## Terminal probe and Main disposition
+
+Completed 2026-09-29 05:22:29 UTC, normal exit: 24 GLM-5.3/high grader responses,
+1,442,728 provider tokens, no missing usage or model errors. The final verdict is
+again six satisfied criteria. All declared runtime/source/baseline postflight hashes
+match (`.analysis/task034/probe-postflight.json`). The imported report body remains
+SHA256 `07c5933c882cadf8b3099785501726bdc54cd0d3a4f83272ce80e99fb64af7b7`.
+No author or persisted report revision was part of this probe.
+
+The new analyze_evidence schema was present in all 24 actual callback invocations,
+but the grader never called it (nor the existing text/image analysis tools). This
+establishes availability, not adoption or quality gain. Do not mandate its use merely
+to obtain a favorable usage metric. Actual model parameters: GLM-5.3, high reasoning,
+maximum completion 65536, thinking enabled/clear_thinking=false, non-streaming,
+parallel_tool_calls=false; framework structured-output binding sets tool_choice=required.
+The substantive role prompt matches Task033; one separating blank line differs.
+
+Independent development reviewer /root/postrun_review completed the appended native
+assessment in 034-independent-results.md. Main accepts P2-034-R05/R06 and P3-R07:
+
+- R05: decisive guideline p20 (>1000mm ->100), plus adjacent indicator rules, actually
+  reached the grader, yet it certified the unchanged conflicting score relationships.
+  Holding other inputs fixed, correcting rain alone moves site ③ from
+  44.7413/II to47.4683/III. Existing recommendation for its special assessment contains
+  the omission consequence, not the incorrect rule/level claim.
+- R06: the fresh probe received no geology source observation, yet certified broad
+  source agreement/conflict disclosure. Preserve Task033's separately established
+  geology contradictions without pretending they arrived in this new run.
+- R07: one final level vector miscopies③asIII while the same explanation elsewhere
+  correctly quotes its originalII. This is not a detected or executed correction.
+
+R05/R06 block adopting this pass, asserting the representative quality failure is
+fixed, or promoting the candidate on these results. They do not block delivering the
+diagnostic findings or continuing isolated authorized development. R07 blocks relying
+on that quoted vector, not the whole diagnostic. Main owns subsequent prioritization;
+retain the known local-analysis feedback defects too. No extra paid replay is needed
+to establish these failures. G1/usable-report acceptance remains open.
+
+The important discriminating observation is that retrieval alone cannot explain all
+current failures: Task033 missed the decisive rain rule; Task034 received it and still
+missed the contradiction. Evidence integration and acceptance scope need investigation.
+Fresh IDs/history and changed coverage prevent strict causal attribution between runs.
+Task035's answer-bearing retrospective is separate and was never injected here.
