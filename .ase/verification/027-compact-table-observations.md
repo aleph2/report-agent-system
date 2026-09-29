@@ -80,3 +80,12 @@ d8dd051b-6c4a-423d-821a-32653b967457; grading run
 four original results and1617 source blocks; no graph copy/use, new OCR or manual
 review findings injected. Baseline hashes stayed unchanged during preparation.
 No Task027 paid invocation has occurred at this record's initial creation.
+
+Implementation commit31d3d0d, with user-configured Git author. P3-027-T03 (fixture
+portability guard, fixed): Git treated the small text-heavy PDF as text, warning of
+future LF/CRLF conversion and flagging required PDF xref spaces as whitespace.
+Main marks PDFs binary in.gitattributes and re-stages the exact fixture bytes;
+the PDF is not edited or whitespace-trimmed. This protects future checkouts and
+frozen byte offsets/hash. Current parsed fixture was not observed corrupted, and
+no production/source document or model execution was affected. Native runtime
+freeze remains the same29 files; Git attributes do not change runtime behavior.
