@@ -26,3 +26,8 @@ claims, obtain independent alignment review within the existing review step.
 Use `.ase/roles/alignment-reviewer.md`; record actual reviewer identity and disposition.
 Missing review or runtime evidence must be disclosed, never represented as passed.
 Do not create a runtime compliance agent or a new approval loop.
+
+Development specialist responsibilities are registered in `.ase/team.md`.
+For LLM/grader failure diagnosis or learning claims, use the LLM and reinforcement
+learning specialist under `.ase/roles/llm-rl-specialist.md` when assigned. Its
+research is advisory and does not add a mandatory report-runtime stage.
