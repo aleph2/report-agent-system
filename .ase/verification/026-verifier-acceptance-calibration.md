@@ -164,3 +164,53 @@ three new reports, and no observed over-rejection of their legitimate limitation
 or minor imperfection. Six calls are not six independent reports and do not measure
 general accuracy. Frozen files remain unchanged. The native trial is in progress;
 do not substitute the paired labels for content, repair or final-acceptance evidence.
+
+## Native candidate terminal and next diagnostic evidence
+
+Native candidate exited0 with47grader responses/2866433tokens, no missing response
+usage/errors, iteration0 satisfied. Originalcf1be9a3 body/hash is unchanged, four
+original results remain and no new draft/author response exists. Target binds the
+calibrated configuration and effective prompt; raw system SHA85caa16a corresponds
+to JSON-string store.digest343da67eef55ad61d382abd99de49d536a64bce8e59936a2f5b85b189c734678.
+Pinned DOCX47a9edb255021ebc408e1a593c158d5f75e65de69b3b9eef42a9cbd3374a9b33.
+Independent final content/reason/evidence-arrival review is requested separately.
+No repair or main-quality improvement has been observed. Per the predeclared branch,
+do not repeat unchanged calls until a favorable outcome; preserve this failed
+candidate observation and select a different diagnostic by information value.
+
+Read-only public-context measurement at request sequence710 (47th grader request)
+shows508002 content characters across94messages; tool content498838characters,
+system3343 and human5821. This excludes private reasoning and does not assert a
+provider context limit. The largest search return is184137characters; serialized
+sections include164496characters of source-table views, with rows19900 and sparse
+cell bounding-box metadata133110. The next two search returns are93395 and42955
+characters. Measurement uses string length and JSON serialization lengths, not
+provider tokenization; component sums need not match literal serialized totals.
+
+This motivates revisiting the separately proposed H3 table-representation factor:
+retain original text/cell values and evidence access while reducing repeated raw
+coordinate metadata. It does not prove attention failure or a unique cause, and
+the current run was not altered. Current prompt/model/rubric will be held fixed
+if representation is compared against this raw-table run. No reliability promotion
+of the acceptance paragraph is implied by retaining it as an experimental constant.
+
+## Independent native disposition
+
+Main accepts P2-026-N01/N02 as open. Designp97's correct40-inclinometer/6-plate
+table actually arrived, yet the public explanation lists the report's96/800/96/40
+monitoring totals as source-checked and reports no mislabel. This is unsupported
+positive confirmation, not evidence absence or the first H2's explicit recognition
+then materiality waiver. F02/F03/X21/N01 also remain; full907/907 report blocks
+arrived. They block reliable-quality/engineering-use assertions, not the contained
+next experiment or a clearly limited draft. The producer owns eventual repairs;
+Main owns hypothesis selection and evidence-based promotion decisions.
+
+Main accepts P3-026-N03 as a public-explanation precision issue: it says380/500
+was disclosed, whereas the report disclosed380/1130;500 can be derived from four
+lengths but was not that stated disclosure. This does not negate correct1130 or
+require another model call. Legitimate draft/unsigned/methodology-pending limits,
+correct six sums, source/target binding and actual prompt loading remain valid.
+All baseline/source/code postflight hashes match; old results unchanged, new IDs
+empty. Task026 totals108responses/3426132tokens including six small-case calls,
+with no author responses. Its real report outcome is not improved. No unchanged
+native repeat is justified under this task's predeclared information-value branch.

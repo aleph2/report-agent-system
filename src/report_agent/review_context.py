@@ -29,10 +29,12 @@ CONTEXT_VERSION = "review-context-v1"
 def _validate_config(value):
     required = {"input_mode", "grounded_verdict"}
     if (not isinstance(value, dict)
-            or not required <= set(value) <= required | {"calibrated_acceptance"}
+            or not required <= set(value) <= required | {"calibrated_acceptance", "compact_table_observations"}
             or value["input_mode"] not in {"transcript", "artifact"}
             or type(value["grounded_verdict"]) is not bool
             or ("calibrated_acceptance" in value and type(value["calibrated_acceptance"]) is not bool)
+            or ("compact_table_observations" in value and type(value["compact_table_observations"]) is not bool)
+            or (value.get("compact_table_observations") and not value.get("calibrated_acceptance"))
             or (value.get("calibrated_acceptance") and
                 (value["input_mode"] != "artifact" or not value["grounded_verdict"]))):
         raise ValueError("INVALID_REVIEW_CONTEXT_EXPERIMENT")
