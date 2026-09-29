@@ -111,3 +111,59 @@ Native execution is underway; no preliminary verdict is counted as completion.
 User email `1a0eaa3540d84f2a` asked for the next-step reasoning. Main replied in the
 same verified thread with rationale, actual scope and gain/regression criteria;
 sent receipt `1a0eac6ad38c127d`. No source attachments or credentials were emailed.
+
+## First public verdict and saved revision (final regrade pending)
+
+The first actual GraderResponse (public event681) is needs_revision: Human authority
+fails, four other criteria pass, and all five contain grounds (counts1/2/3/2/1).
+The real coordinator receives the16,625-character native feedback message with all
+ground fields and FEEDBACK_NOTE intact. This establishes actual schema/feedback
+use, beyond a recorded feature flag. No schema repair was needed for this response.
+
+The author saved/selected `e1616261-f23b-44d0-8550-0857ca25f0b9`, body SHA256
+`134f69ea2d156cb70bea238be08095fd50826b6c7c632978300e26a3d902fda7`.
+Independent postrun_review checked the actual body/diff/source observations in
+`029-native-review.md`. The N01 fieldwork contradiction is substantially corrected;
+X21 moved into its stated band and exact recomputation yields52.6 consistently.
+The other five original totals remain correct. Original F01/F03/F02 remain.
+
+Main adopts the independent disposition: P2-N01 wrong40-plate source confirmation,
+P2-N02 inadequate materiality/overbroad positive criteria; P3-N03 weak team-status
+inference, P3-N04 incorrect52.7 illustration (not propagated), P3-N09 overstated
+claim that a particular original cell explicitly cites3.1.2(2), which it does not.
+The corrected review wording and its history are preserved. Saved new P2-N05/06/07
+cover unsupported team formation, stronger negative-design/exclusion assertions,
+and unsupported equivalence of source stability terms; P3-N08 limits the claim
+that choosing the lower end of a risk band is inherently conservative. None is
+injected into the application. They block claiming a reliable accepted report,
+not completion of this isolated regrade or accurately marked draft review.
+
+This is useful local saved gain with regressions, not Task029 acceptance. It meets
+the predeclared condition for the three new scoped controls and one unchanged fresh
+native repeat; the repeat is not a retry to discard an unfavorable first result.
+Paid calls remain serial. The existing frozen runtime stays unchanged while live.
+Progress/limitations were emailed, receipt `1a0eada7c1c9c8a7`.
+
+## Subsequent observation preparation
+
+resume_assessment prepared three new synthetic compilation controls with correct,
+incorrect and honest-uncertain content; postrun_review independently read all
+assignments, nine sources, full candidates and labels. See029-heldout-review.md.
+Input SHA256 `8ee0a6b3e2f9253ea7632884a4c038f93b155167f8137651993246f806ccca17`;
+reference SHA256 `caed5d5b410605ae1aca14edc3dfd2312528f3ba617224e1e6a2aed6e19632fb`.
+The expected judgments are separate and unavailable to the runtime. No model call
+or quality pass is implied. Before execution, expose/check the intended actual
+schema in the existing diagnostic; its current older arm is not Task029 evidence.
+
+Repeat preparation in `.runs/task029/native-contract-repeat` has zero model calls,
+no graph/new OCR/manual feedback. Import `294b0df3-a4d2-4dc1-b49e-a2a9013b8bc6`,
+grading run `b81b3d90-db7b-449b-8507-087046714da8`, identical original body. System,
+schema, rubric, configuration and all30 runtime files match the first frozen run.
+Source/baseline hashes and original results pass preflight. Config/contract are bound.
+
+**P3-029-T02**, fixed before repeat calls: the ignored repeat freeze helper used a
+Windows-relative path literally under WSL and failed to find the code file. Main
+normalized only the recorded path separators, then every original code hash passed.
+The failure occurred before configuration/model invocation and did not modify the
+live first run or invalidate its frozen code. It blocked that repeat precheck until
+corrected, not the isolated running experiment. No paid retry resulted.
