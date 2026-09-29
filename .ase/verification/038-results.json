@@ -1,0 +1,469 @@
+{
+  "scope": "Known-claim rule application: original versus target-counterfactual, local versus full report, two fresh repetitions. Not autonomous discovery or whole-report acceptance.",
+  "summary": {
+    "status": "completed_with_errors",
+    "planned": 8,
+    "attempted": 8,
+    "valid": 7,
+    "errors": 1,
+    "valid_items": 14,
+    "item_correct": 14,
+    "false_accepts": 0,
+    "false_rejections": 0,
+    "undetermined_items": 0,
+    "usage": {
+      "prompt_tokens": 180709,
+      "completion_tokens": 142440,
+      "total_tokens": 323149
+    },
+    "all_frozen_files_match": true,
+    "model_requests": 9,
+    "model_responses": 9,
+    "all_original_files_match": true,
+    "frozen_files": 39,
+    "actual_input_matches": true,
+    "parameters_identical": true,
+    "returned_models": [
+      "glm-5.3"
+    ],
+    "empty_pass_gaps_omitted_by_schema": 2,
+    "paired": [
+      {
+        "version": "original",
+        "repeat": 0,
+        "vectors": {
+          "local": "NN",
+          "full": "NN"
+        },
+        "same": true
+      },
+      {
+        "version": "target_counterfactual",
+        "repeat": 0,
+        "vectors": {
+          "local": "SS",
+          "full": "SS"
+        },
+        "same": true
+      },
+      {
+        "version": "target_counterfactual",
+        "repeat": 1,
+        "vectors": {
+          "full": "SS",
+          "local": "SS"
+        },
+        "same": true
+      }
+    ],
+    "by_condition": [
+      {
+        "run": "3654137d48c3-0",
+        "version": "original",
+        "context": "local",
+        "repeat": 0,
+        "vector": "NN",
+        "expected": "NN",
+        "result": "needs_revision"
+      },
+      {
+        "run": "62a14e5d301b-0",
+        "version": "original",
+        "context": "full",
+        "repeat": 0,
+        "vector": "NN",
+        "expected": "NN",
+        "result": "needs_revision"
+      },
+      {
+        "run": "0624bbf3556b-0",
+        "version": "target_counterfactual",
+        "context": "local",
+        "repeat": 0,
+        "vector": "SS",
+        "expected": "SS",
+        "result": "satisfied"
+      },
+      {
+        "run": "a0f3f6154bef-0",
+        "version": "target_counterfactual",
+        "context": "full",
+        "repeat": 0,
+        "vector": "SS",
+        "expected": "SS",
+        "result": "satisfied"
+      },
+      {
+        "run": "a0f3f6154bef-1",
+        "version": "target_counterfactual",
+        "context": "full",
+        "repeat": 1,
+        "vector": "SS",
+        "expected": "SS",
+        "result": "satisfied"
+      },
+      {
+        "run": "0624bbf3556b-1",
+        "version": "target_counterfactual",
+        "context": "local",
+        "repeat": 1,
+        "vector": "SS",
+        "expected": "SS",
+        "result": "satisfied"
+      },
+      {
+        "run": "3654137d48c3-1",
+        "version": "original",
+        "context": "local",
+        "repeat": 1,
+        "vector": "NN",
+        "expected": "NN",
+        "result": "needs_revision"
+      }
+    ]
+  },
+  "settings": {
+    "model_name": "glm-5.3",
+    "reasoning_effort": "high",
+    "max_tokens": 65536,
+    "temperature": null,
+    "top_p": null,
+    "seed": null,
+    "model_kwargs": {
+      "parallel_tool_calls": false
+    },
+    "extra_body": {
+      "thinking": {
+        "type": "enabled",
+        "clear_thinking": false
+      }
+    },
+    "disable_streaming": true
+  },
+  "actual_callback_parameters": {
+    "extra_body": {
+      "thinking": {
+        "clear_thinking": false,
+        "type": "enabled"
+      }
+    },
+    "max_completion_tokens": 65536,
+    "model": "glm-5.3",
+    "model_name": "glm-5.3",
+    "parallel_tool_calls": false,
+    "reasoning_effort": "high",
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "description": "Acceptance of every named standard, distinct from permission to share a draft.",
+          "name": "GraderResponse",
+          "parameters": {
+            "properties": {
+              "criteria": {
+                "items": {
+                  "discriminator": {
+                    "mapping": {
+                      "False": "#/$defs/CriterionFail",
+                      "True": "#/$defs/CriterionPass"
+                    },
+                    "propertyName": "passed"
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "evidence": {
+                          "description": "Located observations supporting this conclusion, including counterevidence. Empty is honest when no evidence is available; it does not prove a defect.",
+                          "items": {
+                            "properties": {
+                              "locator": {
+                                "description": "Locatable report, source or commissioning observation; identify actual access limits honestly.",
+                                "title": "Locator",
+                                "type": "string"
+                              },
+                              "observation": {
+                                "description": "What that evidence establishes, distinct from the report assertion or your inference.",
+                                "title": "Observation",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator",
+                              "observation"
+                            ],
+                            "title": "EvidenceObservation",
+                            "type": "object"
+                          },
+                          "title": "Evidence",
+                          "type": "array"
+                        },
+                        "explanation": {
+                          "description": "Why the observations justify this criterion outcome, with actual coverage and limitations.",
+                          "minLength": 1,
+                          "title": "Explanation",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Descriptive, functional statement of exactly what this criterion checks in the agent's output or transcript -- specific enough that another grader could evaluate it without re-reading the rubric. Prefer 'Response cites a source for every statistic' over 'Sources'. Reuse the exact same wording whenever this criterion is graded again.",
+                          "title": "Name",
+                          "type": "string"
+                        },
+                        "needed_outcome": {
+                          "description": "What remains necessary within the commission and responsible party's authority, or no change needed. Unknown is not a request to invent a report correction.",
+                          "title": "Needed Outcome",
+                          "type": "string"
+                        },
+                        "passed": {
+                          "const": true,
+                          "title": "Passed",
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": [
+                            "satisfied",
+                            "not_satisfied",
+                            "undetermined"
+                          ],
+                          "title": "Status",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "passed",
+                        "status",
+                        "evidence",
+                        "explanation",
+                        "needed_outcome"
+                      ],
+                      "title": "CriterionPass",
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "evidence": {
+                          "description": "Located observations supporting this conclusion, including counterevidence. Empty is honest when no evidence is available; it does not prove a defect.",
+                          "items": {
+                            "properties": {
+                              "locator": {
+                                "description": "Locatable report, source or commissioning observation; identify actual access limits honestly.",
+                                "title": "Locator",
+                                "type": "string"
+                              },
+                              "observation": {
+                                "description": "What that evidence establishes, distinct from the report assertion or your inference.",
+                                "title": "Observation",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator",
+                              "observation"
+                            ],
+                            "title": "EvidenceObservation",
+                            "type": "object"
+                          },
+                          "title": "Evidence",
+                          "type": "array"
+                        },
+                        "explanation": {
+                          "description": "Why the observations justify this criterion outcome, with actual coverage and limitations.",
+                          "minLength": 1,
+                          "title": "Explanation",
+                          "type": "string"
+                        },
+                        "gap": {
+                          "description": "Short, actionable description of what is missing or incorrect, specific enough for the agent to act on without further clarification.",
+                          "title": "Gap",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Descriptive, functional statement of exactly what this criterion checks in the agent's output or transcript -- specific enough that another grader could evaluate it without re-reading the rubric. Prefer 'Response cites a source for every statistic' over 'Sources'. Reuse the exact same wording whenever this criterion is graded again.",
+                          "title": "Name",
+                          "type": "string"
+                        },
+                        "needed_outcome": {
+                          "description": "What remains necessary within the commission and responsible party's authority, or no change needed. Unknown is not a request to invent a report correction.",
+                          "title": "Needed Outcome",
+                          "type": "string"
+                        },
+                        "passed": {
+                          "const": false,
+                          "title": "Passed",
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": [
+                            "satisfied",
+                            "not_satisfied",
+                            "undetermined"
+                          ],
+                          "title": "Status",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "passed",
+                        "gap",
+                        "status",
+                        "evidence",
+                        "explanation",
+                        "needed_outcome"
+                      ],
+                      "title": "CriterionFail",
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "explanation": {
+                "description": "One or two sentence verdict summary that will be sent back to the agent as feedback if the task needs to be reattempted.",
+                "type": "string"
+              },
+              "result": {
+                "description": "satisfied only if all standards are satisfied; needs_revision for any established not_satisfied; undetermined if only unresolved assessment remains; failed only for an invalid rubric.",
+                "enum": [
+                  "satisfied",
+                  "needs_revision",
+                  "undetermined",
+                  "failed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "result",
+              "explanation",
+              "criteria"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "frozen_files": {
+    ".analysis/task038/frozen/model-inputs.json": "a196efb76a37c3201ca54e3ead7f0fb265041d881e6ed7d13de29860845544f5",
+    "pyproject.toml": "2ae936b3efa70853f19eb9ac955d14c76833625fbcc8c478be45f1982a8cafb0",
+    "scripts/run_deepagents_trial.py": "e9f8135c1688107d4f8e5c9b894ac33a14c084eb6c028a4808369d11a302ec26",
+    "scripts/run_grader_diagnostic.py": "4c0969d53b1ee26add7e48d33ca8f99d158c6711a763927f9d433dd6ebfbc1b4",
+    "scripts/run_stance_diagnostic.py": "5fe75816e63db79a83035cea6a3c723d9048ecd869af45e05fb4e25694711629",
+    "src/report_agent/__init__.py": "9b8b371fc59f6ff694196ea63d6d8909f4c1f1d753f81c0ef0d4dd3d143f7a16",
+    "src/report_agent/acceptance.py": "8975fc9f305033b92e60f5893c882c8db31ff1e5e1010de7398c444e9a955317",
+    "src/report_agent/acceptance_review.py": "44b26b209406a4d33424c91bce976c6ff14c01bd3f11a4875c421d400991f4ad",
+    "src/report_agent/calculations.py": "8f41fda46e450cddffb7e009bf37f12453792ee04f2c882862e867dc559e3726",
+    "src/report_agent/catalog.py": "195200e9da97bad325aa4634c884bcc26c68d647f676ddf26e7a9d5a04f7127c",
+    "src/report_agent/cli.py": "ac7eda9fc29261cc346a9e72df51f7c8cae4c1f6389bccfbf6b4b748491c0522",
+    "src/report_agent/deep_models.py": "074809346ae5964a5bdd11122f8d2d16c1a7b9dad3088fe0495b38a30cdc21a9",
+    "src/report_agent/deep_runtime.py": "ff2bfd908fec665535c4351923f66cc1851098bc30fe43a96580afda5a984b52",
+    "src/report_agent/document_tools.py": "2ceaad05db33b1624f428cb626666d34f62b4d1ad12164844e47439d06c88bab",
+    "src/report_agent/embeddings.py": "df679d6e5574f54088257ed31223a20268d32184f6a91cab10574396353e3096",
+    "src/report_agent/errors.py": "1808925149e6df2f4b3f80694c27513d0c6ccb11e38ede195f48f6472733b126",
+    "src/report_agent/evidence_analysis.py": "784c081c14a30305bfd3fa66f648c11c81a89041232d4eaaccd35a79448dc9c9",
+    "src/report_agent/exporting.py": "29070aeec90de8a1087d82accf11e8b36df38dccb08b98cb2c1f676886f3b3c5",
+    "src/report_agent/ingestion.py": "5742ef9eb744e5e1b6dd43a02c887f941ae0b983899e52d65996077a8df8215b",
+    "src/report_agent/knowledge.py": "35376d7f832b81704028bf864adbe98a96520ff74f90216bf37687c56d1c1410",
+    "src/report_agent/knowledge_state.py": "e86af5b669cfd505cdb0b754cccd72a491d5627f78283dec1a0a0630730286ca",
+    "src/report_agent/models.py": "0f0a4350cceae4c762223f9d7cf9e93749ab3858510279e02dd9e634296bf7b0",
+    "src/report_agent/report_preview.py": "8d0ac145d8e659cc987f6528822729c5fe839bd0aa9bd8c7326184a64af462ae",
+    "src/report_agent/report_runtime.py": "c9c79d72fdc0f293fa00c7dc2202dd924be368be1a4d196ade2853feae2fd1f5",
+    "src/report_agent/review.py": "89a210a8ad25d52cc778b2814e5807b7311e5d9815062287382567b9a0daf4f4",
+    "src/report_agent/review_context.py": "9727ee95c79e6dfdc8ea241aa04a56b1b0b237407ea2ca9daa9043ae5bb67970",
+    "src/report_agent/review_contract.py": "409b6e9f2ce679b5ebd440910ae3c1fc87c885e15609f367d68682d50328f32d",
+    "src/report_agent/rules/acceptance-reviewer.md": "340e74c063010a8957579a17ab2e9b20cd960e4858eb382e6f5521a86d70b2a4",
+    "src/report_agent/rules/report-review.md": "b63e7620378e6648fa9882db5c69e978a9744e0a5c095c1db0642792abc70ca5",
+    "src/report_agent/rules/report-reviewer.md": "b8d9cd106d0310c303c10f782505cd1a017d4d510c4c1648d11a6fb37b5fd905",
+    "src/report_agent/runtime.py": "ddc1508a69ed2327da04da965ed51506151eb58e52078db4021d590f308a2a8e",
+    "src/report_agent/source_tables.py": "a2815900b25f9bf5dce6d7f991eff710f3e682be074995b8d379bdadd906b052",
+    "src/report_agent/store.py": "97db1ba700c124848629db1875ea704fa93152aed291c12de247a6da2df9a4f0",
+    "src/report_agent/tools.py": "2a0af998284bbf0ce8f824fd035fcd2971c5737ec96918c61ddc2a8f2c5df05d",
+    "src/report_agent/vision.py": "b21ef850691ea88fb4e8a72f21a6ae7ccb0832ade3d63e0ee686b9ab4c4f460d",
+    "src/report_agent/webapp.py": "ed5322b547c5c58c897a7a553124ddff878ca21041f9939384326ce527260b7a",
+    "src/report_agent/workspace.py": "2f39f44398d5e763b81346c187875d67bc19ba200b6616b5d07d0f4351743d87",
+    "scripts/run_real_context_diagnostic.py": "81da6d195fe3a89b1df96aa77e04d14a3f6546286ef3965812366cb6ca86c829",
+    "scripts/prepare_real_context_diagnostic.py": "79b7cd8c8eac300a734e0eb3c2844c7eb595db7edae73810644a884125cbd312"
+  },
+  "original_input_files": {
+    ".analysis/task034/probe-results.json": "c339d3be222c9f64d1ad6899d15da4fcb3ca02e14d3af66be30ad78bcfee0ebc",
+    ".runs/task034/native-probe/model-io.json": "d70ea7f552848a68ac2590a3b9b0d14731d6134ea9dd72d6501b97d703cccfde",
+    ".runs/task034/native-probe/input.json": "620b799ed26ef918bec139227f3265c073ac2c6d245cf21bef129c7bfa0e8426",
+    ".runs/task034/native-probe/sources/路堑高边坡施工安全评价指南.pdf": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98",
+    ".runs/task034/native-probe/sources/报告编写范围说明.md": "bb80476e9831d05f72dd6043e58ac6248a54a4bef0708f042e4ccdb498619b1f"
+  },
+  "public_artifact_sha256": {
+    ".runs/task038/context-controls/3654137d48c3-0/input.json": "06639e98871d015d9c3d8d4fba80f27b9110ffefdd3ff411bb8ade8ea789983f",
+    ".runs/task038/context-controls/3654137d48c3-0/output.json": "3b0d30d5f14510a39dbf43bd87976e6631d0bbc0cf738cc64c2fd1db7efef6f0",
+    ".runs/task038/context-controls/3654137d48c3-0/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/3654137d48c3-0/receipt.json": "7eaab45d0dd6a25b54c0baff377a2b7049561cef48fd487e0f7f5a0b78ec0f9f",
+    ".runs/task038/context-controls/3654137d48c3-0/model-io.json": "bdeae670dffc2c0bd53da1e0abb0c133779195ff99bd55db317d44bc739ce87f",
+    ".runs/task038/context-controls/62a14e5d301b-0/input.json": "66069c9cb06077e322cd9e37b460a5b7b1291c561fd97599a846fcb121e9542a",
+    ".runs/task038/context-controls/62a14e5d301b-0/output.json": "a078ec759b224606a332f35981195c5cd599268f59ca77b06ab33b93e88f2319",
+    ".runs/task038/context-controls/62a14e5d301b-0/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/62a14e5d301b-0/receipt.json": "f15b031b9010e45f1d5d5f0b40ba04b0c25eaf32189aebbbee92a03336fb5a0b",
+    ".runs/task038/context-controls/62a14e5d301b-0/model-io.json": "9aacf278463c3718b5de4f66860efceab9eeb5295b32c12bec24b24cb6762209",
+    ".runs/task038/context-controls/0624bbf3556b-0/input.json": "ddc9bdf087628151f4c8d2232c0d5d3028e218c901468f11fa1f0407c964ce90",
+    ".runs/task038/context-controls/0624bbf3556b-0/output.json": "109e4ac2db518de51d721df127131da40b4edd089beaf36d43aeda960fe02de3",
+    ".runs/task038/context-controls/0624bbf3556b-0/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/0624bbf3556b-0/receipt.json": "e69b6fb8d72d8b641d6dec24fe7770dbfe97df7623b5f1d38c8f153a5c7993e1",
+    ".runs/task038/context-controls/0624bbf3556b-0/model-io.json": "25f890947f1b6a15fa5b4a467476cd9361b6e1cc38e6f0d0bd8a905bbf7a8fa0",
+    ".runs/task038/context-controls/a0f3f6154bef-0/input.json": "427ca9d5676003dfd4a51efc4a5c157b35944823e7ba5ba5ab1c8b24687cf241",
+    ".runs/task038/context-controls/a0f3f6154bef-0/output.json": "6e2a3b9f6233568f8772822d23c5968afb395d975f07794565dbd3138f7cde00",
+    ".runs/task038/context-controls/a0f3f6154bef-0/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/a0f3f6154bef-0/receipt.json": "0bc0b340f5e1b5135f53e0b85ce9c79d9eb2f7d17983b9d2e4f90876291acab4",
+    ".runs/task038/context-controls/a0f3f6154bef-0/model-io.json": "e303d4d597e7e05cbe5f17fb3a48b91430f27abfd8cd2a20bf4580d8c4f34dc0",
+    ".runs/task038/context-controls/a0f3f6154bef-1/input.json": "427ca9d5676003dfd4a51efc4a5c157b35944823e7ba5ba5ab1c8b24687cf241",
+    ".runs/task038/context-controls/a0f3f6154bef-1/output.json": "2647239978fe48725acb3db32bf487badd72763b830fefcdfff169d12536b483",
+    ".runs/task038/context-controls/a0f3f6154bef-1/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/a0f3f6154bef-1/receipt.json": "33ce09475de2fa34d2d87d3bd017877312f74c3cbe4462ed9941f94e94c327c0",
+    ".runs/task038/context-controls/a0f3f6154bef-1/model-io.json": "d820d84b5200e28c7a85819a4de5bc6f28104dc9d924a697faa04dfc3521f6da",
+    ".runs/task038/context-controls/0624bbf3556b-1/input.json": "ddc9bdf087628151f4c8d2232c0d5d3028e218c901468f11fa1f0407c964ce90",
+    ".runs/task038/context-controls/0624bbf3556b-1/output.json": "9f750ae8d8bb2612d03d4ec97fac62125348caa1ff2b9d6e42360bf25a9e4012",
+    ".runs/task038/context-controls/0624bbf3556b-1/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/0624bbf3556b-1/receipt.json": "6fa0f21b4c9349daed2adf785e0fb97b273461ca193cb3d8551d174191b514fd",
+    ".runs/task038/context-controls/0624bbf3556b-1/model-io.json": "21e76cf1c1ef2c8848c6ec3ea7d799009c16ff5a05a12a005f43f558b8539db1",
+    ".runs/task038/context-controls/62a14e5d301b-1/input.json": "66069c9cb06077e322cd9e37b460a5b7b1291c561fd97599a846fcb121e9542a",
+    ".runs/task038/context-controls/62a14e5d301b-1/output.json": "f7d4c02c6b8ffa4d38444dd06a6c42a75766f3bb0b4dd4d2874d38a5fc8c1f86",
+    ".runs/task038/context-controls/62a14e5d301b-1/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/62a14e5d301b-1/receipt.json": "f66d53140de063f9ffcfcfa2667e7e6f6ba453d3e52246aee53d7e0fae070907",
+    ".runs/task038/context-controls/62a14e5d301b-1/model-io.json": "6ef04790f5c53529f2d71e0bc6c56d7dde4e2485a8124159205cd5e17a4c33e7",
+    ".runs/task038/context-controls/3654137d48c3-1/input.json": "06639e98871d015d9c3d8d4fba80f27b9110ffefdd3ff411bb8ade8ea789983f",
+    ".runs/task038/context-controls/3654137d48c3-1/output.json": "a2de5604dc731c17526196a7a63d3143b85f0c9c05f4dbe8a4f1bfcdeb8cbec3",
+    ".runs/task038/context-controls/3654137d48c3-1/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task038/context-controls/3654137d48c3-1/receipt.json": "040676ec60c783e2fa13c7cf5e3810bee3a5d071f52f01d0dce84b93d400197c",
+    ".runs/task038/context-controls/3654137d48c3-1/model-io.json": "bd245372d5259ea8da80228e59fcf1a6a48d1c0076c8fa6711b4c7a6d069fc03",
+    ".runs/task038/context-controls/batch.json": "4d19d6a271e4391329f97b76dc8178e4b437f710481da9f8706dbe83c2041068",
+    ".runs/task038/context-controls/batch.before-continuation-1.json": "2927e59854bfe564e9b6046df338a6b9f7bba2576764392dd314e624a7593460",
+    ".analysis/task038/frozen/model-inputs.json": "a196efb76a37c3201ca54e3ead7f0fb265041d881e6ed7d13de29860845544f5",
+    ".analysis/task038/frozen/input-receipt.json": "bd69e409f6a2d0358cbbdef82c214affac0afc386b6f1bb3fb9690f90e3a5094",
+    ".analysis/task038/framework-continuation-evidence.json": "cbdb47dac8d77fbfb5034bdeeb13120b65cdd48171b66b9a3bd1517b87145b0b",
+    ".analysis/task038/audit.py": "558ec16187a33235cb3f1865f9ac270f1902549afae6642e1d45ca2eed093183",
+    ".analysis/task038/finalize.py": "0b66a6e098c7207715cd058407d37ea55dbe935f54a4955992b28ce99c1d7696"
+  },
+  "semantic_findings": [
+    {
+      "id": "P2-038-M01",
+      "scope": "Original/full repetition1 protocol failure",
+      "impact": "Length-terminated first response; subsequent response has wrong criterion ID. Entire attempted cell excluded from valid semantic scores.",
+      "disposition": "Preserved both calls and usage; no failed-cell repair or replay. Only the unattempted final cell continued."
+    },
+    {
+      "id": "P2-038-R01",
+      "scope": "Repair alternatives in failed original-report assessments",
+      "impact": "Correct status can coexist with unsupported repair alternatives; not verified downstream because no author ran.",
+      "disposition": "Preserve independently reviewed occurrences; blocks fully correct feedback/repair claims, not this contained diagnostic."
+    },
+    {
+      "id": "P3-038-R02",
+      "scope": "One counterfactual/full assessment source-attribution wording",
+      "impact": "Correct band inference described as if expressly stated by the report; does not change the supported satisfied status.",
+      "disposition": "Record citation precision issue; no diagnostic stop."
+    }
+  ],
+  "independent_review": ".ase/verification/038-independent-results.md",
+  "private_reasoning_inspected": false,
+  "production_change_or_promotion": false
+}

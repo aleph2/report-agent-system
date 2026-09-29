@@ -75,3 +75,102 @@ leak or replay/permission expansion found, and continuation validates a terminal
 ordered prefix. Main accepted and resolved the remaining fixture wording issue
 above using the independent fixture owner's correction. No new runtime review loop
 or production criteria edit was added. Ready for the declared8-call diagnostic.
+
+## First observation (not terminal)
+
+The first local-original cell3654137d48c3-0 returned NN with exact criterion coverage,
+one model response and13,381 tokens. Its public grounds identify both actual rule
+contradictions. Independent postrun_review confirmed the labels and source relation,
+but found P2-038-R01 in its needed_outcome alternatives. R31's correct fixed100
+explanation is weakened by offering the75–100 range/interpolation as alternatives;
+R42 permits supplementing a different position statement without a new-evidence
+condition, although the assignment holds the adopted premise fixed.
+
+Main accepts P2-038-R01. Scope: this first response's repair feedback, with later
+occurrences to be evaluated separately. It blocks claiming fully correct feedback
+or successful repair, not completing the frozen read-only matrix. No author was
+invoked, so actual downstream propagation is untested. Containment: preserve public
+output, record the issue separately from status accuracy, keep criteria/prompt fixed
+and continue the remaining planned cells. Main owns follow-up after terminal evidence;
+do not let this localized finding displace the main investigation into real false passes.
+Progress email1a0ebfd9e928b8d7 reports this distinction and the incomplete1/8 status.
+
+## Terminal execution and protocol diagnosis
+
+All8 planned cells were attempted, with7 valid judgments and1 failed criterion-ID
+coverage check. The14 items in valid judgments agree with the frozen oracle: three
+original-report judgments areNN and four target-counterfactual judgments areSS.
+Three complete local/full pairs agree; the fourth lacks a valid full-context result.
+Do not report8/8 valid judgments or infer context equivalence from these few cases.
+This is explicitly targeted rule application, not autonomous error discovery.
+
+The failed original/full repetition62a14e5d301b-1 had two recorded model calls.
+Its first response ended with finish_reason=length at the configured65,536 completion
+tokens, with no structured tool call and public text `<strong`. The unchanged
+LangChain agent loop continued. The second response parsed against the schema but
+changed the second criterion ID from criterion_d12bd88289dfa050 to
+criterion_d12bd88289dba050. The runner rejected it as CRITERION_COVERAGE_MISMATCH.
+The prose discusses the two conflicts, but the entire failed cell remains outside
+valid semantic scores; its output is neither corrected nor replayed.
+
+P2-038-M01: failure to preserve an exact criterion identity makes this attempted
+assessment unusable as a complete acceptance result. Scope is one of8 diagnostic
+cells; production frequency and causal relationship to the length finish are
+unknown. It blocks accepting that result or claiming all attempts were usable,
+not completing the remaining independent condition. Main inspected the public I/O,
+kept both response usages, and used the frozen runner's diagnosed continuation only
+for the final unattempted local/original cell. That cell completedNN. No source,
+role, schema, input or frozen runner changed; continuation metadata preserves the
+prior batch. Main owns later protocol-reliability work where relevant to the trunk.
+
+The long call is evidence that one diagnostic invocation need not be one model
+request. Locally installed LangChain1.4.2 factory.py lines1993–1999 route back to
+the model when no structured_response exists. Its file SHA256 and bounded code
+excerpt are preserved in.analysis/task038/framework-continuation-evidence.json.
+The current [official structured-output documentation](https://docs.langchain.com/oss/python/langchain/structured-output)
+defines handle_errors=False for structured-output validation errors; it does not
+establish that an invocation with no structured result makes only one request.
+No framework patch or parameter change was made during this experiment. Output
+length here is a configured per-response limit, not a proven provider capacity
+or an authorized cumulative budget. Provider private reasoning was not inspected.
+
+There were9 recorded requests/responses in8 cells:180,709 prompt plus142,440
+completion =323,149 total tokens. The failed cell accounts for168,591 tokens.
+Reasoning usage is already included in completion tokens; do not add it again.
+No money charge is inferred without a provider bill. Public callback parameters
+match across all9 requests: GLM-5.3/high, max_completion_tokens65536, thinking
+enabled/clear_thinking=false, no parallel tool calls, nonstreaming and required
+GraderResponse tool choice. Temperature/top_p/model seed are unspecified.
+
+Actual initial messages match the frozen two-message input. The failed cell's
+second request retains both initial messages and appends only the prior AI reply;
+no developer feedback or oracle was inserted. These are callback/public-audit
+checks, not an HTTP wire capture. All39 frozen runtime/input hashes and five
+original input-file hashes match. Two successful pass outputs had empty extra gap
+fields omitted by schema; auditing normalized only those empty fields.
+
+P2-038-R01 also occurs in the first full/original judgment. Independent review of
+the remaining outputs is being finalized. P3-038-R02 records one full/counterpart
+output that describes the correctly inferred75–100 band as if the report stated
+it explicitly. Main accepts its low impact: citation precision is affected, not
+the supportedSS result. It blocks exact-attribution claims for that sentence,
+not the diagnostic or a labeled draft. Keep the finding for feedback quality work;
+do not create another local matrix solely to remove it.
+
+Independent terminal review by/root/postrun_review is complete. Main accepts its
+findings and the final accounting: all three valid original-report responses have
+P2-R01 repair-boundary issues; the invalid full response repeats that issue and
+adds out-of-scope F/level repair requests, but remains unscored. P3-R02 also covers
+one page20/21 attribution imprecision in the final local negative. These findings
+affect feedback quality separately from the14 valid labels. Three complete
+local/full pairs and three valid within-condition repeat pairs agree; the missing
+full/original repetition is not filled with its readable but invalid response.
+
+Final provenance is in038-results.json; public request/response/receipt files stay
+under.runs/task038/context-controls, with the one diagnosed continuation preserved.
+Main's disposition is to close this bounded diagnostic without promoting the
+grader, retaining P2-M01/P2-R01/P3-R02 and the historical real false-pass evidence.
+The finite Task039 original-criteria comparison is now running under the existing
+authorization and unchanged model wrapper. Then return to actual author/review
+recovery rather than tuning these local feedback sentences indefinitely. No
+business report has yet been repaired and G1 remains open.
