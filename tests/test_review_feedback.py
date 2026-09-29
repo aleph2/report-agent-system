@@ -38,6 +38,7 @@ def ws(tmp_path, monkeypatch):
         return original(exc)
     monkeypatch.setattr(deep_runtime, "error_data", capture)
     store = Store(tmp_path)
+    store.set("acceptance_mode", "legacy")  # This suite verifies the historical rubric protocol.
     store.initialize({"goal": "Compile daytime access.", "sources": [
         {"id": "s", "title": "Source", "content": "Daytime access only.", "coverage": "complete"}]})
     result = Workspace(store)

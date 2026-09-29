@@ -10,7 +10,7 @@ from .store import Store, digest, encode
 
 # Compatible outcome tags with stable producer permissions, not execution stages.
 OWNERS = {"purpose": "purpose", "plan": "planner", "materials": "materials",
-          "draft": "writer", "review": "reviewer"}
+          "draft": "writer", "review": "reviewer", "acceptance": "coordinator"}
 
 
 class Workspace:
@@ -359,6 +359,10 @@ class Workspace:
             raise ActionRejected("TASK_ALREADY_COMMITTED_REQUEST_REVISION")
         if not title.strip() or not body.strip():
             raise ActionRejected("RESULT_CONTENT_REQUIRED")
+        if kind == "draft":
+            from .acceptance import enabled, draft_criteria
+            if enabled(self):
+                draft_criteria(self, {"input_ids": declared})
         self.store.sources(source_ids)
         replaces_id = task.get("replaces_id")
         if replaces_id:
@@ -506,7 +510,7 @@ class Workspace:
         return assessment
 
     def issue(self, category, description, source_ids):
-        if category not in {"source_missing", "source_conflict", "system_failure"} or not description.strip():
+        if category not in {"source_missing", "source_conflict", "system_failure", "requirement"} or not description.strip():
             raise ActionRejected("INVALID_ISSUE")
         self.store.sources(source_ids)
         issues = self.store.get("report_issues", [])

@@ -46,6 +46,7 @@ def save(body, replaces=""):
 @pytest.fixture
 async def completed(tmp_path):
     store = Store(tmp_path / "baseline")
+    store.set("acceptance_mode", "legacy")  # Reconstruct the historical Task017 import baseline.
     source = store.root / "sources/input.txt"
     source.parent.mkdir()
     source.write_bytes(b"Daytime access only.")

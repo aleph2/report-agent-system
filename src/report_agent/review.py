@@ -21,13 +21,14 @@ class FeedbackRubric(RubricMiddleware):
 
     state_schema = ReviewState
 
-    def __init__(self, *, target_observation=None, claim_evidence_contract=False, **kwargs):
+    def __init__(self, *, target_observation=None, claim_evidence_contract=False, acceptance_workspace=None, **kwargs):
         super().__init__(**kwargs)
         self.target_observation = target_observation or (lambda: {})
         self.claim_evidence_contract = claim_evidence_contract
+        self.acceptance_workspace = acceptance_workspace
 
     def _ensure_grader(self):
-        if not self.claim_evidence_contract:
+        if not self.claim_evidence_contract and self.acceptance_workspace is None:
             return super()._ensure_grader()
         if self._grader is None:
             # Thin construction hook for pinned DeepAgents0.7.19; keep its loop,
@@ -35,7 +36,10 @@ class FeedbackRubric(RubricMiddleware):
             from deepagents._models import resolve_model
             from deepagents.middleware.rubric import RUBRIC_GRADER_MESSAGE_SOURCE
             from langchain.agents import create_agent
-            from .review_contract import GraderResponse
+            if self.acceptance_workspace is not None:
+                from .acceptance_review import GraderResponse
+            else:
+                from .review_contract import GraderResponse
             resolved_model = resolve_model(self._model)
             self._resolved_model = resolved_model
             self._grader = create_agent(
@@ -45,8 +49,39 @@ class FeedbackRubric(RubricMiddleware):
                 context_schema=self._grader_context_schema)
         return self._grader
 
+    def _extract_graded(self, result):
+        if self.acceptance_workspace is not None and isinstance(result.get("structured_response"), dict):
+            from .acceptance_review import GraderResponse
+            return GraderResponse.model_validate(result["structured_response"])
+        return super()._extract_graded(result)
+
+    def _usability_correction(self, state, graded):
+        if self.acceptance_workspace is not None and graded.result != "failed":
+            expected = state.get("_rubric_criteria", [])
+            actual = [c["name"] for c in graded.criteria]
+            if actual != expected:
+                return "Return exactly one outcome for each supplied criterion ID in order, without replacements, omissions or duplicates: " + encode(expected)
+        return super()._usability_correction(state, graded)
+
+    def _build_evaluation(self, graded, grading_run_id, iteration):
+        result = super()._build_evaluation(graded, grading_run_id, iteration)
+        if (self.acceptance_workspace is not None and graded.result != "failed"
+                and [c["name"] for c in graded.criteria] != getattr(self, "_criterion_ids", [])):
+            result["unverified"] = True
+            result["result"] = "undetermined"
+            result["explanation"] = ("The grader did not return the exact required criterion IDs after "
+                                     "the native structural correction attempt. Acceptance remains "
+                                     "undetermined; this is not evidence of a report defect. "
+                                     "Original grader summary: " + graded.explanation)
+        return result
+
     @staticmethod
     def _revision_prompt(evaluation):
+        if any("status" in c for c in evaluation["criteria"]):
+            known = [c for c in evaluation["criteria"] if c.get("status") != "undetermined"]
+            base = RubricMiddleware._revision_prompt({**evaluation, "criteria": known})
+            return base + "\n\nPublic acceptance observations (not authoritative facts). " \
+                "Only not_satisfied denotes an established defect. Undetermined entries are unresolved verification, not instructions to invent changes. Preserve user authority and request standard corrections from its owner when necessary.\n" + encode(evaluation["criteria"])
         base = RubricMiddleware._revision_prompt(evaluation)
         grounds = [{"name": c["name"], "grounds": c["grounds"]}
                    for c in evaluation["criteria"] if "grounds" in c]
@@ -58,12 +93,39 @@ class FeedbackRubric(RubricMiddleware):
     async def abefore_agent(self, state, runtime):
         if state.get("rubric_terminal_handoff"):
             return None  # Resume the pending handoff without resetting its budget.
+        if self.acceptance_workspace is not None and state.get("_rubric_status") == "undetermined":
+            state = {**state, "_rubric_status": "failed"}  # Explicit new invocation resets the native run.
         return await super().abefore_agent(state, runtime)
 
     async def aafter_agent(self, state, runtime):
         if state.get("rubric_terminal_handoff"):
             return {"rubric_terminal_handoff": False}
+        reset = {}
+        if self.acceptance_workspace is not None:
+            from .acceptance import draft_criteria, criteria_rules
+            from .errors import ActionRejected
+            workspace = self.acceptance_workspace
+            draft_id = (workspace.store.get("delivery") or {}).get("draft_id")
+            try:
+                if not draft_id:
+                    raise ActionRejected("SELECTED_DRAFT_REQUIRED_FOR_ACCEPTANCE")
+                criteria = draft_criteria(workspace, workspace.result(draft_id))
+            except ActionRejected as exc:
+                workspace.store.event("acceptance_precondition_unmet", {"reason": str(exc)})
+                workspace.store.set("acceptance_limitation", {"reason": str(exc), "draft_id": draft_id})
+                workspace.store.set("report_status", "needs_attention")
+                return None
+            workspace.store.set("acceptance_limitation", None)
+            rules = criteria_rules(criteria)
+            state = {**state, "rubric": rules}
+            reset = {"rubric": rules, **(self._reset_for_new_rubric(state) or {}),
+                     "_rubric_criteria": [c["id"] for c in criteria["criteria"]]}
+            state = {**state, **reset}
+            self._criterion_ids = reset["_rubric_criteria"]
+            workspace.store.set("active_rubric_hash", digest(rules))
         update = await super().aafter_agent(state, runtime)
+        if update is not None:
+            update = {**reset, **update}
         if not update or update.get("_rubric_status") not in {
                 "grader_error", "failed", "max_iterations_reached"}:
             return update
@@ -91,8 +153,10 @@ def load_rules():
     return (Path(__file__).parent / "rules" / "report-review.md").read_text(encoding="utf-8")
 
 
-def reviewer_prompt(experiment=None):
+def reviewer_prompt(experiment=None, *, requirement_acceptance=False):
     """Specialist purpose plus the installed framework's full grading contract."""
+    if requirement_acceptance:
+        return (Path(__file__).parent / "rules" / "acceptance-reviewer.md").read_text(encoding="utf-8")
     role = (Path(__file__).parent / "rules" / "report-reviewer.md").read_text(encoding="utf-8")
     prompt = role + "\n\n# Native grading contract\n\n" + GRADER_SYSTEM_PROMPT
     if experiment and experiment["grounded_verdict"]:
@@ -118,10 +182,12 @@ def observation_version(workspace, draft_id):
 
 def native_review(workspace, model, tools, rules, middleware=()):
     from .review_context import ReviewContext, experiment_config
+    from .acceptance import enabled, draft_criteria, criteria_identity, criteria_rules
     context = {}
     experiment = experiment_config(workspace.store)
-    system_prompt = reviewer_prompt(experiment)
-    review_context = ReviewContext(workspace) if experiment else None
+    acceptance = enabled(workspace)
+    system_prompt = reviewer_prompt(experiment, requirement_acceptance=acceptance)
+    review_context = ReviewContext(workspace) if experiment or acceptance else None
 
     def read_review_context(section: Literal["assignment", "state", "history"], offset: int = 0, limit: int = 12000) -> dict:
         """Read this attempt's assignment, state or public history. Offset/limit are
@@ -148,7 +214,12 @@ def native_review(workspace, model, tools, rules, middleware=()):
         selected = workspace.store.get("delivery") or {}
         draft_id = selected.get("draft_id")
         context.clear()
-        context.update(draft_id=draft_id, rubric_hash=digest(rules),
+        effective_rules = rules
+        criteria = None
+        if acceptance:
+            criteria = draft_criteria(workspace, workspace.result(draft_id))
+            effective_rules = criteria_rules(criteria)
+        context.update(draft_id=draft_id, rubric_hash=digest(effective_rules),
                        reviewer_prompt_hash=digest(system_prompt),
                        grader_model=getattr(model, "model_name", None),
                        export_configuration_hash=export_configuration(workspace))
@@ -156,6 +227,10 @@ def native_review(workspace, model, tools, rules, middleware=()):
             context["review_context_experiment"] = experiment
         from .review_contract import contract_identity
         contract = contract_identity(experiment)
+        if acceptance:
+            from .acceptance_review import contract_identity as acceptance_contract
+            contract = acceptance_contract()
+            context["acceptance_criteria"] = criteria_identity(criteria)
         if contract:
             context["review_response_contract"] = contract
         if draft_id:
@@ -174,7 +249,7 @@ def native_review(workspace, model, tools, rules, middleware=()):
         # identifies the exact artifact being assessed.
         if review_context:
             packet = review_context.capture(messages, context)
-            if experiment["input_mode"] == "artifact":
+            if acceptance or experiment["input_mode"] == "artifact":
                 return [HumanMessage(content=encode(packet))]
         return [*messages, HumanMessage(content=encode({"application_review_target": context,
                 "observation": "This is the selected saved report and pinned export for assessment. "
@@ -209,8 +284,9 @@ def native_review(workspace, model, tools, rules, middleware=()):
 
     grader_tools = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
                     else StructuredTool.from_function(t) for t in
-                    [*tools, read_review_export, *([read_review_context] if experiment else [])]]
+                    [*tools, read_review_export, *([read_review_context] if review_context else [])]]
     return FeedbackRubric(model=model, tools=grader_tools, system_prompt=system_prompt,
+                            acceptance_workspace=workspace if acceptance else None,
                             claim_evidence_contract=bool(experiment and experiment.get("claim_evidence_contract")),
                             grader_middleware=list(middleware),
                             target_observation=lambda: dict(context),
@@ -250,6 +326,21 @@ def review_delivery(workspace, draft_id):
     experiment = experiment_config(workspace.store)
     from .review_contract import contract_identity
     contract = contract_identity(experiment)
+    from .acceptance import enabled, draft_criteria, criteria_identity, criteria_rules
+    acceptance = enabled(workspace)
+    criteria_version = None
+    if acceptance:
+        from .errors import ActionRejected
+        from .acceptance_review import contract_identity as acceptance_contract
+        contract = acceptance_contract()
+        try:
+            criteria = draft_criteria(workspace, draft)
+        except ActionRejected as exc:
+            return {"draft_id": draft_id, "review_id": "", "status": "needs_attention",
+                    "rubric_review": None, "acceptance_status": "undetermined",
+                    "acceptance_limitation": str(exc)}
+        criteria_version = criteria_identity(criteria)
+        rule_hash = digest(criteria_rules(criteria))
     candidates = [r for r in workspace.store.get("rubric_reviews", [])
                   if r["target"].get("draft_id") == draft_id
                   and r["target"].get("draft_body_sha256") == body_hash
@@ -257,14 +348,19 @@ def review_delivery(workspace, draft_id):
                   and (not prompt_hash or r["target"].get("reviewer_prompt_hash") == prompt_hash)
                   and r["target"].get("review_context_experiment") == experiment
                   and r["target"].get("review_response_contract") == contract
+                  and (not acceptance or r["target"].get("acceptance_criteria") == criteria_version)
                   and r["target"].get("export_configuration_hash") == export_configuration(workspace)]
     review = candidates[-1] if candidates else None
     status = "unreviewed_draft"
     if review:
         verdict = review["result"]
         status = "reviewed_draft" if verdict == "satisfied" and not review.get("unverified") else (
-            "system_error" if verdict == "grader_error" else "changes_required")
+            "system_error" if verdict == "grader_error" else
+            "needs_attention" if verdict == "undetermined" else "changes_required")
         if status == "reviewed_draft" and review["target"].get("observation_version") != observation_version(workspace, draft_id):
             status = "needs_attention"  # New feedback to consider, not a verdict that content is wrong.
     return {"draft_id": draft_id, "review_id": "", "status": status, "rubric_review": review,
+            **({"acceptance_criteria": criteria_version,
+                "acceptance_status": (review["result"] if review and not review.get("unverified")
+                                      and status != "needs_attention" else "undetermined")} if acceptance else {}),
             "review_scope": "Exact saved text and recorded preview snapshot; a fresh export is a new file."}

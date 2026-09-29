@@ -8,6 +8,12 @@ It is not yet accepted as a production report product or engineering deliverable
 
 ## Architecture
 
+- New project report runs use requirement-derived acceptance. The coordinator saves
+  versioned standards before production; authors explicitly adopt the same version,
+  and the native acceptance agent chooses its evidence-gathering strategy and tools.
+  Every criterion has a located assessment: satisfied, not satisfied or undetermined.
+  Uncertainty alone does not force an author revision or count as a pass. Existing
+  runs retain their historical policy. See [responsibilities and limits](.ase/030-acceptance-design.md).
 - DeepAgents 0.7.19 owns the model/tool loop, delegation, context management and
   LangGraph checkpoint recovery. Application code does not schedule semantic stages.
 - Code tools expose source reading, literal search, task state, issues and committed results.

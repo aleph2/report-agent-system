@@ -55,6 +55,7 @@ def test_search_filters_before_pagination_and_retains_history_semantics(tmp_path
 @pytest.mark.parametrize("role", ["coordinator", "rubric_grader"])
 async def test_native_search_unknown_argument_feedback_then_correction(tmp_path, role):
     ws = workspace(tmp_path)
+    ws.store.set("acceptance_mode", "legacy")  # Historical source-tool/rubric fixture.
     ws.initialize()
 
     def correct(messages):
@@ -85,6 +86,7 @@ async def test_native_search_unknown_argument_feedback_then_correction(tmp_path,
 
 async def test_native_grader_awaits_vision_and_cannot_write_upstream(tmp_path, monkeypatch):
     ws, model = workspace(tmp_path), VisionModel()
+    ws.store.set("acceptance_mode", "legacy")  # Historical source-tool/rubric fixture.
     ws.initialize()
     catalog = Catalog(ws.store)
     manifest, blocks = ws.store.manifest, catalog.read("original")

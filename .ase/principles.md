@@ -48,3 +48,17 @@ approval. The completed synthetic-trial permission does not cover new paid trial
 Original discussion records remain in the neighboring legacy project's `.ase/` as
 historical evidence only. Its old task-specific paid/deployment authorizations do not
 automatically authorize this application's trials.
+
+## Requirement-derived acceptance responsibility (2026-09-29)
+
+User confirmed that the coordinator owns acceptance-standard creation/maintenance
+as part of requirement and document-purpose understanding. Define outcomes before
+report production; author and acceptance agent share the exact version. The author
+owns the report; the acceptance agent chooses and adapts the verification strategy
+and tools and owns the evidence-backed assessment. Both may request standard
+corrections; neither may overwrite upstream standards or weaken them to fit a draft.
+Source conflicts and real requirement choices retain human authority. Ordinary
+requirement clarification is not a new approval ceremony. Every standard needs an
+outcome with evidence/limits; coverage does not prescribe page scans or tool order.
+Distinguish satisfied, not_satisfied and undetermined, and usable staged delivery
+from all-standard satisfaction. See [design and implementation limits](030-acceptance-design.md).
