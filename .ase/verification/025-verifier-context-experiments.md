@@ -378,3 +378,16 @@ as a limited explanation defect. The packaging feedback now requires the correct
 352 and does not repeat H1's inappropriate unresolved alternative. No false
 rejection of honest source conflict or outstanding installation was observed.
 These are four old regression cases, not fresh held-out generalization evidence.
+
+### Correction to the preceding P3 disposition
+
+Independent reviewer rechecked the original Task025 library H2 tool return:
+read_review_export offset0, second line explicitly says "Unreviewed draft;
+not approved." The reviewer's earlier Chinese-only search missed this English
+framework-added export status. P3-025-H2-02 is therefore withdrawn, and Main
+withdraws the preceding acceptance of that finding. The model's status explanation
+had actual export support; the authored body and wrapper label must be distinguished.
+Keep the original finding/disposition above as historical evidence with this explicit
+correction, not as a current open defect. No model replay or report edit is required.
+This local P3 review-method error affected an auxiliary quality record only; the
+four main classifications and P2-025-H2-01's inconsistent repair advice remain.

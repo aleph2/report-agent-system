@@ -92,3 +92,75 @@ Milestone email sent in the established thread, message1a0ea6dc7e158dd3, contain
 the exact candidate paragraph, unchanged model/settings, completed Task025 result
 limits, implementation/test evidence and paired/native next steps. It does not
 claim either the new prompt or small controls establish real report reliability.
+
+## First paired case: independent interim finding
+
+For638e15809d18, both arms returnneeds_revision and correctly identify the
+source-to-report hall/quantity mapping swap and its packing-use consequence.
+The candidate's actual first system is3343characters, matching frozen SHA85caa16a;
+the human message is4550characters. Independent review confirms both arms' actual
+system/human equal their saved inputs, actual model parameters/tool schemas are
+equal, and all four source contents arrived verbatim. Initial human messages differ
+in run identities/nonce/context metadata and the recorded experiment flag; do not
+claim literal byte equality of the full requests. Candidate export coverage60/66
+includes the relevant report through conclusion/source index; control read66/66.
+
+Main accepts P2-026-H01 as a bounded feedback defect: candidate Evidence offers
+mere disclosure of a known derived mismatch while Correctness requires correction.
+It blocks treating that alternative as sufficient repair guidance, not the valid
+revision verdict or continuing the declared trials. Main also accepts P3-026-H02:
+the challenge to the correctly scoped statement that the original inputs have no
+conflicting versions is unsupported; a report transcription error does not make
+its consistent original sources conflicting. This blocks deleting or falsifying
+that correct source-status statement without cause. Neither defect has propagated
+through an author because these calls contain no author loop. Main retains both
+outcomes and producer-facing implications; no runtime feedback or label is changed.
+
+There is no main-classification gain on this first pair; the control already found
+the material error. The candidate's additional wording defects are observed facts,
+not proof of their unique cause or global inferiority. The remaining acceptable
+cases and actual native report/revision trial are still required by this iteration.
+
+## Paired execution terminal; native candidate started
+
+All six declared calls exited0,61observed responses/559699tokens, no missing usage.
+The three report-level classifications are the same in both arms:638e requires
+revision; c1e4 and2cdb are accepted. All six actual public request systems match the
+frozen control/candidate hash. Independent review of the two acceptable cases is
+still underway; six labels alone do not establish clean feedback or generalization.
+
+Native preflight confirms all29 runtime/rule/launcher hashes, baseline file hashes
+and source hashes match; four original results unchanged, no new result, no prior
+model response in this fresh fork. The candidate then started serially, using
+artifact+grounding+calibrated_acceptance=true and the original Task016 report.
+Its first actual public system is3343characters/hash85caa16a; human5821characters.
+The exact public initial messages are saved at
+.analysis/task026/native-calibrated/effective-prompt.md. It remains in progress;
+no report improvement or runtime acceptance is claimed here.
+
+Parameter evidence has layers: diagnostic_invocation logs LangChain callback
+parameters (max_completion_tokens=65536); the frozen DeepSeek adapter translates
+that to max_tokens=65536 when constructing the HTTP payload. Diagnostic settings
+record that constructed payload's non-message fields. Both arms use the same
+adapter/value and tool schema. Native LocalAudit logs public messages and response
+model metadata, not a complete HTTP parameter capture; its parameter evidence is
+the frozen configured_model and launcher selection. No claim of hidden-reasoning
+inspection or complete transport packet logging is made.
+
+## Completed independent three-case comparison
+
+Independent postrun_review has now checked all six outcomes and their actual
+observations. Both arms' principal classifications are supported on all three
+reports. The limited planning case preserves3interested/1undecided/1declined and
+unresolved electricity/rain/stall conditions without claiming an event occurred;
+the minor-imperfection case preserves9identities,4/3/2categories and3key points,
+recognizing the duplicated heading as non-blocking. No new false rejection or
+fabricated completion claim was confirmed in these four accepted calls. Their
+full source contents and export blocks actually arrived. H01/H02 remain bounded
+candidate-feedback defects in the first case, with no author propagation tested.
+
+Main accepts this scoped evidence: no main-classification improvement on these
+three new reports, and no observed over-rejection of their legitimate limitations
+or minor imperfection. Six calls are not six independent reports and do not measure
+general accuracy. Frozen files remain unchanged. The native trial is in progress;
+do not substitute the paired labels for content, repair or final-acceptance evidence.
