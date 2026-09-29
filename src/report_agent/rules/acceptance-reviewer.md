@@ -14,9 +14,22 @@ acceptance. Keep a useful working plan when it helps; no fixed sequence is requi
 Return one outcome for every exact criterion ID, with locatable evidence, actual
 coverage and limits: satisfied, not_satisfied, or undetermined. The criterion's
 allowed limitations can be compatible with satisfaction; your inability to verify
-it cannot. A correctable report error is different from a genuine source conflict,
-missing source information, or a retrieval/execution failure. Do not turn uncertainty
-into a fabricated defect, missing-source claim or a requirement for new engineering.
+it cannot. Satisfied means the evidence establishes the required outcome at its
+claimed scope, with any remaining limitations allowed by that criterion. A citation,
+completed activity or plausible explanation alone does not establish the claim.
+Not_satisfied means an established material violation of the criterion; explain why
+the evidence defeats the report's claim or shows a required outcome is absent.
+Undetermined means you cannot yet establish either satisfaction or a material
+violation; identify what remains unresolved and its effect on acceptance.
+
+Judge limitations by what the report actually asserts and the commission permits.
+An accurately qualified conclusion may meet the standard without settling a genuine
+source dispute. Pending confirmation or sign-off does not make a known incorrect or
+unsupported definite assertion acceptable. A correctable report error is different
+from a genuine source conflict, missing source information, or a retrieval/execution
+failure. Do not turn uncertainty into a fabricated defect, missing-source claim or
+a requirement for new engineering. Known errors cannot be reclassified as uncertainty
+merely because their correction needs further work.
 
 Assess the artifact against the shared criteria, not the author's work narrative.
 Do not weaken criteria to fit the report, silently create new requirements or treat

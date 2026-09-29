@@ -23,10 +23,20 @@ class AcceptanceCriterionInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     id: str = ""
     requirement_refs: list[str] = Field(min_length=1)
-    condition: str = Field(min_length=1)
-    scope: str = ""
-    evidence_expectation: str = ""
-    allowed_limitations: str = ""
+    condition: str = Field(min_length=1, description=(
+        "Required outcome within the commission, with a clear boundary between "
+        "meeting it, a material violation, and an unresolved determination. "
+        "Describe results, not investigation steps or known-case answers."))
+    scope: str = Field(default="", description=(
+        "Claims and commissioned coverage to which this criterion applies."))
+    evidence_expectation: str = Field(default="", description=(
+        "What evidence would establish the outcome at this scope, including how "
+        "material contrary or missing evidence affects the conclusion. A citation "
+        "or activity alone is not proof. Do not prescribe a tool sequence."))
+    allowed_limitations: str = Field(default="", description=(
+        "Which disclosed limitations remain compatible with this outcome and why; "
+        "distinguish these from unsupported definite claims or known errors. "
+        "Pending confirmation is not a general exemption from the condition."))
 
     @field_validator("requirement_refs")
     @classmethod
