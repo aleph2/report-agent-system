@@ -4,6 +4,7 @@ No OCR, model invocation, source indexing, semantic header filling, or cached wr
 Only pages selected by explicit locators in a caller's actual retrieval are added.
 """
 from io import BytesIO
+from math import isfinite
 
 import pdfplumber
 
@@ -21,7 +22,61 @@ LIMITATIONS = [
 ]
 
 
-def source_tables(workspace, source_id, pages):
+def _compact_table(table, raw):
+    """Encode observed rectangles, never infer a merge from empty/null text."""
+    try:
+        cells = list(table.cells)
+        rows = raw["rows"]
+        if not cells or not rows or any(len(cell) != 4 or not all(isfinite(v) for v in cell) for cell in cells):
+            raise ValueError("INVALID_CELLS")
+        xs = sorted({cell[i] for cell in cells for i in (0, 2)})
+        ys = sorted({cell[i] for cell in cells for i in (1, 3)})
+        if (len(rows) != len(ys) - 1 or any(len(row) != len(xs) - 1 for row in rows)
+                or (xs[0], ys[0], xs[-1], ys[-1]) != tuple(raw["bbox"])):
+            raise ValueError("GRID_MATRIX_MISMATCH")
+        x_index, y_index = {x: i for i, x in enumerate(xs)}, {y: i for i, y in enumerate(ys)}
+        spans, anchors = [], {}
+        coverage = [[] for _ in rows]
+        for cell in cells:
+            c, r = x_index[cell[0]], y_index[cell[1]]
+            end_c, end_r = x_index[cell[2]], y_index[cell[3]]
+            if end_c <= c or end_r <= r or (r, c) in anchors:
+                raise ValueError("AMBIGUOUS_CELL")
+            anchors[r, c] = tuple(cell)
+            spans.append([r + 1, c + 1, end_r - r, end_c - c])
+            for index in range(r, end_r):
+                coverage[index].append((c, end_c))
+        for intervals in coverage:
+            previous_end = -1
+            for start, end in sorted(intervals):
+                if start < previous_end:
+                    raise ValueError("OVERLAPPING_CELLS")
+                previous_end = end
+        native_rows = table.rows
+        if len(native_rows) != len(rows):
+            raise ValueError("ROW_ANCHOR_MISMATCH")
+        for r, row in enumerate(native_rows):
+            if len(row.cells) != len(xs) - 1:
+                raise ValueError("COLUMN_ANCHOR_MISMATCH")
+            for c, cell in enumerate(row.cells):
+                anchor = anchors.get((r, c))
+                if (tuple(cell) if cell is not None else None) != anchor or (rows[r][c] is None) != (anchor is None):
+                    raise ValueError("CELL_ANCHOR_MISMATCH")
+        for bound in raw["nonempty_cell_bounds"]:
+            if anchors.get((bound["row"] - 1, bound["column"] - 1)) != tuple(bound["bbox"]):
+                raise ValueError("RAW_BOUNDS_MISMATCH")
+        return {k: v for k, v in raw.items() if k != "nonempty_cell_bounds"} | {
+            "geometry_representation": "exact_grid_v1",
+            "geometry": {"x_edges": xs, "y_edges": ys, "cells": spans,
+                         "cell_encoding": "[row,column,row_span,column_span], 1-based geometric positions, not printed labels. Exact bbox=[x_edges[column-1],y_edges[row-1],x_edges[column-1+column_span],y_edges[row-1+row_span]].",
+                         "meaning": "Complete extractor cell rectangles, including empty cells. Spans describe geometry only. Uncovered null positions are not assumed merged; no header/value meaning is filled in."}}
+    except Exception:
+        # A display conversion must not erase a valid raw table or its siblings.
+        return {**raw, "geometry_representation": "raw_fallback",
+                "compact_status": "GRID_NOT_UNAMBIGUOUS_OR_CONVERSION_UNAVAILABLE"}
+
+
+def source_tables(workspace, source_id, pages, *, compact=False):
     """Batch requested 1-based PDF pages, verifying original membership/hash each call."""
     pages = list(dict.fromkeys(pages))
     if not pages:
@@ -71,11 +126,16 @@ def source_tables(workspace, source_id, pages):
                                       for r, row in enumerate(table.rows)
                                       for c, cell in enumerate(row.cells)
                                       if cell is not None and rows[r][c]]
-                            tables.append({"table": index, "bbox": table.bbox,
-                                           "rows": rows, "nonempty_cell_bounds": bounds})
+                            raw = {"table": index, "bbox": table.bbox,
+                                   "rows": rows, "nonempty_cell_bounds": bounds}
+                            tables.append(_compact_table(table, raw) if compact else raw)
                         item.update(status="extracted" if tables else "no_tables_detected",
                                     page_bbox=page.bbox, tables=tables,
                                     native_character_count=len(page.chars))
+                        if compact:
+                            item["raw_geometry_access"] = {"tool": "inspect_source_page",
+                                "arguments": {"source_id": source_id, "page": page.page_number},
+                                "result_field": "table_view", "note": "Original per-cell bounds remain available with the same source ownership/hash checks."}
                     except Exception:
                         item.update(status="unavailable", error="SOURCE_TABLE_EXTRACTION_FAILED")
                     finally:
@@ -92,6 +152,8 @@ def source_tables(workspace, source_id, pages):
 
 def with_source_tables(workspace, result):
     """Add deduplicated page supplements; retain retrieval text/order/count/offsets."""
+    from .review_context import experiment_config
+    compact = bool((experiment_config(workspace.store) or {}).get("compact_table_observations"))
     located = {}
     unresolved = []
     blocks = result.get("matches")
@@ -109,5 +171,5 @@ def with_source_tables(workspace, result):
             else:
                 located.setdefault(source_id, {})[page] = None
     views = [view for source_id, pages in located.items()
-             for view in source_tables(workspace, source_id, pages)]
+             for view in source_tables(workspace, source_id, pages, compact=compact)]
     return {**result, "source_table_views": views, "table_view_unlocated": unresolved}
