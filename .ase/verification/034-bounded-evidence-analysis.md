@@ -56,7 +56,7 @@ in every actual request, one common callback parameter set, and all37 frozen fil
 unchanged. Independent postrun_review finds the main factual relations correct in
 both interfaces; this is not evidence of a semantic improvement over the old tool.
 
-Known material limitations remain: selected/packet03 finds the available registrar
+Known material limitations remain: both interfaces/packet03 find the available registrar
 but permits labelling it unprocessed as an alternative repair; selected/packet02
 misstates whether the business threshold belongs to the commission even while
 preserving its correct unknown conclusion. Preserve these independent findings
@@ -87,3 +87,19 @@ outer-loop limitations. The public-import/no-history/replay-protection test pass
 Task034 start email1a0eb90c51b23c93 reports completed Task032 limits and the bounded
 new-tool experiment. Source/code/runtime outcomes will be reported separately from
 availability and test counts.
+
+The independent full local review confirms P2-034-R02 (both entrypoints' incomplete
+repair alternative), P2-034-R03 (selected/packet02 excludes the commissioned threshold
+from scope in commentary), P3-034-R01/R04 (column-count slip and misstated dependency
+behind an otherwise correct unknown outcome). Main accepts those evidence-bounded
+findings and retains the correct core relations. Do not repeat these calls to erase
+the defects. P2 findings prevent adopting all output prose as valid closure/authority;
+they do not prevent the declared read-only probe without an author. Defect ownership
+and future disposition remain with Main, to be prioritized using actual adoption and
+the user's useful report outcome. Independent review explicitly supports this
+containment, not semantic promotion.
+
+Probe declared/committed2f85066 and launched once. Normal preparation verifies/copies
+original source files before model invocation; no duplicate preparation or paid retry.
+Email1a0eb97def363fb4 answers the user's status question with current failures, local
+results and exact read-only probe scope. Git author remainsmenglinsun@hotmail.com.
