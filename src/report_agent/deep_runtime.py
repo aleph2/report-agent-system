@@ -24,6 +24,7 @@ from .workspace import OWNERS, Workspace
 from .knowledge_state import project_state, delivery_state, inspect_evidence
 from .review import load_rules, native_review, reconcile_review, reviewer_prompt
 from .acceptance import AcceptanceCriterionInput
+from .evidence_analysis import SourceSelection, ResultSelection, analyze_selected_evidence
 
 
 WORK_STATE_GUIDANCE = """Keep your current adopted inputs, rules, valid results and remaining work in native
@@ -318,6 +319,24 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         store.analysis(operation, result)
         return {**result, "reused": False}
 
+    async def analyze_evidence(question: str, source_selections: list[SourceSelection],
+                               result_selections: list[ResultSelection],
+                               runtime: ToolRuntime = None) -> dict:
+        """Optional local LLM comparison of caller-selected project evidence, with bound versions.
+
+        Choose a question and source text-block ranges / saved-result character ranges;
+        either list may be empty. Source offsets count blocks, not physical PDF pages.
+        Existing whole-page mechanical table supplements are identified separately.
+        The question can have a false premise. One model call; no search, delegation,
+        business-artifact writes or acceptance decision. Returns observations and limits.
+        """
+        result = await analyze_selected_evidence(workspace, text_model, question,
+                                                  source_selections, result_selections)
+        for selection in result["evidence"]:
+            if selection["kind"] == "saved_result_text":
+                observations(runtime, selection["result_id"])
+        return result
+
     def submit_result(kind: Literal["purpose", "plan", "materials", "draft", "review"],
                       title: str, body: str, source_ids: list[str], input_ids: list[str],
                       outcome: str = "", target_id: str = "", replaces_id: str = "",
@@ -465,6 +484,8 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
     tools = [project_status, read_source_page, search_sources, inspect_source_page, analyze_source_image,
              calculate, preview_report, read_result, analyze_text,
              exposed_submit, request_correction, assess_result_impact, ask_human]
+    if role == "reviewer":
+        tools.append(analyze_evidence)
     if knowledge is not None:
         tools += [knowledge_search, knowledge_read, knowledge_traverse]
     if role == "knowledge" and knowledge is not None:
@@ -547,7 +568,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         read_names = {"project_status", "read_source_page", "search_sources", "inspect_source_page", "analyze_source_image",
                       "calculate", "read_result", "knowledge_search", "knowledge_read", "knowledge_traverse"}
         if acceptance:
-            read_names.add("analyze_text")
+            read_names.update({"analyze_text", "analyze_evidence"})
         evidence_tools = [t for t in business_tools(workspace, "reviewer", knowledge, model_factory("text_tool"))
                           if t.__name__ in read_names]
         review_middleware = [native_review(workspace, model_factory("rubric_grader"), evidence_tools, rules,
