@@ -1,0 +1,412 @@
+{
+  "summary": {
+    "status": "completed_with_errors",
+    "planned": 2,
+    "terminal_attempts": 2,
+    "valid": 1,
+    "errors": 1,
+    "usage": {
+      "prompt_tokens": 140240,
+      "completion_tokens": 30681,
+      "total_tokens": 170921
+    },
+    "actual_input_matches": true,
+    "parameters_identical": true,
+    "oracle_unchanged": true,
+    "all_frozen_files_match": true,
+    "all_originals_match": true,
+    "returned_models": [
+      "glm-5.3"
+    ],
+    "model_requests": 2,
+    "model_responses": 1,
+    "rows": [
+      {
+        "case_id": "051e6c85b549",
+        "arm": "B",
+        "status": "completed",
+        "model_requests": 1,
+        "model_responses": 1,
+        "usage": [
+          {
+            "completion_tokens": 30681,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 25901,
+              "rejected_prediction_tokens": null
+            },
+            "prompt_tokens": 140240,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": null,
+              "cached_tokens": 0
+            },
+            "total_tokens": 170921
+          }
+        ],
+        "finish_reasons": [
+          "tool_calls"
+        ],
+        "states": [
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied",
+          "satisfied"
+        ],
+        "c2_status": "satisfied",
+        "c2_expected": "not_satisfied",
+        "c2_label_matches": false,
+        "result": "satisfied",
+        "relations_and_grounding": "Independent semantic review required; labels alone are insufficient."
+      }
+    ],
+    "scope": "One pair, targeted relation expression plus attention. No causal effect, native recovery or all-criteria accuracy claim."
+  },
+  "actual_parameters": {
+    "extra_body": {
+      "thinking": {
+        "clear_thinking": false,
+        "type": "enabled"
+      }
+    },
+    "max_completion_tokens": 65536,
+    "model": "glm-5.3",
+    "model_name": "glm-5.3",
+    "parallel_tool_calls": false,
+    "reasoning_effort": "high",
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "description": "Acceptance of every named standard, distinct from permission to share a draft.",
+          "name": "GraderResponse",
+          "parameters": {
+            "properties": {
+              "criteria": {
+                "items": {
+                  "discriminator": {
+                    "mapping": {
+                      "False": "#/$defs/CriterionFail",
+                      "True": "#/$defs/CriterionPass"
+                    },
+                    "propertyName": "passed"
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "evidence": {
+                          "description": "Located observations supporting this conclusion, including counterevidence. Empty is honest when no evidence is available; it does not prove a defect.",
+                          "items": {
+                            "properties": {
+                              "locator": {
+                                "description": "Locatable report, source or commissioning observation; identify actual access limits honestly.",
+                                "title": "Locator",
+                                "type": "string"
+                              },
+                              "observation": {
+                                "description": "What that evidence establishes, distinct from the report assertion or your inference.",
+                                "title": "Observation",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator",
+                              "observation"
+                            ],
+                            "title": "EvidenceObservation",
+                            "type": "object"
+                          },
+                          "title": "Evidence",
+                          "type": "array"
+                        },
+                        "explanation": {
+                          "description": "Why the observations justify this criterion outcome, with actual coverage and limitations.",
+                          "minLength": 1,
+                          "title": "Explanation",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Descriptive, functional statement of exactly what this criterion checks in the agent's output or transcript -- specific enough that another grader could evaluate it without re-reading the rubric. Prefer 'Response cites a source for every statistic' over 'Sources'. Reuse the exact same wording whenever this criterion is graded again.",
+                          "title": "Name",
+                          "type": "string"
+                        },
+                        "needed_outcome": {
+                          "description": "What remains necessary within the commission and responsible party's authority, or no change needed. Unknown is not a request to invent a report correction.",
+                          "title": "Needed Outcome",
+                          "type": "string"
+                        },
+                        "passed": {
+                          "const": true,
+                          "title": "Passed",
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": [
+                            "satisfied",
+                            "not_satisfied",
+                            "undetermined"
+                          ],
+                          "title": "Status",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "passed",
+                        "status",
+                        "evidence",
+                        "explanation",
+                        "needed_outcome"
+                      ],
+                      "title": "CriterionPass",
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "evidence": {
+                          "description": "Located observations supporting this conclusion, including counterevidence. Empty is honest when no evidence is available; it does not prove a defect.",
+                          "items": {
+                            "properties": {
+                              "locator": {
+                                "description": "Locatable report, source or commissioning observation; identify actual access limits honestly.",
+                                "title": "Locator",
+                                "type": "string"
+                              },
+                              "observation": {
+                                "description": "What that evidence establishes, distinct from the report assertion or your inference.",
+                                "title": "Observation",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator",
+                              "observation"
+                            ],
+                            "title": "EvidenceObservation",
+                            "type": "object"
+                          },
+                          "title": "Evidence",
+                          "type": "array"
+                        },
+                        "explanation": {
+                          "description": "Why the observations justify this criterion outcome, with actual coverage and limitations.",
+                          "minLength": 1,
+                          "title": "Explanation",
+                          "type": "string"
+                        },
+                        "gap": {
+                          "description": "Short, actionable description of what is missing or incorrect, specific enough for the agent to act on without further clarification.",
+                          "title": "Gap",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Descriptive, functional statement of exactly what this criterion checks in the agent's output or transcript -- specific enough that another grader could evaluate it without re-reading the rubric. Prefer 'Response cites a source for every statistic' over 'Sources'. Reuse the exact same wording whenever this criterion is graded again.",
+                          "title": "Name",
+                          "type": "string"
+                        },
+                        "needed_outcome": {
+                          "description": "What remains necessary within the commission and responsible party's authority, or no change needed. Unknown is not a request to invent a report correction.",
+                          "title": "Needed Outcome",
+                          "type": "string"
+                        },
+                        "passed": {
+                          "const": false,
+                          "title": "Passed",
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "enum": [
+                            "satisfied",
+                            "not_satisfied",
+                            "undetermined"
+                          ],
+                          "title": "Status",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "passed",
+                        "gap",
+                        "status",
+                        "evidence",
+                        "explanation",
+                        "needed_outcome"
+                      ],
+                      "title": "CriterionFail",
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "explanation": {
+                "description": "One or two sentence verdict summary that will be sent back to the agent as feedback if the task needs to be reattempted.",
+                "type": "string"
+              },
+              "result": {
+                "description": "satisfied only if all standards are satisfied; needs_revision for any established not_satisfied; undetermined if only unresolved assessment remains; failed only for an invalid rubric.",
+                "enum": [
+                  "satisfied",
+                  "needs_revision",
+                  "undetermined",
+                  "failed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "result",
+              "explanation",
+              "criteria"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "frozen_files": {
+    "pyproject.toml": "2ae936b3efa70853f19eb9ac955d14c76833625fbcc8c478be45f1982a8cafb0",
+    "scripts/prepare_relation_verdict_diagnostic.py": "7d52a97bef5939fb73d4bd838c575e988643395334dc3d71d04d5a8fea403df5",
+    "scripts/run_deepagents_trial.py": "e9f8135c1688107d4f8e5c9b894ac33a14c084eb6c028a4808369d11a302ec26",
+    "scripts/run_grader_diagnostic.py": "4c0969d53b1ee26add7e48d33ca8f99d158c6711a763927f9d433dd6ebfbc1b4",
+    "scripts/run_relation_verdict_diagnostic.py": "897270bbd683bdfaf58d70670e9c83aaefa3291362ae1a130602328825905aaa",
+    "scripts/run_stance_diagnostic.py": "5fe75816e63db79a83035cea6a3c723d9048ecd869af45e05fb4e25694711629",
+    "src/report_agent/__init__.py": "9b8b371fc59f6ff694196ea63d6d8909f4c1f1d753f81c0ef0d4dd3d143f7a16",
+    "src/report_agent/acceptance.py": "8975fc9f305033b92e60f5893c882c8db31ff1e5e1010de7398c444e9a955317",
+    "src/report_agent/acceptance_review.py": "44b26b209406a4d33424c91bce976c6ff14c01bd3f11a4875c421d400991f4ad",
+    "src/report_agent/calculations.py": "8f41fda46e450cddffb7e009bf37f12453792ee04f2c882862e867dc559e3726",
+    "src/report_agent/catalog.py": "195200e9da97bad325aa4634c884bcc26c68d647f676ddf26e7a9d5a04f7127c",
+    "src/report_agent/cli.py": "ac7eda9fc29261cc346a9e72df51f7c8cae4c1f6389bccfbf6b4b748491c0522",
+    "src/report_agent/deep_models.py": "074809346ae5964a5bdd11122f8d2d16c1a7b9dad3088fe0495b38a30cdc21a9",
+    "src/report_agent/deep_runtime.py": "ff2bfd908fec665535c4351923f66cc1851098bc30fe43a96580afda5a984b52",
+    "src/report_agent/document_tools.py": "2ceaad05db33b1624f428cb626666d34f62b4d1ad12164844e47439d06c88bab",
+    "src/report_agent/embeddings.py": "df679d6e5574f54088257ed31223a20268d32184f6a91cab10574396353e3096",
+    "src/report_agent/errors.py": "1808925149e6df2f4b3f80694c27513d0c6ccb11e38ede195f48f6472733b126",
+    "src/report_agent/evidence_analysis.py": "784c081c14a30305bfd3fa66f648c11c81a89041232d4eaaccd35a79448dc9c9",
+    "src/report_agent/exporting.py": "29070aeec90de8a1087d82accf11e8b36df38dccb08b98cb2c1f676886f3b3c5",
+    "src/report_agent/ingestion.py": "5742ef9eb744e5e1b6dd43a02c887f941ae0b983899e52d65996077a8df8215b",
+    "src/report_agent/knowledge.py": "35376d7f832b81704028bf864adbe98a96520ff74f90216bf37687c56d1c1410",
+    "src/report_agent/knowledge_state.py": "e86af5b669cfd505cdb0b754cccd72a491d5627f78283dec1a0a0630730286ca",
+    "src/report_agent/models.py": "0f0a4350cceae4c762223f9d7cf9e93749ab3858510279e02dd9e634296bf7b0",
+    "src/report_agent/report_preview.py": "8d0ac145d8e659cc987f6528822729c5fe839bd0aa9bd8c7326184a64af462ae",
+    "src/report_agent/report_runtime.py": "c9c79d72fdc0f293fa00c7dc2202dd924be368be1a4d196ade2853feae2fd1f5",
+    "src/report_agent/review.py": "89a210a8ad25d52cc778b2814e5807b7311e5d9815062287382567b9a0daf4f4",
+    "src/report_agent/review_context.py": "9727ee95c79e6dfdc8ea241aa04a56b1b0b237407ea2ca9daa9043ae5bb67970",
+    "src/report_agent/review_contract.py": "409b6e9f2ce679b5ebd440910ae3c1fc87c885e15609f367d68682d50328f32d",
+    "src/report_agent/rules/acceptance-reviewer.md": "340e74c063010a8957579a17ab2e9b20cd960e4858eb382e6f5521a86d70b2a4",
+    "src/report_agent/rules/report-review.md": "b63e7620378e6648fa9882db5c69e978a9744e0a5c095c1db0642792abc70ca5",
+    "src/report_agent/rules/report-reviewer.md": "b8d9cd106d0310c303c10f782505cd1a017d4d510c4c1648d11a6fb37b5fd905",
+    "src/report_agent/runtime.py": "ddc1508a69ed2327da04da965ed51506151eb58e52078db4021d590f308a2a8e",
+    "src/report_agent/source_tables.py": "a2815900b25f9bf5dce6d7f991eff710f3e682be074995b8d379bdadd906b052",
+    "src/report_agent/store.py": "97db1ba700c124848629db1875ea704fa93152aed291c12de247a6da2df9a4f0",
+    "src/report_agent/tools.py": "2a0af998284bbf0ce8f824fd035fcd2971c5737ec96918c61ddc2a8f2c5df05d",
+    "src/report_agent/vision.py": "b21ef850691ea88fb4e8a72f21a6ae7ccb0832ade3d63e0ee686b9ab4c4f460d",
+    "src/report_agent/webapp.py": "ed5322b547c5c58c897a7a553124ddff878ca21041f9939384326ce527260b7a",
+    "src/report_agent/workspace.py": "2f39f44398d5e763b81346c187875d67bc19ba200b6616b5d07d0f4351743d87",
+    ".analysis/task040/action-observations.json": "7d590b12a78cec3774662f08c9c5186d428c146b7efb116c6c7b554cadcfaceb",
+    ".analysis/task040/actual/results.json": "4b53ed03827d22f1a47f90f5c41b5c292b6e73fe01c637feaa62f5273a0548ad",
+    ".analysis/task040/actual/active-criteria.json": "bbf29588dd8dd84775cc13b601dfeeedb056513b788e5e48d259d3135a43cd5b",
+    ".analysis/task040/actual/first-request-rubric_grader.json": "aa890cb0b3ff0ee54ccfa7074a6dc7cb9309fcfa91f86c57461803a83f5c3ae8",
+    ".analysis/task040/actual/model-io.json": "462b995bf00b14f4b23e48a0fe583a575c6cc9265d4ccc22647c3dd2d2697fa5",
+    ".analysis/task040/actual/state.json": "1405a2f253f31378818e746dce83edda92a3030d29fec28b743a2a9926462588",
+    ".analysis/task040/actual/draft-49a0fd72-0228-4d09-86d5-a5193a5a0018.md": "0acf099ed36fd270774f18e42dfc55ea38abb111f1da42590b0f2beead2681f4",
+    ".analysis/task040/actual/acceptance-95f221a2-b318-4158-b1f8-235aa71c6273.md": "e4a789d64947060be81a313a01a27fc6e7c84c3110058b15b86773e47465e013",
+    ".analysis/task040/freeze.json": "ef8a768ca41dea233ae410fb1ea72bc285a49d04b290784506e18fa744e90e21",
+    ".runs/task040/feedback-recovery/sources/1 第一册 路线工程地质勘察报告.pdf": "c70561e3235a76b6dca5fa67fc39e7922ec0b69f96711c7d0652f44333bee61b",
+    ".runs/task040/feedback-recovery/sources/JTT 1375.1-2022 公路水运工程施工安全风险评估指南 第1部分：总体要求-18.pdf": "31650e7a1b699b32fbf38d00f4a4222cf1c9c40821dc9936af8eccd35a0e4a5d",
+    ".runs/task040/feedback-recovery/sources/JTT 1375.2-2025 公路水运工程施工安全风险评估指南 第2部分：桥梁工程-59.pdf": "456c674bc134413b7ee645619e44064f423228a72232e86a42297e23c7d762b6",
+    ".runs/task040/feedback-recovery/sources/JTT 1375.3-2024 公路水运工程施工安全风险评估指南 第3部分：隧道工程-97.pdf": "7a998d24835808acc343f28a2615d335ffea4ab230adf8cd2d6baf5f8250fa84",
+    ".runs/task040/feedback-recovery/sources/报告编写范围说明.md": "bb80476e9831d05f72dd6043e58ac6248a54a4bef0708f042e4ccdb498619b1f",
+    ".runs/task040/feedback-recovery/sources/报告编制格式标准.docx": "ca9fe227372741d7d81646dd66ee926bb7829d5fe2a1c2701a865036e3fda4cf",
+    ".runs/task040/feedback-recovery/sources/提取大纲.docx": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+    ".runs/task040/feedback-recovery/sources/第1合同段 第二册 路基、路面 第一分册(3).pdf": "74ab4e22761aea5d4130677ff50ffe0505676d27daa1fa48ca20eecdf0d96df6",
+    ".runs/task040/feedback-recovery/sources/第1合同段 第四册 路线交叉（共三分册）第三分册 其他交叉1-3（0726）(1).pdf": "f5b6534f8d86595db5bf6eaa2bb7f4fe9c0f141b477312480d1a196ac01a0c61",
+    ".runs/task040/feedback-recovery/sources/路堑高边坡施工安全评价指南.pdf": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98",
+    "/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/task042/frozen/model-inputs.json": "813e37605266edbfe9871a1960a7d3e90ca1cb97a538c8844317e1d5aa575816",
+    "/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/task042/frozen/input-receipt.json": "d58a5aca5353eaa36b9b04682ebcd036dcb9a5231080cb8b5dbc71bab67454d8"
+  },
+  "original_input_files": {
+    ".analysis/task040/action-observations.json": "7d590b12a78cec3774662f08c9c5186d428c146b7efb116c6c7b554cadcfaceb",
+    ".analysis/task040/actual/results.json": "4b53ed03827d22f1a47f90f5c41b5c292b6e73fe01c637feaa62f5273a0548ad",
+    ".analysis/task040/actual/active-criteria.json": "bbf29588dd8dd84775cc13b601dfeeedb056513b788e5e48d259d3135a43cd5b",
+    ".analysis/task040/actual/first-request-rubric_grader.json": "aa890cb0b3ff0ee54ccfa7074a6dc7cb9309fcfa91f86c57461803a83f5c3ae8",
+    ".analysis/task040/actual/model-io.json": "462b995bf00b14f4b23e48a0fe583a575c6cc9265d4ccc22647c3dd2d2697fa5",
+    ".analysis/task040/actual/state.json": "1405a2f253f31378818e746dce83edda92a3030d29fec28b743a2a9926462588",
+    ".analysis/task040/actual/draft-49a0fd72-0228-4d09-86d5-a5193a5a0018.md": "0acf099ed36fd270774f18e42dfc55ea38abb111f1da42590b0f2beead2681f4",
+    ".analysis/task040/actual/acceptance-95f221a2-b318-4158-b1f8-235aa71c6273.md": "e4a789d64947060be81a313a01a27fc6e7c84c3110058b15b86773e47465e013",
+    ".analysis/task040/freeze.json": "ef8a768ca41dea233ae410fb1ea72bc285a49d04b290784506e18fa744e90e21",
+    ".runs/task040/feedback-recovery/sources/1 第一册 路线工程地质勘察报告.pdf": "c70561e3235a76b6dca5fa67fc39e7922ec0b69f96711c7d0652f44333bee61b",
+    ".runs/task040/feedback-recovery/sources/JTT 1375.1-2022 公路水运工程施工安全风险评估指南 第1部分：总体要求-18.pdf": "31650e7a1b699b32fbf38d00f4a4222cf1c9c40821dc9936af8eccd35a0e4a5d",
+    ".runs/task040/feedback-recovery/sources/JTT 1375.2-2025 公路水运工程施工安全风险评估指南 第2部分：桥梁工程-59.pdf": "456c674bc134413b7ee645619e44064f423228a72232e86a42297e23c7d762b6",
+    ".runs/task040/feedback-recovery/sources/JTT 1375.3-2024 公路水运工程施工安全风险评估指南 第3部分：隧道工程-97.pdf": "7a998d24835808acc343f28a2615d335ffea4ab230adf8cd2d6baf5f8250fa84",
+    ".runs/task040/feedback-recovery/sources/报告编写范围说明.md": "bb80476e9831d05f72dd6043e58ac6248a54a4bef0708f042e4ccdb498619b1f",
+    ".runs/task040/feedback-recovery/sources/报告编制格式标准.docx": "ca9fe227372741d7d81646dd66ee926bb7829d5fe2a1c2701a865036e3fda4cf",
+    ".runs/task040/feedback-recovery/sources/提取大纲.docx": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+    ".runs/task040/feedback-recovery/sources/第1合同段 第二册 路基、路面 第一分册(3).pdf": "74ab4e22761aea5d4130677ff50ffe0505676d27daa1fa48ca20eecdf0d96df6",
+    ".runs/task040/feedback-recovery/sources/第1合同段 第四册 路线交叉（共三分册）第三分册 其他交叉1-3（0726）(1).pdf": "f5b6534f8d86595db5bf6eaa2bb7f4fe9c0f141b477312480d1a196ac01a0c61",
+    ".runs/task040/feedback-recovery/sources/路堑高边坡施工安全评价指南.pdf": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98"
+  },
+  "public_artifact_sha256": {
+    ".runs/task042/relation-verdict-controls/cf0e383fe2c1/input.json": "afa8dc8c200a7b825ab72e7f89a8a6482cadc3ef649db8bec0e11270a751d139",
+    ".runs/task042/relation-verdict-controls/cf0e383fe2c1/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task042/relation-verdict-controls/cf0e383fe2c1/receipt.json": "6284d80381cb1c6c9f9bb65d9600f812a38bb30d12d21ef5b6aff533c7e5bb05",
+    ".runs/task042/relation-verdict-controls/cf0e383fe2c1/model-io.json": "5dfb4ae92472649d8200d7e3c0d88075684a1578767445d68c2d9672b5aa4190",
+    ".runs/task042/relation-verdict-controls/051e6c85b549/input.json": "cec25474c383052e132b8d4f624cad76b88eaf2c32cb4f89ff12b445b5486124",
+    ".runs/task042/relation-verdict-controls/051e6c85b549/output.json": "1551f68d66fa7474446b5fb641f7ffd0eca548efbd7fdc73fa9c3f896ad710fd",
+    ".runs/task042/relation-verdict-controls/051e6c85b549/settings.json": "21e6e2b767cb7fa95f4f4557d13a0280c10b8459062938e98b503b8a08884fbe",
+    ".runs/task042/relation-verdict-controls/051e6c85b549/receipt.json": "b667000c2f5589e64903453575669cc14dc59d3213ca5520166973abe06f9669",
+    ".runs/task042/relation-verdict-controls/051e6c85b549/model-io.json": "f2bc5f9b875e570e7491e40291b0714933d25b95344ee83816c9c9ec45b8cc77",
+    ".runs/task042/relation-verdict-controls/batch.json": "5c156404a820406f3ea132900eb753a58b252823da1eaa4e0404cb75ba4d09ca",
+    ".analysis/task042/frozen/model-inputs.json": "813e37605266edbfe9871a1960a7d3e90ca1cb97a538c8844317e1d5aa575816",
+    ".analysis/task042/frozen/input-receipt.json": "d58a5aca5353eaa36b9b04682ebcd036dcb9a5231080cb8b5dbc71bab67454d8",
+    ".analysis/task042/preflight.json": "671a5f53984d23b12f580d86dd9836675a928360497d781f88443ac7d6f8b262",
+    ".analysis/task042/audit.py": "f1fc32782af988e15a4a3832a8342247f0cafb20eb320de409b2bd782eef9458"
+  },
+  "predeclared_oracle_sha256": "f09f6e5acaf08a3db2e96784e8f7dabf522397d2ef3c9a653f54b35215f4a3c7",
+  "errors": [
+    {
+      "case_id": "cf0e383fe2c1",
+      "arm": "A",
+      "status": "error",
+      "model_requests": 1,
+      "model_responses": 0,
+      "usage": [],
+      "finish_reasons": [],
+      "error": {
+        "type": "OpenAITimeoutError",
+        "http_status": null,
+        "message": "MODEL_REQUEST_TIMEOUT",
+        "cause_types": [
+          "APITimeoutError",
+          "ConnectTimeout",
+          "ConnectTimeout"
+        ]
+      }
+    }
+  ],
+  "normalizations": [],
+  "independent_review": ".ase/verification/042-independent-results.md",
+  "private_reasoning_inspected": false,
+  "production_change_or_promotion": false,
+  "supplemental_preservation_sha256": {
+    ".analysis/task042/connectivity-01.json": "0be3f30a6da94a9a4dd38b69462c3147248cb27a41de419b16de27ed1b009099",
+    ".analysis/task042/connectivity-02.json": "6aa814960bfe12a4832a151b6cfd7fff50e4c67b169c937585f9972979b1890f",
+    ".analysis/task042/connectivity-ipv6-detail.json": "78fc196aeed7f2efd4d871b0733ea57d1c78e549444d07778a5df9a8bd7c962f",
+    ".analysis/task042/before-continuation-hashes.json": "fb61374e1df1350127769e14b7865fa22a40e4b508180b3e269362a52abab714",
+    ".analysis/task042/continuation-preservation.json": "8c87114717f4dff3fc6279c545de51ebb205607b9c7bc376594e8425af4e7472",
+    ".runs/task042/relation-verdict-controls/batch.before-continuation.json": "a941c8ac7fbc50cb33630a8cee473175e90e783b23395e2c5c0c28c8a131b521"
+  },
+  "comparison_available": false,
+  "independent_disposition": {
+    "P2-042-R01": "accepted; false C2 pass and unsupported broad C6 support",
+    "P3-042-R02": "accepted; new X11 sensitivity endpoints inaccurate, qualitative single-variable grade invariance retained",
+    "P2-042-I01": "A connection incident retained unscored; only unattempted B continued after diagnosis"
+  }
+}

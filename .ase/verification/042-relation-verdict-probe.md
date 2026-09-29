@@ -65,3 +65,88 @@ wrapper omits that unavailable-tool guidance. Thus the production role body
 is preserved, but the whole effective040 system is not claimed identical.
 Dependency versions are recorded in preparation receipt.runtime_versions and
 were separately checked by Main in `.analysis/task042/package-versions.json`.
+
+## Actual execution and public I/O audit
+
+Preparation committed as `2240e1a` by menglinsun <menglinsun@hotmail.com> before
+the first invocation. Main's preflight froze the final oracle and evaluator
+script, task and dependency-version observation. The duplicate zero-model
+preflight refusal and connection incident are recorded separately in
+`042-connection-diagnosis.md`; no failed model cell was replayed.
+
+A ended with ConnectTimeout and zero responses. After a successful zero-model
+host-reachability probe, Main used the predeclared diagnosed-suffix continuation
+for untouchedB. B completed with one provider response and six satisfied labels;
+overall satisfied. Both calls used identical recorded parameters. Actual callback
+system/human messages equal the saved frozen messages, with onlyB's predefined
+suffix differing. Exact criterion IDs and raw structured output match the parsed
+output. The batch is completed_with_errors: one valid output, one failed/unscored
+attempt. This is not a valid pair for an A/B quality comparison.
+
+B returned GLM-5.3 usage: prompt140240, completion30681, total170921 tokens.
+Its25901 reasoning tokens are a subset of completion, not an additional charge
+count. No private reasoning text was inspected. A has no returned usage; no
+zero-invoice claim is made. Two logical model requests, one model response;
+lower-level transport attempts are not individually exposed by these callbacks.
+
+Main's completed postflight confirms all59 frozen execution/input file hashes,
+all original input/source hashes, the semantic oracle hash, evaluator/task hashes,
+actual input identity and equal invocation parameters. Five pre-resume artifacts
+also match: the original batch saved separately and all fourA JSON files.
+Machine-readable evidence is `042-results.json`; detailed public I/O remains in
+the isolated run, with provenance hashes and no production artifact changes.
+
+## Findings and current disposition
+
+The initial independent semantic review reports C2 falsely satisfied, with the
+specificO1 relationship still not expressed: B addresses rock/soil category and
+the sourcing of “局部软塑” but does not establish the adopted weak-strata category,
+75–100 interval and70 contradiction. This is not evidence of recognizing that
+contradiction and then knowingly accepting it. R31=100 is correctly supported
+under its adopted premise. B retains the uncertain-height assumption but treats
+disclosure and grade robustness as support for overall acceptance. C6 again uses
+unlocated-but-uncontradicted background claims to support a broad positive verdict.
+Final independent classification and evidence are in `042-independent-results.md`.
+
+The public materiality argument is relevant evidence about this answer, not proof
+of an internal threshold or RL training cause. Main re-read the actual C2/C6
+definitions (both allowed_limitations strings empty) and role. The role already
+prohibits equating a usable staged draft with all criteria satisfied. An empty
+limitations field does not itself force rejection; the actual rule contradiction
+and unsupported scope of the claim do. Grade stability may contain the consequence
+of an error without establishing the required rule application or source support.
+
+Main and the specialist agree not to stack more negative phrasing or hardcode the
+three known objects into production. The next useful candidate is a general native
+source-observation interface: locatable search hits first, complete source pages
+and derived tables available through the agent's own choices, with explicit total
+coverage/paging. This is a separately scoped design assessment, not a proven fix
+or an automatic repeated local matrix. Volume is a hypothesis, not a causal finding.
+
+The user briefly stopped testing after the URL/timeout explanation, then explicitly
+resumed after learningB had returned. No new model/connection tests were made during
+that pause. No email or recurring automation is used. G1 remains open; the current
+answer does not support whole-report acceptance or engineering sign-off, while
+the preserved draft and isolated follow-on investigation remain usable.
+
+### Final independent review accepted
+
+Main accepts specialist P2-042-R01: the B pass cannot establish the known rule
+relationship or its broad source-fidelity conclusion. It blocks using this pass
+for whole-report acceptance, claiming grader recovery or engineering sign-off;
+retention of useful draft work and a contained native investigation can continue.
+No code or schema silently converted a negative judgment: the raw model itself
+returned six satisfied labels.
+
+Main also accepts P3-042-R02. The new X11 sensitivity interval49.3–54.9 is wrong;
+holding other printed report inputs fixed gives46.4490–56.8460 for X11=0–74.
+Both endpoints still lie inIII, so the incorrect numeric interval does not establish
+a grade change in that single-variable range. The X21 interval48.9–56.8 is correct.
+Do not reuse the bad sensitivity numbers; preserve the observation without a paid
+rerun merely to clean up the review. It does not block diagnostic handoff or draft
+retention. Main owns disposition of both findings in the next native evaluation.
+
+Task042's scoped preparation, attempted execution, failure containment, audit and
+independent assessment are complete. Its intended paired comparison was not
+obtained; that limitation remains explicit rather than being marked a successful
+experiment. The next task assesses a general source-search presentation change.
