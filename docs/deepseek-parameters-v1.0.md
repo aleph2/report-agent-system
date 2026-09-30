@@ -29,4 +29,6 @@ Strict 线格式版本为 deepseek-strict-v1：明确字段继续保留；可选
 
 验证：20 项离线测试通过；官方接口的一次合成兼容性调用接受了实际 34 个工具定义（包括框架工具、commit_objects 和 HierarchicalResponse），返回合法 commit_objects，开放字典与省略字段成功还原，未执行该调用。该探针为 low/8192、总 20416 token，用于协议验证，不能与 max 正式报告质量测试混为一谈。
 
+后续 HTTP 层已核实上述文本参数实际发送。真实响应仍有不满足 schema 和多调用的反例，须保留本地校验，不能把配置值当作服务端执行保证。精确反馈后已保存标准、正文并启动 writer；详见 [实测记录 v1.6](reviews/live-coverage-v1.6.md)。
+
 依据：[DeepSeek Tool Calls strict 官方说明](https://api-docs.deepseek.com/zh-cn/guides/tool_calls/)。

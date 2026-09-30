@@ -25,8 +25,18 @@ def tagged(kind, **properties):
 
 
 def exact(value, keys):
-    if type(value) is not dict or set(value) != set(keys):
-        raise WireError('Object keys do not match the strict wire schema')
+    if type(value) is not dict:
+        raise WireError('Expected object, received ' + type(value).__name__)
+    if set(value) != set(keys):
+        raise WireError('Object fields differ: missing=' + str(sorted(set(keys) - set(value)))
+                        + ', unexpected=' + str(sorted(set(value) - set(keys))))
+
+
+def at(path, convert, value):
+    try:
+        return convert(value)
+    except WireError as exc:
+        raise WireError(path + ': ' + str(exc)) from exc
 
 
 def json_value(value, encode):
@@ -96,12 +106,19 @@ def compile_node(source):
     if choices is not None:
         nodes = [compile_node(s) for s in choices]
         def choose(value, encode):
+            # An explicit literal discriminator selects diagnostic scope, not a
+            # repaired business value. Without one, retain all branch errors.
+            selected = [n for n in nodes if type(value) is dict and any(
+                k in value and value[k] in p.get('enum', [])
+                for k, p in n.schema.get('properties', {}).items())]
+            errors = []
             for node in nodes:
                 try:
                     return (node.encode if encode else node.decode)(value)
-                except WireError:
-                    pass
-            raise WireError('No union branch matches the supplied value')
+                except WireError as exc:
+                    errors.append((node, str(exc)))
+            raise WireError('No union branch matches: ' + ' | '.join(
+                e for n, e in errors if not selected or any(n is s for s in selected)))
         node = Node({'anyOf': [n.schema for n in nodes]},
                     lambda v: choose(v, True), lambda v: choose(v, False))
     elif source.get('type') == 'object' or 'properties' in source:
@@ -138,14 +155,14 @@ def compile_node(source):
                 for k, c in children.items():
                     v = value[k]
                     if k in required:
-                        result[k] = c.decode(v)
+                        result[k] = at(k, c.decode, v)
                     elif type(v) is dict and v.get('kind') == 'absent':
                         exact(v, ['kind'])
                     else:
-                        exact(v, ['kind', 'value'])
+                        at(k + ' (optional wire field)', lambda x: exact(x, ['kind', 'value']), v)
                         if v['kind'] != 'present':
                             raise WireError('Optional field must be absent or present')
-                        result[k] = c.decode(v['value'])
+                        result[k] = at(k, c.decode, v['value'])
                 return result
             node = Node(obj(schema), encode_object, decode_object)
     elif source.get('type') == 'array':
@@ -153,7 +170,8 @@ def compile_node(source):
         def array(value, encode):
             if type(value) is not list:
                 raise WireError('Expected array')
-            return [(child.encode if encode else child.decode)(v) for v in value]
+            return [at('[' + str(i) + ']', child.encode if encode else child.decode, v)
+                    for i, v in enumerate(value)]
         node = Node({'type': 'array', 'items': child.schema}, lambda v: array(v, True), lambda v: array(v, False))
     elif 'type' not in source and not any(k in source for k in ('enum', 'const')):
         node = Node({'$ref': JSON_REF}, lambda v: json_value(v, True), lambda v: json_value(v, False))

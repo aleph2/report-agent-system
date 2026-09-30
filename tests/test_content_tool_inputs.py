@@ -152,3 +152,30 @@ async def test_valid_sibling_executes_once_and_agent_may_decline_invalid_action(
     assert result['status'] == 'needs_attention'
     assert len(driver.calls) == 2
     assert len(cs.list_objects()) == before + 1
+
+
+async def test_structured_result_with_valid_and_invalid_siblings_consumes_feedback():
+    from langchain.agents import create_agent
+    from pydantic import BaseModel
+    class Assessment(BaseModel):
+        answer: str
+    executed = []
+    def observe() -> str:
+        """Observe the synthetic source."""
+        executed.append('once')
+        return 'Observed source.'
+    mixed = AIMessage(content='', tool_calls=[
+        call('Assessment', {'answer': 'premature'}, 'structured'), call('observe', {}, 'observe')],
+        invalid_tool_calls=[{'id': 'bad', 'name': 'observe', 'args': '{', 'error': 'parse error'}])
+    def choose(messages):
+        outcomes = {m.tool_call_id: m for m in messages if isinstance(m, ToolMessage)}
+        assert outcomes['bad'].status == 'error'
+        assert outcomes['observe'].content == 'Observed source.'
+        return invoke('Assessment', answer='unresolved after observed feedback')
+    driver = Driver(grader=[mixed, choose])
+    agent = create_agent(driver('grader'), tools=[observe], response_format=Assessment,
+        middleware=[InvalidToolFeedback()])
+    result = await agent.ainvoke({'messages': [{'role': 'user', 'content': 'Synthetic protocol check.'}]})
+    assert result['structured_response'].answer == 'unresolved after observed feedback'
+    assert executed == ['once']
+    assert len(driver.calls) == 2
