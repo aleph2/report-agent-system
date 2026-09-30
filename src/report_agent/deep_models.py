@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import json
 from urllib.parse import urlparse
 
 import httpx
@@ -75,10 +76,44 @@ class GLMChatOpenAI(ChatOpenAI):
     Provider-specific parameters are selected explicitly by configured_model.
     """
 
+    deepseek_strict: bool = False
+
+    def _decode_strict(self, result, tools):
+        if not self.deepseek_strict:
+            return result
+        from .deepseek_strict import StrictCodec, WireError
+        codecs = {t['function']['name']: StrictCodec(t['function']) for t in tools or []}
+        for generation in result.generations:
+            message = generation.message
+            valid = []
+            for call in message.tool_calls:
+                try:
+                    if call['name'] not in codecs:
+                        raise WireError('Tool is not in this request')
+                    valid.append({**call, 'args': codecs[call['name']].decode(call['args'])})
+                except WireError as exc:
+                    message.invalid_tool_calls.append({'type': 'invalid_tool_call', 'id': call['id'],
+                        'name': call['name'], 'args': json.dumps(call['args'], ensure_ascii=False),
+                        'error': 'STRICT_WIRE_DECODE_FAILED: ' + str(exc)})
+            message.tool_calls = valid
+        return result
+
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        result = await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        return self._decode_strict(result, kwargs.get('tools'))
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        return self._decode_strict(result, kwargs.get('tools'))
+
     def _create_chat_result(self, response, generation_info=None):
         result = super()._create_chat_result(response, generation_info)
         raw = response if isinstance(response, dict) else response.model_dump(warnings=False)
         for generation, choice in zip(result.generations, raw['choices'], strict=True):
+            if self.deepseek_strict:
+                from .deepseek_strict import VERSION
+                generation.message.additional_kwargs['strict_wire'] = {
+                    'version': VERSION, 'tool_calls': choice['message'].get('tool_calls') or []}
             reasoning = choice['message'].get('reasoning_content')
             if reasoning is not None:
                 if not isinstance(reasoning, str):
@@ -99,7 +134,21 @@ class GLMChatOpenAI(ChatOpenAI):
         if self.model_name == 'deepseek-flash' and (
                 isinstance(payload.get('tool_choice'), dict) or payload.get('tool_choice') in {'any', 'required'}):
             payload['tool_choice'] = 'auto'
+        if self.deepseek_strict:
+            from .deepseek_strict import StrictCodec
+            if urlparse(str(self.openai_api_base)).path.rstrip('/') != '/beta':
+                raise ValueError('DEEPSEEK_STRICT_REQUIRES_BETA')
+            payload['tools'] = [{'type': 'function', 'function': StrictCodec(t['function']).function}
+                                for t in payload.get('tools', [])]
+            if not payload['tools']:
+                payload.pop('tools')
         for message, wire in zip(messages, payload['messages'], strict=True):
+            if isinstance(message, AIMessage) and 'strict_wire' in message.additional_kwargs:
+                # Replay exactly the model-generated wire calls, never the decoded
+                # business arguments. Old pre-strict checkpoint calls stay unchanged.
+                wire['tool_calls'] = message.additional_kwargs['strict_wire']['tool_calls']
+                if not wire['tool_calls']:
+                    wire.pop('tool_calls')
             if isinstance(message, AIMessage) and 'reasoning_content' in message.additional_kwargs:
                 reasoning = message.additional_kwargs['reasoning_content']
                 if not isinstance(reasoning, str):
@@ -149,7 +198,10 @@ def configured_model(store, role):
         effort = os.environ.get("REPORT_REASONING_EFFORT", "max")
         if effort not in {"low", "high", "max"}:
             raise RuntimeError("DEEPSEEK_REASONING_EFFORT_INVALID")
-        return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
+        strict = os.environ.get('REPORT_DEEPSEEK_STRICT', '0') == '1'
+        if strict:
+            url = 'https://api.deepseek.com/beta'
+        return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False, deepseek_strict=strict,
             disable_streaming=True, reasoning_effort=effort, max_tokens=131072 if effort == "max" else 65536,
             max_retries=0, extra_body={"thinking": {"type": "enabled"}},
             timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),

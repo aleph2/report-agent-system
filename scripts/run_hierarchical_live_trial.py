@@ -28,9 +28,11 @@ def service(env_file):
         os.environ[target] = values[source]
     os.environ.pop("REPORT_GRADER_MODEL", None)
     os.environ["REPORT_REASONING_EFFORT"] = "max"
+    os.environ["REPORT_DEEPSEEK_STRICT"] = "1"
     os.environ["LANGSMITH_TRACING"] = "false"
     os.environ["LANGCHAIN_TRACING_V2"] = "false"
-    return {"model": values["NAME"], "base_url": values["BASE_URL"], "reasoning_effort": "max",
+    return {"model": values["NAME"], "base_url": "https://api.deepseek.com/beta", "reasoning_effort": "max",
+            "strict": True, "wire_codec": "deepseek-strict-v1", "vision_base_url": values["BASE_URL"],
             "max_tokens": 131072, "max_retries": 0, "thinking": {"type": "enabled"}}
 
 

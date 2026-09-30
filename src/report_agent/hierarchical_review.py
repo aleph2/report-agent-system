@@ -38,7 +38,7 @@ class HierarchicalRubric(RubricMiddleware):
         self.identity = {"contract": SCHEMA_VERSION, "model": getattr(model, "model_name", "unknown"),
             "runtime": "deepagents-0.7.19", "prompt_digest": digest(role_prompt("reviewer")),
             "schema_digest": digest(HierarchicalResponse.model_json_schema()),
-            "settings": {key: getattr(model, key, None) for key in ("temperature", "reasoning_effort", "max_tokens", "max_retries")}}
+            "settings": {key: getattr(model, key, None) for key in ("temperature", "reasoning_effort", "max_tokens", "max_retries", "deepseek_strict")}}
         adapted = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
                    else StructuredTool.from_function(t) for t in tools]
         super().__init__(model=model, system_prompt=role_prompt("reviewer"), tools=adapted,
