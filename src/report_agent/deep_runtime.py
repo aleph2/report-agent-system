@@ -25,6 +25,7 @@ from .knowledge_state import project_state, delivery_state, inspect_evidence
 from .review import load_rules, native_review, reconcile_review, reviewer_prompt
 from .acceptance import AcceptanceCriterionInput
 from .evidence_analysis import SourceSelection, ResultSelection, analyze_selected_evidence
+from .tool_argument_feedback import InvalidToolFeedback
 
 
 WORK_STATE_GUIDANCE = """Keep your current adopted inputs, rules, valid results and remaining work in native
@@ -109,7 +110,7 @@ def repeated_observation(messages):
     return exchanges[-1]["tool"] if exchanges[0] == exchanges[1] == exchanges[2] else None
 
 
-class BusinessBoundary(AgentMiddleware):
+class BusinessBoundary(InvalidToolFeedback):
     """Serialize native tools and report rejected actions as observations."""
 
     def __init__(self, workspace, role):
@@ -117,6 +118,8 @@ class BusinessBoundary(AgentMiddleware):
         self.lock = asyncio.Lock()
 
     async def awrap_model_call(self, request, handler):
+        from .tool_argument_feedback import diagnostic_messages
+        request = request.override(messages=diagnostic_messages(request.messages))
         from .hierarchical_tools import enabled as content_enabled
         if self.role == "coordinator" and content_enabled(self.workspace):
             from .content_tasks import task_tool

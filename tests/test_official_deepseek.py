@@ -64,7 +64,8 @@ async def test_official_vision_uses_official_alias(tmp_path):
     assert model.calls[0]["model"] == "deepseek-flash"
 
 
-async def test_native_structured_grader_uses_supported_auto_then_persists_review(ws, monkeypatch):
+@pytest.mark.parametrize('strict', [False, True])
+async def test_native_structured_grader_uses_supported_auto_then_persists_review(ws, monkeypatch, strict):
     from report_agent import deep_runtime
     from report_agent.content_export import export_snapshot
     from report_agent.hierarchical_tools import actor_for
@@ -73,6 +74,7 @@ async def test_native_structured_grader_uses_supported_auto_then_persists_review
     from openai import AsyncOpenAI
     cs, actor, refs, snapshot, _ = covered_seed(ws)
     configured(ws.store.root, monkeypatch)
+    monkeypatch.setenv('REPORT_DEEPSEEK_STRICT', '1' if strict else '0')
     export = export_snapshot(cs, actor, "export", snapshot)["result"]["export_ref"]
     ws.store.set("content_delivery", {"snapshot_ref": snapshot, "export_ref": export, "ending_reason": "preserve_unresolved"})
     data = review_data(cs, refs, snapshot)
@@ -85,15 +87,23 @@ async def test_native_structured_grader_uses_supported_auto_then_persists_review
         is_grader = "HierarchicalResponse" in names
         if is_grader:
             assert payload["tool_choice"] == "auto"
+            arguments = {"explanation": "Protocol fixture", "review": data}
+            if strict:
+                from report_agent.deepseek_strict import StrictCodec
+                from report_agent.hierarchical_review import HierarchicalResponse
+                from langchain_core.utils.function_calling import convert_to_openai_tool
+                arguments = StrictCodec(convert_to_openai_tool(HierarchicalResponse)['function']).encode(arguments)
+                assert request.url.path == '/beta/chat/completions'
+                assert all(t['function']['strict'] is True for t in payload['tools'])
             message = {"role": "assistant", "content": None, "tool_calls": [{"id": "grade", "type": "function", "function": {
-                "name": "HierarchicalResponse", "arguments": json.dumps({"explanation": "Protocol fixture", "review": data})}}]}
+                "name": "HierarchicalResponse", "arguments": json.dumps(arguments)}}]}
         else:
             message = {"role": "assistant", "content": "Saved delivery selected."}
         return httpx.Response(200, json={"id": "native-wire-test", "object": "chat.completion", "created": 1,
             "model": "deepseek-flash", "choices": [{"index": 0, "finish_reason": "tool_calls" if is_grader else "stop", "message": message}],
             "usage": {"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3}})
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
-        sdk = AsyncOpenAI(api_key="test-key", base_url="https://api.deepseek.com", http_client=client, max_retries=0)
+        sdk = AsyncOpenAI(api_key="test-key", base_url="https://api.deepseek.com/beta" if strict else "https://api.deepseek.com", http_client=client, max_retries=0)
         def factory(role):
             model = configured_model(ws.store, role)
             model.async_client = sdk.chat.completions
