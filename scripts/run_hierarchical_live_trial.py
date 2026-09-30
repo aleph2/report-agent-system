@@ -99,6 +99,43 @@ def prepare(baseline, destination):
     return result
 
 
+def prepare_inputs_only(baseline, destination):
+    """Start a clean full run using only the authorized source/OCR snapshot."""
+    from import_verified_sources import rows_hash
+    from prepare_clean_trial009 import prepare as prepare_clean
+
+    baseline, destination = baseline.resolve(), destination.resolve()
+    if destination.exists() or destination.is_relative_to(baseline) or baseline.is_relative_to(destination):
+        raise ValueError("NEW_ISOLATED_DESTINATION_REQUIRED")
+    with sqlite3.connect((baseline / "state.db").as_uri() + "?mode=ro", uri=True) as db:
+        original = json.loads(db.execute("SELECT value FROM state WHERE key='manifest'").fetchone()[0])
+        for source in original["sources"]:
+            rows = db.execute("SELECT source_id,ordinal,locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal",
+                              (source["id"],)).fetchall()
+            if len(rows) != source.get("blocks") or rows_hash(rows) != source.get("blocks_sha256"):
+                raise ValueError("FROZEN_SOURCE_BLOCKS_MISMATCH")
+    receipt = prepare_clean(baseline, destination)
+    store = Store(destination)
+    manifest = store.manifest
+    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1", trial_service="deepseek-official")
+    store.set("manifest", manifest)
+    with store.connect() as db:
+        for source in manifest["sources"]:
+            rows = db.execute("SELECT source_id,ordinal,locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal",
+                              (source["id"],)).fetchall()
+            if len(rows) != source["blocks"] or rows_hash(rows) != source["blocks_sha256"]:
+                raise ValueError("COPIED_SOURCE_BLOCKS_MISMATCH")
+    store.set("knowledge_enabled", False)
+    cs = ContentStore(store)
+    assert not cs.list_objects()
+    result = {"scope": "clean end-to-end from coordinator; no prior plan, criteria, report, reviews or checkpoints",
+              "baseline": str(baseline), "source_count": len(manifest["sources"]),
+              "source_blocks": receipt["source_blocks"], "source_index_sha256": receipt["source_index_sha256"],
+              "existing_content_objects": 0, "original_commission_preserved": True}
+    (destination / "preparation.json").write_text(encode(result), encoding="utf-8")
+    return result
+
+
 async def run(project, env_file, resume):
     settings = service(env_file)
     store = Store(project)
@@ -121,12 +158,15 @@ if __name__ == "__main__":
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--prepare", action="store_true")
+    parser.add_argument("--prepare-inputs-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--env-file", type=Path)
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--port", type=int, default=18159)
     args = parser.parse_args()
-    if args.prepare:
+    if args.prepare_inputs_only:
+        print(encode(prepare_inputs_only(args.baseline, args.project)))
+    elif args.prepare:
         print(encode(prepare(args.baseline, args.project)))
     elif args.serve:
         import uvicorn
