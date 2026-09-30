@@ -51,6 +51,7 @@ class HierarchicalRubric(RubricMiddleware):
         packet = {"task": "Independently assess whole-document requirements, composition, omissions, export fidelity and actual page quality. Choose methods and depth; use original sources and bounded observations. Author text is unverified.",
             "target": self.target, "criteria": criteria, "required_obligations": self.required,
             "required_delivery_checks": ["export", "render"],
+            "review_state_access": "read_review_status exposes paged per-object states and historical applicability for the selected snapshot/export. It is metadata, not fresh content evidence or a prescribed investigation route.",
             "review_contract": SCHEMA_VERSION, "note": "Return observations actually obtained, uncovered scope and honest states. Read actual objects and original sources through tools; metadata is not content."}
         self.workspace.store.event("content_native_review_input", {"packet": packet, "runtime_identity": self.identity})
         return [HumanMessage(content=encode(packet))]

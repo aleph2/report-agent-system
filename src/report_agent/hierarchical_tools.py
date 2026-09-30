@@ -49,6 +49,20 @@ def content_tools(workspace, role, runtime_identity=None):
         """
         return contents.read_context(actor(), target_ref.model_dump(), offset, limit)
 
+    def read_review_status(snapshot_ref: Ref, target_ref: Ref | None = None,
+                           export_ref: Ref | None = None, offset: int = 0, limit: int = 20) -> dict:
+        """Read version-scoped review state, including objects never reviewed, coverage,
+        historical judgments, reuse/recheck candidates and independent handling chains.
+        Optional target_ref selects one exact object; export_ref selects an exact export.
+        This metadata grants no observation receipt or acceptance. Reviewers judge their
+        declared scope; the coordinator chooses subsequent work from their feedback.
+        """
+        from .review_status import read_status
+        actor()  # Enforce the same task binding as other delegated tools.
+        return {"ok": True, "result": read_status(contents, snapshot_ref.model_dump(),
+            target_ref.model_dump() if target_ref else None,
+            export_ref.model_dump() if export_ref else None, offset, limit)}
+
     def import_source_versions(operation_id: str, source_ids: list[str]) -> dict:
         """Snapshot authorized source text/metadata and the unchanged commission; no interpretation."""
         return contents.import_inputs(actor(), operation_id, source_ids)
@@ -181,7 +195,7 @@ def content_tools(workspace, role, runtime_identity=None):
             return delivery
         return contents.operation(actor(), operation_id, {"select_delivery": [snapshot_ref.model_dump(), export_ref.model_dump(), ending_reason]}, select)
 
-    common = [content_status, read_context, observe_evidence, read_feedback, record_handoff,
+    common = [content_status, read_context, read_review_status, observe_evidence, read_feedback, record_handoff,
               assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page]
     if role in {"reviewer", "rubric_grader"}:
         return common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review]

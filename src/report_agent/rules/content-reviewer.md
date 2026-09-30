@@ -39,3 +39,8 @@ actual coverage, evidence and execution for each; unperformed work remains null.
 These are required outcomes, not ordered stages or a requirement to call every tool.
 Use capture_review_sources to retain exact independently discovered source versions;
 declare adopted review dependencies explicitly, without changing the author's snapshot.
+
+State the scope of each judgment, including whole-node or whole-document scope when
+assessed. Stored status does not broaden your judgment or infer a parent pass. Historical
+recheck candidates identify possible applicability gaps; you decide their significance
+and any further investigation from the current goals, changes and evidence.
