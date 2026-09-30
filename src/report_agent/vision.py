@@ -4,6 +4,7 @@ import base64
 import hashlib
 import logging
 from contextvars import ContextVar
+from urllib.parse import urlparse
 
 from .deep_models import configured_vision_client, error_data
 from .errors import ActionRejected
@@ -60,7 +61,8 @@ async def observe_source_image(workspace, source_id: str, question: str,
 
 
 async def _observe(store, png, provenance, question, client):
-    settings = {"model": VISION_MODEL, "endpoint_hash": digest(str(client.base_url)),
+    model = "deepseek-flash" if urlparse(str(client.base_url)).netloc == "api.deepseek.com" else VISION_MODEL
+    settings = {"model": model, "endpoint_hash": digest(str(client.base_url)),
                 "max_tokens": MAX_OUTPUT_TOKENS, "instruction": VISION_INSTRUCTION,
                 "contract": "source-vision-v2"}
     operation = digest({**settings, "source": provenance, "question": question,
@@ -69,7 +71,7 @@ async def _observe(store, png, provenance, question, client):
     if saved:
         store.event("vision_reused", {"operation": operation, "source_id": provenance["source_id"]})
         return {**saved, "reused": True}
-    request = {"operation": operation, "model_requested": VISION_MODEL,
+    request = {"operation": operation, "model_requested": model,
                "source": provenance, "question": question,
                "image_sha256": hashlib.sha256(png).hexdigest(),
                "sdk_max_retries": client.max_retries}
@@ -79,7 +81,7 @@ async def _observe(store, png, provenance, question, client):
         token = _PRIVATE_REQUEST.set(True)
         try:
             response = await client.chat.completions.create(
-                model=VISION_MODEL, max_tokens=MAX_OUTPUT_TOKENS, stream=False,
+                model=model, max_tokens=MAX_OUTPUT_TOKENS, stream=False,
                 messages=[{"role": "system", "content": VISION_INSTRUCTION},
                 {"role": "user", "content": [{"type": "text", "text": question},
                     {"type": "image_url", "image_url": {
@@ -93,7 +95,7 @@ async def _observe(store, png, provenance, question, client):
         refusal = bool(message.refusal)
         unexpected_tools = bool(message.tool_calls)
         model_returned = response.model
-        mismatch = bool(model_returned and model_returned != VISION_MODEL)
+        mismatch = bool(model_returned and model_returned != model)
         usage = response.usage.model_dump() if response.usage else None
     except Exception as exc:
         result = {"status": "failed", **request, "error": error_data(exc),

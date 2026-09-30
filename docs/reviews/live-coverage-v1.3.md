@@ -1,0 +1,27 @@
+# 覆盖核对与 DeepSeek 真实测试 v1.3
+
+2026-09-30。用户授权本机部署和真实数据测试，并指定 DeepSeek 官方服务。此版本承接对象状态 v1.2；真实运行结果另行补录，不预先宣称质量通过。
+
+## 本轮增量
+
+新快照可冻结 `coverage_contract: object-coverage-v1`。最终审核任务供应全部 ContentNode 和 Requirement 的精确引用清单；它是应解释对象范围，标准仍由协调者维护，不表示每个标准都适用于每个节点。审核者在 `coverage_accounting` 中可把多个对象映射至一次观察判断，声明 assessed / partial / not_assessed / not_applicable 及依据。代码校验版本、重复项和索引，列出漏项/不完整范围；缺覆盖时不产生整体 S，已知 N 保留，U 不变成 S。Requirement 不能被审核者取消。
+
+assessed 不是通过；登记齐全也不能证明读懂内容或发现所有缺陷。未声明新契约的历史快照按原规则读取，新快照缺登记不能复用旧 S。覆盖责任是结果契约，没有新增固定审核计划或逐节点调用顺序。对象状态另外展示映射，不把组合审核映射冒充直接节点审核；`same_snapshot_not_superseded` 仅表示身份与撤销状态，不代表语义/来源/成品适用。
+
+接入官方 `deepseek-flash`：思考开启、effort=max、max_tokens=131072、非流式、SDK重试0，保留原生框架工具循环。协议所需不透明字段只在模型间回传，公开审计不保存其正文。官网依据：[Chat Completions 参数](https://api-docs.deepseek.com/api/create-chat-completion/)、[思考及工具调用](https://api-docs.deepseek.com/guides/thinking_mode/)。官方视觉调用使用相同服务的官方别名；原 GLM 和另一服务 DeepSeek 路径保留。
+
+## 复核及验证
+
+- Main 首轮八组相关回归：124 passed / 30.98秒；覆盖核对、原生审核、状态、版本权限、模型协议和视觉工具。
+- 独立审核 `/root/architecture_review_v1` 零网络复现 P2：框架结构化输出强制 required，与官方 DeepSeek thinking 不兼容，会阻断原生 grader 请求。Main 接受，增加仅官方服务的 auto 薄适配，并以 actual configured_model → 原生 HierarchicalRubric → MockTransport → 结构化工具结果 → 持久审核记录验证；未关闭思考。
+- 专项修正后28 passed / 8.09秒；包含上述实际框架结构化路径。另有P2状态字段易误读问题，已按专家建议改成准确的身份描述。
+- 扩大HTTP测试发现旧脚本夹具未声明其历史验收模式，触发 DRAFT_REQUIRES_ADOPTED_CRITERIA_ID。P2，仅阻断该历史夹具测试，不影响新分层实测；明确夹具 legacy 模式，生产默认不变。最后HTTP/官方模型/对象状态21 passed / 8.02秒。各组有重叠，不把次数相加成独立测试数量。
+- 既有 Task043 未提交变更仍保留；验证和部署基于该工作区，运行器冻结实际源码摘要，不声称干净检出验证。
+
+## 真实样本及部署边界
+
+隔离目录 `.runs/task059/deepseek-real-report`。从本独立系统 task055 的真实报告保留试验导入36个内容节点、6项既有标准、9份核验来源、原始委托及范围要求。正文payload逐一保持一致，生成21页成品；不导入旧审核、检查点、人工缺陷答案或生成时采用关系。新范围需解释38个对象。数据层列出清单，模型选择调查方法和深度。
+
+本机服务端口18159，`/api/status` 为状态；`/api/content/review-status` 为只读分页查询；`/api/content/delivery` 下载当前精确成品。没有修改前端交互或替换旧服务，尚无完整的新审核状态UI。
+
+本轮从保存的整份待审报告进入实际协调者和原生最终审核，保留原文，记录修订反馈；不是从零生成/自主修订质量验收，不是工程签发。实际调用输出、工具观察、模型身份和用量在项目数据库，启动配置和源码摘要在 live_trial_intent，终态在 live-result.json。用户恢复邮件通信，原定时任务已更新到当前会话；主任务唯一负责调用，心跳只通信。

@@ -86,6 +86,9 @@ def test_http_explicit_run_and_busy_project_protection(tmp_path, monkeypatch):
     ws = workspace(tmp_path)
     ws.store.set("model_mode", "scripted_fixture")
     factory = trunk_driver("access")
+    # This historical scripted author has no requirement-derived criteria step.
+    # Bind its original mode explicitly; do not weaken new-project defaults.
+    ws.store.set("acceptance_mode", "legacy")
     with TestClient(create_app(tmp_path, factory, allow_fixture_run=True)) as client:
         assert not factory.created
         headers = {"X-Report-Action": "1"}

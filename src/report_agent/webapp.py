@@ -99,6 +99,32 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
                               for e in events])
         return result
 
+    @app.get("/api/content/review-status")
+    def content_review_status(offset: int = 0, limit: int = 20):
+        from .content_store import ContentStore
+        from .review_status import read_status
+        from .errors import ActionRejected
+        selected = ws.store.get("content_delivery")
+        if not selected:
+            raise HTTPException(404, "NO_CONTENT_DELIVERY")
+        try:
+            return read_status(ContentStore(ws.store), selected["snapshot_ref"],
+                               export_ref=selected["export_ref"], offset=offset, limit=limit)
+        except ActionRejected as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.get("/api/content/delivery")
+    def content_delivery_file():
+        from .content_store import ContentStore
+        from .content_export import _bytes
+        selected = ws.store.get("content_delivery")
+        if not selected:
+            raise HTTPException(404, "NO_CONTENT_DELIVERY")
+        artifact = ContentStore(ws.store).read(selected["export_ref"])["payload"]
+        return Response(_bytes(ws.store, artifact["file_ref"], artifact["file_digest"]),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": 'attachment; filename="review-draft.docx"'})
+
     async def run_guarded():
         try:
             await run_report(ws, model_factory)

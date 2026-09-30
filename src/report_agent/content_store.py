@@ -273,6 +273,11 @@ class ContentStore:
                 raise ActionRejected("SNAPSHOT_REQUIRES_CRITERIA")
             ordered = sorted(refs, key=lambda r: Ref.model_validate(r).key())
             payload = {"root_ref": root_ref, "refs": ordered, "criteria_refs": criteria, "manifest_digest": digest(ordered)}
+            if self.store.manifest.get("coverage_contract"):
+                from .review_coverage import CONTRACT
+                if self.store.manifest["coverage_contract"] != CONTRACT:
+                    raise ActionRejected("UNKNOWN_COVERAGE_CONTRACT")
+                payload["coverage_contract"] = CONTRACT
             return {"snapshot_ref": self._insert(db, actor, "DocumentSnapshot", payload), "manifest_digest": payload["manifest_digest"]}
         return self.operation(actor, operation_id, {"freeze": {"root_ref": root_ref, "refs": refs}}, save)
 
@@ -349,6 +354,8 @@ class ContentStore:
                 if check["verdict"] is not None and not matched:
                     raise ActionRejected("DELIVERY_CHECK_REQUIRES_MATCHING_ACTUAL_OBSERVATION")
             data.update(task_ref=actor.task_id, runtime_identity=runtime_identity)
+            from .review_coverage import validate_accounting
+            validate_accounting(snap, data)
             return {"review_ref": self._insert(db, actor, "ReviewRecord", data)}
         return self.operation(actor, operation_id, {"submit_review": submission, "runtime_identity": runtime_identity}, save)
 

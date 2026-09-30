@@ -154,6 +154,13 @@ class ReviewItem(Contract):
         return self
 
 
+class CoverageAccounting(Contract):
+    target_refs: list[Ref] = Field(min_length=1)
+    state: Literal["assessed", "partial", "not_assessed", "not_applicable"]
+    item_indexes: list[int] = Field(default_factory=list)
+    reason: str = Field(min_length=1)
+
+
 class ReviewSubmission(Contract):
     target_ref: Ref
     snapshot_ref: Ref
@@ -162,6 +169,7 @@ class ReviewSubmission(Contract):
     dependency_refs: list[Ref]
     items: list[ReviewItem] = Field(min_length=1)
     delivery_checks: list["DeliveryCheck"] = Field(default_factory=list)
+    coverage_accounting: list[CoverageAccounting] = Field(default_factory=list)
 
 
 class DeliveryCheck(Contract):

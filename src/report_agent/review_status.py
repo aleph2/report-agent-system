@@ -141,6 +141,10 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
                       for h in history if h["recheck_reasons"] and "review_superseded" not in h["recheck_reasons"]]
         needs_recheck = bool(candidates)
         own_handling = [r for r in handling if r["payload"]["target_ref"] == ref]
+        accounting = [{"review_ref": r["ref"], "review_snapshot_ref": r["payload"]["snapshot_ref"], **a,
+                       "same_snapshot_not_superseded": r["payload"]["snapshot_ref"] == snapshot_ref
+                                  and _key(r["ref"]) not in superseded}
+                      for r in reviews for a in r["payload"].get("coverage_accounting", []) if ref in a["target_refs"]]
         entry = {"target_ref": ref, "kind": by_key[_key(ref)]["payload"].get("kind", ref["type"]),
             "overall_verdict": None, "overall_basis": "complete_object_obligations_not_defined",
             "execution_state": states[0] if len(states) == 1 else None,
@@ -149,6 +153,7 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
             "has_review_history": bool(history), "recheck_candidates": candidates,
             "applicability": "needs_recheck" if needs_recheck else "current" if scopes else "historical_only" if history else "not_reviewed",
             "scopes": scopes, "review_history": history,
+            "coverage_accounting": accounting,
             "handling_records": [{"ref": r["ref"], **r["payload"], "is_latest_in_chain": _key(r["ref"]) not in prior_handling} for r in own_handling],
             "historical_handling_refs": [r["ref"] for r in handling if _logical(r["payload"]["target_ref"]) == _logical(ref) and r["payload"]["target_ref"] != ref]}
         if ref == snapshot_ref and selected and selected["snapshot_ref"] == snapshot_ref and selected["export_ref"] == export_ref:
