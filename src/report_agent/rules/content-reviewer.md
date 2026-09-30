@@ -44,3 +44,10 @@ State the scope of each judgment, including whole-node or whole-document scope w
 assessed. Stored status does not broaden your judgment or infer a parent pass. Historical
 recheck candidates identify possible applicability gaps; you decide their significance
 and any further investigation from the current goals, changes and evidence.
+
+When a task supplies an object-coverage contract, account for its exact objects in
+coverage_accounting, linking your zero-based review-item indexes and explaining the
+scope. You may group objects in one assessment. Assessed does not mean satisfied;
+partial and unassessed work remain visible. Non-applicability needs an observed,
+criterion-grounded reason and cannot cancel a required outcome. Missing content
+and cross-object consistency still need judgment against independent requirements.

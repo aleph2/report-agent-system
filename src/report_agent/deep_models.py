@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+from urllib.parse import urlparse
 
 import httpx
 import openai
@@ -90,8 +91,14 @@ class GLMChatOpenAI(ChatOpenAI):
         payload = super()._get_request_payload(messages, stop=stop, **kwargs)
         if payload.get('stream') or 'messages' not in payload:
             raise ValueError('GLM_ADAPTER_REQUIRES_NONSTREAMING_CHAT_COMPLETIONS')
-        if self.model_name == 'deepseek-v4.1-flash' and 'max_completion_tokens' in payload:
+        if self.model_name in {'deepseek-v4.1-flash', 'deepseek-flash'} and 'max_completion_tokens' in payload:
             payload['max_tokens'] = payload.pop('max_completion_tokens')
+        # Official thinking mode rejects forced tool selection. The harness may
+        # bind `any`/`required` for structured responses; keep tools and thinking,
+        # with the supported auto selection instead of disabling reasoning.
+        if self.model_name == 'deepseek-flash' and (
+                isinstance(payload.get('tool_choice'), dict) or payload.get('tool_choice') in {'any', 'required'}):
+            payload['tool_choice'] = 'auto'
         for message, wire in zip(messages, payload['messages'], strict=True):
             if isinstance(message, AIMessage) and 'reasoning_content' in message.additional_kwargs:
                 reasoning = message.additional_kwargs['reasoning_content']
@@ -136,6 +143,17 @@ class LocalAudit(BaseCallbackHandler):
 def configured_model(store, role):
     name = os.environ.get("REPORT_MODEL", "").removeprefix("openai/")
     url, key = os.environ.get("REPORT_BASE_URL"), os.environ.get("REPORT_API_KEY")
+    if name == "deepseek-flash":
+        if not key or not url or urlparse(url).scheme != "https" or urlparse(url).netloc != "api.deepseek.com":
+            raise RuntimeError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")
+        effort = os.environ.get("REPORT_REASONING_EFFORT", "max")
+        if effort not in {"low", "high", "max"}:
+            raise RuntimeError("DEEPSEEK_REASONING_EFFORT_INVALID")
+        return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
+            disable_streaming=True, reasoning_effort=effort, max_tokens=131072 if effort == "max" else 65536,
+            max_retries=0, extra_body={"thinking": {"type": "enabled"}},
+            timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),
+            model_kwargs={"parallel_tool_calls": False}, callbacks=[LocalAudit(store, role)])
     if name.lower().replace("-", "").replace(".", "") != "glm53" or not url or not key:
         raise RuntimeError("AUTHORIZED_GLM53_CONFIGURATION_REQUIRED")
     if role in {"rubric_grader", "grader_diagnostic"} and "REPORT_GRADER_MODEL" in os.environ:
@@ -168,6 +186,11 @@ def bind_grader_trial(store):
         if selected != bound["model"]:
             raise RuntimeError("GRADER_MODEL_SWITCH_REQUIRES_FRESH_REVIEW_FORK")
         return
+    if selected == "deepseek-flash":
+        if store.manifest.get("trial_service") != "deepseek-official":
+            raise RuntimeError("DEEPSEEK_REQUIRES_ISOLATED_TRIAL_PROJECT")
+        store.set("grader_model_trial", {"model": selected, "scope": "isolated_official_deepseek_trial"})
+        return
     if selected == "deepseek-v4.1-flash":
         receipt = store.get("review_import017") or {}
         if (receipt.get("next") != ["FeedbackRubric.after_agent"] or not store.get("checkpoint_resume")
@@ -182,5 +205,6 @@ def configured_vision_client():
     url, key = os.environ.get("REPORT_BASE_URL"), os.environ.get("REPORT_API_KEY")
     if not url or not key:
         raise RuntimeError("VISION_SERVICE_CONFIGURATION_REQUIRED")
-    return openai.AsyncOpenAI(base_url=url, api_key=key, max_retries=2,
+    return openai.AsyncOpenAI(base_url=url, api_key=key,
+                             max_retries=0 if urlparse(url).netloc == "api.deepseek.com" else 2,
                              timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60))

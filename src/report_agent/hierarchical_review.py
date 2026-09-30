@@ -53,6 +53,10 @@ class HierarchicalRubric(RubricMiddleware):
             "required_delivery_checks": ["export", "render"],
             "review_state_access": "read_review_status exposes paged per-object states and historical applicability for the selected snapshot/export. It is metadata, not fresh content evidence or a prescribed investigation route.",
             "review_contract": SCHEMA_VERSION, "note": "Return observations actually obtained, uncovered scope and honest states. Read actual objects and original sources through tools; metadata is not content."}
+        from .review_coverage import CONTRACT, inventory
+        if snapshot["payload"].get("coverage_contract") == CONTRACT:
+            packet["object_coverage"] = {"contract": CONTRACT, "expected_refs": inventory(snapshot),
+                "instruction": "Account for these exact objects in coverage_accounting. Each entry can group multiple objects and link to zero-based indexes of your review items. Record assessed, partial, not_assessed or justified not_applicable. This is coverage responsibility, not a prescribed method or one call per object. Whole-document requirements also include omissions and composition; listing objects or reading metadata is not assessment."}
         self.workspace.store.event("content_native_review_input", {"packet": packet, "runtime_identity": self.identity})
         return [HumanMessage(content=encode(packet))]
 
@@ -100,6 +104,8 @@ class HierarchicalRubric(RubricMiddleware):
         operation = "native-review:" + grading_run_id + ":" + str(iteration)
         saved = self.contents.submit_review(self.actor, operation, review, self.identity)
         summary = delivery_aggregate(aggregate(review["items"], self.required), review["delivery_checks"])
+        from .review_coverage import apply_coverage
+        summary = apply_coverage(summary, self.contents.read(self.target["snapshot_ref"]), review)
         summary["changed_review_sources"] = self.contents.changed_review_sources(review)
         if summary["changed_review_sources"] and summary["overall_verdict"] != "not_satisfied":
             summary.update(overall_verdict=None, coverage_complete=False)

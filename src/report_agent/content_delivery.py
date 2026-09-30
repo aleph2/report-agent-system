@@ -24,6 +24,8 @@ def current_delivery(store):
     checks = [] if payload is None else [c for c in payload.get("delivery_checks", [])
         if not c["artifact_refs"] or cs.item_applies({**c, "assessment_kind": c["kind"]}, selected["snapshot_ref"], selected["export_ref"])]
     summary = delivery_aggregate(aggregate(items, required), checks)
+    from .review_coverage import apply_coverage
+    summary = apply_coverage(summary, cs.read(selected["snapshot_ref"]), payload)
     changed = cs.changed_review_sources(payload) if payload else []
     if changed:
         summary.update(overall_verdict=None, coverage_complete=False)
