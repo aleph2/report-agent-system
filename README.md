@@ -8,6 +8,12 @@ It is not yet accepted as a production report product or engineering deliverable
 
 ## Architecture
 
+- The 2026-09-30 [quality design update](.ase/054-evidence-centered-quality-design.md)
+  makes evidence-based automatic review feedback the core of the delivery loop,
+  including bidirectional coverage, semantic provenance, versioned document anchors,
+  correction regression and honest stopping. Its [discussion coverage](.ase/054-discussion-coverage.md)
+  records all adopted topics and research limits. This is a target design; the
+  implementation gaps are explicit and no runtime change is implied by this entry.
 - New project report runs use requirement-derived acceptance. The coordinator saves
   versioned standards before production; authors explicitly adopt the same version,
   and the native acceptance agent chooses its evidence-gathering strategy and tools.

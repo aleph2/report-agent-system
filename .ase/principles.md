@@ -62,3 +62,38 @@ requirement clarification is not a new approval ceremony. Every standard needs a
 outcome with evidence/limits; coverage does not prescribe page scans or tool order.
 Distinguish satisfied, not_satisfied and undetermined, and usable staged delivery
 from all-standard satisfaction. See [design and implementation limits](030-acceptance-design.md).
+
+## Quality feedback as the delivery design core (2026-09-30)
+
+User requests full adoption of the document-quality discussion and identifies
+automatic review feedback as the core mechanism for improving delivery without
+requiring humans to label every correction. See the
+[updated design](054-evidence-centered-quality-design.md) and
+[discussion coverage](054-discussion-coverage.md). These are design requirements,
+not claims that the new capabilities or quality gains have been implemented.
+
+Generate feedback from requirements, original evidence, computations, rendering,
+cross-document relationships and actual correction outcomes. Keep it located,
+versioned, actionable and verifiable; model agreement is not ground truth.
+Inspect both stated claims and required-but-missing content. Authors maintain
+their supporting records; reviewers verify them and may find unlisted issues.
+Separate actual adopted sources from later supporting evidence, semantic claims
+from Word positions, and assessment outcomes from execution/coverage states.
+
+Preserve agent strategy choice, upstream ownership, native framework execution,
+human-reserved decisions and independent project storage. No mandatory reviewer
+roster, majority-vote acceptance, private-reasoning capture or new knowledge graph
+is required. Recheck affected content after corrections, protect correct content,
+and distinguish completed acceptance from unresolved or interrupted work.
+Assess final defects, false findings, correction damage, coverage and human
+calibration cost. Stored feedback is not parameter learning; training remains
+a later option requiring trustworthy labels and held-out evaluation. Do not
+reintroduce cumulative token/call quotas through stopping or cost comparisons.
+
+Selective decisions are central: automatic definitive assessments require evidence
+for the current case and an empirically supported capability scope. Record unresolved
+causes and handoffs with an owner, affected delivery scope and resumption conditions.
+Retrieval, computation, better observation or another validated capability may resolve
+them before human involvement. Out-of-scope exploratory answers do not establish
+reliable acceptance. Measure both residual defect risk and automatic coverage;
+neither universal abstention nor unsupported passes count as successful delivery.
