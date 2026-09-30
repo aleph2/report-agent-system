@@ -51,6 +51,16 @@ class InvalidToolFeedback(AgentMiddleware):
     """
 
     @hook_config(can_jump_to=['model'])
+    async def aafter_agent(self, state, runtime):
+        latest = next((m for m in reversed(state['messages']) if isinstance(m, AIMessage)), None)
+        if latest is not None and latest.invalid_tool_calls and state.get('structured_response') is not None:
+            # Native structured-output routing can end after executing valid
+            # siblings. Give the model its pending invalid-call observations
+            # before accepting a structured result; do not replay valid tools.
+            return {'structured_response': None, 'jump_to': 'model'}
+        return None
+
+    @hook_config(can_jump_to=['model'])
     async def aafter_model(self, state, runtime):
         messages = state['messages']
         latest = next((m for m in reversed(messages) if isinstance(m, AIMessage)), None)

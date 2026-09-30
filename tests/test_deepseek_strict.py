@@ -10,7 +10,7 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from openai import AsyncOpenAI
 
 from report_agent.deepseek_strict import StrictCodec, WireError
-from report_agent.deep_models import configured_model
+from report_agent.deep_models import configured_model, strict_wire_audit
 from report_agent.deep_runtime import business_tools, run_report
 from report_agent.hierarchical_review import HierarchicalResponse
 from test_deep_runtime import Driver, invoke
@@ -99,3 +99,25 @@ async def test_wire_history_preserved_and_decode_error_is_feedback(ws, monkeypat
     feedback = json.loads(update['messages'][0].content)
     assert feedback['code'] == 'STRICT_WIRE_DECODE_FAILED'
     assert feedback['execution_state'] == 'not_executed'
+
+
+def test_actual_union_failure_reports_missing_wire_field(ws):
+    f = next(function(t) for t in business_tools(ws, 'coordinator', None, None) if t.__name__ == 'commit_objects')
+    from test_content_tool_inputs import node
+    codec = StrictCodec(f)
+    wire = codec.encode({'operation_id': 'diagnostic', 'objects': [node('n')]})
+    del wire['objects'][0]['previous_ref']
+    with pytest.raises(WireError, match=r"objects: \[0\].*missing=\['previous_ref'\]"):
+        codec.decode(wire)
+
+
+async def test_actual_http_audit_excludes_headers_messages_and_reasoning(ws):
+    schema = {'type': 'function', 'function': {'name': 'x', 'strict': True, 'parameters': {'type': 'object'}}}
+    payload = {'model': 'deepseek-flash', 'thinking': {'type': 'enabled'}, 'reasoning_effort': 'max',
+        'tools': [schema], 'messages': [{'role': 'assistant', 'reasoning_content': 'private-test-reasoning'}]}
+    request = httpx.Request('POST', 'https://api.deepseek.com/beta/chat/completions',
+        headers={'Authorization': 'Bearer secret-test-key'}, json=payload)
+    await strict_wire_audit(ws.store, 'coordinator')(request)
+    events = json.dumps(ws.store.events())
+    assert 'private-test-reasoning' not in events and 'secret-test-key' not in events
+    assert 'deep_model_wire' in events and '/beta/chat/completions' in events

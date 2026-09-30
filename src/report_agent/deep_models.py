@@ -202,6 +202,7 @@ def configured_model(store, role):
         if strict:
             url = 'https://api.deepseek.com/beta'
         return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False, deepseek_strict=strict,
+            http_async_client=httpx.AsyncClient(event_hooks={'request': [strict_wire_audit(store, role)]}) if strict else None,
             disable_streaming=True, reasoning_effort=effort, max_tokens=131072 if effort == "max" else 65536,
             max_retries=0, extra_body={"thinking": {"type": "enabled"}},
             timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),
@@ -223,6 +224,25 @@ def configured_model(store, role):
                       timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),
                       model_kwargs={"parallel_tool_calls": False},
                       callbacks=[LocalAudit(store, role)])
+
+
+def strict_wire_audit(store, role):
+    """Capture actual HTTP parameters/schema identity, without headers or reasoning."""
+    async def observe(request):
+        from .store import digest
+        payload = json.loads(request.content)
+        definitions = payload.get('tools', [])
+        identity = digest(definitions)
+        key = 'deepseek_wire_schema:' + identity
+        if store.get(key) is None:
+            store.set(key, definitions)
+        params = {k: payload[k] for k in ('model', 'thinking', 'reasoning_effort', 'max_tokens',
+            'stream', 'parallel_tool_calls', 'tool_choice', 'response_format', 'temperature', 'top_p') if k in payload}
+        store.event('deep_model_wire', {'role': role, 'endpoint': str(request.url.copy_with(query=None)),
+            'parameters': params, 'tool_schema_digest': identity, 'tool_count': len(definitions),
+            'all_functions_strict': all(t.get('function', {}).get('strict') is True for t in definitions),
+            'message_count': len(payload.get('messages', []))})
+    return observe
 
 
 def bind_grader_trial(store):
