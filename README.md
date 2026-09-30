@@ -11,8 +11,10 @@ It is not yet accepted as a production report product or engineering deliverable
 - [Current system architecture](ARCHITECTURE.md): versioned structured content,
   a content tree with cross-node relations, local and upper-level review, export
   fidelity and rendered-page checks. Handoff creation is separate from choosing
-  its assignee or next action. These are design changes; new capabilities remain
-  to be implemented. Existing prototype behavior and history are described below.
+  its assignee or next action. The opt-in `hierarchical-review-v1` backend now has
+  immutable content snapshots, persistent review feedback, native revision/recheck,
+  DOCX mappings and actual page rendering. See [implementation and verification limits](docs/hierarchical-review-implementation.md).
+  Real-model quality acceptance and the new content UI are still pending.
 - The 2026-09-30 [quality design update](.ase/054-evidence-centered-quality-design.md)
   makes evidence-based automatic review feedback the core of the delivery loop,
   including bidirectional coverage, semantic provenance, versioned document anchors,
