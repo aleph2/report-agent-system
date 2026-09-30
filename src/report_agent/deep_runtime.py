@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import httpx
+import openai
 from contextlib import asynccontextmanager
 from typing import Literal
 from uuid import uuid4
@@ -186,6 +188,14 @@ class BusinessBoundary(InvalidToolFeedback):
                                      tool_call_id=call["id"], name=call["name"], status="error")
                 store.event("deep_tool_rejected", {"role": self.role, "tool": call["name"],
                                                    "tool_call_id": call["id"], **error_data(exc)})
+            except (httpx.HTTPError, openai.APIError) as exc:
+                from .hierarchical_tools import enabled as content_enabled
+                if call["name"] != "task" or not content_enabled(self.workspace):
+                    raise
+                error = {"ok": False, "code": "DELEGATED_EXECUTION_FAILED", "error": error_data(exc),
+                         "message": "Delegated execution failed. Saved work and operation receipts remain available; decide the next action from actual state."}
+                result = ToolMessage(encode(error), tool_call_id=call["id"], name=call["name"], status="error")
+                store.event("content_delegation_failed", {"tool_call_id": call["id"], **error_data(exc)})
             else:
                 if isinstance(result, ToolMessage) and result.status == "error":
                     store.event("deep_tool_rejected", {"role": self.role, "tool": call["name"],
@@ -600,15 +610,15 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                   "model": model_factory(role), "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
                   "middleware": middleware(role)} for role, prompt in roles.items()
                  if hierarchical or not (native_enabled and role == "reviewer")]
-    # The no-rubric harness retains historical delegated-review compatibility.
-    # Active report runs use only the native grader as the review entry point.
+    # New hierarchical runs use the delegated reviewer only. The former automatic
+    # grader remains behind an explicit historical compatibility setting.
     review_middleware = []
-    if hierarchical:
+    if hierarchical and workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1":
         from .hierarchical_review import HierarchicalRubric
         review_tools = business_tools(workspace, "rubric_grader", None, model_factory("text_tool"))
         review_middleware = [HierarchicalRubric(workspace, model_factory("rubric_grader"), review_tools,
             [TodoListMiddleware(), BusinessBoundary(workspace, "rubric_grader")])]
-    elif native_enabled:
+    elif native_enabled and not hierarchical:
         read_names = {"project_status", "read_source_page", "search_sources", "inspect_source_page", "analyze_source_image",
                       "calculate", "read_result", "knowledge_search", "knowledge_read", "knowledge_traverse"}
         if acceptance:
@@ -642,6 +652,8 @@ async def run_report(workspace, model_factory=None, *, knowledge=None):
         if model_factory is None:
             from .deep_models import bind_grader_trial
             bind_grader_trial(workspace.store)
+            from .model_config import bind_role_services
+            bind_role_services(workspace.store)
         workspace.initialize()
         store = workspace.store
         from .acceptance import bind_mode, enabled, active_criteria, criteria_rules
@@ -651,13 +663,16 @@ async def run_report(workspace, model_factory=None, *, knowledge=None):
         acceptance = enabled(workspace) and not hierarchical
         criteria = active_criteria(workspace) if acceptance else None
         rules = (criteria_rules(criteria) if criteria else "") if acceptance else load_rules()
+        delegated_review = hierarchical and store.manifest.get("review_entrypoint") != "native-rubric-v1"
         if hierarchical:
-            rules = "Review the exact selected version using hierarchical-review-v1."
+            rules = "" if delegated_review else "Review the exact selected version using hierarchical-review-v1."
         native_enabled = acceptance or bool(rules)
         if native_enabled:
             store.set("active_rubric_hash", digest(rules))
             store.set("active_reviewer_prompt_hash", digest(role_prompt("reviewer") if hierarchical else reviewer_prompt(experiment_config(store), requirement_acceptance=acceptance)))
-        if project_state(workspace)["status"] == "reviewed_draft" and not store.get("checkpoint_resume"):
+        elif delegated_review:
+            store.set("active_reviewer_prompt_hash", digest(role_prompt("reviewer")))
+        if not delegated_review and project_state(workspace)["status"] == "reviewed_draft" and not store.get("checkpoint_resume"):
             return project_state(workspace)
         # Do not throttle the framework's checkpoint executor: its writes have their
         # own dependencies. BusinessBoundary serializes business tool/delegation work.
@@ -675,8 +690,10 @@ async def run_report(workspace, model_factory=None, *, knowledge=None):
                 own_knowledge = knowledge = Knowledge(project_id)
             async with project_agent(workspace, model_factory, knowledge, rules) as agent:
                 snapshot = await agent.aget_state(config)
+                if delegated_review and snapshot.values and (snapshot.values.get("_active_rubric") or snapshot.values.get("rubric")):
+                    raise RuntimeError("LEGACY_REVIEW_CHECKPOINT_REQUIRES_EXPLICIT_LEGACY_ENTRYPOINT")
                 review_update = {"rubric": rules} if rules else {}
-                if rules and snapshot.next and not snapshot.values.get("_active_rubric"):
+                if rules and agent.report_review_middleware is not None and snapshot.next and not snapshot.values.get("_active_rubric"):
                     initialized = agent.report_review_middleware.before_agent(
                         {**snapshot.values, "rubric": rules}, None)
                     review_update.update(initialized or {})
@@ -702,7 +719,10 @@ async def run_report(workspace, model_factory=None, *, knowledge=None):
                 store.set("checkpoint_resume", True)
                 result = await agent.ainvoke(payload, config)
                 snapshot = await agent.aget_state(config)
-                if native_enabled:
+                if delegated_review:
+                    from .content_delivery import current_delivery
+                    store.set("report_status", current_delivery(store)["status"])
+                elif native_enabled:
                     if hierarchical:
                         from .hierarchical_review import reconcile
                         reconcile(workspace, snapshot.values)
@@ -733,5 +753,6 @@ async def run_report(workspace, model_factory=None, *, knowledge=None):
                 own_knowledge.close()
         state = project_state(workspace)
         if hierarchical:
-            state.update(content_delivery=store.get("content_delivery"), content_final_review=store.get("content_final_review"))
+            state.update(content_delivery=store.get("content_delivery"), content_final_review=store.get("content_final_review"),
+                         content_execution_decision=store.get("content_execution_decision"))
         return state

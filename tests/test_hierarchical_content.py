@@ -20,6 +20,7 @@ def ws(tmp_path):
     store = Store(tmp_path)
     store.initialize({"goal": "Report adopted class B and faithfully check its permitted value.",
         "content_contract": "hierarchical-review-v1",
+        "review_entrypoint": "native-rubric-v1",  # Historical regression fixture.
         "sources": [{"id": "s", "title": "Rule", "content": "Class B permits 75 to 100.", "coverage": "complete"}]})
     return Workspace(store)
 

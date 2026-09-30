@@ -190,8 +190,9 @@ class LocalAudit(BaseCallbackHandler):
 
 
 def configured_model(store, role):
-    name = os.environ.get("REPORT_MODEL", "").removeprefix("openai/")
-    url, key = os.environ.get("REPORT_BASE_URL"), os.environ.get("REPORT_API_KEY")
+    from .model_config import role_service
+    name, url, key = role_service(role)
+    name = name.removeprefix("openai/")
     if name == "deepseek-flash":
         if not key or not url or urlparse(url).scheme != "https" or urlparse(url).netloc != "api.deepseek.com":
             raise RuntimeError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")

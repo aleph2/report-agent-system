@@ -291,11 +291,21 @@ class ContentStore:
             "total": len(refs), "next_offset": offset + limit if offset + limit < len(refs) else None,
             "unreturned_refs": refs[:offset] + refs[offset + limit:]})
 
-    def submit_review(self, actor, operation_id, submission, runtime_identity):
+    def submit_review(self, actor, operation_id, submission, runtime_identity, delivery_export_ref=None):
         def save(db):
             if actor.role not in {"reviewer", "rubric_grader"}:
                 raise ActionForbidden("FORBIDDEN: review writer")
             data = ReviewSubmission.model_validate(submission).model_dump()
+            if delivery_export_ref is not None:
+                if actor.role != "reviewer":
+                    raise ActionForbidden("FORBIDDEN: final submission belongs to delegated reviewer")
+                export = self._read(db, delivery_export_ref)
+                if (export["ref"]["type"] != "ExportArtifact" or
+                        export["payload"]["snapshot_ref"] != data["snapshot_ref"] or
+                        data["target_ref"] != data["snapshot_ref"] or data["scope"] != "delivery"):
+                    raise ActionRejected("FINAL_REVIEW_TARGET_MISMATCH: use snapshot target, delivery scope and its exact export")
+                if delivery_export_ref not in data["dependency_refs"]:
+                    data["dependency_refs"].append(delivery_export_ref)
             snap = self._read(db, data["snapshot_ref"])
             if snap["ref"]["type"] != "DocumentSnapshot":
                 raise ActionRejected("SNAPSHOT_REQUIRED")
@@ -303,10 +313,15 @@ class ContentStore:
             # Reviewed targets/criteria stay in the author's manifest. Independent
             # source dependencies belong to the project, not necessarily that manifest.
             external_sources = {Ref.model_validate(r).key() for r in data["dependency_refs"] if r["type"] == "SourceArtifact"}
-            targets = [data["target_ref"], *data["criteria_refs"],
-                       *[r for item in data["items"] for r in (item["target_ref"], item["criterion_ref"])]]
-            if any(Ref.model_validate(r).key() not in members for r in targets):
-                raise ActionRejected("REVIEW_TARGET_OUTSIDE_SNAPSHOT")
+            targets = [("target_ref", data["target_ref"])] + [
+                (f"criteria_refs[{i}]", r) for i, r in enumerate(data["criteria_refs"])] + [
+                (f"items[{i}].{field}", item[field]) for i, item in enumerate(data["items"])
+                for field in ("target_ref", "criterion_ref")]
+            for path, ref in targets:
+                if Ref.model_validate(ref).key() not in members:
+                    raise ActionRejected("REVIEW_TARGET_OUTSIDE_SNAPSHOT: " + encode({
+                        "field": path, "received": ref, "snapshot_ref": snap["ref"],
+                        "hint": "Use a snapshot member as target; ExportArtifact/RenderArtifact belong in artifact_refs."}))
             for ref in refs_in(data):
                 record = self._read(db, ref.model_dump())
                 if ref.key() not in members:
@@ -356,8 +371,17 @@ class ContentStore:
             data.update(task_ref=actor.task_id, runtime_identity=runtime_identity)
             from .review_coverage import validate_accounting
             validate_accounting(snap, data)
-            return {"review_ref": self._insert(db, actor, "ReviewRecord", data)}
-        return self.operation(actor, operation_id, {"submit_review": submission, "runtime_identity": runtime_identity}, save)
+            review_ref = self._insert(db, actor, "ReviewRecord", data)
+            if delivery_export_ref is not None:
+                final = {"target": {"snapshot_ref": data["snapshot_ref"], "export_ref": delivery_export_ref},
+                         "review_ref": review_ref, "runtime_identity": runtime_identity,
+                         "entrypoint": "delegated-reviewer-v1"}
+                db.execute("INSERT OR REPLACE INTO state VALUES ('content_final_review', ?)", (encode(final),))
+            return {"review_ref": review_ref}
+        request = {"submit_review": submission, "runtime_identity": runtime_identity}
+        if delivery_export_ref is not None:
+            request["delivery_export_ref"] = delivery_export_ref
+        return self.operation(actor, operation_id, request, save)
 
     def handoff(self, actor, operation_id, target_ref, problem, evidence, impact, *, handling_state="open", previous_ref=None, details=None):
         def save(db):

@@ -32,13 +32,17 @@ def content_tools(workspace, role, runtime_identity=None):
     def actor():
         from .content_tasks import bound_actor
         return bound_actor(workspace, role, fallback)
-    identity = runtime_identity or {"contract": SCHEMA_VERSION, "runtime": "deepagents-0.7.19"}
+    identity = runtime_identity or {"contract": SCHEMA_VERSION, "runtime": "deepagents-0.7.19",
+        "role": role, "service": (workspace.store.get("role_model_services") or {}).get(role),
+        "prompt_hash": digest(role_prompt("reviewer" if role == "rubric_grader" else role))
+            if role in {"coordinator", "writer", "reviewer", "rubric_grader"} else None}
 
     def content_status() -> dict:
         """List immutable object identities and current selected content delivery; not an approval."""
         return {"actor": actor().__dict__, "objects": [{k: r[k] for k in ("ref", "previous_ref", "owner_id", "task_id", "payload_digest")} for r in contents.list_objects()],
                 "delivery": workspace.store.get("content_delivery"), "final_review": workspace.store.get("content_final_review"),
                 "current_review": current_delivery(workspace.store),
+                "execution_decision": workspace.store.get("content_execution_decision"),
                 "goal": workspace.store.manifest["goal"], "scope_instruction": workspace.store.manifest.get("scope_instruction"),
                 "sources": workspace.store.source_catalog()}
 
@@ -95,12 +99,33 @@ def content_tools(workspace, role, runtime_identity=None):
         """
         return contents.freeze(actor(), operation_id, root_ref.model_dump(), [r.model_dump() for r in refs])
 
-    def submit_review(operation_id: str, review: ReviewSubmission) -> dict:
+    def submit_review(operation_id: str, review: ReviewSubmission, delivery_export_ref: Ref | None = None) -> dict:
         """Save scoped observations and findings against an exact snapshot. Does not revise content,
         finish the project or trigger author actions. Observation receipts come from read_context,
         observe_evidence, read_content_export or inspect_rendered_page. Null means no judgment yet.
+        For explicit final review supply delivery_export_ref, target the snapshot and use
+        scope delivery. Omit for local review. Export/page objects go in artifact_refs,
+        not item target_ref. Partial final results remain incomplete.
         """
-        return contents.submit_review(actor(), operation_id, review.model_dump(), identity)
+        return contents.submit_review(actor(), operation_id, review.model_dump(), identity,
+            delivery_export_ref.model_dump() if delivery_export_ref else None)
+
+    def read_delivery_review_context(snapshot_ref: Ref, export_ref: Ref) -> dict:
+        """Read complete criteria obligations and object coverage inventory for exact versions.
+        Metadata is not evidence of content or page observation. Read actual objects
+        and sources using paged tools to obtain your own observations.
+        """
+        from .content_delivery import obligations
+        from .review_coverage import inventory
+        actor()
+        snap, export = contents.read(snapshot_ref.model_dump()), contents.read(export_ref.model_dump())
+        if snapshot_ref.type != "DocumentSnapshot" or export_ref.type != "ExportArtifact" or export["payload"]["snapshot_ref"] != snap["ref"]:
+            raise ActionRejected("DELIVERY_VERSION_MISMATCH")
+        return {"snapshot_ref": snap["ref"], "export_ref": export["ref"],
+                "obligations": obligations(contents, snap["ref"]),
+                "criteria": [contents.read(r) for r in snap["payload"]["criteria_refs"]],
+                "coverage_contract": snap["payload"].get("coverage_contract"),
+                "coverage_inventory": inventory(snap), "delivery_check_kinds": ["export", "render"]}
 
     def observe_evidence(kind: Literal["source", "calculation"], source_id: str = "", offset: int = 0,
                          limit: int = 12000, terms: list[list[str]] | None = None) -> dict:
@@ -182,9 +207,9 @@ def content_tools(workspace, role, runtime_identity=None):
 
     def select_content_delivery(operation_id: str, snapshot_ref: Ref, export_ref: Ref,
                                  ending_reason: Literal["continue", "preserve_unresolved", "blocked", "no_progress"] = "continue") -> dict:
-        """Select the actual snapshot/export for native final review. This is not approval.
-        Declare a justified stop when further work is blocked or no longer progresses;
-        stopping never changes the review verdict. Local review records alone do not approve delivery.
+        """Select the actual snapshot/export to deliver. This is not approval and starts no review.
+        ending_reason is historical metadata, not an execution control. Delegate review
+        when useful; selection alone neither ends execution nor changes a verdict.
         """
         def select(db):
             snap, export = contents._read(db, snapshot_ref.model_dump()), contents._read(db, export_ref.model_dump())
@@ -197,12 +222,30 @@ def content_tools(workspace, role, runtime_identity=None):
             return delivery
         return contents.operation(actor(), operation_id, {"select_delivery": [snapshot_ref.model_dump(), export_ref.model_dump(), ending_reason]}, select)
 
+    def record_execution_decision(operation_id: str, decision: Literal["continue", "wait", "handoff", "terminate"],
+                                  reason: str, evidence: list[str], unresolved: list[str]) -> dict:
+        """Record strategy and grounds against the current selected delivery. This does not
+        change verdicts, trigger actions or force the loop to stop. Subsequent native tool
+        calls or your final response implement the choice.
+        """
+        if not reason.strip():
+            raise ActionRejected("DECISION_REASON_REQUIRED")
+        def save(db):
+            import json
+            row = db.execute("SELECT value FROM state WHERE key='content_delivery'").fetchone()
+            value = {"decision": decision, "reason": reason, "evidence": evidence,
+                     "unresolved": unresolved, "delivery": json.loads(row[0]) if row else None}
+            db.execute("INSERT OR REPLACE INTO state VALUES ('content_execution_decision', ?)", (encode(value),))
+            return value
+        return contents.operation(actor(), operation_id, {"execution_decision": [decision, reason, evidence, unresolved]}, save)
+
     common = [content_status, read_context, read_review_status, observe_evidence, read_feedback, record_handoff,
-              assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page]
+              assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,
+              read_delivery_review_context]
     if role in {"reviewer", "rubric_grader"}:
         return common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review]
     if role in {"coordinator", "writer"}:
         common += [import_source_versions, commit_objects, freeze_snapshot, export_content_snapshot]
     if role == "coordinator":
-        common += [select_content_delivery]
+        common += [select_content_delivery, record_execution_decision]
     return common
