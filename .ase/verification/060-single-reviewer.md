@@ -32,5 +32,12 @@ Full real run pending at this verification revision; no model-quality improvemen
 or report acceptance is claimed. Main must assess actual feedback use and independent
 content evidence after the run.
 
+Follow-up: implementation committed as 804ef4d. The fresh full run has now started
+with --mixed-models; Main owns exec session 42835. Effective role bindings show
+GLM writer and official DeepSeek coordinator/reviewer/text_tool. As of event49,
+coordinator has made several real responses and is reading/searching original
+sources. No content or review objects yet; no execution failure. Configuration
+smoke and offline evidence must not be presented as completed report quality tests.
+
 Preexisting task043 modifications remain separate. Runtime tests used the working
 tree with those source-observation changes; new commit excludes those unrelated hunks.
