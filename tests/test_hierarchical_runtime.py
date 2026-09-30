@@ -11,17 +11,18 @@ from report_agent.content_models import Ref
 from report_agent.hierarchical_tools import content_tools
 from test_deep_runtime import Driver, call, invoke, observation
 from test_hierarchical_content import ws, seed, review_item, submission
+from hierarchical_fixtures import delivery_evidence, unchecked_delivery
 
 
 def select(snapshot, export):
     return invoke("select_content_delivery", operation_id="select:" + snapshot["id"], snapshot_ref=snapshot, export_ref=export)
 
 
-def grade(snapshot, refs, verdict):
+def grade(snapshot, refs, verdict, checks=None):
     def action(messages):
         receipt = observation(messages, "read_context")["receipt_id"]
         item = review_item(snapshot, refs["k"], receipt, verdict)
-        return AIMessage(content="", tool_calls=[call("HierarchicalResponse", {"explanation": "Offline protocol fixture.", "review": submission(snapshot, refs, item)})])
+        return AIMessage(content="", tool_calls=[call("HierarchicalResponse", {"explanation": "Offline protocol fixture.", "review": {**submission(snapshot, refs, item), "delivery_checks": checks if checks is not None else unchecked_delivery()}})])
     return action
 
 
@@ -39,7 +40,7 @@ async def test_native_final_pass_and_effective_permissions(ws):
     cs, actor, refs, snapshot, _ = seed(ws)
     export = export_snapshot(cs, actor, "export", snapshot)["result"]["export_ref"]
     driver = Driver(coordinator=[select(snapshot, export), AIMessage(content="Selected for review.")],
-        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied")])
+        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied", delivery_evidence(cs, snapshot, export))])
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
     assert result["status"] == "reviewed_draft", result
@@ -57,7 +58,7 @@ async def test_unexecuted_null_does_not_trigger_author_repair(ws):
     export = export_snapshot(cs, actor, "export", snapshot)["result"]["export_ref"]
     answer = AIMessage(content="", tool_calls=[call("HierarchicalResponse", {
         "explanation": "Reading was blocked; no semantic conclusion.",
-        "review": submission(snapshot, refs, review_item(snapshot, refs["k"], verdict=None))})])
+        "review": {**submission(snapshot, refs, review_item(snapshot, refs["k"], verdict=None)), "delivery_checks": unchecked_delivery()}})])
     driver = Driver(coordinator=[select(snapshot, export), AIMessage(content="Selected."), AIMessage(content="Unexecuted review retained; no approval.")], rubric_grader=[answer])
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
@@ -69,7 +70,7 @@ async def test_unexecuted_null_does_not_trigger_author_repair(ws):
     # A fresh invocation of the same snapshot must re-open investigation, while
     # checkpoint continuation is handled without starting a new run.
     new_driver = Driver(coordinator=[AIMessage(content="Retry investigation after source recovery.")],
-        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied")])
+        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied", delivery_evidence(cs, snapshot, export))])
     # Native coordinator history persists; adapt fixture indexing only.
     from langchain_core.outputs import ChatGeneration, ChatResult
     old_respond = new_driver.respond
@@ -108,11 +109,12 @@ async def test_feedback_revision_recheck_runs_through_native_graph(ws):
         revised["snapshot"] = observation(messages, "freeze_snapshot")["result"]["snapshot_ref"]
         return invoke("export_content_snapshot", operation_id="fixed-export", snapshot_ref=revised["snapshot"])
     def select_new(messages):
-        return select(revised["snapshot"], observation(messages, "export_content_snapshot")["result"]["export_ref"])
+        revised["export"] = observation(messages, "export_content_snapshot")["result"]["export_ref"]
+        return select(revised["snapshot"], revised["export"])
     def read_new(messages):
         return invoke("read_context", target_ref=revised["snapshot"])
     def grade_new(messages):
-        return grade(revised["snapshot"], revised["refs"], "undetermined")(messages)
+        return grade(revised["snapshot"], revised["refs"], "undetermined", delivery_evidence(cs, revised["snapshot"], revised["export"]))(messages)
     driver = Driver(coordinator=[select(snapshot, export), AIMessage(content="Selected."), invoke("read_feedback"),
         commit, freeze, export_new, select_new, AIMessage(content="Revision selected."), AIMessage(content="Conditional revision; unresolved final choice retained.")],
         rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "not_satisfied"), read_new, grade_new])
@@ -151,7 +153,7 @@ async def test_local_review_returns_feedback_without_finishing_or_revising(ws):
         invoke("select_content_delivery", operation_id="stop-with-known-defect", snapshot_ref=snapshot, export_ref=export, ending_reason="preserve_unresolved"),
         AIMessage(content="Preserve unresolved findings."), AIMessage(content="Known defect remains; no approval.")],
         reviewer=[invoke("read_context", target_ref=snapshot), local_review, AIMessage(content="Saved local finding.")],
-        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied")])
+        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied", delivery_evidence(cs, snapshot, export))])
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
     assert result["content_final_review"]["overall_verdict"] == "not_satisfied", result

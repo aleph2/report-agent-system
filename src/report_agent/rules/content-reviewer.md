@@ -32,3 +32,10 @@ Mark each item's assessment_kind as content, export, render or combined. Bind ex
 findings to their exact artifact_refs; a content defect remains relevant if only formatting
 or the export identity changes. Split materially different content and presentation grounds
 when needed so a new export cannot hide an unchanged content defect.
+
+For final delivery, record export fidelity and rendered-page quality separately in
+delivery_checks, in addition to content judgments against the given criteria. State
+actual coverage, evidence and execution for each; unperformed work remains null.
+These are required outcomes, not ordered stages or a requirement to call every tool.
+Use capture_review_sources to retain exact independently discovered source versions;
+declare adopted review dependencies explicitly, without changing the author's snapshot.

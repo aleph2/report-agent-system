@@ -143,6 +143,21 @@ class ContentStore:
             return {"requirement_ref": requirement, "requirement_refs": requirements, "source_refs": refs}
         return self.operation(actor, operation_id, {"import_inputs": source_ids}, save)
 
+    @staticmethod
+    def source_payload(source):
+        return {"source_id": source["id"], "file_digest": source.get("sha256") or digest(source["content"]),
+                "coverage": source["coverage"], "source_metadata": {
+                    **{k: v for k, v in source.items() if k != "content"}, "text_digest": digest(source["content"])},
+                "content": source["content"]}
+
+    def capture_sources(self, actor, operation_id, source_ids):
+        """Capture authorized source versions without changing requirements or author objects."""
+        sources = self.store.sources(source_ids)
+        def save(db):
+            return {"source_refs": [self._insert(db, actor, "SourceArtifact", self.source_payload(s))
+                                    for s in sources]}
+        return self.operation(actor, operation_id, {"capture_sources": source_ids}, save)
+
     def commit(self, actor, operation_id, objects):
         """Atomic batch; {'client_key': key} references are resolved only inside this batch."""
         def save(db):
@@ -280,9 +295,20 @@ class ContentStore:
             if snap["ref"]["type"] != "DocumentSnapshot":
                 raise ActionRejected("SNAPSHOT_REQUIRED")
             members = {Ref.model_validate(r).key() for r in [snap["ref"], *snap["payload"]["refs"]]}
+            # Reviewed targets/criteria stay in the author's manifest. Independent
+            # source dependencies belong to the project, not necessarily that manifest.
+            external_sources = {Ref.model_validate(r).key() for r in data["dependency_refs"] if r["type"] == "SourceArtifact"}
+            targets = [data["target_ref"], *data["criteria_refs"],
+                       *[r for item in data["items"] for r in (item["target_ref"], item["criterion_ref"])]]
+            if any(Ref.model_validate(r).key() not in members for r in targets):
+                raise ActionRejected("REVIEW_TARGET_OUTSIDE_SNAPSHOT")
             for ref in refs_in(data):
                 record = self._read(db, ref.model_dump())
                 if ref.key() not in members:
+                    if ref.key() in external_sources:
+                        # SourceArtifact records can only be captured by server code
+                        # from this project's authorized catalog, never model payloads.
+                        continue
                     if ref.type not in {"ExportArtifact", "RenderArtifact"} or record["payload"].get("snapshot_ref") != snap["ref"]:
                         raise ActionRejected("REVIEW_VERSION_OUTSIDE_SNAPSHOT")
             if any(r not in snap["payload"]["criteria_refs"] for r in data["criteria_refs"]):
@@ -304,6 +330,24 @@ class ContentStore:
             item_keys = [(encode(i["target_ref"]), encode(i["criterion_ref"]), i["scope"]) for i in data["items"]]
             if len(item_keys) != len(set(item_keys)):
                 raise ActionRejected("DUPLICATE_REVIEW_OBLIGATION")
+            kinds = [c["kind"] for c in data["delivery_checks"]]
+            if len(kinds) != len(set(kinds)):
+                raise ActionRejected("DUPLICATE_DELIVERY_CHECK")
+            for check in data["delivery_checks"]:
+                matched = False
+                for observation in check["observations"]:
+                    row = db.execute("SELECT actor_id,data FROM content_observations WHERE id=?", (observation["receipt_id"],)).fetchone()
+                    if not row or row[0] != actor.id:
+                        raise ActionRejected("OBSERVATION_RECEIPT_NOT_FROM_THIS_REVIEWER")
+                    actual = json.loads(row[1])
+                    if check["kind"] == "export":
+                        matched |= actual.get("export_ref") in check["artifact_refs"] and "structure" in actual
+                    else:
+                        source = actual.get("source", {})
+                        matched |= (actual.get("status") == "observed" and bool(actual.get("observation"))
+                                    and source.get("render_ref") in check["artifact_refs"] and isinstance(source.get("page"), int))
+                if check["verdict"] is not None and not matched:
+                    raise ActionRejected("DELIVERY_CHECK_REQUIRES_MATCHING_ACTUAL_OBSERVATION")
             data.update(task_ref=actor.task_id, runtime_identity=runtime_identity)
             return {"review_ref": self._insert(db, actor, "ReviewRecord", data)}
         return self.operation(actor, operation_id, {"submit_review": submission, "runtime_identity": runtime_identity}, save)
@@ -367,18 +411,26 @@ class ContentStore:
 
     def review_summary(self, snapshot_ref, required, export_ref=None):
         self.read(snapshot_ref)
-        items = []
+        items, delivery_violations, needs_recheck = [], [], []
         superseded = {encode(r["payload"]["review_ref"]) for r in self.list_objects("ReviewSupersession")}
+        def current_items(review):
+            changed = self.changed_review_sources(review["payload"])
+            if changed:
+                needs_recheck.append({"review_ref": review["ref"], "changed_source_refs": changed})
+            # Changes remove positive applicability, not historical findings.
+            return [i for i in review["payload"]["items"]
+                    if (not changed or i["verdict"] == "not_satisfied")
+                    and self.item_applies(i, snapshot_ref, export_ref)]
         for review in self.list_objects("ReviewRecord"):
             if review["payload"]["snapshot_ref"] != snapshot_ref or encode(review["ref"]) in superseded:
                 continue
-            for item in review["payload"]["items"]:
-                if self.item_applies(item, snapshot_ref, export_ref):
-                    items.append(item)
+            items.extend(current_items(review))
+            delivery_violations.extend(c for c in review["payload"].get("delivery_checks", [])
+                if c["verdict"] == "not_satisfied" and self.item_applies(
+                    {**c, "assessment_kind": c["kind"]}, snapshot_ref, export_ref))
         for reuse in self.list_objects("ReviewReuse"):
             if reuse["payload"]["snapshot_ref"] == snapshot_ref and encode(reuse["payload"]["review_ref"]) not in superseded:
-                items.extend(i for i in self.read(reuse["payload"]["review_ref"])["payload"]["items"]
-                             if self.item_applies(i, snapshot_ref, export_ref))
+                items.extend(current_items(self.read(reuse["payload"]["review_ref"])))
         summary = aggregate(items, required)
         # Confirmed local violations of the same adopted criterion remain material
         # to delivery. Local passes never manufacture parent coverage.
@@ -387,6 +439,8 @@ class ContentStore:
         if defects:
             summary["overall_verdict"] = "not_satisfied"
         summary["confirmed_violations"] = defects
+        summary["delivery_violations"] = delivery_violations
+        summary["needs_recheck"] = needs_recheck
         return summary
 
     def supersede_review(self, actor, operation_id, review_ref, replacement_ref, reason):
@@ -403,12 +457,21 @@ class ContentStore:
                 return {(encode(i["target_ref"]), encode(i["criterion_ref"]), i["scope"]) for i in record["payload"]["items"]}
             if not keys(old) <= keys(new) or not all(i["observations"] for i in new["payload"]["items"]):
                 raise ActionRejected("CORRECTED_REVIEW_REQUIRES_COVERAGE_AND_OBSERVATIONS")
+            def checks_by_key(record):
+                return {(c["kind"], tuple(sorted(encode(r) for r in c["artifact_refs"]))): c
+                        for c in record["payload"].get("delivery_checks", [])}
+            old_checks, new_checks = checks_by_key(old), checks_by_key(new)
+            if not old_checks.keys() <= new_checks.keys() or any(
+                    (c["verdict"] is not None or c["observations"]) and not new_checks[key]["observations"]
+                    for key, c in old_checks.items()):
+                raise ActionRejected("CORRECTED_REVIEW_REQUIRES_DELIVERY_COVERAGE")
             return {"supersession_ref": self._insert(db, actor, "ReviewSupersession", {
                 "review_ref": review_ref, "replacement_ref": replacement_ref, "reason": reason})}
         return self.operation(actor, operation_id, {"supersede_review": [review_ref, replacement_ref, reason]}, save)
 
     def confirm_reuse(self, actor, operation_id, review_ref, new_snapshot, reason):
         """Explicit reviewer confirmation, never a latest-version automatic pass."""
+        current_sources = {s["id"]: s for s in self.store.sources([s["id"] for s in self.store.source_catalog()])}
         def save(db):
             if actor.role not in {"reviewer", "rubric_grader"}:
                 raise ActionForbidden("FORBIDDEN: review applicability")
@@ -420,9 +483,15 @@ class ContentStore:
             keys = {Ref.model_validate(r).key() for r in new["payload"]["refs"]}
             required = [payload["target_ref"], *payload["criteria_refs"], *payload["dependency_refs"],
                         *[i["target_ref"] for i in payload["items"]]]
-            if any(Ref.model_validate(r).key() not in keys for r in required):
+            independent = [r for r in payload["dependency_refs"] if r["type"] == "SourceArtifact" and Ref.model_validate(r).key() not in keys]
+            for ref in independent:
+                source = self._read(db, ref)["payload"]
+                current = current_sources.get(source["source_id"])
+                if not current or not current.get("current", True) or source != self.source_payload(current):
+                    raise ActionRejected("CHANGED_REVIEW_SOURCE_REQUIRES_RECHECK")
+            if any(Ref.model_validate(r).key() not in keys and r not in independent for r in required):
                 raise ActionRejected("CHANGED_REVIEW_INPUT_REQUIRES_RECHECK")
-            for item in payload["items"]:
+            for item in [*payload["items"], *payload.get("delivery_checks", [])]:
                 for ref in item.get("artifact_refs", []):
                     if self._read(db, ref)["payload"].get("snapshot_ref") != new_snapshot:
                         raise ActionRejected("CHANGED_ARTIFACT_REQUIRES_RECHECK")
@@ -431,3 +500,15 @@ class ContentStore:
             return {"reuse_ref": self._insert(db, actor, "ReviewReuse", {"review_ref": review_ref,
                 "snapshot_ref": new_snapshot, "reason": reason, "applicability_to_snapshot": "current"})}
         return self.operation(actor, operation_id, {"reuse": [review_ref, new_snapshot, reason]}, save)
+
+    def changed_review_sources(self, payload):
+        members = self.read(payload["snapshot_ref"])["payload"]["refs"]
+        changed = []
+        for ref in payload["dependency_refs"]:
+            if ref["type"] != "SourceArtifact" or ref in members:
+                continue
+            source = self.read(ref)["payload"]
+            current = self.store.sources([source["source_id"]])[0]
+            if not current.get("current", True) or source != self.source_payload(current):
+                changed.append(ref)
+        return changed

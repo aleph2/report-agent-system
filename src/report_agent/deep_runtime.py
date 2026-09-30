@@ -117,6 +117,10 @@ class BusinessBoundary(AgentMiddleware):
         self.lock = asyncio.Lock()
 
     async def awrap_model_call(self, request, handler):
+        from .hierarchical_tools import enabled as content_enabled
+        if self.role == "coordinator" and content_enabled(self.workspace):
+            from .content_tasks import task_tool
+            request = request.override(tools=[task_tool(t) if getattr(t, "name", None) == "task" else t for t in request.tools])
         from .acceptance import enabled, active_criteria, criteria_identity
         from .hierarchical_tools import enabled as content_enabled
         if enabled(self.workspace) and not content_enabled(self.workspace) and self.role in {"writer", "coordinator"}:
@@ -161,7 +165,14 @@ class BusinessBoundary(AgentMiddleware):
                         required_criteria(self.workspace)
                 if call["name"] == "search_sources" and set(call["args"]) - set(request.tool.args):
                     raise ActionRejected("SEARCH_ARGUMENTS_MUST_BE_QUERY_OFFSET_LIMIT_SOURCE_ID")
-                result = await handler(request)
+                from .hierarchical_tools import enabled as content_enabled
+                if call["name"] == "task" and content_enabled(self.workspace):
+                    from .content_tasks import delegated_task
+                    with delegated_task(self.workspace, self.role, call) as (native_call, actor):
+                        result = await handler(request.override(tool_call=native_call))
+                        store.event("content_delegation_returned", {"task_id": actor.task_id, "role": actor.role})
+                else:
+                    result = await handler(request)
             except (ActionRejected, ActionForbidden) as exc:
                 from .hierarchical_tools import enabled as content_enabled
                 error = {"accepted": False, "error": error_data(exc)}

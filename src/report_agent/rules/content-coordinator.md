@@ -14,3 +14,7 @@ Select the actual snapshot/export for the native final reviewer; your statement 
 Explain the delivered version, actual review, remaining uncertainty and reason for stopping.
 Source disputes and user-reserved scope decisions remain with the authorized human;
 do not turn a retrieval or execution error into a missing-source claim.
+Each native delegation has a server-issued content task identity. A new task owns
+its new artifacts and cannot overwrite another task's work. To request revisions
+from the same producer, use task with resume_content_task_id from its saved records.
+You choose goals and delegation; this identity preserves ownership across recovery.
