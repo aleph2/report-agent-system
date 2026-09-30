@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 from .content_models import Ref, ReviewSubmission, SCHEMA_VERSION
+from .content_inputs import CommitObject
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
 from .store import encode, digest
@@ -74,7 +75,7 @@ def content_tools(workspace, role, runtime_identity=None):
         """
         return contents.capture_sources(actor(), operation_id, source_ids)
 
-    def commit_objects(operation_id: str, objects: list[dict]) -> dict:
+    def commit_objects(operation_id: str, objects: list[CommitObject]) -> dict:
         """Commit your owned typed objects atomically. Each has client_key, type, payload,
         optional previous_ref (compare-and-swap exact head). No model-generated IDs/versions.
         In payloads use {client_key: key} to refer to another new object in this batch.
@@ -85,7 +86,8 @@ def content_tools(workspace, role, runtime_identity=None):
         Relation: subject_ref,predicate,object_ref,provenance_kind; contains also position.
         Relations are author assertions, not verification. Revise only your own records.
         """
-        return contents.commit(actor(), operation_id, objects)
+        return contents.commit(actor(), operation_id, [
+            obj.model_dump(exclude_unset=True) if hasattr(obj, "model_dump") else obj for obj in objects])
 
     def freeze_snapshot(operation_id: str, root_ref: Ref, refs: list[Ref]) -> dict:
         """Freeze an explicit complete version manifest, including criteria and reference closure.

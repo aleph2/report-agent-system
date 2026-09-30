@@ -7,6 +7,7 @@ import os
 import shutil
 import sqlite3
 from pathlib import Path
+from uuid import uuid4
 
 from dotenv import dotenv_values
 
@@ -139,8 +140,14 @@ def prepare_inputs_only(baseline, destination):
 async def run(project, env_file, resume):
     settings = service(env_file)
     store = Store(project)
-    if store.get("live_trial_intent") and not resume:
+    prior_intent = store.get("live_trial_intent")
+    if prior_intent and not resume:
         raise ValueError("ATTEMPT_EXISTS_INSPECT_BEFORE_RESUME")
+    if prior_intent:
+        store.event("live_trial_prior_intent", prior_intent)
+        previous_result = project / "live-result.json"
+        if previous_result.exists():
+            shutil.copyfile(previous_result, project / ("live-result-before-" + str(uuid4()) + ".json"))
     root = Path(__file__).resolve().parents[1]
     code = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in sorted((root / "src/report_agent").rglob("*")) if p.suffix in {".py", ".md"}}
