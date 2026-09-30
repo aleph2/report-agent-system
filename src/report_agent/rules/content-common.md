@@ -8,3 +8,8 @@ You may retain unresolved work or record a handoff with problem, target version,
 and impact. Creating a handoff requires no assignee, next action or resumption condition.
 Stopping and handling do not change established verdicts. Never invent engineering work
 or approval. Unknown write effects require querying their operation receipts before replay.
+
+read_review_status exposes version-scoped judgments, coverage, unreviewed objects,
+historical applicability and handling records. Its metadata is not fresh observation
+of content or pages. Reviewers own semantic conclusions for their declared scope;
+the coordinator owns acceptance objectives and subsequent work, not verdict overrides.
