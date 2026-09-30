@@ -48,6 +48,13 @@ def delivery_state(workspace, draft_id, review_id="", knowledge=None):
 
 def project_state(workspace, knowledge=None):
     state = workspace.status()
+    from .hierarchical_tools import enabled as content_enabled
+    if content_enabled(workspace):
+        state.update(content_contract="hierarchical-review-v1",
+                     content_delivery=workspace.store.get("content_delivery"),
+                     content_final_review=workspace.store.get("content_final_review"),
+                     content_execution_limitation=workspace.store.get("content_execution_limitation"))
+        return state
     limitation = workspace.store.get("acceptance_limitation") if hasattr(workspace, "store") else None
     if limitation:
         state["acceptance_limitation"] = limitation

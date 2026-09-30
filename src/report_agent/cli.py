@@ -11,7 +11,7 @@ from .workspace import Workspace
 def main():
     parser = argparse.ArgumentParser(description="Independent report-agent prototype")
     parser.add_argument("command", choices=["init", "run", "status", "events", "feedback",
-                                            "report-run", "report-status", "serve", "export", "import"])
+                                            "report-run", "report-status", "serve", "export", "import", "content-delivery"])
     parser.add_argument("--project", required=True, type=Path, help="Isolated writable project directory")
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--feedback")
@@ -49,6 +49,20 @@ def main():
     elif args.command == "report-status":
         from .knowledge_state import project_state
         result = project_state(Workspace(store))
+    elif args.command == "content-delivery":
+        from .content_store import ContentStore
+        from .content_export import _bytes
+        selected = store.get("content_delivery")
+        if not selected:
+            parser.error("No versioned content delivery has been selected")
+        artifact = ContentStore(store).read(selected["export_ref"])["payload"]
+        data = _bytes(store, artifact["file_ref"], artifact["file_digest"])
+        path = args.output or (store.root / artifact["file_ref"])
+        if args.output:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        result = {"path": str(path.resolve()), "delivery": selected,
+                  "review": store.get("content_final_review"), "note": "Saved document; see actual review and unresolved scope."}
     elif args.command == "export":
         from .exporting import export_docx
         if not args.draft_id:
