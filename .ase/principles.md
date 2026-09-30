@@ -92,8 +92,25 @@ reintroduce cumulative token/call quotas through stopping or cost comparisons.
 
 Selective decisions are central: automatic definitive assessments require evidence
 for the current case and an empirically supported capability scope. Record unresolved
-causes and handoffs with an owner, affected delivery scope and resumption conditions.
+causes, target versions, evidence and impact. Creating a handoff does not require
+an assignee, next action or resumption condition; these may be added later.
+Handoff state is useful feedback for relevant authorized agents, without changing
+the existing assessment or automatically triggering their actions.
 Retrieval, computation, better observation or another validated capability may resolve
 them before human involvement. Out-of-scope exploratory answers do not establish
 reliable acceptance. Measure both residual defect risk and automatic coverage;
 neither universal abstention nor unsupported passes count as successful delivery.
+
+## Versioned content and hierarchical review (2026-09-30, later discussion)
+
+The [current architecture](../ARCHITECTURE.md) organizes versioned content objects
+as a tree with separate cross-node evidence, dependency and location relations.
+Documents are exported from immutable content snapshots. Reviews bind exact
+content, criteria and dependency versions; changed relations can invalidate
+an assessment even when its text is unchanged. Node/subtree passes do not
+establish parent or global acceptance. Upper levels check composition and
+coverage against requirements and sources independent of generated content.
+Coverage responsibilities are given; agents choose methods and depth and may
+review multiple nodes in one call. Exported content fidelity and rendered-page
+quality both need evidence. These are architecture changes, not completed code
+or a mandatory per-node agent pipeline.

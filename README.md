@@ -8,6 +8,11 @@ It is not yet accepted as a production report product or engineering deliverable
 
 ## Architecture
 
+- [Current system architecture](ARCHITECTURE.md): versioned structured content,
+  a content tree with cross-node relations, local and upper-level review, export
+  fidelity and rendered-page checks. Handoff creation is separate from choosing
+  its assignee or next action. These are design changes; new capabilities remain
+  to be implemented. Existing prototype behavior and history are described below.
 - The 2026-09-30 [quality design update](.ase/054-evidence-centered-quality-design.md)
   makes evidence-based automatic review feedback the core of the delivery loop,
   including bidirectional coverage, semantic provenance, versioned document anchors,
