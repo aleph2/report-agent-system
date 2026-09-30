@@ -19,9 +19,12 @@ from report_agent.store import Store, encode
 from report_agent.workspace import Workspace
 
 
-def service(env_file):
+def service(env_file, mixed=False):
+    if mixed:
+        from report_agent.model_config import load_mixed_services
+        return {"roles": load_mixed_services(env_file), "review_entrypoint": "delegated-reviewer-v1"}
     config = dotenv_values(env_file)
-    values = {k: config.get("HIGHWAY_MODEL_" + k) for k in ("NAME", "BASE_URL", "API_KEY")}
+    values = {k: config.get("HIGHWAY_MODEL_DEEPSEEK_" + k) for k in ("NAME", "BASE_URL", "API_KEY")}
     if values["NAME"] != "deepseek-flash" or (values["BASE_URL"] or "").rstrip("/") != "https://api.deepseek.com" or not values["API_KEY"]:
         raise ValueError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")
     for target, source in (("REPORT_MODEL", "NAME"), ("REPORT_BASE_URL", "BASE_URL"), ("REPORT_API_KEY", "API_KEY")):
@@ -59,7 +62,8 @@ def prepare(baseline, destination):
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
     manifest = {k: v for k, v in manifest.items() if k in {"goal", "sources", "scope_instruction"}}
-    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1", trial_service="deepseek-official")
+    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1",
+                    trial_service="deepseek-official", review_entrypoint="delegated-reviewer-v1")
     store = Store(destination)
     store.initialize(manifest)
     cs, actor = ContentStore(store), actor_for("coordinator")
@@ -120,7 +124,8 @@ def prepare_inputs_only(baseline, destination):
     receipt = prepare_clean(baseline, destination)
     store = Store(destination)
     manifest = store.manifest
-    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1", trial_service="deepseek-official")
+    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1",
+                    trial_service="deepseek-official", review_entrypoint="delegated-reviewer-v1")
     store.set("manifest", manifest)
     with store.connect() as db:
         for source in manifest["sources"]:
@@ -139,12 +144,14 @@ def prepare_inputs_only(baseline, destination):
     return result
 
 
-async def run(project, env_file, resume):
-    settings = service(env_file)
+async def run(project, env_file, resume, mixed=False):
+    settings = service(env_file, mixed)
     store = Store(project)
     prior_intent = store.get("live_trial_intent")
     if prior_intent and not resume:
         raise ValueError("ATTEMPT_EXISTS_INSPECT_BEFORE_RESUME")
+    if prior_intent and prior_intent.get("settings") != settings:
+        raise ValueError("MODEL_SETTINGS_CHANGED_REQUIRES_FRESH_PROJECT")
     if prior_intent:
         store.event("live_trial_prior_intent", prior_intent)
         previous_result = project / "live-result.json"
@@ -169,6 +176,7 @@ if __name__ == "__main__":
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--prepare-inputs-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--mixed-models", action="store_true")
     parser.add_argument("--env-file", type=Path)
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--port", type=int, default=18159)
@@ -180,7 +188,7 @@ if __name__ == "__main__":
     elif args.serve:
         import uvicorn
         from report_agent.webapp import create_app
-        service(args.env_file)
+        service(args.env_file, args.mixed_models)
         uvicorn.run(create_app(args.project), host="127.0.0.1", port=args.port)
     else:
-        asyncio.run(run(args.project, args.env_file, args.resume))
+        asyncio.run(run(args.project, args.env_file, args.resume, args.mixed_models))

@@ -56,6 +56,7 @@ def project_state(workspace, knowledge=None):
                      content_current_review=projection,
                      content_delivery=workspace.store.get("content_delivery"),
                      content_final_review=workspace.store.get("content_final_review"),
+                     content_execution_decision=workspace.store.get("content_execution_decision"),
                      content_execution_limitation=workspace.store.get("content_execution_limitation"))
         if state["status"] not in {"running", "failed", "interrupted", "needs_human"}:
             if state["content_delivery"] or state["status"] == "reviewed_draft":

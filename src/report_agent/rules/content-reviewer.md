@@ -27,7 +27,11 @@ its own composition and completeness evidence; child passes do not suffice. For 
 files distinguish content fidelity from actual rendered-page observations and name unchecked
 pages. Rendering or OOXML inspection alone does not constitute visual review.
 Local review saves ReviewRecord and returns feedback; it never starts an author revision loop.
-For native final review use the supplied HierarchicalResponse contract and exact task targets.
+For final delivery review use submit_review with delivery_export_ref, the exact snapshot
+as target_ref and scope delivery. read_delivery_review_context exposes the complete
+criteria obligations and coverage inventory; metadata is not an observation receipt.
+Save partial findings honestly when work is incomplete. Submission returns feedback
+to the coordinator without deciding whether the whole project should continue or stop.
 Mark each item's assessment_kind as content, export, render or combined. Bind export/page
 findings to their exact artifact_refs; a content defect remains relevant if only formatting
 or the export identity changes. Split materially different content and presentation grounds
