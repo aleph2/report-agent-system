@@ -52,8 +52,26 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref):
         from .exporting import _source_images
         from types import SimpleNamespace
         adopted_sources = {r["payload"]["source_id"] for r in records.values() if r["ref"]["type"] == "SourceArtifact"}
+        source_versions = {r["payload"]["source_id"]: r["payload"] for r in records.values() if r["ref"]["type"] == "SourceArtifact"}
+        # Both figure objects and Markdown images must use frozen, authorized bytes.
+        from .document_tools import markdown_source_ids, _original
+        image_sources = set()
+        for record in records.values():
+            if record["ref"]["type"] != "ContentNode":
+                continue
+            node = record["payload"]
+            if node["kind"] == "figure":
+                image_sources.add(node["body"]["source_id"])
+            elif isinstance(node["body"].get("text"), str):
+                image_sources.update(markdown_source_ids(node["body"]["text"]))
+        if not image_sources <= adopted_sources:
+            raise ActionRejected("IMAGE_SOURCE_OUTSIDE_SNAPSHOT")
         used_images = set()
         source_workspace = SimpleNamespace(store=contents.store)
+        for source_id in image_sources:
+            _, original = _original(source_workspace, source_id)
+            if hashlib.sha256(original).hexdigest() != source_versions[source_id]["file_digest"]:
+                raise ActionRejected("IMAGE_SOURCE_VERSION_MISMATCH")
         image_renderer = _source_images(source_workspace, doc, used_images)
         from docx.shared import RGBColor
         for name in ("Normal", "Title", "Heading 1", "Heading 2", "Heading 3"):
@@ -75,6 +93,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref):
             elif kind == "figure":
                 from .document_tools import vision_source_image
                 png, _ = vision_source_image(source_workspace, body["source_id"], body.get("page", 1), None)
+                used_images.add(body["source_id"])
                 from docx.shared import Inches
                 doc.add_picture(BytesIO(png), width=Inches(6))
                 doc.add_paragraph(body["caption"])

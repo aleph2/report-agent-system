@@ -52,6 +52,7 @@ def main():
     elif args.command == "content-delivery":
         from .content_store import ContentStore
         from .content_export import _bytes
+        from .content_delivery import current_delivery
         selected = store.get("content_delivery")
         if not selected:
             parser.error("No versioned content delivery has been selected")
@@ -62,6 +63,7 @@ def main():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
         result = {"path": str(path.resolve()), "delivery": selected,
+                  "current_review": current_delivery(store),
                   "review": store.get("content_final_review"), "note": "Saved document; see actual review and unresolved scope."}
     elif args.command == "export":
         from .exporting import export_docx

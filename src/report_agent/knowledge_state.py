@@ -50,10 +50,16 @@ def project_state(workspace, knowledge=None):
     state = workspace.status()
     from .hierarchical_tools import enabled as content_enabled
     if content_enabled(workspace):
+        from .content_delivery import current_delivery
+        projection = current_delivery(workspace.store)
         state.update(content_contract="hierarchical-review-v1",
+                     content_current_review=projection,
                      content_delivery=workspace.store.get("content_delivery"),
                      content_final_review=workspace.store.get("content_final_review"),
                      content_execution_limitation=workspace.store.get("content_execution_limitation"))
+        if state["status"] not in {"running", "failed", "interrupted", "needs_human"}:
+            if state["content_delivery"] or state["status"] == "reviewed_draft":
+                state["status"] = projection["status"]
         return state
     limitation = workspace.store.get("acceptance_limitation") if hasattr(workspace, "store") else None
     if limitation:

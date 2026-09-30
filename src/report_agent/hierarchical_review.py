@@ -13,7 +13,8 @@ from langchain_core.messages import HumanMessage
 from langchain_core.tools import StructuredTool
 from pydantic import Field
 
-from .content_models import Contract, ReviewSubmission, aggregate, SCHEMA_VERSION
+from .content_models import Contract, ReviewSubmission, aggregate, delivery_aggregate, SCHEMA_VERSION
+from .content_delivery import current_delivery, obligations
 from .content_store import ContentStore
 from .hierarchical_tools import actor_for, role_prompt
 from .review import ReviewState
@@ -49,6 +50,7 @@ class HierarchicalRubric(RubricMiddleware):
         criteria = [self.contents.read(r) for r in snapshot["payload"]["criteria_refs"]]
         packet = {"task": "Independently assess whole-document requirements, composition, omissions, export fidelity and actual page quality. Choose methods and depth; use original sources and bounded observations. Author text is unverified.",
             "target": self.target, "criteria": criteria, "required_obligations": self.required,
+            "required_delivery_checks": ["export", "render"],
             "review_contract": SCHEMA_VERSION, "note": "Return observations actually obtained, uncovered scope and honest states. Read actual objects and original sources through tools; metadata is not content."}
         self.workspace.store.event("content_native_review_input", {"packet": packet, "runtime_identity": self.identity})
         return [HumanMessage(content=encode(packet))]
@@ -73,9 +75,14 @@ class HierarchicalRubric(RubricMiddleware):
             return "Use the exact selected snapshot as review target and snapshot_ref."
         if any(not self.contents.item_applies(item, self.target["snapshot_ref"], self.target["export_ref"]) for item in review["items"]):
             return "Artifact assessments must refer to the selected export, or a render of that export, in this exact snapshot. Do not judge another file as this delivery."
+        if any(c["artifact_refs"] and not self.contents.item_applies({**c, "assessment_kind": c["kind"]},
+                self.target["snapshot_ref"], self.target["export_ref"]) for c in review["delivery_checks"]):
+            return "Delivery checks must bind the selected export and its rendered pages."
         summary = aggregate(review["items"], self.required)
         if summary["missing_obligations"]:
             return "Account for each required delivery obligation, with null and honest execution state if not checked: " + encode(summary["missing_obligations"])
+        if {c["kind"] for c in review["delivery_checks"]} != {"export", "render"}:
+            return "Account separately for export fidelity and rendered-page quality in delivery_checks. If not performed, use null and the actual execution/coverage state. Choose your methods; no fixed tool order is required."
         return None
 
     def _build_evaluation(self, graded, grading_run_id, iteration):
@@ -84,14 +91,21 @@ class HierarchicalRubric(RubricMiddleware):
             raise ValueError("REVIEW_TARGET_MISMATCH")
         if any(not self.contents.item_applies(item, self.target["snapshot_ref"], self.target["export_ref"]) for item in review["items"]):
             raise ValueError("REVIEW_ARTIFACT_TARGET_MISMATCH")
+        if any(c["artifact_refs"] and not self.contents.item_applies({**c, "assessment_kind": c["kind"]},
+                self.target["snapshot_ref"], self.target["export_ref"]) for c in review["delivery_checks"]):
+            raise ValueError("REVIEW_ARTIFACT_TARGET_MISMATCH")
         if self.target["export_ref"] not in review["dependency_refs"]:
             review["dependency_refs"].append(self.target["export_ref"])
         operation = "native-review:" + grading_run_id + ":" + str(iteration)
         saved = self.contents.submit_review(self.actor, operation, review, self.identity)
-        summary = aggregate(review["items"], self.required)
+        summary = delivery_aggregate(aggregate(review["items"], self.required), review["delivery_checks"])
+        summary["changed_review_sources"] = self.contents.changed_review_sources(review)
+        if summary["changed_review_sources"] and summary["overall_verdict"] != "not_satisfied":
+            summary.update(overall_verdict=None, coverage_complete=False)
         historical = self.contents.review_summary(self.target["snapshot_ref"], self.required, self.target["export_ref"])
         summary["confirmed_violations"] = historical["confirmed_violations"]
-        if historical["confirmed_violations"]:
+        summary["delivery_violations"] = historical["delivery_violations"]
+        if historical["confirmed_violations"] or historical["delivery_violations"]:
             summary["overall_verdict"] = "not_satisfied"
         verdict = summary["overall_verdict"]
         result = {None: "execution_incomplete", "satisfied": "satisfied", "undetermined": "undetermined",
@@ -106,6 +120,12 @@ class HierarchicalRubric(RubricMiddleware):
         return {"grading_run_id": grading_run_id, "iteration": iteration, "result": result,
             "explanation": graded.explanation, "criteria": [{"name": i["criterion_ref"]["id"], **i} for i in review["items"]],
             "unverified": verdict is None, "content_record": data}
+
+    def _log_coverage_retry_failure(self, state, iteration, graded):
+        # The native logger expects its boolean-era response.result attribute.
+        # Retain the usable scoped record; missing responsibilities remain null.
+        self.workspace.store.event("content_coverage_correction_failed", {
+            "iteration": iteration, "snapshot_ref": graded.review.snapshot_ref.model_dump()})
 
     def evidence_revision(self):
         # Detect new observations, source versions or explicit review corrections,
@@ -146,8 +166,7 @@ class HierarchicalRubric(RubricMiddleware):
             self.workspace.store.set("report_status", "needs_attention")
             return None
         snapshot = self.contents.read(self.target["snapshot_ref"])
-        self.required = [{"target_ref": self.target["snapshot_ref"], "criterion_ref": r, "scope": "delivery"}
-                         for r in snapshot["payload"]["criteria_refs"]]
+        self.required = obligations(self.contents, self.target["snapshot_ref"])
         previous = self.workspace.store.get("content_final_review")
         # No automatic repetition of the same evidence/target. Explicit new runs
         # can investigate again, with the retained findings available as feedback.
@@ -167,12 +186,7 @@ class HierarchicalRubric(RubricMiddleware):
 
 
 def reconcile(workspace, native_state):
-    review = workspace.store.get("content_final_review")
-    selected = workspace.store.get("content_delivery")
-    if (review and selected and all(review["target"][k] == selected[k] for k in ("snapshot_ref", "export_ref"))):
-        status = {"satisfied": "reviewed_draft", "not_satisfied": "changes_required", "undetermined": "needs_attention", None: "needs_attention"}[review["overall_verdict"]]
-    else:
-        status = "needs_attention"
+    status = current_delivery(workspace.store)["status"]
     if native_state.get("_rubric_status") == "grader_error":
         workspace.store.set("content_execution_limitation", {"execution_state": "blocked", "verdict": None, "reason": "grader_error"})
         status = "needs_attention"

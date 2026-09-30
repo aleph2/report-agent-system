@@ -161,6 +161,50 @@ class ReviewSubmission(Contract):
     criteria_refs: list[Ref] = Field(min_length=1)
     dependency_refs: list[Ref]
     items: list[ReviewItem] = Field(min_length=1)
+    delivery_checks: list["DeliveryCheck"] = Field(default_factory=list)
+
+
+class DeliveryCheck(Contract):
+    """System delivery responsibilities, separate from business criteria and methods."""
+    kind: Literal["export", "render"]
+    artifact_refs: list[Ref] = Field(default_factory=list)
+    execution_state: Literal["not_started", "running", "completed", "blocked"]
+    verdict: Literal["satisfied", "not_satisfied", "undetermined"] | None
+    observations: list[Observation]
+    coverage: Coverage
+    reason: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def consistent(self) -> Self:
+        if any(r.type not in {"ExportArtifact", "RenderArtifact"} for r in self.artifact_refs):
+            raise ValueError("ARTIFACT_REF_TYPE_REQUIRED")
+        if self.verdict is not None:
+            expected = "RenderArtifact" if self.kind == "render" else "ExportArtifact"
+            if not self.observations or not any(r.type == expected for r in self.artifact_refs):
+                raise ValueError("DELIVERY_JUDGMENT_REQUIRES_ARTIFACT_OBSERVATIONS")
+        if self.execution_state == "not_started" and self.verdict is not None:
+            raise ValueError("UNEXECUTED_REVIEW_HAS_NO_VERDICT")
+        if self.verdict == "satisfied" and (self.execution_state != "completed" or
+                self.coverage.unchecked or self.coverage.blocked or not self.coverage.checked):
+            raise ValueError("SATISFACTION_REQUIRES_COMPLETED_DECLARED_SCOPE")
+        return self
+
+
+ReviewSubmission.model_rebuild()
+
+
+def delivery_aggregate(content: dict, checks: list[dict]) -> dict:
+    """Missing work stays unexecuted; a confirmed defect survives partial execution."""
+    by_kind = {c["kind"]: c for c in checks}
+    missing = [kind for kind in ("export", "render") if kind not in by_kind]
+    complete = content["coverage_complete"] and not missing and all(
+        c["execution_state"] == "completed" and not c["coverage"]["unchecked"] and not c["coverage"]["blocked"]
+        for c in checks)
+    verdicts = [content["overall_verdict"], *[c["verdict"] for c in checks]]
+    verdict = ("not_satisfied" if "not_satisfied" in verdicts else None if not complete or None in verdicts
+               else "undetermined" if "undetermined" in verdicts else "satisfied")
+    return {**content, "overall_verdict": verdict, "coverage_complete": bool(complete),
+            "missing_delivery_checks": missing}
 
 
 PAYLOADS = {c.__name__: c for c in (Requirement, Criterion, ContentNode, SourceArtifact, Evidence, Relation)}
