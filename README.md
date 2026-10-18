@@ -1,5 +1,65 @@
 # Report Agent System
 
+## Current work entry points (2026-10-15)
+
+- [Current status and next action](.memory/full-chain-validation-live-handoff-20261014.json): the single maintained handoff; older run notes are historical evidence.
+- [Latest terminal run: continuation18](.runs/full-chain-report-validation-20261014/continuation18/result.json): stopped at the authorized token admission boundary; not running and not automatically restartable.
+- [Working drafts and output evidence](.analysis/full-code-design-review-20261015/final-output-evidence-index.json): exact R5/R6 DOCX paths and verification limits. The full first-contract report, issues-only XLSX and independent acceptance remain incomplete.
+
+Keep project complexity proportional to actual requirements. Continue an existing
+case for another execution window; create an independent case only for a real
+isolation requirement. Immutable materials should be reused through a shared
+materialization implementation; this convergence is pending, not an already
+implemented storage guarantee. Preserve source/OCR and necessary recovery/audit
+evidence. Historical `.runs/` and `.analysis/` records are not additional current
+work entry points; directory cleanup does not create a parallel management system.
+
+Historical diagnostic archive (2026-10-15):
+`.runs/reference-alignment-20261006-v2/state.db` now retains only the latest
+`deep_model_request` event; its 2,848 older request events are preserved in the
+byte-exact full original database archive
+`.runs/reference-alignment-20261006-v2/state-before-cleanup-20261015.db.gz`.
+Other events, business/source records and row identities are unchanged.
+Full-history consumers, including `Store.events()`, learning call ledgers and
+execution audits, must actually read a restored original database rather than
+this compact online database. Online event counts are not complete historical
+call or cost totals. Restore to a new temporary file from WSL with:
+
+```sh
+/home/dysun/.venvs/report-agent-system/bin/python /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/runtime-cleanup-20261015/sqlite_cleanup.py restore-copy --output /tmp/report-agent-sqlite-restore-20261015/state.db
+```
+
+This verifies the original file hash and never overwrites the online database.
+Read the returned `--output` database for full-history analysis. The temporary
+directory does not contain all case assets; restoring this file does not make a
+complete runnable case or authorize replaying historical model work. Exact
+scope, before/after hashes and recovery evidence are recorded in the existing
+[cleanup result](.analysis/runtime-cleanup-20261015/cleanup-consolidated-result.json).
+
+Two further terminal historical databases use a narrower archive boundary:
+
+| Online database | Inherited requests moved to full archive | Case-specific requests still online | Restore case index |
+| --- | --- | --- | --- |
+| `.runs/reference-alignment-learning-20261006/state.db` | 2,843 `deep_model_request` events with sequence ≤ 14632 | All 92, including follow-up work | 0 |
+| `.runs/high-slope-coverage-validation-20261008/case/state.db` | 3,697 `deep_model_request` events with sequence ≤ 19798 | All 33 | 1 |
+
+Each directory retains its own `state-before-cleanup-20261015.db.gz`, containing
+the exact full original database. Other events, all other tables and retained
+row identities are unchanged. Full inherited-history audits, original file-hash
+checks and ancestor event-count fingerprints require the restored original;
+do not run those checks against the compact online database. The following
+explicit restore commands were executed and verified against the original hashes:
+
+```sh
+/home/dysun/.venvs/report-agent-system/bin/python /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/runtime-cleanup-20261015/sqlite_cleanup.py restore-copy --plan sqlite-cleanup-batch2-plan.json --case 0 --output /tmp/report-agent-sqlite-restore-learning-20261015/state.db
+/home/dysun/.venvs/report-agent-system/bin/python /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/runtime-cleanup-20261015/sqlite_cleanup.py restore-copy --plan sqlite-cleanup-batch2-plan.json --case 1 --output /tmp/report-agent-sqlite-restore-high-slope-20261015/state.db
+```
+
+Use a new output file; restoration refuses to overwrite an existing file. The
+pilot restore command above still selects its original archive. These restored
+databases are for reading historical evidence, not automatic execution or model
+replay. Current report state, checkpoints and OCR results were not cleaned.
+
 Independent greenfield prototype, not a modification or wrapper of the previous
 highway-report application. The current increment implements outcome-task coordination,
 shared results, a versioned source library, producer corrections, draft/review,
@@ -7,6 +67,13 @@ deterministic DOCX export and a local desktop workbench.
 It is not yet accepted as a production report product or engineering deliverable.
 
 ## Architecture
+
+Current execution boundary (2026-10-14): agents choose goals, evidence, strategy
+and actions; independent bounded tools produce substantive text/comparisons.
+Writer commits exact owned tool output, Reviewer uses bounded comparisons, and
+Learner retains strategy formulation. See [current tool and observation contracts](docs/independent-text-tools.md).
+Older non-hierarchical/ADK/native-rubric execution is inactive; saved history and
+exports remain readable. Historical descriptions below do not authorize replay.
 
 - [Current system architecture](ARCHITECTURE.md): versioned structured content,
   a content tree with cross-node relations, local and upper-level review, export
@@ -21,16 +88,16 @@ It is not yet accepted as a production report product or engineering deliverable
   correction regression and honest stopping. Its [discussion coverage](.ase/054-discussion-coverage.md)
   records all adopted topics and research limits. This is a target design; the
   implementation gaps are explicit and no runtime change is implied by this entry.
-- New project report runs use requirement-derived acceptance. The coordinator saves
+- New project report runs use the versioned hierarchical contract. The coordinator saves
   versioned standards before production; authors explicitly adopt the same version,
-  and the native acceptance agent chooses its evidence-gathering strategy and tools.
+  and the delegated reviewer chooses its evidence-gathering strategy and tools.
   Every criterion has a located assessment: satisfied, not satisfied or undetermined.
   Uncertainty alone does not force an author revision or count as a pass. Existing
   runs retain their historical policy. See [responsibilities and limits](.ase/030-acceptance-design.md).
 - DeepAgents 0.7.19 owns the model/tool loop, delegation, context management and
   LangGraph checkpoint recovery. Application code does not schedule semantic stages.
 - Code tools expose source reading, literal search, task state, issues and committed results.
-- The optional text-analysis tool makes one bounded model request and returns to the agent.
+- Independent text tools make bounded model requests and return to the agent.
   It cannot write artifacts, delegate agents or fetch extra data.
 - The optional `analyze_source_image` tool uses `deepseek-v4.1-flash` on the same
   configured account for a stated visual/OCR question. GLM5.3 remains the agent model.
@@ -59,8 +126,8 @@ It is not yet accepted as a production report product or engineering deliverable
   immutable version and a receipt; old versions remain available. Known consumers
   become outdated, not automatically rerun. New source relevance is assessed by the
   coordinator, including possible effects beyond previously recorded consumers.
-- The coordinator can compose directly or delegate to knowledge, writer and reviewer
-  capabilities. These are available permission profiles, not mandatory stages.
+- The coordinator decides goals and delegates substantive report production to the
+  Writer's independent text tools. Roles are available profiles, not mandatory stages.
   The default general-purpose subagent is disabled. Scratch files use StateBackend,
   with no host filesystem or shell access. Downstream roles cannot change knowledge.
 - No purpose/plan/materials submission chain is required. Source use and report
@@ -92,7 +159,11 @@ purpose work. Initialize in a separate directory, then use:
 report-agent report-run --project .runs/example
 report-agent report-status --project .runs/example
 report-agent serve --project .runs/example --port 18140
-report-agent export --project .runs/example --draft-id SAVED_DRAFT_ID
+report-agent content-delivery --project .runs/example --output report.docx
+# Historical saved drafts remain exportable; diagnostics are explicit:
+report-agent export --project HISTORICAL_CASE --draft-id SAVED_DRAFT_ID --execution-record
+# Observe chosen work before its text tool executes; agent inference still costs:
+report-agent report-run --project ISOLATED_DECISION_CASE --decision-only
 report-agent import --project .runs/example --file /absolute/path/notes.docx
 # Explicitly replace a current source version while preserving its history:
 report-agent import --project .runs/example --file /absolute/path/notes.docx --replaces-id SOURCE_ID

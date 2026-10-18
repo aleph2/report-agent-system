@@ -65,19 +65,27 @@ def prepare_candidate(baseline, destination, draft_id):
 
 async def main(args):
     workspace = prepare_candidate(args.baseline, args.output, args.draft_id)
+    return await run_candidate(workspace, args)
+
+
+async def run_candidate(workspace, args, *, extra_freeze=None):
+    """Run the same native graph on an already prepared isolated candidate."""
+    if (args.output / "receipt.json").exists():
+        raise ValueError("ALREADY_ATTEMPTED_NO_AUTOMATIC_REPLAY")
     repo = Path(__file__).resolve().parents[1]
     paths = [*sorted((repo / "src/report_agent").rglob("*.py")),
              *sorted((repo / "src/report_agent/rules").glob("*.md")), Path(__file__),
              repo / "scripts/prepare_clean_trial009.py", repo / "pyproject.toml"]
     write_json(args.output / "freeze.json", {"files": {p.relative_to(repo).as_posix():
         hashlib.sha256(p.read_bytes()).hexdigest() for p in paths},
-        "role_prompt": reviewer_prompt(requirement_acceptance=True)})
+        "role_prompt": reviewer_prompt(requirement_acceptance=True),
+        **({"additional_preflight": extra_freeze} if extra_freeze else {})})
     receipt = {"authorization": args.authorization_note, "started": datetime.now(timezone.utc).isoformat(),
                "status": "attempted", "scope": "Autonomous grader-only known-candidate probe; no author or repair loop."}
     write_json(args.output / "receipt.json", receipt)
-    load_service_environment(args.credential_container)
-    os.environ["REPORT_GRADER_MODEL"] = "glm-5.3"
     try:
+        load_service_environment(args.credential_container)
+        os.environ["REPORT_GRADER_MODEL"] = "glm-5.3"
         model = configured_model(workspace.store, "rubric_grader")
         model.callbacks.append(InvocationAudit(workspace.store))
         text_model = configured_model(workspace.store, "text_tool")
@@ -108,6 +116,7 @@ async def main(args):
     write_json(args.output / "model-io.json", events)
     write_json(args.output / "receipt.json", receipt)
     print(encode({k: v for k, v in receipt.items() if k != "usage"}), flush=True)
+    return receipt
 
 
 if __name__ == "__main__":

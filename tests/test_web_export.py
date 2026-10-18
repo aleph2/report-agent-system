@@ -15,13 +15,13 @@ def test_export_saved_version_without_execution(tmp_path):
     before = ws.tasks()
     doc = Document(BytesIO(export_docx(ws, draft["id"])))
     text = "\n".join(p.text for p in doc.paragraphs)
-    assert "Unreviewed draft" in text
-    assert "SYNTHETIC PROTOCOL FIXTURE" in text
-    assert draft["id"] in text and "[access]" in text
+    assert "Unreviewed draft" not in text
+    assert "SYNTHETIC PROTOCOL FIXTURE" not in text
+    assert draft["id"] not in text and "[access]" in text
     assert before == ws.tasks()
     review = save(ws, "review", [draft["id"]], outcome="accepted", target_id=draft["id"])
     text = "\n".join(p.text for p in Document(BytesIO(export_docx(ws, draft["id"]))).paragraphs)
-    assert review["id"] in text and "Model-reviewed draft" in text
+    assert review["id"] not in text and "Model-reviewed draft" not in text
 
 
 def test_desktop_api_read_only_poll_export_and_local_actions(tmp_path):
@@ -60,7 +60,7 @@ def test_event_tail_does_not_load_historical_payloads(tmp_path):
     assert [e["data"]["number"] for e in events] == [102, 103, 104]
 
 
-def test_stopped_cli_worker_is_visible_and_can_resume(tmp_path, monkeypatch):
+def test_stopped_historical_worker_is_visible_but_execution_remains_inactive(tmp_path, monkeypatch):
     ws = workspace(tmp_path)
     for key in ("REPORT_MODEL", "REPORT_BASE_URL", "REPORT_API_KEY"):
         monkeypatch.setenv(key, "configured-test-only")
@@ -73,19 +73,23 @@ def test_stopped_cli_worker_is_visible_and_can_resume(tmp_path, monkeypatch):
             assert not busy["can_run"]
         stopped = client.get("/api/status").json()
         assert stopped["status"] == "interrupted"
-        assert stopped["can_run"] and stopped["checkpoint_resume"]
+        assert not stopped["can_run"] and stopped["checkpoint_resume"]
         assert stopped["last_error"]["message"] == "WORKER_STOPPED_RESUME_AVAILABLE"
     assert ws.store.get("report_status") == "running"  # Polling only projects state.
 
 
 def test_http_explicit_run_and_busy_project_protection(tmp_path, monkeypatch):
     import time
-    from test_deep_runtime import trunk_driver
+    from test_deep_runtime import Driver
+    from langchain_core.messages import AIMessage
     monkeypatch.setattr("report_agent.deep_runtime.load_rules", lambda: "")
 
     ws = workspace(tmp_path)
+    manifest = ws.store.manifest
+    manifest.update(content_contract='hierarchical-review-v1', review_entrypoint='delegated-reviewer-v1')
+    ws.store.set('manifest', manifest)
     ws.store.set("model_mode", "scripted_fixture")
-    factory = trunk_driver("access")
+    factory = Driver(coordinator=[AIMessage(content='Synthetic coordinator run; no report acceptance claimed.')])
     # This historical scripted author has no requirement-derived criteria step.
     # Bind its original mode explicitly; do not weaken new-project defaults.
     ws.store.set("acceptance_mode", "legacy")
@@ -99,9 +103,9 @@ def test_http_explicit_run_and_busy_project_protection(tmp_path, monkeypatch):
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             status = client.get("/api/status").json()
-            if status["status"] == "reviewed_draft" and status["can_run"]:
+            if status["execution_status"] == "completed" and status["can_run"]:
                 break
             time.sleep(0.01)
-        assert status["status"] == "reviewed_draft"
-        assert len(status["tasks"]) == 2
+        assert status["execution_status"] == "completed"
+        assert not status["content_delivery"]
         assert factory.created

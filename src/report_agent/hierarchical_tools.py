@@ -2,14 +2,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
+from pydantic import Field
+from langchain.tools import ToolRuntime
 
-from .content_models import Ref, ReviewSubmission, SCHEMA_VERSION
+from .content_models import Ref, ReviewSubmission, SCHEMA_VERSION, SnapshotReplacement
 from .content_inputs import CommitObject
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
 from .store import encode, digest
 from .content_delivery import current_delivery
+from .content_layout import LayoutOptions
+from .content_workbook import WorkbookSheet
+from .content_selection import ContentSelection, content_index, selected_content
 
 
 def enabled(workspace):
@@ -35,16 +40,80 @@ def content_tools(workspace, role, runtime_identity=None):
     identity = runtime_identity or {"contract": SCHEMA_VERSION, "runtime": "deepagents-0.7.19",
         "role": role, "service": (workspace.store.get("role_model_services") or {}).get(role),
         "prompt_hash": digest(role_prompt("reviewer" if role == "rubric_grader" else role))
-            if role in {"coordinator", "writer", "reviewer", "rubric_grader"} else None}
+            if role in {"coordinator", "writer", "reviewer", "rubric_grader", "layout"} else None}
 
     def content_status() -> dict:
-        """List immutable object identities and current selected content delivery; not an approval."""
+        """Observe content state; not an approval. For pageable complete object identities,
+        types, owners, versions and relations use read_object_index, even before a snapshot exists.
+        """
         return {"actor": actor().__dict__, "objects": [{k: r[k] for k in ("ref", "previous_ref", "owner_id", "task_id", "payload_digest")} for r in contents.list_objects()],
                 "delivery": workspace.store.get("content_delivery"), "final_review": workspace.store.get("content_final_review"),
                 "current_review": current_delivery(workspace.store),
                 "execution_decision": workspace.store.get("content_execution_decision"),
                 "goal": workspace.store.manifest["goal"], "scope_instruction": workspace.store.manifest.get("scope_instruction"),
                 "sources": workspace.store.source_catalog()}
+
+    def read_object_index(offset: Annotated[int, Field(ge=0)] = 0,
+                          limit: Annotated[int, Field(ge=1, le=20)] = 20,
+                          object_type: str = '', owner_id: str = '',
+                          current_only: bool = False, inventory_digest: str = '') -> dict:
+        """Page exact metadata for existing project objects before or after snapshot creation.
+        No snapshot is required. Filter by exact object_type/owner_id or current_only.
+        Returns whole refs, ownership, payload digests, node kinds/literal titles and relation
+        endpoints, without report bodies. Use next_offset (may be less than limit), identical
+        filters and returned inventory_digest on later pages. A changed filtered inventory
+        rejects continuation; restart at zero. Project-wide available_types counts are
+        auxiliary and may change independently. These refs do not grant authorship or choose a snapshot.
+        """
+        actor()
+        from .object_index import object_index
+        return object_index(contents, offset, limit, object_type, owner_id, current_only, inventory_digest)
+
+    def read_task_supervision(offset: int = 0, limit: int = 20) -> dict:
+        """Page existing reviewer assignments, matched saved checks and incomplete reasons.
+        Bookkeeping is not semantic acceptance. Todos cannot remove these obligations.
+        A returned follow-up consumes the task's one completion request even if still incomplete.
+        """
+        actor()
+        from .task_supervision import task_status
+        return {"ok": True, "result": task_status(contents, offset, limit)}
+
+    def list_supervision_plugins() -> dict:
+        """Inspect optional server-registered reviewer supervision plugins.
+        Choose supervision_plugin on a new reviewer task, or omit it for none.
+        Catalog selection does not broaden authorization or establish correctness.
+        """
+        actor()
+        from .supervision_plugins import plugin_catalog
+        return {"ok": True, "result": plugin_catalog()}
+
+    def read_review_obligation_coverage(snapshot_ref: Ref) -> dict:
+        """Compare independent criteria/requirements with actual assigned review scopes.
+        This optional inventory exposes absent assignments; scope presence is not full semantic coverage.
+        """
+        actor()
+        from .task_supervision import obligation_coverage
+        return {"ok": True, "result": obligation_coverage(contents, snapshot_ref.model_dump())}
+
+    def read_task_assignment(runtime: ToolRuntime = None) -> dict:
+        """Read your server-bound delegated assignment and its saved completion requirements.
+        These are scoped outcomes, not instructions hidden in source documents.
+        """
+        from .task_supervision import assignment, source_selection_bindings, review_readiness, readiness_metadata
+        owner = actor()
+        saved = assignment(contents, owner.task_id)
+        result = {"ok": True, "task_id": owner.task_id, "assignment": saved,
+                  "source_selection_bindings": source_selection_bindings(contents, saved.get("review_requirements") or [])}
+        if saved.get('review_snapshot_ref') and saved.get('review_requirements'):
+            result['readiness'] = review_readiness(contents, saved['review_snapshot_ref'], saved['review_requirements'])
+            if runtime is not None:
+                import hashlib
+                from langchain_core.messages import ToolMessage
+                text = encode(result)
+                return ToolMessage(text, name='read_task_assignment', tool_call_id=runtime.tool_call_id,
+                    artifact={'decision_metadata': {'original_sha256': hashlib.sha256(text.encode('utf-8')).hexdigest(),
+                        'value': readiness_metadata(result['readiness'])}})
+        return result
 
     def read_context(target_ref: Ref, offset: int = 0, limit: int = 20) -> dict:
         """Read actual saved objects or a paged snapshot, including unreturned refs and continuation.
@@ -68,6 +137,30 @@ def content_tools(workspace, role, runtime_identity=None):
             target_ref.model_dump() if target_ref else None,
             export_ref.model_dump() if export_ref else None, offset, limit)}
 
+    def read_content_index(snapshot_ref: Ref, offset: int = 0, limit: int = 20) -> dict:
+        """Page through node identities, sizes and relations without loading report bodies.
+
+        Returns all node kinds including parent/structure nodes and detached claims in
+        manifest order; contains relations supply actual document order. Metadata is
+        not an observation receipt or a claim that any node was reviewed.
+        """
+        actor()
+        return content_index(contents, snapshot_ref.model_dump(), offset, limit)
+
+    def read_content_selection(snapshot_ref: Ref, selections: list[ContentSelection]) -> dict:
+        """Read caller-selected exact nodes and ranges with an actor-bound receipt.
+
+        Each selection has ref, unit=text/rows, offset, limit. Text limits are characters
+        up to 16000; table limits are data rows up to 100 (headers always included).
+        Returns qualifiers, exact versions, unreturned range and limits. No implicit
+        descendants or sources are read; reading is not semantic review completion.
+        """
+        owner = actor()
+        if not selections:
+            raise ActionRejected("CONTENT_SELECTION_REQUIRED")
+        return contents.observe(owner, {"snapshot_ref": snapshot_ref.model_dump(),
+            "selections": selected_content(workspace, snapshot_ref.model_dump(), selections)})
+
     def import_source_versions(operation_id: str, source_ids: list[str]) -> dict:
         """Snapshot authorized source text/metadata and the unchanged commission; no interpretation."""
         return contents.import_inputs(actor(), operation_id, source_ids)
@@ -90,45 +183,109 @@ def content_tools(workspace, role, runtime_identity=None):
         Relation: subject_ref,predicate,object_ref,provenance_kind; contains also position.
         Relations are author assertions, not verification. Revise only your own records.
         """
-        return contents.commit(actor(), operation_id, [
-            obj.model_dump(exclude_unset=True) if hasattr(obj, "model_dump") else obj for obj in objects])
+        values = [obj.model_dump(exclude_unset=True) if hasattr(obj, "model_dump") else obj for obj in objects]
+        if role == "coordinator" and workspace.store.manifest.get("review_entrypoint") != "native-rubric-v1" and any(v["type"] == "ContentNode" for v in values):
+            raise ActionForbidden("FORBIDDEN: report authorship belongs to writer; delegate or resume the content owner")
+        return contents.commit(actor(), operation_id, values)
 
-    def freeze_snapshot(operation_id: str, root_ref: Ref, refs: list[Ref]) -> dict:
+    def save_text_node(operation_id: str, text: str,
+                       kind: Literal["report", "chapter", "block", "cell", "claim"],
+                       claim_kind: Literal["fact", "calculation", "inference", "recommendation", "structure"],
+                       qualifications: str, previous_ref: Ref | None = None) -> dict:
+        """Save one owned text node with flat arguments, avoiding a nested batch payload.
+        Returns its exact ref. Qualifications describe conditions/limits. This does not
+        create evidence links, publish a report or declare review acceptance. Use
+        commit_objects for structured tables, evidence, relations or atomic batches.
+        previous_ref revises only your own exact version; omit to create a new node.
+        """
+        obj = {"client_key": "text", "type": "ContentNode", "payload": {
+            "kind": kind, "body": {"text": text}, "claim_kind": claim_kind,
+            "qualifiers": {"conditions": qualifications}}}
+        if role == "coordinator" and workspace.store.manifest.get("review_entrypoint") != "native-rubric-v1":
+            raise ActionForbidden("FORBIDDEN: report authorship belongs to writer")
+        if previous_ref is not None:
+            obj["previous_ref"] = previous_ref.model_dump()
+        return contents.commit(actor(), operation_id, [obj])
+
+    def freeze_snapshot(operation_id: str, root_ref: Ref, refs: list[Ref], workbook_refs: list[Ref] | None = None) -> dict:
         """Freeze an explicit complete version manifest, including criteria and reference closure.
         This validates structure, not correctness. Export need not wait for all reviews.
+        Manifest members may only be Requirement, Criterion, SourceArtifact, Evidence,
+        ContentNode or Relation, with exactly one selected version per logical object.
+        Tasks, snapshots, exports and review records are not manifest members.
+
+        root_ref and contains relations define report prose. Optional workbook_refs
+        explicitly register workbook-only table or text-block nodes in the same
+        manifest. They must be detached from the report tree, without contains
+        parents/children; undeclared detached presentation nodes remain rejected.
+        This keeps separate workbook notes outside Word without changing content
+        or ownership. An XLSX export must select all and only the registered
+        workbook_refs when this channel is declared. Choose applicability and
+        organization from the assignment; registration is not semantic approval.
         """
-        return contents.freeze(actor(), operation_id, root_ref.model_dump(), [r.model_dump() for r in refs])
+        return contents.freeze(actor(), operation_id, root_ref.model_dump(), [r.model_dump() for r in refs],
+                               [r.model_dump() for r in workbook_refs] if workbook_refs else None)
+
+    def derive_snapshot(operation_id: str, base_snapshot_ref: Ref, additional_refs: list[Ref],
+                        replacements: list[SnapshotReplacement] | None = None,
+                        workbook_refs: list[Ref] | None = None) -> dict:
+        """Create a snapshot from an exact immutable base and explicit saved version deltas.
+
+        Existing members need not be copied into arguments. additional_refs adds exact
+        new members; replacements maps exact base previous_ref to new_ref of the same
+        logical type/id. Explicitly replace affected relations too: no dependencies,
+        current heads, content, layout or engineering choices are inferred.
+        workbook_refs omitted inherits the base channel (mapped by replacements);
+        an explicit list replaces its declaration. Root follows explicit replacement.
+        All original freeze ownership, closure, tree and workbook constraints apply.
+        No members are removed; use freeze_snapshot for a different full manifest.
+        Old content ownership, snapshots, exports and reviews remain unchanged.
+        This creates no export and grants no semantic or engineering acceptance.
+        """
+        return contents.derive_snapshot(actor(), operation_id, base_snapshot_ref.model_dump(),
+            [r.model_dump() for r in additional_refs],
+            [r.model_dump() for r in replacements] if replacements is not None else None,
+            [r.model_dump() for r in workbook_refs] if workbook_refs is not None else None)
 
     def submit_review(operation_id: str, review: ReviewSubmission, delivery_export_ref: Ref | None = None) -> dict:
         """Save scoped observations and findings against an exact snapshot. Does not revise content,
         finish the project or trigger author actions. Observation receipts come from read_context,
         observe_evidence, read_content_export or inspect_rendered_page. Null means no judgment yet.
-        For explicit final review supply delivery_export_ref, target the snapshot and use
-        scope delivery. Omit for local review. Export/page objects go in artifact_refs,
-        not item target_ref. Partial final results remain incomplete.
+        Optional delivery_export_ref binds export provenance only.
+        Excel is checked for content, version and corrections only; render/layout
+        assessments apply to Word. An Excel export-fidelity check remains allowed.
+        Export/page objects go in artifact_refs, not item target_ref.
+        No final-snapshot submission is required.
+        scope describes the judgment; optional scope_id preserves identity across wording
+        changes. Optional per-item dependency_refs override batch dependencies for reuse.
+        Local target_ref can be an exact ContentNode; snapshot_ref supplies its context.
+        Choose the true scope and dependencies: whole-snapshot records cannot be reused
+        unchanged as local findings in a different snapshot. Saving does not broaden scope.
+        This persists a real assessment, not a dry run. Never submit diagnostic filler
+        or placeholder verdicts to test argument formatting.
         """
         return contents.submit_review(actor(), operation_id, review.model_dump(), identity,
             delivery_export_ref.model_dump() if delivery_export_ref else None)
 
     def read_delivery_review_context(snapshot_ref: Ref, export_ref: Ref) -> dict:
-        """Read complete criteria obligations and object coverage inventory for exact versions.
+        """Read criteria and object inventory for exact versions; no review tasks are generated.
         Metadata is not evidence of content or page observation. Read actual objects
         and sources using paged tools to obtain your own observations.
         """
-        from .content_delivery import obligations
         from .review_coverage import inventory
         actor()
         snap, export = contents.read(snapshot_ref.model_dump()), contents.read(export_ref.model_dump())
         if snapshot_ref.type != "DocumentSnapshot" or export_ref.type != "ExportArtifact" or export["payload"]["snapshot_ref"] != snap["ref"]:
             raise ActionRejected("DELIVERY_VERSION_MISMATCH")
         return {"snapshot_ref": snap["ref"], "export_ref": export["ref"],
-                "obligations": obligations(contents, snap["ref"]),
                 "criteria": [contents.read(r) for r in snap["payload"]["criteria_refs"]],
                 "coverage_contract": snap["payload"].get("coverage_contract"),
-                "coverage_inventory": inventory(snap), "delivery_check_kinds": ["export", "render"]}
+                "coverage_inventory": inventory(snap),
+                "limitation": "Inventory and metadata do not establish review coverage or prescribe checks. Use the authorized assignment and evidence."}
 
     def observe_evidence(kind: Literal["source", "calculation"], source_id: str = "", offset: int = 0,
-                         limit: int = 12000, terms: list[list[str]] | None = None) -> dict:
+                         limit: int = 12000, terms: list[list[str]] | None = None,
+                         runtime: ToolRuntime = None) -> dict:
         """Read an authorized source excerpt or independently recompute a sum of products,
         returning a saved observation receipt. No model evaluation is hidden in this tool.
         Source offset/limit are characters; continue at next_offset for unread material.
@@ -145,7 +302,16 @@ def content_tools(workspace, role, runtime_identity=None):
         else:
             from .calculations import sum_products
             result = {"terms": terms, "result": sum_products(terms or []), "tool": "sum_products"}
-        return contents.observe(actor(), result)
+        value = contents.observe(actor(), result)
+        if kind != 'source':
+            return value
+        from .source_materials import returned
+        materials = [{'source_id':source_id,'kind':'frozen_source_character_selection',
+            'selection':{'units':'zero-based Unicode characters','range':result['range']},
+            'selected_value_digest':digest(result),
+            'coverage':{'total_characters':len(text),'complete_frozen_text_selection':offset==0 and result['next_offset'] is None},
+            'limitations':result['limitations']}] if result['text'] else []
+        return returned(workspace,role,'observe_evidence',value,materials,runtime)
 
     def read_feedback(offset: int = 0, limit: int = 20) -> dict:
         """Query project-local versioned findings and handling history. Handled is not repaired;
@@ -166,27 +332,85 @@ def content_tools(workspace, role, runtime_identity=None):
         """Return changed references and dependency candidates. You decide semantic recheck scope."""
         return contents.impact(old_snapshot.model_dump(), new_snapshot.model_dump())
 
-    def confirm_review_reuse(operation_id: str, review_ref: Ref, new_snapshot: Ref, reason: str) -> dict:
+    def confirm_review_reuse(operation_id: str, review_ref: Ref, new_snapshot: Ref, reason: str, item_indexes: list[int] | None = None) -> dict:
         """Explicitly confirm that a prior local review still applies to unchanged inputs.
         Check changes, new relevance and relationships first. Whole-document judgments
         cannot be transferred to a different snapshot; changed inputs need a new review.
+        Select zero-based item_indexes to reuse only those unchanged judgments; omitted
+        indexes retain whole-record behavior. Per-item dependencies define exact inputs.
         """
-        return contents.confirm_reuse(actor(), operation_id, review_ref.model_dump(), new_snapshot.model_dump(), reason)
+        return contents.confirm_reuse(actor(), operation_id, review_ref.model_dump(), new_snapshot.model_dump(), reason, item_indexes)
 
-    def correct_own_review(operation_id: str, review_ref: Ref, replacement_ref: Ref, reason: str) -> dict:
+    def correct_own_review(operation_id: str, review_ref: Ref, replacement_ref: Ref, reason: str, item_indexes: list[int] | None = None) -> dict:
         """Correct your own mistaken review with an already saved evidence-based replacement.
         Preserve both records and an explicit reason; handling a finding does not withdraw it.
+        Select zero-based item_indexes to correct those findings without withdrawing other
+        items or delivery checks. Match target, criterion, scope_id (or scope) and kind.
         """
-        return contents.supersede_review(actor(), operation_id, review_ref.model_dump(), replacement_ref.model_dump(), reason)
+        return contents.supersede_review(actor(), operation_id, review_ref.model_dump(), replacement_ref.model_dump(), reason, item_indexes)
 
     def get_operation_receipt(operation_id: str) -> dict:
-        """Check your exact write operation before retrying after timeout; unknown is not no-write."""
-        return contents.receipt(actor(), operation_id)
+        """Read your content-write receipt and independent text-generation attempt separately.
+        Reserved text work has an unresolved outcome, not permission to retry. A
+        completed text payload does not establish adoption or semantic acceptance.
+        Unknown is not no-write or no-provider-work; caller ids are namespace-bound.
+        """
+        from .operation_receipts import operation_receipt
+        return operation_receipt(contents, actor(), operation_id)
 
-    def export_content_snapshot(operation_id: str, snapshot_ref: Ref) -> dict:
-        """Export your immutable snapshot to DOCX with version-bound content position mapping."""
+    def export_content_snapshot(operation_id: str, snapshot_ref: Ref, layout: LayoutOptions | None = None,
+                                layout_from_export_ref: Ref | None = None) -> dict:
+        """Export an immutable snapshot with presentation-only options and version-bound mapping.
+        Layout tasks may export only the snapshot explicitly granted at delegation.
+        Node options identify exact refs: heading_level promotes the existing first text line;
+        column_weights set table proportions, landscape isolates a table/figure on wide pages.
+        To reuse saved layout exactly, pass layout_from_export_ref naming an exact Word
+        ExportArtifact instead of layout. The server validates its saved configuration
+        against this target snapshot; it never remaps node versions or chooses latest.
+        This cannot replace text, numbers, conditions, evidence or criteria. A new export
+        needs review of that exact file; old review does not approve a layout revision.
+        """
         from .content_export import export_snapshot
-        return export_snapshot(contents, actor(), operation_id, snapshot_ref.model_dump())
+        return export_snapshot(contents, actor(), operation_id, snapshot_ref.model_dump(),
+            layout.model_dump() if layout is not None else None,
+            layout_from_export_ref.model_dump() if layout_from_export_ref is not None else None)
+
+    def export_content_workbook(operation_id: str, snapshot_ref: Ref, sheets: list[WorkbookSheet], report_export_ref: Ref | None = None) -> dict:
+        """Create XLSX from selected table ContentNodes in your own immutable snapshot.
+        Each sheet has name, table_ref and optional note_refs. Selected text notes,
+        including corrections and qualifiers, are copied verbatim after that table.
+        Optional report_export_ref links the exact companion Word version, not its correctness.
+        A linked Word and XLSX must use the same snapshot; a cross-snapshot link is rejected.
+        For a snapshot with declared workbook_refs, sheets must select all and
+        only those workbook-only table/note nodes, leaving report prose separate.
+        You choose table contents and sheet organization. Read/render/review the saved export
+        using the same export tools; an exported workbook is not an accepted deliverable.
+        """
+        from .content_workbook import export_workbook
+        return export_workbook(contents, actor(), operation_id, snapshot_ref.model_dump(),
+                               [s.model_dump() for s in sheets], report_export_ref.model_dump() if report_export_ref else None)
+
+    def read_layout_capabilities() -> dict:
+        """Read current controls, dependency availability and version; old inability claims may be stale.
+        Paragraph controls select exact unique source lines without changing the snapshot.
+        refresh_toc uses native LibreOffice/UNO and publishes a new verified export.
+        """
+        from .layout_capabilities import capabilities
+        from .layout_revision import status as layout_revision_status
+        with contents.store.connect() as db:
+            budget = layout_revision_status(db)
+        return contents.observe(actor(), {**capabilities(), 'revision_budget': budget})
+
+    def request_layout_capability(operation_id: str, snapshot_ref: Ref, problem: str,
+                                  attempted: list[str], requested_operation: str, evidence: list[str]) -> dict:
+        """Ask development for a missing operation with attempts and page/receipt evidence.
+        Saves a HandlingRecord in read_feedback, retaining the task and capability version.
+        This is a handoff request, not permission to execute code or a claim of implementation.
+        Coordinator can resume the task after development reports new capability evidence.
+        """
+        from .layout_capabilities import request_extension
+        return request_extension(contents, actor(), operation_id, snapshot_ref.model_dump(),
+            problem, attempted, requested_operation, evidence)
 
     def render_content_export(operation_id: str, export_ref: Ref) -> dict:
         """Render this exact export to PDF/pages, or return blocked. Rendering is not visual review."""
@@ -194,58 +418,120 @@ def content_tools(workspace, role, runtime_identity=None):
         return render_export(contents, actor(), operation_id, export_ref.model_dump())
 
     def read_content_export(export_ref: Ref) -> dict:
-        """Read actual DOCX text and structure with identity and a receipt; not page observation."""
+        """Read actual DOCX or XLSX text and structure with identity and receipt; not page observation."""
         from .content_export import read_export
         return read_export(contents, actor(), export_ref.model_dump())
 
-    async def inspect_rendered_page(render_ref: Ref, page: int, question: str) -> dict:
+    async def inspect_rendered_page(render_ref: Ref, page: int, question: str,
+                                   reference_source_id: str = "", reference_page: int = 1,
+                                   crop: list[float] | None = None) -> dict:
         """Ask the configured visual model about one actual rendered page. Returns bounded
         observations with a receipt and limitations, not a verdict; consumes a model call.
+        Optional project-bound customer reference source/page is supplied beside the
+        actual Word page in the same request. Optional normalized [x0,y0,x1,y1]
+        crop inspects a closer region on both pages; it never covers a whole page.
+        Reference/page scope comes from the saved assignment, not an expanded contract.
         """
         from .content_export import inspect_render
-        return await inspect_render(contents, actor(), render_ref.model_dump(), page, question)
+        return await inspect_render(contents, actor(), render_ref.model_dump(), page, question,
+            reference_source_id=reference_source_id, reference_page=reference_page, crop=crop)
 
     def select_content_delivery(operation_id: str, snapshot_ref: Ref, export_ref: Ref,
-                                 ending_reason: Literal["continue", "preserve_unresolved", "blocked", "no_progress"] = "continue") -> dict:
+                                 ending_reason: Literal["continue", "preserve_unresolved", "blocked", "no_progress"] = "continue",
+                                 workbook_export_ref: Ref | None = None) -> dict:
         """Select the actual snapshot/export to deliver. This is not approval and starts no review.
         ending_reason is historical metadata, not an execution control. Delegate review
         when useful; selection alone neither ends execution nor changes a verdict.
+        Optional workbook_export_ref selects the saved XLSX companion bound to this
+        exact Word export and snapshot for customer download; it does not establish parity.
         """
         def select(db):
             snap, export = contents._read(db, snapshot_ref.model_dump()), contents._read(db, export_ref.model_dump())
             if snapshot_ref.type != "DocumentSnapshot" or export_ref.type != "ExportArtifact" or export["payload"]["snapshot_ref"] != snap["ref"]:
                 raise ActionRejected("DELIVERY_VERSION_MISMATCH")
             delivery = {"snapshot_ref": snap["ref"], "export_ref": export["ref"], "ending_reason": ending_reason}
+            if workbook_export_ref is not None:
+                workbook = contents._read(db, workbook_export_ref.model_dump())
+                payload = workbook['payload']
+                if (workbook_export_ref.type != 'ExportArtifact' or
+                        not export['payload']['file_ref'].endswith('.docx') or
+                        not payload.get('file_ref', '').endswith('.xlsx') or
+                        payload.get('snapshot_ref') != snap['ref'] or
+                        payload.get('export_config', {}).get('report_export_ref') != export['ref']):
+                    raise ActionRejected('COMPANION_EXPORT_VERSION_MISMATCH')
+                delivery['workbook_export_ref'] = workbook['ref']
             db.execute("INSERT OR REPLACE INTO state VALUES ('content_delivery', ?)", (encode(delivery),))
             # Retain historical final evidence; applicability is checked against the
             # exact selected snapshot/export. Reselecting cannot erase a known defect.
             return delivery
-        return contents.operation(actor(), operation_id, {"select_delivery": [snapshot_ref.model_dump(), export_ref.model_dump(), ending_reason]}, select)
+        request = {"select_delivery": [snapshot_ref.model_dump(), export_ref.model_dump(), ending_reason]}
+        if workbook_export_ref is not None:
+            request['workbook_export_ref'] = workbook_export_ref.model_dump()
+        return contents.operation(actor(), operation_id, request, select)
 
     def record_execution_decision(operation_id: str, decision: Literal["continue", "wait", "handoff", "terminate"],
-                                  reason: str, evidence: list[str], unresolved: list[str]) -> dict:
+                                  reason: str, evidence: list[str], unresolved: list[str],
+                                  claims_assigned_checks_complete: bool = False) -> dict:
         """Record strategy and grounds against the current selected delivery. This does not
         change verdicts, trigger actions or force the loop to stop. Subsequent native tool
-        calls or your final response implement the choice.
+        calls or your final response implement the choice. claims_assigned_checks_complete
+        is verified against saved current-delivery assignments; it never establishes
+        whole-report acceptance. Correction limits constrain edits, not reading/checking.
         """
         if not reason.strip():
             raise ActionRejected("DECISION_REASON_REQUIRED")
+        actor()
+        from .decision_state import execution_evidence, completion_state_token
+        with contents.store.connect() as db:
+            observed_token = completion_state_token(db) if claims_assigned_checks_complete else None
+        decision_evidence = execution_evidence(contents)
         def save(db):
             import json
+            # Validate only a new operation. A saved receipt remains the exact
+            # historical result when replayed after the application state changes.
+            if claims_assigned_checks_complete and completion_state_token(db) != observed_token:
+                raise ActionRejected('DECISION_STATE_CHANGED: Refresh current state before a new completion declaration.')
+            if claims_assigned_checks_complete and not decision_evidence['assigned_checks_complete']:
+                raise ActionRejected('ASSIGNED_CHECKS_NOT_COMPLETE: ' + encode(decision_evidence))
             row = db.execute("SELECT value FROM state WHERE key='content_delivery'").fetchone()
             value = {"decision": decision, "reason": reason, "evidence": evidence,
-                     "unresolved": unresolved, "delivery": json.loads(row[0]) if row else None}
+                     "unresolved": unresolved, "task_supervision_remaining": remaining,
+                     "claims_assigned_checks_complete": claims_assigned_checks_complete,
+                     "execution_evidence": decision_evidence,
+                     "delivery": json.loads(row[0]) if row else None}
             db.execute("INSERT OR REPLACE INTO state VALUES ('content_execution_decision', ?)", (encode(value),))
             return value
-        return contents.operation(actor(), operation_id, {"execution_decision": [decision, reason, evidence, unresolved]}, save)
+        from .task_supervision import task_status
+        # Collect before the write transaction; retain execution gaps even when
+        # an agent's final unresolved text/todos omit them.
+        remaining, offset = [], 0
+        while True:
+            page = task_status(contents, offset)
+            remaining.extend({"task_id": t["task_id"], "snapshot_ref": t["snapshot_ref"], "remaining": t["remaining"]}
+                             for t in page["tasks"] if t["remaining"])
+            if page["next_offset"] is None:
+                break
+            offset = page["next_offset"]
+        request = {"execution_decision": [decision, reason, evidence, unresolved]}
+        if claims_assigned_checks_complete:
+            request['claims_assigned_checks_complete'] = True
+        return contents.operation(actor(), operation_id, request, save)
 
-    common = [content_status, read_context, read_review_status, observe_evidence, read_feedback, record_handoff,
+    common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
+              read_review_status, observe_evidence, read_feedback, record_handoff,
               assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,
-              read_delivery_review_context]
+              read_delivery_review_context, read_layout_capabilities]
+    from .learning import report_tools
+    common += report_tools(workspace, actor)
     if role in {"reviewer", "rubric_grader"}:
-        return common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review]
+        return common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
     if role in {"coordinator", "writer"}:
-        common += [import_source_versions, commit_objects, freeze_snapshot, export_content_snapshot]
+        common += [import_source_versions, commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
+    if role == "layout":
+        common += [export_content_snapshot, request_layout_capability]
     if role == "coordinator":
-        common += [select_content_delivery, record_execution_decision]
+        common += [select_content_delivery, record_execution_decision, request_layout_capability, read_task_supervision, list_supervision_plugins, read_review_obligation_coverage]
+        if workspace.store.manifest.get("review_entrypoint") != "native-rubric-v1":
+            common.remove(save_text_node)
+            commit_objects.__doc__ += "\nYour coordinator binding may commit Criterion, Evidence and Relation; delegate all ContentNode creation/revision to writer."
     return common

@@ -8,6 +8,7 @@ from math import isfinite
 
 import pdfplumber
 
+from .catalog import Catalog
 from .document_tools import _pdf_page, physical_page_number
 from .errors import ActionRejected
 from .ingestion import MAX_PDF_PAGE_CONTENT_BYTES
@@ -173,3 +174,54 @@ def with_source_tables(workspace, result):
     views = [view for source_id, pages in located.items()
              for view in source_tables(workspace, source_id, pages, compact=compact)]
     return {**result, "source_table_views": views, "table_view_unlocated": unresolved}
+
+
+def present_source_tables(workspace, result, detail=None):
+    """Explicit representation choice; default retains the complete old packet."""
+    if detail is None or detail == 'full':
+        return with_source_tables(workspace, result)
+    if detail == 'references':
+        return deferred_table_references(workspace, result)
+    raise ActionRejected('SOURCE_TABLE_DETAIL_MUST_BE_REFERENCES_OR_FULL')
+
+def deferred_table_references(workspace, result):
+    """Existing locator-only view shared by search and exact frozen-block reads."""
+    sources = {source["id"]: source for source in Catalog(workspace.store).metadata()}
+    refs, unresolved, seen = [], [], set()
+    blocks = result.get("matches")
+    is_search = blocks is not None
+    if blocks is None:
+        blocks = [{**block, 'source_id':result['source']['id']} for block in result['blocks']]
+    for block in blocks:
+        source_id = block["source_id"]
+        if source_id not in sources:
+            raise ActionRejected("SOURCE_NOT_IN_PROJECT")
+        for locator in block.get("locators", [block["locator"]]):
+            page = physical_page_number(locator)
+            if page is None:
+                item = {"source_id": source_id, "locator": locator,
+                        "status": "physical_page_not_located"}
+                if item not in unresolved:
+                    unresolved.append(item)
+                continue
+            if (source_id, page) in seen:
+                continue
+            seen.add((source_id, page))
+            source = sources[source_id]
+            refs.append({"source_id": source_id, "source_sha256": source.get("sha256"),
+                         "page": page, "locator": f"PDF physical page {page}",
+                         "status": "not_expanded", "extraction_status": "not_extracted",
+                         "original_bytes_verified": False,
+                         "hash_origin": "source_version_metadata; original bytes are checked by full/inspect access",
+                         "inspection": {"tool": "inspect_source_page",
+                                        "arguments": {"source_id": source_id, "page": page}}})
+    # Preserve the historical search representation verbatim. A block read has
+    # the same access semantics, but must not be described as a text search.
+    scope = 'search' if is_search else 'read'
+    text_kind = 'matched' if is_search else 'selected'
+    return {**result, "source_table_references": refs, "table_view_unlocated": unresolved,
+            "table_detail": "references",
+            "table_view_note": f"Whole-page table supplements were not expanded or extracted for this {scope}. "
+                "This is not evidence that tables or information are absent, or that original bytes were verified. "
+                f"Use inspect_source_page for any located page, or repeat the {scope} with table_detail='full'. "
+                f"The complete {text_kind} frozen text and its pagination are unchanged."}

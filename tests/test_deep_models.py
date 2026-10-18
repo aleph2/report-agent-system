@@ -49,7 +49,9 @@ async def test_sdk_shared_retry_and_actual_request_contract(configured, failure,
                 await model.ainvoke("hello")
             assert error_data(captured.value)["http_status"] == 403
         else:
-            assert (await model.ainvoke("hello")).content == "OK"
+            answer = await model.ainvoke("hello")
+            assert answer.content == "OK"
+            assert answer.usage_metadata["total_tokens"] == 3
     assert len(requests) == expected
     assert requests[0]["model"] == "glm-5.3"
     assert requests[0]["reasoning_effort"] == "high"
@@ -58,8 +60,7 @@ async def test_sdk_shared_retry_and_actual_request_contract(configured, failure,
     assert requests[0]["max_completion_tokens"] == 65536
     assert "test-private-key" not in json.dumps(configured.events())
     responses = [e for e in configured.events() if e["kind"] == "deep_model_response"]
-    if failure == 503:
-        assert responses[0]["data"]["usage"]["total_tokens"] == 3
+    assert not responses  # Normal execution uses native checkpoint messages.
 
 
 def private_request():

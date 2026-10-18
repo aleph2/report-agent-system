@@ -66,6 +66,12 @@ class Store:
         if not manifest.get("goal") or not sources:
             raise ValueError("GOAL_AND_SOURCES_REQUIRED")
         ids = [s["id"] for s in sources]
+        references = manifest.get("presentation_references", [])
+        if not isinstance(references, list) or any(
+            not isinstance(r, dict) or r.get("source_id") not in ids
+            or not isinstance(r.get("instruction", ""), str) for r in references
+        ):
+            raise ValueError("INVALID_PRESENTATION_REFERENCE")
         if len(set(ids)) != len(ids):
             raise ValueError("DUPLICATE_SOURCE_ID")
         for source in sources:

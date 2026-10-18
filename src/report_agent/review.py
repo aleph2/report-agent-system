@@ -182,8 +182,10 @@ def observation_version(workspace, draft_id):
 
 def native_review(workspace, model, tools, rules, middleware=()):
     from .review_context import ReviewContext, experiment_config
+    from .source_search import bind_source_search
     from .acceptance import enabled, draft_criteria, criteria_identity, criteria_rules
     context = {}
+    search_view = bind_source_search(workspace)
     experiment = experiment_config(workspace.store)
     acceptance = enabled(workspace)
     system_prompt = reviewer_prompt(experiment, requirement_acceptance=acceptance)
@@ -211,6 +213,8 @@ def native_review(workspace, model, tools, rules, middleware=()):
 
     def prepare(messages):
         from .report_preview import preview_saved_report
+        if bind_source_search(workspace) != search_view:
+            raise RuntimeError("SOURCE_SEARCH_VIEW_BINDING_CHANGED")
         selected = workspace.store.get("delivery") or {}
         draft_id = selected.get("draft_id")
         context.clear()
@@ -225,6 +229,8 @@ def native_review(workspace, model, tools, rules, middleware=()):
                        export_configuration_hash=export_configuration(workspace))
         if experiment:
             context["review_context_experiment"] = experiment
+        if search_view is not None:
+            context["source_search_view"] = search_view
         from .review_contract import contract_identity
         contract = contract_identity(experiment)
         if acceptance:
@@ -324,6 +330,8 @@ def review_delivery(workspace, draft_id):
     prompt_hash = workspace.store.get("active_reviewer_prompt_hash")
     from .review_context import experiment_config
     experiment = experiment_config(workspace.store)
+    from .source_search import bind_source_search
+    search_view = bind_source_search(workspace)
     from .review_contract import contract_identity
     contract = contract_identity(experiment)
     from .acceptance import enabled, draft_criteria, criteria_identity, criteria_rules
@@ -347,6 +355,7 @@ def review_delivery(workspace, draft_id):
                   and r["target"].get("rubric_hash") == rule_hash
                   and (not prompt_hash or r["target"].get("reviewer_prompt_hash") == prompt_hash)
                   and r["target"].get("review_context_experiment") == experiment
+                  and r["target"].get("source_search_view") == search_view
                   and r["target"].get("review_response_contract") == contract
                   and (not acceptance or r["target"].get("acceptance_criteria") == criteria_version)
                   and r["target"].get("export_configuration_hash") == export_configuration(workspace)]

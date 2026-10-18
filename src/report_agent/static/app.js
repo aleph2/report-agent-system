@@ -57,7 +57,7 @@ function eventLabel(event) {
     return `${data.role ? translate(data.role) : "智能体"} · ${data.tool || "工具"} · 调用被拒绝 · ${reason}`;
   }
   if (event.kind === "deep_tool_start" || event.kind === "deep_tool_end") {
-    return `${data.role ? translate(data.role) : "智能体"} · ${data.tool || "工具"} · ${event.kind === "deep_tool_start" ? "调用开始" : "已返回"}`;
+    return `${data.role ? translate(data.role) : "智能体"} · ${data.tool || "工具"} · ${event.kind === "deep_tool_start" ? (data.observation === "requested" ? "已请求调用" : "调用开始") : "已返回"}`;
   }
   return event.kind;
 }
@@ -176,7 +176,8 @@ function controls() {
   $("run").disabled = !connected || posting || running || snapshot?.can_run !== true;
   text($("run"), posting ? "正在提交…" : running ? "执行中" : snapshot?.checkpoint_resume === true ? "断点继续" : "运行");
   text($("run-reason"), !connected ? "状态不可用，执行已禁用" : posting ? "等待操作响应" : running ? "正在执行" : snapshot?.can_run !== true ? "当前状态不允许执行" : snapshot.model_mode === "scripted_fixture" ? "当前为脚本模拟" : snapshot.model_mode === "configured" ? "已配置模型" : "由后台检查模型配置");
-  $("download").disabled = !connected || downloading || !snapshot?.delivery?.draft_id;
+  $("download").disabled = !connected || downloading || !(snapshot?.content_delivery?.export_ref || snapshot?.delivery?.draft_id);
+  $("download-workbook").disabled = !connected || downloading || !snapshot?.content_delivery?.workbook_export_ref;
   for (const entry of issueNodes.values()) {
     entry.submit.disabled = !connected || posting || entry.data.resolved === true || !entry.input.value.trim();
   }
@@ -531,9 +532,16 @@ function render(data) {
   renderIssues(data.issues, data);
   renderSources(data);
   renderCorrections(data);
-  state($("delivery-status"), data.delivery?.status || "暂无交付");
-  const deliveryNotes = data.delivery ? resultAnnotations({ ...data.delivery, id: data.delivery.draft_id }, data) : "";
-  text($("delivery-info"), data.delivery ? `草稿：${data.delivery.draft_id || "未提供"}\n审核记录：${data.delivery.review_id || "尚无审核记录"}${deliveryNotes ? `\n${deliveryNotes}` : ""}` : "尚无已选定的报告草稿");
+  if (data.content_delivery?.export_ref) {
+    const reviewed = data.content_current_review?.final_review_current === true
+      && data.content_current_review?.overall_verdict === "satisfied";
+    state($("delivery-status"), reviewed ? "reviewed_draft" : "已选定草稿");
+    text($("delivery-info"), `报告草稿已保存，可下载。\n配套 Excel：${data.content_delivery.workbook_export_ref ? "已选定，可下载" : "尚未选定"}。\n${reviewed ? "已记录整体模型评审，不代表工程签审。" : "尚未确认整体评审通过。"}`);
+  } else {
+    state($("delivery-status"), data.delivery?.status || "暂无交付");
+    const deliveryNotes = data.delivery ? resultAnnotations({ ...data.delivery, id: data.delivery.draft_id }, data) : "";
+    text($("delivery-info"), data.delivery ? `草稿：${data.delivery.draft_id || "未提供"}\n审核记录：${data.delivery.review_id || "尚无审核记录"}${deliveryNotes ? `\n${deliveryNotes}` : ""}` : "尚无已选定的报告草稿");
+  }
   text($("events-count"), `（${data.events.length} 条）`);
   text($("events"), data.events.map((event) => `#${event.sequence} ${event.at} ${event.kind}\n${display(event.data)}`).join("\n\n") || "暂无日志");
 }
@@ -577,16 +585,21 @@ $("run").addEventListener("click", async () => {
   }
 });
 
-$("download").addEventListener("click", async () => {
-  const draftId = snapshot?.delivery?.draft_id;
-  if (!draftId || $("download").disabled) return;
+async function downloadDelivery(companion = false) {
+  const native = snapshot?.content_delivery;
+  const draftId = native?.export_ref?.id || snapshot?.delivery?.draft_id;
+  const button = companion ? "download-workbook" : "download";
+  if (!draftId || $(button).disabled) return;
   downloading = true; controls();
   try {
-    const response = await request(`/api/export/${encodeURIComponent(draftId)}`);
+    const path = native?.export_ref
+      ? `/api/content/delivery?expected_export_id=${encodeURIComponent(draftId)}${companion ? "&companion=true" : ""}`
+      : `/api/export/${encodeURIComponent(draftId)}`;
+    const response = await request(path);
     const url = URL.createObjectURL(await response.blob());
     const link = element("a");
     link.href = url;
-    link.download = `report-${String(draftId).replace(/[^a-zA-Z0-9_-]/g, "_")}.docx`;
+    link.download = `report-${String(draftId).replace(/[^a-zA-Z0-9_-]/g, "_")}.${companion ? "xlsx" : "docx"}`;
     document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     message("action-notice", "报告下载已发起。");
@@ -595,7 +608,9 @@ $("download").addEventListener("click", async () => {
     message("action-notice", `报告下载失败：${error.message}`);
     $("action-notice").className = "error";
   } finally { downloading = false; controls(); }
-});
+}
+$("download").addEventListener("click", () => downloadDelivery());
+$("download-workbook").addEventListener("click", () => downloadDelivery(true));
 
 for (const kind of ["source", "search"]) {
   $(`${kind}-prev`).addEventListener("click", () => loadPage(kind, pages[kind].key, Math.max(0, pages[kind].offset - 10)));

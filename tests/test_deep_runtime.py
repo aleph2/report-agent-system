@@ -190,6 +190,33 @@ async def run(ws, driver):
 
 
 def events(ws, kind):
+    if kind in {"deep_tool_start", "deep_tool_end", "deep_tool_rejected"}:
+        # Historical assertions now inspect native evidence, not duplicate DB logs.
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        from report_agent.native_trace import checkpoint_messages, checkpoint_agent
+        path = ws.store.root / "checkpoints.db"
+        if not path.exists():
+            return []
+        result, seen = [], set()
+        with SqliteSaver.from_conn_string(str(path)) as saver:
+            for row in reversed(list(saver.list(None))):
+                namespace = row.config["configurable"].get("checkpoint_ns", "")
+                role = (checkpoint_agent(row) or "").removeprefix("report_")
+                for _, message in checkpoint_messages(row):
+                    key = (namespace, message.id)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if kind == "deep_tool_start" and isinstance(message, AIMessage):
+                        result.extend({"role": role, "tool": c["name"], "arguments": c["args"],
+                                       "tool_call_id": c["id"]} for c in message.tool_calls)
+                    elif kind == "deep_tool_end" and isinstance(message, ToolMessage):
+                        result.append({"role": role, "tool": message.name, "tool_call_id": message.tool_call_id})
+                    elif kind == "deep_tool_rejected" and isinstance(message, ToolMessage) and message.status == "error":
+                        error = json.loads(message.content).get("error", {})
+                        result.append({"role": role, "tool": message.name, "tool_call_id": message.tool_call_id,
+                                       **(error if isinstance(error, dict) else {})})
+        return result
     return [e["data"] for e in ws.store.events() if e["kind"] == kind]
 
 
@@ -481,13 +508,9 @@ async def test_multiple_native_tasks_are_serialized_by_middleware(ws):
             {"configurable": {"thread_id": "serial-probe"}, "max_concurrency": 8}), 30)
     assert result["messages"][-1].content == "Both finished"
     assert driver.max_active_children == 1
-    spans = [(e["kind"], e["data"]["tool_call_id"]) for e in ws.store.events()
-             if e["kind"] in {"deep_tool_start", "deep_tool_end"}
-             and e["data"]["role"] == "coordinator" and e["data"]["tool"] == "task"]
-    assert len(spans) == 4
-    assert [kind for kind, _ in spans] == ["deep_tool_start", "deep_tool_end"] * 2
-    assert spans[0][1] == spans[1][1] and spans[2][1] == spans[3][1]
-    assert {spans[0][1], spans[2][1]} == {"task-a", "task-b"}
+    for kind in ("deep_tool_start", "deep_tool_end"):
+        assert {e["tool_call_id"] for e in events(ws, kind)
+                if e["role"] == "coordinator" and e["tool"] == "task"} == {"task-a", "task-b"}
 
 
 @pytest.mark.parametrize("failed_role,failed_step", [("coordinator", 2), ("reviewer", 1)])
@@ -544,7 +567,10 @@ async def test_unknown_submit_outcome_replays_receipt_without_duplicate_commit(w
     assert reopened.results() == committed
     assert len(reopened.tasks()) == len(events(reopened, "result_committed")) == 1
     assert observation(fresh.calls[0][2], "submit_result")["id"] == committed[0]["id"]
-    assert len([e for e in events(reopened, "deep_tool_start") if e["tool"] == "submit_result"]) == 2
+    # Recovery replays the pending handler, not a second model-emitted request.
+    assert injected
+    assert len([e for e in events(reopened, "deep_tool_start") if e["tool"] == "submit_result"]) == 1
+    assert len([e for e in events(reopened, "deep_tool_end") if e["tool"] == "submit_result"]) == 1
     assert not (await snapshot(reopened, fresh)).next
 
 

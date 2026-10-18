@@ -4,15 +4,8 @@ import asyncio
 import json
 from uuid import uuid4
 
-from google.adk.agents import LlmAgent
-from google.adk.agents.run_config import RunConfig
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
-
-from .models import TextAnalysis, configured_model
 from .store import Store
-from .tools import material_tools
+from .errors import ActionRejected
 
 
 INSTRUCTION = """Complete the current materials task within its scope. Use the current
@@ -28,6 +21,15 @@ record the concrete issue and explain the completed and unfinished work.
 
 
 async def run_task(store: Store, decision_model=None, text_model=None, *, timeout_seconds: float = 1800) -> dict:
+    raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: the ADK materials prototype is archived; use the native report runtime. Saved data remains readable.")
+    # Historical implementation retained as dated evidence, never dispatched.
+    from google.adk.agents import LlmAgent
+    from google.adk.agents.run_config import RunConfig
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    from google.genai import types
+    from .models import TextAnalysis, configured_model
+    from .tools import material_tools
     # ADK owns the model/tool loop. No hand-written semantic stage routing.
     with store.run_lock():
         if store.get("status") == "draft_ready":

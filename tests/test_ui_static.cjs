@@ -70,6 +70,25 @@ function event(sequence, kind, data = {}) {
   return { sequence, kind, data, at: "2026-09-27 12:00:00" };
 }
 
+test("native selected pair enables both downloads without claiming review acceptance", () => {
+  const ui = harness();
+  ui.show(status({ content_delivery: { export_ref: { id: "word" }, workbook_export_ref: { id: "excel" } },
+    content_current_review: { overall_verdict: null, final_review_current: false } }));
+  assert.equal(ui.nodes.get("download").disabled, false);
+  assert.equal(ui.nodes.get("download-workbook").disabled, false);
+  assert.match(ui.nodes.get("delivery-info").textContent, /尚未确认整体评审通过/);
+  assert.equal(ui.nodes.get("delivery-status").textContent, "已选定草稿");
+  ui.show(status({ content_delivery: { export_ref: { id: "word2" } } }));
+  assert.equal(ui.nodes.get("download-workbook").disabled, true);
+  assert.match(ui.nodes.get("delivery-info").textContent, /尚未选定/);
+});
+
+test("native requested calls are not labeled as handler execution", () => {
+  const ui = harness();
+  assert.match(ui.evaluate('eventLabel({kind:"deep_tool_start",data:{observation:"requested",tool:"read_execution_trace"}})'), /已请求调用/);
+  assert.match(ui.evaluate('eventLabel({kind:"deep_tool_end",data:{tool:"read_execution_trace"}})'), /已返回/);
+});
+
 test("long markdown goal has a short preview and preserves full original text in closed native details", () => {
   const ui = harness();
   const goal = "\r\n# \r\n---\r\n## 编制桥梁报告\r\n\r\n" + "- 保留原始范围、依据和限制。\r\n".repeat(40);

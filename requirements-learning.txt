@@ -1,0 +1,3 @@
+# Optional optimization test/runtime environment. Keep separate from report runtime.
+dspy==3.4.0
+gepa==0.1.4

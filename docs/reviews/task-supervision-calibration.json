@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "purpose": "Evidence-backed review calibration inputs and regression distinctions; not a learned policy or engineering acceptance judgment.",
+  "status": "prepared_offline_not_real_model_evaluated",
+  "cases": [
+    {
+      "id": "original_columns_comparison_completed",
+      "evidence": [".runs/followup-feedback-validation-20261008/execution-validation/validation-disposition.json", ".analysis/task061/permission-boundary-discussion-20261008.json"],
+      "established": "Actual reviewer delegation returned a node-level judgment df6ed21a after both full table versions entered its input; scoped 112-cell comparison completed. Coordinator retained the scope and human-pending matters.",
+      "distinction": "Sufficient genuine return and delivery receipts can support completion; no mandatory query of another agent's private trace.",
+      "limits": "Same case and explicit scope reminder; not stable learning or full report acceptance. Developer's independent diff is separate evidence."
+    },
+    {
+      "id": "explicit_incomplete_return_ignored",
+      "evidence": [".runs/local-followup-reproduction-20261008/validation-disposition.json"],
+      "established": "Reviewer explicitly had not compared the original columns; coordinator requested handoff without a follow-up in one live reproduction.",
+      "distinction": "A completed invocation or confident summary cannot close an unperformed assigned check.",
+      "limits": "Historical reproduced behavior, later scoped successful comparison remains valid."
+    },
+    {
+      "id": "sampled_scope_not_comprehensive",
+      "evidence": [".runs/ocr-rebuild-20261008/resume-20261008/coverage-audit/audit.json"],
+      "established": "Saved reviews contain valid checked parts and explicit original-source checking gaps. First-round assessed labels do not establish full knowledge-point coverage.",
+      "distinction": "Retain checked parts and human-pending conclusions; preserve incomplete actions without calling an entire partly checked node never reviewed.",
+      "limits": "Developer audit identifies process evidence gaps, not replacement engineering judgments."
+    },
+    {
+      "id": "null_snapshot_disclosure_false_stop",
+      "evidence": [".runs/ocr-rebuild-20261008/validation-disposition.json"],
+      "established": "Event592 contained a snapshot coverage disclosure with verdict null, execution running and explicit unchecked work, alongside node judgments. An object-type guard stopped the entire submission.",
+      "distinction": "Allow truthful incomplete coverage disclosure and render/export snapshot observations; they cannot close content-node checks or imply acceptance.",
+      "limits": "Original structural monitor error, not a reviewer whole-report pass or a service failure."
+    },
+    {
+      "id": "dependent_layout_prequeued",
+      "evidence": [".analysis/task061/task-supervision-research-20261008/research-analysis.json", ".analysis/task061/task-supervision-research-20261008/local-evidence.json"],
+      "established": "Coordinator response508 requested reviewer and layout together; review605 returned before pending layout executed, without another coordinator model decision.",
+      "distinction": "Serial tool execution cannot implement a decision that depends on a not-yet-returned review.",
+      "limits": "Do not say the coordinator ignored this newest review return; it had not made another model decision."
+    }
+  ],
+  "additional_offline_protocol_cases": [
+    "Claimed complete without saved matching evidence",
+    "Still incomplete after exactly one completion follow-up",
+    "Unknown follow-up return and native checkpoint replay",
+    "Changed scope, version, source or exact export does not reuse a stale pass",
+    "Independent snapshot layout is allowed",
+    "Completed defect retains not_satisfied and human-pending retains undetermined"
+  ],
+  "evaluation_boundary": "A future real-model evaluation must keep held-out cases separate, inspect actual inputs/returns and report missed gaps, false rejection and unnecessary rechecks. No learning or model run is started by loading this file."
+}

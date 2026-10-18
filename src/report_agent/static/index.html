@@ -77,6 +77,7 @@
           <div class="section-heading"><h2 id="delivery-heading">报告交付</h2><span id="delivery-status" class="state">待获取</span></div>
           <p id="delivery-info" class="muted">正在获取交付记录…</p>
           <button id="download" type="button" disabled>下载报告 DOCX</button>
+          <button id="download-workbook" type="button" disabled>下载配套 Excel</button>
           <p class="muted">报告草稿不代表工程签审。</p>
         </section>
         <section aria-labelledby="tasks-heading">
@@ -107,6 +108,29 @@
       </aside>
     </div>
     <details class="logs"><summary>运行日志 <span id="events-count" class="muted"></span></summary><pre id="events">正在获取日志…</pre></details>
+    <section aria-labelledby="learning-heading">
+      <div class="section-heading"><h2 id="learning-heading">反馈与经验</h2><button id="learning-refresh" type="button">刷新反馈</button></div>
+      <p id="learning-status" role="status">正在读取反馈配置…</p>
+      <div id="learning-panel" hidden>
+        <form id="learning-form">
+          <div class="field"><label for="learning-report">报告版本</label><select id="learning-report" required></select></div>
+          <div class="field"><label for="learning-target">反馈位置</label><select id="learning-target" required></select></div>
+          <details><summary>查看所选版本内容</summary><pre id="learning-preview"></pre></details>
+          <fieldset><legend>补充依据（可选）</legend>
+            <p class="metadata">选择本项目已有的证据或资料版本。未选择时仅记录报告原文作为上下文；资料摘录仅展示开头，不代表已核实。</p>
+            <div id="learning-evidence-list"></div>
+          </fieldset>
+          <div class="field"><label for="learning-correction">问题、修改建议与依据</label><textarea id="learning-correction" required></textarea></div>
+          <button id="learning-submit" type="submit">保存反馈</button>
+        </form>
+        <p class="metadata">反馈会关联所选报告原文。填写的事实仍需核实；保存反馈不会修改报告或启动模型。</p>
+        <div id="learning-notice" role="status"></div>
+        <h3>已记录反馈</h3><div id="learning-feedback-list"></div>
+        <h3>经验版本</h3><p class="metadata">发布后可供同客户范围内的报告使用。发布旧版本即回滚；撤回后不再供后续查询使用。发布不代表已证明报告质量提升。</p>
+        <div id="learning-experiences"></div>
+      </div>
+    </section>
   </main>
+  <script src="/static/learning.js" defer></script>
 </body>
 </html>

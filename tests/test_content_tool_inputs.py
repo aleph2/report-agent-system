@@ -14,6 +14,7 @@ from report_agent.hierarchical_tools import content_tools
 from report_agent.tool_argument_feedback import InvalidToolFeedback, diagnostic_messages
 from test_deep_runtime import Driver, invoke, call
 from test_hierarchical_content import ws, seed
+from test_decision_data import activate
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +31,24 @@ def node(key):
     return {'client_key': key, 'type': 'ContentNode', 'payload': {
         'kind': 'block', 'body': {'text': 'A source-grounded test paragraph.'},
         'qualifiers': {}, 'claim_kind': 'fact'}}
+
+
+def decision_object(key, requirement):
+    """Coordinator-owned decision data; semantic report text requires its tool."""
+    return {'client_key': key, 'type': 'Criterion', 'payload': {
+        'requirement_refs': [requirement], 'purpose': 'Check source fidelity',
+        'scope': 'Selected evidence', 'expected_outcome': 'Claims match evidence.',
+        'evidence_expectation': 'Compare actual source and selected output.',
+        'allowed_limits': 'Record unresolved evidence explicitly.'}}
+
+
+def native_seed(ws):
+    # The shared seed retains the retired native-rubric manifest for historical
+    # storage tests. These four tests exercise the current native decision loop.
+    cs, _, _, _, all_refs = seed(ws)
+    activate(ws)
+    requirement = next(ref for ref in all_refs if ref['type'] == 'Requirement')
+    return cs, requirement
 
 
 def test_public_tool_schema_exposes_existing_shapes(ws):
@@ -51,21 +70,21 @@ def test_invalid_payload_types_exposed_before_execution(field, value):
 
 
 async def test_batch_refs_survive_native_tool_validation(ws):
-    cs, _, _, _, _ = seed(ws)
+    cs, requirement = native_seed(ws)
     before = len(cs.list_objects())
-    objects = [node('parent'), node('child'), {'client_key': 'link', 'type': 'Relation', 'payload': {
+    objects = [decision_object('parent', requirement), decision_object('child', requirement), {'client_key': 'link', 'type': 'Relation', 'payload': {
         'subject_ref': {'client_key': 'parent'}, 'object_ref': {'client_key': 'child'},
-        'predicate': 'contains', 'position': 0, 'provenance_kind': 'adopted_during_generation'}}]
+        'predicate': 'depends_on', 'position': 0, 'provenance_kind': 'adopted_during_generation'}}]
     driver = Driver(coordinator=[invoke('commit_objects', operation_id='batch-test', objects=objects), AIMessage(content='Saved.')])
     result = await deep_runtime.run_report(ws, driver)
     assert result['last_error'] is None
     assert len(cs.list_objects()) == before + 3
     relation = cs.list_objects('Relation')[-1]['payload']
-    assert relation['subject_ref']['type'] == relation['object_ref']['type'] == 'ContentNode'
+    assert relation['subject_ref']['type'] == relation['object_ref']['type'] == 'Criterion'
 
 
 async def test_native_checkpoint_patches_bad_json_without_executing_or_repairing_it(ws, monkeypatch):
-    cs, _, _, _, _ = seed(ws)
+    cs, requirement = native_seed(ws)
     before = len(cs.list_objects())
     malformed = AIMessage(content='', invalid_tool_calls=[{
         'id': 'invalid-original', 'name': 'commit_objects',
@@ -76,7 +95,8 @@ async def test_native_checkpoint_patches_bad_json_without_executing_or_repairing
     with monkeypatch.context() as patch:
         patch.setattr(InvalidToolFeedback, 'aafter_model', historical_end)
         stopped = await deep_runtime.run_report(ws, first)
-    assert stopped['status'] == 'needs_attention'
+    assert stopped['status'] == 'completed'  # Native turn ended; no review acceptance.
+    assert not cs.list_objects('ReviewRecord')
     assert len(cs.list_objects()) == before
 
     def corrected(messages):
@@ -89,7 +109,7 @@ async def test_native_checkpoint_patches_bad_json_without_executing_or_repairing
         diagnostic = json.loads(errors[0].content)
         assert diagnostic['execution_state'] == 'not_executed'
         assert diagnostic['parser_diagnostic']['character_offset'] == 33
-        return invoke('commit_objects', operation_id='corrected-new-call', objects=[node('fresh')])
+        return invoke('commit_objects', operation_id='corrected-new-call', objects=[decision_object('fresh', requirement)])
 
     resumed = Driver(coordinator=[None, corrected, AIMessage(content='Saved after observed format feedback.')])
     result = await deep_runtime.run_report(ws, resumed)
@@ -119,7 +139,7 @@ def test_diagnostics_only_enrich_native_invalid_call_feedback():
 
 
 async def test_invalid_call_returns_feedback_in_same_run_and_model_chooses_correction(ws):
-    cs, _, _, _, _ = seed(ws)
+    cs, requirement = native_seed(ws)
     before = len(cs.list_objects())
     invalid = AIMessage(content='', invalid_tool_calls=[{
         'id': 'bad-json', 'name': 'commit_objects', 'args': '{"objects":[}', 'error': 'parse error'}])
@@ -127,7 +147,7 @@ async def test_invalid_call_returns_feedback_in_same_run_and_model_chooses_corre
         feedback = next(m for m in messages if isinstance(m, ToolMessage) and m.tool_call_id == 'bad-json')
         assert feedback.status == 'error'
         assert json.loads(feedback.content)['execution_state'] == 'not_executed'
-        return invoke('commit_objects', operation_id='chosen-correction', objects=[node('fixed')])
+        return invoke('commit_objects', operation_id='chosen-correction', objects=[decision_object('fixed', requirement)])
     driver = Driver(coordinator=[invalid, choose, AIMessage(content='Saved.')])
     result = await deep_runtime.run_report(ws, driver)
     assert result['last_error'] is None, result
@@ -136,10 +156,10 @@ async def test_invalid_call_returns_feedback_in_same_run_and_model_chooses_corre
 
 
 async def test_valid_sibling_executes_once_and_agent_may_decline_invalid_action(ws):
-    cs, _, _, _, _ = seed(ws)
+    cs, requirement = native_seed(ws)
     before = len(cs.list_objects())
     mixed = AIMessage(content='',
-        tool_calls=[call('commit_objects', {'operation_id': 'valid-sibling', 'objects': [node('valid')]}, 'valid-call')],
+        tool_calls=[call('commit_objects', {'operation_id': 'valid-sibling', 'objects': [decision_object('valid', requirement)]}, 'valid-call')],
         invalid_tool_calls=[{'id': 'invalid-sibling', 'name': 'commit_objects', 'args': '{', 'error': 'parse error'}])
     def decline(messages):
         outcomes = {m.tool_call_id: m for m in messages if isinstance(m, ToolMessage)}
@@ -149,7 +169,8 @@ async def test_valid_sibling_executes_once_and_agent_may_decline_invalid_action(
     driver = Driver(coordinator=[mixed, decline])
     result = await deep_runtime.run_report(ws, driver)
     assert result['last_error'] is None, result
-    assert result['status'] == 'needs_attention'
+    assert result['status'] == 'completed'  # Declining a tool call may end the turn.
+    assert not cs.list_objects('ReviewRecord')
     assert len(driver.calls) == 2
     assert len(cs.list_objects()) == before + 1
 

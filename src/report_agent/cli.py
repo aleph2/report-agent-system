@@ -14,19 +14,39 @@ def main():
                                             "report-run", "report-status", "serve", "export", "import", "content-delivery"])
     parser.add_argument("--project", required=True, type=Path, help="Isolated writable project directory")
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--report-category", help="Host-declared report category; no title inference")
+    parser.add_argument("--report-id", help="Stable host-declared report identity")
+    parser.add_argument("--instruction-pack", type=Path, help="Host-managed confirmed instruction pack")
     parser.add_argument("--feedback")
     parser.add_argument("--port", type=int, default=18140)
     parser.add_argument("--draft-id")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--file", type=Path)
     parser.add_argument("--replaces-id", default="")
+    parser.add_argument("--decision-only", action="store_true", help="Isolated report-run: stop before substantive model-tool dispatch")
+    parser.add_argument("--execution-record", action="store_true", help="export: include diagnostic execution appendices")
     args = parser.parse_args()
     store = Store(args.project)
     if args.command == "init":
         if not args.manifest:
             parser.error("init requires --manifest")
         with store.run_lock():
-            store.initialize(json.loads(args.manifest.read_text(encoding="utf-8")))
+            manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+            if args.report_category:
+                manifest['report_category'] = args.report_category
+            if args.report_id:
+                manifest['report_id'] = args.report_id
+            if args.instruction_pack:
+                manifest['operator_instruction_pack'] = str(args.instruction_pack.resolve())
+            if manifest.get('report_category') or manifest.get('operator_instruction_pack'):
+                manifest.setdefault('context_policy', 'stateful-tools-v1')
+            manifest.setdefault("content_contract", "hierarchical-review-v1")
+            manifest.setdefault("review_entrypoint", "delegated-reviewer-v1")
+            manifest.setdefault("review_execution_mode", "bounded-tool-v1")
+            if manifest['content_contract']=='hierarchical-review-v1':
+                manifest.setdefault('context_policy','stateful-tools-v1')
+                manifest.setdefault('decision_data_policy','reference-data-v1')
+            store.initialize(manifest)
             Workspace(store).initialize()
         result = store.status()
     elif args.command == "import":
@@ -45,7 +65,7 @@ def main():
         return 0
     elif args.command == "report-run":
         from .deep_runtime import run_report
-        result = asyncio.run(run_report(Workspace(store)))
+        result = asyncio.run(run_report(Workspace(store), decision_only=args.decision_only))
     elif args.command == "report-status":
         from .knowledge_state import project_state
         result = project_state(Workspace(store))
@@ -69,14 +89,13 @@ def main():
         from .exporting import export_docx
         if not args.draft_id:
             parser.error("export requires --draft-id")
-        data = export_docx(Workspace(store), args.draft_id)
+        data = export_docx(Workspace(store), args.draft_id, include_execution_record=args.execution_record)
         output = args.output or (store.root / "exports" / (args.draft_id + ".docx"))
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(data)
         result = {"path": str(output.resolve()), "draft_id": args.draft_id}
     elif args.command == "run":
-        from .runtime import run_task  # Historical prototype command, not the report runtime.
-        result = asyncio.run(run_task(store))
+        parser.error("Historical prototype execution is inactive; initialize a fresh native project and use report-run. Saved history remains readable.")
     elif args.command == "events":
         result = store.events()
     elif args.command == "feedback":
@@ -88,6 +107,10 @@ def main():
         result = store.status()
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.command == "report-run":
+        if args.decision_only and store.get("decision_observation"):
+            return 0
+        if result.get("execution_status") is not None and store.manifest.get("review_entrypoint") != "native-rubric-v1":
+            return 0 if result["execution_status"] == "completed" and not result.get("last_error") else 2
         return 0 if result["status"] == "reviewed_draft" and not result.get("last_error") else 2
     if args.command == "run":
         if result["status"] in {"failed", "interrupted"}:

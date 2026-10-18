@@ -19,8 +19,10 @@ def _asset(store, name, data):
     root = store.root / "content-assets"
     root.mkdir(exist_ok=True)
     path = root / name
-    if path.exists() and path.read_bytes() != data:
-        raise ActionRejected("ASSET_IDENTITY_CONFLICT")
+    if path.exists():
+        if path.read_bytes() != data:
+            raise ActionRejected("ASSET_IDENTITY_CONFLICT")
+        return path.relative_to(store.root).as_posix()
     path.write_bytes(data)
     return path.relative_to(store.root).as_posix()
 
@@ -35,13 +37,31 @@ def _bytes(store, asset, expected):
     return data
 
 
-def export_snapshot(contents, actor, operation_id, snapshot_ref):
+def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None):
     def execute(db):
-        if actor.role not in {"coordinator", "writer"}:
+        if actor.role not in {"coordinator", "writer", "layout"}:
             raise ActionForbidden("FORBIDDEN: export producer")
         snapshot = contents._read(db, snapshot_ref)
-        if snapshot_ref["type"] != "DocumentSnapshot" or snapshot["owner_id"] != actor.id:
+        delegated = False
+        if actor.role == "layout":
+            task = contents._read(db, {"type": "DelegatedTask", "id": actor.task_id, "version": 1})
+            delegated = (actor.id == "content:layout:" + actor.task_id and
+                task["payload"].get("role") == "layout" and
+                task["payload"].get("layout_snapshot_ref") == snapshot_ref)
+        if snapshot_ref["type"] != "DocumentSnapshot" or not (delegated or
+                actor.role != "layout" and snapshot["owner_id"] == actor.id):
             raise ActionForbidden("FORBIDDEN: snapshot owner")
+        if layout is not None and layout_from_export_ref is not None:
+            raise ActionRejected("LAYOUT_AND_SOURCE_MUTUALLY_EXCLUSIVE")
+        selected_layout = layout
+        if layout_from_export_ref is not None:
+            source = contents._read(db, layout_from_export_ref)
+            if (layout_from_export_ref['type'] != 'ExportArtifact' or
+                    not source['payload'].get('file_ref', '').endswith('.docx')):
+                raise ActionRejected('LAYOUT_SOURCE_REQUIRES_WORD_EXPORT')
+            selected_layout = source['payload'].get('export_config', {}).get('layout')
+            if not isinstance(selected_layout, dict):
+                raise ActionRejected('LAYOUT_SOURCE_CONFIG_MISSING')
         records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot["payload"]["refs"]}
         edges = {}
         for record in records.values():
@@ -49,6 +69,53 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref):
             if record["ref"]["type"] == "Relation" and p["predicate"] == "contains":
                 edges.setdefault(Ref.model_validate(p["subject_ref"]).key(), []).append((p["position"], p["object_ref"]))
         doc, mappings = Document(), []
+        end_notes, qualifier_mappings = [], []
+        from . import content_layout as presentation
+        options = presentation.LayoutOptions.model_validate(selected_layout or {})
+        rendered_keys = set()
+        def collect_body(ref):
+            key = Ref.model_validate(ref).key()
+            if key in rendered_keys:
+                return
+            rendered_keys.add(key)
+            for _, child in edges.get(key, []):
+                collect_body(child)
+        collect_body(snapshot['payload']['root_ref'])
+        node_options = presentation.validate_layout(options, records, rendered_keys)
+        if options.cover_vertical_alignment and records[Ref.model_validate(snapshot['payload']['root_ref']).key()]['payload']['kind'] != 'report':
+            raise ActionRejected('COVER_ALIGNMENT_REQUIRES_REPORT_ROOT')
+        if options.refresh_toc and records[Ref.model_validate(snapshot['payload']['root_ref']).key()]['payload']['kind'] != 'report':
+            raise ActionRejected('DIRECTORY_REFRESH_REQUIRES_REPORT_ROOT')
+        from .layout_revision import check as check_layout_revision
+        export_config = {"exporter_digest": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                         "layout_engine_digest": hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
+                         "layout": options.model_dump()}
+        if layout_from_export_ref is not None:
+            export_config['layout_source'] = {'export_ref': layout_from_export_ref,
+                                              'layout_digest': digest(options.model_dump())}
+        layout_revision = check_layout_revision(db, export_config)
+        presentation.setup(doc, options)
+        toc_headings = []
+        def headings(ref, depth):
+            key = Ref.model_validate(ref).key()
+            node = records[key]["payload"]
+            style = node_options.get(key)
+            level = (style.heading_level if style and style.heading_level else depth if node['kind'] == 'chapter' else None)
+            first = node['body'].get('text', '').split('\n', 1)[0]
+            first_control = next((p for p in style.paragraphs if p.text == first), None) if style else None
+            if first_control and first_control.heading_level:
+                level = first_control.heading_level
+            if level and level <= options.toc_depth:
+                toc_headings.append((node['body']['text'].split('\n', 1)[0], level))
+            if style:
+                for line in node['body'].get('text', '').split('\n'):
+                    for paragraph in style.paragraphs:
+                        if paragraph.text == line and paragraph.heading_level and paragraph.heading_level <= options.toc_depth:
+                            if not (level and line == node['body']['text'].split('\n', 1)[0]):
+                                toc_headings.append((line, paragraph.heading_level))
+            for _, child in sorted(edges.get(key, []), key=lambda p: p[0]):
+                headings(child, depth+1)
+        headings(snapshot['payload']['root_ref'], 0)
         from .exporting import _source_images
         from types import SimpleNamespace
         adopted_sources = {r["payload"]["source_id"] for r in records.values() if r["ref"]["type"] == "SourceArtifact"}
@@ -82,35 +149,107 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref):
         def emit(ref, depth):
             node = records[Ref.model_validate(ref).key()]["payload"]
             body, kind = node["body"], node["kind"]
+            style = node_options.get(Ref.model_validate(ref).key())
+            def format_embedded_table(table):
+                presentation.format_table(table, options, style, embedded=True)
+            controls = style.paragraphs if style else []
+            if style and style.landscape:
+                presentation.section(doc, options, True)
+            elif style and style.page_break_before:
+                doc.add_page_break()
             start = len(list(doc.element.body)) - 1
             if kind == "table":
+                title = presentation.caption(node)
+                if title:
+                    p = doc.add_paragraph(title, "Caption")
+                    p.paragraph_format.keep_with_next = True
                 table = doc.add_table(rows=1, cols=len(body["columns"]), style="Table Grid")
                 for cell, value in zip(table.rows[0].cells, body["columns"]):
                     cell.text = str(value)
                 for values in body["rows"]:
                     for cell, value in zip(table.add_row().cells, values):
                         cell.text = str(value)
+                presentation.format_table(table, options, style)
             elif kind == "figure":
                 from .document_tools import vision_source_image
                 png, _ = vision_source_image(source_workspace, body["source_id"], body.get("page", 1), None)
                 used_images.add(body["source_id"])
-                from docx.shared import Inches
-                doc.add_picture(BytesIO(png), width=Inches(6))
-                doc.add_paragraph(body["caption"])
+                from docx.shared import Mm
+                available = presentation.available_width(options, bool(style and style.landscape))
+                doc.add_picture(BytesIO(png), width=Mm(min(style.figure_width_mm if style and style.figure_width_mm else available, available)))
+                doc.add_paragraph(body["caption"], "Caption")
             elif kind in {"report", "chapter"}:
-                doc.add_heading(body["text"], 0 if kind == "report" else min(depth, 9))
+                first, _, rest = body["text"].partition("\n")
+                first_control = next((p for p in controls if p.text == first), None)
+                if kind == "report" and not first_control and len(first) > 100 and "。" in first:
+                    title, separator, continuation = first.partition("。")
+                    first, rest = title + separator, continuation + ("\n" + rest if rest else "")
+                level = 0 if kind == 'report' else style.heading_level if style and style.heading_level else min(depth, 9)
+                p = doc.add_heading(first, first_control.heading_level if first_control and first_control.heading_level else level)
+                if first_control:
+                    presentation.apply_paragraph(p, first_control)
+                if rest.strip():
+                    from .exporting import _add_markdown
+                    presentation.emit_text(doc, rest, image_renderer, controls, table_formatter=format_embedded_table)
             else:
                 # Preserve full actual text and its explicit qualifiers; no model summarization.
                 from .exporting import _add_markdown
-                _add_markdown(doc, body["text"], image_renderer)
-            if node["qualifiers"]:
-                doc.add_paragraph("；".join(f"{key}：{value}" for key, value in node["qualifiers"].items()))
+                if style and style.heading_level and not any(p.text == body['text'].split('\n', 1)[0] for p in controls):
+                    first, _, rest = body["text"].partition("\n")
+                    doc.add_heading(first, style.heading_level)
+                    if rest.strip():
+                        presentation.emit_text(doc, rest, image_renderer, controls, table_formatter=format_embedded_table)
+                else:
+                    presentation.emit_text(doc, body["text"], image_renderer, controls, table_formatter=format_embedded_table)
+            visible = {k: v for k, v in node["qualifiers"].items() if k not in presentation.STRUCTURAL}
+            if visible:
+                text = "；".join(f"{'来源说明' if key == 'source_note' else key}：{value}" for key, value in visible.items())
+                if style and style.qualifier_placement == 'end_notes':
+                    number = len(end_notes) + 1
+                    end_notes.append((number, ref, visible, text, style.qualifier_font_size))
+                    text = f"〔说明 {number}〕"
+                p = doc.add_paragraph(text)
+                from docx.shared import Pt
+                for run in p.runs:
+                    run.font.size = Pt(style.qualifier_font_size if style else 10)
+            if kind == 'report' and depth == 0 and options.cover_vertical_alignment:
+                presentation.wrap_cover(doc, start, options)
+            stop = len(list(doc.element.body)) - 1
+            presentation.mark_blocks(doc, start, stop, len(mappings))
             mappings.append({"node_ref": ref, "block_start": start,
-                "block_stop": len(list(doc.element.body)) - 1, "content_digest": digest(body),
+                "block_stop": stop, "layout_anchor": len(mappings), "content_digest": digest(body),
                 "qualifiers": node["qualifiers"]})
+            if style and style.landscape:
+                presentation.section(doc, options, False)
+            cover_section = kind == 'report' and depth == 0 and options.cover_vertical_alignment is not None
+            cover_break = cover_section and (options.toc or edges.get(Ref.model_validate(ref).key()) or end_notes)
+            if cover_break:
+                presentation.section(doc, options, False)
+                from docx.shared import Pt
+                separator = doc.paragraphs[-1].paragraph_format
+                separator.line_spacing = Pt(1)
+                separator.space_before = separator.space_after = Pt(0)
+                separator.keep_with_next = separator.page_break_before = False
+            if kind == "report" and depth == 0 and options.toc:
+                presentation.add_toc(doc, toc_headings, options.toc_depth, start_new_page=not cover_break, options=options)
             for _, child in sorted(edges.get(Ref.model_validate(ref).key(), []), key=lambda p: p[0]):
                 emit(child, depth + 1)
         emit(snapshot["payload"]["root_ref"], 0)
+        if end_notes:
+            notes_heading = doc.add_paragraph('说明', 'Title')
+            notes_heading.paragraph_format.keep_with_next = True
+            from docx.shared import Pt
+            for number, ref, visible, text, size in end_notes:
+                start = len(list(doc.element.body)) - 1
+                p = doc.add_paragraph(f'〔说明 {number}〕{text}')
+                for run in p.runs:
+                    run.font.size = Pt(size)
+                stop = len(list(doc.element.body)) - 1
+                anchor = len(mappings) + len(qualifier_mappings)
+                presentation.mark_blocks(doc, start, stop, anchor)
+                qualifier_mappings.append({'node_ref': ref, 'block_start': start,
+                    'block_stop': stop, 'layout_anchor': anchor,
+                    'note_number': number, 'qualifiers': visible, 'qualifier_digest': digest(visible)})
         if not used_images <= adopted_sources:
             raise ActionRejected("IMAGE_SOURCE_OUTSIDE_SNAPSHOT")
         anchors = {Ref.model_validate(m["node_ref"]).key(): m for m in mappings}
@@ -125,16 +264,34 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref):
         buffer = BytesIO()
         doc.save(buffer)
         data = buffer.getvalue()
+        finalization = None
+        if options.refresh_toc:
+            if not options.toc:
+                raise ActionRejected('TOC_REFRESH_REQUIRES_TOC')
+            from .layout_capabilities import refresh_directory
+            data, finalization = refresh_directory(contents.store, data)
+            presentation.remap_blocks(Document(BytesIO(data)), mappings)
+            presentation.remap_blocks(Document(BytesIO(data)), qualifier_mappings)
         checksum = hashlib.sha256(data).hexdigest()
         asset = _asset(contents.store, checksum + ".docx", data)
         export_ref = contents._insert(db, actor, "ExportArtifact", {"snapshot_ref": snapshot_ref,
-            "file_ref": asset, "file_digest": checksum, "template_ref": "snapshot-basic-v1",
-            "export_config": {"exporter_digest": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}})
+            "file_ref": asset, "file_digest": checksum, "template_ref": "snapshot-layout-v7",
+            "export_config": {**export_config, "layout_revision": layout_revision,
+                              "finalization": finalization}})
         mapping_ref = contents._insert(db, actor, "MappingArtifact", {"snapshot_ref": snapshot_ref,
             "export_ref": export_ref, "anchor_records": mappings, "unrendered_dependency_nodes": unrendered,
+            "qualifier_anchor_records": qualifier_mappings,
             "limitation": "OOXML block indices bind only this export; page coordinates require a render."})
-        return {"export_ref": export_ref, "mapping_ref": mapping_ref, "file_ref": asset, "file_digest": checksum}
-    return contents.operation(actor, operation_id, {"export": snapshot_ref}, execute)
+        result = {"export_ref": export_ref, "mapping_ref": mapping_ref, "file_ref": asset, "file_digest": checksum}
+        if layout_from_export_ref is not None:
+            result['layout_source'] = export_config['layout_source']
+        return result
+    request = {"export": snapshot_ref}
+    if layout is not None:
+        request["layout"] = layout
+    if layout_from_export_ref is not None:
+        request['layout_from_export_ref'] = layout_from_export_ref
+    return contents.operation(actor, operation_id, request, execute)
 
 
 def read_export(contents, actor, export_ref):
@@ -142,88 +299,130 @@ def read_export(contents, actor, export_ref):
     if export_ref["type"] != "ExportArtifact":
         raise ActionRejected("EXPORT_REQUIRED")
     data = _bytes(contents.store, record["payload"]["file_ref"], record["payload"]["file_digest"])
-    from .report_preview import _structure
-    structure, text = _structure(data)
+    if record['payload']['file_ref'].endswith('.xlsx'):
+        from .content_workbook import read_workbook
+        result = read_workbook(data)
+        structure, text = result['structure'], result['text']
+    else:
+        from .report_preview import _structure
+        structure, text = _structure(data)
     return contents.observe(actor, {"export_ref": export_ref, "file_digest": record["payload"]["file_digest"],
         "structure": structure, "text": text, "limitation": "Actual OOXML content; not visual observation."})
 
 
 def render_export(contents, actor, operation_id, export_ref):
-    def execute(db):
+    def prepare(db):
         export = contents._read(db, export_ref)
         if export_ref["type"] != "ExportArtifact":
             raise ActionRejected("EXPORT_REQUIRED")
+        suffix = Path(export['payload']['file_ref']).suffix
+        if suffix not in {'.docx', '.xlsx'}:
+            raise ActionRejected('RENDER_FORMAT_UNSUPPORTED')
+        return export
+
+    def execute(export):
         data = _bytes(contents.store, export["payload"]["file_ref"], export["payload"]["file_digest"])
-        executable = shutil.which("libreoffice") or shutil.which("soffice")
-        if not executable:
-            candidate = Path("C:/Program Files/LibreOffice/program/soffice.com")
-            executable = str(candidate) if candidate.exists() else None
-        windows_bridge = False
-        if not executable:
-            candidate = Path("/mnt/c/Program Files/LibreOffice/program/soffice.com")
-            if candidate.exists() and shutil.which("wslpath"):
-                executable, windows_bridge = str(candidate), True
-        if not executable:
+        suffix = Path(export['payload']['file_ref']).suffix
+        from .office_render import convert_pdf
+        pdf, version = convert_pdf(contents.store, data, suffix)
+        if pdf is None:
             return {"execution_state": "blocked", "verdict": None, "code": "RENDER_UNAVAILABLE",
-                    "export_ref": export_ref, "coverage": {"checked": [], "blocked": ["all rendered pages"]}}
+                    "export_ref": export_ref, "diagnostic": version}
         import pypdfium2 as pdfium
-        with tempfile.TemporaryDirectory(prefix="report-render-", dir=contents.store.root if windows_bridge else None) as tmp:
-            folder = Path(tmp)
-            (folder / "input.docx").write_bytes(data)
-            version = {"executable": Path(executable).name, "binary_digest": hashlib.sha256(Path(executable).read_bytes()).hexdigest()}
-            def external_path(path):
-                return subprocess.run(["wslpath", "-w", str(path)], capture_output=True, text=True, check=True).stdout.strip() if windows_bridge else str(path)
-            if windows_bridge:
-                from urllib.parse import quote
-                profile = "file:///" + quote(external_path(folder / "profile").replace("\\", "/"), safe=":/")
-            else:
-                profile = (folder / "profile").as_uri()
-            command = [executable, "-env:UserInstallation=" + profile,
-                       "--headless", "--convert-to", "pdf", "--outdir", external_path(folder), external_path(folder / "input.docx")]
-            try:
-                subprocess.run(command, capture_output=True, check=True, timeout=120,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                pdf = (folder / "input.pdf").read_bytes()
-            except (subprocess.SubprocessError, OSError):
-                return {"execution_state": "blocked", "verdict": None, "code": "RENDER_UNAVAILABLE", "export_ref": export_ref}
-            pages = []
-            with pdfium.PdfDocument(pdf) as document:
-                for index in range(len(document)):
-                    page = document[index]
-                    bitmap = page.render(scale=1.5)
-                    output = BytesIO()
-                    bitmap.to_pil().save(output, format="PNG")
-                    png = output.getvalue()
-                    sha = hashlib.sha256(png).hexdigest()
-                    pages.append({"page": index + 1, "asset_ref": _asset(contents.store, sha + ".png", png), "sha256": sha})
-                    bitmap.close()
-                    page.close()
+        pages = []
+        with pdfium.PdfDocument(pdf) as document:
+            for index in range(len(document)):
+                page = document[index]
+                bitmap = page.render(scale=1.5)
+                output = BytesIO()
+                bitmap.to_pil().save(output, format="PNG")
+                png = output.getvalue()
+                sha = hashlib.sha256(png).hexdigest()
+                pages.append({"page": index + 1, "asset_ref": _asset(contents.store, sha + ".png", png), "sha256": sha})
+                bitmap.close()
+                page.close()
         pdf_sha = hashlib.sha256(pdf).hexdigest()
         payload = {"snapshot_ref": export["payload"]["snapshot_ref"], "export_ref": export_ref,
             "export_digest": export["payload"]["file_digest"], "renderer_identity": version,
             "config": {"scale": 1.5}, "pdf_ref": _asset(contents.store, pdf_sha + ".pdf", pdf),
             "pdf_digest": pdf_sha, "page_assets": pages}
-        ref = contents._insert(db, actor, "RenderArtifact", payload)
-        return {"render_ref": ref, "pages": pages, "execution_state": "completed", "verdict": None}
-    return contents.operation(actor, operation_id, {"render": export_ref}, execute)
+        return payload
+
+    def finalize(db, export, computed):
+        if contents._read(db, export_ref) != export:
+            raise ActionRejected('RENDER_EXPORT_CHANGED')
+        _bytes(contents.store, export['payload']['file_ref'], export['payload']['file_digest'])
+        if computed.get('execution_state') == 'blocked':
+            return computed
+        ref = contents._insert(db, actor, "RenderArtifact", computed)
+        return {"render_ref": ref, "pages": computed['page_assets'], "execution_state": "completed", "verdict": None}
+
+    return contents.detached_operation(actor, operation_id, {"render": export_ref}, prepare, execute, finalize)
 
 
-async def inspect_render(contents, actor, render_ref, page, question, client=None):
+async def inspect_render(contents, actor, render_ref, page, question, client=None, *,
+                         reference_source_id="", reference_page=1, crop=None):
     record = contents.read(render_ref)
     if render_ref["type"] != "RenderArtifact" or not question.strip():
         raise ActionRejected("RENDER_AND_QUESTION_REQUIRED")
     pages = record["payload"]["page_assets"]
     if not 1 <= page <= len(pages):
         raise ActionRejected("PAGE_OUT_OF_RANGE")
+    export = contents.read(record["payload"]["export_ref"])["payload"]
+    if not export["file_ref"].endswith('.docx'):
+        raise ActionRejected("WORD_VISUAL_INSPECTION_REQUIRED_NO_EXCEL_LAYOUT")
     asset = pages[page - 1]
     png = _bytes(contents.store, asset["asset_ref"], asset["sha256"])
+    provenance = {"source_id": render_ref["id"], "render_ref": render_ref,
+        "export_ref": record["payload"]["export_ref"], "page": page,
+        "coverage": "full_page_image" if crop is None else "region_only", "crop": crop}
+    if crop is not None or reference_source_id:
+        import math
+        from PIL import Image, ImageDraw
+        if crop is not None and (not isinstance(crop, list) or len(crop) != 4
+                or any(isinstance(n, bool) or not isinstance(n, (int, float)) or not math.isfinite(n) for n in crop)
+                or not (0 <= crop[0] < crop[2] <= 1 and 0 <= crop[1] < crop[3] <= 1)):
+            raise ActionRejected("RENDER_IMAGE_INVALID_CROP")
+        with Image.open(BytesIO(png)) as original:
+            image = original.convert('RGB')
+        try:
+            if crop is not None:
+                bounds = (math.floor(crop[0]*image.width), math.floor(crop[1]*image.height),
+                          math.ceil(crop[2]*image.width), math.ceil(crop[3]*image.height))
+                region = image.crop(bounds);image.close();image=region
+                provenance['crop_pixels'] = bounds
+            if reference_source_id:
+                from types import SimpleNamespace
+                from .document_tools import vision_source_image
+                reference_png, reference = vision_source_image(SimpleNamespace(store=contents.store),
+                    reference_source_id, reference_page, crop)
+                with Image.open(BytesIO(reference_png)) as raw:
+                    left = raw.convert('RGB')
+                try:
+                    # Keep the existing page rendition resolutions; no synthesis,
+                    # OCR or automatic semantic page selection is introduced.
+                    canvas = Image.new('RGB', (left.width+image.width+24,max(left.height,image.height)+28),'white')
+                    try:
+                        canvas.paste(left,(0,28));canvas.paste(image,(left.width+24,28))
+                        labels = ImageDraw.Draw(canvas)
+                        labels.text((4,4),f'CUSTOMER reference physical page {reference_page}',fill='black')
+                        labels.text((left.width+28,4),f'GENERATED Word physical page {page}',fill='black')
+                        output=BytesIO();canvas.save(output,format='PNG');png=output.getvalue()
+                    finally:canvas.close()
+                finally:left.close()
+                provenance['presentation_reference']=reference
+                question='Compare the labeled CUSTOMER reference (left) and GENERATED Word (right) only within the supplied page/region. '+question
+            else:
+                output=BytesIO();image.save(output,format='PNG');png=output.getvalue()
+            if crop is not None:
+                question='This is a partial region, not a full-page inspection. '+question
+        finally:image.close()
     from .deep_models import configured_vision_client
     from .vision import _observe
     owns = client is None
     client = client or configured_vision_client()
     try:
-        result = await _observe(contents.store, png, {"source_id": render_ref["id"],
-            "render_ref": render_ref, "export_ref": record["payload"]["export_ref"], "page": page}, question, client)
+        result = await _observe(contents.store, png, provenance, question, client, actor)
         return contents.observe(actor, result)
     finally:
         if owns:

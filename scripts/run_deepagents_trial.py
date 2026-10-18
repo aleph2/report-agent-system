@@ -28,10 +28,24 @@ def load_service_environment(container):
 
 
 async def main(args):
+    if args.inspect:
+        from report_agent.native_trace import inspect_checkpoint
+        print(json.dumps(inspect_checkpoint(args.project), ensure_ascii=False, indent=2))
+        return
+    store = Store(args.project)
+    if args.manifest:
+        with store.run_lock():
+            manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+            manifest.setdefault("content_contract", "hierarchical-review-v1")
+            manifest.setdefault("review_entrypoint", "delegated-reviewer-v1")
+            manifest.setdefault("review_execution_mode", "bounded-tool-v1")
+            store.initialize(manifest)
+            Workspace(store).initialize()
+    from report_agent.deep_runtime import require_native_runtime
+    require_native_runtime(Workspace(store))
     load_service_environment(args.credential_container)
     if getattr(args, "grader_model", None):
         os.environ["REPORT_GRADER_MODEL"] = args.grader_model
-    store = Store(args.project)
     if getattr(args, "review_input_mode", None):
         from report_agent.review_context import configure_context_experiment
         selected = {"input_mode": args.review_input_mode,
@@ -43,29 +57,15 @@ async def main(args):
         if getattr(args, "claim_evidence_contract", False):
             selected["claim_evidence_contract"] = True
         configure_context_experiment(store, selected)
-    if args.manifest:
-        with store.run_lock():
-            store.initialize(json.loads(args.manifest.read_text(encoding="utf-8")))
-            Workspace(store).initialize()
     store.manifest
-    if args.inspect:
-        async with project_agent(Workspace(store)) as agent:
-            state = await agent.aget_state({"configurable": {"thread_id": "report"}}, subgraphs=True)
-            def snapshot(value):
-                return {"next": value.next, "interrupts": len(value.interrupts),
-                        "checkpoint_id": value.config.get("configurable", {}).get("checkpoint_id"),
-                        "messages": len(value.values.get("messages", [])),
-                        "tasks": [{"name": t.name, "has_error": bool(t.error),
-                                   "child": snapshot(t.state) if hasattr(t.state, "values") else None}
-                                  for t in value.tasks]}
-            print(json.dumps(snapshot(state), ensure_ascii=False, indent=2))
-        return
     if store.get("task006_call_intent") and not args.resume:
         raise RuntimeError("ALREADY_ATTEMPTED_INSPECT_CHECKPOINT_AND_RECEIPTS")
-    authorization = args.authorization_note or (
-        "Task017: user authorized one isolated native review continuation with autonomous revision"
-        if store.get("review_import017") else "user approved unlimited project GLM5.3 calls")
+    # An invocation and a historical import marker do not establish a new or
+    # unlimited user approval. Record the supplied provenance without inventing it.
+    authorization = (args.authorization_note or "").strip() or None
     store.set("task006_call_intent", {"authorization": authorization,
+                                     "authorization_origin": "operator_note" if authorization else "not_supplied",
+                                     "invocation_scope": {"project": str(store.root), "resume": args.resume},
                                      "model": os.environ["REPORT_MODEL"],
                                      "grader_model": os.environ.get("REPORT_GRADER_MODEL", os.environ["REPORT_MODEL"]),
                                      "resume": args.resume})

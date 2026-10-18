@@ -626,4 +626,5 @@ class Workspace:
                 "sources": self.store.source_catalog(), "impact": impact,
                 "source_changes": self.store.get("source_changes", []),
                 "result_impact_assessments": self.store.get("result_impact_assessments", {}),
-                "issues": self.store.get("report_issues", []), "delivery": delivery}
+                "issues": self.store.get("report_issues", []), "delivery": delivery,
+                "feedback": self.store.get("feedback", [])}

@@ -373,7 +373,7 @@ async def test_grader_corrects_invalid_result_page_in_same_native_invocation(ws)
     assert len(ws.results()) == len(events(ws, "result_committed")) == 1
     reads = [e for e in events(ws, "deep_tool_start")
              if e["role"] == "rubric_grader" and e["tool"] == "read_result"]
-    assert [e["arguments"]["characters"] for e in reads] == [16001, 16000]
+    assert [e["arguments"]["characters"] for e in reads] == [16001, 16000], events(ws, "deep_tool_start")
     rejected = [e for e in events(ws, "deep_tool_rejected") if e["role"] == "rubric_grader"]
     assert len(rejected) == 1
     assert rejected[0]["tool_call_id"] == "invalid-read"

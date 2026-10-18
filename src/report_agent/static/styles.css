@@ -107,3 +107,12 @@ input[type="file"]::file-selector-button { font: inherit; min-height: 30px; marg
 #interrupt-panel li + li { margin-top: 8px; }
 #interrupt-panel a { color: #70500b; text-underline-offset: 3px; }
 #runtime { overflow-wrap: anywhere; }
+#learning-panel pre { max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+#learning-panel select { width: 100%; }
+#learning-experiences article { border-top: 1px solid #dce3df; padding: 16px 0; }
+#learning-experiences label { display: block; margin-bottom: 10px; }
+#learning-experiences input { display: block; width: 100%; margin-top: 6px; }
+#learning-notice { margin: 12px 0; color: #285f45; }
+#learning-evidence-list { max-height: 240px; overflow: auto; }
+#learning-evidence-list > div { padding: 8px 0; border-bottom: 1px solid #e5eae7; }
+#learning-evidence-list input { width: auto; margin-right: 8px; }

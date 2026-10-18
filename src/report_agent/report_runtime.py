@@ -7,13 +7,6 @@ from contextlib import aclosing
 from functools import wraps
 from uuid import uuid4
 
-from google.adk.agents import LlmAgent
-from google.adk.agents.run_config import RunConfig
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
-
-from .models import TextAnalysis, configured_model
 from .catalog import Catalog
 from .errors import ActionRejected, ActionForbidden
 from .store import digest
@@ -74,6 +67,7 @@ def feedback_tool(tool):
 
 
 async def drive_agent(workspace, model, tools, instruction, state, name):
+    raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: archived ADK loop; use native independent text tools")
     sessions = InMemorySessionService()
     session = await sessions.create_session(app_name="report_trunk", user_id="local", session_id=str(uuid4()))
     runner = Runner(app_name="report_trunk", session_service=sessions,
@@ -108,6 +102,7 @@ async def drive_agent(workspace, model, tools, instruction, state, name):
 
 
 def worker_tools(workspace: Workspace, task_id: str, text_model):
+    raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: archived ADK worker tools")
     task = workspace.task(task_id)
     actor = task["owner"]  # Server assignment, never a model-provided tool argument.
 
@@ -223,6 +218,7 @@ def error_data(exc):
 
 
 async def execute_task(workspace: Workspace, task_id, model_factory):
+    raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: archived ADK task execution")
     """Run one granted task under the outer project lock; no hidden downstream chain."""
     task = workspace.task(task_id)
     if task["status"] == "completed":
@@ -298,6 +294,7 @@ def coordinator_tools(workspace, model_factory):
 
 
 async def run_report(workspace: Workspace, model_factory=None, *, timeout_seconds=1800):
+    raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: archived ADK report loop; saved data remains readable")
     with workspace.store.run_lock():
         workspace.initialize()
         if workspace.status()["status"] == "reviewed_draft":
