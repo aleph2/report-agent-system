@@ -1,0 +1,43 @@
+{
+  "as_of_date": "2026-10-17",
+  "kind": "documentation_static_verification",
+  "application_tests_run": false,
+  "report_model_calls": 0,
+  "project_prompt_count": 18,
+  "framework_text_count": 9,
+  "assembly_excerpts": 7,
+  "tool_declarations_including_historical": 70,
+  "missing_local_links": [],
+  "changed_prompt_files": [],
+  "final_independent_draft_review": "requested; no final response received at verification time",
+  "files": {
+    "agent-prompts.html": {
+      "bytes": 157413,
+      "sha256": "71db83f33c78306c9a0c6703b955987279836f11ce133e0015042caeb2816363"
+    },
+    "agent-prompts.md": {
+      "bytes": 141486,
+      "sha256": "c57506dd8f89dfcdad4e6198114e6c62667d1d55440029f327837319e56c6acd"
+    },
+    "framework-prompts.html": {
+      "bytes": 21067,
+      "sha256": "fcf1738162b9387b00054abf732bbf13782bc5c6c1c72330f775dc3e0762f0e6"
+    },
+    "framework-prompts.md": {
+      "bytes": 15154,
+      "sha256": "e6d72340186651f878dfff48d9c237c725b93bc9680e5735bb82db4d21c2f714"
+    },
+    "index.html": {
+      "bytes": 51567,
+      "sha256": "67ff75b152741fbfa69d67203fef245997d5fdb92f1fe2d845e7f3a81818dcfb"
+    },
+    "README.md": {
+      "bytes": 42229,
+      "sha256": "72bc0f1028691b4389a31cf357aabfe8f867d0cd89e47908742d037d56edc3ff"
+    },
+    "review-notes.md": {
+      "bytes": 1844,
+      "sha256": "fffe41b66a401007ab568429e9b8ccafde29ff0bd6ca0be5a3a7ec166e62772e"
+    }
+  }
+}

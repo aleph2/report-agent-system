@@ -1,0 +1,24 @@
+........................................................................ [ 29%]
+.....F.................................................................. [ 58%]
+......FF................................................................ [ 87%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+_____ test_native_supervisor_follows_up_once_and_preserves_remaining[True] _____
+tests/test_task_supervision.py:279: in test_native_supervisor_follows_up_once_and_preserves_remaining
+    assert status["execution_complete"] is completed_on_followup
+E   assert False is True
+_________ test_invalid_selections_and_missing_binding_never_call_model _________
+tests/test_content_selection.py:85: in test_invalid_selections_and_missing_binding_never_call_model
+    tool = StructuredTool.from_function(coroutine=tools["analyze_evidence"])
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'analyze_evidence'
+__________ test_analysis_receipt_uses_current_actor_even_on_cache_hit __________
+tests/test_content_selection.py:96: in test_analysis_receipt_uses_current_actor_even_on_cache_hit
+    tool = StructuredTool.from_function(coroutine=tools["analyze_evidence"])
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'analyze_evidence'
+=========================== short test summary info ============================
+FAILED tests/test_task_supervision.py::test_native_supervisor_follows_up_once_and_preserves_remaining[True]
+FAILED tests/test_content_selection.py::test_invalid_selections_and_missing_binding_never_call_model
+FAILED tests/test_content_selection.py::test_analysis_receipt_uses_current_actor_even_on_cache_hit
+3 failed, 243 passed in 91.28s (0:01:31)

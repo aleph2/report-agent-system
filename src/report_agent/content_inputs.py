@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, create_model
 
-from .content_models import Contract, Ref, Criterion, ContentNode, Evidence, Relation
+from .content_models import Contract, Ref, Criterion, ContentNode, Evidence, Relation, SourceRef
 
 
 class ClientRef(Contract):
@@ -22,10 +22,6 @@ class RequirementRef(Ref):
     type: Literal['Requirement']
 
 
-class SourceRef(Ref):
-    type: Literal['SourceArtifact']
-
-
 def input_shape(model, overrides=None, descriptions=None):
     """Reuse field definitions, leaving post-resolution validators in the store."""
     overrides, descriptions = overrides or {}, descriptions or {}
@@ -35,7 +31,7 @@ def input_shape(model, overrides=None, descriptions=None):
         if name in descriptions:
             field.description = descriptions[name]
         fields[name] = (overrides.get(name, original.annotation), field)
-    return create_model('Commit' + model.__name__ + 'Payload', __base__=Contract, **fields)
+    return create_model('Commit' + model.__name__ + 'Payload', __base__=Contract, __config__=dict(model.model_config), **fields)
 
 
 CriterionInput = input_shape(Criterion, {'requirement_refs': list[RequirementRef]}, descriptions={

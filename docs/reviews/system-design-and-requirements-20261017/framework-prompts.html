@@ -1,0 +1,259 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>安装框架的提示与摘要默认值</title><style>
+:root{font-family:system-ui,'Microsoft YaHei',sans-serif;color:#1e293b;background:#f5f7fb;line-height:1.85}
+*{box-sizing:border-box}body{margin:0}header{padding:18px 28px;background:#12243b;color:white;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+header a{color:#d6e9ff;text-decoration:none}header strong{font-size:20px}aside{position:fixed;left:0;top:85px;width:245px;max-height:calc(100vh - 100px);overflow:auto;padding:16px}
+aside a{display:block;padding:7px 10px;color:#43546a;font-size:13px;line-height:1.45;text-decoration:none;border-radius:6px}
+aside a:hover{background:#e6edf7}main{max-width:1190px;margin:26px 30px 90px 255px;background:white;padding:34px 46px;border:1px solid #e0e6ee;border-radius:12px}
+h1{font-size:30px;line-height:1.35;color:#102b45}h2{font-size:23px;line-height:1.5;border-bottom:2px solid #e4edf6;padding-bottom:8px;margin-top:44px}
+h3{font-size:18px;margin-top:28px}p,li{font-size:15px}a{color:#1d5f9a;overflow-wrap:anywhere}strong{color:#172d44}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:20px 0;line-height:1.75;table-layout:auto}
+th,td{border:1px solid #dce4ee;padding:11px 13px;vertical-align:top}th{background:#edf3fa;text-align:left}tr:nth-child(even){background:#fafbfd}
+blockquote{border-left:4px solid #70a2ce;margin:20px 0;padding:8px 22px;background:#f2f7fb;color:#34465a}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f9;padding:20px;border:1px solid #dfe5ed;border-radius:8px;font:13px/1.7 Consolas,monospace}
+code{font-family:Consolas,monospace}details{margin:18px 0;border:1px solid #d3deeb;border-radius:8px;padding:15px 20px}
+summary{cursor:pointer;font-size:17px;font-weight:650;color:#153957}section,details{scroll-margin-top:16px}
+.flow{padding:25px;background:#eff5fb;border-radius:10px;text-align:center;font-size:15px}.lanes{display:flex;justify-content:center;gap:18px;margin:17px 0}
+.lanes span{background:white;padding:15px;min-width:180px;border:1px solid #c8d8e8;border-radius:8px}.flow small{display:block;margin-top:14px}
+.note{font-size:12px;color:#64748b;border-top:1px solid #e0e6ee;margin-top:50px;padding-top:14px}
+@media(max-width:1050px){aside{position:static;width:auto;max-height:230px}main{margin:15px;padding:22px}.lanes{flex-wrap:wrap}}
+@media print{header,aside{display:none}main{margin:0;max-width:none;border:0;padding:0}body{background:white}table{font-size:10px}pre{font-size:10px}a{color:inherit}}
+</style></head><body><header><strong>Report Agent System · 2026-10-17</strong><a href="index.html">系统与需求</a><a href="agent-prompts.html">Prompt 原文册</a><a href="framework-prompts.html">框架提示</a><a href="prompt-sources.json">提取清单</a></header><aside aria-label="目录"><a href="#s1">当前实际追加关系</a><a href="#s2">摘要触发值</a><a href="#s3">WRITE_TODOS_SYSTEM_PROMPT</a><a href="#s4">`write_todos`</a><a href="#s5">Important To-Do List Usage Notes to Remember</a><a href="#s6">Finishing a task</a><a href="#s7">WRITE_TODOS_TOOL_DESCRIPTION</a><a href="#s8">When to Use This Tool</a><a href="#s9">How to Use This Tool</a><a href="#s10">When NOT to Use This Tool</a><a href="#s11">Task States and Management</a><a href="#s12">When You Finish</a><a href="#s13">TASK_TOOL_DESCRIPTION</a><a href="#s14">LIST_FILES_TOOL_DESCRIPTION</a><a href="#s15">_READ_FILE_TOOL_DESCRIPTION_TEMPLATE</a><a href="#s16">EDIT_FILE_TOOL_DESCRIPTION</a><a href="#s17">WRITE_FILE_TOOL_DESCRIPTION</a><a href="#s18">GLOB_TOOL_DESCRIPTION</a><a href="#s19">_GREP_TOOL_DESCRIPTION_TEMPLATE</a><a href="#s20">摘要默认计算函数原文</a></aside><main><h1>安装框架的提示与摘要默认值</h1>
+<p>日期：2026-10-17。读取实际WSL虚拟环境的已安装源码，不启动Agent或模型。版本号不能单独证明安装内容与上游完全一致；本册另保存文件hash。</p>
+<section id="s1"><h2>当前实际追加关系</h2>
+<ul>
+<li>项目注册openai HarnessProfile，没有设置base_system_prompt或system_prompt_suffix；其默认值为None。当前框架不会因为graph.py中仍存在LEGACY_BASE_AGENT_PROMPT就自动追加该旧提示。</li>
+<li>安装的DeepAgents 0.7.19在graph.py说明：文件系统／subagent默认不再重复追加整段工具使用prose，工具说明和可用Agent列表主要进入tool schema。不能把默认tool description算作必然存在于system message中的文字。</li>
+<li>Coordinator显式使用TodoListMiddleware，其系统提示见下文。Writer／Reviewer／Layout没有在项目middleware列表中显式加入TodoListMiddleware，不能由Coordinator推断所有角色都有该系统提示。</li>
+<li>FilesystemMiddleware当前项目没有提供自定义system_prompt，使用StateBackend和所声明六种文件工具；它不是无约束host文件或shell访问。</li>
+<li>当前build_agent没有传skills或memory，不能宣称框架已自动加载项目SKILL.md或所有历史反馈。</li>
+<li>stateful报告路径排除框架默认SummarizationMiddleware，改用项目WorkingSummary，但复用框架的摘要默认计算函数。Learner的独立构建另行配置，不能默认照搬报告上下文。</li>
+<li>下面原文含未被当前角色调用的模板部分；如read_file模板中的格式占位符，由框架依实际工具和backend填入。它不是完整provider请求。</li>
+</ul>
+</section><section id="s2"><h2>摘要触发值</h2>
+<p>安装函数compute_summarization_defaults的逻辑是：模型profile含整数max_input_tokens时，trigger为fraction 0.85，keep为fraction 0.10；无该profile时trigger为170000 tokens，keep为最近6条messages。项目working_summary使用这个trigger/keep，另设输出上限16384、提示目标约1200 tokens。这些数值分别是触发、保留和输出目标，不能混为一谈，也不是Codex应用自身设置。</p>
+</section><section id="s3"><h2>WRITE_TODOS_SYSTEM_PROMPT</h2>
+<p>适用性：Coordinator显式TodoListMiddleware系统提示。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain/agents/middleware/todo.py:119，版本1.4.2。</p>
+<pre><code class="language-text"></code></pre>
+</section><section id="s4"><h2><code>write_todos</code></h2>
+<p>You have access to the <code>write_todos</code> tool to help you manage and plan complex objectives.
+Use this tool for complex objectives to ensure that you are tracking each necessary step.
+This tool is very helpful for planning complex objectives, and for breaking down these larger complex objectives into smaller steps.</p>
+<p>It is critical that you mark todos as completed as soon as you are done with a step. Do not batch up multiple steps before marking them as completed.
+For simple objectives that only require a few steps, it is better to just complete the objective directly and NOT use this tool.
+Writing todos takes time and tokens, use it when it is helpful for managing complex many-step problems! But not for simple few-step requests.</p>
+</section><section id="s5"><h2>Important To-Do List Usage Notes to Remember</h2>
+<ul>
+<li>The <code>write_todos</code> tool should never be called multiple times in parallel.</li>
+<li>Don't be afraid to revise the To-Do list as you go. New information may reveal new tasks that need to be done, or old tasks that are irrelevant.</li>
+</ul>
+</section><section id="s6"><h2>Finishing a task</h2>
+<p>When you finish all work, write your final answer in the message AFTER your last <code>write_todos</code> call — not in the same turn as that call. Start the final message with the substantive content the user asked for — the data, computation, summary, or analysis. The user wants the result, not confirmation that the work is done.</p>
+<pre><code>
+</code></pre>
+</section><section id="s7"><h2>WRITE_TODOS_TOOL_DESCRIPTION</h2>
+<p>适用性：todo工具描述。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain/agents/middleware/todo.py:52，版本1.4.2。</p>
+<pre><code class="language-text">Use this tool to create and manage a structured task list for your current work session. This helps you track progress and organize complex tasks.
+
+Only use this tool if you think it will be helpful in staying organized. If the user's request is trivial and takes less than 3 steps, it is better to NOT use this tool and just do the task directly.
+
+</code></pre>
+</section><section id="s8"><h2>When to Use This Tool</h2>
+<p>Use this tool in these scenarios:</p>
+<ol>
+<li>Complex multi-step tasks - When a task requires 3 or more distinct steps or actions</li>
+<li>Non-trivial and complex tasks - Tasks that require careful planning or multiple operations</li>
+<li>User explicitly requests todo list - When the user directly asks you to use the todo list</li>
+<li>User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)</li>
+<li>The plan may need future revisions or updates based on results from the first few steps</li>
+</ol>
+</section><section id="s9"><h2>How to Use This Tool</h2>
+<ol>
+<li>When you start working on a task - Mark it as in_progress BEFORE beginning work.</li>
+<li>After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation.</li>
+<li>You can also update future tasks, such as deleting them if they are no longer necessary, or adding new tasks that are necessary. Don't change previously completed tasks.</li>
+<li>You can make several updates to the todo list at once. For example, when you complete a task, you can mark the next task you need to start as in_progress.</li>
+</ol>
+</section><section id="s10"><h2>When NOT to Use This Tool</h2>
+<p>It is important to skip using this tool when:</p>
+<ol>
+<li>There is only a single, straightforward task</li>
+<li>The task is trivial and tracking it provides no benefit</li>
+<li>The task can be completed in less than 3 trivial steps</li>
+<li>The task is purely conversational or informational</li>
+</ol>
+</section><section id="s11"><h2>Task States and Management</h2>
+<ol>
+<li>
+<p><strong>Task States</strong>: Use these states to track progress:</p>
+<ul>
+<li>pending: Task not yet started</li>
+<li>in_progress: Currently working on (you can have multiple tasks in_progress at a time if they are not related to each other and can be run in parallel)</li>
+<li>completed: Task finished successfully</li>
+</ul>
+</li>
+<li>
+<p><strong>Task Management</strong>:</p>
+<ul>
+<li>Update task status in real-time as you work</li>
+<li>Mark tasks complete IMMEDIATELY after finishing (don't batch completions)</li>
+<li>Complete current tasks before starting new ones</li>
+<li>Remove tasks that are no longer relevant from the list entirely</li>
+<li>IMPORTANT: When you write this todo list, you should mark your first task (or tasks) as in_progress immediately!.</li>
+<li>IMPORTANT: Unless all tasks are completed, you should always have at least one task in_progress.</li>
+</ul>
+</li>
+<li>
+<p><strong>Task Completion Requirements</strong>:</p>
+<ul>
+<li>ONLY mark a task as completed when you have FULLY accomplished it</li>
+<li>If you encounter errors, blockers, or cannot finish, keep the task as in_progress</li>
+<li>When blocked, create a new task describing what needs to be resolved</li>
+<li>Never mark a task as completed if:
+<ul>
+<li>There are unresolved issues or errors</li>
+<li>Work is partial or incomplete</li>
+<li>You encountered blockers that prevent completion</li>
+<li>You couldn't find necessary resources or dependencies</li>
+<li>Quality standards haven't been met</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Task Breakdown</strong>:</p>
+<ul>
+<li>Create specific, actionable items</li>
+<li>Break complex tasks into smaller, manageable steps</li>
+<li>Use clear, descriptive task names</li>
+</ul>
+</li>
+</ol>
+<p>Being proactive with task management ensures you complete all requirements successfully
+Remember: If you only need to make a few tool calls to complete a task, and it is clear what you need to do, it is better to just do the task directly and NOT call this tool at all.</p>
+</section><section id="s12"><h2>When You Finish</h2>
+<p><code>write_todos</code> tracks your work; it does not deliver the answer. Whatever the user asked for — computations, summaries, comparisons, data — must appear as text content in a message after your final <code>write_todos</code> call. Marking the last todo complete is not itself an answer to the user.</p>
+<pre><code>
+</code></pre>
+</section><section id="s13"><h2>TASK_TOOL_DESCRIPTION</h2>
+<p>适用性：task工具模板；available_agents由实际注册角色填入。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/subagents.py:463，版本0.7.19。</p>
+<pre><code class="language-text">Launch an ephemeral subagent to handle a complex, multi-step task.
+
+Available agent types and the tools they have access to:
+{available_agents}
+
+Specify subagent_type to select the agent. Usage notes:
+- Launch multiple agents concurrently when their tasks are independent, using a single message with multiple tool calls.
+- Each invocation is stateless by default: the agent sees only the prompt you give it and returns a single final report. Put full detail in the prompt and state exactly what it should return — unless an agent type below says it inherits your conversation instead.
+- The agent's report is not shown to the user; relay a summary yourself.
+- Tell the agent whether to create content, analyze, or only research, since it can't necessarily see the user's intent unless it inherits your conversation, as noted per agent type below.
+- If an agent's description says to use it proactively, do so without waiting to be asked.
+- When only general-purpose is available, use it for any complex, context-heavy task; it has the same capabilities as the main agent.
+</code></pre>
+</section><section id="s14"><h2>LIST_FILES_TOOL_DESCRIPTION</h2>
+<p>适用性：ls工具描述。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:1315，版本0.7.19。</p>
+<pre><code class="language-text">Lists all files in a directory.
+
+This is useful for exploring the filesystem and finding the right file to read or edit.
+You should almost ALWAYS use this tool before using the read_file or edit_file tools.
+</code></pre>
+</section><section id="s15"><h2>_READ_FILE_TOOL_DESCRIPTION_TEMPLATE</h2>
+<p>适用性：read_file模板；含动态格式字段。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:1320，版本0.7.19。</p>
+<pre><code class="language-text">Reads a file from the filesystem. Assume any path the user provides is valid; reading a missing file returns an error.
+
+Usage:
+- {first_line}. Use `offset`/`limit` to page through large files instead of reading them whole.
+- A status header, `@@ field | field | ... @@`, sits above the file content, and every line after it is verbatim file content. When content is truncated, there may be an explanation before the header. Never include the header when editing.
+- Speculatively batch multiple `read_file` calls in one response when several files may be useful.
+- An empty file returns a system-reminder warning in place of contents.
+- Large tool results may be offloaded to a file; the tool message gives the path. Read that path here, paging with `offset`/`limit`.
+- Images (`.png`, `.jpg`, etc.), audio, video, and PDFs return multimodal content blocks (https://docs.langchain.com/oss/python/langchain/messages#multimodal).
+{multimodal_bullets}
+- Always read a file before editing it.
+</code></pre>
+</section><section id="s16"><h2>EDIT_FILE_TOOL_DESCRIPTION</h2>
+<p>适用性：edit_file工具描述。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:1354，版本0.7.19。</p>
+<pre><code class="language-text">Performs exact string replacements in files.
+
+Usage:
+- You must read the file before editing; this tool errors otherwise.
+- Preserve the exact source indentation from the read output, and never include the read status header in old_string or new_string.
+- Prefer editing an existing file over creating a new one.
+- Only use emojis if the user explicitly requests it.
+</code></pre>
+</section><section id="s17"><h2>WRITE_FILE_TOOL_DESCRIPTION</h2>
+<p>适用性：write_file工具描述。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:1363，版本0.7.19。</p>
+<pre><code class="language-text">Writes content to a file. Creates the file if it does not exist; replaces it entirely if it does.
+
+Usage:
+- Use this tool when you intend to create a new file or replace the whole file. You do not need to read the file first.
+- Prefer to edit existing files (with the edit_file tool) over creating new ones when possible.
+
+</code></pre>
+</section><section id="s18"><h2>GLOB_TOOL_DESCRIPTION</h2>
+<p>适用性：glob工具描述。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:1379，版本0.7.19。</p>
+<pre><code class="language-text">Find files matching a glob pattern, returning absolute paths.
+
+Supports `*` (any characters within a path segment), `**` (any directories), `?` (single character), `[abc]` (one character from a set), and `{a,b}` (alternatives), e.g. `*.py`, `src/**/*.py`, `*.{yml,yaml}`.
+
+A pattern without `/` matches the file name at any depth under the search root (`*.py` matches `src/app/main.py`). A pattern containing `/` matches the search-root-relative path (`src/**/*.py`). A leading `/` anchors to the search root (`/*.py` matches only top-level Python files).
+
+Leading-dot names are only matched when the pattern segment itself starts with `.` (use `.env`, or `.github/**/*.yml`). Because `**` will not descend into dot-directories, the bare form `*.yml` is *broader* than `**/*.yml` and is usually what you want.
+</code></pre>
+</section><section id="s19"><h2>_GREP_TOOL_DESCRIPTION_TEMPLATE</h2>
+<p>适用性：grep模板；含动态格式字段。</p>
+<p>安装来源：/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:1391，版本0.7.19。</p>
+<pre><code class="language-text">Search for a LITERAL text pattern across files (NOT regex).
+
+The pattern is matched verbatim: regex metacharacters are ordinary characters, not operators. To match any of several strings, run a separate grep for each; `grep(pattern=&quot;foo|bar&quot;)` searches for the literal text &quot;foo|bar&quot;, and `.*` or `\.` match those characters literally.{execute_fallback}
+
+Returns matching files or content per `output_mode`. Offloaded large tool results live under the artifacts root (`/large_tool_results/` by default); grep that directory to search them when you do not know the exact path.
+</code></pre>
+</section><section id="s20"><h2>摘要默认计算函数原文</h2>
+<pre><code class="language-python">def compute_summarization_defaults(model: BaseChatModel) -&gt; SummarizationDefaults:
+    &quot;&quot;&quot;Compute default summarization settings based on model profile.
+
+    Args:
+        model: A resolved chat model instance.
+
+    Returns:
+        Default settings for trigger, keep, and truncate_args_settings.
+            If the model has a profile with `max_input_tokens`, uses
+            fraction-based settings. Otherwise, uses fixed token/message counts.
+    &quot;&quot;&quot;
+    has_profile = (
+        model.profile is not None
+        and isinstance(model.profile, dict)
+        and &quot;max_input_tokens&quot; in model.profile
+        and isinstance(model.profile[&quot;max_input_tokens&quot;], int)
+    )
+
+    if has_profile:
+        return {
+            &quot;trigger&quot;: (&quot;fraction&quot;, 0.85),
+            &quot;keep&quot;: (&quot;fraction&quot;, 0.10),
+            &quot;truncate_args_settings&quot;: {
+                &quot;trigger&quot;: (&quot;fraction&quot;, 0.85),
+                &quot;keep&quot;: (&quot;fraction&quot;, 0.10),
+            },
+        }
+
+    # Defaults for models without profile info are more conservative to avoid
+    # overshooting context limits.
+    return {
+        &quot;trigger&quot;: (&quot;tokens&quot;, 170000),
+        &quot;keep&quot;: (&quot;messages&quot;, 6),
+        &quot;truncate_args_settings&quot;: {
+            &quot;trigger&quot;: (&quot;messages&quot;, 20),
+            &quot;keep&quot;: (&quot;messages&quot;, 20),
+        },
+    }
+</code></pre>
+</section><p class="note">本地阅读版 · 由framework-prompts.md生成 · 无外部脚本／字体／网络资源。该文档整理设计与证据，不恢复应用执行。</p></main></body></html>

@@ -168,13 +168,18 @@ def test_export_is_snapshot_bound_and_preserves_conditions(ws, monkeypatch):
 
 def test_tool_schemas_and_write_permissions(ws):
     from langchain_core.utils.function_calling import convert_to_openai_tool
+    from langgraph.prebuilt import ToolNode
     for role in ("coordinator", "writer", "reviewer", "rubric_grader"):
         tools = content_tools(ws, role)
         names = {t.__name__ for t in tools}
         for tool in tools:
-            assert convert_to_openai_tool(tool)
+            # Production registers callables before exposing their public schema;
+            # ToolRuntime is server-injected and is not a model JSON argument.
+            registered = ToolNode([tool]).tools_by_name[tool.__name__]
+            schema = convert_to_openai_tool(registered)
+            assert 'runtime' not in schema['function']['parameters']['properties']
         if role in {"reviewer", "rubric_grader"}:
-            assert not {"commit_objects", "freeze_snapshot", "export_content_snapshot", "select_content_delivery"} & names
+            assert not {"commit_objects", "freeze_snapshot", "derive_snapshot", "export_content_snapshot", "select_content_delivery"} & names
         else:
             assert "submit_review" not in names
 

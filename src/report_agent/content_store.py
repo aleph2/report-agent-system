@@ -101,7 +101,73 @@ class ContentStore:
         if row[0] != actor.id:
             raise ActionForbidden("FORBIDDEN: operation owner")
         response = json.loads(row[2])
-        return {"state": "known_success" if response["ok"] else "known_failure", "request_digest": row[1], "response": response}
+        state = ('outcome_unresolved' if response.get('code')=='OPERATION_OUTCOME_UNRESOLVED'
+                 else 'known_success' if response['ok'] else 'known_failure')
+        return {"state": state, "request_digest": row[1], "response": response}
+
+    def detached_operation(self, actor, operation_id, request, prepare, execute, finalize):
+        """Reserve an external operation, release SQLite during work, then commit.
+
+        The original operation ID owns its reservation. Cancellation/crash leaves
+        an explicit unresolved receipt; neither this nor ordinary operation() can
+        silently run it again. No worker loop or external retry is introduced.
+        """
+        if not isinstance(operation_id,str) or not operation_id.strip():
+            raise ActionRejected('OPERATION_ID_REQUIRED')
+        request_digest = digest({'actor':actor.__dict__,'request':request})
+        pending = {'ok':False,'code':'OPERATION_OUTCOME_UNRESOLVED',
+            'message':'OPERATION_OUTCOME_UNRESOLVED: external work reserved; inspect its original outcome before another action',
+            'retryable':False,'receipt_id':operation_id}
+        def failure_response(exc):
+            error = ActionRejected('INVALID_CONTRACT: '+str(exc)) if isinstance(exc,ValidationError) else exc
+            return error, {'ok':False,'code':'FORBIDDEN' if isinstance(exc,ActionForbidden) else str(error).split(':')[0],
+                'message':str(error),'retryable':False,'receipt_id':operation_id}
+        failure = None
+        with self.store.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT actor_id,request_digest,response FROM content_operations WHERE operation_id=?',
+                             (operation_id,)).fetchone()
+            if row:
+                if row[:2] != (actor.id,request_digest):
+                    raise ActionRejected('OPERATION_CONFLICT')
+                saved = json.loads(row[2])
+                if saved['ok']:
+                    return saved
+                error = ActionForbidden if saved['code']=='FORBIDDEN' else ActionRejected
+                raise error(saved['message'])
+            try:
+                prepared = prepare(db)
+            except (ValidationError,ActionRejected,ActionForbidden) as exc:
+                failure,pending = failure_response(exc)
+            db.execute('INSERT INTO content_operations VALUES (?,?,?,?)',
+                       (operation_id,actor.id,request_digest,encode(pending)))
+        if failure:
+            raise failure
+        try:
+            computed = execute(prepared)  # No SQLite transaction is held here.
+        except (ValidationError,ActionRejected,ActionForbidden) as exc:
+            failure,response = failure_response(exc)
+        with self.store.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT actor_id,request_digest,response FROM content_operations WHERE operation_id=?',
+                             (operation_id,)).fetchone()
+            if row != (actor.id,request_digest,encode(pending)):
+                raise ActionRejected('OPERATION_RESERVATION_CHANGED')
+            db.execute('SAVEPOINT external_effect')
+            if failure is None:
+                try:
+                    result = finalize(db,prepared,computed)
+                except (ValidationError,ActionRejected,ActionForbidden) as exc:
+                    db.execute('ROLLBACK TO external_effect')
+                    failure,response = failure_response(exc)
+                else:
+                    response = {'ok':True,'result':result,'receipt_id':operation_id}
+            db.execute('RELEASE external_effect')
+            db.execute('UPDATE content_operations SET response=? WHERE operation_id=?',
+                       (encode(response),operation_id))
+        if failure:
+            raise failure
+        return response
 
     def observe(self, actor, result):
         receipt = str(uuid4())
@@ -163,7 +229,11 @@ class ContentStore:
         def save(db):
             if not objects:
                 raise ActionRejected("EMPTY_COMMIT")
-            assigned, plans = {}, []
+            assigned, plans, exception_uses = {}, [], []
+            configured = db.execute("SELECT value FROM state WHERE key='content_revision_limit'").fetchone()
+            revision_limit = json.loads(configured[0]) if configured else None
+            if revision_limit is not None and (revision_limit.__class__ is not int or revision_limit < 0):
+                raise ActionRejected("INVALID_CONTENT_REVISION_LIMIT")
             for obj in objects:
                 if set(obj) - {"client_key", "type", "payload", "previous_ref"}:
                     raise ActionRejected("INVALID_COMMIT_FIELDS")
@@ -182,6 +252,12 @@ class ContentStore:
                     head = db.execute("SELECT version FROM content_heads WHERE type=? AND id=?", (type, prior["ref"]["id"])).fetchone()[0]
                     if head != previous["version"]:
                         raise ActionRejected("VERSION_CONFLICT")
+                    if type == "ContentNode" and revision_limit is not None and head - 1 >= revision_limit:
+                        from .revision_authorization import exact_exception
+                        grant = exact_exception(db, actor, prior, obj['payload'])
+                        if grant is None:
+                            raise ActionRejected("CONTENT_REVISION_LIMIT_REACHED")
+                        exception_uses.append((grant, {**previous, "version": head + 1}))
                     ref = {**previous, "version": head + 1}
                 else:
                     ref = {"type": type, "id": str(uuid4()), "version": 1}
@@ -203,83 +279,159 @@ class ContentStore:
                         self._read(db, dependency.model_dump())
                 if ref["type"] == "Criterion" and any(r["type"] != "Requirement" for r in payload["requirement_refs"]):
                     raise ActionRejected("CRITERIA_REQUIRE_INDEPENDENT_REQUIREMENTS")
-                if ref["type"] == "ContentNode" and not (any(r["type"] == "Criterion" for r in assigned.values()) or
-                        db.execute("SELECT 1 FROM content_versions WHERE type='Criterion' LIMIT 1").fetchone()):
-                    raise ActionRejected("CRITERIA_REQUIRED_BEFORE_CONTENT")
                 if ref["type"] == "Evidence" and any(r["type"] != "SourceArtifact" for r in payload["source_refs"]):
                     raise ActionRejected("EVIDENCE_REQUIRES_SOURCE_VERSIONS")
                 self._insert(db, actor, ref["type"], payload, id=ref["id"], version=ref["version"], previous_ref=obj.get("previous_ref"))
+            from .revision_authorization import record_use
+            for grant, resulting_ref in exception_uses:
+                record_use(db, grant, resulting_ref, operation_id)
             return {"refs": assigned}
         return self.operation(actor, operation_id, {"commit": objects}, save)
 
-    def freeze(self, actor, operation_id, root_ref, refs):
+    def _freeze_in_transaction(self, db, actor, root_ref, refs, workbook_refs):
+        if actor.role not in {"coordinator", "writer"}:
+            raise ActionForbidden("FORBIDDEN: snapshot")
+        root = self._read(db, root_ref)
+        # Coordinator can assemble a delivery snapshot of saved producer work;
+        # this grants no content-write or producer ownership transfer.
+        if root_ref["type"] != "ContentNode" or (root["owner_id"] != actor.id and actor.role != "coordinator"):
+            raise ActionForbidden("FORBIDDEN: root owner")
+        by_key = {Ref.model_validate(r).key(): self._read(db, r) for r in refs}
+        if len(by_key) != len(refs) or Ref.model_validate(root_ref).key() not in by_key:
+            raise ActionRejected("INVALID_MANIFEST")
+        logical = [(r[0], r[1]) for r in by_key]
+        if len(logical) != len(set(logical)):
+            raise ActionRejected("MIXED_LOGICAL_VERSIONS")
+        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation"}
+        if any(r[0] not in allowed for r in by_key):
+            raise ActionRejected("INVALID_SNAPSHOT_TYPE")
+        for record in by_key.values():
+            if any(ref.key() not in by_key for ref in refs_in(record["payload"])):
+                raise ActionRejected("INCOMPLETE_REFERENCE_CLOSURE")
+        parents, edges, positions = {}, {}, set()
+        for record in by_key.values():
+            p = record["payload"]
+            if record["ref"]["type"] == "Relation" and p["predicate"] == "contains":
+                subject, obj = Ref.model_validate(p["subject_ref"]).key(), Ref.model_validate(p["object_ref"]).key()
+                if obj in parents or (subject, p["position"]) in positions:
+                    raise ActionRejected("MULTIPLE_PARENTS_OR_POSITIONS")
+                parents[obj] = subject
+                positions.add((subject, p["position"]))
+                edges.setdefault(subject, []).append(obj)
+        root_key = Ref.model_validate(root_ref).key()
+        if root_key in parents:
+            raise ActionRejected("ROOT_HAS_PARENT")
+        visited, active = set(), set()
+        def visit(key):
+            if key in active:
+                raise ActionRejected("CONTAINS_CYCLE")
+            if key in visited:
+                return
+            active.add(key)
+            for child in edges.get(key, []):
+                visit(child)
+            active.remove(key)
+            visited.add(key)
+        for key in by_key:
+            if key[0] == "ContentNode":
+                visit(key)
+        rendered = set()
+        pending = [root_key]
+        while pending:
+            key = pending.pop()
+            if key not in rendered:
+                rendered.add(key)
+                pending.extend(edges.get(key, []))
+        workbook_keys = [Ref.model_validate(r).key() for r in workbook_refs]
+        if len(workbook_keys) != len(set(workbook_keys)):
+            raise ActionRejected("DUPLICATE_WORKBOOK_CHANNEL_REF")
+        for key in workbook_keys:
+            if key not in by_key or key[0] != "ContentNode":
+                raise ActionRejected("WORKBOOK_CHANNEL_OUTSIDE_MANIFEST")
+            if by_key[key]['payload']['kind'] not in {'table','block'}:
+                raise ActionRejected("WORKBOOK_CHANNEL_REQUIRES_TABLE_OR_TEXT_BLOCK")
+            if key in rendered:
+                raise ActionRejected("WORKBOOK_ONLY_NODE_IN_REPORT")
+            if key in parents or key in edges:
+                raise ActionRejected("WORKBOOK_CHANNEL_NODE_HAS_CONTAINMENT")
+        for key, record in by_key.items():
+            if key[0] == "ContentNode" and record["payload"]["kind"] != "claim" and key not in rendered and key not in workbook_keys:
+                raise ActionRejected("DETACHED_PRESENTATION_NODE")
+        criteria = [r for r in refs if r["type"] == "Criterion"]
+        ordered = sorted(refs, key=lambda r: Ref.model_validate(r).key())
+        payload = {"root_ref": root_ref, "refs": ordered, "criteria_refs": criteria, "manifest_digest": digest(ordered)}
+        if workbook_refs:
+            payload['workbook_refs'] = sorted(workbook_refs,key=lambda r:Ref.model_validate(r).key())
+            payload['manifest_digest'] = digest({'refs':ordered,'workbook_refs':payload['workbook_refs']})
+        if self.store.manifest.get("coverage_contract"):
+            from .review_coverage import CONTRACT
+            if self.store.manifest["coverage_contract"] != CONTRACT:
+                raise ActionRejected("UNKNOWN_COVERAGE_CONTRACT")
+            payload["coverage_contract"] = CONTRACT
+        return {"snapshot_ref": self._insert(db, actor, "DocumentSnapshot", payload), "manifest_digest": payload["manifest_digest"]}
+
+    def freeze(self, actor, operation_id, root_ref, refs, workbook_refs=None):
+        workbook_refs = workbook_refs or []
         def save(db):
-            if actor.role not in {"coordinator", "writer"}:
-                raise ActionForbidden("FORBIDDEN: snapshot")
-            root = self._read(db, root_ref)
-            if root_ref["type"] != "ContentNode" or root["owner_id"] != actor.id:
-                raise ActionForbidden("FORBIDDEN: root owner")
-            by_key = {Ref.model_validate(r).key(): self._read(db, r) for r in refs}
-            if len(by_key) != len(refs) or Ref.model_validate(root_ref).key() not in by_key:
-                raise ActionRejected("INVALID_MANIFEST")
-            logical = [(r[0], r[1]) for r in by_key]
-            if len(logical) != len(set(logical)):
-                raise ActionRejected("MIXED_LOGICAL_VERSIONS")
-            allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation"}
-            if any(r[0] not in allowed for r in by_key):
-                raise ActionRejected("INVALID_SNAPSHOT_TYPE")
-            for record in by_key.values():
-                if any(ref.key() not in by_key for ref in refs_in(record["payload"])):
-                    raise ActionRejected("INCOMPLETE_REFERENCE_CLOSURE")
-            parents, edges, positions = {}, {}, set()
-            for record in by_key.values():
-                p = record["payload"]
-                if record["ref"]["type"] == "Relation" and p["predicate"] == "contains":
-                    subject, obj = Ref.model_validate(p["subject_ref"]).key(), Ref.model_validate(p["object_ref"]).key()
-                    if obj in parents or (subject, p["position"]) in positions:
-                        raise ActionRejected("MULTIPLE_PARENTS_OR_POSITIONS")
-                    parents[obj] = subject
-                    positions.add((subject, p["position"]))
-                    edges.setdefault(subject, []).append(obj)
-            root_key = Ref.model_validate(root_ref).key()
-            if root_key in parents:
-                raise ActionRejected("ROOT_HAS_PARENT")
-            visited, active = set(), set()
-            def visit(key):
-                if key in active:
-                    raise ActionRejected("CONTAINS_CYCLE")
-                if key in visited:
-                    return
-                active.add(key)
-                for child in edges.get(key, []):
-                    visit(child)
-                active.remove(key)
-                visited.add(key)
-            for key in by_key:
-                if key[0] == "ContentNode":
-                    visit(key)
-            rendered = set()
-            pending = [root_key]
-            while pending:
-                key = pending.pop()
-                if key not in rendered:
-                    rendered.add(key)
-                    pending.extend(edges.get(key, []))
-            for key, record in by_key.items():
-                if key[0] == "ContentNode" and record["payload"]["kind"] != "claim" and key not in rendered:
-                    raise ActionRejected("DETACHED_PRESENTATION_NODE")
-            criteria = [r for r in refs if r["type"] == "Criterion"]
-            if not criteria:
-                raise ActionRejected("SNAPSHOT_REQUIRES_CRITERIA")
-            ordered = sorted(refs, key=lambda r: Ref.model_validate(r).key())
-            payload = {"root_ref": root_ref, "refs": ordered, "criteria_refs": criteria, "manifest_digest": digest(ordered)}
-            if self.store.manifest.get("coverage_contract"):
-                from .review_coverage import CONTRACT
-                if self.store.manifest["coverage_contract"] != CONTRACT:
-                    raise ActionRejected("UNKNOWN_COVERAGE_CONTRACT")
-                payload["coverage_contract"] = CONTRACT
-            return {"snapshot_ref": self._insert(db, actor, "DocumentSnapshot", payload), "manifest_digest": payload["manifest_digest"]}
-        return self.operation(actor, operation_id, {"freeze": {"root_ref": root_ref, "refs": refs}}, save)
+            return self._freeze_in_transaction(db, actor, root_ref, refs, workbook_refs)
+        request = {"freeze": {"root_ref": root_ref, "refs": refs}}
+        if workbook_refs:
+            request['freeze']['workbook_refs'] = workbook_refs
+        return self.operation(actor, operation_id, request, save)
+
+    def derive_snapshot(self, actor, operation_id, base_snapshot_ref, additional_refs,
+                        replacements=None, workbook_refs=None):
+        """Assemble explicit version deltas; use the original freeze invariants."""
+        from .content_models import SnapshotReplacement
+        base_ref = Ref.model_validate(base_snapshot_ref).model_dump()
+        if base_ref['type'] != 'DocumentSnapshot':
+            raise ActionRejected('BASE_REQUIRES_DOCUMENT_SNAPSHOT')
+        base = self.read(base_ref)
+        base_digest = base['payload']['manifest_digest']
+        additions = [Ref.model_validate(r).model_dump() for r in additional_refs]
+        changes = [SnapshotReplacement.model_validate(r).model_dump() for r in (replacements or [])]
+        channel = (None if workbook_refs is None else
+                   [Ref.model_validate(r).model_dump() for r in workbook_refs])
+        request = {'derive_snapshot': {'base_snapshot_ref': base_ref,
+            'base_manifest_digest': base_digest, 'additional_refs': additions,
+            'replacements': changes, 'workbook_refs': channel}}
+
+        def save(db):
+            # Re-read the exact immutable base inside the operation transaction.
+            original = self._read(db, base_ref)['payload']
+            if original['manifest_digest'] != base_digest:
+                raise ActionRejected('BASE_SNAPSHOT_CHANGED')
+            members = {Ref.model_validate(r).key(): r for r in original['refs']}
+            mapped = {}
+            for change in changes:
+                previous = Ref.model_validate(change['previous_ref']).key()
+                if previous not in members:
+                    raise ActionRejected('SNAPSHOT_REPLACEMENT_OUTSIDE_BASE')
+                if previous in mapped:
+                    raise ActionRejected('DUPLICATE_SNAPSHOT_REPLACEMENT')
+                mapped[previous] = change['new_ref']
+            refs = [mapped.get(key, value) for key, value in members.items()]
+            keys = {Ref.model_validate(r).key() for r in refs}
+            for ref in additions:
+                key = Ref.model_validate(ref).key()
+                if key in keys:
+                    raise ActionRejected('DUPLICATE_SNAPSHOT_ADDITION')
+                keys.add(key)
+                refs.append(ref)
+            root = mapped.get(Ref.model_validate(original['root_ref']).key(), original['root_ref'])
+            selected_channel = channel
+            if selected_channel is None:
+                selected_channel = [mapped.get(Ref.model_validate(r).key(), r)
+                                    for r in original.get('workbook_refs', [])]
+            result = self._freeze_in_transaction(db, actor, root, refs, selected_channel)
+            lineage = {**request['derive_snapshot'], 'snapshot_ref': result['snapshot_ref'],
+                       'manifest_digest': result['manifest_digest']}
+            # Same transaction as snapshot and operation receipt, not a second operation.
+            db.execute('INSERT INTO events(kind,data) VALUES (?,?)',
+                       ('snapshot_derived', encode({'actor_id': actor.id, 'task_id': actor.task_id,
+                           'operation_id': operation_id, **lineage})))
+            return {**result, 'derivation': lineage}
+        return self.operation(actor, operation_id, request, save)
 
     def read_context(self, actor, target_ref, offset=0, limit=20):
         if offset < 0 or limit < 1 or limit > 100:
@@ -296,15 +448,33 @@ class ContentStore:
             if actor.role not in {"reviewer", "rubric_grader"}:
                 raise ActionForbidden("FORBIDDEN: review writer")
             data = ReviewSubmission.model_validate(submission).model_dump()
+            if self.store.manifest.get("review_execution_mode") == "bounded-tool-v1":
+                if any(i["assessment_kind"] == "content" for i in data["items"]):
+                    if runtime_identity.get("mode") != "bounded-review-v1":
+                        raise ActionRejected("CONTENT_JUDGMENT_REQUIRES_BOUNDED_CHECKER")
+                    if data["delivery_checks"] or any(i["assessment_kind"] != "content" for i in data["items"]):
+                        raise ActionRejected("BOUNDED_CONTENT_CHECK_CANNOT_PUBLISH_ARTIFACT_JUDGMENTS")
+            task_row = db.execute("SELECT data FROM content_versions WHERE type='DelegatedTask' AND id=? AND version=1",
+                                  (actor.task_id,)).fetchone()
+            requirements = json.loads(task_row[0])["payload"].get("review_requirements", []) if task_row else []
+            if self.store.manifest.get("review_execution_mode") == "bounded-tool-v1":
+                from .artifact_review import matching_requirement
+                for item in data["items"]:
+                    requirement = matching_requirement(requirements, item)
+                    reference = requirement.get("presentation_reference_ref") if requirement else None
+                    if reference and reference not in data["dependency_refs"]:
+                        data["dependency_refs"].append(reference)
+                    if reference and item.get("dependency_refs") is not None and reference not in item["dependency_refs"]:
+                        item["dependency_refs"].append(reference)
             if delivery_export_ref is not None:
                 if actor.role != "reviewer":
                     raise ActionForbidden("FORBIDDEN: final submission belongs to delegated reviewer")
                 export = self._read(db, delivery_export_ref)
                 if (export["ref"]["type"] != "ExportArtifact" or
-                        export["payload"]["snapshot_ref"] != data["snapshot_ref"] or
-                        data["target_ref"] != data["snapshot_ref"] or data["scope"] != "delivery"):
-                    raise ActionRejected("FINAL_REVIEW_TARGET_MISMATCH: use snapshot target, delivery scope and its exact export")
-                if delivery_export_ref not in data["dependency_refs"]:
+                        export["payload"]["snapshot_ref"] != data["snapshot_ref"]):
+                    raise ActionRejected("REVIEW_EXPORT_VERSION_MISMATCH")
+                data["bound_export_ref"] = delivery_export_ref
+                if self.store.manifest.get("review_entrypoint") == "native-rubric-v1" and delivery_export_ref not in data["dependency_refs"]:
                     data["dependency_refs"].append(delivery_export_ref)
             snap = self._read(db, data["snapshot_ref"])
             if snap["ref"]["type"] != "DocumentSnapshot":
@@ -312,7 +482,21 @@ class ContentStore:
             members = {Ref.model_validate(r).key() for r in [snap["ref"], *snap["payload"]["refs"]]}
             # Reviewed targets/criteria stay in the author's manifest. Independent
             # source dependencies belong to the project, not necessarily that manifest.
-            external_sources = {Ref.model_validate(r).key() for r in data["dependency_refs"] if r["type"] == "SourceArtifact"}
+            external_sources = {Ref.model_validate(r).key() for r in [*data["dependency_refs"],
+                *[r for i in data["items"] for r in (i.get("dependency_refs") or [])]] if r["type"] == "SourceArtifact"}
+            from .task_supervision import historical_read_refs, material_refs_in_observation, review_identity
+            whole_reads = set()
+            for row in db.execute('SELECT data FROM content_observations WHERE actor_id=?', (actor.id,)):
+                whole_reads.update(material_refs_in_observation(json.loads(row[0])))
+            encoded_members = {encode(r) for r in [snap['ref'], *snap['payload']['refs']]}
+            comparisons = set()
+            for item in data['items']:
+                requirement = next((r for r in requirements if review_identity(r) == review_identity(item)), None)
+                if requirement:
+                    comparisons.update(historical_read_refs(requirement, encoded_members, whole_reads))
+            declared_dependencies = {encode(r) for r in [*data['dependency_refs'],
+                *[r for i in data['items'] for r in (i.get('dependency_refs') or [])]]}
+            comparisons &= declared_dependencies
             targets = [("target_ref", data["target_ref"])] + [
                 (f"criteria_refs[{i}]", r) for i, r in enumerate(data["criteria_refs"])] + [
                 (f"items[{i}].{field}", item[field]) for i, item in enumerate(data["items"])
@@ -329,10 +513,35 @@ class ContentStore:
                         # SourceArtifact records can only be captured by server code
                         # from this project's authorized catalog, never model payloads.
                         continue
+                    if encode(ref.model_dump()) in comparisons:
+                        continue
                     if ref.type not in {"ExportArtifact", "RenderArtifact"} or record["payload"].get("snapshot_ref") != snap["ref"]:
-                        raise ActionRejected("REVIEW_VERSION_OUTSIDE_SNAPSHOT")
+                        raise ActionRejected("REVIEW_VERSION_OUTSIDE_SNAPSHOT: " + encode({
+                            "received": ref.model_dump(), "snapshot_ref": snap["ref"],
+                            "hint": "All review references must belong to this snapshot, except declared "
+                                    "SourceArtifact dependencies, exact task-declared and actually read historical "
+                                    "ContentNode comparison dependencies, and ExportArtifact/RenderArtifact bound to it. "
+                                    "ReviewRecord references are not snapshot members; prior review reuse "
+                                    "has a separate confirm_review_reuse operation."}))
             if any(r not in snap["payload"]["criteria_refs"] for r in data["criteria_refs"]):
                 raise ActionRejected("CRITERION_OUTSIDE_SNAPSHOT")
+            # Excel is a content companion. Layout judgments apply to Word only;
+            # an export-fidelity check can still bind the exact workbook version.
+            render_refs = [ref for item in data["items"]
+                           if item["assessment_kind"] == "render"
+                           for ref in item["artifact_refs"]]
+            render_refs += [ref for check in data["delivery_checks"]
+                            if check["kind"] == "render" for ref in check["artifact_refs"]]
+            for ref in render_refs:
+                record = self._read(db, ref)
+                export = (self._read(db, record["payload"]["export_ref"])
+                          if ref["type"] == "RenderArtifact" else record)
+                if export["payload"].get("file_ref", "").lower().endswith(".xlsx"):
+                    raise ActionRejected("EXCEL_LAYOUT_REVIEW_OUTSIDE_SCOPE")
+            if self.store.manifest.get("review_execution_mode") == "bounded-tool-v1" and not any(
+                    i["assessment_kind"] == "content" for i in data["items"]):
+                from .artifact_review import validate_artifact_items
+                validate_artifact_items(self, db, requirements, data)
             for item in data["items"]:
                 if item["criterion_ref"] not in data["criteria_refs"]:
                     raise ActionRejected("UNDECLARED_CRITERION")
@@ -347,7 +556,34 @@ class ContentStore:
                         usable_observations += 1
                 if item["verdict"] is not None and not usable_observations:
                     raise ActionRejected("FAILED_READS_DO_NOT_ESTABLISH_OBSERVATIONS")
-            item_keys = [(encode(i["target_ref"]), encode(i["criterion_ref"]), i["scope"]) for i in data["items"]]
+                for check in item.get("check_results") or []:
+                    for index in check["observation_indexes"]:
+                        observation = item["observations"][index]
+                        row = db.execute("SELECT data FROM content_observations WHERE id=?", (observation["receipt_id"],)).fetchone()
+                        observed = json.loads(row[0])
+                        if check["execution_state"] == "completed" and (observed.get("status") == "failed" or observed.get("execution_state") == "blocked" or observed.get("ok") is False or observed.get("accepted") is False):
+                            raise ActionRejected("COMPLETED_CHECK_REQUIRES_SUCCESSFUL_OBSERVATION")
+                requirement = next((r for r in requirements if r["target_ref"] == item["target_ref"] and
+                    r["criterion_ref"] == item["criterion_ref"] and r["scope_id"] == (item.get("scope_id") or item["scope"]) and
+                    r["assessment_kind"] == item["assessment_kind"]), None)
+                if requirement and requirement.get("required_materials"):
+                    from .task_supervision import (missing_required_materials, material_refs_in_observation,
+                                                   source_extents_in_observation)
+                    if not item.get("check_results") and (item["execution_state"] == "completed" or item.get("checked_requirement_indexes")):
+                        raise ActionRejected("DECLARED_MATERIALS_REQUIRE_PER_CHECK_ACCOUNT")
+                    for check in item.get("check_results") or []:
+                        if check["execution_state"] != "completed":
+                            continue
+                        cited, source_extents = set(), []
+                        for index in check["observation_indexes"]:
+                            row = db.execute("SELECT data FROM content_observations WHERE id=?",
+                                (item["observations"][index]["receipt_id"],)).fetchone()
+                            actual = json.loads(row[0])
+                            cited.update(material_refs_in_observation(actual))
+                            source_extents.extend(source_extents_in_observation(self, actor.id, actual))
+                        if missing_required_materials(requirement, cited, {check["requirement_index"]}, source_extents):
+                            raise ActionRejected("COMPLETED_CHECK_MISSING_REQUIRED_MATERIAL")
+            item_keys = [self.review_item_key(i) for i in data["items"]]
             if len(item_keys) != len(set(item_keys)):
                 raise ActionRejected("DUPLICATE_REVIEW_OBLIGATION")
             kinds = [c["kind"] for c in data["delivery_checks"]]
@@ -369,10 +605,15 @@ class ContentStore:
                 if check["verdict"] is not None and not matched:
                     raise ActionRejected("DELIVERY_CHECK_REQUIRES_MATCHING_ACTUAL_OBSERVATION")
             data.update(task_ref=actor.task_id, runtime_identity=runtime_identity)
+            # Capture access evidence available when this judgment was saved.
+            # Later reads cannot retroactively establish an earlier assessment.
+            data["observation_rowid"] = db.execute(
+                "SELECT COALESCE(MAX(rowid), 0) FROM content_observations WHERE actor_id=?",
+                (actor.id,)).fetchone()[0]
             from .review_coverage import validate_accounting
             validate_accounting(snap, data)
             review_ref = self._insert(db, actor, "ReviewRecord", data)
-            if delivery_export_ref is not None:
+            if delivery_export_ref is not None and self.store.manifest.get("review_entrypoint") == "native-rubric-v1":
                 final = {"target": {"snapshot_ref": data["snapshot_ref"], "export_ref": delivery_export_ref},
                          "review_ref": review_ref, "runtime_identity": runtime_identity,
                          "entrypoint": "delegated-reviewer-v1"}
@@ -429,8 +670,39 @@ class ContentStore:
                 "candidate_affected_refs": [dict(zip(("type", "id", "version"), k)) for k in sorted(affected)],
                 "limitation": "Candidate dependency impact only. Agents decide semantic recheck scope and newly relevant evidence."}
 
-    def item_applies(self, item, snapshot_ref, export_ref=None):
+    @staticmethod
+    def review_item_key(item):
+        return (encode(item["target_ref"]), encode(item["criterion_ref"]),
+                item.get("scope_id") or item["scope"], item.get("assessment_kind", "content"))
+
+    @staticmethod
+    def item_dependencies(payload, item):
+        return payload["dependency_refs"] if item.get("dependency_refs") is None else item["dependency_refs"]
+
+    def review_item_state(self, review, snapshot_ref, index=None, history=None):
+        """Explicit correction/reuse only; None addresses legacy delivery checks."""
+        corrections, reuses = history if history is not None else (
+            self.list_objects("ReviewSupersession"), self.list_objects("ReviewReuse"))
+        withdrawn = any(r["payload"]["review_ref"] == review["ref"] and
+            (r["payload"].get("item_indexes") is None or index in r["payload"]["item_indexes"])
+            for r in corrections)
+        reuse = [r["ref"] for r in reuses
+            if r["payload"]["review_ref"] == review["ref"] and r["payload"]["snapshot_ref"] == snapshot_ref
+            and (r["payload"].get("item_indexes") is None or index in r["payload"]["item_indexes"])]
+        return withdrawn, review["payload"]["snapshot_ref"] == snapshot_ref or bool(reuse), reuse
+
+    def item_applies(self, item, snapshot_ref, export_ref=None, workbook_export_ref=None):
+        """Match every assessed artifact against the exact selected delivery.
+
+        A Word-only finding remains Word-only evidence when a companion is selected;
+        membership never expands its coverage to that companion. Callers supply the
+        saved, validated selection, not all exports sharing a snapshot.
+        """
         if item.get("assessment_kind", "content") == "content":
+            return True
+        # Older mixed findings cannot safely lose their content concern when only
+        # the exported file changes. Keep negative evidence, never transfer a pass.
+        if item.get("assessment_kind") == "combined" and item.get("verdict") == "not_satisfied":
             return True
         exports = []
         for ref in item["artifact_refs"]:
@@ -438,30 +710,28 @@ class ContentStore:
             if record["payload"].get("snapshot_ref") != snapshot_ref:
                 return False
             exports.append(record["payload"]["export_ref"] if ref["type"] == "RenderArtifact" else ref)
-        return bool(exports) and all(r == export_ref for r in exports)
+        selected = [r for r in (export_ref, workbook_export_ref) if r is not None]
+        return bool(exports) and all(r in selected for r in exports)
 
-    def review_summary(self, snapshot_ref, required, export_ref=None):
+    def review_summary(self, snapshot_ref, required, export_ref=None, workbook_export_ref=None):
         self.read(snapshot_ref)
         items, delivery_violations, needs_recheck = [], [], []
-        superseded = {encode(r["payload"]["review_ref"]) for r in self.list_objects("ReviewSupersession")}
-        def current_items(review):
-            changed = self.changed_review_sources(review["payload"])
-            if changed:
-                needs_recheck.append({"review_ref": review["ref"], "changed_source_refs": changed})
-            # Changes remove positive applicability, not historical findings.
-            return [i for i in review["payload"]["items"]
-                    if (not changed or i["verdict"] == "not_satisfied")
-                    and self.item_applies(i, snapshot_ref, export_ref)]
+        history = (self.list_objects("ReviewSupersession"), self.list_objects("ReviewReuse"))
         for review in self.list_objects("ReviewRecord"):
-            if review["payload"]["snapshot_ref"] != snapshot_ref or encode(review["ref"]) in superseded:
-                continue
-            items.extend(current_items(review))
-            delivery_violations.extend(c for c in review["payload"].get("delivery_checks", [])
-                if c["verdict"] == "not_satisfied" and self.item_applies(
-                    {**c, "assessment_kind": c["kind"]}, snapshot_ref, export_ref))
-        for reuse in self.list_objects("ReviewReuse"):
-            if reuse["payload"]["snapshot_ref"] == snapshot_ref and encode(reuse["payload"]["review_ref"]) not in superseded:
-                items.extend(current_items(self.read(reuse["payload"]["review_ref"])))
+            for index, item in enumerate(review["payload"]["items"]):
+                withdrawn, relevant, _ = self.review_item_state(review, snapshot_ref, index, history)
+                if withdrawn or not relevant:
+                    continue
+                changed = self.changed_review_sources(review["payload"], item)
+                if changed:
+                    needs_recheck.append({"review_ref": review["ref"], "item_index": index, "changed_source_refs": changed})
+                if (not changed or item["verdict"] == "not_satisfied") and self.item_applies(item, snapshot_ref, export_ref, workbook_export_ref):
+                    items.append(item)
+            withdrawn, relevant, _ = self.review_item_state(review, snapshot_ref, history=history)
+            if relevant and not withdrawn:
+                delivery_violations.extend(c for c in review["payload"].get("delivery_checks", [])
+                    if c["verdict"] == "not_satisfied" and self.item_applies(
+                        {**c, "assessment_kind": c["kind"]}, snapshot_ref, export_ref, workbook_export_ref))
         summary = aggregate(items, required)
         # Confirmed local violations of the same adopted criterion remain material
         # to delivery. Local passes never manufacture parent coverage.
@@ -474,7 +744,7 @@ class ContentStore:
         summary["needs_recheck"] = needs_recheck
         return summary
 
-    def supersede_review(self, actor, operation_id, review_ref, replacement_ref, reason):
+    def supersede_review(self, actor, operation_id, review_ref, replacement_ref, reason, item_indexes=None):
         """A reviewer can correct their own finding, keeping the original evidence."""
         def save(db):
             old, new = self._read(db, review_ref), self._read(db, replacement_ref)
@@ -484,23 +754,32 @@ class ContentStore:
                     or old["payload"]["snapshot_ref"] != new["payload"]["snapshot_ref"]
                     or review_ref == replacement_ref or not reason.strip()):
                 raise ActionRejected("INVALID_REVIEW_SUPERSESSION")
-            def keys(record):
-                return {(encode(i["target_ref"]), encode(i["criterion_ref"]), i["scope"]) for i in record["payload"]["items"]}
-            if not keys(old) <= keys(new) or not all(i["observations"] for i in new["payload"]["items"]):
+            selected = self.selected_review_items(old["payload"], item_indexes)
+            if not {self.review_item_key(i) for i in selected} <= {self.review_item_key(i) for i in new["payload"]["items"]} or not all(i["observations"] for i in new["payload"]["items"]):
                 raise ActionRejected("CORRECTED_REVIEW_REQUIRES_COVERAGE_AND_OBSERVATIONS")
             def checks_by_key(record):
                 return {(c["kind"], tuple(sorted(encode(r) for r in c["artifact_refs"]))): c
                         for c in record["payload"].get("delivery_checks", [])}
-            old_checks, new_checks = checks_by_key(old), checks_by_key(new)
+            old_checks, new_checks = checks_by_key(old) if item_indexes is None else {}, checks_by_key(new)
             if not old_checks.keys() <= new_checks.keys() or any(
                     (c["verdict"] is not None or c["observations"]) and not new_checks[key]["observations"]
                     for key, c in old_checks.items()):
                 raise ActionRejected("CORRECTED_REVIEW_REQUIRES_DELIVERY_COVERAGE")
             return {"supersession_ref": self._insert(db, actor, "ReviewSupersession", {
-                "review_ref": review_ref, "replacement_ref": replacement_ref, "reason": reason})}
-        return self.operation(actor, operation_id, {"supersede_review": [review_ref, replacement_ref, reason]}, save)
+                "review_ref": review_ref, "replacement_ref": replacement_ref, "reason": reason, "item_indexes": item_indexes})}
+        request = [review_ref, replacement_ref, reason] + ([] if item_indexes is None else [item_indexes])
+        return self.operation(actor, operation_id, {"supersede_review": request}, save)
 
-    def confirm_reuse(self, actor, operation_id, review_ref, new_snapshot, reason):
+    @staticmethod
+    def selected_review_items(payload, indexes):
+        if indexes is None:
+            return payload["items"]
+        if not indexes or len(set(indexes)) != len(indexes) or any(
+                type(i) is not int or i < 0 or i >= len(payload["items"]) for i in indexes):
+            raise ActionRejected("REVIEW_ITEM_INDEX_INVALID")
+        return [payload["items"][i] for i in indexes]
+
+    def confirm_reuse(self, actor, operation_id, review_ref, new_snapshot, reason, item_indexes=None):
         """Explicit reviewer confirmation, never a latest-version automatic pass."""
         current_sources = {s["id"]: s for s in self.store.sources([s["id"] for s in self.store.source_catalog()])}
         def save(db):
@@ -511,10 +790,12 @@ class ContentStore:
             if review_ref["type"] != "ReviewRecord" or new_snapshot["type"] != "DocumentSnapshot" or not reason.strip():
                 raise ActionRejected("REVIEW_REUSE_REQUIRES_REASON_AND_SNAPSHOT")
             payload = old["payload"]
+            selected = self.selected_review_items(payload, item_indexes)
             keys = {Ref.model_validate(r).key() for r in new["payload"]["refs"]}
-            required = [payload["target_ref"], *payload["criteria_refs"], *payload["dependency_refs"],
-                        *[i["target_ref"] for i in payload["items"]]]
-            independent = [r for r in payload["dependency_refs"] if r["type"] == "SourceArtifact" and Ref.model_validate(r).key() not in keys]
+            required = [r for i in selected for r in [i["target_ref"], i["criterion_ref"], *self.item_dependencies(payload, i)]]
+            if item_indexes is None:
+                required += [payload["target_ref"], *payload["criteria_refs"], *payload["dependency_refs"]]
+            independent = [r for r in required if r["type"] == "SourceArtifact" and Ref.model_validate(r).key() not in keys]
             for ref in independent:
                 source = self._read(db, ref)["payload"]
                 current = current_sources.get(source["source_id"])
@@ -522,20 +803,21 @@ class ContentStore:
                     raise ActionRejected("CHANGED_REVIEW_SOURCE_REQUIRES_RECHECK")
             if any(Ref.model_validate(r).key() not in keys and r not in independent for r in required):
                 raise ActionRejected("CHANGED_REVIEW_INPUT_REQUIRES_RECHECK")
-            for item in [*payload["items"], *payload.get("delivery_checks", [])]:
+            for item in [*selected, *(payload.get("delivery_checks", []) if item_indexes is None else [])]:
                 for ref in item.get("artifact_refs", []):
                     if self._read(db, ref)["payload"].get("snapshot_ref") != new_snapshot:
                         raise ActionRejected("CHANGED_ARTIFACT_REQUIRES_RECHECK")
             # A whole-snapshot judgment cannot be reused as another whole-snapshot judgment.
             # Unchanged local targets still require semantic confirmation of relevance.
             return {"reuse_ref": self._insert(db, actor, "ReviewReuse", {"review_ref": review_ref,
-                "snapshot_ref": new_snapshot, "reason": reason, "applicability_to_snapshot": "current"})}
-        return self.operation(actor, operation_id, {"reuse": [review_ref, new_snapshot, reason]}, save)
+                "snapshot_ref": new_snapshot, "reason": reason, "item_indexes": item_indexes, "applicability_to_snapshot": "current"})}
+        request = [review_ref, new_snapshot, reason] + ([] if item_indexes is None else [item_indexes])
+        return self.operation(actor, operation_id, {"reuse": request}, save)
 
-    def changed_review_sources(self, payload):
+    def changed_review_sources(self, payload, item=None):
         members = self.read(payload["snapshot_ref"])["payload"]["refs"]
         changed = []
-        for ref in payload["dependency_refs"]:
+        for ref in self.item_dependencies(payload, item) if item is not None else payload["dependency_refs"]:
             if ref["type"] != "SourceArtifact" or ref in members:
                 continue
             source = self.read(ref)["payload"]

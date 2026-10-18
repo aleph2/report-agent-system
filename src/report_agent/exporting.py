@@ -1,4 +1,5 @@
 from io import BytesIO
+from copy import deepcopy
 import re
 from unicodedata import east_asian_width
 from urllib.parse import quote, unquote
@@ -17,7 +18,8 @@ from .workspace import Workspace
 from .knowledge_state import delivery_state
 
 
-def _cell_runs(paragraph, tokens, header=False, image_renderer=None, image_width=None):
+def _cell_runs(paragraph, tokens, header=False, image_renderer=None, image_width=None,
+               source_line_break=None):
     bold = italic = 0
     links = []
     for token in tokens:
@@ -33,7 +35,12 @@ def _cell_runs(paragraph, tokens, header=False, image_renderer=None, image_width
         elif token.type in ("softbreak", "hardbreak") or (
             token.type == "html_inline" and token.content.lower() in ("<br>", "<br/>", "<br />")
         ):
-            paragraph.add_run().add_break()
+            next_paragraph = (source_line_break(paragraph) if source_line_break
+                              and token.type in ('softbreak', 'hardbreak') else None)
+            if next_paragraph is not None:
+                paragraph = next_paragraph
+            else:
+                paragraph.add_run().add_break()
         elif token.type == "image" and image_renderer is not None:
             image_renderer(paragraph, token, image_width)
         else:
@@ -46,6 +53,7 @@ def _cell_runs(paragraph, tokens, header=False, image_renderer=None, image_width
             run.italic = True if italic else None
             if token.type == "code_inline":
                 run.font.name = "Consolas"
+    return paragraph
 
 
 def _table_widths(doc, rows):
@@ -75,7 +83,7 @@ def _table_widths(doc, rows):
     return [Twips(value) for value in twips]
 
 
-def _add_table(doc, tokens, lines, image_renderer=None, *, technical=False):
+def _table_rows(tokens, lines):
     rows = []
     for token in tokens:
         if token.type == "tr_open":
@@ -91,7 +99,29 @@ def _add_table(doc, tokens, lines, image_renderer=None, *, technical=False):
         if cells and cells[-1] == "":
             cells.pop()
         if len(cells) > width:
-            return False
+            return None
+    return rows
+
+
+def markdown_table_spans(body):
+    """Column counts and original line ranges for preservable Word tables."""
+    lines = body.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+    tokens = MarkdownIt('commonmark').enable('table').parse(body)
+    widths = []
+    for index, token in enumerate(tokens):
+        if token.type == 'table_open':
+            end = next(i for i in range(index+1, len(tokens)) if tokens[i].type == 'table_close')
+            rows = _table_rows(tokens[index:end+1], lines[token.map[0]:token.map[1]])
+            if rows:
+                widths.append((len(rows[0]), token.map[0], token.map[1]))
+    return widths
+
+
+def _add_table(doc, tokens, lines, image_renderer=None, *, technical=False, table_formatter=None):
+    rows = _table_rows(tokens, lines)
+    if not rows:
+        return False
+    width = len(rows[0])
     if technical and doc.paragraphs:
         previous = doc.paragraphs[-1]
         if (previous._p.getnext() is doc.element.body.sectPr and previous.text.strip()
@@ -130,6 +160,8 @@ def _add_table(doc, tokens, lines, image_renderer=None, *, technical=False):
                     run.font.size = Pt(10.5)
                     run.font.name = "Times New Roman"
                     run._r.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), "\u5b8b\u4f53")
+    if table_formatter is not None:
+        table_formatter(table)
     return True
 
 
@@ -231,11 +263,14 @@ def _list_numbering(doc, ordered, start=1):
     return numbering.add_num(abstract_id).numId
 
 
-def _add_markdown(doc, body, image_renderer, *, headings_in_toc=True):
+def _add_markdown(doc, body, image_renderer, *, headings_in_toc=True, table_formatter=None,
+                  paragraph_formatter=None, paragraph_boundary=None):
     lines = body.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     tokens = MarkdownIt("commonmark").enable("table").parse(body)
     lists = []
     paragraph = None
+    paragraph_lines = []
+    paragraph_spans = []
     scope_heading = False
     index = 0
     while index < len(tokens):
@@ -243,7 +278,8 @@ def _add_markdown(doc, body, image_renderer, *, headings_in_toc=True):
         if token.type == "table_open":
             end = next(i for i in range(index + 1, len(tokens)) if tokens[i].type == "table_close")
             original = lines[token.map[0]:token.map[1]]
-            if not _add_table(doc, tokens[index:end + 1], original, image_renderer, technical=True):
+            if not _add_table(doc, tokens[index:end + 1], original, image_renderer, technical=True,
+                              table_formatter=table_formatter):
                 for line in original:
                     doc.add_paragraph(line)
             index = end
@@ -255,6 +291,8 @@ def _add_markdown(doc, body, image_renderer, *, headings_in_toc=True):
         elif token.type == "list_item_open":
             lists[-1]["first"] = True
         elif token.type in ("heading_open", "paragraph_open"):
+            paragraph_lines = lines[token.map[0]:token.map[1]] if token.map else []
+            paragraph_spans = []
             heading = token.type == "heading_open"
             scope_heading = heading and not headings_in_toc
             paragraph = doc.add_heading("", int(token.tag[1:])) if heading and headings_in_toc else doc.add_paragraph()
@@ -272,11 +310,41 @@ def _add_markdown(doc, body, image_renderer, *, headings_in_toc=True):
                     numbering.get_or_add_numId().val = lists[-1]["id"]
                     lists[-1]["first"] = False
         elif token.type == "inline":
-            _cell_runs(paragraph, token.children or [], header=scope_heading, image_renderer=image_renderer)
+            line_index = start_line = 0
+
+            def source_break(current):
+                nonlocal line_index, start_line
+                line_index += 1
+                if (paragraph_boundary and line_index < len(paragraph_lines)
+                        and paragraph_boundary(paragraph_lines[line_index-1], paragraph_lines[line_index])):
+                    paragraph_spans.append((current, paragraph_lines[start_line:line_index]))
+                    start_line = line_index
+                    following = doc.add_paragraph(style=current.style)
+                    if current._p.pPr is not None:
+                        formatting = deepcopy(current._p.pPr)
+                        # This is still the same list item, not a new number.
+                        if formatting.numPr is not None:
+                            formatting.remove(formatting.numPr)
+                        following._p.remove(following._p.pPr)
+                        following._p.insert(0, formatting)
+                    return following
+                return None
+
+            paragraph = _cell_runs(paragraph, token.children or [], header=scope_heading,
+                image_renderer=image_renderer, source_line_break=source_break if paragraph_boundary else None)
+            paragraph_spans.append((paragraph, paragraph_lines[start_line:]))
+        elif token.type in ('heading_close', 'paragraph_close'):
+            if paragraph_formatter:
+                for p, source_lines in paragraph_spans or [(paragraph, paragraph_lines)]:
+                    paragraph_formatter(p, source_lines)
         elif token.type in ("fence", "code_block", "html_block"):
-            doc.add_paragraph(token.content.rstrip("\n"))
+            p = doc.add_paragraph(token.content.rstrip("\n"))
+            if paragraph_formatter:
+                paragraph_formatter(p, lines[token.map[0]:token.map[1]] if token.map else [])
         elif token.type == "hr":
-            doc.add_paragraph("---")
+            p = doc.add_paragraph("---")
+            if paragraph_formatter:
+                paragraph_formatter(p, lines[token.map[0]:token.map[1]] if token.map else [])
         index += 1
 
 
@@ -337,7 +405,7 @@ def _technical_template(doc, draft, metadata, project_name):
     title = doc.add_heading(draft["title"], 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     title.paragraph_format.space_before = Pt(100)
-    for text in ("\u8d44\u6599\u6c47\u7f16\u6280\u672f\u62a5\u544a", "\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6", "\u7f16\u5236\u5355\u4f4d\uff1a" + metadata.get("organization", "\u5f85\u586b\u5199"),
+    for text in ("\u8d44\u6599\u6c47\u7f16\u6280\u672f\u62a5\u544a", "\u7f16\u5236\u5355\u4f4d\uff1a" + metadata.get("organization", "\u5f85\u586b\u5199"),
                  "\u7f16\u5236\u65e5\u671f\uff1a" + metadata.get("date", "\u5f85\u586b\u5199")):
         doc.add_paragraph(text).alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_page_break()
@@ -345,7 +413,7 @@ def _technical_template(doc, draft, metadata, project_name):
     doc.add_paragraph(draft["title"])
     doc.add_paragraph("\u7f16\u5236\u5355\u4f4d\uff1a" + metadata.get("organization", "\u5f85\u586b\u5199"))
     doc.add_paragraph("\u7f16\u5236\u65e5\u671f\uff1a" + metadata.get("date", "\u5f85\u586b\u5199"))
-    doc.add_paragraph("\u5de5\u7a0b\u5ba1\u6838\u3001\u6279\u51c6\u4fe1\u606f\uff1a\u5f85\u586b\u5199\uff08\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\uff09")
+    doc.add_paragraph("\u5de5\u7a0b\u5ba1\u6838\u3001\u6279\u51c6\u4fe1\u606f\uff1a\u5f85\u586b\u5199")
     section = doc.add_section(WD_SECTION_START.NEW_PAGE)
     section.header.is_linked_to_previous = False
     section.footer.is_linked_to_previous = False
@@ -366,14 +434,18 @@ def _technical_template(doc, draft, metadata, project_name):
     doc.add_page_break()
 
 
-def export_docx(workspace: Workspace, draft_id: str, *, template=None, metadata=None) -> bytes:
+def export_docx(workspace: Workspace, draft_id: str, *, template=None, metadata=None,
+                include_execution_record: bool = False) -> bytes:
     """Export a saved version, without model calls, tasks, or approval.
 
     template: legacy (default) or technical_zh (reader copy). If omitted, use
     manifest["export"]["template"]. Optional metadata (organization/date/scope/project_name)
     overrides manifest["export"]["metadata"], without changing saved data.
-    Technical audit is omitted from reader appendices, never deleted from storage.
+    Execution/model/extraction diagnostics are excluded from the reader copy by default.
+    include_execution_record=True creates an explicit diagnostic copy; storage is unchanged.
     """
+    if type(include_execution_record) is not bool:
+        raise ValueError("EXECUTION_RECORD_OPTION_REQUIRES_BOOLEAN")
     options = workspace.store.manifest.get("export", {})
     template = template if template is not None else options.get("template", "legacy")
     if template not in ("legacy", "technical_zh"):
@@ -400,28 +472,29 @@ def export_docx(workspace: Workspace, draft_id: str, *, template=None, metadata=
         _technical_template(doc, draft, metadata, project_name)
     else:
         doc.add_heading(draft["title"], 0)
-    labels = {"reviewed_draft": "Model-reviewed draft; not engineering-approved.",
-              "changes_required": "Draft requiring corrections; not approved.",
-              "needs_human": "Draft with unresolved issues requiring human handling.",
-              "system_error": "Draft affected by an unresolved system failure; not a missing-source judgment.",
-              "needs_attention": "Draft pending assessment of changed source material; not approved.",
-              "unreviewed_draft": "Unreviewed draft; not approved."}
-    if technical:
-        labels = {
-            "reviewed_draft": "\u6a21\u578b\u5ba1\u6838\u901a\u8fc7\u7684\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
-            "changes_required": "\u5f85\u4fee\u6539\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
-            "needs_human": "\u5b58\u5728\u5f85\u4eba\u5de5\u5904\u7406\u4e8b\u9879\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
-            "system_error": "\u5f53\u524d\u6709\u6548\u6027\u672a\u80fd\u786e\u8ba4\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
-            "needs_attention": "\u8d44\u6599\u53d8\u66f4\u5f85\u8bc4\u4f30\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
-            "unreviewed_draft": "\u672a\u5ba1\u6838\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
-        }
-    doc.add_paragraph(labels[state["status"]])
-    if evidence["status"] == "unknown":
-        doc.add_paragraph("Shared knowledge validity could not be checked. Historical text and review are retained; current validity is unknown.")
-    elif evidence["status"] == "needs_assessment":
-        doc.add_paragraph("Adopted knowledge has changed. Producer assessment is pending; this does not automatically require rewriting.")
-    if workspace.store.get("model_mode") == "scripted_fixture":
-        doc.add_paragraph("SYNTHETIC PROTOCOL FIXTURE. Not a real-model or engineering report.")
+    if include_execution_record:
+        labels = {"reviewed_draft": "Model-reviewed draft; not engineering-approved.",
+                  "changes_required": "Draft requiring corrections; not approved.",
+                  "needs_human": "Draft with unresolved issues requiring human handling.",
+                  "system_error": "Draft affected by an unresolved system failure; not a missing-source judgment.",
+                  "needs_attention": "Draft pending assessment of changed source material; not approved.",
+                  "unreviewed_draft": "Unreviewed draft; not approved."}
+        if technical:
+            labels = {
+                "reviewed_draft": "\u6a21\u578b\u5ba1\u6838\u901a\u8fc7\u7684\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
+                "changes_required": "\u5f85\u4fee\u6539\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
+                "needs_human": "\u5b58\u5728\u5f85\u4eba\u5de5\u5904\u7406\u4e8b\u9879\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
+                "system_error": "\u5f53\u524d\u6709\u6548\u6027\u672a\u80fd\u786e\u8ba4\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
+                "needs_attention": "\u8d44\u6599\u53d8\u66f4\u5f85\u8bc4\u4f30\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
+                "unreviewed_draft": "\u672a\u5ba1\u6838\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6\u3002",
+            }
+        doc.add_paragraph(labels[state["status"]])
+        if evidence["status"] == "unknown":
+            doc.add_paragraph("Shared knowledge validity could not be checked. Historical text and review are retained; current validity is unknown.")
+        elif evidence["status"] == "needs_assessment":
+            doc.add_paragraph("Adopted knowledge has changed. Producer assessment is pending; this does not automatically require rewriting.")
+        if workspace.store.get("model_mode") == "scripted_fixture":
+            doc.add_paragraph("SYNTHETIC PROTOCOL FIXTURE. Not a real-model or engineering report.")
     manifest = workspace.store.manifest
     scope_instruction = manifest.get("scope_instruction")
     if isinstance(scope_instruction, dict):
@@ -437,12 +510,12 @@ def export_docx(workspace: Workspace, draft_id: str, *, template=None, metadata=
         doc.add_paragraph("Scope: " + scope)
         _add_body(doc, draft["body"], images)
     issues = workspace.status()["issues"]
-    if technical:
+    if not include_execution_record:
         issues = [i for i in issues if not i["resolved"] and i["category"] in {"source_missing", "source_conflict"}]
     if issues:
         doc.add_heading("\u5f85\u786e\u8ba4\u4e8b\u9879" if technical else "Issues and decisions", 1)
         for issue in issues:
-            if technical:
+            if not include_execution_record:
                 doc.add_paragraph(issue["description"])
                 source_ids.update(issue["source_ids"])
                 if issue["source_ids"]:
@@ -468,17 +541,20 @@ def export_docx(workspace: Workspace, draft_id: str, *, template=None, metadata=
         pending.extend(result["input_ids"])
     doc.add_heading("\u8d44\u6599\u6765\u6e90\u7d22\u5f15" if technical else "Source index", 1)
     for source in workspace.store.sources(sorted(source_ids)):
-        doc.add_paragraph(f'[{source["id"]}] {source["title"]}; coverage: {source["coverage"]}')
-        if not source.get("current", True):
-            doc.add_paragraph("Historical source version; this draft may require revision.")
-        for limitation in source.get("limitations", []):
-            doc.add_paragraph("Extraction limitation: " + limitation)
-    doc.add_heading("\u7248\u672c\u8bb0\u5f55" if technical else "Version record", 1)
-    doc.add_paragraph("Knowledge versions: " + ", ".join(evidence["fact_ids"]))
-    doc.add_paragraph("Knowledge validity at export: " + evidence["status"] + " (" + evidence["checked_at"] + ")")
-    doc.add_paragraph("Draft: " + draft_id)
-    doc.add_paragraph("Review: " + (review_id or "none"))
-    doc.add_paragraph("Input results: " + ", ".join(draft["input_ids"]))
+        doc.add_paragraph(f'[{source["id"]}] {source["title"]}' +
+                          (f'; coverage: {source["coverage"]}' if include_execution_record else ""))
+        if include_execution_record:
+            if not source.get("current", True):
+                doc.add_paragraph("Historical source version; this draft may require revision.")
+            for limitation in source.get("limitations", []):
+                doc.add_paragraph("Extraction limitation: " + limitation)
+    if include_execution_record:
+        doc.add_heading("\u7248\u672c\u8bb0\u5f55" if technical else "Version record", 1)
+        doc.add_paragraph("Knowledge versions: " + ", ".join(evidence["fact_ids"]))
+        doc.add_paragraph("Knowledge validity at export: " + evidence["status"] + " (" + evidence["checked_at"] + ")")
+        doc.add_paragraph("Draft: " + draft_id)
+        doc.add_paragraph("Review: " + (review_id or "none"))
+        doc.add_paragraph("Input results: " + ", ".join(draft["input_ids"]))
     output = BytesIO()
     doc.save(output)
     return output.getvalue()

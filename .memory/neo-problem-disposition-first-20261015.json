@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-15",
+  "recorded_by": "Codex Main",
+  "authority": "Direct desktop user messages in the current conversation",
+  "user_verbatim": [
+    "首先，应该由Neo，对问题进行判断，确认是否是问题，以及是否需要解决",
+    "以及按照我的习惯和最终交付目标"
+  ],
+  "decision_owner": "Neo",
+  "decision_basis": [
+    "Actual source code, execution traces and impact",
+    "The user's expressed working habits and confirmed decisions",
+    "The final first-contract full-scope report, Word, issues-only Excel and actual review outcome",
+    "Shared root causes, downstream consequences, delivery value, containment and opportunity cost"
+  ],
+  "roles": {
+    "Main_and_other_reviewers": "Submit evidence and proposed findings; do not independently turn another reviewer's verdict into a repair or stop decision.",
+    "Neo": "First assess whether the issue is established, whether resolution is needed, and its priority and disposition; then review implementation and actual results.",
+    "Codex_Main": "Implement Neo's chosen disposition and provide verification evidence."
+  },
+  "scope": "Development decisions within existing authorization; no additional report-runtime approval stage or fixed workflow.",
+  "current_six_repairs": ".analysis/neo/implementation-resumed-20261014/c17-six-repairs-necessity-disposition.json",
+  "preserve": [
+    "Historical findings and already valid verification evidence",
+    "Current native execution and no duplicate or blind unknown-result replay",
+    "Cumulative100000000-token limit with recorded use and unknown reservations",
+    "Email stopped; original source, ownership and publication boundaries"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "recorded_at_utc": "2026-10-15T01:50:41.001319+00:00",
+  "user_verbatim": "pay me back the token!!!, you introduce such a lot of issue without any consideration of the consequence",
+  "record_type": "Main spending hold and cost-accountability record following refund demand",
+  "responsible": "Codex Main; Neo reviews engineering evidence",
+  "disposition": "No further external paid report-model calls or automatic continuation. Use saved local evidence only for accounting/diagnosis. Require renewed direct user instruction before paid execution. This is Main containment following the complaint, not a claim that the user explicitly cancelled the full project.",
+  "refund_status": "No refund or credit issued. Codex has no billing-credit authority.",
+  "ledger": ".analysis/full-chain-acceptance-20261014/full-chain-costs-live.json",
+  "ledger_sha256": "4e09469a91c17340568a703d3cfcb41d11ff43c003a26207793e8d354c49b389",
+  "ledger_at_utc": "2026-10-14T23:48:52.124455+00:00",
+  "recorded_tokens": 47213387,
+  "established_avoidable_subset_tokens": 4180985,
+  "avoidable_cost_limits": "Established avoidable subset already included in recorded total; not an exhaustive waste estimate, not all attributed to the240-character formatter, not a provider refund calculation. Unknown usage remains unknown.",
+  "latest_recorded_run": "continuation16 terminal; finished2026-10-14T23:37:14.442949+00:00",
+  "new_report_provider_calls_this_check": 0,
+  "preservation": "Original ledger, raw responses, unknown reservations, incidents, reports and prior authorizations retained unchanged.",
+  "status": "superseded_by_direct_user_instruction",
+  "superseded_at_utc": "2026-10-15T01:51:52.169917+00:00",
+  "superseding_user_verbatim": [
+    "no this kind of problem solving",
+    "Let Neo take over the decision making. Go ahead"
+  ],
+  "current_disposition": "Main-imposed paid hold withdrawn. Neo leads technical decisions and validation sequencing; Main implements. Necessary paid validation remains authorized within the existing cumulative80m budget, unknown reservations and original scope. Prior suspension is retained as historical Main action, not current user policy."
+}

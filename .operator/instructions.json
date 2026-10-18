@@ -1,0 +1,101 @@
+{
+  "policy": "confirmed-operator-instructions-v1",
+  "id": "confirmed-construction-safety-customer-feedback",
+  "version": 2,
+  "authority": "direct_user_confirmed",
+  "provenance": "Direct desktop confirmed category requirements, resumed development and paid validation 2026-10-14; Main enters verbatim requirements, not a learner strategy.; full first-contract delivery authorization2026-10-14, previous records preserved",
+  "instructions": [
+    {
+      "id": "construction-safety-direct-requirements-20261014",
+      "topic": "report-basis-layout-content-scope-guide-originals",
+      "scope": "report_category",
+      "report_category": "construction_safety_risk_assessment",
+      "text": "1，报告排版布局如字体，字号，布局等要参考《报告编制格式标准》\n2，报告内容如何提取要参考《提取大纲》\n3，涉及哪些合同段，涉及的哪些内容要参考《报告编写范围说明》\n4，报告参考的指南标准要吃透。表格格式要遵循指南标准。如：**（S3-2-11-4-2）总体风险评估指标体系权重与分值计算表**    要遵循指南标准规范，例如：《路堑高边坡施工安全评价指南》第11页\n5，这个报告是依照相关指南标准规范，根据实际的现场核查、专家评审、设计资料编写的。因此，在类似地质水温资料等要直接把原文插入进report，可以用原文的截屏。\n\n用户已确认：\n原文：完整相关段落/图表。\n指南表格：可以调整尺寸与分页。内容不变即可。\n这个反馈是给这一类《只针对施工安全风险评估报告》的，既不是只针对这个报告，也不是所有的报告\n《施工安全评估报告》是针对各类施工，桥隧路坡涵，所以下次报告不一定是边坡。\n但，我不希望这个成为一个非常narrow down的经验。\n但是我希望是coordinator或者某个agent能通过解读指南获得这样的经验。",
+      "source_decision": "Direct desktop customer feedback and confirmed scope; original intake .runs/construction-safety-category-validation-20261014/customer-feedback.json",
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer",
+        "layout"
+      ]
+    },
+    {
+      "id": "high-slope-direct-grading-20261014",
+      "topic": "high-slope-source-class-and-basic-score",
+      "scope": "report",
+      "report_id": "operator-feedback-K1320-20261014",
+      "report_category": "construction_safety_risk_assessment",
+      "text": "严格按照指南的文字描述的内容，核查地勘文件和设计文件一坡一图，选取对应的分级，再选取分值。不是根据分值计算类型，是根据类型选取分值\n当同一指标计算在指南里发生冲突是，使用指南里的经验值\n评估对象不仅依据土质30m或岩质20m的常规高度标准，对于设有抗滑桩等重要结构物的边坡，即使高度未达标也应纳入评估范围。\n指南要求根据地勘描述确定风化等级（如强风化、全风化）来选取对应分值，当前报告未严格按此逻辑，导致地层岩性打分与地勘实际情况不符。\n打分时必须严格对照指南文字描述，核查地勘文件及一坡一图设计文件，根据实际描述选取对应的分级档位和分值。",
+      "source_decision": "Direct desktop high-slope feedback; heights remain claims to check against applicable actual guide, no engineering acceptance",
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer"
+      ]
+    },
+    {
+      "id": "high-slope-experience-table-20261014",
+      "topic": "high-slope-user-table-clarification",
+      "scope": "report",
+      "report_id": "operator-feedback-K1320-20261014",
+      "report_category": "construction_safety_risk_assessment",
+      "text": "是指的《路堑高边坡施工安全评价指南》91页的表格而不是指用公式。",
+      "source_decision": "Direct desktop clarification of current high-slope experience coefficients; original raw words, not a developer-written learned strategy",
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer"
+      ]
+    },
+    {
+      "id": "high-slope-direct-grading-20261014-full-contract",
+      "topic": "high-slope-source-class-and-basic-score",
+      "scope": "report",
+      "report_id": "first-contract-full-chain-20261014",
+      "report_category": "construction_safety_risk_assessment",
+      "text": "严格按照指南的文字描述的内容，核查地勘文件和设计文件一坡一图，选取对应的分级，再选取分值。不是根据分值计算类型，是根据类型选取分值\n当同一指标计算在指南里发生冲突是，使用指南里的经验值\n评估对象不仅依据土质30m或岩质20m的常规高度标准，对于设有抗滑桩等重要结构物的边坡，即使高度未达标也应纳入评估范围。\n指南要求根据地勘描述确定风化等级（如强风化、全风化）来选取对应分值，当前报告未严格按此逻辑，导致地层岩性打分与地勘实际情况不符。\n打分时必须严格对照指南文字描述，核查地勘文件及一坡一图设计文件，根据实际描述选取对应的分级档位和分值。",
+      "source_decision": "Direct desktop high-slope feedback; heights remain claims to check against applicable actual guide, no engineering acceptance; latest desktop authorization continues original plan to first-contract full report,2026-10-14",
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer"
+      ]
+    },
+    {
+      "id": "high-slope-experience-table-20261014-full-contract",
+      "topic": "high-slope-user-table-clarification",
+      "scope": "report",
+      "report_id": "first-contract-full-chain-20261014",
+      "report_category": "construction_safety_risk_assessment",
+      "text": "是指的《路堑高边坡施工安全评价指南》91页的表格而不是指用公式。",
+      "source_decision": "Direct desktop clarification of current high-slope experience coefficients; original raw words, not a developer-written learned strategy; latest desktop authorization continues original plan to first-contract full report,2026-10-14",
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer"
+      ]
+    }
+  ],
+  "active": [
+    {
+      "id": "construction-safety-direct-requirements-20261014",
+      "version": 1
+    },
+    {
+      "id": "high-slope-direct-grading-20261014",
+      "version": 1
+    },
+    {
+      "id": "high-slope-experience-table-20261014",
+      "version": 1
+    },
+    {
+      "id": "high-slope-direct-grading-20261014-full-contract",
+      "version": 1
+    },
+    {
+      "id": "high-slope-experience-table-20261014-full-contract",
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="40" time="22.196" timestamp="2026-10-18T01:50:32.063681+11:00" hostname="dysun"><testcase classname="tests.test_boundary_refactor" name="test_explicit_source_read_reaches_next_model_without_field_clipping" time="1.601" /><testcase classname="tests.test_boundary_refactor" name="test_completed_return_keeps_exact_late_limitations" time="0.159" /><testcase classname="tests.test_boundary_refactor" name="test_ambiguous_scope_is_rejected_at_assignment_before_any_model" time="0.133" /><testcase classname="tests.test_boundary_refactor" name="test_explicit_historical_comparison_can_execute_save_and_reconcile" time="0.277" /><testcase classname="tests.test_boundary_refactor" name="test_document_has_one_directory_even_with_nested_report_nodes" time="0.356" /><testcase classname="tests.test_boundary_refactor" name="test_paragraph_formatting_preserves_markdown_image_and_emphasis" time="0.028" /><testcase classname="tests.test_boundary_refactor" name="test_historical_public_trace_keeps_original_material_and_qualifications[1005]" time="0.259" /><testcase classname="tests.test_boundary_refactor" name="test_historical_public_trace_keeps_original_material_and_qualifications[1147]" time="0.225" /><testcase classname="tests.test_boundary_refactor" name="test_real_review_controls_survive_native_filesystem_eviction" time="0.520" /><testcase classname="tests.test_boundary_refactor" name="test_final_delivery_rejects_changed_identity_or_original[owner]" time="0.200" /><testcase classname="tests.test_boundary_refactor" name="test_final_delivery_rejects_changed_identity_or_original[sha256]" time="0.218" /><testcase classname="tests.test_boundary_refactor" name="test_final_delivery_rejects_changed_identity_or_original[tool_call_id]" time="0.226" /><testcase classname="tests.test_boundary_refactor" name="test_final_delivery_rejects_changed_identity_or_original[public_digest]" time="0.229" /><testcase classname="tests.test_boundary_refactor" name="test_final_delivery_rejects_changed_identity_or_original[stored_text]" time="0.205" /><testcase classname="tests.test_boundary_refactor" name="test_artifact_review_returns_saved_findings_on_fresh_and_cached_path" time="0.306" /><testcase classname="tests.test_boundary_refactor" name="test_styles_do_not_split_lists_soft_lines_or_tables" time="0.043" /><testcase classname="tests.test_boundary_refactor" name="test_historical_comparison_exception_does_not_expand_authority[undeclared]" time="0.189" /><testcase classname="tests.test_boundary_refactor" name="test_historical_comparison_exception_does_not_expand_authority[unread]" time="0.122" /><testcase classname="tests.test_boundary_refactor" name="test_historical_comparison_exception_does_not_expand_authority[foreign_read]" time="0.149" /><testcase classname="tests.test_boundary_refactor" name="test_historical_comparison_exception_does_not_expand_authority[wrong_version]" time="0.122" /><testcase classname="tests.test_boundary_refactor" name="test_historical_comparison_exception_does_not_expand_authority[target]" time="0.133" /><testcase classname="tests.test_boundary_refactor" name="test_native_offload_keeps_source_data_deferred_and_exactly_recoverable" time="1.584" /><testcase classname="tests.test_boundary_refactor" name="test_typed_rejection_is_not_erased_or_promoted_after_offload" time="0.175" /><testcase classname="tests.test_boundary_refactor" name="test_explicit_heading_boundaries_preserve_cross_line_emphasis_links_and_numbering" time="0.013" /><testcase classname="tests.test_boundary_refactor" name="test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[False]" time="1.539" /><testcase classname="tests.test_boundary_refactor" name="test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[True]" time="1.371" /><testcase classname="tests.test_boundary_refactor" name="test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt[False]" time="1.452" /><testcase classname="tests.test_boundary_refactor" name="test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt[True]" time="1.290"><failure message="AssertionError: {'goal': 'Report adopted class B and check its permitted value.', 'name': 'test_native_page_and_saved_res1', 'status': 'failed', 'activity': '', ...}&#10;assert {'diagnostic_id': 'feb8bfdf-fca3-4fb2-a52f-36421f1b0729', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'AssertionError'} is None">ws = &lt;report_agent.workspace.Workspace object at 0x7f91c4e2b080&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7f91c4e2b3e0&gt;
+page_read = True
+
+    @pytest.mark.parametrize('page_read', [False, True])
+    async def test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt(ws, monkeypatch, page_read):
+        from test_ingestion import pdf_bytes
+        from report_agent.task_context import read_observation
+        from report_agent.decision_data import deliver_controls
+        native = deep_runtime.FilesystemMiddleware
+        monkeypatch.setattr(deep_runtime, 'FilesystemMiddleware',
+            lambda **kwargs: native(**kwargs, tool_token_limit_before_evict=100))
+        literal = 'Original only; ' * 400 + 'UNTRUNCATED TAIL'
+        pdf = pdf_bytes([literal])
+        (ws.store.root / 'original.pdf').write_bytes(pdf)
+        ws.store.set('manifest', {**ws.store.manifest, 'sources': [{
+            'id': 's', 'title': 'Synthetic', 'filename': 'original.pdf', 'copied_path': 'original.pdf',
+            'sha256': hashlib.sha256(pdf).hexdigest(), 'content': literal, 'coverage': 'partial'}]})
+        seed(ws); activate(ws)
+        with ws.store.connect() as db:
+            db.execute('delete from source_blocks')
+            db.execute('insert into source_blocks values (?,?,?,?)', ('s', 0, 'page 1', literal))
+        if page_read:
+            tool, args, paths = 'inspect_source_page', {'source_id': 's', 'page': 1}, [
+                ['native_text'], ['frozen_text_blocks', 0, 'text'], ['table_view', 'tables']]
+        else:
+            ws._seed('materials', 'Stored result', literal, ['s'])
+            tool, args, paths = 'read_result', {'result_id': ws.results()[-1]['id']}, [['body']]
+    
+        def inspect(messages):
+            reply = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == tool)
+            assert reply.additional_kwargs['report_controls_restored']
+            assert literal not in str(reply.content)
+            assert deliver_controls(ws, 'coordinator', reply) is reply
+            controls = json.loads(reply.content[-1]['text'])
+            assert controls['complete_original_in_decision'] is False
+            saved = ws.store.get('tool_observation:' + controls['observation_ref'])
+            raw = json.loads(saved['text'])
+            restored = deepcopy(controls['metadata'])
+            assert controls['platform_offloaded_data_paths'] == paths
+            for path in paths:
+                original, projected = raw, restored
+                for key in path[:-1]:
+                    original, projected = original[key], projected[key]
+                assert projected[path[-1]]['observation_path'] == path
+                projected[path[-1]] = original[path[-1]]
+            assert restored == raw  # Includes all nested mechanical table warnings/status.
+            if page_read:
+                assert controls['source_material'] == reply.artifact['source_material']
+                assert controls['metadata']['table_view']['status'] == 'no_tables_detected'
+                assert controls['metadata']['frozen_text_blocks'][0]['locator'] == 'page 1'
+            recovered = read_observation(ws, 'coordinator', controls['observation_ref'], field_path=paths[0])
+            assert recovered['text'] == literal[:6000]
+            return AIMessage(content='Synthetic page/result boundary verified.')
+        result = await deep_runtime.run_report(ws, Driver(coordinator=[invoke(tool, **args), inspect]))
+&gt;       assert result['last_error'] is None, result
+E       AssertionError: {'goal': 'Report adopted class B and check its permitted value.', 'name': 'test_native_page_and_saved_res1', 'status': 'failed', 'activity': '', ...}
+E       assert {'diagnostic_id': 'feb8bfdf-fca3-4fb2-a52f-36421f1b0729', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'AssertionError'} is None
+
+tests/test_boundary_refactor.py:479: AssertionError</failure></testcase><testcase classname="tests.test_boundary_refactor" name="test_offloaded_table_supplements_keep_all_page_failures_and_limitations[read_source_page]" time="0.235" /><testcase classname="tests.test_boundary_refactor" name="test_offloaded_table_supplements_keep_all_page_failures_and_limitations[search_sources]" time="0.249" /><testcase classname="tests.test_business_envelope_projection" name="test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_context]" time="0.361" /><testcase classname="tests.test_business_envelope_projection" name="test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[observe_evidence]" time="0.378" /><testcase classname="tests.test_business_envelope_projection" name="test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_content_export]" time="0.389" /><testcase classname="tests.test_business_envelope_projection" name="test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_result]" time="0.392" /><testcase classname="tests.test_business_envelope_projection" name="test_field_recovery_uses_original_result_path_and_identity_never_truncated" time="0.263" /><testcase classname="tests.test_business_envelope_projection" name="test_failed_envelope_preserves_code_and_no_success_semantics" time="0.232" /><testcase classname="tests.test_business_envelope_projection" name="test_empty_old_envelope_refresh_preserves_identity_raw_and_read_receipt" time="0.268" /><testcase classname="tests.test_business_envelope_projection" name="test_small_raw_tools_keep_shape_and_server_terminal_offset" time="0.270" /><testcase classname="tests.test_business_envelope_projection" name="test_real_native_large_context_preserves_offload_and_exact_receipt" time="1.713" /><testcase classname="tests.test_business_envelope_projection" name="test_ordinary_source_history_does_not_reread_archives" time="0.102" /></testsuite></testsuites>

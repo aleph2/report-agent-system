@@ -1,0 +1,341 @@
+{
+  "status": "focused_test_migration_passed",
+  "actor": "Codex compatibility_tests implementation-support subagent; Neo owns final review",
+  "recorded_at": "2026-10-17T14:38:34.563388+00:00",
+  "design_basis": "docs/reviews/full-code-review-20261018/refactor-design.json",
+  "scope": "Only six assigned test files were edited. No source implementation, original report, paid response, live project database or provider call was modified by this worker.",
+  "fixture_decision": "Historical fixtures are separately constructed metadata_and_literal_fragments packets with artifact=None; they do not derive the old protocol by merely removing a field from v2 while leaving v2 authority behind.",
+  "legacy_helper_bounds": "The two direct selection_observations.metadata size-bound tests remain unchanged for the retained legacy compatibility helper. They are not assertions that the new native public read path should truncate material.",
+  "source_issue_reported": {
+    "issue": "Legacy refresh emitted v2 content but retained legacy representation and no native binding, allowing repeated refresh and missing final binding.",
+    "disposition": "Reported to Main; Main changed all producer/structural/selection refresh paths to common attach_delivery. This worker did not edit source. Genuine legacy one-time recovery and tamper cases passed afterward."
+  },
+  "per_test_oracle_decisions": [
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_explicit_source_read_is_complete_located_and_exact_original_recoverable",
+      "prior_name": "test_source_decision_is_small_located_and_exact_original_recoverable",
+      "oracle_changed": true,
+      "decision": "Replace arbitrary 6,000-character and 10:1 compression requirements with exact returned metadata, original source text, native list shape and complete_original_in_decision=True. Keep archive recovery and policy assertions."
+    },
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_independent_tool_consumes_owned_image_data_and_exact_adoption_without_copy",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_restore_exact_criterion_contract_and_discover_requirement_namespace",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_native_platform_offload_keeps_source_control_and_exact_recovery",
+      "prior_name": "test_native_decision_prompt_does_not_receive_bulk_source_body",
+      "oracle_changed": true,
+      "decision": "Keep actual installed filesystem eviction of oversized source data; require restored control fields, exact body-deferral notice, false original-completeness marker and canonical archive. No project field clipping is expected."
+    },
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_policy_immutable_after_binding_and_errors_are_not_hidden",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "An error ToolMessage now uses the same native binding boundary. Replace object identity with exact name/call/status/error text and canonical raw text. Keep binding-immutability rejection."
+    },
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_search_retains_whole_return_and_all_32_output_qualifiers_survive",
+      "prior_name": "test_search_uses_actual_query_and_all_32_output_indexes_survive_large_qualifiers",
+      "oracle_changed": true,
+      "decision": "Replace query-centered 240-character fragments and 10,000-character packet cap with exact entire search result and all 32 qualifier dictionaries. Keep ordered indexes, body-only deferral and semantic_correctness_verified=False."
+    },
+    {
+      "file": "tests/test_decision_data.py",
+      "test": "test_reference_metadata_is_retained_instead_of_cleared_like_bulk_navigation",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Replace clipped list entries/shown/total protocol and 6,500-character cap with exact original result, all loaded and unreturned refs, receipt, target, pagination and SHA equality."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_field_recovery_uses_original_result_path_and_identity_never_truncated",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "New explicit reads expose full text. Request an explicit original field path/range for recovery rather than depending on a removed automatic clipping cursor. Preserve long identity equality and exact recovered substring."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_failed_envelope_preserves_code_and_no_success_semantics",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_empty_old_envelope_refresh_preserves_identity_raw_and_read_receipt",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Legacy fixture explicitly removes v2 representation/artifact and sets metadata_and_literal_fragments. Keep message pairing, canonical archive, read receipt count, one-time refresh and tampered-SHA rejection."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_small_raw_tools_keep_shape_and_server_terminal_offset",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Empty native lists remain [] rather than fabricated entries/shown wrappers; preserve terminal next_offset=None and raw source shape."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_real_native_large_context_retains_exact_requested_data_and_receipt",
+      "prior_name": "test_real_native_large_context_delivers_structural_metadata_not_empty",
+      "oracle_changed": true,
+      "decision": "Read restored final text block when native platform offloads a large response; compare requested data with canonical raw result, including all loaded refs and actual body. Add run_report last_error=None so swallowed fake assertion failures cannot pass."
+    },
+    {
+      "file": "tests/test_business_envelope_projection.py",
+      "test": "test_ordinary_source_history_does_not_reread_archives",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_producer_observations.py",
+      "test": "test_native_writer_sees_actual_producer_limits_without_bulk_body_or_receipt_change",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Replace clipped qualifier fields and 10,000-character cap with exact qualifier dictionary; retain body deferral, unchanged payload digest/adopted node, canonical raw bytes and exactly one fake text call."
+    },
+    {
+      "file": "tests/test_producer_observations.py",
+      "test": "test_32_indexes_limits_and_exact_recovery_remain_available",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Replace qualifier completeness/cap assertions with full 32 qualifier dictionaries and body-only deferral. Preserve ordered payload digests and exact original recovery."
+    },
+    {
+      "file": "tests/test_producer_observations.py",
+      "test": "test_empty_and_large_qualifiers_are_exact_and_no_acceptance_inferred",
+      "prior_name": "test_empty_and_unshown_qualifiers_distinguished_and_no_acceptance_inferred",
+      "oracle_changed": true,
+      "decision": "Require empty qualifier object and entire long-key qualifier object rather than omission metadata; preserve source objects unchanged and no semantic acceptance inference."
+    },
+    {
+      "file": "tests/test_producer_observations.py",
+      "test": "test_old_owned_message_refreshes_exactly_once_with_original_pairing",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Expect exact qualifiers after legacy refresh instead of fragment wrappers; retain ownership, original hash/ref, native pairing, archive equality, exactly one refresh event and no second update."
+    },
+    {
+      "file": "tests/test_producer_observations.py",
+      "test": "test_foreign_or_changed_original_is_not_reprojected",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_producer_observations.py",
+      "test": "test_native_graph_represents_old_producer_return_without_second_text_call",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Simulate the persisted historical wire shape at TaskContext.bound_result rather than monkeypatching removed producer_details. Require exact recovered constraint, exactly one text call, one refresh event and last_error=None."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_exact_public_field_and_explicit_tail_recovery_are_not_raw_json",
+      "prior_name": "test_real_projection_address_recovers_field_tail_not_raw_json",
+      "oracle_changed": true,
+      "decision": "Require full unescaped public field and explicitly call registered recovery tool on original JSON string path. Preserve distinct raw/field SHA, cursor semantics, exact tail and no raw-JSON fallback."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_search_return_is_exact_and_nested_array_paths_remain_recoverable",
+      "prior_name": "test_query_projection_nested_array_paths_and_bounded_fallback",
+      "oracle_changed": true,
+      "decision": "Require all 30 native search matches and exact text; independently request nested string fields by array index/range. Removed expectation that generic result clipping hides matches."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_raw_default_exact_shape_and_empty_path_json_root_string",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_query_at_tail_does_not_remove_prefix_and_field_recovery_stays_exact",
+      "prior_name": "test_query_tail_fragment_address_recovers_omitted_prefix",
+      "oracle_changed": true,
+      "decision": "Require query-at-tail not to remove prefix. Keep whole-field explicit recovery from the same immutable archive."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_invalid_paths_never_fall_back_to_raw_or_convert_indexes",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_schema_strict_paths_and_owner_original_hash_enforced",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_field_coordinates_survive_clear_native_compaction_serialization_and_reopen",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_actual_native_registered_tool_and_clear_keep_field_address",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_field_observation_recovery.py",
+      "test": "test_tampered_field_cursor_or_digest_never_cleared_as_verified",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_history_policy_reads.py",
+      "test": "test_non_target_history_avoids_manifest_reads_without_changing_messages",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_history_policy_reads.py",
+      "test": "test_mixed_real_receipts_use_one_policy_read_and_repair_once",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "After genuine legacy fixture recovery, compare exact producer qualifiers, exact saved status return and native selection result. Keep one current policy read, per-message identity checks, no repeated refresh and all immutable archives."
+    },
+    {
+      "file": "tests/test_history_policy_reads.py",
+      "test": "test_policy_is_current_for_each_pass_including_disabled_policy",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_history_policy_reads.py",
+      "test": "test_standalone_recovery_retains_current_policy_check",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_history_policy_reads.py",
+      "test": "test_shared_policy_never_bypasses_per_message_original_checks",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_history_policy_reads.py",
+      "test": "test_shared_policy_still_requires_original_producer_or_selection_receipt",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_large_real_return_retains_exact_selected_bodies_qualifiers_and_receipt",
+      "prior_name": "test_large_real_return_has_exact_receipt_manifest_and_explicit_partial_metadata",
+      "oracle_changed": true,
+      "decision": "Replace 6,000-character cap, truncated selection metadata and implicit body/qualifier deferral with exact all-14 selected results, original manifests/ranges/bodies/qualifiers and immutable database objects."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_rows_retain_requested_and_actual_range_and_real_qualifier_presence",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Follow original business result and selection nesting; require exact table row range, body, full qualifier and pagination instead of qualifier count metadata."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_old_owned_packet_reprojects_once_without_new_read_or_receipt",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_refresh_requires_exact_owner_hash_and_original_read_receipt",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_large_identifiers_and_many_selections_are_never_silently_truncated",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_final_completeness_markers_obey_the_actual_serialized_size_boundary",
+      "prior_name": null,
+      "oracle_changed": false,
+      "decision": "Oracle unchanged. Shared legacy fixture migration now constructs pre-refactor wire shape explicitly without a v2 artifact. Existing ownership, SHA, schema, receipt, immutability, recovery or compatibility assertions remain in force."
+    },
+    {
+      "file": "tests/test_selection_observations.py",
+      "test": "test_actual_native_writer_next_input_retains_receipt_and_full_selection_identity",
+      "prior_name": null,
+      "oracle_changed": true,
+      "decision": "Require v2 exact-public representation and original selected range/qualifier objects; match full result to both canonical archive and owned database read receipt. Keep exact fake call sequence and absence of review acceptance."
+    }
+  ],
+  "results": {
+    "first_migration": {
+      "passed": 77,
+      "failed": 1,
+      "reason": "One outdated object-identity assertion for error ToolMessage; replaced with preserved error content/status and archive identity.",
+      "xml": "docs/reviews/full-code-review-20261018/refactor-test-migration-first.xml"
+    },
+    "final": {
+      "tests": 78,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "pytest_seconds": 31.73,
+      "junit_suite_seconds": 31.707,
+      "xml": "docs/reviews/full-code-review-20261018/refactor-test-migration-final.xml",
+      "xml_sha256": "ec008647f44e63557324c3fef0db4416ae012b5d1d0b8cc41690052d2ff7a641"
+    }
+  },
+  "command": "wsl --cd /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system --exec /home/dysun/.venvs/report-agent-system/bin/python -m pytest tests/test_decision_data.py tests/test_business_envelope_projection.py tests/test_producer_observations.py tests/test_field_observation_recovery.py tests/test_history_policy_reads.py tests/test_selection_observations.py -q --tb=short --junitxml=docs/reviews/full-code-review-20261018/refactor-test-migration-final.xml",
+  "test_file_sha256": {
+    "tests/test_decision_data.py": "0d397febdb1bcb8901971f028f83c749074f895b3a3f26b25760238dde19e40e",
+    "tests/test_business_envelope_projection.py": "3501f5c0db3e223893d8d1ccb743defaf63abf89e5338faffaa9f8a29ffcba5a",
+    "tests/test_producer_observations.py": "26fb24d49b87420eabec53d52d5dd4830e3964bece6c0d4541f5e94d1b7502f7",
+    "tests/test_field_observation_recovery.py": "558ec835b8b700a7ab83a71bf7e0f27d31fa949ba69997e9a668241f272a2bce",
+    "tests/test_history_policy_reads.py": "fe20a0e77f0fd32ba82715109a33b2c37d1ac0a597f48cf340162ecfc27c1ea4",
+    "tests/test_selection_observations.py": "3f78d79205ce5cc1aa064784ed68e8d931570f3f1bd95fa644750c5ed830fbec"
+  },
+  "remaining_source_issues_in_owned_suite": [],
+  "limits": [
+    "78 fake/offline tests verify I/O/control/ownership behavior only; they do not prove real-model decisions, report semantics, engineering acceptance, or whole-system correctness.",
+    "Other source paths and final Neo review remain outside this assigned migration."
+  ]
+}

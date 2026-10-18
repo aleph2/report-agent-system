@@ -1,0 +1,849 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>System Design, User Requirements, and Agent Design</title><style>
+:root{font-family:system-ui,'Microsoft YaHei',sans-serif;color:#1e293b;background:#f5f7fb;line-height:1.85}
+*{box-sizing:border-box}body{margin:0}header{padding:18px 28px;background:#12243b;color:white;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+header a{color:#d6e9ff;text-decoration:none}header strong{font-size:20px}aside{position:fixed;left:0;top:85px;width:245px;max-height:calc(100vh - 100px);overflow:auto;padding:16px}
+aside a{display:block;padding:7px 10px;color:#43546a;font-size:13px;line-height:1.45;text-decoration:none;border-radius:6px}
+aside a:hover{background:#e6edf7}main{max-width:1190px;margin:26px 30px 90px 255px;background:white;padding:34px 46px;border:1px solid #e0e6ee;border-radius:12px}
+h1{font-size:30px;line-height:1.35;color:#102b45}h2{font-size:23px;line-height:1.5;border-bottom:2px solid #e4edf6;padding-bottom:8px;margin-top:44px}
+h3{font-size:18px;margin-top:28px}p,li{font-size:15px}a{color:#1d5f9a;overflow-wrap:anywhere}strong{color:#172d44}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:20px 0;line-height:1.75;table-layout:auto}
+th,td{border:1px solid #dce4ee;padding:11px 13px;vertical-align:top}th{background:#edf3fa;text-align:left}tr:nth-child(even){background:#fafbfd}
+blockquote{border-left:4px solid #70a2ce;margin:20px 0;padding:8px 22px;background:#f2f7fb;color:#34465a}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f9;padding:20px;border:1px solid #dfe5ed;border-radius:8px;font:13px/1.7 Consolas,monospace}
+code{font-family:Consolas,monospace}details{margin:18px 0;border:1px solid #d3deeb;border-radius:8px;padding:15px 20px}
+summary{cursor:pointer;font-size:17px;font-weight:650;color:#153957}section,details{scroll-margin-top:16px}
+.flow{padding:25px;background:#eff5fb;border-radius:10px;text-align:center;font-size:15px}.lanes{display:flex;justify-content:center;gap:18px;margin:17px 0}
+.lanes span{background:white;padding:15px;min-width:180px;border:1px solid #c8d8e8;border-radius:8px}.flow small{display:block;margin-top:14px}
+.note{font-size:12px;color:#64748b;border-top:1px solid #e0e6ee;margin-top:50px;padding-top:14px}
+@media(max-width:1050px){aside{position:static;width:auto;max-height:230px}main{margin:15px;padding:22px}.lanes{flex-wrap:wrap}}
+@media print{header,aside{display:none}main{margin:0;max-width:none;border:0;padding:0}body{background:white}table{font-size:10px}pre{font-size:10px}a{color:inherit}}
+</style></head><body><header><strong>Report Agent System · 17 October 2026</strong><a href="index.html">Design &amp; requirements</a><a href="agent-prompts.html">Agent prompts</a><a href="framework-prompts.html">Framework prompts</a><a href="../index.html">Chinese edition</a><a href="../prompt-sources.json">Source manifest</a></header><aside aria-label="Contents"><a href="#s1">Reading guide and evidence boundaries</a><a href="#s2">1. Final objective and requirement scope</a><a href="#s3">2. User feedback and requirements</a><a href="#s4">3. System design: confirmed principles and actual structure</a><a href="#s5">4. Agent design details</a><a href="#s6">5. Key observed gaps</a><a href="#s7">6. Discussed changes that are not complete</a><a href="#s8">7. Recent discussion retained</a><a href="#s9">8. Source and record navigation</a></aside><main><h1>System Design, User Requirements, and Agent Design</h1>
+<p>Prepared on 17 October 2026 for the independent report-agent-system project. Author: Codex. Requirements and interpretation boundaries: input from Neo. Runtime and prompt-path inspection: input from body_alignment_review.</p>
+<p>This document answers three questions: how the system is currently designed to operate, what the user requires, and what each agent is responsible for and actually receives. It preserves the distinction between intended design and implementation. Design documents, passing tests, model statements, and a terminated task are not treated as final delivery acceptance.</p>
+<p><strong>Current assessment: the system has capabilities for reading sources, building versioned content, independent text processing, Word/Excel export, and review. However, the full report for Contract Section 1 has not completed acceptance against the customer's requirements. Recent investigations into layout and material handoffs found substantive gaps. Implementation and paid execution remain paused while analysis, discussion, and documentation continue.</strong></p>
+<p>Preparing this dossier did not change application code, run reports, launch learning, publish strategies, or modify business data. The cumulative authorization of 170,000,000 tokens is a historical ceiling, not an instruction to resume execution; the current balance must come from the execution ledger. Email communication is stopped. The Bailian platform audit is deferred.</p>
+<p>This is an English edition of the existing dossier, not a new status assessment. Quotations translated from Chinese are explicitly identified as translations; the linked Chinese records retain the original wording. Prompt and code excerpts in the appendices remain unchanged.</p>
+<section id="s1"><h2>Reading guide and evidence boundaries</h2>
+<ul>
+<li><a href="agent-prompts.html">Agent and tool prompt details</a>: original role instructions, internal tool prompts, dynamic assembly code, tool registration, and framework contributions.</li>
+<li><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/docs/reviews/system-design-and-requirements-20261017/prompt-sources.json">Source and extraction manifest</a>: source locations, file hashes, extracted-text hashes, and applicability.</li>
+<li><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/customer-feedback-collected-20261016.md">Customer feedback and original statements</a>: original message references and formatting-standard excerpts, in Chinese.</li>
+<li><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/format-standard-original-text.txt">Original Report Formatting Standard</a>: including cover and title-page exceptions, in Chinese.</li>
+<li><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/neo/current-user-decisions-20261015.md">Neo's user-decision history</a>: a chronological record. Earlier budget or runtime entries do not override later decisions.</li>
+<li><a href="../index.html">Chinese edition</a>.</li>
+</ul>
+<p>Four evidence categories are used:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User-confirmed</td>
+<td>An explicit user requirement or clarification; not proof of implementation.</td>
+</tr>
+<tr>
+<td>Present in code</td>
+<td>A mechanism exists in the captured working tree; not a guarantee for every path or business outcome.</td>
+</tr>
+<tr>
+<td>Observed</td>
+<td>Supported by a particular execution trace, model input, or artifact; limited to that case and version.</td>
+</tr>
+<tr>
+<td>Discussed / unverified</td>
+<td>A proposed design, external suggestion, or unproven effect; documenting it does not activate it.</td>
+</tr>
+</tbody>
+</table>
+<p>The source basis is the current working tree at capture, with base commit b5525a3474b2f284f7a638f226be35a57d6e5d13 and pre-existing uncommitted changes. The appendix hashes identify the captured content. Older ARCHITECTURE, ADK, native-rubric, and experiment documents mix intended design with historical implementations and cannot be read as a current runtime specification. This dossier is not a fresh full-repository audit or an exhaustive list of all historical bugs.</p>
+</section><section id="s2"><h2>1. Final objective and requirement scope</h2>
+<h3>1.1 Product objective</h3>
+<p>Generate professional, traceable <strong>construction safety risk assessment reports</strong> that meet the commissioned scope and applicable standards. This report category includes bridges, tunnels, roads, slopes, and culverts. Lessons from this slope report must not be hardcoded as universal facts for every report, nor should category-wide requirements be confined to this single report.</p>
+<p>Each report must use its own:</p>
+<ol>
+<li><strong>Report Scope Statement</strong>: contract sections, assessment objects, and required coverage.</li>
+<li><strong>Extraction Outline</strong>: information to extract and organize from the materials.</li>
+<li><strong>Report Formatting Standard</strong>: fonts, sizes, pages, paragraphs, tables, figures, and contents.</li>
+<li><strong>Applicable guidelines and standards</strong>: assessment objects, indicator definitions, classification methods, empirical values, scoring, and table formats.</li>
+<li><strong>Actual project evidence</strong>: geological investigations, design documents and individual slope drawings, site inspections, expert reviews, and their uncertainties.</li>
+</ol>
+<p>These English document names are reading aids for the corresponding Chinese source titles, not newly issued standards.</p>
+<h3>1.2 Objective of the complete validation</h3>
+<p>The user explicitly clarified the objective. English translation:</p>
+<blockquote>
+<p>Continue with the previous plan, but do not stop after validating a fix. I am giving you a budget of 50 million tokens. Keep iterating now that customer feedback has arrived. Codex and Neo should continue to the final step: your first option, the full-scope report for Contract Section 1, according to the Report Scope Statement.</p>
+</blockquote>
+<p>The endpoint is therefore <strong>the full Contract Section 1 report and a separate issue-list Excel workbook, covering source use, content generation, layout, actual artifacts, and the normal review chain</strong>. Existing OCR results are the principal starting input for this iteration; the request does not require repeating OCR merely for validation. A local repair, one slope test, an openable file, or a matched Word/Excel pair is an intermediate result.</p>
+<h3>1.3 First-draft quality</h3>
+<p>The user requires the unreviewed first draft to be reasonably close to the final report. Writer must not leave known writing, table-format, or layout requirements for Reviewer to implement for the first time.</p>
+<p>The user's “something like idempotency” raises two distinct requirements:</p>
+<ul>
+<li><strong>Operations:</strong> repeated calls, recovery, and retries must not silently duplicate writes, consume budget twice, or alter object identity.</li>
+<li><strong>Content:</strong> internal candidates may involve trial and error, but portions claimed as complete should satisfy known requirements and evidence. Incomplete portions may be clearly identified; omissions, conflicts, and errors must not be presented as complete and correct conclusions.</li>
+</ul>
+<p>This does not require code to prove all engineering meaning, or prohibit every internal draft because one chapter is missing. It requires quality to be maintained during construction, rather than relying entirely on final-review rework.</p>
+</section><section id="s3"><h2>2. User feedback and requirements</h2>
+<p>The following requirements include important clarifications. Their identifiers are navigation aids for this document, not newly created runtime checks. The linked feedback compilation preserves the original report-feedback sources. Later design discussion comes from direct user messages in this conversation; no unavailable message IDs are invented.</p>
+<h3>2.1 Content, scope, and scoring</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>User requirement or clarification</th>
+<th>Boundary to preserve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R01</td>
+<td>Cover the full Contract Section 1 scope in the Report Scope Statement.</td>
+<td>Do not silently reduce it to completing Excel, pairing exports, or processing already-written chapters. The coverage inventory is independent of the current report tree.</td>
+</tr>
+<tr>
+<td>R02</td>
+<td>Extract and write according to the Extraction Outline.</td>
+<td>Reading the outline does not prove every chapter or text tool received and applied it.</td>
+</tr>
+<tr>
+<td>R03</td>
+<td>Apply category-level feedback to construction safety risk assessments across bridges, tunnels, roads, slopes, and culverts.</td>
+<td>Keep category preferences, project-specific facts, and guideline-specific rules distinct.</td>
+</tr>
+<tr>
+<td>R04</td>
+<td>Check geological and individual slope-design documents against the guideline wording; select the actual type or classification band first, then its score.</td>
+<td>Do not infer the type backward from a desired score or risk level. Missing evidence does not justify guessing.</td>
+</tr>
+<tr>
+<td>R05</td>
+<td>Determine weathering grade from the actual geological description, such as strongly or completely weathered material.</td>
+<td>Match stratum descriptions and weathering to the guideline bands individually; do not score from a generic material label alone.</td>
+</tr>
+<tr>
+<td>R06</td>
+<td>Where calculation of the same indicator conflicts within the guideline, use its empirical values. The later clarification refers to the table on page 91 of the slope guideline, not a formula.</td>
+<td>Coordinator or an appropriate agent should interpret the applicable guideline and derive the method; do not hardcode the page number or one weight sequence for every project.</td>
+</tr>
+<tr>
+<td>R07</td>
+<td>The user expressed a preference for overall risk at Level III or below, with reasons required if Level IV is necessary.</td>
+<td>Preserve the complete statement and its exception below. It does not authorize forced score reduction, suppression of adverse evidence, or fabricated low risk.</td>
+</tr>
+<tr>
+<td>R08</td>
+<td>Include slopes with important structures such as anti-slide piles, even below the usual height thresholds; do not filter only by 30 m for soil or 20 m for rock.</td>
+<td>These heights are the user's examples. Applicability still requires checking the guideline and project materials.</td>
+</tr>
+<tr>
+<td>R09</td>
+<td>Establish why slope K1320+380–760 was omitted.</td>
+<td>This is an assessment-object coverage issue, not merely a request to add a sentence. Check the object's scope and evidence.</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>Follow the guideline's structure and content for indicator weights and scores, including the cited S3-2-11-4-2 table and the page 11 example.</td>
+<td>The page 11 table-format requirement and the page 91 empirical-value method are distinct.</td>
+</tr>
+<tr>
+<td>R11</td>
+<td>Preserve complete relevant original geological/hydrological paragraphs and tables or figures for the corresponding site; screenshots are allowed.</td>
+<td>Do not select only a short sentence that supports an indicator while omitting qualifications, captions, headers, or adverse conditions. This also does not mean inserting the entire source book.</td>
+</tr>
+<tr>
+<td>R12</td>
+<td>Table size and pagination may change, but the content must remain unchanged.</td>
+<td>Layout flexibility does not permit changes to indicators, notes, calculation relationships, column meanings, or values.</td>
+</tr>
+<tr>
+<td>R13</td>
+<td>Use actual site-inspection, expert-review, and design evidence.</td>
+<td>Real project-team activities are distinct from whether the AI visited the site. Do not invent activities, signatures, or engineering approval.</td>
+</tr>
+<tr>
+<td>R14</td>
+<td>Make citations understandable to the customer.</td>
+<td>Internal IDs such as source-XXX must not replace identifiable source names, locations, and attribution. Internal traceability must remain.</td>
+</tr>
+<tr>
+<td>R15</td>
+<td>Do not routinely insert statements about the system not attending the site, or reading/OCR/model-processing details, into the report body.</td>
+<td>Preserve real engineering evidence gaps, technical conflicts, and uncertainty. A professional voice does not justify removing them.</td>
+</tr>
+<tr>
+<td>R16</td>
+<td>Excel is separate from Word and exists to present report-related issues to the customer.</td>
+<td>Normal source summaries, principal technical standards, or routine recordbook entries must not be presented as issues. Genuine missing or conflicting information requiring customer action may be listed.</td>
+</tr>
+</tbody>
+</table>
+<p>The full risk-level statement is retained in the Chinese source. Faithful English translation:</p>
+<blockquote>
+<p>In addition, generally speaking, keep the assessment result at Level III or below. It should not be Level IV. If Level IV is genuinely necessary, explain why.</p>
+</blockquote>
+<p>This statement contains both a preference and an exception. The system should report the result supported by the evidence and guideline. If that result invokes the exception, explain the basis and clarify with the customer when needed, rather than silently changing the score.</p>
+<h3>2.2 Formatting</h3>
+<p>This table summarizes the standard already supplied to the project. It is not a newly invented developer template. Chinese font-size names are retained in transliteration to identify the standard precisely.</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Supplied requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paper and margins</td>
+<td>A4, 210 × 297 mm; top, bottom, and left margins 25 mm; right margin 15 mm; gutter 0, on the left.</td>
+</tr>
+<tr>
+<td>Fonts</td>
+<td>Bold Songti headings; Songti body; Times New Roman for Latin letters and numbers.</td>
+</tr>
+<tr>
+<td>Heading sizes</td>
+<td>Levels 1–4 use Xiao'er, Xiaosan, Sihao, and Xiaosi respectively; numbering follows Chapter 1, 1.1, 1.1.1, and (1).</td>
+</tr>
+<tr>
+<td>Regular sizes</td>
+<td>Body: Xiaosi; tables: Wuhao; headers and footers: Xiaowu.</td>
+</tr>
+<tr>
+<td>Line spacing</td>
+<td>1.5 lines for headings, body, tables, and contents. Preserve the cover/title-page exceptions, including single and 2.5-line spacing.</td>
+</tr>
+<tr>
+<td>Paragraph spacing</td>
+<td>Level 1: 10 pt before and after; level 2: 0.2 lines before and after; level 3 and body: 0 before and after. Body first-line indent: two characters. Follow the standard for heading hanging indents and other details.</td>
+</tr>
+<tr>
+<td>Alignment</td>
+<td>Cover, tables, and level 1 headings centered; level 2 left-aligned; level 3 and body justified.</td>
+</tr>
+<tr>
+<td>Contents</td>
+<td>An automatic Word table of contents with at least three levels. Title: bold Songti Sanhao; entries: Xiaosi, with level 1 bold. Do not repeat the global contents inside subreports.</td>
+</tr>
+<tr>
+<td>Tables</td>
+<td>Caption above, centered, bold Songti Wuhao. Table text Wuhao, with Times New Roman for Latin letters/numbers. Line spacing 1.5. Double outer border, 0.5 pt. Follow the specified numbering.</td>
+</tr>
+<tr>
+<td>Figures</td>
+<td>Caption below. Follow the standard's caption, numbering, and note sizes and numbering rules.</td>
+</tr>
+<tr>
+<td>Headers and footers</td>
+<td>Project name on the left and report name on the right, Songti Xiaowu. Centered Arabic page numbers starting at 1, Times New Roman Xiaowu.</td>
+</tr>
+<tr>
+<td>Cover and title page</td>
+<td>Project title, report title, organization, date, responsible person, and qualifications have distinct font, size, and spacing requirements. A single body-text configuration must not override them.</td>
+</tr>
+<tr>
+<td>Details</td>
+<td>Consistent full-width Chinese punctuation, spacing between numbers and units, year formatting, and list numbering.</td>
+</tr>
+</tbody>
+</table>
+<p>The user's observations of the intermediate report were specific: margins and fonts/sizes were not implemented; another table of contents appeared on pages 15 and 25; line spacing was not 1.5. Those page numbers describe the user's observation and must not be silently replaced with our rendered PDF page numbers.</p>
+<p>Layout uses tool parameters for supported capabilities. Where a capability such as table line spacing or a double border is missing, a developer must add it. Responsibility for layout does not give Layout permission to edit application source code. Acceptance requires Reviewer to inspect the actual Word document and rendered output. Correct configuration, a correct XML field, or a successful export alone cannot replace visual inspection.</p>
+<h3>2.3 Working practices, authorization, and engineering</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Confirmed requirement</th>
+<th>Current interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W01</td>
+<td>Neo represents the user's working preferences in decisions; Codex implements.</td>
+<td>Neo first judges whether an issue is established, worth resolving, and in what order. Inspect source code, traces, actual inputs, and artifacts—not just Main's conclusions.</td>
+</tr>
+<tr>
+<td>W02</td>
+<td>Investigate root causes proactively.</td>
+<td>Do not merely rerun or patch a prompt. Distinguish typos, interface defects, shared design causes, and architectural causes; inspect related paths.</td>
+</tr>
+<tr>
+<td>W03</td>
+<td>Repeated similar bugs call for improvement to their common design.</td>
+<td>Multiple patches, additional guards, or larger test counts do not establish architectural convergence.</td>
+</tr>
+<tr>
+<td>W04</td>
+<td>Apply relevant principles from Code Complete.</td>
+<td>Manage complexity, hide implementation details, define clear interfaces, diagnose with evidence, and refactor safely. Access to the full book has not been verified; do not invent quotations.</td>
+</tr>
+<tr>
+<td>W05</td>
+<td>Prefer DeepAgents and compatible components.</td>
+<td>Inspect installed capabilities first, then maintained integrations, then the remaining domain-specific gap. Do not build a second agent control loop.</td>
+</tr>
+<tr>
+<td>W06</td>
+<td>Separate agent decisions from LLM text-processing tools.</td>
+<td>Agents still need to understand goals and relationships between chapters and evidence, and may read originals as needed. Independent tools perform bounded extraction, comparison, and generation.</td>
+</tr>
+<tr>
+<td>W07</td>
+<td>Validate against the final delivery objective.</td>
+<td>Unit tests, valid schemas, rejection of bad calls, or preservation of an old version do not prove correct model invocation or customer compliance.</td>
+</tr>
+<tr>
+<td>W08</td>
+<td>Progress step by step through problems to complete validation.</td>
+<td>Pausing affected execution to investigate and repair a root cause can be correct. Improve repair completeness rather than simply minimizing pauses.</td>
+</tr>
+<tr>
+<td>W09</td>
+<td>Account honestly for paid usage and unproductive calls.</td>
+<td>Preserve original requests/responses, actual usage, unknown outcomes, and retries. Do not add cached tokens again when they are already included.</td>
+</tr>
+<tr>
+<td>W10</td>
+<td>List all known bugs with their corresponding solutions.</td>
+<td>Historical inventories must be inspectable item by item; counts or a few categories are insufficient. Already-fixed issues still merit design-level review.</td>
+</tr>
+<tr>
+<td>W11</td>
+<td>Preserve the user's statements for Neo's learning.</td>
+<td>Retain provenance and superseded decisions. An archive is not proof of future compliance.</td>
+</tr>
+<tr>
+<td>W12</td>
+<td>Match project complexity to actual needs; clean unnecessary files and SQLite data.</td>
+<td>Neo leads authorized cleanup. Preserve OCR, authoritative originals, required recovery data, paid-call evidence, and historical references. Identical hashes alone do not authorize deleting arbitrary paths.</td>
+</tr>
+<tr>
+<td>W13</td>
+<td>Task-authorized visual reading is allowed.</td>
+<td>The user corrected earlier assistant-added bans on personnel/signature pages. Permission to read does not imply unrestricted disclosure of personal information.</td>
+</tr>
+<tr>
+<td>W14</td>
+<td>Stop email; defer the Bailian audit.</td>
+<td>Old ACTIVE heartbeats and login requests are historical and must not automatically reactivate these activities.</td>
+</tr>
+</tbody>
+</table>
+</section><section id="s4"><h2>3. System design: confirmed principles and actual structure</h2>
+<h3>3.1 Three responsibility boundaries</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Responsibility</th>
+<th>What it must not substitute for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent decision loop</td>
+<td>Understand the commission, select sources and tools, choose strategy, delegate appropriate tasks, adopt or reject candidates, explain gaps, and select the next action.</td>
+<td>Program code must not silently choose engineering conclusions for it; tool success alone is insufficient evidence of correctness.</td>
+</tr>
+<tr>
+<td>Independent LLM tool</td>
+<td>Perform bounded extraction, comparison, generation, review, or image analysis using the supplied goal and materials; return results and limitations.</td>
+<td>No hidden retrieval, delegation, business writes, additional model loop, or authority expansion.</td>
+</tr>
+<tr>
+<td>Deterministic program</td>
+<td>Validate structure, permissions, identities, versions, persistence, source locations, calculations, budgets, idempotency, errors, and observation records.</td>
+<td>Truncation, defaults, hidden workflows, and error wording must not silently become business decisions.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The separation principle remains valid.</strong> The recent discussion concerns its implementation: responsibilities and decision-relevant information were incompletely defined, custom wrappers and compression proliferated, and existing framework facilities were not sufficiently reused. An agent's need to read original material is not itself a design failure. Nor should every agent duplicate all tool analysis or read every source in full.</p>
+<h3>3.2 Current runtime path</h3>
+<p>The native path uses DeepAgents. Coordinator can delegate to Writer, Reviewer, and Layout. They are available capabilities, not a user-mandated three-role pipeline for every task. Learner is separate and explicitly invoked. The current build_agent entry point rejects the historical ADK/native-rubric execution paths.</p>
+<div class="flow" aria-label="System dependencies">
+<div>Commission, requirements, sources → Project state → Coordinator</div>
+<div class="lanes"><span>Writer<br>↓<br>Bounded text tools<br>↓<br>Content / evidence / snapshot</span>
+<span>Layout / export tools<br>↓<br>Word / issue workbook<br>↓<br>Actual renderings</span>
+<span>Reviewer<br>↓<br>Bounded review tools<br>↓<br>Findings / unfinished checks</span></div>
+<div>Observations → Coordinator selects the next action and delivery</div>
+<small>Separate learning: feedback → Learner → unpublished candidates → evaluated and authorized release.
+These are dependencies, not a mandatory report pipeline.</small></div>
+<p>The diagram shows dependencies and capabilities, not a mandatory sequence. The implementation also contains local sequencing constraints: for example, the Coordinator prompt requires review observations before decisions about layout work that depends on those observations. Such constraints need explicit scrutiny; calling the system “dynamic” does not make them disappear.</p>
+<h3>3.3 Data and identity</h3>
+<table>
+<thead>
+<tr>
+<th>Object or record</th>
+<th>Purpose</th>
+<th>Important distinction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Requirement</td>
+<td>Commissioned requirements and applicability.</td>
+<td>Do not infer the complete requirement set from the content already written.</td>
+</tr>
+<tr>
+<td>SourceArtifact / source versions and blocks</td>
+<td>Source identity, content, version, and location.</td>
+<td>Sources are not authority instructions; a text-block index is not a physical PDF page number.</td>
+</tr>
+<tr>
+<td>Criterion</td>
+<td>Checkable standards and required materials derived from requirements.</td>
+<td>A criterion object does not prove sufficient checks. Empty or narrow declarations may omit requirements.</td>
+</tr>
+<tr>
+<td>ContentNode</td>
+<td>Reports, chapters, paragraphs, tables, figures, and related content.</td>
+<td>body, qualifiers, and claim_kind jointly express meaning. Wrappers must not make qualifications disappear from view.</td>
+</tr>
+<tr>
+<td>Evidence / Relation</td>
+<td>Citations, calculation support, and content relationships.</td>
+<td>A link does not prove semantic support; relations such as supported_by still need content-level verification.</td>
+</tr>
+<tr>
+<td>DocumentSnapshot</td>
+<td>A fixed manifest of exact object versions and relationships.</td>
+<td>It is not an old-report template or an approval of the content.</td>
+</tr>
+<tr>
+<td>Export / RenderArtifact</td>
+<td>Word, Excel, and visual artifacts derived from a specified snapshot.</td>
+<td>Pairing exports from one snapshot ensures version consistency; it does not require copying an old layout.</td>
+</tr>
+<tr>
+<td>ReviewRecord</td>
+<td>Checks against exact targets, criteria, materials, and artifacts.</td>
+<td>Execution completed, criterion satisfied, and engineering acceptance are different states.</td>
+</tr>
+<tr>
+<td>HandlingRecord / task and observation records</td>
+<td>Disposition, gaps, delegation, execution, and provenance.</td>
+<td>A saved or handled record does not automatically resolve a real defect.</td>
+</tr>
+</tbody>
+</table>
+<p>Content has explicit IDs, versions, digests, and owners. Revisions do not silently overwrite history. The server binds authorship to the delegated task; a text tool does not obtain a new business owner by returning prose. Historical versions support traceability, comparison, and explicit reuse. <strong>The user never required preserving a noncompliant old version merely for reuse.</strong></p>
+<p>Application business state is distinct from LangGraph conversation checkpoints. The former holds content and task facts; the latter holds control-loop history. Summaries and scratch files cannot change authoritative goals, versions, permissions, or completion states.</p>
+<h3>3.4 Source retrieval and material handoffs</h3>
+<p>The current source catalog stores text blocks and performs literal keyword matching. Hybrid RAG over source materials has not been deployed on this main path. Optional Neo4j/vector knowledge capabilities do not establish that all source documents already have semantic indexing.</p>
+<ul>
+<li>Originals are stored in blocks; reads support pagination and recovery by explicit source and location.</li>
+<li>Literal matching can miss synonyms, aliases, relationships across paragraphs, and table/figure meaning.</li>
+<li>Text-block pages and physical PDF pages are different location units; visual tools access the corresponding original page.</li>
+<li>An agent can hold an observation reference and pass authorized full material to an independent text tool without copying the whole body into task prose.</li>
+<li>Recoverability does not prove that material was read. A few matching excerpts do not prove complete coverage.</li>
+</ul>
+<p><strong>Discussed direction:</strong> combine keywords, exact identifiers/scope filters, and semantic retrieval; return to the original location and expand complete relevant paragraphs and tables. A few engineering aliases may help, but a large synonym dictionary is not a prerequisite. An index finds candidates; it does not prove truth, applicability, or full coverage. This direction is not yet deployed.</p>
+<h3>3.5 I/O between agents and tools</h3>
+<p>The code already uses Pydantic business models, typed inputs, independent text-result validation, receipts, and archived raw responses. It is not devoid of contracts. The weakness is that structures, projections, error messages, and completion meanings across layers do not consistently preserve what agents need for decisions.</p>
+<p>A handoff should make clear:</p>
+<ol>
+<li>The objective and applicable requirements, beyond the output schema.</li>
+<li>Which materials, versions, and extents the tool actually received, and which it did not.</li>
+<li>The result, conflicts, qualifications, gaps, and conclusions that cannot be drawn.</li>
+<li>The correspondence between results, materials, objects, and raw responses, and how the agent can inspect and adopt them.</li>
+</ol>
+<p>This is a responsibility analysis, not a newly released fixed field contract. Valid structure, existing IDs, and a normally completed tool call do not prove correct meaning. Conversely, an agent working around a program defect and continuing does not prove that the defect has disappeared.</p>
+<h3>3.6 Layout, export, and review</h3>
+<p>Layout reads scope, formatting standards, and selected versions, then operates tools through parameters. The current design separates Word content from workbook-only nodes, so the issue table need not be inserted into Word. Word and Excel can bind to the same snapshot.</p>
+<p>Reviewer checks the delegated targets. Content-semantic review and artifact review require different materials. Execution completion, verdicts, coverage bookkeeping, and delivery selection must remain distinct. Missing materials should remain unexecuted or undetermined, rather than being converted into “completed and passed.”</p>
+<p>Final acceptance cannot rely only on data or Word XML. Font appearance, pagination, tables, contents, headings, and page layout need actual rendered observations. Reviewer's independence does not permit weakening standards or rewriting Writer's content without authority.</p>
+<h3>3.7 Feedback, experience, and instruction lifecycles</h3>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Existing role</th>
+<th>What it does not establish</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User-statement archive / Neo records</td>
+<td>Requirement history and development decision evidence.</td>
+<td>Saving Markdown automatically supplies it to every runtime agent.</td>
+</tr>
+<tr>
+<td>operator_feedback / application task context</td>
+<td>Supply current project feedback to decision roles.</td>
+<td>Every tool received all requirements, or the artifact implements them.</td>
+</tr>
+<tr>
+<td>Scoped instructions</td>
+<td>Versioned instructions filtered by system, report_category, project, report, assignment, and role; explicit override and conflict handling.</td>
+<td>General understanding of arbitrary natural-language contradictions, or permission to override evidence or authorization.</td>
+</tr>
+<tr>
+<td>Learner</td>
+<td>Form experience candidates and dispositions from feedback and evidence; distinguish facts, preferences, and methods.</td>
+<td>One execution proves useful learning, or candidates publish automatically.</td>
+</tr>
+<tr>
+<td>Released experience context</td>
+<td>Supply active scoped preferences/strategies and discoverable additional experience.</td>
+<td>Presence in a prompt proves adoption, improvement, or cross-project generalization.</td>
+</tr>
+<tr>
+<td>Optional GEPA experiment</td>
+<td>Evaluate/optimize saved guidance candidates when an experiment runner is explicitly connected.</td>
+<td>A mandatory report stage, the same mechanism as native Learner, permission to change facts, or automatic global release.</td>
+</tr>
+</tbody>
+</table>
+<p>The user's request to avoid excessively narrow experience means learning how to identify the applicable guideline and method—not turning one site's facts into rules for every report. Knowledge facts and behavioral strategies need distinct scopes and release evidence. External suggestions to learn checks or tighten rules automatically are references, not permission to shrink the user's scope or change authorization.</p>
+<h3>3.8 Models, summarization, budgets, and recovery</h3>
+<p>The mixed-service configuration maps Coordinator, Reviewer, and text/vision tools to the specified DeepSeek configuration bundle. Writer uses glm-5.3; Layout defaults to Writer's configuration. Explicit role configurations can take precedence. A bundle's name does not prove a direct official-service connection; saved role-model identities identify each run. No secrets or environment files are exported here.</p>
+<p>Separating decisions from text tools reduces some repeated context, but decision history still grows. Agents retain objectives, tool observations, tasks, errors, and decision traces, so conversation summarization may still be triggered.</p>
+<p>The stateful path reinjects application context for every decision call and wraps LangChain summarization with the project's WorkingSummary. The summarizer uses the Coordinator service. Its prompt targets about 1,200 tokens; the 16,384-token output cap is not the trigger threshold. The installed framework calculates trigger and retention settings from the model profile, as documented in the prompt appendix. These are project-runtime settings, not the Codex application's own compaction settings.</p>
+<p>Budget and recovery are deterministic execution responsibilities: reserve before calls, record actual usage, preserve unknown outcomes, never treat unknown usage as zero or automatically replay it, and identify exact recovery points, versions, and owners. Existing binding repairs, call counts, and ledgers do not prove complete cost attribution. Historical terminal runs do not resume because of a new heartbeat or this dossier.</p>
+<h3>3.9 Engineering components and storage</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Current components and entry points</th>
+<th>Status boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local service and workbench</td>
+<td>Python package, report-agent CLI, FastAPI webapp, and static frontend; project status, source, execution, issue-handling, delivery, and learning APIs.</td>
+<td>Existing operational interfaces, not full product acceptance. Reading status does not imply launching a model.</td>
+</tr>
+<tr>
+<td>Agent execution</td>
+<td>DeepAgents control loop/delegation and LangGraph checkpoints; project middleware binds business identities, context, and execution limits.</td>
+<td>The framework owns generic runtime mechanics; the application still owns project permissions and business versions.</td>
+</tr>
+<tr>
+<td>Project business storage</td>
+<td>Each project's SQLite state.db and file directory; traceable sources, content versions, events, analysis receipts, and exports.</td>
+<td>Separate writable storage from the legacy highway system; do not directly modify legacy services or data.</td>
+</tr>
+<tr>
+<td>Conversation recovery</td>
+<td>checkpoints.db preserves conversation and control-flow history.</td>
+<td>Not a business snapshot; a retained checkpoint is not automatic replay authorization.</td>
+</tr>
+<tr>
+<td>Experience library</td>
+<td>Feedback, candidates, versions, and releases by customer/project and applicable category.</td>
+<td>Facts and preferences/strategies have different lifecycles; no automatic global promotion.</td>
+</tr>
+<tr>
+<td>Export and rendering</td>
+<td>python-docx, openpyxl, PDF/image tools; actual files, structure, and rendered observations recorded separately.</td>
+<td>Successful export does not establish content, visual, or engineering correctness.</td>
+</tr>
+<tr>
+<td>Knowledge capabilities</td>
+<td>Optional Neo4j/vector-related modules.</td>
+<td>Installed dependencies do not prove source semantic retrieval is connected to this main path.</td>
+</tr>
+<tr>
+<td>Development evidence</td>
+<td>.analysis, .runs, .memory, and docs hold investigations, experiments, handoffs, and designs.</td>
+<td>Historical records should not become multiple contradictory sources of current task state.</td>
+</tr>
+</tbody>
+</table>
+<p>Verified installed versions include DeepAgents 0.7.19, LangChain 1.4.2, langchain-core 1.6.5, LangGraph 1.2.12, Pydantic 2.13.5, and langchain-openai 1.6.6. See pyproject.toml for declared dependencies. Versions are environment facts, not proof that the framework has supplied the application's business design.</p>
+<p>Historical cleanup archived duplicate request events in selected terminal cases. Full-history call/cost audits must read the corresponding complete archives, not just compacted online databases. Sharing immutable material, reducing mirrors, and consolidating materialization remain convergence goals, not universally implemented guarantees. This dossier did not perform further file or database cleanup.</p>
+</section><section id="s5"><h2>4. Agent design details</h2>
+<h3>4.1 Report runtime roles</h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Inputs and decisions</th>
+<th>Main capabilities</th>
+<th>Boundaries and outputs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Coordinator</td>
+<td>Full current objective, commissioned scope, requirements, sources, task observations, budget, and feedback; strategy, delegation, coverage, continuation, and requests for human information.</td>
+<td>Inspect sources/state; form criteria/relations; delegate; coordinate versions, snapshots, and delivery.</td>
+<td>Must not impersonate Writer's authorship or Reviewer's verdict, or narrow the user's goal for convenience. Produces saved decision objects, tasks, and delivery state.</td>
+</tr>
+<tr>
+<td>Writer</td>
+<td>Its assignment, applicable requirements, actual evidence, structure, and revision targets; chapter logic, material sufficiency, and candidate adoption.</td>
+<td>Read/analyze sources; call process_report_content; save owned nodes and evidence through receipts.</td>
+<td>Independent text tools perform substantive writing, while Writer remains responsible for understanding and adoption. Preserve qualifications and adverse facts; do not alter other owners.</td>
+</tr>
+<tr>
+<td>Reviewer</td>
+<td>Exact targets, snapshot, criteria, required checks/materials, and independent evidence; check selection and further material gathering.</td>
+<td>perform_assigned_review, perform_assigned_artifact_review, and controlled reading/calculation/vision.</td>
+<td>The actual system prompt is ORGANIZER_PROMPT; checker TOOL_PROMPT is separate. Save real verdicts and gaps; do not rewrite report content without authority or independently claim engineering acceptance.</td>
+</tr>
+<tr>
+<td>Layout</td>
+<td>Assigned snapshot, formatting standard, relevant renderings, and review feedback; presentation parameters and proportionate verification.</td>
+<td>Layout configuration, Word/Excel export-related work, rendering observations, and capability-gap requests.</td>
+<td>Do not change engineering facts, scores, sources, or criteria. Own checks do not replace independent acceptance. No source-code editing.</td>
+</tr>
+<tr>
+<td>Learner / experience_optimizer</td>
+<td>Explicit version-bound feedback, evidence, existing experience, and evaluations; what to learn and how to formulate candidates.</td>
+<td>Read feedback/evidence/candidates; optionally analyze materials; propose_experience; record feedback disposition; optimize experiments only with an explicit runner.</td>
+<td>Not mandatory for each report. Candidates default to inactive. No automatic release, original-report edits, factual changes, authorization changes, or model changes.</td>
+</tr>
+</tbody>
+</table>
+<h3>4.2 Components with prompts that are not autonomous agents</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>process_report_content and related text work</td>
+<td>Generate bounded candidates from selected materials, objectives, and target schemas.</td>
+</tr>
+<tr>
+<td>Evidence analysis</td>
+<td>Extract/analyze explicitly supplied material and return sources and limitations.</td>
+</tr>
+<tr>
+<td>Bounded review checker</td>
+<td>Perform assigned checks and preserve materials, findings, and unfinished items.</td>
+</tr>
+<tr>
+<td>Artifact review checker</td>
+<td>Perform bounded checks of actual exported/rendered artifacts.</td>
+</tr>
+<tr>
+<td>Vision</td>
+<td>Interpret a specified image/page; success does not establish full-document coverage.</td>
+</tr>
+<tr>
+<td>WorkingSummary</td>
+<td>Compact working history for continuation without changing authoritative application state.</td>
+</tr>
+</tbody>
+</table>
+<p>These tools may invoke an LLM, but they do not have independent long-term objectives, arbitrary delegation, business-write authority, and open-ended loops. A system prompt alone does not make a component an agent.</p>
+<h3>4.3 Development collaboration</h3>
+<p>Neo represents the user's expressed working preferences and final delivery objective. Neo judges issue validity, priorities, design tradeoffs, and root causes, inspecting source code, actual traces, and results. Codex Main investigates, implements, verifies, and supplies delivery evidence. Other reviewers provide focused evidence for Neo's decisions.</p>
+<p>Neo cannot expand the user's budget, release authority, or engineering sign-off permissions. Neo is not a mandatory report-runtime approval agent. This document does not claim that Neo is the user or perfectly reproduces all the user's thinking.</p>
+<h3>4.4 How prompts are assembled</h3>
+<p>One role prompt does not represent a complete model input. There are seven layers:</p>
+<ol>
+<li><strong>Role base:</strong> common plus the role file; Reviewer is replaced with ORGANIZER_PROMPT on the current path; Learner has a separate rule file.</li>
+<li><strong>Framework/middleware interfaces:</strong> additional system instructions and tool schemas. The installed filesystem/delegation defaults do not duplicate complete usage prose in the system message; they primarily use tool descriptions. Coordinator's explicit todo middleware adds a system prompt. See the <a href="framework-prompts.html">framework appendix</a>.</li>
+<li><strong>Current server-bound application context:</strong> goal, scope, owner, assignment, current versions, feedback, budget, and remaining checks.</li>
+<li><strong>Effective external instructions and experience:</strong> filtered by role and scope. Candidates and historical instructions must not activate automatically.</li>
+<li><strong>Current user/delegation messages and history:</strong> including tool observations and necessary summaries.</li>
+<li><strong>Internal tool prompts and material packets:</strong> independent tools do not automatically inherit Writer's full reading history; selected references must supply the materials.</li>
+<li><strong>The actual request after model adaptation:</strong> final roles/messages/tool schemas are the evidence for that call. A source string, configuration name, or prompt_hash alone is not the full input.</li>
+</ol>
+<p>The appendix preserves static originals and dynamic assembly code; it does not claim that every checkpoint receives the same effective prompt. In particular, some Reviewer identity metadata still hashes the content-reviewer text while build_agent actually uses ORGANIZER_PROMPT. That hash cannot establish the effective input.</p>
+</section><section id="s6"><h2>5. Key observed gaps</h2>
+<p>These are design-relevant facts and limitations, not a replacement for the complete historical bug inventory. Historical defect counts must not be treated as the current unresolved count.</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Evidence and established mechanism</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Goal reduction and old-version reuse</td>
+<td>The 16 October investigation found Coordinator instructions narrowing work to Excel/pairing exports and copying the old R6 layout. The user did not request an R6 copy.</td>
+<td>Version consistency cannot substitute for the current goal. A snapshot itself does not require old-layout reuse.</td>
+</tr>
+<tr>
+<td>Formatting not implemented</td>
+<td>The standard appeared in later effective inputs, yet Writer supplied 25 mm margins on every side, 1.3 body spacing, 1.15 table spacing, and a two-level contents setting. Export followed those parameters.</td>
+<td>“The standard was never read” is not a sufficient explanation. New/old Word equivalence is not compliance with the standard.</td>
+</tr>
+<tr>
+<td>Repeated contents</td>
+<td>Nested report nodes caused the exporter to create multiple contents tables; multiple occurrences were observed in Word.</td>
+<td>A specific interaction between code and content structure, which should not be left for the customer to discover.</td>
+</tr>
+<tr>
+<td>Material selection influenced by program signals</td>
+<td>Selected evidence over 64,000 characters was rejected with TEXT_WORK_SELECT_SMALLER_LOCATED_EVIDENCE; the suggested action could influence the agent to narrow selection.</td>
+<td>A rejection of the whole request, not a two-source limit and not silent truncation of an accepted packet.</td>
+</tr>
+<tr>
+<td>Insufficient decision-facing results</td>
+<td>Some historical returns showed only 240-character source fragments and did not adequately expose bodies/limitations; Writer could adopt from receipts alone.</td>
+<td>Raw material being saved does not mean the agent received sufficient decision information. Recoverable does not mean recovered.</td>
+</tr>
+<tr>
+<td>Confusion between tool input and decision projection</td>
+<td>In the traced chains 1133→1136→1137 and 1203→1206→1207, selected materials reached the independent tool unchanged.</td>
+<td>Do not claim that the original PDF was cut, or that selected tool input was silently removed in those two chains. Locate clipping at its actual layer.</td>
+</tr>
+<tr>
+<td>Overstated end-to-end progress</td>
+<td>Component tests, schema rejection, successful saves, export equivalence, and local reviews were taken as broader progress.</td>
+<td>They do not establish normal content/layout acceptance or full Contract Section 1 coverage. The investigated case had zero ReviewRecord objects.</td>
+</tr>
+<tr>
+<td>Feedback persistence confused with effectiveness</td>
+<td>Original feedback, candidates, injection, adoption, and artifact outcomes are separate stages.</td>
+<td>Saved “learning input” is not implemented feedback; one successful case does not establish generalization.</td>
+</tr>
+<tr>
+<td>Agent workarounds conceal program defects</td>
+<td>Agents change strategy after rejection/clipping and may eventually obtain apparent success.</td>
+<td>Preserve the first deviation and its impact chain. Continued execution does not prove a sound underlying design.</td>
+</tr>
+</tbody>
+</table>
+<p>Detailed evidence: <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/neo-trace-review.md">layout and generation-quality RCA</a>, <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/r6-layout-origin-root-cause-20261016.md">origin of R6 reuse</a>, <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/table-material-program-transformation-proof-20261016.md">material transformation comparison</a>, <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/guide-table-execution-root-cause-20261016.md">guideline-table execution RCA</a>, and <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/omitted-tool-return-verbatim-20261016.txt">verbatim omitted text</a>. These original investigation records are in Chinese.</p>
+</section><section id="s7"><h2>6. Discussed changes that are not complete</h2>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Discussion or recommendation</th>
+<th>Remaining work</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clarify agent/tool/program boundaries</td>
+<td>Agents retain semantic judgment; tools perform bounded substantive work; code handles deterministic responsibilities.</td>
+<td>Inspect actual paths for compliance and determine which duplicated layers should be removed.</td>
+</tr>
+<tr>
+<td>Consistent I/O responsibility</td>
+<td>Make inputs, results, limitations, material coverage, error meaning, and original recovery explicit.</td>
+<td>No completed migration to a new common protocol or full-chain validation. Complete fields alone do not prove sufficient meaning.</td>
+</tr>
+<tr>
+<td>Framework-first implementation</td>
+<td>Reuse LangChain tool schemas, structured model output, ToolMessage artifacts, and middleware.</td>
+<td>Selecting a component does not solve domain contracts automatically. Verify strict/provider behavior for the actual version.</td>
+</tr>
+<tr>
+<td>Hybrid source retrieval</td>
+<td>Combine literal and semantic retrieval with exact locations and recovery of complete context.</td>
+<td>Hybrid RAG is not deployed on the main source path; recall and coverage remain unverified.</td>
+</tr>
+<tr>
+<td>Quality during construction</td>
+<td>Apply known requirements in the first draft; use independent review for remaining defects.</td>
+<td>Do not substitute additional end-stage approvals for correct construction. Actual first-draft quality still needs proof.</td>
+</tr>
+<tr>
+<td>Preserve failure signals during validation</td>
+<td>Link raw program outputs, model-visible inputs, agent strategy changes, and artifacts.</td>
+<td>Agent adaptation is not a system pass. Detect whether omissions or errors were concealed.</td>
+</tr>
+</tbody>
+</table>
+<p>The technical documents supplied from the backup directory are reference material, not automatic changes to this system or proof that the main project implements them. Historical scan counts and statements that budget controls were disconnected require checking against the correct object, date, and version. A blanket inference from missing supported_by links to every report lacking evidence also requires attention to the metric definition and sampled semantic evidence.</p>
+<p>Framework boundaries matter: DeepAgents response_format principally constrains an agent's final structured_response, not every tool result. LangChain args_schema constrains tool arguments; with_structured_output constrains model returns. ToolMessage.artifact can retain raw material that is not model-visible, but must not hide decision-critical information. Middleware provides a common integration point; it does not define correct domain meaning for us. Official references appear below.</p>
+</section><section id="s8"><h2>7. Recent discussion retained</h2>
+<p>The following are English translations of direct statements in the current conversation. We cannot claim that they are all already present in the older 659-/81-entry archives. The Chinese edition preserves the wording of this later discussion without rewriting those archives.</p>
+<blockquote>
+<p>Our structural constraints on returned results are not strong.</p>
+</blockquote>
+<blockquote>
+<p>We have built a lot ourselves. Do DeepAgents or third-party open-source frameworks support this?</p>
+</blockquote>
+<blockquote>
+<p>So the separation itself is supported, and tools exist. The program has interfered too much with things the platform should handle.</p>
+</blockquote>
+<blockquote>
+<p>After thinking about it, I still see this as your implementation problem. The design principle itself was not wrong, but you did not fully use the platform's existing tools and did not think the implementation through. Working this way will lead to endless problems.</p>
+</blockquote>
+<blockquote>
+<p>These problems seem spread throughout the system. Program and agent responsibilities are tangled, as are tool and agent responsibilities. The system has become complex and insufficiently simple. I have initiated several code and design reviews, but the problems remain, with many hidden traps.</p>
+</blockquote>
+<blockquote>
+<p>We spent more than 100 million tokens on real-data validation to expose problems. But this system has a characteristic: after agents handle errors introduced by the program, the errors become difficult to detect. They end up buried more deeply.</p>
+</blockquote>
+<p>These concerns call for examining actual responsibilities and combined behavior while retaining original failure evidence. They must not be reduced to “change frameworks,” “add more guards,” or “another run will solve it.”</p>
+</section><section id="s9"><h2>8. Source and record navigation</h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Entry points</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Development constraints</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/AGENTS.md">AGENTS.md</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/ARCHITECTURE.md">architecture document, including historical and intended design</a></td>
+</tr>
+<tr>
+<td>Runtime and role construction</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/deep_runtime.py">deep_runtime.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/hierarchical_tools.py">role/tool bindings</a></td>
+</tr>
+<tr>
+<td>Model services</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/model_config.py">model_config.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/deep_models.py">deep_models.py</a></td>
+</tr>
+<tr>
+<td>Dynamic context and summaries</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/task_context.py">task_context.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/working_summary.py">working_summary.py</a></td>
+</tr>
+<tr>
+<td>Text tools and adoption</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/text_work.py">text_work.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/docs/independent-text-tools.md">independent text-tool documentation</a></td>
+</tr>
+<tr>
+<td>Decision projections</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/decision_data.py">decision_data.py</a></td>
+</tr>
+<tr>
+<td>Review</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/bounded_review.py">bounded_review.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/artifact_review.py">artifact_review.py</a></td>
+</tr>
+<tr>
+<td>Source reading and retrieval</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/catalog.py">catalog.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/source_search.py">source_search.py</a></td>
+</tr>
+<tr>
+<td>Learning</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/learning_runtime.py">learning_runtime.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/docs/feedback-learning.md">feedback-learning documentation</a></td>
+</tr>
+<tr>
+<td>Instruction versions and applicability</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/src/report_agent/prompt_instructions.py">prompt_instructions.py</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/docs/prompt-instructions.md">documentation</a></td>
+</tr>
+<tr>
+<td>Original user statements</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/neo/user-statements-20261014.md">initial archive</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/neo/user-statements-since-creation-20261015.md">post-Neo supplement</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/neo/current-user-decisions-20261015.md">current decision entry point</a></td>
+</tr>
+<tr>
+<td>Historical bugs and design review</td>
+<td><a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/full-chain-acceptance-20261014/complete-bug-inventory-20261015.html">itemized bug inventory</a>; <a href="file:///C:/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/full-chain-acceptance-20261014/actual-design-review-20261015.html">actual design review</a></td>
+</tr>
+</tbody>
+</table>
+<p>Framework references describe capabilities, not proof that this project has completed the corresponding work:</p>
+<ul>
+<li><a href="https://docs.langchain.com/oss/python/deepagents/customization#structured-output">DeepAgents structured final output</a></li>
+<li><a href="https://docs.langchain.com/oss/python/langchain/tools#advanced-schema-definition">LangChain tool schemas</a></li>
+<li><a href="https://docs.langchain.com/oss/python/langchain/models#structured-output">Structured model output</a></li>
+<li><a href="https://docs.langchain.com/oss/python/langchain/messages#tool-message">ToolMessage and artifacts</a></li>
+<li><a href="https://docs.langchain.com/oss/python/langchain/middleware/custom">Custom middleware</a></li>
+<li><a href="https://docs.pydantic.dev/latest/concepts/validators/">Pydantic validators</a></li>
+</ul>
+<p>The deliverable is this traceable summary and its prompt appendices. It does not independently authorize refactoring, resuming paid execution, rewriting reports, or releasing experience.</p>
+</section><p class="note">English reading edition · Generated from README.md · No external scripts, fonts, or network assets. This dossier records design and evidence; it does not resume application execution.</p></main></body></html>

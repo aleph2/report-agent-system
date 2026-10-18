@@ -5,7 +5,32 @@ from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, ToolMessage
 
-from .store import encode
+from .store import encode, digest
+
+
+def compact_native_tool_error(message, store):
+    """Keep schema diagnostics without replaying the entire rejected payload.
+
+    The original tool call remains in the native transcript; the full native
+    error is also retained in project events. This changes neither execution nor
+    arguments and never compacts substantive source/visual observations.
+    """
+    if (not isinstance(message, ToolMessage) or message.status != 'error'
+            or not isinstance(message.content, str)
+            or not message.content.startswith("Error invoking tool '")
+            or ' with error:' not in message.content):
+        return message
+    diagnostic = message.content.rsplit(' with error:', 1)[1].replace('\\n', '\n').strip()
+    if not diagnostic:
+        return message
+    identity = digest(message.content)
+    store.event('native_tool_schema_error', {'tool_call_id': message.tool_call_id,
+        'tool': message.name, 'error_digest': identity, 'native_error': message.content})
+    return message.model_copy(update={'content': encode({
+        'ok': False, 'code': 'NATIVE_TOOL_VALIDATION_ERROR',
+        'execution_state': 'not_established', 'tool': message.name,
+        'diagnostic': diagnostic, 'native_error_digest': identity,
+        'note': 'Full native diagnostic is retained in project events. This error wording alone does not establish whether the handler ran. Inspect the operation receipt and preserved outputs before choosing a recovery; do not assume no model call or side effect occurred.'})})
 
 
 def diagnostic_messages(messages):

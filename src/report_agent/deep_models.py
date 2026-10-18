@@ -2,17 +2,28 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import re
 import json
 from urllib.parse import urlparse
 
 import httpx
 import openai
+from .request_budget import account_request, RequestBudgetExceeded
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
-from .errors import ActionForbidden, ActionRejected
+from .errors import ActionForbidden, ActionRejected, ModelRequestDeadlineExceeded
+
+
+MODEL_READ_TIMEOUT_SECONDS = 600
+MODEL_REQUEST_DEADLINE_SECONDS = 600
+
+
+def model_request_timeout():
+    """Bound each transport attempt; SDK retries retain their separate limit."""
+    return httpx.Timeout(connect=15, read=MODEL_READ_TIMEOUT_SECONDS, write=60, pool=60)
 
 
 def _http_status(exc):
@@ -38,6 +49,15 @@ def error_data(exc):
         seen.add(id(current))
         current = current.__cause__
     status = next((value for item in chain if (value := _http_status(item)) is not None), None)
+    if any(isinstance(item, RequestBudgetExceeded) for item in chain):
+        budget_error=next(item for item in chain if isinstance(item,RequestBudgetExceeded))
+        code=str(budget_error)
+        if code not in {'MODEL_REQUEST_BUDGET_REACHED','AUTHORIZED_TOKEN_BUDGET_REACHED',
+                        'MODEL_TOKEN_BOUND_NOT_VERIFIED','TOKEN_BOUND_VIOLATION_REQUIRES_DIAGNOSIS',
+                        'STREAM_USAGE_BUDGET_NOT_SUPPORTED','TOKEN_LEDGER_SETTLEMENT_FAILED'}:
+            code='MODEL_REQUEST_BUDGET_REACHED'
+        return {"type": "RequestBudgetExceeded", "http_status": None,
+                "message": code}
     safe = None
     # Only the existing domain/builtin business-code path may expose an argument.
     # Provider exception subclasses never qualify, even with uppercase bodies.
@@ -99,7 +119,15 @@ class GLMChatOpenAI(ChatOpenAI):
         return result
 
     async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
-        result = await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        # One logical model call, including SDK retries; not a report-run budget.
+        deadline = asyncio.timeout(MODEL_REQUEST_DEADLINE_SECONDS)
+        try:
+            async with deadline:
+                result = await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except TimeoutError as exc:
+            if not deadline.expired():
+                raise
+            raise ModelRequestDeadlineExceeded(MODEL_REQUEST_DEADLINE_SECONDS) from exc
         return self._decode_strict(result, kwargs.get('tools'))
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
@@ -166,7 +194,11 @@ def _audit_message(message):
 
 
 class LocalAudit(BaseCallbackHandler):
-    """Local project audit only; never serialize a client or its credentials."""
+    """Historical explicit diagnostic callback; not installed by configured_model.
+
+    Retained for old diagnostic scripts that need effective middleware inputs.
+    Normal agent trajectories use the native checkpointer, without this copy.
+    """
 
     def __init__(self, store, role):
         self.store, self.role = store, role
@@ -189,12 +221,109 @@ class LocalAudit(BaseCallbackHandler):
         self.store.event("deep_model_error", {"run_id": str(run_id), "role": self.role, **error_data(error)})
 
 
+class RuntimeStatus(BaseCallbackHandler):
+    """Current activity and sanitized failure metadata, not a model transcript."""
+
+    def __init__(self, store, role):
+        self.store, self.role = store, role
+
+    def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs):
+        self.store.set("report_activity", self.role)
+
+    def on_llm_error(self, error, *, run_id, **kwargs):
+        self.store.event("deep_model_error", {"run_id": str(run_id), "role": self.role, **error_data(error)})
+
+
+def connection_retry_count():
+    """Opt-in retries only before an HTTP model request can be sent."""
+    value = os.environ.get("REPORT_CONNECT_RETRIES", "0")
+    if value not in {"0", "1", "2"}:
+        raise RuntimeError("MODEL_CONNECT_RETRIES_INVALID")
+    return int(value)
+
+
+def sdk_retry_count():
+    """Opt-in provider-request recovery, independent of business/task replay."""
+    value = os.environ.get("REPORT_SDK_RETRIES", "0")
+    if value not in {"0", "1", "2", "3", "4", "5"}:
+        raise RuntimeError("MODEL_SDK_RETRIES_INVALID")
+    if value != "0" and connection_retry_count():
+        raise RuntimeError("MODEL_RETRY_LAYERS_MUST_NOT_STACK")
+    return int(value)
+
+
+def model_async_client(store=None, role=None, extra_hooks=()):
+    from .transport_observation import install_http_observer, observe_http_headers, observe_event
+    retries = connection_retry_count()
+    sdk_retries = sdk_retry_count()
+    async def observe_start(request):
+        install_http_observer(request, store, role)
+    async def observe_headers(response):
+        observe_http_headers(response)
+    hooks = [account_request, observe_start, *extra_hooks]
+    from .token_budget import account_response
+    responses = [observe_headers, account_response]
+    if sdk_retries:
+        async def observe_attempt(request):
+            if store is not None:
+                import hashlib
+                observe_event(store, "model_http_attempt_started", {"role": role,
+                    "retry_index": int(request.headers.get("x-stainless-retry-count", "0")),
+                    "sdk_retries": sdk_retries,
+                    "body_sha256": hashlib.sha256(request.content).hexdigest()})
+        async def observe_response(response):
+            # Do not let a provider's retry override repeat permanent 4xx errors.
+            if 400 <= response.status_code < 500 and response.status_code not in {408,409,429}:
+                response.headers['x-should-retry'] = 'false'
+            if store is not None:
+                observe_event(store, "model_http_attempt_response", {"role": role,
+                    "retry_index": int(response.request.headers.get("x-stainless-retry-count", "0")),
+                    "http_status": response.status_code})
+        hooks.append(observe_attempt); responses.append(observe_response)
+        if store is not None:
+            observe_event(store, "model_transport_retry_policy", {"role": role, "connect_retries": 0,
+                "sdk_retries": sdk_retries, "read_write_status_retries": True})
+    if retries and store is not None:
+        async def observe_connections(request):
+            async def trace(event, info):
+                if event in {"connection.connect_tcp.failed", "connection.connect_unix_socket.failed",
+                             "connection.start_tls.failed", "connection.retry.started"}:
+                    observe_event(store, "model_connection_retry_trace", {
+                        "role": role, "event": event, "connect_retries": retries})
+            request.extensions["trace"] = trace
+        hooks.append(observe_connections)
+        observe_event(store, "model_transport_retry_policy", {"role": role, "connect_retries": retries,
+            "sdk_retries": 0, "read_write_status_retries": False})
+    options = {"event_hooks": {"request": hooks, "response": responses}}
+    if retries:
+        # HTTPX's native transport retries ConnectError/ConnectTimeout only.
+        # It does not repeat HTTP requests after a read/write/status failure.
+        options["transport"] = httpx.AsyncHTTPTransport(retries=retries)
+    return httpx.AsyncClient(**options)
+
+
+def model_sync_client(store=None, role=None):
+    from .request_budget import account_request_sync
+    from .token_budget import account_response_sync
+    from .transport_observation import install_http_observer, observe_http_headers
+    retries = connection_retry_count()
+    sdk_retries = sdk_retry_count()
+    def observe_start(request):
+        install_http_observer(request, store, role)
+    def permanent_error(response):
+        if 400 <= response.status_code < 500 and response.status_code not in {408,409,429}:
+            response.headers['x-should-retry'] = 'false'
+    return httpx.Client(transport=httpx.HTTPTransport(retries=retries),
+        event_hooks={'request':[account_request_sync, observe_start],
+                    'response':[observe_http_headers, account_response_sync, *([permanent_error] if sdk_retries else [])]})
+
+
 def configured_model(store, role):
     from .model_config import role_service
     name, url, key = role_service(role)
     name = name.removeprefix("openai/")
-    if name == "deepseek-flash":
-        if not key or not url or urlparse(url).scheme != "https" or urlparse(url).netloc != "api.deepseek.com":
+    if name.startswith("deepseek-") and urlparse(url).hostname == "api.deepseek.com":
+        if not key or not url or urlparse(url).scheme != "https":
             raise RuntimeError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")
         effort = os.environ.get("REPORT_REASONING_EFFORT", "max")
         if effort not in {"low", "high", "max"}:
@@ -203,33 +332,39 @@ def configured_model(store, role):
         if strict:
             url = 'https://api.deepseek.com/beta'
         return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False, deepseek_strict=strict,
-            http_async_client=httpx.AsyncClient(event_hooks={'request': [strict_wire_audit(store, role)]}) if strict else None,
+            http_async_client=model_async_client(store, role, [strict_wire_audit(store, role)] if strict else []),
+            http_client=model_sync_client(store, role),
             disable_streaming=True, reasoning_effort=effort, max_tokens=131072 if effort == "max" else 65536,
-            max_retries=0, extra_body={"thinking": {"type": "enabled"}},
-            timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),
-            model_kwargs={"parallel_tool_calls": False}, callbacks=[LocalAudit(store, role)])
-    if name.lower().replace("-", "").replace(".", "") != "glm53" or not url or not key:
+            max_retries=sdk_retry_count(), extra_body={"thinking": {"type": "enabled"}},
+            timeout=model_request_timeout(),
+            model_kwargs={"parallel_tool_calls": False}, callbacks=[RuntimeStatus(store, role)])
+    is_deepseek = name.startswith("deepseek-")
+    if (not is_deepseek and name.lower().replace("-", "").replace(".", "") != "glm53") or not url or not key:
         raise RuntimeError("AUTHORIZED_GLM53_CONFIGURATION_REQUIRED")
     if role in {"rubric_grader", "grader_diagnostic"} and "REPORT_GRADER_MODEL" in os.environ:
         name = os.environ["REPORT_GRADER_MODEL"]
         if name not in {"glm-5.3", "deepseek-v4.1-flash"}:
             raise RuntimeError("AUTHORIZED_GRADER_MODEL_REQUIRED")
-    thinking = ({"enable_thinking": True} if name == "deepseek-v4.1-flash" else
+    is_deepseek = name.startswith("deepseek-")
+    thinking = ({"enable_thinking": True} if is_deepseek else
                 {"thinking": {"type": "enabled", "clear_thinking": False}})
-    # SDK retries only transport/transient status failures, not a failed business task.
-    # Non-streaming responses do not execute partial tool calls. No whole-run deadline.
+    # Apply retries at construction: changing the Pydantic field afterward does
+    # not update the SDK clients already initialized by ChatOpenAI.
     return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
+                      http_async_client=model_async_client(store, role), http_client=model_sync_client(store, role),
                       disable_streaming=True,
-                      reasoning_effort="high", max_tokens=65536, max_retries=2,
+                      reasoning_effort=os.environ.get("REPORT_REASONING_EFFORT", "high") if is_deepseek else "high",
+                      max_tokens=65536, max_retries=sdk_retry_count(),
                       extra_body=thinking,
-                      timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60),
+                      timeout=model_request_timeout(),
                       model_kwargs={"parallel_tool_calls": False},
-                      callbacks=[LocalAudit(store, role)])
+                      callbacks=[RuntimeStatus(store, role)])
 
 
 def strict_wire_audit(store, role):
     """Capture actual HTTP parameters/schema identity, without headers or reasoning."""
-    async def observe(request):
+    from .transport_observation import observe_safely
+    def record(request):
         from .store import digest
         payload = json.loads(request.content)
         definitions = payload.get('tools', [])
@@ -243,6 +378,8 @@ def strict_wire_audit(store, role):
             'parameters': params, 'tool_schema_digest': identity, 'tool_count': len(definitions),
             'all_functions_strict': all(t.get('function', {}).get('strict') is True for t in definitions),
             'message_count': len(payload.get('messages', []))})
+    async def observe(request):
+        observe_safely(lambda: record(request))
     return observe
 
 
@@ -275,9 +412,11 @@ def bind_grader_trial(store):
 
 def configured_vision_client():
     """Use the SDK directly so image payloads do not enter inherited model callbacks."""
-    url, key = os.environ.get("REPORT_BASE_URL"), os.environ.get("REPORT_API_KEY")
+    from .model_config import role_service
+    _, url, key = role_service("vision")
     if not url or not key:
         raise RuntimeError("VISION_SERVICE_CONFIGURATION_REQUIRED")
     return openai.AsyncOpenAI(base_url=url, api_key=key,
-                             max_retries=0 if urlparse(url).netloc == "api.deepseek.com" else 2,
-                             timeout=httpx.Timeout(connect=15, read=1800, write=60, pool=60))
+                             http_client=model_async_client(),
+                             max_retries=sdk_retry_count(),
+                             timeout=model_request_timeout())

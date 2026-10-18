@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="5.902" timestamp="2026-10-18T01:46:45.573171+11:00" hostname="dysun"><testcase classname="tests.test_boundary_refactor" name="test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[False]" time="0.178"><failure message="report_agent.errors.ActionRejected: DETACHED_PRESENTATION_NODE">ws = &lt;report_agent.workspace.Workspace object at 0x7d3191d3bb30&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7d319d2cff80&gt;
+selected = False
+
+    @pytest.mark.parametrize('selected', [False, True])
+    async def test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies(ws, monkeypatch, selected):
+        from report_agent.task_context import read_observation
+        from langchain_openai.chat_models.base import _convert_message_to_dict
+        native = deep_runtime.FilesystemMiddleware
+        monkeypatch.setattr(deep_runtime, 'FilesystemMiddleware',
+            lambda **kwargs: native(**kwargs, tool_token_limit_before_evict=100))
+        literal = 'Unchanged source/body content. ' * 400 + 'TAIL MUST BE RECOVERABLE.'
+        ws.store.set('manifest', {**ws.store.manifest, 'sources': [
+            {'id': 's', 'title': 'Source', 'content': literal, 'coverage': 'partial'}]})
+        cs, actor, refs, _, members = seed(ws)
+        node = cs.commit(actor, 'large-node', [{'client_key': 'node', 'type': 'ContentNode',
+            'payload': {'kind': 'block', 'body': {'text': literal}, 'claim_kind': 'structure',
+                        'qualifiers': {'warning': 'Exact unverified condition; ' * 60}}}])['result']['refs']['node']
+&gt;       snapshot = cs.freeze(actor, 'large-snapshot', refs['root'], [*members, node])['result']['snapshot_ref']
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_boundary_refactor.py:366: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/report_agent/content_store.py:380: in freeze
+    return self.operation(actor, operation_id, request, save)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/report_agent/content_store.py:93: in operation
+    raise failure
+src/report_agent/content_store.py:82: in operation
+    result = execute(db)
+             ^^^^^^^^^^^
+src/report_agent/content_store.py:376: in save
+    return self._freeze_in_transaction(db, actor, root_ref, refs, workbook_refs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;report_agent.content_store.ContentStore object at 0x7d3169f27050&gt;
+db = &lt;sqlite3.Connection object at 0x7d3169f107c0&gt;
+actor = Actor(id='content:coordinator', role='coordinator', task_id='content-task:coordinator')
+root_ref = {'type': 'ContentNode', 'id': '4f81b079-a421-4369-901e-0f71f7584c76', 'version': 1}
+refs = [{'type': 'Requirement', 'id': '279d479e-0a9b-4d78-9a91-c21f9ad00a7b', 'version': 1}, {'type': 'SourceArtifact', 'id':...10-a78856bd08ea', 'version': 1}, {'type': 'Relation', 'id': '0c622c57-6c30-441f-b8da-2ae173f886c0', 'version': 1}, ...]
+workbook_refs = []
+
+    def _freeze_in_transaction(self, db, actor, root_ref, refs, workbook_refs):
+        if actor.role not in {"coordinator", "writer"}:
+            raise ActionForbidden("FORBIDDEN: snapshot")
+        root = self._read(db, root_ref)
+        # Coordinator can assemble a delivery snapshot of saved producer work;
+        # this grants no content-write or producer ownership transfer.
+        if root_ref["type"] != "ContentNode" or (root["owner_id"] != actor.id and actor.role != "coordinator"):
+            raise ActionForbidden("FORBIDDEN: root owner")
+        by_key = {Ref.model_validate(r).key(): self._read(db, r) for r in refs}
+        if len(by_key) != len(refs) or Ref.model_validate(root_ref).key() not in by_key:
+            raise ActionRejected("INVALID_MANIFEST")
+        logical = [(r[0], r[1]) for r in by_key]
+        if len(logical) != len(set(logical)):
+            raise ActionRejected("MIXED_LOGICAL_VERSIONS")
+        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation"}
+        if any(r[0] not in allowed for r in by_key):
+            raise ActionRejected("INVALID_SNAPSHOT_TYPE")
+        for record in by_key.values():
+            if any(ref.key() not in by_key for ref in refs_in(record["payload"])):
+                raise ActionRejected("INCOMPLETE_REFERENCE_CLOSURE")
+        parents, edges, positions = {}, {}, set()
+        for record in by_key.values():
+            p = record["payload"]
+            if record["ref"]["type"] == "Relation" and p["predicate"] == "contains":
+                subject, obj = Ref.model_validate(p["subject_ref"]).key(), Ref.model_validate(p["object_ref"]).key()
+                if obj in parents or (subject, p["position"]) in positions:
+                    raise ActionRejected("MULTIPLE_PARENTS_OR_POSITIONS")
+                parents[obj] = subject
+                positions.add((subject, p["position"]))
+                edges.setdefault(subject, []).append(obj)
+        root_key = Ref.model_validate(root_ref).key()
+        if root_key in parents:
+            raise ActionRejected("ROOT_HAS_PARENT")
+        visited, active = set(), set()
+        def visit(key):
+            if key in active:
+                raise ActionRejected("CONTAINS_CYCLE")
+            if key in visited:
+                return
+            active.add(key)
+            for child in edges.get(key, []):
+                visit(child)
+            active.remove(key)
+            visited.add(key)
+        for key in by_key:
+            if key[0] == "ContentNode":
+                visit(key)
+        rendered = set()
+        pending = [root_key]
+        while pending:
+            key = pending.pop()
+            if key not in rendered:
+                rendered.add(key)
+                pending.extend(edges.get(key, []))
+        workbook_keys = [Ref.model_validate(r).key() for r in workbook_refs]
+        if len(workbook_keys) != len(set(workbook_keys)):
+            raise ActionRejected("DUPLICATE_WORKBOOK_CHANNEL_REF")
+        for key in workbook_keys:
+            if key not in by_key or key[0] != "ContentNode":
+                raise ActionRejected("WORKBOOK_CHANNEL_OUTSIDE_MANIFEST")
+            if by_key[key]['payload']['kind'] not in {'table','block'}:
+                raise ActionRejected("WORKBOOK_CHANNEL_REQUIRES_TABLE_OR_TEXT_BLOCK")
+            if key in rendered:
+                raise ActionRejected("WORKBOOK_ONLY_NODE_IN_REPORT")
+            if key in parents or key in edges:
+                raise ActionRejected("WORKBOOK_CHANNEL_NODE_HAS_CONTAINMENT")
+        for key, record in by_key.items():
+            if key[0] == "ContentNode" and record["payload"]["kind"] != "claim" and key not in rendered and key not in workbook_keys:
+&gt;               raise ActionRejected("DETACHED_PRESENTATION_NODE")
+E               report_agent.errors.ActionRejected: DETACHED_PRESENTATION_NODE
+
+src/report_agent/content_store.py:359: ActionRejected</failure></testcase><testcase classname="tests.test_boundary_refactor" name="test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[True]" time="0.161"><failure message="report_agent.errors.ActionRejected: DETACHED_PRESENTATION_NODE">ws = &lt;report_agent.workspace.Workspace object at 0x7d316a0012e0&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7d3169f27ef0&gt;
+selected = True
+
+    @pytest.mark.parametrize('selected', [False, True])
+    async def test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies(ws, monkeypatch, selected):
+        from report_agent.task_context import read_observation
+        from langchain_openai.chat_models.base import _convert_message_to_dict
+        native = deep_runtime.FilesystemMiddleware
+        monkeypatch.setattr(deep_runtime, 'FilesystemMiddleware',
+            lambda **kwargs: native(**kwargs, tool_token_limit_before_evict=100))
+        literal = 'Unchanged source/body content. ' * 400 + 'TAIL MUST BE RECOVERABLE.'
+        ws.store.set('manifest', {**ws.store.manifest, 'sources': [
+            {'id': 's', 'title': 'Source', 'content': literal, 'coverage': 'partial'}]})
+        cs, actor, refs, _, members = seed(ws)
+        node = cs.commit(actor, 'large-node', [{'client_key': 'node', 'type': 'ContentNode',
+            'payload': {'kind': 'block', 'body': {'text': literal}, 'claim_kind': 'structure',
+                        'qualifiers': {'warning': 'Exact unverified condition; ' * 60}}}])['result']['refs']['node']
+&gt;       snapshot = cs.freeze(actor, 'large-snapshot', refs['root'], [*members, node])['result']['snapshot_ref']
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_boundary_refactor.py:366: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/report_agent/content_store.py:380: in freeze
+    return self.operation(actor, operation_id, request, save)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/report_agent/content_store.py:93: in operation
+    raise failure
+src/report_agent/content_store.py:82: in operation
+    result = execute(db)
+             ^^^^^^^^^^^
+src/report_agent/content_store.py:376: in save
+    return self._freeze_in_transaction(db, actor, root_ref, refs, workbook_refs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;report_agent.content_store.ContentStore object at 0x7d3169feaf00&gt;
+db = &lt;sqlite3.Connection object at 0x7d3169f11300&gt;
+actor = Actor(id='content:coordinator', role='coordinator', task_id='content-task:coordinator')
+root_ref = {'type': 'ContentNode', 'id': '495aa5d8-825d-44cb-9826-666c9df57c51', 'version': 1}
+refs = [{'type': 'Requirement', 'id': 'a1131172-747f-42ac-a85d-bdcaadfd82ad', 'version': 1}, {'type': 'SourceArtifact', 'id':...e7-ba14b6e1b717', 'version': 1}, {'type': 'Relation', 'id': '99c50478-757c-47be-a666-8e13c5e6983f', 'version': 1}, ...]
+workbook_refs = []
+
+    def _freeze_in_transaction(self, db, actor, root_ref, refs, workbook_refs):
+        if actor.role not in {"coordinator", "writer"}:
+            raise ActionForbidden("FORBIDDEN: snapshot")
+        root = self._read(db, root_ref)
+        # Coordinator can assemble a delivery snapshot of saved producer work;
+        # this grants no content-write or producer ownership transfer.
+        if root_ref["type"] != "ContentNode" or (root["owner_id"] != actor.id and actor.role != "coordinator"):
+            raise ActionForbidden("FORBIDDEN: root owner")
+        by_key = {Ref.model_validate(r).key(): self._read(db, r) for r in refs}
+        if len(by_key) != len(refs) or Ref.model_validate(root_ref).key() not in by_key:
+            raise ActionRejected("INVALID_MANIFEST")
+        logical = [(r[0], r[1]) for r in by_key]
+        if len(logical) != len(set(logical)):
+            raise ActionRejected("MIXED_LOGICAL_VERSIONS")
+        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation"}
+        if any(r[0] not in allowed for r in by_key):
+            raise ActionRejected("INVALID_SNAPSHOT_TYPE")
+        for record in by_key.values():
+            if any(ref.key() not in by_key for ref in refs_in(record["payload"])):
+                raise ActionRejected("INCOMPLETE_REFERENCE_CLOSURE")
+        parents, edges, positions = {}, {}, set()
+        for record in by_key.values():
+            p = record["payload"]
+            if record["ref"]["type"] == "Relation" and p["predicate"] == "contains":
+                subject, obj = Ref.model_validate(p["subject_ref"]).key(), Ref.model_validate(p["object_ref"]).key()
+                if obj in parents or (subject, p["position"]) in positions:
+                    raise ActionRejected("MULTIPLE_PARENTS_OR_POSITIONS")
+                parents[obj] = subject
+                positions.add((subject, p["position"]))
+                edges.setdefault(subject, []).append(obj)
+        root_key = Ref.model_validate(root_ref).key()
+        if root_key in parents:
+            raise ActionRejected("ROOT_HAS_PARENT")
+        visited, active = set(), set()
+        def visit(key):
+            if key in active:
+                raise ActionRejected("CONTAINS_CYCLE")
+            if key in visited:
+                return
+            active.add(key)
+            for child in edges.get(key, []):
+                visit(child)
+            active.remove(key)
+            visited.add(key)
+        for key in by_key:
+            if key[0] == "ContentNode":
+                visit(key)
+        rendered = set()
+        pending = [root_key]
+        while pending:
+            key = pending.pop()
+            if key not in rendered:
+                rendered.add(key)
+                pending.extend(edges.get(key, []))
+        workbook_keys = [Ref.model_validate(r).key() for r in workbook_refs]
+        if len(workbook_keys) != len(set(workbook_keys)):
+            raise ActionRejected("DUPLICATE_WORKBOOK_CHANNEL_REF")
+        for key in workbook_keys:
+            if key not in by_key or key[0] != "ContentNode":
+                raise ActionRejected("WORKBOOK_CHANNEL_OUTSIDE_MANIFEST")
+            if by_key[key]['payload']['kind'] not in {'table','block'}:
+                raise ActionRejected("WORKBOOK_CHANNEL_REQUIRES_TABLE_OR_TEXT_BLOCK")
+            if key in rendered:
+                raise ActionRejected("WORKBOOK_ONLY_NODE_IN_REPORT")
+            if key in parents or key in edges:
+                raise ActionRejected("WORKBOOK_CHANNEL_NODE_HAS_CONTAINMENT")
+        for key, record in by_key.items():
+            if key[0] == "ContentNode" and record["payload"]["kind"] != "claim" and key not in rendered and key not in workbook_keys:
+&gt;               raise ActionRejected("DETACHED_PRESENTATION_NODE")
+E               report_agent.errors.ActionRejected: DETACHED_PRESENTATION_NODE
+
+src/report_agent/content_store.py:359: ActionRejected</failure></testcase></testsuite></testsuites>

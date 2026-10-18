@@ -1,0 +1,277 @@
+{
+  "case": "existing supervisor followup True",
+  "provider_calls": 0,
+  "registered_reviewer_tools": [
+    [
+      "ls",
+      "read_file",
+      "write_file",
+      "edit_file",
+      "glob",
+      "grep",
+      "project_status",
+      "read_source_page",
+      "search_sources",
+      "inspect_source_page",
+      "analyze_source_image",
+      "calculate",
+      "read_result",
+      "content_status",
+      "read_object_index",
+      "read_context",
+      "read_content_index",
+      "read_content_selection",
+      "read_review_status",
+      "observe_evidence",
+      "read_feedback",
+      "record_handoff",
+      "assess_change_impact",
+      "get_operation_receipt",
+      "read_content_export",
+      "render_content_export",
+      "inspect_rendered_page",
+      "read_delivery_review_context",
+      "read_layout_capabilities",
+      "capture_review_sources",
+      "confirm_review_reuse",
+      "read_task_assignment",
+      "perform_assigned_review",
+      "perform_assigned_artifact_review"
+    ],
+    [
+      "ls",
+      "read_file",
+      "write_file",
+      "edit_file",
+      "glob",
+      "grep",
+      "project_status",
+      "read_source_page",
+      "search_sources",
+      "inspect_source_page",
+      "analyze_source_image",
+      "calculate",
+      "read_result",
+      "content_status",
+      "read_object_index",
+      "read_context",
+      "read_content_index",
+      "read_content_selection",
+      "read_review_status",
+      "observe_evidence",
+      "read_feedback",
+      "record_handoff",
+      "assess_change_impact",
+      "get_operation_receipt",
+      "read_content_export",
+      "render_content_export",
+      "inspect_rendered_page",
+      "read_delivery_review_context",
+      "read_layout_capabilities",
+      "capture_review_sources",
+      "confirm_review_reuse",
+      "read_task_assignment",
+      "perform_assigned_review",
+      "perform_assigned_artifact_review"
+    ],
+    [
+      "ls",
+      "read_file",
+      "write_file",
+      "edit_file",
+      "glob",
+      "grep",
+      "project_status",
+      "read_source_page",
+      "search_sources",
+      "inspect_source_page",
+      "analyze_source_image",
+      "calculate",
+      "read_result",
+      "content_status",
+      "read_object_index",
+      "read_context",
+      "read_content_index",
+      "read_content_selection",
+      "read_review_status",
+      "observe_evidence",
+      "read_feedback",
+      "record_handoff",
+      "assess_change_impact",
+      "get_operation_receipt",
+      "read_content_export",
+      "render_content_export",
+      "inspect_rendered_page",
+      "read_delivery_review_context",
+      "read_layout_capabilities",
+      "capture_review_sources",
+      "confirm_review_reuse",
+      "read_task_assignment",
+      "perform_assigned_review",
+      "perform_assigned_artifact_review"
+    ],
+    [
+      "ls",
+      "read_file",
+      "write_file",
+      "edit_file",
+      "glob",
+      "grep",
+      "project_status",
+      "read_source_page",
+      "search_sources",
+      "inspect_source_page",
+      "analyze_source_image",
+      "calculate",
+      "read_result",
+      "content_status",
+      "read_object_index",
+      "read_context",
+      "read_content_index",
+      "read_content_selection",
+      "read_review_status",
+      "observe_evidence",
+      "read_feedback",
+      "record_handoff",
+      "assess_change_impact",
+      "get_operation_receipt",
+      "read_content_export",
+      "render_content_export",
+      "inspect_rendered_page",
+      "read_delivery_review_context",
+      "read_layout_capabilities",
+      "capture_review_sources",
+      "confirm_review_reuse",
+      "read_task_assignment",
+      "perform_assigned_review",
+      "perform_assigned_artifact_review"
+    ]
+  ],
+  "tool_returns": [
+    {
+      "content": "{\"ok\": true, \"result\": {\"target_ref\": {\"type\": \"ContentNode\", \"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"version\": 1}, \"objects\": [{\"created_at\": \"2026-10-17T14:42:24.518166+00:00\", \"created_by\": \"content:coordinator\", \"owner_id\": \"content:coordinator\", \"payload\": {\"body\": {\"text\": \"For adopted class B use 70.\"}, \"claim_kind\": \"inference\", \"kind\": \"claim\", \"qualifiers\": {\"condition\": \"class B\"}}, \"payload_digest\": \"10444b5909dc8885fa2786d5755ca0e3542677cf1d313cf424cdcccba4e384dc\", \"previous_ref\": null, \"ref\": {\"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"type\": \"ContentNode\", \"version\": 1}, \"schema_version\": \"hierarchical-review-v1\", \"task_id\": \"content-task:coordinator\"}], \"loaded_refs\": [{\"type\": \"ContentNode\", \"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"version\": 1}], \"total\": 1, \"next_offset\": null, \"unreturned_refs\": []}, \"receipt_id\": \"d26d40cf-85b5-43dc-8c42-c47569cd6c78\"}",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "tool",
+      "name": "read_context",
+      "id": "d8cd8e14-c2ec-4cd6-8033-877aef80b8a4",
+      "tool_call_id": "read_context",
+      "artifact": null,
+      "status": "success"
+    },
+    {
+      "content": "{\"ok\": true, \"result\": {\"target_ref\": {\"type\": \"ContentNode\", \"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"version\": 1}, \"objects\": [{\"created_at\": \"2026-10-17T14:42:24.518166+00:00\", \"created_by\": \"content:coordinator\", \"owner_id\": \"content:coordinator\", \"payload\": {\"body\": {\"text\": \"For adopted class B use 70.\"}, \"claim_kind\": \"inference\", \"kind\": \"claim\", \"qualifiers\": {\"condition\": \"class B\"}}, \"payload_digest\": \"10444b5909dc8885fa2786d5755ca0e3542677cf1d313cf424cdcccba4e384dc\", \"previous_ref\": null, \"ref\": {\"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"type\": \"ContentNode\", \"version\": 1}, \"schema_version\": \"hierarchical-review-v1\", \"task_id\": \"content-task:coordinator\"}], \"loaded_refs\": [{\"type\": \"ContentNode\", \"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"version\": 1}], \"total\": 1, \"next_offset\": null, \"unreturned_refs\": []}, \"receipt_id\": \"d26d40cf-85b5-43dc-8c42-c47569cd6c78\"}",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "tool",
+      "name": "read_context",
+      "id": "d8cd8e14-c2ec-4cd6-8033-877aef80b8a4",
+      "tool_call_id": "read_context",
+      "artifact": null,
+      "status": "success"
+    },
+    {
+      "content": "Error: submit_review is not a valid tool, try one of [ls, read_file, write_file, edit_file, glob, grep, project_status, read_source_page, search_sources, inspect_source_page, analyze_source_image, calculate, read_result, content_status, read_object_index, read_context, read_content_index, read_content_selection, read_review_status, observe_evidence, read_feedback, record_handoff, assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page, read_delivery_review_context, read_layout_capabilities, capture_review_sources, confirm_review_reuse, read_task_assignment, perform_assigned_review, perform_assigned_artifact_review].",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "tool",
+      "name": "submit_review",
+      "id": "26cf1aa8-cd19-4cfb-9d6b-e51a90860871",
+      "tool_call_id": "submit_review",
+      "artifact": null,
+      "status": "error"
+    },
+    {
+      "content": "Comparison completed; human selection remains.\nTask supervision (execution bookkeeping, not acceptance):\n{\"execution_complete\": false, \"followup\": {\"call_id\": \"review-task\", \"state\": \"returned\", \"task_id\": \"e774dbfb-fec3-4d60-8b68-2225e2a17a52\"}, \"limitation\": \"Saved declarations and actual whole-body read receipts only. Completion is not correctness, full commissioned coverage or engineering approval.\", \"remaining\": [{\"reason\": \"No applicable saved review item.\", \"requirement\": {\"artifact_refs\": [], \"assessment_kind\": \"content\", \"criterion_ref\": {\"id\": \"27b13f17-4bd1-4556-9e69-f69ac0dbca1c\", \"type\": \"Criterion\", \"version\": 1}, \"require_check_evidence\": false, \"required_checks\": [\"rule comparison\"], \"required_read_refs\": [], \"scope_id\": \"rule-comparison\", \"target_ref\": {\"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"type\": \"ContentNode\", \"version\": 1}}, \"state\": \"missing\"}], \"requirements\": [{\"reason\": \"No applicable saved review item.\", \"requirement\": {\"artifact_refs\": [], \"assessment_kind\": \"content\", \"criterion_ref\": {\"id\": \"27b13f17-4bd1-4556-9e69-f69ac0dbca1c\", \"type\": \"Criterion\", \"version\": 1}, \"require_check_evidence\": false, \"required_checks\": [\"rule comparison\"], \"required_read_refs\": [], \"scope_id\": \"rule-comparison\", \"target_ref\": {\"id\": \"36d1979a-da8f-4c5d-b61e-a764123056d4\", \"type\": \"ContentNode\", \"version\": 1}}, \"state\": \"missing\"}], \"semantic_coverage_verified\": false, \"snapshot_ref\": {\"id\": \"a302b7cf-ba8c-40ab-b7f8-f355c147799d\", \"type\": \"DocumentSnapshot\", \"version\": 1}, \"supervision_plugin\": \"task-checks-v1\", \"task_id\": \"e774dbfb-fec3-4d60-8b68-2225e2a17a52\"}",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "tool",
+      "name": "task",
+      "id": "26eb0d59-7595-49c9-99a0-e5350bac93be",
+      "tool_call_id": "review-task",
+      "artifact": null,
+      "status": "success"
+    }
+  ],
+  "status": {
+    "tasks": [
+      {
+        "task_ref": {
+          "id": "e774dbfb-fec3-4d60-8b68-2225e2a17a52",
+          "type": "DelegatedTask",
+          "version": 1
+        },
+        "goal": "Compare adopted value with the original rule.",
+        "task_id": "e774dbfb-fec3-4d60-8b68-2225e2a17a52",
+        "snapshot_ref": {
+          "id": "a302b7cf-ba8c-40ab-b7f8-f355c147799d",
+          "type": "DocumentSnapshot",
+          "version": 1
+        },
+        "requirements": [
+          {
+            "requirement": {
+              "artifact_refs": [],
+              "assessment_kind": "content",
+              "criterion_ref": {
+                "id": "27b13f17-4bd1-4556-9e69-f69ac0dbca1c",
+                "type": "Criterion",
+                "version": 1
+              },
+              "require_check_evidence": false,
+              "required_checks": [
+                "rule comparison"
+              ],
+              "required_read_refs": [],
+              "scope_id": "rule-comparison",
+              "target_ref": {
+                "id": "36d1979a-da8f-4c5d-b61e-a764123056d4",
+                "type": "ContentNode",
+                "version": 1
+              }
+            },
+            "state": "missing",
+            "reason": "No applicable saved review item."
+          }
+        ],
+        "supervision_plugin": "task-checks-v1",
+        "remaining": [
+          {
+            "requirement": {
+              "artifact_refs": [],
+              "assessment_kind": "content",
+              "criterion_ref": {
+                "id": "27b13f17-4bd1-4556-9e69-f69ac0dbca1c",
+                "type": "Criterion",
+                "version": 1
+              },
+              "require_check_evidence": false,
+              "required_checks": [
+                "rule comparison"
+              ],
+              "required_read_refs": [],
+              "scope_id": "rule-comparison",
+              "target_ref": {
+                "id": "36d1979a-da8f-4c5d-b61e-a764123056d4",
+                "type": "ContentNode",
+                "version": 1
+              }
+            },
+            "state": "missing",
+            "reason": "No applicable saved review item."
+          }
+        ],
+        "execution_complete": false,
+        "semantic_coverage_verified": false,
+        "limitation": "Saved declarations and actual whole-body read receipts only. Completion is not correctness, full commissioned coverage or engineering approval.",
+        "followup": {
+          "call_id": "review-task",
+          "state": "returned",
+          "task_id": "e774dbfb-fec3-4d60-8b68-2225e2a17a52"
+        }
+      }
+    ],
+    "total": 1,
+    "next_offset": null
+  }
+}

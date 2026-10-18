@@ -141,7 +141,8 @@ def test_tool_exposure_and_strict_selector_schema(sample):
     reviewer = {t.__name__: t for t in business_tools(ws, "reviewer", None, model)}
     tool = StructuredTool.from_function(coroutine=reviewer["analyze_evidence"])
     schema = convert_to_openai_tool(tool)["function"]["parameters"]
-    assert set(schema["properties"]) == {"question", "source_selections", "result_selections"}
+    assert set(schema["properties"]) == {"question", "source_selections", "result_selections",
+                                          "snapshot_ref", "content_selections"}
     for role in ("coordinator", "writer", "knowledge"):
         assert "analyze_evidence" not in {t.__name__ for t in business_tools(ws, role, None, model)}
 

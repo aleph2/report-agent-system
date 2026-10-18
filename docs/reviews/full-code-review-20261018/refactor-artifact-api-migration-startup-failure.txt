@@ -1,0 +1,21 @@
+Artifact test API migration: native bounded checker path; no source changes.
+Traceback (most recent call last):
+  File "<stdin>", line 41, in <module>
+  File "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/_pytest/config/__init__.py", line 201, in main
+    return _main(args=args, plugins=plugins, prog="pytest.main()")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/_pytest/config/__init__.py", line 223, in _main
+    config = _prepareconfig(new_args, plugins, prog=prog)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/_pytest/config/__init__.py", line 409, in _prepareconfig
+    pluginmanager.register(plugin)
+  File "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/_pytest/config/__init__.py", line 571, in register
+    plugin_name = super().register(plugin, name)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/pluggy/_manager.py", line 168, in register
+    self._verify_hook(hook, hookimpl)
+  File "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/pluggy/_manager.py", line 343, in _verify_hook
+    raise PluginValidationError(
+pluggy._manager.PluginValidationError: Plugin '126563502531712' for hook 'pytest_runtest_logreport'
+hookimpl definition: pytest_runtest_logreport(r)
+Argument(s) {'r'} are declared in the hookimpl but can not be found in the hookspec

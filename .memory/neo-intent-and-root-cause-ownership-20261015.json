@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-15",
+  "recorded_by": "Codex Main",
+  "authority": "Direct desktop user statements and response annotations in this conversation",
+  "user_verbatim": [
+    "请codex不要做决定，我反倒是要确认停下来修正是对的",
+    "没问题，以后这样的理解交给Neo",
+    "好的，大家认知对齐了，请Neo负责，你配合落实到位"
+  ],
+  "annotation_context": {
+    "1": "Main acknowledged misinterpreting reducing pauses as the improvement objective.",
+    "2": "The improvement objective is root-cause investigation and repair completeness."
+  },
+  "roles": {
+    "Neo": "Interpret the user's intent and expressed working preferences; determine whether an issue is established, its common root cause, design disposition, repair completeness, priorities and validation stop/resume sequence; review source, traces and actual results.",
+    "Codex_Main": "Provide evidence, carry out investigations and implement Neo's chosen decisions; verify and preserve actual results for Neo. Do not independently replace the user's priorities or Neo's disposition."
+  },
+  "principle": "Pausing affected validation, investigating root cause, repairing and then validating is sound. Repeated local symptom repairs with incomplete common-cause analysis are the concern, not pausing itself.",
+  "current_execution_decision": ".analysis/neo/implementation-resumed-20261014/c17-maintenance-boundary-reassessment.json",
+  "decision_application": "Implement Neo's bounded maintenance attempt after current paid responses and matching native results are saved. Actual attempt and terminal evidence must be recorded separately; this memory entry does not claim a pause has occurred.",
+  "clarifications": [
+    {
+      "date": "2026-10-18",
+      "timezone": "Australia/Sydney",
+      "authority": "Direct user statements in this conversation",
+      "user_verbatim": [
+        "我判断你主要是意图理解上出了问题",
+        "所以，Neo监督你要对齐意图理解"
+      ],
+      "application": "Neo supervises Main when translating user statements into the objective, constraints, design choices and acceptance criteria, before implementation as well as when checking results. Check for invented constraints, substitution of a local task for the full outcome, and completion claims exceeding evidence. Ordinary implementation choices do not require repeated user approval.",
+      "current_request_boundary": "Joint assessment of restarting in an independent project and development-model recommendations only. No decision to rebuild, new project creation, model switch or resumed paid report execution is implied. The older execution and budget statements below are historical, not a current launch instruction.",
+      "review_receipt": "Neo reviewed this turn's intent interpretation and accepted the supervision responsibility; this is not evidence of future compliance or implementation acceptance."
+    }
+  ],
+  "preserve": [
+    "Existing user authorization, cumulative100000000-token ledger and unknown reservations",
+    "No blind replay of unknown outcomes; no cancellation just to obtain a maintenance window",
+    "Email stopped; source facts, original files, ownership and publication boundaries",
+    "Prior evidence and superseded decisions as history; no new report-runtime approval stage"
+  ]
+}

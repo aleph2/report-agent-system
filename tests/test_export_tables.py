@@ -190,7 +190,7 @@ def test_export_preserves_source_index_status_and_saved_content(tmp_path):
     draft = ws.submit(task["id"], actor=task["owner"], title="Original title", body=body,
                       source_ids=[], input_ids=[material["id"]])
     before = (ws.tasks(), ws.results(), store.events())
-    doc = Document(BytesIO(export_docx(ws, draft["id"])))
+    doc = Document(BytesIO(export_docx(ws, draft["id"], include_execution_record=True)))
     text = "\n".join(p.text for p in doc.paragraphs)
     assert "Unreviewed draft; not approved." in text
     assert "SYNTHETIC PROTOCOL FIXTURE" in text

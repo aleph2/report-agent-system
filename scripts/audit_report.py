@@ -55,6 +55,13 @@ def audit(root):
                                 "outcome": args.get("outcome"), "target_id": args.get("target_id"),
                                 "source_ids": args.get("source_ids"), "body_characters": len(args.get("body", ""))})
     result["submissions"] = submissions[-8:]
+    # Legacy transcript metrics remain historical evidence; normal runs now
+    # retain messages in LangGraph, not a duplicate events table transcript.
+    result["transcript_metrics_scope"] = "historical_local_audit_events_only"
+    if state.get("native_trace_thread_id"):
+        from report_agent.native_trace import recent_tool_events
+        result["recent_tools"] = recent_tool_events(root.resolve(), state["native_trace_thread_id"])
+        result["recent_tools_source"] = "native_checkpoint_bounded_recent_page"
     db.close()
     return result
 

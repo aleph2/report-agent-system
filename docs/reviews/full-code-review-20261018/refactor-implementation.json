@@ -1,0 +1,273 @@
+{
+  "recorded_at": "2026-10-17T15:04:43.925129+00:00",
+  "status": "implemented_and_offline_verified_with_explicit_limits",
+  "decision_owner": "Neo",
+  "implementation_owner": "Codex Main",
+  "test_migration_and_combined_verification": "compatibility_tests subagent",
+  "scope": [
+    "NFR-01 scoped new decision-delivery path and explicit legacy compatibility",
+    "NFR-02 exact assigned historical comparison dependency",
+    "NFR-03 shared task review identity and new-assignment ambiguity rejection",
+    "NFR-07 one root-owned TOC",
+    "NFR-08 one Markdown render path with paragraph presentation",
+    "RF-A01 native offload must not be undone by application control restoration"
+  ],
+  "platform_reuse": [
+    "DeepAgents native agent/subagent loop and FilesystemMiddleware",
+    "LangChain AgentMiddleware, ToolMessage content/artifact and model adapter",
+    "Existing BaseChatModel/Driver fake and actual business tools",
+    "Existing actor-owned immutable observations and operation receipts"
+  ],
+  "source_changes": [
+    {
+      "path": "src/report_agent/decision_data.py",
+      "before_sha256": "1ef942ffe7c41ba04450b0c371e5676b30471a0a0fa2f674651f8bcae7002f2c",
+      "after_sha256": "4ebebffc2302a0a8fc9dd87c54315abb59d06d023fb13646c6b118d957912bdb",
+      "before_lines": 410,
+      "after_lines": 387
+    },
+    {
+      "path": "src/report_agent/task_context.py",
+      "before_sha256": "3acfe9c02ff98c939ebcc5f4a4beffc59d8b9ca6281803b0b1f903afc70a17d0",
+      "after_sha256": "e7d9c30bee6138278fdac36cf3fbf98ae86992df7ac50bb504ee8e290802a135",
+      "before_lines": 361,
+      "after_lines": 361
+    },
+    {
+      "path": "src/report_agent/artifact_review.py",
+      "before_sha256": "6328051a2bdf03e3987e3345b76fd43ba63483842d12d9de6f8d8646418584cc",
+      "after_sha256": "7cec99521b5bd18b3f57fb59eff79f783bbc9601b6962e619e6e9eef32d66367",
+      "before_lines": 226,
+      "after_lines": 238
+    },
+    {
+      "path": "src/report_agent/selection_observations.py",
+      "before_sha256": "bf72136433377c4e06324f3d85961499504b7c02bc2cead91e94d847fae46559",
+      "after_sha256": "80d1d85bce5ea4774bda8aef2dc1fa5e1c077ce8c95df6a2e8f1df2c13eb64b8",
+      "before_lines": 137,
+      "after_lines": 134
+    },
+    {
+      "path": "src/report_agent/task_supervision.py",
+      "before_sha256": "c19d7eb72a605a62fc1341a06275b3443c6450114d186363f95fbd18f7e8c533",
+      "after_sha256": "48db598517ae75f3de1154817dc5488d25ce6a8acab25d9d346feb4b09eb2dfc",
+      "before_lines": 749,
+      "after_lines": 766
+    },
+    {
+      "path": "src/report_agent/content_store.py",
+      "before_sha256": "ac4fac47eca52b5a3c9b02b71a0a4118d296facdf81b2b068104f7adc83f671b",
+      "after_sha256": "54045e1b6e2960558f3c102605aa8d3004a92d37a7b02c368b7f8a42255b7adc",
+      "before_lines": 811,
+      "after_lines": 827
+    },
+    {
+      "path": "src/report_agent/content_export.py",
+      "before_sha256": "7bc6c43864eab5f2ba744f8cf1b6ca0214dc3b10c66039b6e5a97a651272341e",
+      "after_sha256": "f2ad446c1d91b7ee137f99d126ad337780589327e550f3ba6c76bca0fe30334b",
+      "before_lines": 429,
+      "after_lines": 429
+    },
+    {
+      "path": "src/report_agent/content_layout.py",
+      "before_sha256": "8a238eab0cbd301625b2bd67169daa78736f0faeed0512a549bcd42ff52075d2",
+      "after_sha256": "71fd53ba7dc7de599f34740b6b69fbc4daf6ab6ce97119179f13bfc90da7accd",
+      "before_lines": 563,
+      "after_lines": 566
+    },
+    {
+      "path": "src/report_agent/exporting.py",
+      "before_sha256": "6b27611027718e9c4c98eb47dce63d77492b3c5bf45940629bca59ed0e136e57",
+      "after_sha256": "d6a34a05cd2e7d7913a54ff095f61a6740842c5bd6567018b2fb811797fe72b4",
+      "before_lines": 517,
+      "after_lines": 560
+    }
+  ],
+  "test_changes": [
+    {
+      "path": "tests/test_boundary_refactor.py",
+      "before_sha256": null,
+      "after_sha256": "08ec5407f43739b8b1abab83fd45509ea7098e0da503fa6ad05918ba7cbaecbb",
+      "before_lines": null,
+      "after_lines": 505
+    },
+    {
+      "path": "tests/test_text_work.py",
+      "before_sha256": "a757abff4b878db42226854d4ff38e3ebfe8e4925f7d2ecb59519e5874844420",
+      "after_sha256": "b82ff203962df7dd8229a5ae672fed47386c0e0b50ac12f3bc45e80399163462",
+      "before_lines": 406,
+      "after_lines": 414
+    },
+    {
+      "path": "tests/test_review_readiness.py",
+      "before_sha256": "ddfa5a0572af1357142770694ec07ceb4f0c3aa6cd97feffa9f54022df45ca63",
+      "after_sha256": "13c1e35beb68b42ec7acac435529c63cd9f0fe35302ef6d928f9f1cf11b283cc",
+      "before_lines": 434,
+      "after_lines": 434
+    },
+    {
+      "path": "tests/test_decision_data.py",
+      "before_sha256": "6ef87e03808c4f73ab1e5a0935d194670600b02a0abd6fbe301ee9708b1b5e03",
+      "after_sha256": "0d397febdb1bcb8901971f028f83c749074f895b3a3f26b25760238dde19e40e",
+      "before_lines": 127,
+      "after_lines": 143
+    },
+    {
+      "path": "tests/test_business_envelope_projection.py",
+      "before_sha256": "f8035200b28a393986e6d2206d36f021f361aa844428b0cb65584ef72a153b5e",
+      "after_sha256": "328d29c73a53558ab1f50e83430e10983d5c53751b5c038c6d1776dba359b5f8",
+      "before_lines": 140,
+      "after_lines": 161
+    },
+    {
+      "path": "tests/test_producer_observations.py",
+      "before_sha256": "b2e1ae06ba06b5c65c4a761eabea86ec548354f095f025390e7bc885607de299",
+      "after_sha256": "26fb24d49b87420eabec53d52d5dd4830e3964bece6c0d4541f5e94d1b7502f7",
+      "before_lines": 187,
+      "after_lines": 198
+    },
+    {
+      "path": "tests/test_field_observation_recovery.py",
+      "before_sha256": "bd2f867a15707d53aff4030eaa39f1337b7a7726a7d3857c4e91922f613a925f",
+      "after_sha256": "558ec835b8b700a7ab83a71bf7e0f27d31fa949ba69997e9a668241f272a2bce",
+      "before_lines": 169,
+      "after_lines": 167
+    },
+    {
+      "path": "tests/test_history_policy_reads.py",
+      "before_sha256": "a3a4772e634553d48c724200cf9e6d965cfc9a8ead1f82985fc738c1bc96067f",
+      "after_sha256": "fe20a0e77f0fd32ba82715109a33b2c37d1ac0a597f48cf340162ecfc27c1ea4",
+      "before_lines": 148,
+      "after_lines": 148
+    },
+    {
+      "path": "tests/test_selection_observations.py",
+      "before_sha256": "0c81305163579f4bed2924f64b1974d3f786ca14acb58449d3d6d6cd3d02d9ad",
+      "after_sha256": "3f78d79205ce5cc1aa064784ed68e8d931570f3f1bd95fa644750c5ed830fbec",
+      "before_lines": 199,
+      "after_lines": 200
+    },
+    {
+      "path": "tests/test_task_supervision.py",
+      "before_sha256": "b4c147686cca5b513441b38909bd9a351f3c260ebd37ec7a4e0fba5823ba585b",
+      "after_sha256": "e60dd27d35f9b8c6d24641d18688d03384b02d6d117b9d89536a169bd64db93a",
+      "before_lines": 405,
+      "after_lines": 437
+    },
+    {
+      "path": "tests/test_content_selection.py",
+      "before_sha256": "f7b6897ccc35a0c1ca43b0b909302dc82593382720c51e5632efa1a1244a4329",
+      "after_sha256": "af7ad5385306dc5148fd4f86cdd715a8b6ff6fdda2a481ec0d2f13c417dfd026",
+      "before_lines": 128,
+      "after_lines": 138
+    },
+    {
+      "path": "tests/test_artifact_review.py",
+      "before_sha256": "c3e2d1b2bc326ab51ee4ed2b5ab372657514afc71a6c290fa118e69ab1ed153a",
+      "after_sha256": "1bdfdad7359410db39ce1a031594d96486cf6f1f227736dbe6c325eca12e3d5b",
+      "before_lines": 281,
+      "after_lines": 311
+    }
+  ],
+  "historical_fixture": {
+    "path": "tests/fixtures/boundary-trace-20261018.json",
+    "sha256": "c24411044bd48ee720b700e11264218306be272c86e694dccfdeb70c6a295c51",
+    "scope": "Two exact historical public tool returns; not full historical checkpoint replay"
+  },
+  "verification": {
+    "record": "docs\\reviews\\full-code-review-20261018\\refactor-final-reconciled.json",
+    "sha256": "a22ecafaaa4b7fd4e134d42a294ad85da57c218ea86aff2b380b443f1fe13dce",
+    "unique_testcases": 535,
+    "files": 29,
+    "results": {
+      "passed": 535,
+      "failed": 0,
+      "skipped": 0,
+      "not_run": 0
+    },
+    "combination": "533/535 stable-source full run, then 21/21 corrected artifact-file retest; no duplicate accumulation",
+    "provider_calls": 0,
+    "network_attempts": [],
+    "compileall": {
+      "executed_code": false,
+      "targets": {
+        "src/report_agent/decision_data.py": true,
+        "src/report_agent/task_context.py": true,
+        "src/report_agent/artifact_review.py": true,
+        "src/report_agent/selection_observations.py": true,
+        "src/report_agent/task_supervision.py": true,
+        "src/report_agent/content_store.py": true,
+        "src/report_agent/content_export.py": true,
+        "src/report_agent/content_layout.py": true,
+        "src/report_agent/exporting.py": true
+      },
+      "cache_location": "temporary directory removed after compile"
+    },
+    "windows_scoped_git_diff_check": {
+      "git_executable": "C:\\Users\\dongy\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\git\\cmd\\git.EXE",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "targets": [
+        "src/report_agent/decision_data.py",
+        "src/report_agent/task_context.py",
+        "src/report_agent/artifact_review.py",
+        "src/report_agent/selection_observations.py",
+        "src/report_agent/task_supervision.py",
+        "src/report_agent/content_store.py",
+        "src/report_agent/content_export.py",
+        "src/report_agent/content_layout.py",
+        "src/report_agent/exporting.py",
+        "tests/test_boundary_refactor.py",
+        "tests/test_text_work.py",
+        "tests/test_review_readiness.py",
+        "tests/test_decision_data.py",
+        "tests/test_business_envelope_projection.py",
+        "tests/test_producer_observations.py",
+        "tests/test_field_observation_recovery.py",
+        "tests/test_history_policy_reads.py",
+        "tests/test_selection_observations.py",
+        "tests/test_task_supervision.py",
+        "tests/test_content_selection.py",
+        "tests/test_artifact_review.py"
+      ],
+      "config": {
+        "core.autocrlf": {
+          "exit_code": 0,
+          "stdout": "file:C:/Users/dongy/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/git/etc/gitconfig\ttrue\n",
+          "stderr": ""
+        },
+        "core.whitespace": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      },
+      "content_export_first_line_bytes_repr": "b'\"\"\"Snapshot-only export and rendering. Neither operation confers acceptance.\"\"\"\\r\\n'",
+      "source_sha256": "f2ad446c1d91b7ee137f99d126ad337780589327e550f3ba6c76bca0fe30334b"
+    },
+    "global_and_wsl_diff_check": "Nonzero historical/line-ending findings preserved; no whole-repository clean claim"
+  },
+  "original_review_hashes_unchanged": {
+    "neo-review.json": "db507f1c6465e62a1ca75f08b00e5778b29dc765e129c74b1531bd97c2939888",
+    "coverage.json": "d153404e5dbc188560d9634e91cc5bdb72758a64283c9d452fe30fc5d2d78bb0"
+  },
+  "review_record": "docs\\reviews\\full-code-review-20261018\\refactor-design.json",
+  "limits": [
+    "Fake LLMs do not establish semantic quality, engineering correctness, model autonomy or customer report acceptance.",
+    "No new report generation, provider execution, original OCR/live business state edits or email restart.",
+    "Large legacy navigation paths such as read_task_assignment retain existing bounded presentation.",
+    "Old messages without new delivery binding retain explicit compatibility behavior.",
+    "Control-result context capacity remains platform-managed and not prevalidated.",
+    "decision_data_delivered is recorded before native offload; it is not evidence of final provider consumption.",
+    "Ordinary paragraph selectors style the rendered paragraph; conflicting selectors are rejected. Explicit heading boundaries remain supported.",
+    "NFR-04/05/06/09/10/11/12 not closed by this increment."
+  ],
+  "readable_report": "docs\\reviews\\full-code-review-20261018\\refactor-implementation.md",
+  "independent_review": {
+    "reviewer": "Neo",
+    "status": "scoped_implementation_review_passed_fake_only",
+    "path": "docs/reviews/full-code-review-20261018/refactor-design.json",
+    "sha256": "c9d0518964e34252930b7606b5dbe3f1f51c4edb4f5f3d9f8675802a35d2a8c7"
+  }
+}

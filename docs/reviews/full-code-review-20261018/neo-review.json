@@ -1,0 +1,740 @@
+{
+  "status": "completed_with_explicit_unverified_candidates",
+  "decision_owner": "Neo",
+  "purpose": "Review whole current implementation/design for full first-contract delivery and convergence versus independent replacement; not implementation or spending approval",
+  "criteria": [
+    "Full goal, delegation, recovery, completion semantics",
+    "Agent versus bounded LLM tool versus program responsibilities and effective prompts",
+    "End-to-end I/O, schemas, references, versions, original results, limits and projections",
+    "Production quality: original formatting, guide tables, scoring support, complete scope",
+    "Errors, unknown, retry, budgets and compensating agent behavior",
+    "Test oracle, effective inputs, actual artifacts and completion claims"
+  ],
+  "findings": [
+    {
+      "id": "NFR-01",
+      "title": "Decision preview policy truncates semantic/control results by field name; exact recovery is not sufficient decision delivery",
+      "severity": "P2",
+      "classification": "known_still_present",
+      "locations": [
+        {
+          "file": "src/report_agent/decision_data.py",
+          "line": 50
+        },
+        {
+          "file": "src/report_agent/decision_data.py",
+          "line": 81
+        },
+        {
+          "file": "src/report_agent/decision_data.py",
+          "line": 147
+        },
+        {
+          "file": "src/report_agent/task_context.py",
+          "line": 300
+        }
+      ],
+      "trigger": "reference-data-v1 on a successful long source/result or producer qualification; text/content/excerpt previews 240 chars, list/fallback limits, producer bodies deferred",
+      "impact": "The next Agent may have identities but inadequate source/qualification context; prior first-generation trace hid exact missing-material warning before adoption. Current qualifier previews mitigate but do not remove generic loss.",
+      "blocks": "Reliability/acceptance of decisions that depend on hidden results; not a blanket ban on source loading, internal trial exports or exact adoption",
+      "evidence": [
+        ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/table-material-program-transformation-proof-20261016.json",
+        "src/report_agent/decision_data.py",
+        "tests/test_decision_data.py:22"
+      ],
+      "uncertainty": "No production trigger established by this review unless the cited historical trace explicitly does so.",
+      "recommendation": "Replace overlapping recursive text projections with typed per-domain decision outcomes and ordinary on-demand original loading. Preserve exact actor-owned artifact/recovery and necessary semantic inspection; no whole-library prompt. Do not equate static envelope validity with semantic sufficiency.",
+      "status": "confirmed_open"
+    },
+    {
+      "id": "NFR-02",
+      "title": "Required whole-body reads accepted outside snapshot but rejected only after checker work",
+      "severity": "P2",
+      "classification": "new_confirmed_program_contract",
+      "locations": [
+        {
+          "file": "src/report_agent/task_supervision.py",
+          "line": 204
+        },
+        {
+          "file": "src/report_agent/bounded_review.py",
+          "line": 185
+        },
+        {
+          "file": "src/report_agent/content_store.py",
+          "line": 478
+        }
+      ],
+      "trigger": "A current-task required_read_refs contains a valid ContentNode not in the review snapshot, with otherwise valid checks/material declarations",
+      "impact": "readiness reports execution_ready=true; actual bounded-review input includes the outside node; submit_review deterministically rejects it after the model boundary.",
+      "blocks": "Paid dispatch of such a task and successful saving of its review; not current task with all valid members",
+      "evidence": [
+        "docs/reviews/full-code-review-20261018/main-review-contract-diagnostic.json"
+      ],
+      "uncertainty": "No production trigger established by this review unless the cited historical trace explicitly does so.",
+      "recommendation": "Use one admission/save membership-and-authority rule. Preserve explicitly authorized historical comparison access and exact target snapshot semantics, or reject unsupported declarations before checker dispatch with exact diagnostics. Do not omit a real comparison dependency to evade save validation; preserve the external SourceArtifact exception.",
+      "status": "confirmed_open",
+      "additional_contract_evidence": "docs/task-supervision.md explicitly allows historical required-read bodies outside the author snapshot for comparison; the mismatch therefore cannot be resolved merely by silently deleting that capability or its dependency."
+    },
+    {
+      "id": "NFR-03",
+      "title": "Task creation and checker use different scope identity keys",
+      "severity": "P2",
+      "classification": "new_confirmed_program_contract",
+      "locations": [
+        {
+          "file": "src/report_agent/task_supervision.py",
+          "line": 195
+        },
+        {
+          "file": "src/report_agent/bounded_review.py",
+          "line": 166
+        },
+        {
+          "file": "src/report_agent/artifact_review.py",
+          "line": 155
+        }
+      ],
+      "trigger": "Two review requirements share scope_id but have different target or criterion",
+      "impact": "Creation accepts composite identities, while scope_ids addressing cannot select either or both: one label selects too many, duplicate labels rejected.",
+      "blocks": "Execution of the accepted ambiguous task; not all review tasks",
+      "evidence": [
+        "docs/reviews/full-code-review-20261018/main-review-contract-diagnostic.json"
+      ],
+      "uncertainty": "No production trigger established by this review unless the cited historical trace explicitly does so.",
+      "recommendation": "Use one task-local scope identity/addressing contract; either make labels unique at creation or expose composite keys consistently, without rewriting historical task hashes.",
+      "status": "confirmed_open"
+    },
+    {
+      "id": "NFR-04",
+      "title": "Directory refresh still holds SQLite write transaction across external Office work",
+      "severity": "P2",
+      "classification": "new_sibling_of_REF-004",
+      "locations": [
+        {
+          "file": "src/report_agent/content_export.py",
+          "line": 268
+        },
+        {
+          "file": "src/report_agent/content_export.py",
+          "line": 294
+        },
+        {
+          "file": "src/report_agent/layout_capabilities.py",
+          "line": 45
+        },
+        {
+          "file": "src/report_agent/layout_capabilities.py",
+          "line": 54
+        }
+      ],
+      "trigger": "export_content_snapshot with refresh_toc=True and available Office/UNO",
+      "impact": "ContentStore.operation BEGIN IMMEDIATE remains held while refresh_directory runs external process up to 210s (and capability probe); other case writers can hit the 15s SQLite timeout. render_export detached-operation fix remains valid.",
+      "blocks": "Concurrent state/receipt writes during this optional export branch; not ordinary export without refresh or repaired render_export",
+      "evidence": [
+        "src/report_agent/content_export.py",
+        "src/report_agent/layout_capabilities.py",
+        "src/report_agent/store.py:39"
+      ],
+      "uncertainty": "No production trigger established by this review unless the cited historical trace explicitly does so.",
+      "recommendation": "Reuse short reservation/external work/atomic finalization boundary, not a new job framework. Validate exact immutable input and operation receipt as render_export already does.",
+      "status": "confirmed_open"
+    },
+    {
+      "id": "NFR-05",
+      "title": "Artifact review retains caller reservation as unresolved after known local zero-dispatch",
+      "severity": "P2",
+      "classification": "new_sibling_lifecycle_gap",
+      "locations": [
+        {
+          "file": "src/report_agent/artifact_review.py",
+          "line": 195
+        },
+        {
+          "file": "src/report_agent/artifact_review.py",
+          "line": 206
+        },
+        {
+          "file": "src/report_agent/artifact_review.py",
+          "line": 207
+        },
+        {
+          "file": "src/report_agent/evidence_analysis.py",
+          "line": 176
+        }
+      ],
+      "trigger": "Artifact bounded checker inserts outer request hash, then actual admission rejects before all HTTP dispatch",
+      "impact": "Shared raw attempt can become not_dispatched, but artifact outer record has no state/proof or linked parent. Exact replay is labelled OUTCOME_UNRESOLVED; new ID cannot explicitly readmit identical raw work. No unsafe replay demonstrated.",
+      "blocks": "Correct recovery/diagnostic of affected artifact-check call; never authorize replay of true unknown",
+      "evidence": [
+        "src/report_agent/artifact_review.py",
+        "src/report_agent/evidence_analysis.py",
+        "src/report_agent/bounded_operations.py"
+      ],
+      "uncertainty": "No production trigger established by this review unless the cited historical trace explicitly does so.",
+      "recommendation": "Reuse existing linked bounded-call lifecycle and admission proof rather than adding a second repair/receipt mechanism; distinguish received-invalid and unknown, preserve old failed receipt.",
+      "status": "confirmed_open"
+    },
+    {
+      "id": "NFR-06",
+      "title": "Feedback refresh silently changes target and drops evidence while retaining correction prose",
+      "severity": "P2",
+      "classification": "new_confirmed_UI_binding",
+      "locations": [
+        {
+          "file": "src/report_agent/static/learning.js",
+          "line": 16
+        },
+        {
+          "file": "src/report_agent/static/learning.js",
+          "line": 43
+        },
+        {
+          "file": "src/report_agent/static/learning.js",
+          "line": 45
+        }
+      ],
+      "trigger": "Operator edits a specific node feedback then refreshes feedback panel before submission",
+      "impact": "Target becomes first report target (snapshot), evidence checkboxes reset, original correction remains and is submitted with wrong binding. Existing same-origin and candidate-release protections remain valid.",
+      "blocks": "Reliable submission of that edited feedback; not proof historical feedback was damaged",
+      "evidence": [
+        "docs/reviews/full-code-review-20261018/main-ui-diagnostic.json",
+        "src/report_agent/static/learning.js"
+      ],
+      "uncertainty": "No production trigger established by this review unless the cited historical trace explicitly does so.",
+      "recommendation": "Preserve exact selected refs/draft evidence when refreshing; if unavailable explicitly invalidate pending feedback instead of rebinding by array index.",
+      "status": "confirmed_open"
+    },
+    {
+      "id": "NFR-07",
+      "title": "Every report-kind child inserts another full TOC instead of reserving document directory for root",
+      "severity": "P2",
+      "classification": "known_still_present",
+      "status": "confirmed_open",
+      "locations": [
+        {
+          "file": "src/report_agent/content_export.py",
+          "line": 233
+        }
+      ],
+      "trigger": "Saved tree has report-kind descendants and toc=true (actual current selected report has four TOC fields).",
+      "impact": "Exporter adds a new directory for each report-kind node; the current exact Word has four TOC headings/fields, although tree validation accepts those nodes.",
+      "blocks": "Promotion of current Word as meeting a single coherent directory requirement.",
+      "containment": "Scope the affected action; other unaffected draft/content operations need not stop. No implementation or paid start authorized by this review.",
+      "recommendation": "Keep producer-owned tree semantics; give document-level cover/directory emission one explicit root responsibility, with nested-report counterexample. Do not rely on the model never producing a report-kind child.",
+      "evidence": [
+        ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/actual-word-layout.json",
+        "src/report_agent/content_export.py"
+      ],
+      "uncertainty": "Source mechanism is current. Runtime activation is claimed only where an actual saved trace/artifact is explicitly cited."
+    },
+    {
+      "id": "NFR-08",
+      "title": "ParagraphLayout exact-line path bypasses Markdown rendering and can turn an image reference into literal text",
+      "severity": "P2",
+      "classification": "known_still_present",
+      "status": "confirmed_open",
+      "locations": [
+        {
+          "file": "src/report_agent/content_layout.py",
+          "line": 518
+        },
+        {
+          "file": "src/report_agent/content_layout.py",
+          "line": 532
+        }
+      ],
+      "trigger": "A selected ParagraphLayout.text exactly matches a Markdown image line.",
+      "impact": "Controlled line is emitted via add_paragraph/add_heading instead of existing Markdown/image renderer; formatting selection changes represented content.",
+      "blocks": "That layout operation preserving image content; not the current seven typed figures by existence alone.",
+      "containment": "Scope the affected action; other unaffected draft/content operations need not stop. No implementation or paid start authorized by this review.",
+      "recommendation": "Keep one text/image rendering responsibility, then apply paragraph presentation to rendered elements; share existing Markdown renderer, do not add a second parser.",
+      "evidence": [
+        ".analysis/full-chain-acceptance-20261014/complete-bug-inventory-20261015.json",
+        "src/report_agent/content_layout.py"
+      ],
+      "uncertainty": "Source mechanism is current. Runtime activation is claimed only where an actual saved trace/artifact is explicitly cited."
+    },
+    {
+      "id": "NFR-09",
+      "title": "Multipart header publicly accepts paragraph typography that rendering silently ignores",
+      "severity": "P2",
+      "classification": "known_still_present",
+      "status": "confirmed_open",
+      "locations": [
+        {
+          "file": "src/report_agent/content_layout.py",
+          "line": 381
+        },
+        {
+          "file": "src/report_agent/content_layout.py",
+          "line": 403
+        }
+      ],
+      "trigger": "header_parts carries spacing/indent/paragraph formatting inherited from Typography.",
+      "impact": "Only run typography is applied while the whole header paragraph is hard-set; accepted paragraph properties silently have no effect. Current saved header_parts empty does not prove this path affected the selected Word.",
+      "blocks": "Use of those advertised multipart-header properties; not all export or current report because defaults are separate.",
+      "containment": "Scope the affected action; other unaffected draft/content operations need not stop. No implementation or paid start authorized by this review.",
+      "recommendation": "Restrict the public schema to supported per-run settings or define shared paragraph-level semantics and apply them once; reject genuine conflicts explicitly.",
+      "evidence": [
+        ".analysis/full-chain-acceptance-20261014/complete-bug-inventory-20261015.json",
+        "src/report_agent/content_layout.py"
+      ],
+      "uncertainty": "Source mechanism is current. Runtime activation is claimed only where an actual saved trace/artifact is explicitly cited."
+    },
+    {
+      "id": "NFR-10",
+      "title": "Summary lifecycle classifies deterministic local admission failure as unknown and retains policy-wide repair block",
+      "severity": "P2",
+      "classification": "new_sibling_lifecycle_gap",
+      "status": "confirmed_open",
+      "locations": [
+        {
+          "file": "src/report_agent/working_summary.py",
+          "line": 115
+        },
+        {
+          "file": "src/report_agent/working_summary.py",
+          "line": 147
+        }
+      ],
+      "trigger": "An actual local RequestBudgetExceeded occurs before any summary HTTP admission.",
+      "impact": "BaseException path stores SUMMARY_OUTCOME_UNKNOWN under model/policy/thread key; another run with the same policy fails SUMMARY_POLICY_REPAIR_REQUIRED even when exact zero-dispatch is locally provable. Original history is retained, so this is conservative recovery loss, not unsafe replay.",
+      "blocks": "Correct classification and explicit recovery of this summary failure; unknown/cancelled calls must remain protected.",
+      "containment": "Scope the affected action; other unaffected draft/content operations need not stop. No implementation or paid start authorized by this review.",
+      "recommendation": "Use existing authoritative admission proof and bounded outcome distinctions. Do not auto-retry or erase a real unknown; retain original history and old failed receipt.",
+      "evidence": [
+        "src/report_agent/working_summary.py",
+        "src/report_agent/working_summary.py"
+      ],
+      "uncertainty": "Source mechanism is current. Runtime activation is claimed only where an actual saved trace/artifact is explicitly cited."
+    },
+    {
+      "id": "NFR-11",
+      "title": "Stored Reviewer prompt identity describes role file rather than actual bounded organizer prompt",
+      "severity": "P3",
+      "classification": "known_diagnostic_identity_gap",
+      "status": "confirmed_open",
+      "locations": [
+        {
+          "file": "src/report_agent/deep_runtime.py",
+          "line": 797
+        },
+        {
+          "file": "src/report_agent/deep_runtime.py",
+          "line": 885
+        },
+        {
+          "file": "src/report_agent/hierarchical_tools.py",
+          "line": 42
+        }
+      ],
+      "trigger": "Current delegated bounded-review Reviewer builds with ORGANIZER_PROMPT while role metadata records role_prompt(reviewer).",
+      "impact": "Diagnostic active_reviewer_prompt_hash/runtime identity cannot alone reconstruct the effective prompt or establish what the model was instructed. Actual saved deep_model_request remains stronger evidence.",
+      "blocks": "Claims using that hash as effective-prompt identity; not the bounded checker authority or current review verdict.",
+      "containment": "Scope the affected action; other unaffected draft/content operations need not stop. No implementation or paid start authorized by this review.",
+      "recommendation": "Derive identity at actual model construction from the effective prompt/configuration; retain role-source identity separately if useful. No new tracing system required.",
+      "evidence": [
+        "src/report_agent/deep_runtime.py",
+        "src/report_agent/deep_runtime.py",
+        "src/report_agent/hierarchical_tools.py"
+      ],
+      "uncertainty": "Source mechanism is current. Runtime activation is claimed only where an actual saved trace/artifact is explicitly cited."
+    },
+    {
+      "id": "NFR-12",
+      "title": "Generic call-ledger classification labels every missing response unknown even when authoritative pre-HTTP refusal exists",
+      "severity": "P3",
+      "classification": "known_diagnostic_classification_gap",
+      "status": "confirmed_open",
+      "locations": [
+        {
+          "file": "src/report_agent/report_learning.py",
+          "line": 181
+        }
+      ],
+      "trigger": "A request event exists but local admission rejects before HTTP; no response event is emitted.",
+      "impact": "call_ledger emits unknown_outcome without consulting saved admission evidence. C24 assessment already separates one local refusal from one provider unknown; raw generic output alone would overstate unresolved dispatch. This does not authorize changing reservations.",
+      "blocks": "Unqualified cost/unknown-count claims based on this projection; never release a hold without exact independent proof.",
+      "containment": "Scope the affected action; other unaffected draft/content operations need not stop. No implementation or paid start authorized by this review.",
+      "recommendation": "Reuse typed dispatch/outcome evidence already recorded; preserve raw historical ledger and explicit assessment provenance, rather than infer remote dispatch from response absence.",
+      "evidence": [
+        "src/report_agent/report_learning.py",
+        ".analysis/implementation-resumed-20261014/c24-native-entry-mode/timeout-diagnosis.json"
+      ],
+      "uncertainty": "Source mechanism is current. Runtime activation is claimed only where an actual saved trace/artifact is explicitly cited."
+    }
+  ],
+  "candidates": [
+    {
+      "id": "NFR-C03",
+      "topic": "Normal CLI/UI dispatch may omit cumulative transport token ledger binding supplied by validation harness",
+      "locations": [
+        "src/report_agent/cli.py:63",
+        "src/report_agent/webapp.py:159",
+        "src/report_agent/deep_runtime.py:848",
+        "src/report_agent/token_budget.py:148"
+      ],
+      "status": "pending_authorization_scope_crosscheck"
+    },
+    {
+      "id": "NFR-C04",
+      "topic": "Strict schema compilation may reject current ContentNode allOf and structural table type validation is incomplete (I03 still not integrated)",
+      "status": "pending_pure_schema_probe"
+    },
+    {
+      "id": "NFR-C05",
+      "topic": "Layout task admission blocks independent formatting whenever optional supervised checks incomplete for same snapshot",
+      "locations": [
+        "src/report_agent/deep_runtime.py:243",
+        "src/report_agent/rules/content-coordinator.md:60"
+      ],
+      "status": "design_coupling_candidate_not_automatic_bug_or_stop"
+    }
+  ],
+  "review_boundaries": [
+    "No claim of zero hidden defects or guaranteed semantic correctness.",
+    "Known fixes must be distinguished from unresolved bugs and tradeoffs; historical issue count is not a remaining-bug count.",
+    "No development, tests, application launch, provider use, budget alteration or data mutation authorized."
+  ],
+  "priority_user_clarification": "Agent/program/bounded-LLM responsibility and complete model-facing I/O are first review priority. User-observed screenshots and calculations are progress, not semantic acceptance or a freeze of existing implementation. Findings must be prioritized by actual errors, omissions, wasted work and misleading signals; no inference from issue count that a report is far from usable or that rebuilding is required.",
+  "updated_at": "2026-10-17T14:12:33.380618+00:00",
+  "user_observation_boundary": {
+    "observed_progress": [
+      "Original-source excerpts/screenshots are visible to user",
+      "Requested slope-risk calculations are visible to user"
+    ],
+    "not_established": [
+      "Whole-contract coverage",
+      "All scores/grades semantically accepted",
+      "Current implementation frozen or mandated to remain unchanged"
+    ],
+    "clarification": "Treat these as observed progress and evidence for evaluating changes, not acceptance or an instruction to preserve current implementation at any cost."
+  },
+  "zero_provider_validation_disposition": {
+    "appropriate_for": [
+      "Recorded original tool-call arguments through real wrapper/preparation/provider-boundary packet comparison",
+      "Real recorded result through schema validation, ownership/version guards, saving, projection and actual next model input",
+      "Known zero-dispatch versus received-invalid versus unknown lifecycle counterexamples",
+      "Refresh selection and exact feedback binding; snapshot/ref/schema invariants"
+    ],
+    "boundary": "Use existing model adapter/transport and native Driver/ToolNode; fake replaces model/HTTP response only. Preserve raw trace and independently specified oracle. Once a fix changes subsequent model input, do not require the old recorded policy to choose new actions; assert the corrected observable input, and label new scripted actions synthetic.",
+    "cannot_establish": [
+      "Future model material choice or semantic interpretation",
+      "Engineering scoring correctness and complete report coverage without actual evidence/artifact assessment",
+      "Unrecorded provider behavior or hidden chain of thought"
+    ],
+    "execution_by_neo_this_review": "none"
+  },
+  "product_dimensions": [
+    {
+      "dimension": "Original-source text/figures",
+      "state": "observed_progress_not_frozen_or_accepted",
+      "evidence": "User reports seeing original excerpts; existing exact artifact and source audits establish embedded source pages. This does not accept every caption, coverage or inference."
+    },
+    {
+      "dimension": "Slope-risk calculation",
+      "state": "observed_progress_with_semantic_checks_remaining",
+      "evidence": "User reports requested calculations visible. Deterministic sum-products and actual saved tables exist; weights/classification/unknown-to-score decisions need source-specific validation. Historical X31 85/80 residuals and old50.2 discrepancy must not be re-reported as current unchanged values."
+    },
+    {
+      "dimension": "Formatting from supplied standard and guide table sample",
+      "state": "confirmed_not_met_in_current_selected_draft",
+      "evidence": [
+        ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/actual-word-layout.json",
+        ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/guide-table-execution-root-cause-20261016.json"
+      ],
+      "boundary": "Actual right margin/spacing/fonts/directory mismatches proved; initial table-generation material gap proved. Do not assert every current R6 table is unchanged from initial @1 without per-table proof."
+    },
+    {
+      "dimension": "Full first-contract object and requirement coverage",
+      "state": "not_accepted",
+      "evidence": "Seven-slope working scope and the added K1324+500–560 pending independent scoring do not demonstrate full contract coverage. Snapshot member counts are not coverage proof."
+    },
+    {
+      "dimension": "Issues-only workbook and exact Word pairing",
+      "state": "mechanical_pairing_and_cells_verified_semantics_not_accepted",
+      "evidence": ".analysis/implementation-resumed-20261014/c20-artifact-inspection/actual-file-comparison-v2.json",
+      "boundary": "13 rows/6 columns and exact same-snapshot Word linkage are not validation of each issue, object correspondence, absence claim or visual usability."
+    },
+    {
+      "dimension": "Normal independent content and page review",
+      "state": "not_completed",
+      "evidence": "Current case has zero ReviewRecord versions at the recorded readonly inventory. C24 checker has unknown outcome, not acceptance; native graph completion also is not acceptance."
+    }
+  ],
+  "common_root_causes": [
+    {
+      "id": "RC-A",
+      "judgment": "The responsibilities exist, but the final model-facing contract is not consistently authoritative across boundaries.",
+      "mechanisms": [
+        "Field-name/depth-based decision projection transforms what a tool materially reports; saved raw bytes do not guarantee decision visibility.",
+        "Field schema, model validators, resolved-store guards and provider strict compiler do not have one verified source of structure.",
+        "Task declaration/readiness, bounded-checker material loading and saved-review membership use differing validity rules."
+      ],
+      "not_claimed": "Agent/tool separation is not itself invalid; necessary Agent semantic reading is legitimate and full original material need not all be inline."
+    },
+    {
+      "id": "RC-B",
+      "judgment": "Local success/equivalence was used as sufficient evidence for a narrower outcome than the commissioned report.",
+      "mechanisms": [
+        "A generated layout can be exactly preserved and tool parameters can work while the selected plan still violates supplied format.",
+        "Required guide structure was delegated but independent production lacked the actual sample; limitations were not reliably delivered to the adopting decision model.",
+        "Review/handling/status structures distinguish unreviewed and accepted; their existence does not ensure the planner chooses sufficient production and acceptance work."
+      ],
+      "not_claimed": "Code universally equates generation with acceptance, or code forced the Coordinator to preserve R6. These are contradicted by current state models/trace."
+    },
+    {
+      "id": "RC-C",
+      "judgment": "Some fixes repaired one caller while sibling callers still interpret the same lifecycle or external-I/O boundary independently.",
+      "mechanisms": [
+        "Text-work linked local zero-dispatch repair is not reused by artifact review or summary policy path.",
+        "Detached render transactions are repaired while directory refresh remains within export write transaction.",
+        "Effective role prompt metadata and generic call-ledger outcome labels can diverge from actual request/admission facts."
+      ],
+      "not_claimed": "Every exception is unsafe replay; the current conservative unknown protections should remain."
+    }
+  ],
+  "convergence_recommendation": {
+    "keep": [
+      "Native DeepAgents/LangGraph action loop, actual current operator/task context and framework ToolRuntime content/artifact channels",
+      "Immutable versions, actor/owner binding, CAS, exact receipt replay and original source-byte identities",
+      "Authoritative transport admission/usage accounting, unknown reservations and explicit host-only disposition",
+      "Original material loading/recovery and exact Word/XLSX byte/version binding; source references not source entailment"
+    ],
+    "delete_or_merge": [
+      "Replace generic recursive prose/control-field preview interpretation with small typed outcome information appropriate to the tool and existing original-data navigation; do not delete required material.",
+      "Collapse duplicate field/schema/validator definitions for the affected content/Evidence paths using existing Pydantic/native tool registration; keep domain validators.",
+      "Reuse the existing lifecycle and external-effect prepare/execute/finalize boundary in sibling paths; no new operation ledger, repair agent or orchestration framework."
+    ],
+    "application_must_own": [
+      "Declare scope/material extent, actual supplied refs and limitations, admissible writes/versions and truthful execution states.",
+      "Production roles choose and apply the supplied report/table/format requirements; code renders selected presentation faithfully. Reviewer does not replace first-production responsibility.",
+      "Distinguish source support judgments, actual comparison/coverage and customer acceptance from schema validity or tool completion."
+    ],
+    "order": [
+      "First freeze independent recorded failure oracles and check actual public input/output/next-input; do not change the oracle to fit a fix.",
+      "Converge the high-impact I/O and contract boundaries; use exact zero-provider native replay plus counterexamples to close deterministic defects.",
+      "Assess first generated actual report artifacts against the supplied standards/table sample and source-based scope/score evidence; do not start from assuming reviewer will repair.",
+      "Only after user authorizes resumed execution, use a bounded real case to assess Agent material choices and semantic results, followed by broader cases needed for reusable-system claims."
+    ],
+    "authorization": "Recommendations only. No implementation, test execution, provider call or report restart authorized by this review."
+  },
+  "tests_and_claims": {
+    "already_useful": "Current tests include real native ToolNode/schema/managed-context paths and actual OOXML/byte assertions; they are not all superficial mocks.",
+    "gap": "Literal-search examples, preview-size/recoverability, exact old layout equivalence, and given-options-rendered checks do not establish synonymous retrieval, decision-visible missing-prerequisite handling, applicable-standard selection or first-report semantics.",
+    "replay": "Recorded actual tool I/O through real middleware can close deterministic program defects without paid LLM calls. New semantic claims need independently specified artifacts/materials and appropriately scoped real evidence.",
+    "whole_suite_green_claim": false,
+    "neo_executed_tests": false
+  },
+  "non_defects_and_valid_repairs": [
+    {
+      "topic": "Agent and independent LLM tool separation",
+      "disposition": "Supported responsibility pattern; no basis to reject separation itself. Agent may inspect necessary content to choose chapter/material relationships. Independent tool does substantive bounded production, comparison or extraction; program enforces mechanics."
+    },
+    {
+      "topic": "Generated / accepted state",
+      "disposition": "Code and UI distinguish unreviewed draft, scoped verdict, incomplete execution, handling and engineering acceptance. Native graph completed is execution completion. Actual planner underdelivery is not proof the schema has no acceptance states."
+    },
+    {
+      "topic": "R6 preservation",
+      "disposition": "Actual Coordinator narrowing/choice, amplified by exact same-snapshot export coupling and engineering equivalence oracle; not a user requirement, a code mandate, old one-revision cap, or caused by later layout_from_export_ref feature."
+    },
+    {
+      "topic": "Unknown protection and budget repairs",
+      "disposition": "Current transport and text/vision linked admission protect actual unknown, cancellation, settlement errors and prior admitted SDK attempts. Preserve bounds/holds and host CAS. Sibling classification/recovery gaps do not prove automatic unsafe replay."
+    },
+    {
+      "topic": "Material preparation",
+      "disposition": "Selected original material is passed unchanged to bounded text input in the proved historical two table calls; no silent 64k original-material trim. 64k is explicit whole-packet refusal with current per-part diagnostics, not a proved universal business capacity."
+    },
+    {
+      "topic": "Source reading versus source support",
+      "disposition": "Owned receipt, SHA, exact version/range/view, complete extent and actual input binding are useful. They do not prove semantic support. A missing supported_by edge alone is not proof of false content, and a present edge is not entailment."
+    },
+    {
+      "topic": "Body-kind integer figure page and empty-source Evidence fixes",
+      "disposition": "Strict positive integer page and TextEvidence minimum source pool/PreparedMaterial checks remain active. Do not list these as unfixed from an earlier staging inventory."
+    },
+    {
+      "topic": "Companion review / filtered object index / recovery",
+      "disposition": "Selected Word+linked Excel applicability, selected-object fingerprint scope, exact summary identity lookup, field recovery cursor and per-pass manifest policy reuse are integrated useful fixes. Current residual siblings must be named, not reset whole historical defects to open."
+    },
+    {
+      "topic": "Historical code and tests",
+      "disposition": "ADK / non-hierarchical/native-rubric execution explicitly rejects at supported runtime entry. Old unreachable fixture failures are not current execution regressions without reachability evidence; storage/export compatibility remains relevant."
+    },
+    {
+      "topic": "Retrieval",
+      "disposition": "Current literal source search is disclosed and deterministic; source_id+ordinal indexes locate frozen blocks, but no source semantic/fulltext relevance index exists. This is a known capability/requirement fit limitation; no CPU timing or hypothetical RAG gain established. Existing fact knowledge hybrid index is not source retrieval."
+    },
+    {
+      "topic": "Framework reuse",
+      "disposition": "Existing native middleware, ToolRuntime artifact, Pydantic validation, checkpoint saver and structured outputs should be used. Frameworks cannot identify domain-important missing material or choose correct report standards automatically; removing all domain guards is not warranted."
+    },
+    {
+      "topic": "Current report progress",
+      "disposition": "User-observed screenshots and slope calculations are evidence of progress; no frozen implementation or blanket semantic acceptance is inferred."
+    }
+  ],
+  "official_testing_reuse": {
+    "checked_on": "2026-10-18 Australia/Sydney",
+    "sources": [
+      {
+        "url": "https://docs.langchain.com/oss/python/langchain/test",
+        "supports": "In-memory model fakes for deterministic program tests, real API integration tests, deterministic or judge-based trajectory evals."
+      },
+      {
+        "url": "https://www.langchain.com/blog/evaluating-deep-agents-our-learnings",
+        "supports": "Single-step tool/argument decisions, full-turn artifact state, multi-turn contextual tests; recorded HTTP replay and reset environments."
+      },
+      {
+        "url": "https://ai.pydantic.dev/testing/",
+        "supports": "TestModel/FunctionModel override and message capture, no-real-request guard. TestModel synthesizes schema-valid data rather than understanding prompts; FunctionModel permits custom recorded behavior."
+      },
+      {
+        "url": "https://github.com/langchain-ai/agentevals/blob/main/README.md",
+        "supports": "Deterministic strict/unordered/subset/superset trajectory comparison and custom tool-argument matching; LLM judge optional."
+      }
+    ],
+    "recommended_minimum": "Use existing pytest/native Driver/ToolNode plus real recorded I/O at model/transport boundary. Optional deterministic AgentEvals scoring; do not install another runtime/agent framework merely for tests. Small authorized real-tool prompt/output and Agent single-step behavior evals complement, rather than replace, zero-provider mechanical replay and final artifact assessment.",
+    "not_claimed": "No new package installed, test run, provider invocation or installed-version compatibility test was performed. Latest official docs are capability evidence, not proof the current pinned project already has every API."
+  },
+  "completed_at": "2026-10-17T14:12:33.380618+00:00",
+  "verdict": {
+    "source_reading_complete": true,
+    "full_system_or_customer_acceptance": false,
+    "zero_hidden_defect_guarantee": false,
+    "recommendation": "Converge high-impact shared responsibility/I/O boundaries and first-production verification; no evidence-based decision to discard/rebuild the entire application is made. Findings do not automatically stop every unaffected draft action. Development and paid execution remain paused.",
+    "confirmed_finding_counts": {
+      "P2": 10,
+      "P3": 2
+    },
+    "count_scope": "12 numbered findings are reviewed source/contract issues, including known conditional and diagnostic findings; not the number of all remaining historical bugs, engineering answers or unverified candidate defects. No confirmed P0/P1 is asserted in this review; that is not proof none exist."
+  },
+  "unverified_followups": [
+    {
+      "id": "UF-STRICT",
+      "owner": "Main",
+      "status": "not_performed",
+      "candidate": "NFR-C04",
+      "question": "Actual registered current public schema, after native ToolNode processing, versus DeepSeek StrictCodec allOf support.",
+      "known_source_fact": "ContentNode currently emits hand-written allOf and strict compiler rejects unsupported source keywords; actual current public registration/strict integration probe was requested but not performed.",
+      "severity": "not_finalized",
+      "blocks_claim": "Do not claim official strict-provider path is compatible until this zero-provider probe is completed."
+    },
+    {
+      "id": "UF-BODY",
+      "owner": "Main",
+      "status": "not_performed",
+      "candidate": "NFR-C04",
+      "question": "Concrete malformed table columns/row scalar shapes through public NodeInput, ContentNode and stored/exported result.",
+      "known_source_fact": "body remains dict[Any], handwritten schema and validator differ; current validator checks dimensions without full array-element types. I03 isolated typed proposal is not deployed.",
+      "severity": "not_finalized_for_concrete_path",
+      "blocks_claim": "Do not call the typed-body inconsistency repaired or the proposed I03 stage integrated; do not claim all malformed shapes rejected."
+    },
+    {
+      "id": "UF-BUDGET",
+      "owner": "Main",
+      "status": "not_performed",
+      "candidate": "NFR-C03",
+      "question": "Normal CLI/UI entry and cumulative token-budget binding versus host validation harness, including the exact authorization scope.",
+      "known_source_fact": "reserve_request returns None when no TokenBudget is bound; normal run_report/CLI/UI source does not itself enter token_budget context, while actual validation harness binds it.",
+      "severity": "not_finalized_pending_authorization_and_entry_probe",
+      "blocks_claim": "Do not claim ordinary entry has the same cumulative authorized-ledger protection as reviewed validation runs. This review neither resets nor releases holds."
+    },
+    {
+      "id": "UF-ARTIFACT",
+      "owner": "Main",
+      "status": "not_performed",
+      "candidate": "NFR-05",
+      "question": "Pure-memory/native proof of artifact outer reservation state after actual local zero-dispatch, and explicit new-operation recovery.",
+      "known_source_fact": "Source caller does not pass parent_reservation and has only request_hash/result outer representation. NFR-05 is a source-confirmed sibling inconsistency, not a claimed historical paid trigger.",
+      "severity": "P2_source_consequence_runtime_unverified",
+      "blocks_claim": "Do not claim this sibling has the same tested zero-dispatch recovery as process_report_content/vision."
+    }
+  ],
+  "design_tradeoffs_not_automatic_defects": [
+    {
+      "topic": "NFR-C05 same-snapshot incomplete review blocks all Layout tasks",
+      "source": [
+        "src/report_agent/deep_runtime.py:243",
+        "docs/task-supervision.md"
+      ],
+      "fact": "Implemented and documented control is broader than a specifically dependent layout action.",
+      "judgment": "Potential over-coupling of independent formatting to review completion. Source policy is confirmed; whether to retain or narrow it is a design decision, not proof the current run violated a requirement. No implementation authorized."
+    },
+    {
+      "topic": "Same-snapshot Word/Excel pairing",
+      "source": [
+        "src/report_agent/content_workbook.py:45",
+        "src/report_agent/hierarchical_tools.py:449"
+      ],
+      "fact": "Provides strong exact artifact identity but can require a Word re-export when only workbook-only membership changes.",
+      "judgment": "Reasonable identity tradeoff with unnecessary transfer cost in some workflows; does not explain initial wrong formatting and never requires preserving the old layout."
+    },
+    {
+      "topic": "64k bounded materials limit",
+      "source": [
+        "src/report_agent/prepared_material.py:10"
+      ],
+      "fact": "Actual encoded-material cap is explicit and enforced before provider dispatch; true source/call capacity was not established by that internal constant.",
+      "judgment": "Keep truthful refusal and exact scope identity. Any future capacity/batching choice must preserve assigned outcomes and disclose remaining scope; do not silently translate it into a narrower user objective."
+    }
+  ],
+  "priorities": [
+    {
+      "priority": 1,
+      "scope": [
+        "NFR-01",
+        "UF-STRICT",
+        "UF-BODY"
+      ],
+      "reason": "First priority is one authoritative effective input/result contract, sufficient decision material/limitations and shared validated body structure. Use true recorded/native zero-provider failure samples before any small paid semantic evaluation."
+    },
+    {
+      "priority": 2,
+      "scope": [
+        "NFR-02",
+        "NFR-03",
+        "NFR-05",
+        "NFR-10",
+        "UF-BUDGET"
+      ],
+      "reason": "Align task validity and addressing from creation through checking/saving, and lifecycle/admission across callers; resolve normal entry authorization claims before using it under the project limit."
+    },
+    {
+      "priority": 3,
+      "scope": [
+        "NFR-07",
+        "product_dimensions"
+      ],
+      "reason": "Current actual formatting/directory and guide-table/score/scope requirements determine delivery; validate first production from supplied requirements rather than only reuse equality or reviewer feedback."
+    },
+    {
+      "priority": 4,
+      "scope": [
+        "NFR-04",
+        "NFR-06",
+        "NFR-08",
+        "NFR-09"
+      ],
+      "reason": "Conditional operations require their precise counterexamples before adoption. They do not automatically block every unaffected report action."
+    },
+    {
+      "priority": 5,
+      "scope": [
+        "NFR-11",
+        "NFR-12"
+      ],
+      "reason": "Correct diagnostic identity/classification to prevent misleading attribution; keep raw evidence and established reservations."
+    }
+  ],
+  "review_execution": {
+    "source": "Full current src reading: all 93 Python files plus 9 rules and 4 static files. Main attribution for 3 static files is explicit; Neo read Python/rules and learning.js.",
+    "related_tests_scripts_docs": "Risk-selected reading and valid existing evidence; no all-335-files line-by-line or whole-suite-green claim. Detailed per-file read ranges/status in coverage.json.",
+    "diagnostics": "Main pure-memory review-contract and VM UI probes cited as such; four requested Main followups not performed. Neo executed no tests, provider calls, application runs or SQLite reads/writes in this review.",
+    "writes": "Only Neo-owned neo-review.json and coverage.json; no application, report, budget, policy or original evidence mutation.",
+    "scope_closure": "Do not expand the review merely to eliminate all uncertainty. Further probes belong to the corresponding claim/change; current review is complete with explicit unknowns."
+  }
+}

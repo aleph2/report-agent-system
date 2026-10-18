@@ -58,7 +58,8 @@ def project_state(workspace, knowledge=None):
                      content_final_review=workspace.store.get("content_final_review"),
                      content_execution_decision=workspace.store.get("content_execution_decision"),
                      content_execution_limitation=workspace.store.get("content_execution_limitation"))
-        if state["status"] not in {"running", "failed", "interrupted", "needs_human"}:
+        state["execution_status"] = state["status"]
+        if workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1" and state["status"] not in {"running", "failed", "interrupted", "needs_human"}:
             if state["content_delivery"] or state["status"] == "reviewed_draft":
                 state["status"] = projection["status"]
         return state

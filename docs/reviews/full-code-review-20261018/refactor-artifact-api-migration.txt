@@ -1,0 +1,4 @@
+Single-file artifact API migration verification; stable source, zero network.
+.....................                                                    [100%]
+21 passed in 7.78s
+RESULT {"file_results": {"passed": 21, "failed": 0, "skipped": 0}, "unique_latest_results": {"passed": 535, "failed": 0, "skipped": 0, "not_run": 0}, "unique_cases": 535, "source_unchanged": true, "only_expected_test_changed": true, "concurrent_changes": [], "scoped_git_diff_check": 2}

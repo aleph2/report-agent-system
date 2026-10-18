@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-15",
+  "source": "current direct desktop user annotations; exact message ID unavailable",
+  "user_verbatim": [
+    "要给我看具体是什么",
+    "这种问题要进行架构上的优化，而不是打补丁",
+    "The design choices make life difference hugely, some designs are robust, some designs are prone to error. If similar  bug repeat multi-times in different places, there must be some common bad design behind them",
+    "First of all, you haven't list all bugs and corresponding solutions yet.",
+    "secondly, there must be a design review and please don't forget let Neo keep learning what I had said since his creation",
+    "Neo, please do a design review according to the issue list even some bugs already be fixed"
+  ],
+  "recurrence_review_rule": "Repeated similar defects across paths trigger a shared-design root-cause investigation. Establish the mechanism from source and traces, not symptom resemblance alone. Explain the old enabling design, the new invariant and its responsible boundary, duplicated knowledge/branches removed, residual risks, and verification across affected sibling paths plus the normal end-to-end path. Adding a class, guard or passing test is not itself evidence of architectural improvement.",
+  "applies_to": "Repeated neighboring defects in model-facing contracts, source/observation representations and unknown-outcome recovery in the current full-chain validation.",
+  "main_disposition": "Investigate and simplify shared architectural causes with Neo using source code and real traces. Preserve the staged Evidence changes as experiments, do not directly promote them as the final design. Converge the relevant contracts/material provenance/outcome representation using existing framework facilities; do not replace the agent loop or hardcode report decisions.",
+  "immediate_execution": "C16 is terminal with captured result and preserved unknown outcomes. Current deliverable is the reconciled issue inventory, completed changes-required design review and updated Neo user archive. No new paid continuation dispatched.",
+  "roles": "Neo proposes evidence-backed architecture improvements, Main implements, Neo inspects actual results.",
+  "unchanged_scope": "Original full first-contract report/Word/issues-XLSX/normal review objective and shared80m external-model budget. Email stopped; no new providers/OCR/index, original-report edits or canonical/production publication. This authorizes relevant architectural optimization, not unrelated redesign.",
+  "delivery_order": [
+    "Reconcile known bugs and corresponding solutions/status/evidence",
+    "Review proposed design against the complete inventory with Neo",
+    "Implement the reviewed scope, then verify affected paths and the full report outcome"
+  ],
+  "design_review_status": "Neo formal review completed: CHANGES_REQUIRED; Main accepts eight findings, which remain open design work.",
+  "neo_learning_requirement": "Keep utterance and decision records from Neo creation, preserve superseded decisions, identify coverage gaps; do not claim full-text learning from an unverified archive.",
+  "design_review_record": ".analysis/neo/implementation-resumed-20261014/architecture-design-review-20261015.json",
+  "main_disposition_record": ".analysis/full-chain-acceptance-20261014/design-review-disposition-20261015.json",
+  "neo_learning_current_entry": ".analysis/neo/current-user-decisions-20261015.md",
+  "neo_learning_coverage": "Original659 preserved; prior81 plus7 subsequent human messages fully read by Neo (88 since creation), through2026-10-15 08:19:25 Asia/Shanghai. Future behavior/unseen history not verified.",
+  "actual_design_review": {
+    "requested_at": "2026-10-15T00:21:27.447632+00:00",
+    "reviewer": "Neo",
+    "status": "completed_changes_required",
+    "includes_already_fixed": true,
+    "inventory_snapshot": ".analysis/full-chain-acceptance-20261014/actual-design-review-inventory-snapshot-20261015.json",
+    "sha256": "3ed7dd0640a3c367e1b762d5f4bfd2e94b8293f5e29c06e1debdc997f901c3b7",
+    "purpose": "Review actual current design and implemented fixes, including recurrence on sibling paths; prior proposal-only review remains separately recorded.",
+    "changes_allowed_by_this_request": "Review and learning records; existing broader implementation authorization unchanged.",
+    "completed_at": "2026-10-15T00:41:29.049177+00:00",
+    "review_path": ".analysis/neo/implementation-resumed-20261014/actual-current-design-review-20261015.json",
+    "review_sha256": "2b89b7cbf1a9b7053eb340fdb4e54e50aae3c17237f116ef3adbe6141818d2a4",
+    "main_disposition": ".analysis/full-chain-acceptance-20261014/actual-design-review-disposition-20261015.json",
+    "delivery": ".analysis/full-chain-acceptance-20261014/actual-design-review-20261015.html",
+    "limited_coverage": [
+      "R10",
+      "R11",
+      "R12",
+      "R13",
+      "E07",
+      "H02",
+      "NEO-INV-066"
+    ]
+  }
+}

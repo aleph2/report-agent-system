@@ -1,0 +1,23 @@
+{
+  "recorded_at_utc": "2026-10-15T09:51:52.169917+08:00",
+  "user_verbatim": [
+    "no this kind of problem solving",
+    "Let Neo take over the decision making. Go ahead"
+  ],
+  "decision_owner": "Neo",
+  "implementation_owner": "Codex Main",
+  "review_owner": "Neo",
+  "scope": "Technical priorities, design choices and validation sequencing for the existing full-chain report objective. Neo recommendations stay within actual user authority.",
+  "main_hold": "withdrawn; historical record retained",
+  "budget": "Cumulative100000000 external-model tokens after direct desktop +20000000 grant; no reset of recorded usage or unknown reservations. See .analysis/implementation-resumed-20261014/budget-amendment-20261015-add20m-applied.json.",
+  "unchanged_boundaries": [
+    "Email stopped",
+    "Preserve original source/report/history and raw paid evidence",
+    "No silent provider/model changes, new OCR/index or canonical/production publication",
+    "Do not blindly replay terminal or unknown operations"
+  ],
+  "execution": "Resume engineering work under Neo direction; Main must execute concrete decisions and supply actual evidence for Neo review.",
+  "budget_history": [
+    "Existing cumulative80000000 external-model tokens, no reset; preserve recorded usage and unknown reservations."
+  ]
+}

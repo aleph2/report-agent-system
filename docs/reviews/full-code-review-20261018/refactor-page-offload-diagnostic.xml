@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="7.714" timestamp="2026-10-18T01:52:22.896469+11:00" hostname="dysun"><testcase classname="tests.test_boundary_refactor" name="test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt[False]" time="1.766" /><testcase classname="tests.test_boundary_refactor" name="test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt[True]" time="1.235"><failure message="Failed: [{'file': '/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_deep_runtime.py', 'function': '_agenerate', 'line': 49}, {'file': '/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_deep_runtime.py', 'function': 'respond', 'line': 85}, {'file': '/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_boundary_refactor.py', 'function': 'inspect', 'line': 459}]">ws = &lt;report_agent.workspace.Workspace object at 0x7c5eb17fb650&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7c5eb2440b30&gt;
+page_read = True
+
+    @pytest.mark.parametrize('page_read', [False, True])
+    async def test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt(ws, monkeypatch, page_read):
+        from test_ingestion import pdf_bytes
+        from report_agent.task_context import read_observation
+        from report_agent.decision_data import deliver_controls
+        native = deep_runtime.FilesystemMiddleware
+        monkeypatch.setattr(deep_runtime, 'FilesystemMiddleware',
+            lambda **kwargs: native(**kwargs, tool_token_limit_before_evict=100))
+        literal = 'Original only; ' * 400 + 'UNTRUNCATED TAIL'
+        pdf = pdf_bytes([literal])
+        (ws.store.root / 'original.pdf').write_bytes(pdf)
+        ws.store.set('manifest', {**ws.store.manifest, 'sources': [{
+            'id': 's', 'title': 'Synthetic', 'filename': 'original.pdf', 'copied_path': 'original.pdf',
+            'sha256': hashlib.sha256(pdf).hexdigest(), 'content': literal, 'coverage': 'partial'}]})
+        seed(ws); activate(ws)
+        with ws.store.connect() as db:
+            db.execute('delete from source_blocks')
+            db.execute('insert into source_blocks values (?,?,?,?)', ('s', 0, 'page 1', literal))
+        if page_read:
+            tool, args, paths = 'inspect_source_page', {'source_id': 's', 'page': 1}, [
+                ['native_text'], ['frozen_text_blocks', 0, 'text'], ['table_view', 'tables']]
+        else:
+            ws._seed('materials', 'Stored result', literal, ['s'])
+            tool, args, paths = 'read_result', {'result_id': ws.results()[-1]['id']}, [['body']]
+    
+        def inspect(messages):
+            reply = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == tool)
+            assert reply.additional_kwargs['report_controls_restored']
+            assert literal not in str(reply.content)
+            assert deliver_controls(ws, 'coordinator', reply) is reply
+            controls = json.loads(reply.content[-1]['text'])
+            assert controls['complete_original_in_decision'] is False
+            saved = ws.store.get('tool_observation:' + controls['observation_ref'])
+            raw = json.loads(saved['text'])
+            restored = deepcopy(controls['metadata'])
+            assert controls['platform_offloaded_data_paths'] == paths
+            for path in paths:
+                original, projected = raw, restored
+                for key in path[:-1]:
+                    original, projected = original[key], projected[key]
+                assert projected[path[-1]]['observation_path'] == path
+                projected[path[-1]] = original[path[-1]]
+            assert restored == raw  # Includes all nested mechanical table warnings/status.
+            if page_read:
+                assert controls['source_material'] == reply.artifact['source_material']
+                assert controls['metadata']['table_view']['status'] == 'no_tables_detected'
+                assert controls['metadata']['frozen_text_blocks'][0]['locator'] == 'page 1'
+            recovered = read_observation(ws, 'coordinator', controls['observation_ref'], field_path=paths[0])
+            assert recovered['text'] == literal[:6000]
+            return AIMessage(content='Synthetic page/result boundary verified.')
+        result = await deep_runtime.run_report(ws, Driver(coordinator=[invoke(tool, **args), inspect]))
+        if result['last_error'] is not None:
+            diagnostic = ws.store.root / 'diagnostics/private' / (result['last_error']['diagnostic_id'] + '.json')
+&gt;           pytest.fail(str(json.loads(diagnostic.read_text())['exceptions'][0]['frames'][-3:]))
+E           Failed: [{'file': '/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_deep_runtime.py', 'function': '_agenerate', 'line': 49}, {'file': '/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_deep_runtime.py', 'function': 'respond', 'line': 85}, {'file': '/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_boundary_refactor.py', 'function': 'inspect', 'line': 459}]
+
+tests/test_boundary_refactor.py:481: Failed</failure></testcase></testsuite></testsuites>

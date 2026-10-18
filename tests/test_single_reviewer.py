@@ -28,6 +28,12 @@ def new_path(ws):
     ws.store.set("manifest", {**ws.store.manifest, "review_entrypoint": "delegated-reviewer-v1"})
 
 
+def review_assignment(snapshot, refs):
+    return {"subagent_type": "reviewer", "description": "Check exact assigned delivery content",
+            "review_snapshot_ref": snapshot, "review_requirements": [{"target_ref": refs["claim"],
+            "criterion_ref": refs["k"], "scope_id": "delivery", "required_checks": ["rule comparison"]}]}
+
+
 def test_final_submission_atomic_idempotent_permissions_and_version(ws):
     cs, actor, refs, snapshot, _ = seed(ws)
     export = export_snapshot(cs, actor, "export", snapshot)["result"]["export_ref"]
@@ -43,7 +49,7 @@ def test_final_submission_atomic_idempotent_permissions_and_version(ws):
         ws.store.set("content_delivery", {"snapshot_ref":snapshot,"export_ref":export})
         assert current_delivery(ws.store)["overall_verdict"] is None
         wrong = {**data,"target_ref":export}
-        with pytest.raises(ActionRejected, match="FINAL_REVIEW_TARGET_MISMATCH"):
+        with pytest.raises(ActionRejected, match="REVIEW_TARGET_OUTSIDE_SNAPSHOT"):
             cs.submit_review(reviewer,"wrong",wrong,{},export)
         assert len(cs.list_objects("ReviewRecord")) == 1
         local_wrong = {**data,"items":[{**data["items"][0],"target_ref":export}]}
@@ -58,11 +64,11 @@ async def test_feedback_returns_control_without_automatic_grader(ws, verdict):
     export = export_snapshot(cs, actor,"export",snapshot)["result"]["export_ref"]
     def submit(messages):
         receipt = observation(messages,"read_context")["receipt_id"]
-        data = submission(snapshot,refs,review_item(snapshot,refs["k"],receipt,verdict))
+        data = submission(snapshot,refs,review_item(refs["claim"],refs["k"],receipt,verdict))
         return invoke("submit_review",operation_id="review",review=data,delivery_export_ref=export)
     driver = Driver(coordinator=[
         invoke("select_content_delivery",operation_id="select",snapshot_ref=snapshot,export_ref=export),
-        invoke("task",subagent_type="reviewer",description="Check exact delivery"),
+        invoke("task",**review_assignment(snapshot, refs)),
         invoke("record_execution_decision",operation_id="decision",decision="continue",reason="Investigate next useful correction",evidence=["saved review"],unresolved=["remaining checks"]),
         invoke("read_feedback"), AIMessage(content="Preserved incomplete delivery.")],
         reviewer=[invoke("read_context",target_ref=snapshot),submit,AIMessage(content="Saved review and limitations.")])
@@ -70,7 +76,9 @@ async def test_feedback_returns_control_without_automatic_grader(ws, verdict):
     assert result["last_error"] is None, result
     assert "rubric_grader" not in driver.created
     assert ws.store.get("content_execution_decision")["decision"] == "continue"
-    assert current_delivery(ws.store)["final_review_current"]
+    assert current_delivery(ws.store)["items"]
+    assert not current_delivery(ws.store)["final_review_current"]
+    assert result["execution_status"] == "completed"
     assert current_delivery(ws.store)["overall_verdict"] != "satisfied"
     assert any("read_feedback" in str(m.tool_calls) for role,_,msgs in driver.calls if role=="coordinator" for m in msgs if isinstance(m,AIMessage))
 
@@ -111,7 +119,8 @@ def test_role_service_bundles_do_not_mix_credentials(tmp_path,monkeypatch):
 
 async def test_delegated_transport_error_is_feedback_not_business_stop(ws):
     new_path(ws)
-    driver=Driver(coordinator=[invoke("task",subagent_type="reviewer",description="Review"),
+    cs, actor, refs, snapshot, _ = seed(ws)
+    driver=Driver(coordinator=[invoke("task",**review_assignment(snapshot, refs)),
         invoke("record_execution_decision",operation_id="after-error",decision="handoff",reason="Service failed; preserve execution uncertainty",evidence=["tool feedback"],unresolved=["review unexecuted"]),AIMessage(content="Unresolved")])
     driver.fail_once=("reviewer",0)
     result=await deep_runtime.run_report(ws,driver)
@@ -135,14 +144,15 @@ async def test_native_checkpoint_resume_without_grader(ws):
 async def test_program_errors_and_cancellation_are_not_semantic_feedback(ws,cancelled):
     import asyncio
     new_path(ws)
+    cs, actor, refs, snapshot, _ = seed(ws)
     def fail(messages):
         if cancelled:
             raise asyncio.CancelledError()
         raise TypeError("Synthetic implementation failure")
-    driver=Driver(coordinator=[invoke("task",subagent_type="reviewer",description="Check")],reviewer=[fail])
+    driver=Driver(coordinator=[invoke("task",**review_assignment(snapshot, refs))],reviewer=[fail])
     if cancelled:
         from types import SimpleNamespace
-        request=SimpleNamespace(tool_call=call("task",{"subagent_type":"reviewer","description":"Check"},"cancel-task"))
+        request=SimpleNamespace(tool=None, tool_call=call("task",review_assignment(snapshot, refs),"cancel-task"))
         request.override=lambda **kwargs: request
         async def cancel_handler(request):
             raise asyncio.CancelledError()

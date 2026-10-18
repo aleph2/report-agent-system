@@ -1,0 +1,353 @@
+{
+  "at": "2026-10-15T05:33:23.161029+00:00",
+  "goal": "Continue Main+Neo through first-contract full-scope report/Word/issues-only Excel/actual review under100m cumulative shared provider-token authorization; do not end at fix tests.",
+  "active_native_session": 70576,
+  "active_window": "continuation18",
+  "last_observed_sequence": 5488,
+  "last_recorded_tokens": 67616234,
+  "unknown_reserve": 22000000,
+  "remaining": 10383766,
+  "terminal_result_not_present": true,
+  "last_activity": "C17 continues. Six scoped repair increments reviewed and prepared,18 source files and6 tests; no live code mutation or feedback injection.",
+  "staged_next_boundary_repair": [
+    {
+      "name": "source-view-selection",
+      "verification": ".analysis/full-code-design-review-20261015/source-view-selection-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/source-view-selection-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "summary-lookup",
+      "verification": ".analysis/full-code-design-review-20261015/summary-lookup-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/summary-lookup-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "field-recovery",
+      "verification": ".analysis/full-code-design-review-20261015/field-recovery-staging/verification.json",
+      "state": "ready_not_applied",
+      "neo": ".analysis\\neo\\implementation-resumed-20261014\\field-recovery-final-advisory.json"
+    },
+    {
+      "name": "selected-companion-review",
+      "verification": ".analysis/full-code-design-review-20261015/companion-review-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/selected-companion-review-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "filtered-index-scope",
+      "verification": ".analysis/full-code-design-review-20261015/index-scope-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/filtered-index-scope-final-advisory.json",
+      "state": "ready_not_applied"
+    }
+  ],
+  "staging_tests": "61 transport,94 unique admission-boundary,72 PreparedMaterial focused,27 render/receipt focused checks; suites overlap and are not one full-suite pass.34 historical paid completed ContentNode material packets/digests unchanged.",
+  "scope_evidence": ".analysis/full-chain-acceptance-20261014/reference-inventory-review/coverage-evidence.md",
+  "score_evidence": ".analysis/full-chain-acceptance-20261014/reference-inventory-review/scores-before-evidence.md",
+  "neo_followup": "Review actual current schemas/material binding/producer adoption and per-call value; source/code/trace evidence required for root cause.",
+  "feedback_boundary": "C15 factual observation saved exactly underf989fdb3; Neo verified all1842characters in actual4577 input. See continuation16-first-input-feedback-schema-proof.json.",
+  "protected_constraints": [
+    "No duplicate run/restartfromzero",
+    "No legacy/original report modifications",
+    "No newOCR/index/providers/globalpublication",
+    "EmailSTOPPED",
+    "No false engineering acceptance",
+    "Preserve paid raw outcomes and native checkpoints"
+  ],
+  "last_terminal_native_session": 87835,
+  "last_terminal_window": "continuation17",
+  "selection_observation_repair": "AppliedbeforeC8; actual2696verifiedbyNeo, preservingexactrefs/receipt/SHA/ranges. Not semantic acceptance.",
+  "feedback_projection": "Production applied; actualC9firstinput2731 all3 feedback bodies exacthashverified byNeo; semantic use not established.",
+  "terminal_assessment": ".runs\\full-chain-report-validation-20261014\\continuation16\\terminal-boundary-assessment.json",
+  "next_work": "Neo inspect actual C18 effective feedback input, trace, real artifact outcomes; Main investigate/implement Neo dispositions. Six reviewed repairs integrated and 161 offline checks passed, not semantic acceptance. Continue full first-contract Word plus issues-only XLSX and normal independent Reviewer/actual page checks within 100m cumulative ledger, preserving old 22m unknown reserves.",
+  "receipt_deadline_repair": ".analysis/full-chain-acceptance-20261014/operation-receipt-deadline-applied.json",
+  "c9_feedback": "861ae8ad-5b56-4f7c-b3a9-bd424f4464fb SHA024d54c402f571e3aad3e2d522dba5393a12e3482a048e48bf9971fe6a29728f; actualC10/C11 delivery verified, semanticapplication failed.",
+  "sqlite_access": "WSL only for live state/checkpoints/token DB; use immutable saved JSON/export bytes on Windows. Neverimmutable=1 or journal deletion to bypasslocks.",
+  "sqlite_root_cause": ".analysis/full-chain-acceptance-20261014/c10-sqlite-root-cause.json",
+  "live_sqlite_access_policy": ".analysis/full-chain-acceptance-20261014/live-database-access.md",
+  "authorized_maximum_tokens": 100000000,
+  "budget_amendment": ".analysis/implementation-resumed-20261014/budget-amendment-20261015-add20m.json",
+  "active_runtime_maximum_tokens": 100000000,
+  "budget_application_pending": false,
+  "remaining_field_scope": "Snapshot at latest observed progress; current in-flight reservations may reduce this further. Old unknown22m retained.",
+  "authorized_headroom_before_new_inflight": 11472165,
+  "active_pid": 1072,
+  "active_boot_id": "b1fe4fa3-632f-473a-9cad-04999e740880",
+  "current_disposition": ".analysis/full-code-design-review-20261015/current-repairs-and-next.json",
+  "cost_classification": ".runs/full-chain-report-validation-20261014/continuation16/call-dispositions.json",
+  "readonly_wait_helper": ".analysis/full-chain-acceptance-20261014/wait_public_progress.py",
+  "neo_guard_proof": ".analysis/neo/implementation-resumed-20261014/continuation12-sixth-score-unknown-guard-proof.json",
+  "established_avoidable_tokens": 3222662,
+  "last_unknown_raw_operation_id": "6bf4fdd5d49ec57c35f4929ee58b234d68e0fab61392c5932b37de862a4d8235",
+  "last_completed_raw_operation_id": "7d35a1c67ba0ea86652ac0d6c1d1009dbb3dde7b5baa6dcc35711e5e79377adc",
+  "decision_context_cost": ".analysis/full-chain-acceptance-20261014/decision-context-cost-live.json",
+  "cost_limitation": "Established avoidable subset includes five serial figure adoption decisions (761461 tokens) and repeated missing-objective decision4598 (96389 tokens). These are recorded subsets, not measured counterfactual net savings or extra charges.",
+  "source_misread_investigation": ".analysis/full-chain-acceptance-20261014/c15-workbook-height-observation-disposition.json",
+  "decision_context_cost_investigation": ".analysis/full-chain-acceptance-20261014/c15-workbook-context-growth-diagnosis.json",
+  "preserved_thinking_and_tool_batch_boundary": "Actual GLM wire keeps historical reasoning and sets parallel_tool_calls=false. Private reasoning only counted through archived length metadata; not read. This does not prevent one commit_objects call adopting multiple outputs. No live configuration change.",
+  "workbook_producer_input": ".analysis/full-chain-acceptance-20261014/c15-workbook-producer002-actual-input.json",
+  "workbook_candidate_review": ".analysis/full-chain-acceptance-20261014/c15-workbook-candidate002-main-review.json",
+  "workbook_boundary_mechanism": ".analysis/full-chain-acceptance-20261014/c15-workbook-boundary-mechanism.json",
+  "candidate_input_staged_fix": ".analysis/full-chain-acceptance-20261014/candidate-input-staging/verification.json",
+  "candidate_input_fix_status": "Applied;99 offline production tests pass, actual paid use/semantic effect still requires trace.",
+  "workbook_adoption_proof": ".analysis/full-chain-acceptance-20261014/c15-workbook-adoption-proof.json",
+  "namespace_query_limitation": ".analysis/neo/implementation-resumed-20261014/continuation15-parent-receipt-namespace-observation.json",
+  "execution_window": {
+    "logical_deadline_seconds": 600,
+    "maximum_http_attempts": 200,
+    "outer_timeout_seconds": null,
+    "sdk_retries": 5,
+    "httpx_retries": 0,
+    "cumulative_token_cap": 100000000
+  },
+  "email_stopped": true,
+  "argument_failure_root_cause": ".analysis/full-chain-acceptance-20261014/c16-argument-failure-root-cause.json",
+  "score_arithmetic": ".analysis/full-chain-acceptance-20261014/c16-scoring103-arithmetic.json",
+  "score_change_decomposition": ".analysis/full-chain-acceptance-20261014/c16-score-change-decomposition.json",
+  "scoring_semantic_review": ".analysis/neo/implementation-resumed-20261014/continuation16-scoring103-semantic-review.json",
+  "length_failure_root_cause": ".analysis/full-chain-acceptance-20261014/c16-scoring201-length-root-cause.json",
+  "deadline_failure_root_cause": ".analysis/full-chain-acceptance-20261014/c16-scoring301-deadline-root-cause.json",
+  "producer_comparison": ".analysis/full-chain-acceptance-20261014/c16-producer-capacity-and-401-deadline.json",
+  "neo_responsibility_update": ".memory/neo-design-advice-and-result-review-20261015.json",
+  "scope601_review": ".analysis/neo/implementation-resumed-20261014/continuation16-scope601-actual-input-review.json",
+  "staged_transport_verification": ".analysis/full-chain-acceptance-20261014/transport-observation-staged-verification.json",
+  "pending_factual_feedback": ".analysis/full-chain-acceptance-20261014/c16-runtime-observation-draft.md",
+  "feedback_delivery_status": "C16 observation is prepared only; Store.add_feedback takes the active run lock. Deliver at a natural safe boundary without cancelling or bypassing the lock.",
+  "architecture_stop_outcome": ".runs/full-chain-report-validation-20261014/continuation16/architecture-boundary-stop-outcome.json",
+  "architecture_stop_status": "terminal_native_exit0_preserved301401_unknown",
+  "architecture_decision": ".memory/architecture-convergence-user-decision-20261015.json",
+  "engineering_reference": ".memory/code-complete-development-principles-20261015.json",
+  "active_state_rule": "A result.json supersedes startup status; never duplicate/replay from this handoff.",
+  "prior_handoff": ".memory\\full-chain-validation-handoff-before-c17-20261015.json",
+  "latest_c17_progress_snapshot": {
+    "source": ".runs/full-chain-report-validation-20261014/continuation17/progress.json",
+    "sha256": "2efdfbb8f78b9668a29b24ee0381ded016ab7bc8eeaa367f3965598df48f989b",
+    "value": {
+      "at": "2026-10-15T05:29:10.840568+00:00",
+      "elapsed_seconds": 8290.03323686,
+      "http_attempts": 111,
+      "activity": "writer",
+      "logical_requests": 111,
+      "received_responses": 111,
+      "recorded_tokens": 11164735,
+      "semantic_acceptance": false,
+      "global_token_budget": {
+        "origin": "authorized_persistent_transport_token_ledger",
+        "maximum_tokens": 100000000,
+        "recorded_tokens": 58378122,
+        "reserved_or_unknown_upper_bounds": 22000000,
+        "remaining_for_new_reservations": 19621878,
+        "attempt_states": {
+          "reserved": 11,
+          "settled": 638
+        },
+        "note": "All current authorization cases share this ledger. Cached tokens are included once. Unknown results retain conservative reservations; this does not authorize extra work."
+      }
+    }
+  },
+  "c17_reviewed_progress": {
+    "through_decision_sequence": 5228,
+    "evidence707_saved": 9,
+    "supported_by_saved": 17,
+    "index_current_refs_seen": 70,
+    "scope_completeness_from_index": false,
+    "avoidable_covered_range_decision": {
+      "request_sequence": 5145,
+      "response_sequence": 5153,
+      "recorded_tokens": 83014,
+      "counterfactual_net_saving": false
+    },
+    "neo_current_decision": "Continue source-based slope567-001 because new geology/design pages materially change evidence; old301 remains unknown. Reassess if later request removes material. Do not infer semantics or acceptance from source selection.",
+    "evidence_files": [
+      ".analysis/neo/implementation-resumed-20261014/c17-evidence707-actual-adoption-proof.json",
+      ".analysis/neo/implementation-resumed-20261014/c17-index-navigation-review.json",
+      ".analysis/neo/implementation-resumed-20261014/c17-old301-new-geological-investigation-comparison.json",
+      ".analysis/full-code-design-review-20261015/current-layout-applicability.json",
+      ".analysis/full-code-design-review-20261015/c17-call-value-assessment-live.json"
+    ]
+  },
+  "c17_new_design_findings": [
+    ".analysis/neo/implementation-resumed-20261014/c17-field-raw-cursor-root-cause.json",
+    ".analysis/neo/implementation-resumed-20261014/c17-summary-reference-loss-root-cause.json"
+  ],
+  "c17_cost_classification": ".analysis/full-code-design-review-20261015/c17-call-value-assessment-live.json",
+  "staged_repairs_at_next_natural_boundary": [
+    {
+      "name": "source-view-selection",
+      "verification": ".analysis/full-code-design-review-20261015/source-view-selection-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/source-view-selection-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "summary-lookup",
+      "verification": ".analysis/full-code-design-review-20261015/summary-lookup-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/summary-lookup-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "field-recovery",
+      "verification": ".analysis/full-code-design-review-20261015/field-recovery-staging/verification.json",
+      "state": "ready_not_applied",
+      "neo": ".analysis\\neo\\implementation-resumed-20261014\\field-recovery-final-advisory.json"
+    },
+    {
+      "name": "selected-companion-review",
+      "verification": ".analysis/full-code-design-review-20261015/companion-review-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/selected-companion-review-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "filtered-index-scope",
+      "verification": ".analysis/full-code-design-review-20261015/index-scope-staging/verification.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/filtered-index-scope-final-advisory.json",
+      "state": "ready_not_applied"
+    },
+    {
+      "name": "history-policy-read",
+      "verification": ".analysis/full-code-design-review-20261015/history-policy-staging/assessment.json",
+      "neo": ".analysis/neo/implementation-resumed-20261014/history-policy-final-advisory.json",
+      "state": "ready_not_applied"
+    }
+  ],
+  "c17_latest_semantic_findings": {
+    "updated_at": "2026-10-15T04:21:00.862152+00:00",
+    "slope567_v3_saved": true,
+    "source": ".analysis/neo/implementation-resumed-20261014/c17-sys004-input-output-and-slope567-adoption-review.json",
+    "status": "unaccepted_draft_with_open_scoring_assumptions_and_cross_chapter_weight_conflict",
+    "new_word_xlsx_acceptance": false,
+    "continuation": "Continue normal native run; do not cancel current call because staged P3 fixes are ready. No duplicate dispatch. Check result.json first."
+  },
+  "c17_readonly_watcher": {
+    "session": 99976,
+    "state": "helper_completed_1h_lifetime",
+    "native_run_status": "separate: C17 session87835 had no result.json at latest poll, running as of snapshot; check again",
+    "does_not_authorize_restart": true
+  },
+  "next_boundary_integration_plan": ".analysis\\full-code-design-review-20261015\\next-boundary-integration-plan.json",
+  "pending_validation_feedback": {
+    "path": ".analysis/full-code-design-review-20261015/c17-runtime-feedback-draft.json",
+    "version": 3,
+    "body_sha256": "b977896a2e78d332dc667969360e7cbe69fa2158b401fbb3cf8155b6e76aced7",
+    "state": "prepared_not_delivered",
+    "condition": "Next naturally terminal or already-required maintenance boundary; use ordinary operator-feedback entrypoint after run_lock available, preserve source identity and receiving scope, record exact receipt. No concurrent injection or cancellation solely for this observation."
+  },
+  "deferred_design_increment": {
+    "name": "typed deterministic structural field update under shared Body/write responsibilities",
+    "reason": "Neo does not require before next continuation; current009 contains substantive qualifier changes and cannot all be reclassified as avoidable cost.",
+    "limits": "No arbitrary JSON patch, narrative/score/qualifier changes or forged text_work review; original owner/CAS/source bounds and all unchanged fields must be enforced if later implemented."
+  },
+  "prior_stage_pointer_preserved_in": ".analysis/full-code-design-review-20261015/figure-source-audit/handoff-before-update.json",
+  "c17_figure_adoption_and_source_audit": {
+    "adopted_all_seven_v2": true,
+    "matching_return_sequence": 6117,
+    "neo_evidence": ".analysis/neo/implementation-resumed-20261014/c17-figure009-input-output-review.json",
+    "source_audit": ".analysis/full-code-design-review-20261015/figure-source-audit/assessment.json",
+    "fresh_original_views": 5,
+    "reused_prior_original_views": 2,
+    "open": [
+      "four qualifiers wrongly generalize unselected input to unavailable project sources",
+      "119/126 caption ranges broader than original titles; equivalence not established",
+      "134 left-side/pile-board-wall attribution not established by selected single page",
+      "174 whole page contains two different slope panels"
+    ],
+    "word_visual_acceptance": false,
+    "feedback_delivered": false
+  },
+  "c17_adoption_cost_assessment": {
+    "path": ".analysis/full-code-design-review-20261015/c17-call-value-assessment-live.json",
+    "six_later_serial_decision_tokens": 622081,
+    "cached_already_included": true,
+    "interpretation": "Useful saves; supported batching opportunity, not measured counterfactual net savings. Original ledger unchanged."
+  },
+  "updated_at": "2026-10-15T08:19:46.349513+00:00",
+  "state": "c18_native_continuation_active_assessment_pending",
+  "native_session_status": "running_not_semantically_accepted",
+  "terminal_result": ".runs/full-chain-report-validation-20261014/continuation17/result.json",
+  "recorded_tokens": 67616234,
+  "unknown_reserved_tokens": 22000000,
+  "c17_current_terminal": {
+    "finished_at": "2026-10-15T07:50:14.688123+00:00",
+    "http_attempts": 189,
+    "received_responses": 189,
+    "recorded_tokens": 19314448,
+    "cached_input_already_included": 4211712,
+    "unknown_or_failed_responses": 0,
+    "native_session": 87835,
+    "native_exit_code": 0,
+    "originals_unchanged": true,
+    "original_terminal_captures_unchanged": true,
+    "reviewed_boundary_audit_pending": false
+  },
+  "decision_owner": "Neo",
+  "current_execution_disposition": ".analysis/neo/implementation-resumed-20261014/c18-wrapper-and-resume-advisory.json",
+  "superseded_timing_note": "Prior natural-window-only preferences in historical fields are superseded by Neo maintenance decision. C17 is terminal; do not dispatch or replay it.",
+  "intent_and_rca_owner_record": ".memory/neo-intent-and-root-cause-ownership-20261015.json",
+  "current_pending_feedback": {
+    "state": "delivered_via_normal_store_entrypoint",
+    "version": 6,
+    "receipt": ".analysis/full-code-design-review-20261015/c17-maintenance-feedback-delivered.json",
+    "actual_model_delivery_verified": true,
+    "semantic_application_verified": false,
+    "actual_delivery_proof": ".analysis/neo/implementation-resumed-20261014/c18-first-effective-input-feedback-and-contract-proof.json"
+  },
+  "prior_handoff_before_current_maintenance": ".memory/full-chain-validation-handoff-before-c17-maintenance-20261015.json",
+  "current_applied_maintenance": {
+    "state": "six_repairs_applied",
+    "receipt": ".analysis/full-code-design-review-20261015/c17-terminal-integration/applied.json",
+    "source_files": 18,
+    "test_files": 6,
+    "focused_tests_passed": 161,
+    "checks": ".analysis/full-code-design-review-20261015/c17-terminal-integration/post-integration-tests.json"
+  },
+  "current_prepared_continuation": {
+    "window": "continuation18",
+    "state": "started_once",
+    "preflight": ".runs/full-chain-report-validation-20261014/continuation18/preflight.json",
+    "startup_identity_rebinding": "passed",
+    "native_checkpoint_reset": false,
+    "email": false,
+    "started_at": "2026-10-15T08:14:29.986133+00:00",
+    "native_session": 70576,
+    "native": {
+      "next": [
+        "tools"
+      ],
+      "checkpoint_id": "1f1c816b-0d84-6801-8282-0505f06810cd"
+    }
+  },
+  "prior_handoff_before_c18": ".memory/full-chain-validation-handoff-before-c18-20261015.json",
+  "c18_latest_observed_progress": {
+    "at": "2026-10-15T08:19:09.636544+00:00",
+    "elapsed_seconds": 279.57919371300005,
+    "http_attempts": 8,
+    "activity": "writer",
+    "logical_requests": 8,
+    "received_responses": 8,
+    "recorded_tokens": 1088399,
+    "semantic_acceptance": false,
+    "global_token_budget": {
+      "origin": "authorized_persistent_transport_token_ledger",
+      "maximum_tokens": 100000000,
+      "recorded_tokens": 67616234,
+      "reserved_or_unknown_upper_bounds": 22000000,
+      "remaining_for_new_reservations": 10383766,
+      "attempt_states": {
+        "reserved": 11,
+        "settled": 724
+      },
+      "note": "All current authorization cases share this ledger. Cached tokens are included once. Unknown results retain conservative reservations; this does not authorize extra work."
+    }
+  },
+  "c18_cost_disposition": {
+    "decision_owner": "Neo",
+    "evidence": ".analysis/neo/implementation-resumed-20261014/c18-first-effective-input-feedback-and-contract-proof.json",
+    "avoidable_call_sequence": 7210,
+    "avoidable_recorded_tokens": 131747,
+    "reason": "Nonzero read_object_index offset without digest after explicit offset0 recovery instruction.",
+    "old_digest_rejection_sequence": 7198,
+    "old_digest_rejection_disposition": "expected_once_after_changed_digest_algorithm_not_new_bug",
+    "offset0_recovery_sequence": 7222,
+    "offset0_recovery_disposition": "necessary_recovery_not_meaningless",
+    "normal_continue": true
+  }
+}

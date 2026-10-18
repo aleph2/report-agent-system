@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-10-12T23:22:49.598723+00:00",
+  "source": "direct_desktop_user",
+  "user_text": "thanks for the discussion, I decide this is a system level feedback. We shall see in near future we may face the circumstance to deal with the management of prompt regarding to report level and system level. To this issue, can we borrow some experiences from Hermes, openai, deepseek harness and anthropic",
+  "decision": "The current report-voice/process-note and issues-only Excel feedback is system-level feedback for the report product.",
+  "supersedes": "Main’s earlier customer-level classification in this conversation; preserves prior versions and evidence.",
+  "routing_principle_record": ".memory/feedback-routing-decision-20261013.json",
+  "requested_work": "Research primary sources and recommend prompt management across system and report scopes.",
+  "new_paid_execution": false,
+  "candidate_publication": false,
+  "runtime_prompt_change": false,
+  "historical_versions_preserved": true
+}

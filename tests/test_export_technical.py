@@ -53,7 +53,8 @@ def test_default_legacy_and_explicit_override_remain_compatible(ws):
     draft = save(ws)
     legacy = export(ws, draft)
     assert "Saved **content**." in text(legacy)
-    assert "Unreviewed draft; not approved." in text(legacy)
+    assert "Unreviewed draft; not approved." not in text(legacy)
+    assert "Unreviewed draft; not approved." in text(export(ws, draft, include_execution_record=True))
     assert len(legacy.sections) == 1
     manifest = ws.store.manifest
     manifest["export"] = {"template": "technical_zh", "metadata": {"organization": "Supplied unit"}}
@@ -79,7 +80,7 @@ def test_technical_geometry_fonts_cover_toc_header_footer_and_no_fake_approval(w
     assert content.count("Known unit") == 2
     assert sum(p.text == "\u7f16\u5236\u65e5\u671f\uff1a2026-09-28" for p in doc.paragraphs) == 2
     assert "\u6249\u9875" in content and "\u76ee\u5f55" in content
-    assert "\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6" in content
+    assert "\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6" not in content
     assert "\u5f85\u586b\u5199" in content
     assert ' TOC \\o "1-3" \\h \\z \\u ' in doc.element.xpath(".//w:instrText/text()")
     assert doc.settings.element.find(qn("w:updateFields")).get(qn("w:val")) == "true"
@@ -255,11 +256,27 @@ def test_reader_business_issues_without_technical_audit_and_no_mutations(ws):
     assert "PRIVATE" not in content and "system_failure" not in content and "Resolved:" not in content
     assert "Previously missing file" not in content
     assert "[source] Project original" in content
-    assert "Unverified appendix" in content
-    assert "Draft: " + draft["id"] in content
+    assert "Unverified appendix" not in content
+    assert "Draft: " + draft["id"] not in content
     assert before == (ws.results(), ws.tasks(), ws.store.events(), ws.store.get("report_issues"))
-    legacy = text(export(ws, draft))
+    legacy = text(export(ws, draft, include_execution_record=True))
     assert "PRIVATE Main recovery instructions" in legacy
+
+
+@pytest.mark.parametrize("template", ["legacy", "technical_zh"])
+def test_reader_bytes_keep_business_uncertainty_without_execution_appendices(ws, template):
+    draft = save(ws, "Business conclusion remains conditional on the actual design evidence.")
+    ws.issue("source_conflict", "Two design records conflict; engineer decision remains open.", ["source"])
+    before = (ws.results(), ws.tasks(), ws.store.events(), ws.store.manifest)
+    content = text(export(ws, draft, template=template))
+    assert draft["body"] in content
+    assert "Two design records conflict" in content
+    for diagnostic in ("Model-reviewed", "Unreviewed draft", "模型审核", "Extraction limitation:",
+                       "Version record", "版本记录", "Knowledge validity", "Draft:", "Review:", "coverage:"):
+        assert diagnostic not in content
+    assert before == (ws.results(), ws.tasks(), ws.store.events(), ws.store.manifest)
+    diagnostic = text(export(ws, draft, template=template, include_execution_record=True))
+    assert "Extraction limitation:" in diagnostic and "Draft: " + draft["id"] in diagnostic
 
 
 @pytest.mark.parametrize("template", ["legacy", "technical_zh"])
@@ -282,7 +299,8 @@ def test_selected_page_embeds_exact_bytes_caption_source_and_version(ws, monkeyp
         images = [name for name in package.namelist() if name.startswith("word/media/")]
         assert len(images) == 1 and package.read(images[0]) == PNG
     assert "Selected detail [source_Upper-2] Original page sheet, PDF physical page 3" in text(doc)
-    assert "[source_Upper-2] Original page sheet; coverage: complete" in text(doc)
+    assert "[source_Upper-2] Original page sheet" in text(doc)
+    assert "coverage: complete" not in text(doc)
     assert before == (ws.results(), ws.tasks(), ws.store.events())
     assert ws.result(draft["id"])["body"] == body
     section = doc.sections[-1]
@@ -382,7 +400,9 @@ def test_model_accepted_remains_not_engineering_approved_and_version_exact(ws):
     review = ws.submit(task["id"], actor=task["owner"], title="Review", body="Synthetic review only",
                        source_ids=[], input_ids=[draft["id"]], target_id=draft["id"], outcome="accepted")
     doc = export(ws, draft, template="technical_zh")
-    assert "\u6a21\u578b\u5ba1\u6838\u901a\u8fc7\u7684\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6" in text(doc)
-    assert "Review: " + review["id"] in text(doc)
+    assert "\u6a21\u578b\u5ba1\u6838" not in text(doc)
+    diagnostic = export(ws, draft, template="technical_zh", include_execution_record=True)
+    assert "\u6a21\u578b\u5ba1\u6838\u901a\u8fc7\u7684\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6" in text(diagnostic)
+    assert "Review: " + review["id"] in text(diagnostic)
     newer = save(ws, "New saved version")
-    assert "\u672a\u5ba1\u6838\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6" in text(export(ws, newer, template="technical_zh"))
+    assert "\u672a\u5ba1\u6838\u8349\u7a3f\uff1b\u672a\u7ecf\u5de5\u7a0b\u6279\u51c6" in text(export(ws, newer, template="technical_zh", include_execution_record=True))

@@ -1,0 +1,112 @@
+{
+  "method": "Current Python functions; in-memory content/storage doubles; provider boundary intercepted; no database",
+  "outside_required_read_ref": {
+    "readiness": {
+      "execution_ready": true,
+      "issues": [],
+      "automatically_loaded_refs": [
+        {
+          "scope_id": "same-scope",
+          "refs": [
+            {
+              "type": "ContentNode",
+              "id": "first",
+              "version": 1
+            },
+            {
+              "type": "Criterion",
+              "id": "criterion",
+              "version": 1
+            },
+            {
+              "type": "ContentNode",
+              "id": "outside",
+              "version": 1
+            }
+          ],
+          "extent": "exact saved object local payload; no contains-linked descendants",
+          "state": "planned only; loaded by checker if admitted, not a reading receipt"
+        }
+      ],
+      "limitation": "Static assignment readiness only; no source reading receipt, comparison, verdict or acceptance."
+    },
+    "dispatch_boundary_reached": true,
+    "supplied_saved_refs": [
+      {
+        "type": "ContentNode",
+        "id": "first",
+        "version": 1
+      },
+      {
+        "type": "ContentNode",
+        "id": "outside",
+        "version": 1
+      }
+    ],
+    "submission_rejection": "REVIEW_VERSION_OUTSIDE_SNAPSHOT: {\"hint\": \"All review references must belong to this snapshot, except declared SourceArtifact dependencies and ExportArtifact/RenderArtifact bound to it. ReviewRecord references are not snapshot members; prior review reuse has a separate confirm_review_reuse operation.\", \"received\": {\"id\": \"outside\", \"type\": \"ContentNode\", \"version\": 1}, \"snapshot_ref\": {\"id\": \"snapshot\", \"type\": \"DocumentSnapshot\", \"version\": 1}}"
+  },
+  "duplicate_scope_ids": {
+    "readiness": {
+      "execution_ready": true,
+      "issues": [],
+      "automatically_loaded_refs": [
+        {
+          "scope_id": "same-scope",
+          "refs": [
+            {
+              "type": "ContentNode",
+              "id": "first",
+              "version": 1
+            },
+            {
+              "type": "Criterion",
+              "id": "criterion",
+              "version": 1
+            }
+          ],
+          "extent": "exact saved object local payload; no contains-linked descendants",
+          "state": "planned only; loaded by checker if admitted, not a reading receipt"
+        },
+        {
+          "scope_id": "same-scope",
+          "refs": [
+            {
+              "type": "ContentNode",
+              "id": "second",
+              "version": 1
+            },
+            {
+              "type": "Criterion",
+              "id": "criterion",
+              "version": 1
+            }
+          ],
+          "extent": "exact saved object local payload; no contains-linked descendants",
+          "state": "planned only; loaded by checker if admitted, not a reading receipt"
+        }
+      ],
+      "limitation": "Static assignment readiness only; no source reading receipt, comparison, verdict or acceptance."
+    },
+    "execution_attempts": [
+      {
+        "scope_ids": [
+          "same-scope"
+        ],
+        "rejection": "REQUESTED_SCOPES_MUST_IDENTIFY_DISTINCT_ASSIGNED_OUTCOMES"
+      },
+      {
+        "scope_ids": [
+          "same-scope",
+          "same-scope"
+        ],
+        "rejection": "REQUESTED_SCOPES_MUST_IDENTIFY_DISTINCT_ASSIGNED_OUTCOMES"
+      }
+    ]
+  },
+  "provider_calls": 0,
+  "source_hashes": {
+    "src/report_agent/task_supervision.py": "c19d7eb72a605a62fc1341a06275b3443c6450114d186363f95fbd18f7e8c533",
+    "src/report_agent/bounded_review.py": "97e2b9e3aa2697340d67d14b3a40ebcb6de6d26f60195109b0cff5a989c292bf",
+    "src/report_agent/content_store.py": "ac4fac47eca52b5a3c9b02b71a0a4118d296facdf81b2b068104f7adc83f671b"
+  }
+}

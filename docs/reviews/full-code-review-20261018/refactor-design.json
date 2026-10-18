@@ -1,0 +1,400 @@
+{
+  "status": "scoped_implementation_review_passed_fake_only",
+  "decision_owner": "Neo",
+  "implementation_owner": "Codex Main",
+  "updated_at": "2026-10-17T15:05:29.8013982Z",
+  "authority": {
+    "user": "Neo牵头研究平台能力，构建fake LLM验证并开始重构；本轮无需真实LLM调用",
+    "not_authorized": [
+      "Provider calls or restarting report/C25",
+      "Changing original case business objects, reports, budget or unknown holds",
+      "Email or deferred provider audit"
+    ],
+    "prior_review": "neo-review.json is a separately completed historical review; its findings are not relabelled fixed by this plan."
+  },
+  "platform": {
+    "installed_versions_reported_and_reused": {
+      "deepagents": "0.7.19",
+      "langchain": "1.4.2",
+      "langchain-core": "1.6.5",
+      "langchain-openai": "1.6.6",
+      "pydantic": "2.13.5"
+    },
+    "actual_installed_source": [
+      {
+        "path": "langchain_core/tools/base.py",
+        "sha256": "259da69b2ca5e171f4cc58acec2190352e7091f4d96a20158ce51feed4a78a02",
+        "inspected_lines_or_entrypoints": [
+          1229,
+          1390
+        ]
+      },
+      {
+        "path": "langchain_core/messages/tool.py",
+        "sha256": "0b451ed4c6ab8b69393bcc475562bc879b497faa08c1cfba41bc8bc5cb547fcb",
+        "inspected_lines_or_entrypoints": [
+          26,
+          75
+        ]
+      },
+      {
+        "path": "langgraph/prebuilt/tool_node.py",
+        "sha256": "af6df67779000d219b2e1799401238f3618511658b26316a70a5e432891040d3",
+        "inspected_lines_or_entrypoints": [
+          1069
+        ]
+      },
+      {
+        "path": "deepagents/middleware/filesystem.py",
+        "sha256": "527a8c3dae3bea0013d0831a0471a8bddf337291d2631fc57993f51bc4bb79a8",
+        "inspected_lines_or_entrypoints": [
+          1727,
+          3299,
+          3599
+        ]
+      },
+      {
+        "path": "deepagents/middleware/_message_eviction.py",
+        "sha256": "b32b8c26852fcca33f4c2732b1b77d78fdea615c6f9be1acdf76b770f5df051c",
+        "inspected_lines_or_entrypoints": [
+          199,
+          260
+        ]
+      },
+      {
+        "path": "deepagents/graph.py",
+        "sha256": "c8f6784ca9bc12d339526667c6898608c326b8121ccd39036fab125491840715",
+        "inspected_lines_or_entrypoints": [
+          868,
+          941
+        ]
+      },
+      {
+        "path": "langchain_openai/chat_models/base.py",
+        "sha256": "5d1eeed0593e3bd6c199b08a0a75ad74f2e1ae70eafaf423faf58fe32e7e9ede",
+        "inspected_lines_or_entrypoints": [
+          540
+        ]
+      }
+    ],
+    "confirmed_capabilities": [
+      "BaseTool response_format=content_and_artifact accepts (content,artifact); native _format_output creates ToolMessage.",
+      "ToolNode preserves native ToolMessage and artifact; it does not validate domain truth or infer task fulfillment.",
+      "OpenAI model serialization sends content/role/tool_call_id, not artifact.",
+      "FilesystemMiddleware offloads oversized whole text to backend, retaining artifact, status, call identity and media. It is not a domain-aware critical-result selector.",
+      "create_deep_agent applies same-name custom middleware to core stack. Current project already supplies FilesystemMiddleware; do not stack a parallel result-offload framework."
+    ],
+    "limitation": "Source inspection is not executed compatibility proof; native fake tests must cover the actual stack and final model request."
+  },
+  "principles": [
+    "Agent decides goals/material relevance/adoption and may read necessary originals; independent LLM tools produce/compare substantive text; program enforces exact scope/identity/permissions/version/lifecycle.",
+    "Execution/received-schema validity, task fulfillment and report acceptance are different facts.",
+    "Preserve one canonical archived raw return; content/artifact are native delivery channels, not two independently mutable business records.",
+    "Do not introduce a registry, new agent loop, approval role, alternate Markdown parser or generic semantic summarizer.",
+    "Do not silently narrow scope or let a fake choose an easier oracle."
+  ],
+  "A": {
+    "name": "One truthful model-visible delivery boundary",
+    "approved_direction": true,
+    "canonical_data": "Archive original tool content through current owner/SHA/source_material verification before presentation changes. Artifact carries only owner/tool/observation_ref/original SHA/public content digest; no second raw body.",
+    "normal_data": "Explicit normal-sized source/observation reads reach the next effective model input unaltered. Large report bodies may be explicitly deferred with exact observation_path/ref/digest; full selected source material to independent text tools stays unchanged.",
+    "control_data": "Keep complete tool-specific actual states, limitations, findings, check/coverage remaining work and processing notes required to decide adoption/correction. Do not infer semantic pass from success/completed or receipt.",
+    "single_final_entry": "TaskContext.awrap_model_call transforms request.messages once, preserving ToolMessage role/call/name/status/media. It validates artifact against canonical observation and reconstructs the same public result when framework offload/history cleanup would otherwise hide it. Idempotent; no re-summary or field-name clipping.",
+    "compatibility": "Old checkpoints without new artifact retain explicit old recovery, not retroactive claims of delivery; old raw receipt/request identities unchanged. source_material verification stays over original exact UTF8 bytes, never re-encoded public JSON.",
+    "capacity": "No invented replacement character cap. 2m reservation bound is not model context capacity. Use only genuinely known model-profile/capacity semantics if verified; otherwise state capacity preflight unavailable. Data may be deferred with explicit extent; if control itself cannot be delivered, expose delivery_incomplete with exact counts/recovery, never silently truncate or mark fulfilled.",
+    "minimum_existing_return_shapes": {
+      "process_report_content": [
+        "text_work_id",
+        "object_type",
+        "actor_id",
+        "task_id",
+        "operation",
+        "state",
+        "semantic_correctness_verified",
+        "limitation",
+        "reused",
+        "generation_notes when present",
+        "payload/ordered payloads with exact identity; qualifiers complete; body may be referenced"
+      ],
+      "perform_assigned_review": [
+        "review_ref",
+        "analysis_operation",
+        "items with actual verdict/execution_state/coverage/findings/check_results/remaining",
+        "reused",
+        "limitation"
+      ],
+      "perform_assigned_artifact_review": [
+        "Current public function returns only submit receipt review_ref plus reused. Enrich public view from exact saved ReviewRecord items/delivery_checks and actual limits, including cached operations; preserve business operation receipt/request. Do not synthesize acceptance."
+      ]
+    },
+    "mandatory_fake_oracles": [
+      "Real requested small source tail visible in next model message.",
+      "Actual producer and actual Reviewer shapes keep late limitations/remaining work.",
+      "Force installed Filesystem eviction and history cleanup: final message still contains complete bound control outcome plus exact deferred-data notice.",
+      "Wrong owner/SHA/control digest and body-forged metadata rejected; no arbitrary artifact promoted to authority.",
+      "Native serialization proves artifact itself absent from provider payload; content contains required result.",
+      "Input selection through preparation to provider-boundary packet exact equality; no new data truncation."
+    ],
+    "artifact_binding_decision": "Artifact carries owner/tool/observation_ref/original SHA/public result digest only; final serializer deterministically reconstructs from the one canonical archive. Do not persist a second public body which can drift.",
+    "capacity_clarification": "Main must not claim an existing actual-context admission mechanism unless verified. Token reservation bound is not context size; no new tokenizer, fixed character cap or hidden semantic slice is approved just to make this batch pass."
+  },
+  "B": {
+    "name": "Shared review assignment/observation/publication contract",
+    "approved_direction": true,
+    "historical_comparison": "Only exact ContentNode refs explicitly declared in this immutable task required_read_refs may be historical dependencies outside snapshot. Admission resolves actual ref; publication/reconcile require originating reviewer actual whole-body read before record boundary. They never become new target, criterion or snapshot member. External SourceArtifact exception retained.",
+    "scope_identity": "New assignments require task-local unique scope_id. Existing normalized task/hash/receipts unchanged; old ambiguity must reject before provider with exact matching indexes, never guess/rename or alter saved scope.",
+    "reuse": "Use current readiness, review_identity, receipt/extent matching and ContentStore membership path; no new task framework.",
+    "negative_oracles": [
+      "Undeclared historical ref",
+      "Wrong exact version/project",
+      "Other actor receipt",
+      "Partial selection or metadata-only binding",
+      "Read after saved record",
+      "Historical ref as target/criterion",
+      "Duplicate/new and ambiguous/old scopes",
+      "Existing external SourceArtifact and valid historical comparison remain legal"
+    ]
+  },
+  "C": {
+    "name": "Document semantics separate from presentation",
+    "approved_direction": true,
+    "directory": "Only root report depth0 emits document TOC; nested report content remains unchanged and rendered.",
+    "content": "One existing Markdown parser/renderer; apply presentation to rendered elements, not reinterpret selected lines as plain text.",
+    "neighbor_risk": "Existing validate_layout rejects paragraph control intersecting a Markdown table via PARAGRAPH_CONTROL_INTERSECTS_MARKDOWN_TABLE. Neo initially raised a possible legal-table-line split; actual source check refutes that trigger in the validated export path. Keep this boundary and test unrelated controls preserve neighboring tables. Valid list/soft-line paragraphs still require one parse.",
+    "oracles": [
+      "Nested report one TOC and no missing body",
+      "Controlled image survives with original bytes/ref and formatting",
+      "Emphasis/link/list interpretation retained",
+      "Multi-line Markdown table remains one same-cell table when header/row control applies",
+      "Current explicit margin/font/spacing values appear in actual OOXML; this is rendering proof, not proof Agent picked the standard"
+    ],
+    "approved_implementation_detail": "Extend existing _add_markdown with optional paragraph_formatter(paragraph, source_lines) based on existing token.map. No callback preserves old path. emit_text binds styles only and does not split source into independently parsed Markdown. Apply callback after existing list/heading structure; equal paragraph styles merge once, genuinely conflicting declarations reject with source locations. Cover existing fence/hr fallback where applicable; no parallel parser.",
+    "preserve_explicit_heading": "Existing ParagraphLayout.heading_level may extract one interior source soft-line as a separate heading. A whole-paragraph formatter alone regresses that feature. Explicit heading boundaries should be handled inside the one existing token/inline pass, retaining bold/italic/link state; ordinary formatting must not split Markdown paragraphs/lists. Do not remove the existing typography test or impose a blanket new list ban.",
+    "regression_status": "Final same-token renderer verified, including explicit interior heading, cross-line emphasis/link/list state. Ordinary selectors apply to existing rendered paragraph; conflicting declarations reject. Finite compatibility adjustment disclosed."
+  },
+  "sequence": [
+    "Main freezes original red logs and true trace fixture; Neo checks fixture fidelity and desired observable oracle.",
+    "Implement B/C narrowly while A final public-result mapping is checked.",
+    "Implement A using existing framework and canonical archive, with no new workflow/semantic decisions.",
+    "Run appropriate neighboring deterministic/native/actual-artifact regression tests, keeping known retired failures separate.",
+    "Neo reviews actual diff, final effective fake requests, raw-to-public identity, states and artifacts before saying a finding repaired.",
+    "No paid semantic/application run is part of this authorization."
+  ],
+  "test_corrections": [
+    {
+      "finding": "Initial image renderer fake accepted two args and used doc.add_picture; real _cell_runs passes (paragraph,token,image_width).",
+      "disposition": "Correct fixture signature/target insertion, preserve original red evidence, keep desired image/emphasis/layout oracle."
+    },
+    {
+      "finding": "Initial reviewer limitation red case used producer ContentNode return shape.",
+      "disposition": "Add actual bounded content and artifact review return paths, do not claim arbitrary field retention is complete Reviewer coverage."
+    },
+    {
+      "finding": "Neo initially suggested a controlled table-line real-export counterexample. Current validator already rejects those targets.",
+      "disposition": "Correct the claimed trigger. Keep existing explicit rejection, verify adjacent table preservation, focus legal-list/softline same-paragraph issue. Do not loosen table layout authority to satisfy the test."
+    }
+  ],
+  "historical_fixture": {
+    "path": "tests/fixtures/boundary-trace-20261018.json",
+    "sha256": "c24411044bd48ee720b700e11264218306be272c86e694dccfdeb70c6a295c51",
+    "source_proof_sha_matches": true,
+    "verified_items": [
+      {
+        "sequence": 1005,
+        "tool": "read_source_page",
+        "characters": 3874,
+        "content_sha_matches": true
+      },
+      {
+        "sequence": 1147,
+        "tool": "process_report_content",
+        "characters": 12143,
+        "content_sha_matches": true
+      }
+    ],
+    "scope": "Exact public tool returns rebound in temporary test actor environment. Not replay of a full historical native checkpoint; no inference of cross-role adoption permission from projection-only replay."
+  },
+  "independent_review": {
+    "source_read": [
+      "decision_data.py",
+      "task_context.py",
+      "artifact_review.py",
+      "task_supervision.py",
+      "content_store.py",
+      "bounded_review.py",
+      "content_export.py",
+      "content_layout.py",
+      "exporting.py",
+      "selection_observations.py"
+    ],
+    "reviewer": "Neo",
+    "A": {
+      "trigger": "Native Filesystem evicts large read_context/read_content_selection data, then final deliver_controls restores the whole presented result because offloaded_controls only recognizes read_source_page/search_sources.",
+      "status": "repaired_and_verified_offline",
+      "oracle": "Replace large-context full-body re-inlining oracle; cover ContentNode, SourceArtifact and selected body with forced native eviction and exact recovery.",
+      "severity": "P2",
+      "correction": "Only when native content has been offloaded, use exact tool result data paths to defer body/content while retaining full control fields, qualifiers, range/ref/digest/count/limits and original path. No recursive key clipping/new char cap.",
+      "source": "decision_data.py:87 offloaded_controls; task_context.py:282 final delivery",
+      "blocks": "Final A boundary acceptance, not all unrelated work",
+      "impact": "Defeats platform context offload and may restore very large ContentNode bodies or SourceArtifact content as supposed controls. Not evidence of historical paid activation or semantic corruption.",
+      "code": "RF-A01",
+      "resolution": "After native offload, exact source/body paths remain deferred for source/search/table supplements, physical-page reads, ContentNode/SourceArtifact context, content selections and saved results. Nested status/errors/limitations and original JSON recovery paths preserved. Public and program-side complete markers agree."
+    },
+    "C": "No remaining blocking defect found in inspected same-token implementation; wait final affected tests and exact hashes.",
+    "test_oracles_read": [
+      "test_boundary_refactor.py",
+      "test_business_envelope_projection.py",
+      "test_task_supervision.py",
+      "test_content_selection.py",
+      "refactor-test-migration.json"
+    ],
+    "B": "No current authority regression found: task-declared exact historical ContentNode dependencies require own whole reads; target/criterion membership stays strict; reconcile uses saved observation_rowid boundary.",
+    "limits": [
+      "Not real-model semantic validation or first-contract acceptance",
+      "No provider calls or original business state edits by Neo",
+      "Actual large-control capacity not prevalidated; no fabricated model capacity or alternate cap",
+      "Original completed full review records remain historical unchanged"
+    ],
+    "regression_result": {
+      "baseline_check": "deep_runtime.py/hierarchical_tools.py and both failed-test files exactly match original review-baseline hashes",
+      "failures": "Two old reviewer analyze_evidence registrations and old native supervisor submit_review fake",
+      "source": "refactor-integration.txt",
+      "observed": "243 passed / 3 failed",
+      "scope": "Not a green suite",
+      "disposition": "Maintain equivalent oracles on current bounded reviewer/authorized analyze_evidence paths; do not restore removed reviewer permissions."
+    }
+  },
+  "final_verdict": {
+    "evidence": {
+      "passed": 535,
+      "path": "docs/reviews/full-code-review-20261018/refactor-final-reconciled.json",
+      "provider_calls": 0,
+      "recorded_hashes_independently_rechecked": 273,
+      "source_unchanged": true,
+      "combination": "514 unaffected passing cases reused from stable full run; all 21 artifact cases retested after only that test file changed. Not a single 535-green run; no overlapping counts added.",
+      "unique_tests": 535,
+      "network_attempts": [],
+      "hash_mismatches": [],
+      "original_full_run": "533 pass / 2 obsolete artifact API fixture failures preserved",
+      "failed": 0,
+      "sha256": "a22ecafaaa4b7fd4e134d42a294ad85da57c218ea86aff2b380b443f1fe13dce",
+      "native_windows_scoped_diff": "Passed; WSL/global historical CRLF findings retained without whole-repo formatting",
+      "concurrent_changes": []
+    },
+    "finding_disposition": [
+      {
+        "status": "New public-delivery path repaired and fake-verified; old checkpoint/navigation compatibility remains explicitly scoped",
+        "id": "NFR-01"
+      },
+      {
+        "status": "Task-declared historical comparison admission/publication/reconciliation verified",
+        "id": "NFR-02"
+      },
+      {
+        "status": "Task-local scope uniqueness/addressability verified; old task identities unchanged",
+        "id": "NFR-03"
+      },
+      {
+        "status": "Root-only TOC verified in synthetic real DOCX; current customer report not regenerated",
+        "id": "NFR-07"
+      },
+      {
+        "status": "Single parser/rendered-paragraph typography verified with disclosed selector compatibility adjustment",
+        "id": "NFR-08"
+      },
+      {
+        "status": "Implementation-review defect repaired after failing native counterexample; exact recovery/no full-body reinsertion verified",
+        "severity": "P2",
+        "id": "RF-A01"
+      }
+    ],
+    "application_source_files": 9,
+    "verification_executors": "Main and attributed implementation-support agents; Neo independently read implementation/oracles/actual diagnostics/receipts and recalculated final hashes",
+    "implementation_owner": "Codex Main",
+    "decision_owner": "Neo",
+    "allow_C25": false,
+    "allow_paid_execution": false,
+    "verdict": "Approved for scoped A/B/C deterministic refactor",
+    "limits": [
+      "No real-model strategy, provider strict-capability or engineering semantic acceptance",
+      "No live first-contract report acceptance, new live ReviewRecord or report correction",
+      "Original source-material packet construction unchanged; neighboring tests provide non-regression evidence",
+      "Large control context capacity explicitly not prevalidated; no fabricated model capacity/new cap",
+      "decision_data_delivered is pre-offload representation, not final consumption; effective-input claims rely on next fake model/adapter assertions",
+      "No original case DB, paid evidence, budget, unknown reservations or email-state changes authorized",
+      "Original full-review neo-review.json/coverage.json retained unchanged"
+    ]
+  },
+  "remaining_work_order": [
+    {
+      "order": 1,
+      "scope": [
+        "NFR-05",
+        "NFR-10",
+        "UF-BUDGET"
+      ],
+      "action": "Next fake-only scope: shared known-zero-dispatch versus unknown lifecycle and actual normal-entry budget binding. Establish exact failure evidence, then reuse current lifecycle. UF-BUDGET remains unverified, not a presumed bug. No unknown release/replay.",
+      "blocks": "Reliable affected recovery/admission claims, not unrelated offline work"
+    },
+    {
+      "order": 2,
+      "scope": [
+        "UF-STRICT",
+        "UF-BODY"
+      ],
+      "action": "Finish previously unperformed native schema/body diagnostics before implementation. Fake proves program schema/request/validator behavior; real provider capability/semantic output require separate evidence. Isolated I03 not deployed.",
+      "blocks": "Claims that output contract is fully shared and validated"
+    },
+    {
+      "order": 3,
+      "scope": [
+        "first-production requirements/artifacts",
+        "NFR-04",
+        "NFR-09"
+      ],
+      "action": "Verify initial format/table requirements through actual temporary artifacts; fix Office transaction or header typography before affected routes. Review is not the constructor of basic known formatting.",
+      "blocks": "Affected Office/header route or customer formatting acceptance"
+    },
+    {
+      "order": 4,
+      "scope": [
+        "NFR-06"
+      ],
+      "action": "Repair/fake-test exact feedback target and evidence retention before using refresh interaction.",
+      "blocks": "Trustworthy correction via that UI"
+    },
+    {
+      "order": 5,
+      "scope": [
+        "NFR-11",
+        "NFR-12"
+      ],
+      "action": "Correct effective prompt identity and assessed lifecycle classification with the relevant increment; preserve raw ledgers/holds.",
+      "blocks": "Exact diagnostic/cost attribution claims, not automatic report-wide stop"
+    }
+  ],
+  "remaining_scope_notice": "Seven original confirmed NFR findings remain:04,05,06,09,10,11,12. Four originally unperformed probes remain unverified. Business content/coverage/format acceptance is separate from this code-bug count. Next order is a recommended offline increment, not paid-start permission.",
+  "one_real_model_probe": {
+    "status": "scope_approved_awaiting_exact_entry_and_preflight",
+    "authority": "Main relayed user: 这样，你能否用fake数据调用真实模型，测一次模型返回数据的合法性？",
+    "interpretation": "One synthetic-input real configured text-tool structural test, superseding fake-only only for this invocation. Not report restart, Agent whole turn, unknown replay or broader real-model validation.",
+    "call_limit": "At most one actual provider POST; no SDK/transport/semantic retries or repair call. Zero-provider preflight before start. Existing 170m persistent token ledger/model bounds retained, historical holds unchanged.",
+    "not_claimed": [
+      "One sample reliability or semantic/report acceptance",
+      "Provider strict constrained generation support: current route puts schema in the prompt, no added strict wrapper",
+      "I03 body-contract implementation or original case/unknown mutation"
+    ],
+    "evidence_required": [
+      "Exact sanitized effective messages/schema/model and nonsecret transport settings, original tool args and authority/material bindings",
+      "Raw complete response without private reasoning disclosure, finish_reason/refusal/usage/request identity, received versus unknown classification",
+      "Published output_contract JSON Schema validation, actual parse_produced_output/ContentNode validation and separate synthetic expected shape/value/qualification oracle",
+      "Actual model-visible tool return projection and canonical raw/hash identity, no semantic acceptance inference"
+    ],
+    "scope": "Current registered process_report_content, one output ContentNode table, two columns/two synthetic rows, explicit missing-material condition, actual current TEXT_TOOL configured adapter and prompt/output_schema. Temporary diagnostic workspace; no original sources/case mirror, no adoption or document export.",
+    "execution_approval": "Pending Main exact harness/preflight; Neo does not issue the paid call",
+    "owner": {
+      "decision_review": "Neo",
+      "implementation_execution": "Main"
+    }
+  }
+}

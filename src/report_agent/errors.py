@@ -4,3 +4,11 @@ class ActionRejected(ValueError):
 
 class ActionForbidden(PermissionError):
     """A rejected domain action; the tool never relaxes the caller's authority."""
+
+
+class ModelRequestDeadlineExceeded(TimeoutError):
+    """The adapter's own logical request deadline expired; outcome is unknown."""
+
+    def __init__(self, seconds):
+        super().__init__("MODEL_REQUEST_DEADLINE_EXCEEDED")
+        self.deadline_seconds = seconds

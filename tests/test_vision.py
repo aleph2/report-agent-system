@@ -84,7 +84,8 @@ async def test_incomplete_is_not_success_or_cached(tmp_path, content, finish):
     a = await observe_source_image(ws, 'original', 'read', client=model)
     b = await observe_source_image(ws, 'original', 'read', client=model)
     assert a['status'] == b['status'] == 'incomplete'
-    assert not b['reused'] and len(model.calls) == 2
+    assert b['reused'] and len(model.calls) == 1
+    assert ws.store.analysis(a['operation']) is None
 
 
 @pytest.mark.asyncio
@@ -117,7 +118,10 @@ async def test_each_role_can_observe_but_no_role_or_path_parameter(tmp_path, mon
     monkeypatch.setattr('report_agent.vision.configured_vision_client', lambda: model)
     tool = next(t for t in business_tools(ws, role, None, SimpleNamespace(model_name='unused'))
                 if t.__name__ == 'analyze_source_image')
-    schema = convert_to_openai_tool(tool)['function']['parameters']['properties']
+    from langchain_core.tools import StructuredTool
+    # Exercise the actual registered interface: native runtime is injected,
+    # not a model-facing argument of the plain Python callable.
+    schema = convert_to_openai_tool(StructuredTool.from_function(coroutine=tool))['function']['parameters']['properties']
     assert set(schema) == {'source_id', 'question', 'page', 'crop'}
     result = await tool('original', 'read')
     assert result['status'] == 'observed'
@@ -132,7 +136,7 @@ async def test_vision_model_uses_authorized_account_without_changing_agent_model
     agent = configured_model(workspace(tmp_path).store, 'writer')
     assert agent.model_name == 'glm-5.3'
     assert str(vision.base_url).rstrip('/') == agent.openai_api_base
-    assert vision.max_retries == 2
+    assert vision.max_retries == 0
     assert not hasattr(vision, 'callbacks')
     await vision.close()
 
@@ -152,7 +156,8 @@ async def test_protocol_failures_not_cached(tmp_path, field, value):
     a = await observe_source_image(ws, 'original', 'read', client=client)
     b = await observe_source_image(ws, 'original', 'read', client=client)
     assert a['status'] == b['status'] == 'incomplete'
-    assert len(client.calls) == 2
+    assert b['reused'] and len(client.calls) == 1
+    assert ws.store.analysis(a['operation']) is None
 
 
 @pytest.mark.asyncio

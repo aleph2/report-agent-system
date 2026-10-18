@@ -1,0 +1,972 @@
+{
+  "as_of_date": "2026-10-17",
+  "client_timezone": "Australia/Sydney",
+  "base_commit": "b5525a3474b2f284f7a638f226be35a57d6e5d13",
+  "source_basis": "current working tree, including pre-existing uncommitted changes",
+  "method": "filesystem reads and Python AST only; no application import, store creation, provider call or runtime dispatch",
+  "limitation": "Static prompts, exact source assembly, and declared tool descriptions. Dynamic per-call messages, database instructions, material packets and provider-converted tool schemas are not reconstructed by executing the application.",
+  "prompts": [
+    {
+      "id": "p01",
+      "title": "Common",
+      "status": "当前Coordinator／Writer／Layout公共基底；当前delegated Reviewer被ORGANIZER覆盖，不能默认也收到本文件。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\content-common.md",
+      "source_line": 1,
+      "source_sha256": "6401150614c2510cd343f246db9bb12a80ec2f1accbca45cad1f09b66a22c8c3",
+      "prompt_characters": 2502,
+      "prompt_utf8_sha256": "6401150614c2510cd343f246db9bb12a80ec2f1accbca45cad1f09b66a22c8c3",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p01-content-common-Common.txt",
+      "expression": null
+    },
+    {
+      "id": "p02",
+      "title": "Coordinator",
+      "status": "当前协调者；拼接Common。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\content-coordinator.md",
+      "source_line": 1,
+      "source_sha256": "0116450f609d1905ab296f880fc8c8b0ca398c4b5d28af19b0c9121b4f9ce81b",
+      "prompt_characters": 9426,
+      "prompt_utf8_sha256": "0116450f609d1905ab296f880fc8c8b0ca398c4b5d28af19b0c9121b4f9ce81b",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p02-content-coordinator-Coordinator.txt",
+      "expression": null
+    },
+    {
+      "id": "p03",
+      "title": "Writer",
+      "status": "当前写作者；拼接Common和context_guidance。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\content-writer.md",
+      "source_line": 1,
+      "source_sha256": "de687b2ecc44da9a9e5630dff20d6eb7bee7345b6a17378bb50c6b86e0b433e0",
+      "prompt_characters": 3024,
+      "prompt_utf8_sha256": "de687b2ecc44da9a9e5630dff20d6eb7bee7345b6a17378bb50c6b86e0b433e0",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p03-content-writer-Writer.txt",
+      "expression": null
+    },
+    {
+      "id": "p04",
+      "title": "Layout",
+      "status": "当前排版角色；拼接Common和context_guidance。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\content-layout.md",
+      "source_line": 1,
+      "source_sha256": "73244c7da14b0a67d698c3901b7c180fb2d6e9d88287c5561daa26752ff049a0",
+      "prompt_characters": 2333,
+      "prompt_utf8_sha256": "73244c7da14b0a67d698c3901b7c180fb2d6e9d88287c5561daa26752ff049a0",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p04-content-layout-Layout.txt",
+      "expression": null
+    },
+    {
+      "id": "p05",
+      "title": "Learner",
+      "status": "独立学习任务；非报告必经角色。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\experience-optimizer.md",
+      "source_line": 1,
+      "source_sha256": "23714529cb77eca64fd33b4c0806f8cc4e9276b2454710a6a3e56b1e468b807c",
+      "prompt_characters": 2111,
+      "prompt_utf8_sha256": "23714529cb77eca64fd33b4c0806f8cc4e9276b2454710a6a3e56b1e468b807c",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p05-experience-optimizer-Learner.txt",
+      "expression": null
+    },
+    {
+      "id": "p06",
+      "title": "Reviewer-stored-role",
+      "status": "源码保留文本；当前build_agent实际替换为ORGANIZER_PROMPT。部分身份hash仍取本文件组合，不可视作有效prompt证据。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\content-reviewer.md",
+      "source_line": 1,
+      "source_sha256": "58ab52118b0787fd97fefb16c8395d08d35a39665458196ed0f0c0e9d10aa955",
+      "prompt_characters": 7698,
+      "prompt_utf8_sha256": "58ab52118b0787fd97fefb16c8395d08d35a39665458196ed0f0c0e9d10aa955",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p06-content-reviewer-Reviewer-stored-role.txt",
+      "expression": null
+    },
+    {
+      "id": "p07",
+      "title": "Historical-report-reviewer",
+      "status": "历史／兼容路径；不是当前hierarchical主路径有效角色提示。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\report-reviewer.md",
+      "source_line": 1,
+      "source_sha256": "b8d9cd106d0310c303c10f782505cd1a017d4d510c4c1648d11a6fb37b5fd905",
+      "prompt_characters": 1187,
+      "prompt_utf8_sha256": "b8d9cd106d0310c303c10f782505cd1a017d4d510c4c1648d11a6fb37b5fd905",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p07-report-reviewer-Historical-report-reviewer.txt",
+      "expression": null
+    },
+    {
+      "id": "p08",
+      "title": "Historical-report-review",
+      "status": "历史／兼容rubric；不代表当前委派审核的任务与标准。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\report-review.md",
+      "source_line": 1,
+      "source_sha256": "b63e7620378e6648fa9882db5c69e978a9744e0a5c095c1db0642792abc70ca5",
+      "prompt_characters": 1579,
+      "prompt_utf8_sha256": "b63e7620378e6648fa9882db5c69e978a9744e0a5c095c1db0642792abc70ca5",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p08-report-review-Historical-report-review.txt",
+      "expression": null
+    },
+    {
+      "id": "p09",
+      "title": "Historical-acceptance-reviewer",
+      "status": "历史／兼容路径；当前原生入口拒绝非hierarchical运行。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\rules\\acceptance-reviewer.md",
+      "source_line": 1,
+      "source_sha256": "340e74c063010a8957579a17ab2e9b20cd960e4858eb382e6f5521a86d70b2a4",
+      "prompt_characters": 3489,
+      "prompt_utf8_sha256": "340e74c063010a8957579a17ab2e9b20cd960e4858eb382e6f5521a86d70b2a4",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p09-acceptance-reviewer-Historical-acceptance-reviewer.txt",
+      "expression": null
+    },
+    {
+      "id": "p10",
+      "title": "ORGANIZER_PROMPT",
+      "status": "当前Reviewer决策角色的实际基底，后加reviewer context_guidance。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\bounded_review.py",
+      "source_line": 109,
+      "source_sha256": "97e2b9e3aa2697340d67d14b3a40ebcb6de6d26f60195109b0cff5a989c292bf",
+      "prompt_characters": 3274,
+      "prompt_utf8_sha256": "5ddb61f4da436968da345ee143e275912e37cbccb7b9064e8f85f9fa910864ec",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p10-bounded_review-ORGANIZER_PROMPT.txt",
+      "expression": null
+    },
+    {
+      "id": "p11",
+      "title": "TOOL_PROMPT",
+      "status": "独立内容审核工具内部prompt；不等于Reviewer决策prompt。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\bounded_review.py",
+      "source_line": 61,
+      "source_sha256": "97e2b9e3aa2697340d67d14b3a40ebcb6de6d26f60195109b0cff5a989c292bf",
+      "prompt_characters": 3708,
+      "prompt_utf8_sha256": "754e3ade78d00df904f8b97e9666791e0c7ef66f95172e748a0211ecdf9f5603",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p11-bounded_review-TOOL_PROMPT.txt",
+      "expression": null
+    },
+    {
+      "id": "p12",
+      "title": "TEXT_WORK_PROMPT",
+      "status": "正文／证据生成工具内部prompt，输入材料packet另行组装。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\text_work.py",
+      "source_line": 27,
+      "source_sha256": "72e3ebccc676a6924b0e030612f98ebf5a8d8e07a69762646c461309fdf8e3e4",
+      "prompt_characters": 1617,
+      "prompt_utf8_sha256": "0de421b8c4ab0473639d522dc8dff1529a2df72c9588536dbbf4fab84909fab0",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p12-text_work-TEXT_WORK_PROMPT.txt",
+      "expression": null
+    },
+    {
+      "id": "p13",
+      "title": "QUALIFIER_WORK_PROMPT",
+      "status": "显式qualifiers-only修订工具prompt，由基础文本替换生成；正文等由服务端保留。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\text_work.py",
+      "source_line": 50,
+      "source_sha256": "72e3ebccc676a6924b0e030612f98ebf5a8d8e07a69762646c461309fdf8e3e4",
+      "prompt_characters": 1891,
+      "prompt_utf8_sha256": "443b52eec591f0831804a4ae1e07f049f8451b027211f7fd9671a251c3422808",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p13-text_work-QUALIFIER_WORK_PROMPT.txt",
+      "expression": "TEXT_WORK_PROMPT.replace(\n    'For ContentNode produce its complete body, qualifiers and claim_kind together,\\nincluding table cells, captions and substantive notes.',\n    'For the explicit qualifiers revision, return only complete replacement qualifiers for each ordered target using output_schema. The server preserves body, kind and claim_kind exactly. Read the entire target draft and supplied original evidence; preserve genuine technical uncertainty and adverse evidence. Do not treat old report assertions as source facts or remove qualifications merely to sound confident.')"
+    },
+    {
+      "id": "p14",
+      "title": "ANALYSIS_PROMPT",
+      "status": "analyze_text／analyze_evidence共用的有界资料分析prompt。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\evidence_analysis.py",
+      "source_line": 39,
+      "source_sha256": "8a23d2ea1793ac0b2fc82ed76f9ade40408ffa4afcad239050a1dccbcf6fb7a9",
+      "prompt_characters": 990,
+      "prompt_utf8_sha256": "0ec07a4337dce6222e78086aec7cb506afbfae090a1574f3f15b06703a8cdfcd",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p14-evidence_analysis-ANALYSIS_PROMPT.txt",
+      "expression": null
+    },
+    {
+      "id": "p15",
+      "title": "VISION_INSTRUCTION",
+      "status": "图像分析工具prompt；question、图像和provenance是动态输入。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\vision.py",
+      "source_line": 17,
+      "source_sha256": "9d689d281e242f1edab985a6437949028ecfb95e21c9fd9cd062ed373ce2dcec",
+      "prompt_characters": 643,
+      "prompt_utf8_sha256": "782bb938a3449861fe1b74563d8b7402387a26de0eb958b0f05094433108bb50",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p15-vision-VISION_INSTRUCTION.txt",
+      "expression": null
+    },
+    {
+      "id": "p16",
+      "title": "PROMPT",
+      "status": "工作历史摘要工具prompt；不是Agent、不是应用权威状态。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\working_summary.py",
+      "source_line": 11,
+      "source_sha256": "159e703780f4ee4416b8de0c5c505af81dbda430326700edcc8cc09e47fa98bc",
+      "prompt_characters": 1567,
+      "prompt_utf8_sha256": "f07d90b4a03aa720187ca2232802cb3fdae5c3e24f42228ab4f4ba35b1b94e8c",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p16-working_summary-PROMPT.txt",
+      "expression": null
+    },
+    {
+      "id": "p17",
+      "title": "bounded_artifact_review_tool.perform_assigned_artifact_review.prompt",
+      "status": "独立产物审核工具内部prompt；实际观察receipt、scope和output_schema另行传入。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\artifact_review.py",
+      "source_line": 174,
+      "source_sha256": "6328051a2bdf03e3987e3345b76fd43ba63483842d12d9de6f8d8646418584cc",
+      "prompt_characters": 970,
+      "prompt_utf8_sha256": "bd50d73fc14138da245d336aff2ac285f8dbb8b5af51998e88efcfffa75ccdb5",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p17-artifact_review-bounded_artifact_review_tool-perform_assigned_artifact_review-prompt.txt",
+      "expression": null
+    },
+    {
+      "id": "p18",
+      "title": "learning_analysis_tool.analyze_learning_material.prompt",
+      "status": "学习资料分析工具内部prompt；不替Learner形成一般行动策略。",
+      "source_path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_text_work.py",
+      "source_line": 81,
+      "source_sha256": "216e762ef9a40c43a6f7aa9bc3a4a1eb7cdee7902f57a14dc38f2e59a6cb3208",
+      "prompt_characters": 650,
+      "prompt_utf8_sha256": "93c38e061a971fd2fa117a2ffab260cc8ee8034b0bf453bbbf8fb5ffa8b119f6",
+      "extracted_file": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\reviews\\system-design-and-requirements-20261017\\prompts\\p18-learning_text_work-learning_analysis_tool-analyze_learning_material-prompt.txt",
+      "expression": null
+    }
+  ],
+  "source_excerpts": [
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "role_prompt",
+      "start_line": 24,
+      "end_line": 26,
+      "source_sha256": "8e0a06f180ce872a770cec67b0a68a8bc253362f892fe8357ab5bbc3df6aa951",
+      "excerpt_sha256": "cbd0aa71a94c8ccd86b7f4c487025de0262b53194175523ad93a32765d19a4a4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "build_agent",
+      "start_line": 766,
+      "end_line": 837,
+      "source_sha256": "7330bf0213b8b6bc1ee11df0048498fea98b428c0af6b0ed33604bdf55dc1d84",
+      "excerpt_sha256": "6d1ae97038f78048f94ad56d150d7c043dbdfb62a2dd7e084e3f4ab0adefa900"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "BusinessBoundary.awrap_model_call",
+      "start_line": 126,
+      "end_line": 177,
+      "source_sha256": "7330bf0213b8b6bc1ee11df0048498fea98b428c0af6b0ed33604bdf55dc1d84",
+      "excerpt_sha256": "5b8df7c36ec9f16677c8cb7f9ce2e9e58ebc6b30e580c127b960cc7e59e740b9"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\task_context.py",
+      "symbol": "exact_task_context",
+      "start_line": 38,
+      "end_line": 137,
+      "source_sha256": "3acfe9c02ff98c939ebcc5f4a4beffc59d8b9ca6281803b0b1f903afc70a17d0",
+      "excerpt_sha256": "75753e8493533fa3e25b5515b8f5de0cfe7d27212527eddd145079a38a76de79"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\task_context.py",
+      "symbol": "TaskContext.awrap_model_call",
+      "start_line": 278,
+      "end_line": 298,
+      "source_sha256": "3acfe9c02ff98c939ebcc5f4a4beffc59d8b9ca6281803b0b1f903afc70a17d0",
+      "excerpt_sha256": "31fffb669268e4cad5e401c2651c60650c276f09c281c671d1ed48b4947fd1f4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\working_summary.py",
+      "symbol": "working_summary",
+      "start_line": 181,
+      "end_line": 194,
+      "source_sha256": "159e703780f4ee4416b8de0c5c505af81dbda430326700edcc8cc09e47fa98bc",
+      "excerpt_sha256": "c166db2abab3b24cc60bb3453a1940f1beab1d3d9e3e87beabb38331b6d63e00"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "symbol": "build_optimizer",
+      "start_line": 149,
+      "end_line": 179,
+      "source_sha256": "e1e9e983efa0305ddbf2b19efda700862f5e1deda29bb450bc1f7853e3ceaa46",
+      "excerpt_sha256": "bcce5332be3e06f8133a72a7603ea91410d084a03b0a69ca21c0f0f99bda19d1"
+    }
+  ],
+  "tool_descriptions": [
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.project_status",
+      "line": 349,
+      "signature": "def project_status() -> dict",
+      "docstring": "Observe project goal, source catalog, saved results, issues and feedback.",
+      "docstring_sha256": "ab7fd6f5126f94dcf1495acc88392bac78f27e88a31bdcc4b005d3ca5a640bad"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.read_source_page",
+      "line": 353,
+      "signature": "def read_source_page(source_id: str, offset: Annotated[int, Field(ge=0, strict=True, description='Zero-based frozen text-block offset, not a physical or printed PDF page number.')]=0, limit: Annotated[int, Field(ge=1, le=50, strict=True, description='Number of frozen text blocks, from 1 to 50; not characters or PDF pages.')]=10, table_detail: Literal['references', 'full'] | None=None, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Read frozen text blocks at a zero-based block offset. next_offset is the\n        next block offset in the source result, not a character or PDF-page cursor.\n        Blocks and physical pages are not interchangeable: use each returned locator.\n        inspect_source_page accepts a 1-based physical PDF page instead.\n        A compact tool-result preview may separately truncate returned text fields;\n        next_offset=None does not prove you have read that complete saved observation.\n\n        source_table_views adds mechanical PDF table rows for the returned physical\n        pages when available. These separate whole-page supplements may be incomplete;\n        they do not replace the original text, perform OCR or verify column meanings.\n        table_detail='references' retains all selected frozen text and defers table\n        extraction with exact inspect_source_page access. Unexpanded is not absent.\n        Omitted/full preserves historical full supplements, independent of search\n        defaults. Switching views does not authorize retrying unknown paid work.\n        ",
+      "docstring_sha256": "da7623aa39b8bf0e8accfc39f896124cc28bc7c5f542c71d4a61468f3b5a7195"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.search_sources",
+      "line": 378,
+      "signature": "def search_sources(query: str, offset: int=0, limit: int=10, source_id: str | None=None, table_detail: Literal['references', 'full'] | None=None, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Search current source text literally, optionally within one exact source ID.\n\n        Returns actual searched source IDs, located matches and next_offset. Omit\n        source_id to search all current sources. No match is not proof of absence;\n        read_source_page can read a specific historical version when needed.\n        table_detail='full' adds the original unverified whole-page mechanical table\n        views; 'references' defers those views with explicit inspect_source_page access.\n        Omit it to use this project's bound default (full unless configured otherwise).\n        Deferral does not mean tables/information are absent. Matched frozen text and\n        pagination are unchanged. No new OCR or semantic interpretation.\n        ",
+      "docstring_sha256": "182a0ebb78853f99b6a022ea20fa2e1cfbcdbd956c5593560ad83755b078cbf0"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.calculate",
+      "line": 404,
+      "signature": "def calculate(terms: list[list[str]]) -> dict",
+      "docstring": "Add the products of decimal factors: [[\"50\",\"0.03\"],[\"-0.2\"]] gives 1.30.\n\n        Returns every product and total. You choose inputs, signs, units and the applicable\n        rule; this tool does arithmetic only, not engineering judgments or report edits.\n        ",
+      "docstring_sha256": "08fe68386b6a744bc3d7a7952c054498b0f167ed20323b866574e5f0cd2deb5b"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.inspect_source_page",
+      "line": 412,
+      "signature": "def inspect_source_page(source_id: str, page: int, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Inspect a 1-based physical PDF page, not a text-block offset or printed page label.\n\n        Returns original-page text, frozen extraction, mechanical table rows and a\n        source-page:// image reference usable in Markdown figures. Table geometry\n        is unverified and may be incomplete. No new OCR or visual interpretation.\n        ",
+      "docstring_sha256": "2566850e71942324cde748ed7bdde5176f74b2f31b4468907d23a01d46d8d8b6"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.analyze_source_image",
+      "line": 430,
+      "signature": "async def analyze_source_image(source_id: str, question: str, page: int=1, crop: list[float] | None=None, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Ask a visual model about a project PDF page or PNG/JPEG/WebP image, including OCR.\n\n        page is a 1-based physical PDF page (1 for images). Optional crop is normalized\n        [left, top, right, bottom] within that page/image. Ask what you need to observe;\n        reuse existing extraction when suitable. Returns located, cached observations,\n        not verified facts. Does not edit sources, existing OCR, shared knowledge or reports.\n        ",
+      "docstring_sha256": "76b55e046301128852ed228d0bf9cae834b7edf6b1be6f127096dc1191abda4b"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.preview_report",
+      "line": 453,
+      "signature": "def preview_report(draft_id: str, offset: int=0, limit: int=30, preview_version: str='', runtime: ToolRuntime=None) -> dict",
+      "docstring": "Export an exact saved draft and inspect its actual document structure and text.\n\n        Omit preview_version to create a new export. Pass its returned preview_version\n        on subsequent pages to inspect that exact snapshot without exporting again.\n        Does not review, approve, select delivery or imply visual/engineering correctness.\n        ",
+      "docstring_sha256": "4b3ee31bfddc8d0f03003ee581b7fce9e7a1ba9b02494c24bce787f9da5d8ba2"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.read_result",
+      "line": 469,
+      "signature": "def read_result(result_id: str, offset: int=0, characters: int=12000, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Read a saved result version; paginate until next_offset is null for full text.\n\n        offset must be nonnegative; characters must be between 1 and 16000.\n        ",
+      "docstring_sha256": "69f6d8b506972c43af0a480e6bdc6aa90123fbd482f14ef4ce6bd8b9990eb468"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.analyze_text",
+      "line": 489,
+      "signature": "async def analyze_text(source_id: str, purpose: str, offset: int=0, limit: int=10) -> dict",
+      "docstring": "Optional one-shot LLM analysis of a source page for a stated purpose, no delegation or writes.",
+      "docstring_sha256": "a0f55f144e71c80bb3a6f1e3e22bdf7afeb6070afc9ff5b62106c1ad9dd619da"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.analyze_evidence",
+      "line": 496,
+      "signature": "async def analyze_evidence(question: str, source_selections: list[SourceSelection], result_selections: list[ResultSelection], snapshot_ref: Ref | None=None, content_selections: list[ContentSelection] | None=None, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Optional local LLM comparison of caller-selected project evidence, with bound versions.\n\n        Choose a question and sources, legacy results, or exact ContentNode versions.\n        For tree content supply snapshot_ref and content_selections: ref, unit=text/rows,\n        offset and limit (characters up to 16000, table rows up to 100). Read the index\n        to choose one or related nodes; no descendants are fetched automatically.\n        Empty source/result lists are allowed. Source offsets count blocks, not PDF pages.\n        Existing whole-page mechanical table supplements are identified separately.\n        The question can have a false premise. One model call; no search, delegation,\n        business-artifact writes or acceptance decision. Returns observations and limits.\n        ",
+      "docstring_sha256": "25edc0c0998e7d22fd387312639a0cc52073e7dc5840be786eef6d2be98b5063"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.submit_result",
+      "line": 529,
+      "signature": "def submit_result(kind: Literal['purpose', 'plan', 'materials', 'draft', 'review'], title: str, body: str, source_ids: list[str], input_ids: list[str], outcome: str='', target_id: str='', replaces_id: str='', fact_ids: list[str]=[], runtime: ToolRuntime=None) -> dict",
+      "docstring": "Save your own outcome with adopted sources/results. Review targets an exact draft.\n\n        kind is an outcome tag, not a required stage. To revise, supply your own replaces_id.\n        fact_ids are exact shared knowledge versions actually used, not search candidates.\n        ",
+      "docstring_sha256": "914fd205f94d569c99e81ee8599faa6afdf63668c2503e42bdefb0774f2cb490"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.request_correction",
+      "line": 578,
+      "signature": "def request_correction(result_id: str, description: str) -> dict",
+      "docstring": "Ask the responsible producer to correct an upstream result; does not change it.",
+      "docstring_sha256": "d717779dc52e2624a40cf90d98ded56b93aa03842d8827303e521ddd2281123c"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.assess_result_impact",
+      "line": 582,
+      "signature": "def assess_result_impact(result_id: str, description: str) -> dict",
+      "docstring": "Judge whether your existing result remains usable after an adopted input changed.",
+      "docstring_sha256": "3ec827763935fa0640e520924159eb56a4bdf4877dc3318972e5e5e28dcb883d"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.ask_human",
+      "line": 589,
+      "signature": "def ask_human(category: Literal['source_missing', 'source_conflict', 'system_failure', 'requirement'], description: str, source_ids: list[str]=[], pause: bool=True) -> dict",
+      "docstring": "Record an unresolved issue for human handling; choose whether to pause.\n\n        Set pause=False when supported work can continue with an explicit limitation.\n        This does not resolve the issue or grant permission to guess an answer.\n        With pause=True, wait at a native checkpoint for an operator response.\n        ",
+      "docstring_sha256": "e76ee30713cb7a3e730ad845e4d8edd361de219f84614342f044002db95e1e4a"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.knowledge_search",
+      "line": 606,
+      "signature": "def knowledge_search(query: str, mode: Literal['hybrid', 'text', 'vector']='hybrid', limit: int=10, offset: int=0) -> dict",
+      "docstring": "Search shared indexed facts/summaries using semantic vectors, text or both.",
+      "docstring_sha256": "86e2a966fbbd6cd862e93ba0821e683d79a4a137a5cccc044f4dc5a5bed5255d"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.knowledge_read",
+      "line": 611,
+      "signature": "def knowledge_read(fact_id: str) -> dict",
+      "docstring": "Read a shared fact version with sources, ownership and revision history.",
+      "docstring_sha256": "a8a294d1e5c0aa84e63d9eea35e4bde5cd11cc4a3969611bbee973cf99e6c1da"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.knowledge_traverse",
+      "line": 615,
+      "signature": "def knowledge_traverse(fact_id: str, depth: int=1, limit: int=20, offset: int=0) -> dict",
+      "docstring": "Explore related shared facts through graph edges; paginated results are partial.",
+      "docstring_sha256": "f1c43fa141621a450074273a867d429ff516d0feae01fb1bc1e6740c5bb4eb67"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.save_draft",
+      "line": 619,
+      "signature": "def save_draft(title: str, body: str, source_ids: list[str], input_ids: list[str], fact_ids: list[str]=[], replaces_id: str='', kind: Literal['draft']='draft', criteria_id: str='', runtime: ToolRuntime=None) -> dict",
+      "docstring": "Save a report draft, not an approval. Adopt exact source/result/fact IDs.\n\n        Use full source IDs from the catalog. To revise your draft, supply replaces_id.\n        Its historical base is retained there, not duplicated in input_ids.\n        The complete draft belongs in body. In requirement-derived acceptance mode,\n        criteria_id must be the exact shared standard version you used to produce it.\n        Stale versions are rejected; review outcomes are a separate capability.\n        ",
+      "docstring_sha256": "de75af8bf5ee10e92d06b4707ad4d77901881da7674bda10f5692ef7aa0b2404"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.save_review",
+      "line": 649,
+      "signature": "def save_review(title: str, body: str, source_ids: list[str], target_id: str, outcome: Literal['accepted', 'changes_required'], input_ids: list[str]=[], fact_ids: list[str]=[], replaces_id: str='', kind: Literal['review']='review', runtime: ToolRuntime=None) -> dict",
+      "docstring": "Save your review of the exact draft read in this context.\n\n        target_id is a saved results[].id, not a task ID or scratch-file path.\n        Its evidence link is saved automatically; input_ids lists other adopted results.\n        If no saved draft exists, return this fact to the delegating agent.\n        outcome is accepted or changes_required, never prose.\n        Put assessment reasons and remaining issues in body. This is not engineering approval.\n        ",
+      "docstring_sha256": "f30dbacbe37c81340b83f01283773352c6bbde202621b37d6a8f2f11671bff41"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "symbol": "business_tools.save_knowledge_artifact",
+      "line": 664,
+      "signature": "def save_knowledge_artifact(kind: Literal['purpose', 'plan'], title: str, body: str, source_ids: list[str], input_ids: list[str], fact_ids: list[str]=[], replaces_id: str='', runtime: ToolRuntime=None) -> dict",
+      "docstring": "Save an optional document-use interpretation or plan. Indexed evidence belongs in knowledge_put.",
+      "docstring_sha256": "03e020659118469b2263111265ce18b78eff056217ca654aa9099d214fb43cdc"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.content_status",
+      "line": 45,
+      "signature": "def content_status() -> dict",
+      "docstring": "Observe content state; not an approval. For pageable complete object identities,\n        types, owners, versions and relations use read_object_index, even before a snapshot exists.\n        ",
+      "docstring_sha256": "7dcff2c408a64167db2261273eec588075779a538f7ab3ae60dfb952de3c6ef9"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_object_index",
+      "line": 56,
+      "signature": "def read_object_index(offset: Annotated[int, Field(ge=0)]=0, limit: Annotated[int, Field(ge=1, le=20)]=20, object_type: str='', owner_id: str='', current_only: bool=False, inventory_digest: str='') -> dict",
+      "docstring": "Page exact metadata for existing project objects before or after snapshot creation.\n        No snapshot is required. Filter by exact object_type/owner_id or current_only.\n        Returns whole refs, ownership, payload digests, node kinds/literal titles and relation\n        endpoints, without report bodies. Use next_offset (may be less than limit), identical\n        filters and returned inventory_digest on later pages. A changed filtered inventory\n        rejects continuation; restart at zero. Project-wide available_types counts are\n        auxiliary and may change independently. These refs do not grant authorship or choose a snapshot.\n        ",
+      "docstring_sha256": "8673e08282c0c10d914c5f535139d0d7270cae3fca3e46d44c966709d4496310"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_task_supervision",
+      "line": 72,
+      "signature": "def read_task_supervision(offset: int=0, limit: int=20) -> dict",
+      "docstring": "Page existing reviewer assignments, matched saved checks and incomplete reasons.\n        Bookkeeping is not semantic acceptance. Todos cannot remove these obligations.\n        A returned follow-up consumes the task's one completion request even if still incomplete.\n        ",
+      "docstring_sha256": "4397c3e7de18a181aefb3a7a224f8b6dad3b6a108c5f11cdc19b6d92113c5307"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.list_supervision_plugins",
+      "line": 81,
+      "signature": "def list_supervision_plugins() -> dict",
+      "docstring": "Inspect optional server-registered reviewer supervision plugins.\n        Choose supervision_plugin on a new reviewer task, or omit it for none.\n        Catalog selection does not broaden authorization or establish correctness.\n        ",
+      "docstring_sha256": "b383b2cc4cd4c07c8bd9f4e16ccf7fb7b9eb6589bbbd843aa7e33621a62d3b11"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_review_obligation_coverage",
+      "line": 90,
+      "signature": "def read_review_obligation_coverage(snapshot_ref: Ref) -> dict",
+      "docstring": "Compare independent criteria/requirements with actual assigned review scopes.\n        This optional inventory exposes absent assignments; scope presence is not full semantic coverage.\n        ",
+      "docstring_sha256": "4099d5e75a6d5093200e2dc1f01d2e784011846c23d4b97fc18551eaf66da272"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_task_assignment",
+      "line": 98,
+      "signature": "def read_task_assignment(runtime: ToolRuntime=None) -> dict",
+      "docstring": "Read your server-bound delegated assignment and its saved completion requirements.\n        These are scoped outcomes, not instructions hidden in source documents.\n        ",
+      "docstring_sha256": "47050798ab01e212f65781a0721292f95bb872edad32d780e4b9aad8526081bc"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_context",
+      "line": 118,
+      "signature": "def read_context(target_ref: Ref, offset: int=0, limit: int=20) -> dict",
+      "docstring": "Read actual saved objects or a paged snapshot, including unreturned refs and continuation.\n\n        For local investigation read nodes, their containing snapshot's relations and needed\n        parents/dependencies. Initial local scope does not restrict independent source access.\n        ",
+      "docstring_sha256": "3d9922e1002c0793e8801c7eb0519e7916513f6945feaae96814e26ed7fb41c2"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_review_status",
+      "line": 126,
+      "signature": "def read_review_status(snapshot_ref: Ref, target_ref: Ref | None=None, export_ref: Ref | None=None, offset: int=0, limit: int=20) -> dict",
+      "docstring": "Read version-scoped review state, including objects never reviewed, coverage,\n        historical judgments, reuse/recheck candidates and independent handling chains.\n        Optional target_ref selects one exact object; export_ref selects an exact export.\n        This metadata grants no observation receipt or acceptance. Reviewers judge their\n        declared scope; the coordinator chooses subsequent work from their feedback.\n        ",
+      "docstring_sha256": "c5c5354e8e0790ea36e02907cdb36b3739b12e670104e536fa3828f174230ae0"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_content_index",
+      "line": 140,
+      "signature": "def read_content_index(snapshot_ref: Ref, offset: int=0, limit: int=20) -> dict",
+      "docstring": "Page through node identities, sizes and relations without loading report bodies.\n\n        Returns all node kinds including parent/structure nodes and detached claims in\n        manifest order; contains relations supply actual document order. Metadata is\n        not an observation receipt or a claim that any node was reviewed.\n        ",
+      "docstring_sha256": "b389545e3d8ea7df7c3c1ceaef642cedf05cbf746753d4625c1fe7b448210b05"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_content_selection",
+      "line": 150,
+      "signature": "def read_content_selection(snapshot_ref: Ref, selections: list[ContentSelection]) -> dict",
+      "docstring": "Read caller-selected exact nodes and ranges with an actor-bound receipt.\n\n        Each selection has ref, unit=text/rows, offset, limit. Text limits are characters\n        up to 16000; table limits are data rows up to 100 (headers always included).\n        Returns qualifiers, exact versions, unreturned range and limits. No implicit\n        descendants or sources are read; reading is not semantic review completion.\n        ",
+      "docstring_sha256": "aa46c76015c6210e9b6143d04c122163ce8fafda21bc0e78245badba03076969"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.import_source_versions",
+      "line": 164,
+      "signature": "def import_source_versions(operation_id: str, source_ids: list[str]) -> dict",
+      "docstring": "Snapshot authorized source text/metadata and the unchanged commission; no interpretation.",
+      "docstring_sha256": "4e2e99067d632728a320ddee3a330de0368c2955eef548cdf828b4c5cde87ff5"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.capture_review_sources",
+      "line": 168,
+      "signature": "def capture_review_sources(operation_id: str, source_ids: list[str]) -> dict",
+      "docstring": "Capture exact authorized source versions discovered independently during review.\n        No requirement, author evidence, content or snapshot is changed. Put adopted\n        source_refs in review dependency_refs; capture alone asserts no support.\n        ",
+      "docstring_sha256": "b9f9dd68a1edcb4784feff7b395e8df0d9785905450c1c3b2e1cb4a0265db612"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.commit_objects",
+      "line": 175,
+      "signature": "def commit_objects(operation_id: str, objects: list[CommitObject]) -> dict",
+      "docstring": "Commit your owned typed objects atomically. Each has client_key, type, payload,\n        optional previous_ref (compare-and-swap exact head). No model-generated IDs/versions.\n        In payloads use {client_key: key} to refer to another new object in this batch.\n        Types: Criterion (coordinator only), ContentNode, Evidence, Relation.\n        Criterion: requirement_refs,purpose,scope,expected_outcome,evidence_expectation,allowed_limits.\n        ContentNode: kind,body,qualifiers,claim_kind. Text body={text:...}; table={columns:[],rows:[[]]}.\n        Evidence: source_refs,locator,excerpt; computation also input_refs,method,tool_receipt,result.\n        Relation: subject_ref,predicate,object_ref,provenance_kind; contains also position.\n        Relations are author assertions, not verification. Revise only your own records.\n        ",
+      "docstring_sha256": "224a4004c8e7e8f12d03054ad5da504d0a62891742ebf44dfb4a6c6fbe26a105"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.save_text_node",
+      "line": 191,
+      "signature": "def save_text_node(operation_id: str, text: str, kind: Literal['report', 'chapter', 'block', 'cell', 'claim'], claim_kind: Literal['fact', 'calculation', 'inference', 'recommendation', 'structure'], qualifications: str, previous_ref: Ref | None=None) -> dict",
+      "docstring": "Save one owned text node with flat arguments, avoiding a nested batch payload.\n        Returns its exact ref. Qualifications describe conditions/limits. This does not\n        create evidence links, publish a report or declare review acceptance. Use\n        commit_objects for structured tables, evidence, relations or atomic batches.\n        previous_ref revises only your own exact version; omit to create a new node.\n        ",
+      "docstring_sha256": "ee40627047873b5174a3981abb1f0a83a12b3103d0158eab217a14c09fe510f4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.freeze_snapshot",
+      "line": 210,
+      "signature": "def freeze_snapshot(operation_id: str, root_ref: Ref, refs: list[Ref], workbook_refs: list[Ref] | None=None) -> dict",
+      "docstring": "Freeze an explicit complete version manifest, including criteria and reference closure.\n        This validates structure, not correctness. Export need not wait for all reviews.\n        Manifest members may only be Requirement, Criterion, SourceArtifact, Evidence,\n        ContentNode or Relation, with exactly one selected version per logical object.\n        Tasks, snapshots, exports and review records are not manifest members.\n\n        root_ref and contains relations define report prose. Optional workbook_refs\n        explicitly register workbook-only table or text-block nodes in the same\n        manifest. They must be detached from the report tree, without contains\n        parents/children; undeclared detached presentation nodes remain rejected.\n        This keeps separate workbook notes outside Word without changing content\n        or ownership. An XLSX export must select all and only the registered\n        workbook_refs when this channel is declared. Choose applicability and\n        organization from the assignment; registration is not semantic approval.\n        ",
+      "docstring_sha256": "8fe925dc77bd22c6dc2650229c7488b8ed30ad2681df901359da7b097962ff4a"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.derive_snapshot",
+      "line": 229,
+      "signature": "def derive_snapshot(operation_id: str, base_snapshot_ref: Ref, additional_refs: list[Ref], replacements: list[SnapshotReplacement] | None=None, workbook_refs: list[Ref] | None=None) -> dict",
+      "docstring": "Create a snapshot from an exact immutable base and explicit saved version deltas.\n\n        Existing members need not be copied into arguments. additional_refs adds exact\n        new members; replacements maps exact base previous_ref to new_ref of the same\n        logical type/id. Explicitly replace affected relations too: no dependencies,\n        current heads, content, layout or engineering choices are inferred.\n        workbook_refs omitted inherits the base channel (mapped by replacements);\n        an explicit list replaces its declaration. Root follows explicit replacement.\n        All original freeze ownership, closure, tree and workbook constraints apply.\n        No members are removed; use freeze_snapshot for a different full manifest.\n        Old content ownership, snapshots, exports and reviews remain unchanged.\n        This creates no export and grants no semantic or engineering acceptance.\n        ",
+      "docstring_sha256": "7ed3edbc875ec4fbb2602be8d07619c4c28a80a065e1ef3015df084bfa4cb679"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.submit_review",
+      "line": 250,
+      "signature": "def submit_review(operation_id: str, review: ReviewSubmission, delivery_export_ref: Ref | None=None) -> dict",
+      "docstring": "Save scoped observations and findings against an exact snapshot. Does not revise content,\n        finish the project or trigger author actions. Observation receipts come from read_context,\n        observe_evidence, read_content_export or inspect_rendered_page. Null means no judgment yet.\n        Optional delivery_export_ref binds export provenance only.\n        Excel is checked for content, version and corrections only; render/layout\n        assessments apply to Word. An Excel export-fidelity check remains allowed.\n        Export/page objects go in artifact_refs, not item target_ref.\n        No final-snapshot submission is required.\n        scope describes the judgment; optional scope_id preserves identity across wording\n        changes. Optional per-item dependency_refs override batch dependencies for reuse.\n        Local target_ref can be an exact ContentNode; snapshot_ref supplies its context.\n        Choose the true scope and dependencies: whole-snapshot records cannot be reused\n        unchanged as local findings in a different snapshot. Saving does not broaden scope.\n        This persists a real assessment, not a dry run. Never submit diagnostic filler\n        or placeholder verdicts to test argument formatting.\n        ",
+      "docstring_sha256": "ef264062090060ae8a2654ab50e6422f63b6f9e7092602a8aebde96297aed582"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_delivery_review_context",
+      "line": 270,
+      "signature": "def read_delivery_review_context(snapshot_ref: Ref, export_ref: Ref) -> dict",
+      "docstring": "Read criteria and object inventory for exact versions; no review tasks are generated.\n        Metadata is not evidence of content or page observation. Read actual objects\n        and sources using paged tools to obtain your own observations.\n        ",
+      "docstring_sha256": "941db6865e1b979e1e3bad5501500a278ca9eddbc59299969553a7297f4b8794"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.observe_evidence",
+      "line": 286,
+      "signature": "def observe_evidence(kind: Literal['source', 'calculation'], source_id: str='', offset: int=0, limit: int=12000, terms: list[list[str]] | None=None, runtime: ToolRuntime=None) -> dict",
+      "docstring": "Read an authorized source excerpt or independently recompute a sum of products,\n        returning a saved observation receipt. No model evaluation is hidden in this tool.\n        Source offset/limit are characters; continue at next_offset for unread material.\n        ",
+      "docstring_sha256": "5175a289fbec81f8d557811b32e821de79897cbd073e3d16651b86440df382d1"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_feedback",
+      "line": 316,
+      "signature": "def read_feedback(offset: int=0, limit: int=20) -> dict",
+      "docstring": "Query project-local versioned findings and handling history. Handled is not repaired;\n        historical verdicts do not automatically apply to new snapshots. No broadcast or rerun.\n        ",
+      "docstring_sha256": "5cde0a584389f68a9f5d9bf253e47e13bbe77b0cd3386f9b12435b5ef5cb3037"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.record_handoff",
+      "line": 322,
+      "signature": "def record_handoff(operation_id: str, target_ref: Ref, problem: str, evidence: list[str], impact: str, handling_state: Literal['open', 'in_progress', 'handled']='open', previous_ref: Ref | None=None) -> dict",
+      "docstring": "Append a transfer/handling record without changing any verdict. No assignee,\n        next action or resume condition is required. Evidence may be empty with an honest reason.\n        ",
+      "docstring_sha256": "f5da9d2e15b32fc2d8d75dfa2dbc882d920cb6bcf9877f557544a1f9e2b195c4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.assess_change_impact",
+      "line": 331,
+      "signature": "def assess_change_impact(old_snapshot: Ref, new_snapshot: Ref) -> dict",
+      "docstring": "Return changed references and dependency candidates. You decide semantic recheck scope.",
+      "docstring_sha256": "db06ffc88e34c21e7ce17ab5202f886527d6db62b0cf14149d4e95e1801b1e4f"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.confirm_review_reuse",
+      "line": 335,
+      "signature": "def confirm_review_reuse(operation_id: str, review_ref: Ref, new_snapshot: Ref, reason: str, item_indexes: list[int] | None=None) -> dict",
+      "docstring": "Explicitly confirm that a prior local review still applies to unchanged inputs.\n        Check changes, new relevance and relationships first. Whole-document judgments\n        cannot be transferred to a different snapshot; changed inputs need a new review.\n        Select zero-based item_indexes to reuse only those unchanged judgments; omitted\n        indexes retain whole-record behavior. Per-item dependencies define exact inputs.\n        ",
+      "docstring_sha256": "64932dd4beac12d84d53a3bb224536b730f48f6a66332dc1d6cd3a49b57e3020"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.correct_own_review",
+      "line": 344,
+      "signature": "def correct_own_review(operation_id: str, review_ref: Ref, replacement_ref: Ref, reason: str, item_indexes: list[int] | None=None) -> dict",
+      "docstring": "Correct your own mistaken review with an already saved evidence-based replacement.\n        Preserve both records and an explicit reason; handling a finding does not withdraw it.\n        Select zero-based item_indexes to correct those findings without withdrawing other\n        items or delivery checks. Match target, criterion, scope_id (or scope) and kind.\n        ",
+      "docstring_sha256": "8a7b3a19c1b9862e9e0cd387942463a56295799b6dbc707dfe32a6c6e4c39cb4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.get_operation_receipt",
+      "line": 352,
+      "signature": "def get_operation_receipt(operation_id: str) -> dict",
+      "docstring": "Read your content-write receipt and independent text-generation attempt separately.\n        Reserved text work has an unresolved outcome, not permission to retry. A\n        completed text payload does not establish adoption or semantic acceptance.\n        Unknown is not no-write or no-provider-work; caller ids are namespace-bound.\n        ",
+      "docstring_sha256": "a65d0b0f22e864187e7be56a589759b920d24b63c9c44af4dbc75c0bf6da8fac"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.export_content_snapshot",
+      "line": 361,
+      "signature": "def export_content_snapshot(operation_id: str, snapshot_ref: Ref, layout: LayoutOptions | None=None, layout_from_export_ref: Ref | None=None) -> dict",
+      "docstring": "Export an immutable snapshot with presentation-only options and version-bound mapping.\n        Layout tasks may export only the snapshot explicitly granted at delegation.\n        Node options identify exact refs: heading_level promotes the existing first text line;\n        column_weights set table proportions, landscape isolates a table/figure on wide pages.\n        To reuse saved layout exactly, pass layout_from_export_ref naming an exact Word\n        ExportArtifact instead of layout. The server validates its saved configuration\n        against this target snapshot; it never remaps node versions or chooses latest.\n        This cannot replace text, numbers, conditions, evidence or criteria. A new export\n        needs review of that exact file; old review does not approve a layout revision.\n        ",
+      "docstring_sha256": "4301988a81d3cd734b14856510b288e9b65e50933161bca16d69829903319db8"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.export_content_workbook",
+      "line": 378,
+      "signature": "def export_content_workbook(operation_id: str, snapshot_ref: Ref, sheets: list[WorkbookSheet], report_export_ref: Ref | None=None) -> dict",
+      "docstring": "Create XLSX from selected table ContentNodes in your own immutable snapshot.\n        Each sheet has name, table_ref and optional note_refs. Selected text notes,\n        including corrections and qualifiers, are copied verbatim after that table.\n        Optional report_export_ref links the exact companion Word version, not its correctness.\n        A linked Word and XLSX must use the same snapshot; a cross-snapshot link is rejected.\n        For a snapshot with declared workbook_refs, sheets must select all and\n        only those workbook-only table/note nodes, leaving report prose separate.\n        You choose table contents and sheet organization. Read/render/review the saved export\n        using the same export tools; an exported workbook is not an accepted deliverable.\n        ",
+      "docstring_sha256": "2d4acba5fa143afe443ff9ab352454d9a67ef9327eecb70ca090329bf0d192ba"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_layout_capabilities",
+      "line": 393,
+      "signature": "def read_layout_capabilities() -> dict",
+      "docstring": "Read current controls, dependency availability and version; old inability claims may be stale.\n        Paragraph controls select exact unique source lines without changing the snapshot.\n        refresh_toc uses native LibreOffice/UNO and publishes a new verified export.\n        ",
+      "docstring_sha256": "d58cbf20e029ec2adc99d886a912f4adff32bf143c2c9643a93f2fbcf33e5d34"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.request_layout_capability",
+      "line": 404,
+      "signature": "def request_layout_capability(operation_id: str, snapshot_ref: Ref, problem: str, attempted: list[str], requested_operation: str, evidence: list[str]) -> dict",
+      "docstring": "Ask development for a missing operation with attempts and page/receipt evidence.\n        Saves a HandlingRecord in read_feedback, retaining the task and capability version.\n        This is a handoff request, not permission to execute code or a claim of implementation.\n        Coordinator can resume the task after development reports new capability evidence.\n        ",
+      "docstring_sha256": "ef546f3faa9092b7fe3b127100a018dde0ea33998cc36aa1ad3a62efe1874f33"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.render_content_export",
+      "line": 415,
+      "signature": "def render_content_export(operation_id: str, export_ref: Ref) -> dict",
+      "docstring": "Render this exact export to PDF/pages, or return blocked. Rendering is not visual review.",
+      "docstring_sha256": "9c42e7e531a53e68f67c3f60fbad0734e57db43f9e3cd98389e7249354601825"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.read_content_export",
+      "line": 420,
+      "signature": "def read_content_export(export_ref: Ref) -> dict",
+      "docstring": "Read actual DOCX or XLSX text and structure with identity and receipt; not page observation.",
+      "docstring_sha256": "39e8b0d1369ccfbf2680a4385ff0be82e656975f71aedacd2faf0b4d7ffa77be"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.inspect_rendered_page",
+      "line": 425,
+      "signature": "async def inspect_rendered_page(render_ref: Ref, page: int, question: str, reference_source_id: str='', reference_page: int=1, crop: list[float] | None=None) -> dict",
+      "docstring": "Ask the configured visual model about one actual rendered page. Returns bounded\n        observations with a receipt and limitations, not a verdict; consumes a model call.\n        Optional project-bound customer reference source/page is supplied beside the\n        actual Word page in the same request. Optional normalized [x0,y0,x1,y1]\n        crop inspects a closer region on both pages; it never covers a whole page.\n        Reference/page scope comes from the saved assignment, not an expanded contract.\n        ",
+      "docstring_sha256": "35a3522daa5a62bd2db1237cefd4f9ed44944be452856deb2704dfc278125bf2"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.select_content_delivery",
+      "line": 439,
+      "signature": "def select_content_delivery(operation_id: str, snapshot_ref: Ref, export_ref: Ref, ending_reason: Literal['continue', 'preserve_unresolved', 'blocked', 'no_progress']='continue', workbook_export_ref: Ref | None=None) -> dict",
+      "docstring": "Select the actual snapshot/export to deliver. This is not approval and starts no review.\n        ending_reason is historical metadata, not an execution control. Delegate review\n        when useful; selection alone neither ends execution nor changes a verdict.\n        Optional workbook_export_ref selects the saved XLSX companion bound to this\n        exact Word export and snapshot for customer download; it does not establish parity.\n        ",
+      "docstring_sha256": "5f134729d6282e73b1c829d448c6c0607840cf33b5c814d6ecf0da84f7cb7c9d"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "symbol": "content_tools.record_execution_decision",
+      "line": 472,
+      "signature": "def record_execution_decision(operation_id: str, decision: Literal['continue', 'wait', 'handoff', 'terminate'], reason: str, evidence: list[str], unresolved: list[str], claims_assigned_checks_complete: bool=False) -> dict",
+      "docstring": "Record strategy and grounds against the current selected delivery. This does not\n        change verdicts, trigger actions or force the loop to stop. Subsequent native tool\n        calls or your final response implement the choice. claims_assigned_checks_complete\n        is verified against saved current-delivery assignments; it never establishes\n        whole-report acceptance. Correction limits constrain edits, not reading/checking.\n        ",
+      "docstring_sha256": "5ef7ee668044829990b3797b02dd58dce44c1ad58b46000e44c8c01f19c66509"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\text_work.py",
+      "symbol": "guarded_tools.process_report_content",
+      "line": 531,
+      "signature": "async def process_report_content(operation_id: str, objective: str, object_type: Literal['ContentNode', 'Evidence'], input_refs: list[Ref]=[], source_selections: list[SourceSelection]=[], output_count: Annotated[int, Field(ge=1, le=32, strict=True, description='Number of related output payloads, from 1 to 32; zero-based adoption indexes.')]=1, observation_refs: list[ObservationRef]=[], candidate_selections: list[CandidateSelection]=[], source_version_refs: list[SourceRef]=[], revision: ContentRevision | None=None) -> dict",
+      "docstring": "Independent one-shot text work on selected evidence. Choose the objective,\n        materials and output type; do not supply a finished report or dictated verdict.\n        Returns an exact actor-bound payload/receipt, without committing content.\n        Optional revision={scope:'qualifiers',targets:[exact owned ContentNode refs]}\n        changes only qualifiers, preserving body/kind/claim_kind exactly. Targets\n        must be current owned versions, unique, ordered and equal to output_count.\n        Targets are included as draft inputs, not source facts. Choose real evidence\n        for factual judgments. Adopt each output only with its target previous_ref.\n        To revise substantive body instead, use ordinary complete-content output.\n        output_count is an integer from 1 to 32 for a related batch, with zero-based adoption indexes;\n        no mandatory call per node. Pass saved SourceArtifact refs plus located source\n        selections to bind exact source versions without including whole source text.\n        Alternatively source_version_refs binds existing SourceArtifact versions to\n        actual source_selections or your own source observations without inserting\n        whole-source bodies. It does not capture versions or authorize new material.\n        Evidence output needs at least one such legal supplied source reference.\n        Optional candidate_selections reads your own completed unadopted text-work\n        payloads by receipt and zero-based output_index. Use these draft inputs for\n        revision instead of copying the draft into objective or adopting it first.\n        They remain unreviewed drafts, not source facts or authority; select original\n        evidence for factual checks. They count toward the same evidence-size bound\n        and preserve ancestor associations with unresolved text work.\n        Optional observation_refs consumes your own exact authorized public source,\n        image or content tool returns on the tool side, without copying them into\n        your decision messages or objective. Scratch and another task's returns are\n        not authorized evidence. The complete encoded evidence JSON is limited to 64000 Unicode characters, including whole-page table supplements; this is a size bound, not a selection-count bound. Large originals still need located selections.\n        An unresolved earlier production blocks new production on the same complete\n        material set, or sharing exact substantive ContentNode/Evidence refs, for\n        this actor and output type. This is conservative association, not semantic\n        equivalence. Adding a page, changing IDs or wording is not retry authority.\n        Read existing work or choose independent work. Distinct related work needs\n        an evidenced host disposition bound to that exact request, not a caller\n        declaration. Inspect the original outcome; unknown reservations remain.\n        The original writer may adopt it unchanged. No search, agents or publication.\n        ",
+      "docstring_sha256": "f93392d4e8a043794ae1035925678204505241a7c125b20ef3e38d5d5652244a"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\text_work.py",
+      "symbol": "guarded_tools.commit_objects",
+      "line": 578,
+      "signature": "def commit_objects(operation_id: str, objects: list[GuardedObject]) -> dict",
+      "docstring": "Commit owned decisions/structure/relations, or adopt exact text-tool payloads.\n        ContentNode/Evidence substantive payloads require text_work_id; payload can\n        be omitted for adoption. Only a single-line report/chapter heading with\n        claim_kind=structure and empty qualifiers is an agent structure decision.\n        Table cells, captions and substantive qualifiers cannot be rewritten here.\n        Coordinator cannot author report nodes. Ownership/CAS/batch refs are unchanged.\n        Criterion requires requirement_refs (saved Requirement Ref objects), purpose,\n        scope, expected_outcome, evidence_expectation, allowed_limits. Source IDs,\n        SourceArtifact refs and operator instruction IDs are not Requirement refs.\n        exact current input_refs are in read_decision_state; use content_status for\n        more. Relation requires subject_ref,predicate,object_ref,provenance_kind;\n        contains also position. Use {client_key:key} for new refs within this batch.\n        Reuse an operation_id only with identical arguments; correcting a known\n        failure needs a new operation ID. Inspect unknown writes before retrying.\n        ",
+      "docstring_sha256": "fc05d1212bba53e6b28e2fb9ef5a7506f67152d2296897a877bf5641b6185653"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\text_work.py",
+      "symbol": "guarded_tools.save_text_node",
+      "line": 643,
+      "signature": "def save_text_node(operation_id: str, text_work_id: str, previous_ref: Ref | None=None, text_work_index: int=0) -> dict",
+      "docstring": "Adopt one exact independent ContentNode result with the writer's ownership.\n        No body/qualifier override is accepted. previous_ref keeps ordinary CAS and\n        revision limits; this does not publish or create evidence links.\n        ",
+      "docstring_sha256": "6d74462c35b54f7b93b6ca6e8fa698b301e97efd1e5090930a08dfc47dcec2cd"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\bounded_review.py",
+      "symbol": "review_tool.perform_assigned_review",
+      "line": 405,
+      "signature": "async def perform_assigned_review(operation_id: str, scope_ids: list[str], source_selections: list[SourceSelection], content_selections: list[ContentSelection]) -> dict",
+      "docstring": "Perform and save content judgments for selected saved task scopes.\n\n        Each assigned check needs required_materials with exact bound refs or\n        source_spans (exact source version, original block offset/limit and view).\n        Required refs load whole local payloads; required source_spans load their\n        declared original text automatically and completed checks must cite them.\n        Metadata bindings and extra eligible ranges alone do not satisfy them. Unresolved\n        bindings return a gap without a model call. Target, criteria and declared required\n        bodies load automatically. Select additional portions only from material_refs,\n        required_read_refs and required_materials in this saved task;\n        content_check_scopes declares per-question local/subtree full-body extents.\n        Missing full bodies return a pre-call gap; eligible extra descendant bodies\n        still require selection. Snapshot metadata is not a body-read receipt.\n        large whole-source body requirements return a pre-call gap rather than\n        embedding a complete document. Use located Evidence and explicit ranges.\n        Additional source_selections must fit source_ranges declared in this task;\n        use each captured SourceArtifact.payload.source_id as source_id, not its\n        Ref.id. read_task_assignment exposes the exact ID/range mapping.\n        owning a source file does not authorize selecting arbitrary blocks from it.\n        empty lists are allowed only when no additional material is necessary.\n        Returns actual model findings and incomplete work, with immutable review IDs.\n        Multiple related scopes may share one call; there is no per-node call limit.\n        This does not edit content, expand permission, learn or complete the project.\n        ",
+      "docstring_sha256": "27e9dc64e3690b17a6b0a3a58b789ea9f617be4f5f86c6a84cc6095e405efc58"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\artifact_review.py",
+      "symbol": "bounded_artifact_review_tool.perform_assigned_artifact_review",
+      "line": 147,
+      "signature": "async def perform_assigned_artifact_review(operation_id: str, scope_ids: list[str], observation_receipts: list[str], delivery_export_ref: Ref | None=None) -> dict",
+      "docstring": "Perform independent assigned export/Word-page comparisons on exact saved\n        observations. Choose relevant owned receipts and scope IDs. No agent-authored\n        verdict is accepted. Actual version/page/reference/coverage guards still apply;\n        incomplete observation supports partial findings only. No new vision calls,\n        search, delegation, correction, publication or engineering acceptance.\n        ",
+      "docstring_sha256": "674310f466ce2357cbb87f6adb855c8d1c025d64f5d458c9804adb6080ae0ba4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "symbol": "optimizer_tools.read_learning_feedback",
+      "line": 33,
+      "signature": "def read_learning_feedback(feedback_id: str='', field: Literal['correction', 'before', 'evidence']='correction', offset: int=0, limit: int=6000) -> dict",
+      "docstring": "Without id: bounded feedback index (offset in records, six per page), current assignment first.\n        With exact id: read original field text (offset/limit in characters), with digest and\n        next_offset. All evidence remains accessible; index previews are not the complete feedback.\n        ",
+      "docstring_sha256": "e402ebc4e470f2dd465d5526c93f246030eca226037ca1e8712cb6a408757c46"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "symbol": "optimizer_tools.read_learning_evidence",
+      "line": 60,
+      "signature": "def read_learning_evidence(ref: Ref, offset: int=0, limit: int=6000) -> dict",
+      "docstring": "Read immutable project object JSON in character pages; use exact full ref, not a prefix.\n        next_offset means more original text is available. Never modify source or report.\n        ",
+      "docstring_sha256": "dcb4fa489e51ed2146eb69f805111b9878580040aab791c49b2db15a846e93eb"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "symbol": "optimizer_tools.read_experience_candidates",
+      "line": 67,
+      "signature": "def read_experience_candidates(experience_id: str='', version: int=0, offset: int=0, limit: int=6000) -> dict",
+      "docstring": "Without id: six-item index (record offset). With id/version: original JSON pages\n        (character offset/limit). Use exact versions. Active state/use counts are not quality.\n        ",
+      "docstring_sha256": "db7ab8dec4489e77d4788930ae62ea71d86dd831802d00b022522a58989997b9"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "symbol": "optimizer_tools.record_feedback_disposition",
+      "line": 85,
+      "signature": "def record_feedback_disposition(feedback_id: str, outcome: Literal['candidate', 'no_change', 'insufficient_evidence'], rationale: str, experience_id: str='', experience_version: int=0) -> dict",
+      "docstring": "Record your handling of one currently assigned feedback item, with rationale.\n        candidate requires an exact saved candidate version linked to this feedback.\n        no_change/insufficient_evidence are valid outcomes without a new candidate. This is\n        an agent declaration, not verification of understanding, strategy quality or release.\n        ",
+      "docstring_sha256": "11d51d9f8aaec326973a0b63be8f20ad379033155898c32be94cb2fcaf0cf170"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "symbol": "optimizer_tools.propose_experience",
+      "line": 121,
+      "signature": "def propose_experience(feedback_ids: list[str], kind: Literal['project_fact', 'customer_preference', 'general_skill'], title: str, strategy: str, conditions: str, verification: str, experience_id: str | None=None, expected_version: int=0, analysis_id: str='') -> dict",
+      "docstring": "Save a scoped candidate, with source feedback and verification plan. Does not publish.",
+      "docstring_sha256": "9383f390fffd75d1d1312578ebe60499afbf06a7ae19c11fa326ea0aa20861ab"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_text_work.py",
+      "symbol": "learning_analysis_tool.analyze_learning_material",
+      "line": 39,
+      "signature": "async def analyze_learning_material(question: str, feedback_selections: list[FeedbackSelection], object_selections: list[LearningObjectSelection]=[]) -> dict",
+      "docstring": "Independently compare/extract selected learning evidence in one bounded call.\n        Choose question and actual ranges; no mandatory use for a strategy decision.\n        For a project_fact candidate request its factual fields here, then adopt the\n        exact returned fields with analysis_id. It does not select/publish strategy,\n        modify a report, launch GEPA or grant new model-job authority.\n        ",
+      "docstring_sha256": "c6871bfbabe1849416548626665a140c8e94ba1c36db102f7579e525442add9d"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning.py",
+      "symbol": "report_tools.search_experience",
+      "line": 257,
+      "signature": "def search_experience(query: str='', match_mode: Literal['text', 'identifier']='text') -> dict",
+      "docstring": "Find active scoped experience. Text mode is literal substring search; empty query\n        browses up to 20. A textual mention of another ID is not that experience entry.\n        Identifier mode matches the actual ID exactly, or its prefix of at least 8 characters.\n        Inactive or out-of-scope candidates are not exposed. Check applicability against sources.\n        ",
+      "docstring_sha256": "3b2c94a24d824a0dd7e3d06c90145c57e918c55e31f6b15f100d980f19f5e825"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning.py",
+      "symbol": "report_tools.record_experience_use",
+      "line": 280,
+      "signature": "def record_experience_use(experience_id: str, version: int, target_ref: Ref, reason: str) -> dict",
+      "docstring": "Record which exact strategy version you applied to saved work; not a quality verdict.",
+      "docstring_sha256": "c0d10f35bc59107283e439c490e9e700f6a28fee0945d712fbb1ed0f93cfbb64"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\task_context.py",
+      "symbol": "observation_tool.read_tool_observation",
+      "line": 222,
+      "signature": "def read_tool_observation(observation_ref: ObservationRef, offset: Annotated[int, Field(ge=0)]=0, characters: Annotated[int, Field(ge=1, le=6000)]=6000, field_path: ObservationPath | None=None) -> dict",
+      "docstring": "Recover exact offloaded tool text in Unicode-character ranges, even for one-line JSON.\n\n        characters must be 1..6000; offset must be >=0. Page with returned next_offset.\n        Omit field_path for raw returned-text coordinates. With field_path, read the\n        selected original JSON string and use offsets within that string, never raw JSON offsets.\n        Bound to the original receiving actor. This does not\n        reread a changing source, grant a business observation receipt, or perform a check.\n        ",
+      "docstring_sha256": "c382eccda79175a2c0b0407d5babc286ea5eb280f4c15d4cd1511c2335ee9c72"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\decision_state.py",
+      "symbol": "state_tool.read_decision_state",
+      "line": 240,
+      "signature": "def read_decision_state(path: list[str | int], offset: Annotated[int, Field(ge=0)]=0, limit: Annotated[int, Field(ge=1, le=50)]=20, characters: Annotated[int, Field(ge=1, le=6000)]=6000, expected_state_digest: str | None=None) -> dict",
+      "docstring": "Read exact current server-bound decision fields by structured path.\n\n        Use read_state_path from the current packet, e.g. ['assignment',\n        'review_requirements',0] or ['scope_instruction','text']. Empty path reads\n        the full state. Lists page by limit, text by characters. next_offset is a\n        continuation, not missing evidence. No other actor/task can be selected.\n        For continued paging pass the prior state_digest as expected_state_digest;\n        changed state is rejected so text from different versions is not mixed.\n        This is bookkeeping, not a business observation or completed check.\n        ",
+      "docstring_sha256": "5f3b60079d1dc2e12c6cc537947ac3becd7550c00fb9c589c938bbbbcd3c58ae"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\summary_recovery.py",
+      "symbol": "recovery_tool.read_summary_observations",
+      "line": 62,
+      "signature": "def read_summary_observations(offset: Annotated[int, Field(ge=0)]=0, limit: Annotated[int, Field(ge=1, le=20)]=20, observation_ref_prefix: ObservationRefPrefix | None=None) -> dict",
+      "docstring": "Page your own public returns retained across compaction. Reopen exact text\n        with read_tool_observation using the full returned observation_ref, never an\n        abbreviated/reconstructed identifier. offset is >=0; limit is 1..20, in records.\n        Use next_offset. Optional observation_ref_prefix filters this actor's captured\n        index by exact hex prefix, including entries older than the recent summary.\n        Inspect full returned identities and ambiguity; a prefix is lookup-only and\n        must never be passed to reading/production as if it were an exact identity.\n        Offsets count filtered records. This index is not a completed business check.",
+      "docstring_sha256": "8ad36566ca19045b03e46a0135f6bad07b0a3edd0d920ad0b5769c84a349e87b"
+    }
+  ],
+  "documentation_sources": [
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\full-chain-acceptance-20261014\\actual-design-review-20261015.html",
+      "sha256": "2bb565522646c4ff293d11627249eb50ee1c333d341a0bf34a3435636d8c71d6"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\full-chain-acceptance-20261014\\complete-bug-inventory-20261015.html",
+      "sha256": "c4e787fd67b7bb3e5785782b9e4e824c0e06ddb2a49891007114d6676cc7385b"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\customer-feedback-collected-20261016.md",
+      "sha256": "fab53b33860effcf9bacc8a9c8f295123bb7e0dc288dd1bcc24025dc3b566e84"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\format-standard-original-text.txt",
+      "sha256": "2b50a74db2bb3aa9566de5373d7765cb6b512f7771031b3f8667dd7673fe2443"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\guide-table-execution-root-cause-20261016.md",
+      "sha256": "ae2d0a38cb08b23baa1494a7a52087c02b31f13f5cd297ffdb8cc8d0ce78070e"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\neo-trace-review.md",
+      "sha256": "869e4d2aad490a8402904aa70fbbb56f04eb83d866269e95e92a41e91580bb33"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\omitted-tool-return-verbatim-20261016.txt",
+      "sha256": "9900f8a071aac661bdb546c7a00eebe8280060daa1550bb8526446d55abc5042"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\r6-layout-origin-root-cause-20261016.md",
+      "sha256": "5793c36dba6d295cbb28f3245890129fd34b111f669334eb79f8ec523adf5627"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\implementation-resumed-20261014\\layout-feedback-rca-20261016\\table-material-program-transformation-proof-20261016.md",
+      "sha256": "ae09c505e57501b050da78ba17cb241b11b92916d93362964d173bd954c2783b"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\neo\\current-user-decisions-20261015.md",
+      "sha256": "67409d6ab020f1fe678f0e85bc9265b5aad493e97328366e0da2bdb6887ba399"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\neo\\user-statements-20261014.md",
+      "sha256": "c536412384501036c38d72602f189b32358d71a2c3a2577fcdbe7992491dc02a"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.analysis\\neo\\user-statements-since-creation-20261015.md",
+      "sha256": "b24f838ffcf39bacd3a24b1950ab81a67635aadc90af9493c6d6b329a44d08da"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\AGENTS.md",
+      "sha256": "36b6e7c9b89c4bc0dd364a24c2e76f8252ade5486d79826f0f2abdf524294571"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\ARCHITECTURE.md",
+      "sha256": "ce19f5f79a3adc36e3c6eeec109c167a9605b3c148951374ba595d7068d0ab72"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\feedback-learning.md",
+      "sha256": "779dbf4937c8c5c6f4d1db86facb6c750f5a6ff2e5a4e4ff023d5c8ee9fb3397"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\independent-text-tools.md",
+      "sha256": "e53534dfb3265636683a9432e2909e85e7f46c99e92ca6f513a3896243177a0f"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\docs\\prompt-instructions.md",
+      "sha256": "899f7f41003c4cde6e36625f8fc948f0cdf9422140ec54a8f7c928cc2b56a906"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\artifact_review.py",
+      "sha256": "6328051a2bdf03e3987e3345b76fd43ba63483842d12d9de6f8d8646418584cc"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\bounded_review.py",
+      "sha256": "97e2b9e3aa2697340d67d14b3a40ebcb6de6d26f60195109b0cff5a989c292bf"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\catalog.py",
+      "sha256": "195200e9da97bad325aa4634c884bcc26c68d647f676ddf26e7a9d5a04f7127c"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\decision_data.py",
+      "sha256": "1ef942ffe7c41ba04450b0c371e5676b30471a0a0fa2f674651f8bcae7002f2c"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_models.py",
+      "sha256": "167bdd47f0c6eee671870ba09dfb23a0ee614a9529a179d9a2f3f740f0ee7c7e"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\deep_runtime.py",
+      "sha256": "7330bf0213b8b6bc1ee11df0048498fea98b428c0af6b0ed33604bdf55dc1d84"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\hierarchical_tools.py",
+      "sha256": "8e0a06f180ce872a770cec67b0a68a8bc253362f892fe8357ab5bbc3df6aa951"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\learning_runtime.py",
+      "sha256": "e1e9e983efa0305ddbf2b19efda700862f5e1deda29bb450bc1f7853e3ceaa46"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\model_config.py",
+      "sha256": "026d1eeaf66e2ebbb8cf6bf909e808e410d525fa383d14110c32ea0e6fa284ab"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\prompt_instructions.py",
+      "sha256": "8d3f7c5c5a343b9b1100e947ebed15c2461ea178257db7056e82e931999355d5"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\source_search.py",
+      "sha256": "7f40bb0abd007c21ec781dddb74b758cc46ff1408cc53b6ee8aff15f68e1c865"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\task_context.py",
+      "sha256": "3acfe9c02ff98c939ebcc5f4a4beffc59d8b9ca6281803b0b1f903afc70a17d0"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\text_work.py",
+      "sha256": "72e3ebccc676a6924b0e030612f98ebf5a8d8e07a69762646c461309fdf8e3e4"
+    },
+    {
+      "path": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\src\\report_agent\\working_summary.py",
+      "sha256": "159e703780f4ee4416b8de0c5c505af81dbda430326700edcc8cc09e47fa98bc"
+    }
+  ]
+}

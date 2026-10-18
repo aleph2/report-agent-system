@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-10-12T23:13:15.177858+00:00",
+  "source": "direct_desktop_user",
+  "user_text": "I see the more common feedback can be send to GEPA especially this feedback will affect the whole system in the long run. But for some specific feedback regarding to a particular report and a specific agent, the instruct should be send to an agent directly",
+  "decision": {
+    "reusable_feedback": "Capture in learning intake for potential GEPA optimization and longer-term reusable guidance.",
+    "report_and_agent_specific_feedback": "Deliver as a current instruction to the relevant agent for that report.",
+    "scope": "Generality does not automatically expand customer/project applicability to global policy.",
+    "dual_applicability": "When feedback both corrects the current report and provides a reusable lesson, current execution and durable learning capture can both apply."
+  },
+  "status": "routing_principle_recorded",
+  "new_paid_execution": false,
+  "candidate_publication": false,
+  "implementation_change": false
+}

@@ -1,0 +1,41 @@
+{
+  "probe": "Explicit refresh during feedback editing changes target and drops selected evidence",
+  "method": "actual JS in offline VM, minimal DOM model; no browser rendering or network",
+  "source": "src/report_agent/static/learning.js",
+  "sha256": "33193af31fbb8bdb34568807174602dc20a3c4cfce644a53f26574504a6717fa",
+  "before": {
+    "targetIndex": "1",
+    "correction": "Correct this particular table using the selected source.",
+    "checkedEvidence": 1
+  },
+  "after": {
+    "targetIndex": "0",
+    "correction": "Correct this particular table using the selected source.",
+    "checkedEvidence": 0
+  },
+  "posts": [
+    {
+      "url": "/api/learning/feedback",
+      "body": {
+        "snapshot_ref": {
+          "type": "DocumentSnapshot",
+          "id": "snapshot-A",
+          "version": 1
+        },
+        "target_ref": {
+          "type": "DocumentSnapshot",
+          "id": "snapshot-A",
+          "version": 1
+        },
+        "correction": "Correct this particular table using the selected source.",
+        "evidence_refs": [
+          {
+            "type": "DocumentSnapshot",
+            "id": "snapshot-A",
+            "version": 1
+          }
+        ]
+      }
+    }
+  ]
+}

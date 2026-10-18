@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="6.256" timestamp="2026-10-18T01:47:09.111690+11:00" hostname="dysun"><testcase classname="tests.test_boundary_refactor" name="test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[False]" time="2.029"><failure message="AssertionError: {'goal': 'Report adopted class B and check its permitted value.', 'name': 'test_native_offloaded_object_r0', 'status': 'failed', 'activity': '', ...}&#10;assert {'diagnostic_id': 'c90b1953-4256-47c3-87f1-371c190d3ff0', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'AssertionError'} is None">ws = &lt;report_agent.workspace.Workspace object at 0x7960c61bf140&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7960d1613c80&gt;
+selected = False
+
+    @pytest.mark.parametrize('selected', [False, True])
+    async def test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies(ws, monkeypatch, selected):
+        from report_agent.task_context import read_observation
+        from langchain_openai.chat_models.base import _convert_message_to_dict
+        native = deep_runtime.FilesystemMiddleware
+        monkeypatch.setattr(deep_runtime, 'FilesystemMiddleware',
+            lambda **kwargs: native(**kwargs, tool_token_limit_before_evict=100))
+        literal = 'Unchanged source/body content. ' * 400 + 'TAIL MUST BE RECOVERABLE.'
+        ws.store.set('manifest', {**ws.store.manifest, 'sources': [
+            {'id': 's', 'title': 'Source', 'content': literal, 'coverage': 'partial'}]})
+        cs, actor, refs, _, members = seed(ws)
+        node = cs.commit(actor, 'large-node', [{'client_key': 'node', 'type': 'ContentNode',
+            'payload': {'kind': 'block', 'body': {'text': literal}, 'claim_kind': 'structure',
+                        'qualifiers': {'warning': 'Exact unverified condition; ' * 60}}}])['result']['refs']['node']
+        edge = cs.commit(actor, 'large-edge', [{'client_key': 'edge', 'type': 'Relation', 'payload': {
+            'subject_ref': refs['root'], 'object_ref': node, 'predicate': 'contains', 'position': 1,
+            'provenance_kind': 'adopted_during_generation'}}])['result']['refs']['edge']
+        snapshot = cs.freeze(actor, 'large-snapshot', refs['root'], [*members, node, edge])['result']['snapshot_ref']
+        activate(ws)
+        tool = 'read_content_selection' if selected else 'read_context'
+        args = {'snapshot_ref': snapshot, 'selections': [{'ref': node, 'limit': 16000}]} if selected else {
+            'target_ref': snapshot, 'limit': 100}
+    
+        def inspect(messages):
+            reply = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == tool)
+            assert reply.additional_kwargs['report_controls_restored']
+            wire = _convert_message_to_dict(reply)
+            assert literal not in json.dumps(wire)
+            controls = json.loads(reply.content[-1]['text'])
+            assert not controls['complete_original_in_decision']
+            original = ws.store.get('tool_observation:' + controls['observation_ref'])
+            assert hashlib.sha256(original['text'].encode()).hexdigest() == controls['sha256']
+            raw = json.loads(original['text'])
+            assert controls['metadata']['receipt_id'] == raw['receipt_id']
+            assert 'not proof' in controls['note']
+            paths = controls['platform_offloaded_data_paths']
+            assert paths
+            for path in paths:
+                source = raw
+                shown = controls['metadata']
+                for key in path:
+                    source, shown = source[key], shown[key]
+                assert shown['platform_deferred'] and shown['observation_path'] == path
+                string_path = path + ['text'] if isinstance(source, dict) else path
+                expected = source['text'] if isinstance(source, dict) else source
+                recovered, offset = '', 0
+                while True:
+                    page = read_observation(ws, 'coordinator', controls['observation_ref'],
+                                            offset, field_path=string_path)
+                    recovered += page['text']
+                    if page['next_offset'] is None:
+                        break
+                    offset = page['next_offset']
+                assert recovered == expected
+            data, original_data = controls['metadata']['result'], raw['result']
+            if selected:
+                assert {k:v for k,v in data['selections'][0].items() if k != 'body'} == {
+                    k:v for k,v in original_data['selections'][0].items() if k != 'body'}
+            else:
+                assert {k:v for k,v in data.items() if k != 'objects'} == {
+                    k:v for k,v in original_data.items() if k != 'objects'}
+                for obj, original_obj in zip(data['objects'], original_data['objects'], strict=True):
+                    field = {'ContentNode': 'body', 'SourceArtifact': 'content'}.get(obj['ref']['type'])
+                    if field:
+                        restored = deepcopy(obj)
+                        restored['payload'][field] = original_obj['payload'][field]
+                        assert restored == original_obj
+                    else:
+                        assert obj == original_obj
+            return AIMessage(content='Synthetic I/O verification only.')
+        driver = Driver(coordinator=[invoke(tool, **args), inspect])
+        result = await deep_runtime.run_report(ws, driver)
+&gt;       assert result['last_error'] is None, result
+E       AssertionError: {'goal': 'Report adopted class B and check its permitted value.', 'name': 'test_native_offloaded_object_r0', 'status': 'failed', 'activity': '', ...}
+E       assert {'diagnostic_id': 'c90b1953-4256-47c3-87f1-371c190d3ff0', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'AssertionError'} is None
+
+tests/test_boundary_refactor.py:424: AssertionError</failure></testcase><testcase classname="tests.test_boundary_refactor" name="test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[True]" time="1.208"><failure message="AssertionError: {'goal': 'Report adopted class B and check its permitted value.', 'name': 'test_native_offloaded_object_r1', 'status': 'failed', 'activity': '', ...}&#10;assert {'diagnostic_id': '0bce513b-c094-4399-bb15-141bda809614', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'AssertionError'} is None">ws = &lt;report_agent.workspace.Workspace object at 0x79609d3668d0&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x79609d365070&gt;
+selected = True
+
+    @pytest.mark.parametrize('selected', [False, True])
+    async def test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies(ws, monkeypatch, selected):
+        from report_agent.task_context import read_observation
+        from langchain_openai.chat_models.base import _convert_message_to_dict
+        native = deep_runtime.FilesystemMiddleware
+        monkeypatch.setattr(deep_runtime, 'FilesystemMiddleware',
+            lambda **kwargs: native(**kwargs, tool_token_limit_before_evict=100))
+        literal = 'Unchanged source/body content. ' * 400 + 'TAIL MUST BE RECOVERABLE.'
+        ws.store.set('manifest', {**ws.store.manifest, 'sources': [
+            {'id': 's', 'title': 'Source', 'content': literal, 'coverage': 'partial'}]})
+        cs, actor, refs, _, members = seed(ws)
+        node = cs.commit(actor, 'large-node', [{'client_key': 'node', 'type': 'ContentNode',
+            'payload': {'kind': 'block', 'body': {'text': literal}, 'claim_kind': 'structure',
+                        'qualifiers': {'warning': 'Exact unverified condition; ' * 60}}}])['result']['refs']['node']
+        edge = cs.commit(actor, 'large-edge', [{'client_key': 'edge', 'type': 'Relation', 'payload': {
+            'subject_ref': refs['root'], 'object_ref': node, 'predicate': 'contains', 'position': 1,
+            'provenance_kind': 'adopted_during_generation'}}])['result']['refs']['edge']
+        snapshot = cs.freeze(actor, 'large-snapshot', refs['root'], [*members, node, edge])['result']['snapshot_ref']
+        activate(ws)
+        tool = 'read_content_selection' if selected else 'read_context'
+        args = {'snapshot_ref': snapshot, 'selections': [{'ref': node, 'limit': 16000}]} if selected else {
+            'target_ref': snapshot, 'limit': 100}
+    
+        def inspect(messages):
+            reply = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == tool)
+            assert reply.additional_kwargs['report_controls_restored']
+            wire = _convert_message_to_dict(reply)
+            assert literal not in json.dumps(wire)
+            controls = json.loads(reply.content[-1]['text'])
+            assert not controls['complete_original_in_decision']
+            original = ws.store.get('tool_observation:' + controls['observation_ref'])
+            assert hashlib.sha256(original['text'].encode()).hexdigest() == controls['sha256']
+            raw = json.loads(original['text'])
+            assert controls['metadata']['receipt_id'] == raw['receipt_id']
+            assert 'not proof' in controls['note']
+            paths = controls['platform_offloaded_data_paths']
+            assert paths
+            for path in paths:
+                source = raw
+                shown = controls['metadata']
+                for key in path:
+                    source, shown = source[key], shown[key]
+                assert shown['platform_deferred'] and shown['observation_path'] == path
+                string_path = path + ['text'] if isinstance(source, dict) else path
+                expected = source['text'] if isinstance(source, dict) else source
+                recovered, offset = '', 0
+                while True:
+                    page = read_observation(ws, 'coordinator', controls['observation_ref'],
+                                            offset, field_path=string_path)
+                    recovered += page['text']
+                    if page['next_offset'] is None:
+                        break
+                    offset = page['next_offset']
+                assert recovered == expected
+            data, original_data = controls['metadata']['result'], raw['result']
+            if selected:
+                assert {k:v for k,v in data['selections'][0].items() if k != 'body'} == {
+                    k:v for k,v in original_data['selections'][0].items() if k != 'body'}
+            else:
+                assert {k:v for k,v in data.items() if k != 'objects'} == {
+                    k:v for k,v in original_data.items() if k != 'objects'}
+                for obj, original_obj in zip(data['objects'], original_data['objects'], strict=True):
+                    field = {'ContentNode': 'body', 'SourceArtifact': 'content'}.get(obj['ref']['type'])
+                    if field:
+                        restored = deepcopy(obj)
+                        restored['payload'][field] = original_obj['payload'][field]
+                        assert restored == original_obj
+                    else:
+                        assert obj == original_obj
+            return AIMessage(content='Synthetic I/O verification only.')
+        driver = Driver(coordinator=[invoke(tool, **args), inspect])
+        result = await deep_runtime.run_report(ws, driver)
+&gt;       assert result['last_error'] is None, result
+E       AssertionError: {'goal': 'Report adopted class B and check its permitted value.', 'name': 'test_native_offloaded_object_r1', 'status': 'failed', 'activity': '', ...}
+E       assert {'diagnostic_id': '0bce513b-c094-4399-bb15-141bda809614', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'AssertionError'} is None
+
+tests/test_boundary_refactor.py:424: AssertionError</failure></testcase></testsuite></testsuites>

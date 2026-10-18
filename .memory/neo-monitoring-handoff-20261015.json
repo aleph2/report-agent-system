@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-10-15T08:47:10.613156+00:00",
+  "user_statement": "Neo在监控执行吗？",
+  "recorded_by": "Codex Main",
+  "issue_observed": "Neo was completed after the prior question-only followup; Main had not renewed the execution-monitoring task. Do not claim continuous monitoring during that gap.",
+  "gap_start_time": "not established",
+  "coordination_cause": "Main scoped the prior Neo followup to answering a status question, and omitted resuming the existing monitoring responsibility after completion.",
+  "remedy": "The existing Neo agent has been reactivated for execution supervision through the current C18 terminal or a concrete implementation handoff; brief status questions do not replace that duty.",
+  "neo_confirmation": "Received Neo message confirming active incremental monitoring, current C18 terminal result absent, existing run unchanged, continuing after reviewed sequence7311.",
+  "runtime_snapshot": {
+    "window": "continuation18",
+    "native_session": 70576,
+    "progress_at": "2026-10-15T08:46:02.520736+00:00",
+    "http_attempts": 29,
+    "received_responses": 29,
+    "recorded_window_tokens": 2861700
+  },
+  "status_is_snapshot_not_future_liveness_proof": true,
+  "verification_rule": "Before claiming Neo is currently monitoring, check agent state and latest actual review cursor/evidence; a saved role document or final answer is not liveness.",
+  "new_report_runs": 0,
+  "new_provider_calls_for_coordination": 0
+}

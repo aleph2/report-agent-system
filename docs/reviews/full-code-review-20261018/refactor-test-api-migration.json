@@ -1,0 +1,81 @@
+{
+  "status": "passed",
+  "recorded_at": "2026-10-17T14:47:54.850273+00:00",
+  "actor": "Codex compatibility_tests implementation-support subagent; Neo owns final design/review judgment",
+  "scope": [
+    "tests/test_task_supervision.py",
+    "tests/test_content_selection.py"
+  ],
+  "root_cause": "Legacy test fixtures invoked removed Reviewer organizer APIs submit_review and analyze_evidence. Neo and Main verified the role exposure change predates this refactor; the diagnostic captured the native invalid-tool return. This migration uses the current legal API and does not restore retired Reviewer permissions.",
+  "baseline_evidence": [
+    "docs/reviews/full-code-review-20261018/refactor-integration.txt",
+    "docs/reviews/full-code-review-20261018/supervisor-fixture-diagnostic.json"
+  ],
+  "changes": [
+    {
+      "test": "test_native_supervisor_follows_up_once_and_preserves_remaining[True/False]",
+      "before": "Followup invoked read_context then removed submit_review in the Reviewer organizer.",
+      "after": "Followup invokes perform_assigned_review with immutable assigned scope and explicit claim/source materials. An independent fake checker receives the real objects and returns structured judgment; the real bounded tool saves the ReviewRecord.",
+      "oracles_preserved": [
+        "Exactly two native reviewer invocations: initial plus at most one followup.",
+        "Unfinished branch leaves remaining work and saves no ReviewRecord.",
+        "Completed branch reconciles execution_complete while preserving verdict=undetermined.",
+        "One DelegatedTask; followup state returned; supervision context reaches coordinator."
+      ],
+      "oracles_added": [
+        "Actual checker input contains assigned scope and exact claim/source identities.",
+        "Exactly one fake text-tool call on completed branch and zero on incomplete branch.",
+        "Saved ReviewRecord runtime mode is bounded-review-v1.",
+        "Registered Reviewer tools include perform_assigned_review and exclude submit_review."
+      ],
+      "count_change": "Completed branch Reviewer decision-message count changes 4 to 3 because independent bounded tool owns actual read+save; allowed followup count remains unchanged."
+    },
+    {
+      "test": "test_invalid_selections_and_missing_binding_never_call_model",
+      "before": "Accessed Reviewer analyze_evidence although that tool is no longer registered.",
+      "after": "Retains direct function invalid-selection tests, asserts Reviewer analyze_evidence absence, and invokes a legal Writer analyze_evidence tool without a delegated Writer binding.",
+      "oracles_preserved": [
+        "Invalid refs/ranges/snapshot bindings reject before model.",
+        "Missing current actor binding raises ActionForbidden.",
+        "Fake model call count remains zero."
+      ]
+    },
+    {
+      "test": "test_analysis_receipt_uses_current_actor_even_on_cache_hit",
+      "before": "Used two Reviewer analyze_evidence calls and direct submit_review to consume each receipt.",
+      "after": "Uses registered analyze_evidence for two distinct delegated Writer actors; reads actual content_observations rows to verify receipt ownership and exact returned result.",
+      "oracles_preserved": [
+        "Exactly one fake model call; second result reused from exact cache.",
+        "Two distinct receipts belong to two distinct current actors."
+      ],
+      "oracles_added": [
+        "Reviewer analyze_evidence remains unavailable.",
+        "Each saved receipt actor and data match its current Writer call.",
+        "No ReviewRecord is fabricated by an analysis tool; original business objects remain unchanged."
+      ]
+    }
+  ],
+  "network_safety": "Both files use the existing autouse offline fixture that fails any sync/async httpx send. All workspaces are pytest tmp_path; all model responses are fake.",
+  "results": {
+    "tests": 37,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "pytest_seconds": 17.53,
+    "junit_suite_seconds": 17.509,
+    "provider_calls": 0,
+    "xml": "docs/reviews/full-code-review-20261018/refactor-test-api-migration.xml",
+    "xml_sha256": "5a2b386155d847b6ba2273eb563889092f10ea755edd360f365f54ea3bfa477c"
+  },
+  "command": "wsl --cd /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system --exec /home/dysun/.venvs/report-agent-system/bin/python -m pytest tests/test_task_supervision.py tests/test_content_selection.py -q --tb=short --junitxml=docs/reviews/full-code-review-20261018/refactor-test-api-migration.xml",
+  "file_sha256": {
+    "tests/test_task_supervision.py": "e60dd27d35f9b8c6d24641d18688d03384b02d6d117b9d89536a169bd64db93a",
+    "tests/test_content_selection.py": "af7ad5385306dc5148fd4f86cdd715a8b6ff6fdda2a481ec0d2f13c417dfd026"
+  },
+  "source_files_edited": [],
+  "remaining_failures_in_this_run": [],
+  "limitations": [
+    "Fake checks verify program I/O, authorization, persisted ownership, supervisor behavior and exact reuse; they do not establish real-model engineering judgment or report acceptance.",
+    "Main is independently repairing RF-A01; this record does not certify that repair."
+  ]
+}

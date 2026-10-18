@@ -1,0 +1,48 @@
+{
+  "state": "terminal_actual_gepa_integration_verified_no_measured_guidance_gain",
+  "authorization": ".runs/gepa-report-integration-20261012/authorization.json",
+  "run_directory": ".runs/gepa-report-integration-20261012",
+  "native_session": 22053,
+  "actual_gepa_trace_reflection_observed": true,
+  "first_candidate_normal_runtime_application_observed": true,
+  "current_record": ".runs/gepa-report-integration-20261012/live-audit.json",
+  "terminal_source_of_truth": ".runs/gepa-report-integration-20261012/experiment.json",
+  "never_dispatch_duplicate_or_replay_terminal_job": true,
+  "canonical_and_original_files_unchanged": true,
+  "quality_improvement_not_established": true,
+  "no_global_publication": true,
+  "stopping_gap": ".runs/gepa-report-integration-20261012/stopping-repair.json",
+  "future_stopping_fix_offline_verified": true,
+  "latest_tokens": 14243940,
+  "latest_avoidable_or_unproductive_tokens": 465912,
+  "semantic_scores_are_uncalibrated_model_judgments": true,
+  "email_start_intent": "gepa-report-integration-start-20261012-v1",
+  "email_start_receipt": {
+    "id": "1a1305fb841d4dcd",
+    "thread_id": "1a12eee2c0fab075"
+  },
+  "status_inquiry": "1a1306441c0430ba",
+  "status_reply_intent": "gepa-status-1a1306441c0430ba-v1",
+  "status_reply_receipt": {
+    "id": "1a1309ce5f2ac4b4",
+    "thread_id": "1a12eee2c0fab075"
+  },
+  "native_exit_code": 0,
+  "assessment": ".runs/gepa-report-integration-20261012/assessment.json",
+  "terminal_audit": ".runs/gepa-report-integration-20261012/terminal-audit.json",
+  "selected_version": 3,
+  "selected_isolated_active": false,
+  "canonical_active_version": 1,
+  "actual_metric_calls": 5,
+  "configured_metric_calls": 4,
+  "recorded_tokens": 14243940,
+  "cached_input_already_included": 10228736,
+  "avoidable_or_unproductive_tokens": 465912,
+  "unknown_response_count": 1,
+  "terminal_email_intent": "gepa-report-integration-terminal-20261012-v1",
+  "terminal_email_receipt": {
+    "id": "1a130c4f81d223c4",
+    "thread_id": "1a12eee2c0fab075"
+  },
+  "never_resend_terminal_email": true
+}

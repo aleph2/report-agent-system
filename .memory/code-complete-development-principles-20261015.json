@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-15",
+  "source": "Current direct desktop user message; exact message ID unavailable",
+  "user_verbatim": "请Codex和Neo在设计和研发上，参考《Code Complete》里面的原则和方法。你有这本书的内容吗？",
+  "decision": "Codex and Neo will use Code Complete as an engineering reference for design, implementation, debugging, refactoring and review, applying relevant principles to concrete project evidence rather than treating the book as a mandatory workflow.",
+  "reference_basis": {
+    "work": "Steve McConnell, Code Complete, Second Edition",
+    "edition_status": "Second edition used for the verified public reference; user has not specified an edition or translation.",
+    "full_text_status": "No complete text has been supplied or verified as available. Filename search of the two project roots for Code Complete/code complete/代码大全 returned no matching files; this is not proof about all files or the user's whole machine. General familiarity does not imply exact recall or access to full text.",
+    "verified_public_sources": [
+      "https://www.microsoftpressstore.com/store/code-complete-a-practical-handbook-of-software-construction-9780735619678",
+      "https://www.microsoftpressstore.com/articles/article.aspx?p=2222451",
+      "https://www.microsoftpressstore.com/articles/article.aspx?p=2222451&seqNum=7"
+    ],
+    "attribution_rule": "Distinguish principles supported by the inspected public chapter, general knowledge of the book, and our own project-specific application. Do not invent quotations, page numbers or claims of having read the complete supplied edition."
+  },
+  "project_application": [
+    "Control complexity: identify the shared cause of adjacent failures and simplify responsibility boundaries; an additional abstraction must reduce actual duplicated knowledge or coupling.",
+    "Information hiding and coherent interfaces: keep source-format details behind trusted source access; consumers should use a stable material contract rather than reverse-parse each producer's JSON.",
+    "Consistent contracts: prefer one typed business definition and installed framework schema/validation support; inspect the final model-facing schema and downstream consumers for divergence.",
+    "Evidence-led debugging: trace symptoms through production source and execution evidence, test competing hypotheses, and distinguish confirmed mechanisms from unknown external causes.",
+    "Safe refactoring and incremental integration: preserve valid history, provenance and unknown outcomes, verify the affected path with real inputs and outputs, and continue toward the full Word/XLSX report outcome.",
+    "Independent review: Neo checks source, design tradeoffs, execution traces and actual artifacts; passing local tests alone cannot establish end-to-end completion."
+  ],
+  "roles": {
+    "Codex": "Investigate, choose and explain design tradeoffs, implement, and supply source/test/trace/artifact evidence.",
+    "Neo": "Challenge root-cause and design reasoning using source code and relevant references, propose improvements, and inspect actual results."
+  },
+  "current_scope": "Apply to the current contract/material/effect-state architectural convergence and subsequent authorized development. This reference requirement does not authorize a new runtime policy, book-derived mandatory agent sequence, new paid run, unknown-result replay or publication. Existing project authorizations and full-chain objective remain."
+}

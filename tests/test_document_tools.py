@@ -205,6 +205,22 @@ def test_render_catalog_blob_and_select_exact_page(tmp_path):
         assert image.size == (600, 600)
 
 
+@pytest.mark.parametrize("crop", [None, [0.1, 0.1, 0.9, 0.9]])
+def test_authorized_page_read_ignores_withdrawn_historical_blacklist(tmp_path, crop):
+    from report_agent.document_tools import vision_source_image
+    ws = workspace(tmp_path)
+    ws.store.set("visual_page_exclusions", {"original": [2]})
+    before = snapshot(ws)
+    png, provenance = vision_source_image(ws, "original", 2, crop)
+    assert png.startswith(b"\x89PNG\r\n\x1a\n")
+    assert provenance["page"] == 2
+    assert source_page_png(ws, "original", 2).startswith(b"\x89PNG\r\n\x1a\n")
+    assert source_page_info(ws, "original", 2)["native_text"] == "Second physical page"
+    with pytest.raises(ActionRejected, match="SOURCE_NOT_IN_PROJECT"):
+        vision_source_image(ws, "foreign", 2, crop)
+    assert snapshot(ws) == before
+
+
 def test_frozen_ocr_matches_physical_page_not_block_ordinal(tmp_path):
     ws = workspace(tmp_path)
     Catalog(ws.store)

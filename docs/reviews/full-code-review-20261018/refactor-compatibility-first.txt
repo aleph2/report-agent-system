@@ -1,0 +1,451 @@
+........F............F....F.FFFFF.FF..FFFFFFFFFFFFFF.F................FF [ 72%]
+FFFFFFFFFFFFFFFFF.........F                                              [100%]
+=================================== FAILURES ===================================
+_________ test_real_review_controls_survive_native_filesystem_eviction _________
+tests/test_boundary_refactor.py:190: in test_real_review_controls_survive_native_filesystem_eviction
+    await graph.ainvoke({'messages': [{'role': 'user', 'content': 'Inspect this fixed test case.'}]})
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langgraph/pregel/main.py:4090: in ainvoke
+    async for chunk in self.astream(
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langgraph/pregel/main.py:3440: in astream
+    async for _ in runner.atick(
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langgraph/pregel/_runner.py:396: in atick
+    await arun_with_retry(
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langgraph/pregel/_retry.py:744: in arun_with_retry
+    return await task.proc.ainvoke(task.input, config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langgraph/_internal/_runnable.py:756: in ainvoke
+    input = await asyncio.create_task(
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langgraph/_internal/_runnable.py:522: in ainvoke
+    ret = await self.afunc(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain/agents/factory.py:1537: in amodel_node
+    result = await awrap_model_call_handler(request, _execute_model_async)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain/agents/factory.py:430: in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/filesystem.py:3262: in awrap_model_call
+    response = await handler(request)
+               ^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain/agents/factory.py:420: in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/report_agent/task_context.py:293: in awrap_model_call
+    result = await handler(request.override(system_message=system, messages=messages))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain/agents/factory.py:1505: in _execute_model_async
+    output = await model_.ainvoke(messages)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py:511: in ainvoke
+    llm_result = await self.agenerate_prompt(
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py:1888: in agenerate_prompt
+    return await self.agenerate(
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py:1846: in agenerate
+    raise exceptions[0]
+/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/langchain_core/language_models/chat_models.py:2179: in _agenerate_with_cache
+    result = await self._agenerate(
+tests/test_deep_runtime.py:49: in _agenerate
+    return await self.driver.respond(self.role, messages)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_deep_runtime.py:85: in respond
+    response = item(messages) if callable(item) else item
+               ^^^^^^^^^^^^^^
+tests/test_boundary_refactor.py:177: in inspect_request
+    assert reply.additional_kwargs['report_controls_restored'] is True
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'report_controls_restored'
+E   During task with name 'model' and id '565d2ada-fb4f-8122-dcef-f56d893f86ee'
+_____ test_source_decision_is_small_located_and_exact_original_recoverable _____
+tests/test_decision_data.py:30: in test_source_decision_is_small_located_and_exact_original_recoverable
+    assert len(bounded.content)<6000 and len(bounded.content)<len(msg.content)/10
+E   assert (84906 < 6000)
+E    +  where 84906 = len('{"complete_original_in_decision": true, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_data...1f0ea91611ea3d983a3efcdea85720b19f08591", "status": "success", "stored_characters": 84165, "tool": "read_source_page"}')
+E    +    where '{"complete_original_in_decision": true, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_data...1f0ea91611ea3d983a3efcdea85720b19f08591", "status": "success", "stored_characters": 84165, "tool": "read_source_page"}' = ToolMessage(content='{"complete_original_in_decision": true, "control_delivery_capacity": "platform_managed_not_preval...1ea3d983a3efcdea85720b19f08591', 'public_digest': 'e2d075fad47f53071e256af5dcd15ea387c9fee697bf4e589146fcfcf38c87f3'}}).content
+_ test_search_uses_actual_query_and_all_32_output_indexes_survive_large_qualifiers _
+tests/test_decision_data.py:108: in test_search_uses_actual_query_and_all_32_output_indexes_survive_large_qualifiers
+    frag=json.loads(bounded.content)['metadata']['matches']['entries'][0]['text']
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: list indices must be integers or slices, not str
+_ test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_context] _
+tests/test_business_envelope_projection.py:42: in test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation
+    actual=nav[field];assert actual['entries']==expected[:actual['shown']]
+                             ^^^^^^^^^^^^^^^^^
+E   TypeError: list indices must be integers or slices, not str
+_ test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[observe_evidence] _
+tests/test_business_envelope_projection.py:42: in test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation
+    actual=nav[field];assert actual['entries']==expected[:actual['shown']]
+                             ^^^^^^^^^^^^^^^^^
+E   TypeError: list indices must be integers or slices, not str
+_ test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_content_export] _
+tests/test_business_envelope_projection.py:42: in test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation
+    actual=nav[field];assert actual['entries']==expected[:actual['shown']]
+                             ^^^^^^^^^^^^^^^^^
+E   TypeError: list indices must be integers or slices, not str
+_ test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_result] _
+tests/test_business_envelope_projection.py:42: in test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation
+    actual=nav[field];assert actual['entries']==expected[:actual['shown']]
+                             ^^^^^^^^^^^^^^^^^
+E   TypeError: list indices must be integers or slices, not str
+__ test_field_recovery_uses_original_result_path_and_identity_never_truncated __
+tests/test_business_envelope_projection.py:59: in test_field_recovery_uses_original_result_path_and_identity_never_truncated
+    fragment=result['text']; recovery=fragment['recovery']['arguments']
+                                      ^^^^^^^^^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'
+___ test_empty_old_envelope_refresh_preserves_identity_raw_and_read_receipt ____
+tests/test_business_envelope_projection.py:85: in test_empty_old_envelope_refresh_preserves_identity_raw_and_read_receipt
+    meta=json.loads(refreshed.content)['metadata'];assert meta['receipt_id']==raw['receipt_id']
+                                                          ^^^^^^^^^^^^^^^^^^
+E   KeyError: 'receipt_id'
+__________ test_small_raw_tools_keep_shape_and_server_terminal_offset __________
+tests/test_business_envelope_projection.py:105: in test_small_raw_tools_keep_shape_and_server_terminal_offset
+    assert packet['metadata']['result']['unreturned_refs']=={'entries':[],'shown':0,'total':0,'complete':True}
+E   AssertionError: assert [] == {'entries': [...mplete': True}
+E     
+E     Use -v to get more diff
+_ test_native_writer_sees_actual_producer_limits_without_bulk_body_or_receipt_change _
+tests/test_producer_observations.py:44: in test_native_writer_sees_actual_producer_limits_without_bulk_body_or_receipt_change
+    fields = entry['qualifiers']['fields']
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'fields'
+__________ test_32_indexes_limits_and_exact_recovery_remain_available __________
+tests/test_producer_observations.py:76: in test_32_indexes_limits_and_exact_recovery_remain_available
+    assert len(shown.content) <= 10000
+E   assert 317124 <= 10000
+E    +  where 317124 = len('{"complete_original_in_decision": false, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_dat...ee10a02b5c29644cd48c3ec7b3afaf5", "status": "success", "stored_characters": 1687985, "tool": "process_report_content"}')
+E    +    where '{"complete_original_in_decision": false, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_dat...ee10a02b5c29644cd48c3ec7b3afaf5", "status": "success", "stored_characters": 1687985, "tool": "process_report_content"}' = ToolMessage(content='{"complete_original_in_decision": false, "control_delivery_capacity": "platform_managed_not_preva...e10a02b5c29644cd48c3ec7b3afaf5', 'public_digest': 'feae9e56ff282fcd3fc9e737f078ef6218a9d3012f28704bd7f99d743387b9df'}}).content
+__ test_empty_and_unshown_qualifiers_distinguished_and_no_acceptance_inferred __
+tests/test_producer_observations.py:99: in test_empty_and_unshown_qualifiers_distinguished_and_no_acceptance_inferred
+    assert len(shown.content) <= 10000
+E   assert 10478 <= 10000
+E    +  where 10478 = len('{"complete_original_in_decision": false, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_dat...c7f7de52faa226105ad33e74d323bd255", "status": "success", "stored_characters": 95377, "tool": "process_report_content"}')
+E    +    where '{"complete_original_in_decision": false, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_dat...c7f7de52faa226105ad33e74d323bd255", "status": "success", "stored_characters": 95377, "tool": "process_report_content"}' = ToolMessage(content='{"complete_original_in_decision": false, "control_delivery_capacity": "platform_managed_not_preva...7de52faa226105ad33e74d323bd255', 'public_digest': '041f9d906f622c14c0c259807abe12d4e6f4d7f0aa9f61ac284ddbfe3e13ec02'}}).content
+_____ test_old_owned_message_refreshes_exactly_once_with_original_pairing ______
+tests/test_producer_observations.py:128: in test_old_owned_message_refreshes_exactly_once_with_original_pairing
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+__________ test_foreign_or_changed_original_is_not_reprojected[owner] __________
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+___________ test_foreign_or_changed_original_is_not_reprojected[sha] ___________
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+___________ test_foreign_or_changed_original_is_not_reprojected[ref] ___________
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_________ test_foreign_or_changed_original_is_not_reprojected[receipt] _________
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_____ test_foreign_or_changed_original_is_not_reprojected[payload_digest] ______
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_________ test_foreign_or_changed_original_is_not_reprojected[missing] _________
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_____ test_foreign_or_changed_original_is_not_reprojected[failed_receipt] ______
+tests/test_producer_observations.py:147: in test_foreign_or_changed_original_is_not_reprojected
+    message = old_packet(ws)
+              ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+__ test_native_graph_represents_old_producer_return_without_second_text_call ___
+tests/test_producer_observations.py:171: in test_native_graph_represents_old_producer_return_without_second_text_call
+    original = module.producer_details
+               ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: module 'report_agent.decision_data' has no attribute 'producer_details'
+________ test_real_projection_address_recovers_field_tail_not_raw_json _________
+tests/test_field_observation_recovery.py:39: in test_real_projection_address_recovers_field_tail_not_raw_json
+    view=packet['metadata']['observation'];address=view['recovery']
+                                                   ^^^^^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'
+________ test_query_projection_nested_array_paths_and_bounded_fallback _________
+tests/test_field_observation_recovery.py:58: in test_query_projection_nested_array_paths_and_bounded_fallback
+    entries=packet['metadata']['matches']['entries']
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: list indices must be integers or slices, not str
+___________ test_query_tail_fragment_address_recovers_omitted_prefix ___________
+tests/test_field_observation_recovery.py:87: in test_query_tail_fragment_address_recovers_omitted_prefix
+    assert view['offset']>0 and view['end']==len(original['observation'])
+           ^^^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'
+_________ test_mixed_real_receipts_use_one_policy_read_and_repair_once _________
+tests/test_history_policy_reads.py:61: in test_mixed_real_receipts_use_one_policy_read_and_repair_once
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+________ test_policy_is_current_for_each_pass_including_disabled_policy ________
+tests/test_history_policy_reads.py:87: in test_policy_is_current_for_each_pass_including_disabled_policy
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_ test_standalone_recovery_retains_current_policy_check[0-refresh_producer_observation] _
+tests/test_history_policy_reads.py:102: in test_standalone_recovery_retains_current_policy_check
+    message = legacy_messages(ws)[index]
+              ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_ test_standalone_recovery_retains_current_policy_check[1-refresh_structural_observation] _
+tests/test_history_policy_reads.py:102: in test_standalone_recovery_retains_current_policy_check
+    message = legacy_messages(ws)[index]
+              ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_______ test_standalone_recovery_retains_current_policy_check[2-refresh] _______
+tests/test_history_policy_reads.py:102: in test_standalone_recovery_retains_current_policy_check
+    message = legacy_messages(ws)[index]
+              ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+____ test_shared_policy_never_bypasses_per_message_original_checks[owner-0] ____
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+____ test_shared_policy_never_bypasses_per_message_original_checks[owner-1] ____
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+____ test_shared_policy_never_bypasses_per_message_original_checks[owner-2] ____
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_____ test_shared_policy_never_bypasses_per_message_original_checks[sha-0] _____
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_____ test_shared_policy_never_bypasses_per_message_original_checks[sha-1] _____
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_____ test_shared_policy_never_bypasses_per_message_original_checks[sha-2] _____
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+___ test_shared_policy_never_bypasses_per_message_original_checks[missing-0] ___
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+___ test_shared_policy_never_bypasses_per_message_original_checks[missing-1] ___
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+___ test_shared_policy_never_bypasses_per_message_original_checks[missing-2] ___
+tests/test_history_policy_reads.py:116: in test_shared_policy_never_bypasses_per_message_original_checks
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_ test_shared_policy_still_requires_original_producer_or_selection_receipt[0] __
+tests/test_history_policy_reads.py:136: in test_shared_policy_still_requires_original_producer_or_selection_receipt
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_ test_shared_policy_still_requires_original_producer_or_selection_receipt[2] __
+tests/test_history_policy_reads.py:136: in test_shared_policy_still_requires_original_producer_or_selection_receipt
+    messages = legacy_messages(ws)
+               ^^^^^^^^^^^^^^^^^^^
+tests/test_history_policy_reads.py:24: in legacy_messages
+    producer = old_packet(ws)
+               ^^^^^^^^^^^^^^
+tests/test_producer_observations.py:118: in old_packet
+    del view['metadata']['producer_observations_note']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'producer_observations_note'
+_ test_large_real_return_has_exact_receipt_manifest_and_explicit_partial_metadata _
+tests/test_selection_observations.py:61: in test_large_real_return_has_exact_receipt_manifest_and_explicit_partial_metadata
+    assert len(encode(raw)) > 30000 and len(shown.content) < 6000
+E   assert (57258 > 30000 and 58054 < 6000)
+E    +  where 57258 = len('{"ok": true, "receipt_id": "6b546468-36ab-48c5-afcb-4c0547b721d5", "result": {"selections": [{"body": {"text": "stinc...s": 3200}], "snapshot_ref": {"id": "2bc7536e-4325-430a-a98b-18cc78c191ad", "type": "DocumentSnapshot", "version": 1}}}')
+E    +    where '{"ok": true, "receipt_id": "6b546468-36ab-48c5-afcb-4c0547b721d5", "result": {"selections": [{"body": {"text": "stinc...s": 3200}], "snapshot_ref": {"id": "2bc7536e-4325-430a-a98b-18cc78c191ad", "type": "DocumentSnapshot", "version": 1}}}' = encode({'ok': True, 'result': {'snapshot_ref': {'type': 'DocumentSnapshot', 'id': '2bc7536e-4325-430a-a98b-18cc78c191ad', 've...2bae6e3f870d5e2552cca59a2ecccb57c48c2b8fe8a38f9e35', ...}, ...]}, 'receipt_id': '6b546468-36ab-48c5-afcb-4c0547b721d5'})
+E    +  and   58054 = len('{"complete_original_in_decision": true, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_data...198848140135cf39737992464ca8dcb3a", "status": "success", "stored_characters": 57258, "tool": "read_content_selection"}')
+E    +    where '{"complete_original_in_decision": true, "control_delivery_capacity": "platform_managed_not_prevalidated", "exact_data...198848140135cf39737992464ca8dcb3a", "status": "success", "stored_characters": 57258, "tool": "read_content_selection"}' = ToolMessage(content='{"complete_original_in_decision": true, "control_delivery_capacity": "platform_managed_not_preval...848140135cf39737992464ca8dcb3a', 'public_digest': 'ee5d589103ce3d99daccc1ea98c11d94a5503b7da8ea4d2050220744e492c179'}}).content
+___ test_rows_retain_requested_and_actual_range_and_real_qualifier_presence ____
+tests/test_selection_observations.py:93: in test_rows_retain_requested_and_actual_range_and_real_qualifier_presence
+    item = meta['selections'][0]
+           ^^^^^^^^^^^^^^^^^^
+E   KeyError: 'selections'
+______ test_old_owned_packet_reprojects_once_without_new_read_or_receipt _______
+tests/test_selection_observations.py:110: in test_old_owned_packet_reprojects_once_without_new_read_or_receipt
+    updated = add_messages(history, (await mw.abefore_model({'messages': history}, None))['messages'])
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: 'NoneType' object is not subscriptable
+_ test_actual_native_writer_next_input_retains_receipt_and_full_selection_identity _
+tests/test_selection_observations.py:196: in test_actual_native_writer_next_input_retains_receipt_and_full_selection_identity
+    assert outcome['last_error'] is None, outcome
+E   AssertionError: {'goal': 'Report adopted class B and faithfully check its permitted value.', 'name': 'test_actual_native_writer_next0', 'status': 'failed', 'activity': '', ...}
+E   assert {'diagnostic_id': '43ccdf87-ec23-4c81-837c-c42b83e30e20', 'http_status': None, 'message': 'EXECUTION_FAILED', 'type': 'KeyError'} is None
+=========================== short test summary info ============================
+FAILED tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction
+FAILED tests/test_decision_data.py::test_source_decision_is_small_located_and_exact_original_recoverable
+FAILED tests/test_decision_data.py::test_search_uses_actual_query_and_all_32_output_indexes_survive_large_qualifiers
+FAILED tests/test_business_envelope_projection.py::test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_context]
+FAILED tests/test_business_envelope_projection.py::test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[observe_evidence]
+FAILED tests/test_business_envelope_projection.py::test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_content_export]
+FAILED tests/test_business_envelope_projection.py::test_shared_large_envelope_keeps_receipt_and_honest_identity_navigation[read_result]
+FAILED tests/test_business_envelope_projection.py::test_field_recovery_uses_original_result_path_and_identity_never_truncated
+FAILED tests/test_business_envelope_projection.py::test_empty_old_envelope_refresh_preserves_identity_raw_and_read_receipt
+FAILED tests/test_business_envelope_projection.py::test_small_raw_tools_keep_shape_and_server_terminal_offset
+FAILED tests/test_producer_observations.py::test_native_writer_sees_actual_producer_limits_without_bulk_body_or_receipt_change
+FAILED tests/test_producer_observations.py::test_32_indexes_limits_and_exact_recovery_remain_available
+FAILED tests/test_producer_observations.py::test_empty_and_unshown_qualifiers_distinguished_and_no_acceptance_inferred
+FAILED tests/test_producer_observations.py::test_old_owned_message_refreshes_exactly_once_with_original_pairing
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[owner]
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[sha]
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[ref]
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[receipt]
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[payload_digest]
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[missing]
+FAILED tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[failed_receipt]
+FAILED tests/test_producer_observations.py::test_native_graph_represents_old_producer_return_without_second_text_call
+FAILED tests/test_field_observation_recovery.py::test_real_projection_address_recovers_field_tail_not_raw_json
+FAILED tests/test_field_observation_recovery.py::test_query_projection_nested_array_paths_and_bounded_fallback
+FAILED tests/test_field_observation_recovery.py::test_query_tail_fragment_address_recovers_omitted_prefix
+FAILED tests/test_history_policy_reads.py::test_mixed_real_receipts_use_one_policy_read_and_repair_once
+FAILED tests/test_history_policy_reads.py::test_policy_is_current_for_each_pass_including_disabled_policy
+FAILED tests/test_history_policy_reads.py::test_standalone_recovery_retains_current_policy_check[0-refresh_producer_observation]
+FAILED tests/test_history_policy_reads.py::test_standalone_recovery_retains_current_policy_check[1-refresh_structural_observation]
+FAILED tests/test_history_policy_reads.py::test_standalone_recovery_retains_current_policy_check[2-refresh]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[owner-0]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[owner-1]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[owner-2]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[sha-0]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[sha-1]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[sha-2]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[missing-0]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[missing-1]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_never_bypasses_per_message_original_checks[missing-2]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_still_requires_original_producer_or_selection_receipt[0]
+FAILED tests/test_history_policy_reads.py::test_shared_policy_still_requires_original_producer_or_selection_receipt[2]
+FAILED tests/test_selection_observations.py::test_large_real_return_has_exact_receipt_manifest_and_explicit_partial_metadata
+FAILED tests/test_selection_observations.py::test_rows_retain_requested_and_actual_range_and_real_qualifier_presence
+FAILED tests/test_selection_observations.py::test_old_owned_packet_reprojects_once_without_new_read_or_receipt
+FAILED tests/test_selection_observations.py::test_actual_native_writer_next_input_retains_receipt_and_full_selection_identity
+45 failed, 54 passed in 29.02s

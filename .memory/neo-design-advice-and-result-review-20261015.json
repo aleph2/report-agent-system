@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-15",
+  "timezone": "Asia/Shanghai",
+  "source": "current direct desktop user message; exact message ID unavailable",
+  "user_verbatim": "补充一下Neo的职责，当发现root cause的时候或者需要设计决策的时候，Neo通过查新或者自身经验判断，给出改进意见，Codex负责执行，Neo负责检查结果",
+  "responsibilities": {
+    "Neo": "When root causes are discovered or design decisions are needed, use current applicable research and/or experience to assess options and propose improvements. Independently inspect actual execution traces and results after Codex implements the selected improvement.",
+    "Codex_Main": "Own implementation, execution and evidence-backed disposition of Neo's advice. Continue proactive diagnosis; Neo's advisory role does not remove Main's responsibility."
+  },
+  "evidence_boundary": "Distinguish verified mechanisms, literature-supported hypotheses and experience-based recommendations. Review the actual result, not merely the proposed change or passing local tests.",
+  "scope": "Cooperation within existing authorized development and full-chain validation. Not new authority for email, unknown-result replay, publication, original-report changes, new providers, OCR or indexing.",
+  "role_files_owned_by_Neo": [
+    ".analysis/neo/user-surrogate-role-20261014.md",
+    ".analysis/neo/user-turn-appendix-active-20261014.md"
+  ],
+  "applied_to_current_work": "Main asked Neo to assess C16 producer301/401 deadline evidence, research or reason about improvements, then review Main's execution and actual result. No provider/model configuration has been changed by this record."
+}
