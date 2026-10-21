@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
-from .content_models import Contract, Ref
+from .content_models import ArtifactRef, Contract, Ref
 from .content_store import ContentStore
 from .errors import ActionRejected
 from .store import encode, digest
@@ -88,7 +88,7 @@ class ReviewRequirement(Contract):
         description="Task-defined original-source spans eligible for additional selection. Reviewer selections must stay inside these spans; file membership alone does not authorize a whole-source request.")
     content_check_scopes: list[ContentCheckScope] = Field(default_factory=list,
         description="Body extent needed by a specific content check: local_body or the contains-linked subtree_bodies of an exact node. Missing full bodies return a pre-call gap. This does not grant access beyond the task material pool or choose a checking workflow.")
-    artifact_refs: list[Ref] = Field(default_factory=list)
+    artifact_refs: list[ArtifactRef] = Field(default_factory=list)
     presentation_reference_ref: Ref | None = Field(default=None,
         description="Exact customer SourceArtifact version for Word visual comparison. All rendered Word pages require full-page paired observations; crops cannot establish completion.")
     artifact_check_scopes: list[ArtifactCheckScope] = Field(default_factory=list,

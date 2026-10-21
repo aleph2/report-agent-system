@@ -75,6 +75,9 @@ def model_identity(model):
 
 def selected_evidence(workspace, source_selections, result_selections, snapshot_ref=None, content_selections=None,
                       *, material_receipts=None, actor=None, source_receipts=None):
+    from .source_use import validate_source_versions
+    validate_source_versions(workspace, actor,
+        [SourceSelection.model_validate(s).source_id for s in source_selections])
     catalog = Catalog(workspace.store)
     evidence = []
     for raw in source_selections:
@@ -126,36 +129,60 @@ def selected_evidence(workspace, source_selections, result_selections, snapshot_
 
 
 async def analyze_selected_evidence(workspace, model, question, source_selections, result_selections,
-                                    snapshot_ref=None, content_selections=None):
+                                    snapshot_ref=None, content_selections=None, *, actor=None):
     if not isinstance(question, str) or not question.strip():
         raise ActionRejected("EVIDENCE_QUESTION_REQUIRED")
     # Validate every selection before cache lookup or paid call. Even a cached
     # observation cannot grant access to a result/source absent from this project.
-    evidence = selected_evidence(workspace, source_selections, result_selections, snapshot_ref, content_selections)
-    inputs = {"question": question, "evidence": evidence}
+    evidence = selected_evidence(workspace, source_selections, result_selections, snapshot_ref, content_selections, actor=actor)
+    from .source_use import resolve_source_use_binding
+    policy_ref = resolve_source_use_binding(workspace, actor)
+    inputs = {"question": question, "evidence": evidence,
+              **({'source_use_policy_ref': policy_ref} if policy_ref else {})}
     return await analyze_evidence_packet(workspace, model, inputs, ANALYSIS_PROMPT,
                                         "selected-evidence-v3", reserve_attempt=True)
 
 
+def _empty_analysis(content):
+    return not content or (isinstance(content, str) and not content.strip())
+
+
 async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contract, *, reserve_attempt=False,
-                                  parent_reservation=None):
+                                  parent_reservation=None, allow_parent_readmission=True):
     """Shared one-shot execution/cache for selected observations and bound review.
 
     The caller assembles and authorizes actual material before entering here.
     No tool dispatch, source search, semantic retry or business acceptance loop.
+    A parent can receive admission facts without permitting a new caller ID to
+    readmit an earlier refused raw operation. Existing Writer policy is retained.
     """
     identity = model_identity(model)
     operation = digest({"system": system_prompt, "input": inputs, "model": identity, "contract": contract})
     saved = workspace.store.analysis(operation)
     if saved:
+        if _empty_analysis(saved.get("analysis")):
+            diagnostic = {"phase": "cache_read", "raw_operation": operation,
+                "new_model_call": False, "historical_usage": saved.get("usage"),
+                "note": "Historical cached content is empty. Original cache and attempt records remain unchanged; no automatic new request."}
+            workspace.store.event("evidence_analysis_cached_response_rejected", diagnostic)
+            raise ActionRejected("EVIDENCE_ANALYSIS_EMPTY_RESPONSE: " + encode(diagnostic))
         workspace.store.event("evidence_analysis_reused", {"operation": operation})
         return {**saved, "reused": True}
     if reserve_attempt:
         from .bounded_operations import reserve_once, record_outcome
         prior = reserve_once(workspace.store, 'bounded_review_attempt:' + operation,
-                             {'state':'reserved', 'operation':operation}, new_parent=parent_reservation)
+            {'state':'reserved', 'operation':operation},
+            new_parent=parent_reservation if allow_parent_readmission else None)
         if prior is not None:
             if prior['state'] == 'not_dispatched':
+                if parent_reservation is not None and not allow_parent_readmission:
+                    from .bounded_operations import record_not_dispatched
+                    # This parent was blocked by the original raw receipt. It
+                    # had no new provider attempt or admission-hook refusal.
+                    # Link only the new parent; never rewrite the original raw.
+                    record_not_dispatched(workspace.store, [parent_reservation], prior['admission_proof'],
+                        result={'proof_origin': 'prior_raw_receipt', 'raw_operation': operation,
+                                'new_provider_attempt': False})
                 raise ActionRejected('EVIDENCE_ANALYSIS_NOT_DISPATCHED: original local admission refusal; no response or usage; inspect before choosing another operation')
             raise ActionRejected("REVIEW_ANALYSIS_PREVIOUS_ATTEMPT_UNRESOLVED: inspect original response; no automatic retry")
     input_record = {
@@ -208,7 +235,7 @@ async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contr
     finish = metadata.get("finish_reason") or metadata.get("stop_reason")
     rejected = (finish in {"length", "max_tokens", "content_filter", "refusal", "error"}
                 or extras.get("refusal") or getattr(response, "invalid_tool_calls", None)
-                or getattr(response, "tool_calls", None) or not response.content)
+                or getattr(response, "tool_calls", None) or _empty_analysis(response.content))
     if rejected:
         # Failed/partial outputs are evidence and usage, never a reusable success.
         workspace.store.event("evidence_analysis_rejected_response", {
@@ -218,7 +245,7 @@ async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contr
             "tool_calls": getattr(response, "tool_calls", None),
             "invalid_tool_calls": getattr(response, "invalid_tool_calls", None)})
         code = ("EVIDENCE_ANALYSIS_RETURNED_TOOL_CALLS" if getattr(response, "tool_calls", None)
-                else "EVIDENCE_ANALYSIS_EMPTY_RESPONSE" if not response.content
+                else "EVIDENCE_ANALYSIS_EMPTY_RESPONSE" if _empty_analysis(response.content)
                 else "EVIDENCE_ANALYSIS_INCOMPLETE_OR_INVALID_RESPONSE")
         diagnostic = {"raw_operation": operation, "raw_response_received": True,
             "finish_reason": finish, "usage": getattr(response, "usage_metadata", None),
@@ -228,10 +255,6 @@ async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contr
             record_outcome(workspace.store, 'bounded_review_attempt:' + operation,
                            'received_invalid', result=diagnostic)
         raise ActionRejected(code + ": " + encode(diagnostic))
-    if getattr(response, "tool_calls", None):
-        raise ActionRejected("EVIDENCE_ANALYSIS_RETURNED_TOOL_CALLS")
-    if not response.content:
-        raise ActionRejected("EVIDENCE_ANALYSIS_EMPTY_RESPONSE")
     result = {"operation": operation, "analysis": response.content,
               "model": identity, "evidence": inputs["evidence"],
               "usage": getattr(response, "usage_metadata", None), "duration_seconds": duration,

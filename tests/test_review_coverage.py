@@ -14,7 +14,7 @@ from report_agent.webapp import create_app
 from test_hierarchical_content import ws, seed, review_item, submission
 from test_hierarchical_runtime import no_network, select
 from test_deep_runtime import Driver, call, invoke, observation
-from hierarchical_fixtures import delivery_evidence
+from hierarchical_fixtures import delivery_evidence, historical_hierarchical_review
 
 
 def covered_seed(ws):
@@ -90,7 +90,7 @@ async def test_native_whole_report_pass_requires_new_object_accounting(ws, accou
         return AIMessage(content="", tool_calls=[call("HierarchicalResponse", {"explanation": "Protocol fixture.", "review": data})])
     driver = Driver(coordinator=[select(snap, export), AIMessage(content="Selected."), AIMessage(content="Actual limitations retained.")],
                     rubric_grader=[invoke("read_context", target_ref=snap), grade])
-    result = await deep_runtime.run_report(ws, driver)
+    result = await historical_hierarchical_review(ws, driver)
     assert result["last_error"] is None, result
     assert result["status"] == ("reviewed_draft" if account else "needs_attention")
     final = result["content_final_review"]

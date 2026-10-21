@@ -143,7 +143,7 @@ async def test_candidate_counts_toward_bound_and_old_receipt_stays_usable(ws,mon
     _,_,refs,_,_=seed(ws)
     with delegated_task(ws,'coordinator',writer_call()) as (_,actor):
         first=await draft(ws,refs,actor)
-        monkeypatch.setattr(text_work,'MAX_EVIDENCE_CHARACTERS',20)
+        monkeypatch.setattr('report_agent.prepared_material.MAX_EVIDENCE_CHARACTERS',20)
         attempt=Model(json.dumps(content()))
         with pytest.raises(ActionRejected,match='SELECT_SMALLER_LOCATED_EVIDENCE'):
             await text_work.produce(ws,actor,attempt,'too-large','Revise','ContentNode',candidate_selections=[select(first)])

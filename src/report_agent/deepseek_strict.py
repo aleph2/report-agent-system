@@ -6,6 +6,12 @@ and arbitrary JSON containers use tagged recursion. No semantic repair occurs.
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Callable
+import json
+
+from jsonschema import Draft202012Validator, ValidationError as SchemaValidationError
+from referencing import Registry, Resource
+from referencing.exceptions import NoSuchResource, Unresolvable
+from referencing.jsonschema import DRAFT202012
 
 VERSION = 'deepseek-strict-v1'
 JSON_REF = '#/$defs/StrictJsonValue'
@@ -93,18 +99,94 @@ class Node:
     decode: Callable
 
 
-def compile_node(source):
+SUPPORTED = {'type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf',
+             'description', 'enum', 'const', 'pattern', 'format', 'minimum', 'maximum',
+             'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'title', 'default',
+             'minLength', 'maxLength', 'minItems', 'maxItems', 'discriminator',
+             'allOf', 'if', 'then', 'else', '$defs', '$ref'}
+
+
+def schema_grammar(source):
+    """Fail closed even inside an adapted subtree; never fetch schema documents."""
+    if type(source) is not dict:
+        raise WireError('Unsupported non-object source schema')
+    if set(source) - SUPPORTED:
+        raise WireError('Unsupported source schema keywords: ' + ','.join(sorted(set(source) - SUPPORTED)))
+    if '$ref' in source and (not isinstance(source['$ref'], str) or not source['$ref'].startswith('#')):
+        raise WireError('External schema references are not supported')
+    for key in ('properties', '$defs'):
+        for child in source.get(key, {}).values():
+            schema_grammar(child)
+    for key in ('anyOf', 'oneOf', 'allOf'):
+        for child in source.get(key, []):
+            schema_grammar(child)
+    for key in ('items', 'if', 'then', 'else'):
+        if key in source:
+            schema_grammar(source[key])
+    if isinstance(source.get('additionalProperties'), dict):
+        schema_grammar(source['additionalProperties'])
+
+
+def deny_schema_retrieval(uri):
+    raise NoSuchResource(ref=uri)
+
+
+def validate_original(validator, value):
+    try:
+        validator.validate(value)
+    except SchemaValidationError as exc:
+        path = '/'.join(str(part) for part in exc.absolute_path) or '$'
+        raise WireError('Business schema at ' + path + ': ' + exc.message) from exc
+    except Unresolvable as exc:
+        raise WireError('Unresolvable local schema reference') from exc
+    return value
+
+
+def compile_node(source, validator=None, resolver=None, references=()):
     source = deepcopy(source)
-    supported = {'type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf',
-                 'description', 'enum', 'const', 'pattern', 'format', 'minimum', 'maximum',
-                 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'title', 'default',
-                 'minLength', 'maxLength', 'minItems', 'maxItems', 'discriminator'}
-    if set(source) - supported:
-        raise WireError('Unsupported source schema keywords: ' + ','.join(sorted(set(source) - supported)))
+    if validator is None:
+        schema_grammar(source)
+        Draft202012Validator.check_schema(source)
+        registry = Registry(retrieve=deny_schema_retrieval)
+        validator = Draft202012Validator(source, registry=registry)
+        resolver = registry.resolver_with_root(Resource.from_contents(source, default_specification=DRAFT202012))
+    if '$ref' in source:
+        reference = source['$ref']
+        if reference in references:
+            raise WireError('Recursive business references require an explicit adapter')
+        if set(source) - {'$ref', '$defs', 'title', 'description', 'default'}:
+            raise WireError('Schema reference siblings require an explicit adapter')
+        try:
+            resolved = resolver.lookup(reference)
+        except Unresolvable as exc:
+            raise WireError('Unresolvable local schema reference') from exc
+        node = compile_node(resolved.contents, validator, resolved.resolver, (*references, reference))
+        if source.get('description'):
+            node.schema['description'] = source['description'] + '\n' + node.schema.get('description', '')
+        return node
     description = source.get('description')
+    local = validator.evolve(schema=source)
+    is_object = source.get('type') == 'object' or 'properties' in source
+    conditional = any(key in source for key in ('allOf', 'if', 'then', 'else'))
+    mixed_open = bool(source.get('properties')) and source.get('additionalProperties', False) is not False
+    if is_object and (conditional or mixed_open):
+        # Reuse the existing reversible representation. The provider enforces
+        # this wire shape; the original schema remains authoritative locally.
+        def encode_adapted(value):
+            return json_value(validate_original(local, value), True)
+        def decode_adapted(value):
+            return validate_original(local, json_value(value, False))
+        wire_description = ('Tagged JSON representation of this object. Original business schema '
+            '(validated locally, including conditional and open fields): ' + json.dumps(source, ensure_ascii=False))
+        return Node({'$ref': JSON_REF, 'description': wire_description}, encode_adapted, decode_adapted)
+    if conditional:
+        raise WireError('Conditional non-object schemas require an explicit adapter')
+    def child(schema):
+        return compile_node(schema, validator, resolver, references)
     choices = source.get('anyOf', source.get('oneOf'))
     if choices is not None:
-        nodes = [compile_node(s) for s in choices]
+        nodes = [child(s) for s in choices]
+        validators = [validator.evolve(schema=s) for s in choices]
         def choose(value, encode):
             # An explicit literal discriminator selects diagnostic scope, not a
             # repaired business value. Without one, retain all branch errors.
@@ -112,9 +194,12 @@ def compile_node(source):
                 k in value and value[k] in p.get('enum', [])
                 for k, p in n.schema.get('properties', {}).items())]
             errors = []
-            for node in nodes:
+            for node, branch in zip(nodes, validators):
                 try:
-                    return (node.encode if encode else node.decode)(value)
+                    if encode:
+                        validate_original(branch, value)
+                        return node.encode(value)
+                    return validate_original(branch, node.decode(value))
                 except WireError as exc:
                     errors.append((node, str(exc)))
             raise WireError('No union branch matches: ' + ' | '.join(
@@ -127,16 +212,16 @@ def compile_node(source):
         if additional is not False:
             if properties:
                 raise WireError('Mixed fixed/open objects require an explicit adapter')
-            child = compile_node(additional if isinstance(additional, dict) else {})
+            map_child = child(additional if isinstance(additional, dict) else {})
             def encode_map(value):
-                return {'entries': map_value(value, True, child.encode)}
+                return {'entries': map_value(value, True, map_child.encode)}
             def decode_map(value):
                 exact(value, ['entries'])
-                return map_value(value['entries'], False, child.decode)
-            node = Node(obj({'entries': entries_schema(child.schema)},
+                return map_value(value['entries'], False, map_child.decode)
+            node = Node(obj({'entries': entries_schema(map_child.schema)},
                 description='Open dictionary encoded as unique key/value entries.'), encode_map, decode_map)
         else:
-            children = {k: compile_node(s) for k, s in properties.items()}
+            children = {k: child(s) for k, s in properties.items()}
             required = set(source.get('required', []))
             schema = {}
             for key, child in children.items():
@@ -166,13 +251,13 @@ def compile_node(source):
                 return result
             node = Node(obj(schema), encode_object, decode_object)
     elif source.get('type') == 'array':
-        child = compile_node(source.get('items', {}))
+        array_child = child(source.get('items', {}))
         def array(value, encode):
             if type(value) is not list:
                 raise WireError('Expected array')
-            return [at('[' + str(i) + ']', child.encode if encode else child.decode, v)
+            return [at('[' + str(i) + ']', array_child.encode if encode else array_child.decode, v)
                     for i, v in enumerate(value)]
-        node = Node({'type': 'array', 'items': child.schema}, lambda v: array(v, True), lambda v: array(v, False))
+        node = Node({'type': 'array', 'items': array_child.schema}, lambda v: array(v, True), lambda v: array(v, False))
     elif 'type' not in source and not any(k in source for k in ('enum', 'const')):
         node = Node({'$ref': JSON_REF}, lambda v: json_value(v, True), lambda v: json_value(v, False))
     else:
@@ -195,7 +280,13 @@ def compile_node(source):
 
 class StrictCodec:
     def __init__(self, function):
-        self.node = compile_node(function['parameters'])
+        self.original = deepcopy(function['parameters'])
+        schema_grammar(self.original)
+        Draft202012Validator.check_schema(self.original)
+        registry = Registry(retrieve=deny_schema_retrieval)
+        self.validator = Draft202012Validator(self.original, registry=registry)
+        resolver = registry.resolver_with_root(Resource.from_contents(self.original, default_specification=DRAFT202012))
+        self.node = compile_node(self.original, self.validator, resolver)
         self.function = deepcopy(function)
         self.function['strict'] = True
         self.function['parameters'] = deepcopy(self.node.schema)
@@ -203,7 +294,8 @@ class StrictCodec:
             self.function['parameters']['$defs'] = {'StrictJsonValue': deepcopy(JSON_SCHEMA)}
 
     def encode(self, arguments):
+        validate_original(self.validator, arguments)
         return self.node.encode(arguments)
 
     def decode(self, arguments):
-        return self.node.decode(arguments)
+        return validate_original(self.validator, self.node.decode(arguments))

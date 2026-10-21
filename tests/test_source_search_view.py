@@ -210,22 +210,86 @@ def test_old_unconfigured_target_identity_stays_unchanged(ws):
     assert review_delivery(ws, target["draft_id"])["status"] == "reviewed_draft"
 
 
-async def test_native_tool_schema_exposes_choice_and_exact_full_access(ws):
-    configure_source_search(ws)
+async def test_native_tool_schema_exposes_choice_and_exact_full_access(tmp_path):
+    import hashlib
+    from types import SimpleNamespace
+    from langchain_core.messages import AIMessage, ToolMessage
+    from report_agent.content_store import ContentStore
+    from report_agent.deep_runtime import run_report
+    from report_agent.hierarchical_tools import actor_for
+    from report_agent.errors import ActionForbidden
+    # Fresh native inputs, separate from the historical default-config fixture.
+    data = table_pdf()
+    (tmp_path / 'sources').mkdir()
+    (tmp_path / 'sources/original.pdf').write_bytes(data)
+    store = Store(tmp_path)
+    store.initialize({'goal': 'Investigate the supplied original table; do not claim report acceptance.',
+        'content_contract': 'hierarchical-review-v1', 'review_entrypoint': 'delegated-reviewer-v1',
+        'sources': [{'id': 'original', 'title': 'Synthetic original', 'filename': 'original.pdf',
+            'content': 'alpha\n\nbeta\n\nalpha', 'coverage': 'partial',
+            'sha256': hashlib.sha256(data).hexdigest(), 'copied_path': 'sources/original.pdf'}]})
+    ws = Workspace(store)
+    Catalog(store)
+    with store.connect() as db:
+        db.execute('DELETE FROM source_blocks')
+        db.executemany('INSERT INTO source_blocks VALUES (?,?,?,?)', [
+            ('original', 0, 'page 1; chars 1-5', 'alpha'),
+            ('original', 1, '{"page":2,"method":"ocr"}; chars 1-4', 'beta'),
+            ('original', 2, 'page 1; chars 6-10', 'alpha')])
+    cs, actor = ContentStore(store), actor_for('coordinator')
+    inputs = cs.import_inputs(actor, 'inputs', ['original'])['result']
+    refs = cs.commit(actor, 'scope', [
+        {'client_key': 'root', 'type': 'ContentNode', 'payload': {
+            'kind': 'report', 'body': {'text': 'Original table investigation remains unresolved.'},
+            'qualifiers': {}, 'claim_kind': 'structure'}},
+        {'client_key': 'criterion', 'type': 'Criterion', 'payload': {
+            'requirement_refs': [inputs['requirement_ref']], 'purpose': 'Investigate the original table',
+            'scope': 'Selected source', 'expected_outcome': 'Preserve exact original observations',
+            'evidence_expectation': 'Original source text and table', 'allowed_limits': 'No semantic verdict yet'}}
+    ])['result']['refs']
+    snapshot = cs.freeze(actor, 'snapshot', refs['root'],
+        [*inputs['source_refs'], inputs['requirement_ref'], *refs.values()])['result']['snapshot_ref']
+    with pytest.raises(ActionForbidden, match='delegated task binding'):
+        tools(ws)['search_sources']('alpha', 0, 1, 'original', 'references',
+            runtime=SimpleNamespace(tool_call_id='unbound-control'))
+    received = []
+    def source_return(messages):
+        message = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == 'search_sources')
+        receipt = message.artifact['source_material']
+        issued = store.get('source_material:' + receipt['receipt'])
+        task = cs.list_objects('DelegatedTask')[0]
+        assert issued['actor']['task_id'] == task['ref']['id']
+        assert issued['actor']['role'] == 'reviewer'
+        assert receipt['source_version_refs'] == inputs['source_refs']
+        received.append(receipt)
+        return json.loads(message.content)
     def inspect_ref(messages):
-        got = observation(messages, "search_sources")
+        got = source_return(messages)
         assert got["matches"][0]["text"] == "alpha"
         assert got["table_detail"] == "references"
+        assert got['next_offset'] == 1 and got['total'] == 2
+        assert got['source_table_references'][0]['status'] == 'not_expanded'
         return invoke("search_sources", query="alpha", limit=1, source_id="original", table_detail="full")
     def finish(messages):
-        got = observation(messages, "search_sources")
+        got = source_return(messages)
         assert got["source_table_views"][0]["tables"][0]["rows"][2] == ["2", "", "7"]
-        return verdict(ws, ["satisfied"])
-    driver = Driver(rubric_grader=[invoke("search_sources", query="alpha", limit=1, source_id="original"), inspect_ref, finish])
-    review = grader(ws, driver)
-    result = await review._ensure_grader().ainvoke(payload(ws, review))
-    assert result["structured_response"].result == "satisfied"
-    schema = next(t for t in driver.bindings["rubric_grader"][0] if t["name"] == "search_sources")
+        return AIMessage(content='Original observations returned; review remains unfinished.')
+    assignment = {'subagent_type': 'reviewer', 'description': 'Investigate original source text and table.',
+        'review_snapshot_ref': snapshot, 'review_requirements': [{
+            'target_ref': refs['root'], 'criterion_ref': refs['criterion'], 'scope_id': 'source-investigation',
+            'required_checks': ['Compare original observations'], 'required_materials': [{
+                'requirement_index': 0, 'purpose': 'Assigned target and original source',
+                'refs': [refs['root'], *inputs['source_refs']]}]}]}
+    driver = Driver(coordinator=[invoke('task', **assignment), AIMessage(content='Source investigation received; no acceptance.')],
+        reviewer=[invoke("search_sources", query="alpha", limit=1, source_id="original", table_detail='references'), inspect_ref, finish])
+    result = await run_report(ws, driver)
+    assert result['last_error'] is None, result
+    assert not cs.list_objects('ReviewRecord') and len(received) == 2
+    assert store.get(CONFIG_KEY) is None and store.get(BINDING_KEY) is None
+    assert (tmp_path / 'sources/original.pdf').read_bytes() == data
+    with store.connect() as db:
+        assert [row[0] for row in db.execute('SELECT text FROM source_blocks ORDER BY ordinal')] == ['alpha', 'beta', 'alpha']
+    schema = next(t for t in driver.bindings["reviewer"][0] if t["name"] == "search_sources")
     assert "table_detail" in schema["parameters"]["properties"]
-    assert "configure_source_search" not in {t["name"] for t in driver.bindings["rubric_grader"][0]}
-    assert len(driver.calls) == 3
+    assert "configure_source_search" not in {t["name"] for t in driver.bindings["reviewer"][0]}
+    assert len([role for role, _, _ in driver.calls if role == 'reviewer']) == 3

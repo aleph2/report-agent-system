@@ -59,7 +59,8 @@ async def test_build_agent_direct_native_call_inherits_diagnostic_callback(tmp_p
     import pytest
     monkeypatch.setenv('LANGSMITH_TRACING', 'false')
     store = Store(tmp_path)
-    store.initialize({'goal': 'Synthetic diagnostic test', 'sources': [
+    store.initialize({'goal': 'Synthetic diagnostic test',
+        'content_contract': 'hierarchical-review-v1', 'review_entrypoint': 'delegated-reviewer-v1', 'sources': [
         {'id': 's', 'content': 'Synthetic', 'coverage': 'complete'}]})
     store.set('knowledge_enabled', False)
     driver = Driver(coordinator=[AIMessage(content='Unreached')])
@@ -67,6 +68,9 @@ async def test_build_agent_direct_native_call_inherits_diagnostic_callback(tmp_p
     agent = build_agent(Workspace(store), driver, None, rules='')
     with pytest.raises(Exception):
         await agent.ainvoke({'messages': [('user', 'Synthetic offline task')]})
+    assert driver.failed and [(role, step) for role, step, _ in driver.calls] == [('coordinator', 0)]
     files = list((tmp_path / 'diagnostics' / 'private').glob('*.json'))
     assert len(files) == 1
     assert json.loads(files[0].read_text())['public_error']['message'] == 'MODEL_REQUEST_TIMEOUT'
+    from report_agent.content_store import ContentStore
+    assert not ContentStore(store).list_objects()

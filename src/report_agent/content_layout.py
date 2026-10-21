@@ -11,6 +11,16 @@ from .content_models import Contract, Ref
 from .errors import ActionRejected
 
 
+def table_footnote(body):
+    """Read the explicitly supported visible note without rewriting its text."""
+    value = body.get("footnote")
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ActionRejected("TABLE_FOOTNOTE_REQUIRES_TEXT")
+    return value if value.strip() else None
+
+
 class Typography(Contract):
     line_spacing: float | None = Field(default=None, ge=0.5, le=3,
         description='Line-height multiplier; distinct from an exact point height.')

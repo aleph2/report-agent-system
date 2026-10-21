@@ -9,6 +9,11 @@ from .errors import ActionForbidden, ActionRejected
 
 
 _binding = ContextVar("content_task_binding", default=None)
+ASSIGNMENT_NOTE = (
+    "assignment is the immutable initial contract, including original goal and permissions. "
+    "current_invocation is the instruction for this actual call; it may revise the action "
+    "requested by the original goal, but cannot expand permissions or change saved review scopes."
+)
 
 
 def normalize_review_requirements(requirements):
@@ -37,6 +42,36 @@ def bound_actor(workspace, role, fallback):
     if not binding or binding[0] != str(workspace.store.root.resolve()) or binding[1].role != role:
         raise ActionForbidden("FORBIDDEN: delegated task binding required")
     return binding[1]
+
+
+def _invocation(call):
+    import hashlib
+    description = call["args"].get("description", "")
+    return {"delegate_operation_id": "delegate:" + call["id"],
+            "description": description,
+            "description_sha256": hashlib.sha256(description.encode("utf-8")).hexdigest()}
+
+
+def current_invocation(workspace, actor):
+    """Read the actual call only within its validated workspace/actor binding."""
+    if bound_actor(workspace, actor.role, None) != actor:
+        raise ActionForbidden("FORBIDDEN: invocation task binding")
+    return dict(_binding.get()[2])
+
+
+@contextmanager
+def invocation_binding(workspace, actor, call):
+    """Scope an actual native call, including server completion follow-ups."""
+    prior = current_invocation(workspace, actor)
+    invocation = _invocation(call)
+    if (call["args"].get("subagent_type") != actor.role or
+            invocation["delegate_operation_id"] != prior["delegate_operation_id"]):
+        raise ActionForbidden("FORBIDDEN: invocation delegation identity")
+    token = _binding.set((str(workspace.store.root.resolve()), actor, invocation))
+    try:
+        yield
+    finally:
+        _binding.reset(token)
 
 
 def task_tool(tool):
@@ -124,13 +159,18 @@ def delegated_task(workspace, caller_role, call):
             snapshot = cs._read(db, layout_snapshot)
             if snapshot["owner_id"] != coordinator.id:
                 raise ActionForbidden("FORBIDDEN: layout snapshot grant owner")
-        return {"task_ref": cs._insert(db, coordinator, "DelegatedTask", {
+        task_ref = cs._insert(db, coordinator, "DelegatedTask", {
             "role": role, "goal": args.get("description", ""),
             **({"review_snapshot_ref": review_snapshot, "review_requirements": requirements} if requirements else {}),
             **({"supervision_plugin": supervision_plugin} if role == "reviewer" else {}),
             **({"layout_snapshot_ref": layout_snapshot} if role == "layout" else {}),
             "write_scope": "Only artifacts produced by this task; read other project artifacts.",
-            "delegated_by": coordinator.id})}
+            "delegated_by": coordinator.id})
+        if policy_ref:
+            from .store import encode
+            db.execute('INSERT INTO state VALUES (?,?)',
+                ('source_use_task_binding:' + task_ref['id'], encode(policy_ref)))
+        return {"task_ref": task_ref}
     request = {"native_task": args, "resume": resumed}
     if selection_supplied or not resumed:
         request["supervision_plugin"] = supervision_plugin
@@ -138,6 +178,24 @@ def delegated_task(workspace, caller_role, call):
         request.update(review_requirements=requirements, review_snapshot_ref=review_snapshot)
     if layout_snapshot:
         request["layout_snapshot_ref"] = layout_snapshot
+    from .source_use import report_binding
+    from .store import digest
+    prior = cs.receipt(coordinator, 'delegate:' + call['id'])
+    # A saved legacy operation must keep its old request identity. A failed
+    # operation has no task sidecar: compare the original request digest too.
+    if resumed:
+        policy_ref = workspace.store.get('source_use_task_binding:' + resumed)
+    elif prior['state'] == 'known_success':
+        prior_task = prior['response']['result']['task_ref']['id']
+        policy_ref = workspace.store.get('source_use_task_binding:' + prior_task)
+    else:
+        policy_ref = report_binding(workspace.store)
+    if policy_ref:
+        bound_request = {**request, 'source_use_policy_ref': policy_ref}
+        if prior['state'] != 'unknown' and prior['request_digest'] == digest({'actor': coordinator.__dict__, 'request': request}):
+            policy_ref = None
+        else:
+            request = bound_request
     saved = cs.operation(coordinator, "delegate:" + call["id"], request, register)
     task_id = saved["result"]["task_ref"]["id"]
     actor = Actor("content:" + role + ":" + task_id, role, task_id)
@@ -150,8 +208,9 @@ def delegated_task(workspace, caller_role, call):
         plugin = selected_plugin(payload)
         if plugin and plugin.requires_check_evidence:
             args["description"] += "\nSelected supervision plugin requires check_results for each required check: requirement_index, actual execution_state, result, observation_indexes into this item's actual observations, and remaining reason for unfinished checks. Outside-assignment notes belong in outside_assignment_notes, never cancel assigned work. Linked evidence is not proof of correctness."
-    token = _binding.set((str(workspace.store.root.resolve()), actor))
+    native_call = {**call, "args": args}
+    token = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
     try:
-        yield {**call, "args": args}, actor
+        yield native_call, actor
     finally:
         _binding.reset(token)

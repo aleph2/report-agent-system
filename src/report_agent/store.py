@@ -77,6 +77,10 @@ class Store:
         for source in sources:
             if not source["id"] or not source["content"] or source["coverage"] not in {"complete", "partial"}:
                 raise ValueError("INVALID_SOURCE")
+        declaration = manifest.get('source_use')
+        if declaration is not None:
+            from .source_use import validate_declaration
+            validate_declaration(declaration, ids)
         with self.connect() as db:
             old = db.execute("SELECT value FROM state WHERE key='manifest'").fetchone()
             if old and old[0] != encode(manifest):
@@ -87,6 +91,9 @@ class Store:
                 db.execute("INSERT OR IGNORE INTO state VALUES ('acceptance_default', ?)",
                            (encode("requirement-derived-v1"),))
             db.execute("INSERT OR IGNORE INTO state VALUES ('status', ?)", (encode("ready"),))
+        if declaration is not None:
+            from .source_use import configure_source_use
+            configure_source_use(self, **declaration)
         for result in manifest.get("existing_artifacts", []):
             self.save_material(**result, owner="materials", origin="fixture_existing")
 

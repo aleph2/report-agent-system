@@ -8,6 +8,7 @@ from .content_store import ContentStore
 from .errors import ActionRejected
 from .evidence_analysis import analyze_evidence_packet
 from .learning import binding
+from .output_contract import received_output
 from .store import digest, encode
 
 
@@ -89,7 +90,8 @@ loop, report edits, publication or additional model calls are available.
 """
         result = await analyze_evidence_packet(workspace, model, inputs, prompt,
                                                'learning-evidence-text-work-v1', reserve_attempt=True)
-        payload = LearningAnalysis.model_validate_json(result['analysis']).model_dump()
+        with received_output('LEARNING_OUTPUT_CONTRACT_INVALID', result['operation']):
+            payload = LearningAnalysis.model_validate_json(result['analysis']).model_dump()
         receipt = digest({'operation': result['operation'], 'payload': payload, 'job': job.get('id')})
         workspace.store.set('learning_analysis:' + receipt, {'scope': scope_data, 'job_id': job.get('id'),
             'feedback_ids': sorted(feedback_ids), 'payload': payload, 'operation': result['operation']})

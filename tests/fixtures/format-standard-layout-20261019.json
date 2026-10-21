@@ -1,0 +1,22 @@
+{
+  "source_path": ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/format-standard-original-text.txt",
+  "source_sha256": "2b50a74db2bb3aa9566de5373d7765cb6b512f7771031b3f8667dd7673fe2443",
+  "source_sections": ["2.2", "3.1", "3.3", "4.1", "5.2", "7.2", "10.1"],
+  "independent_origin": "Values transcribed from the archived customer standard, not generated from the exporter or its options.",
+  "point_mapping": {"小二": 18, "小三": 15, "四号": 14, "小四": 12, "五号": 10.5, "三号": 16, "二号": 22},
+  "margins_mm": {"top": 25, "bottom": 25, "left": 25, "right": 15, "gutter": 0},
+  "synthetic_content": {"table_matrix": [["项目 Item", "值 Value"], ["类别 B", "75 分"]]},
+  "rules": {
+    "heading1": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 18, "bold": true, "line_multiple": 1.5},
+    "heading2": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 15, "bold": true, "line_multiple": 1.5},
+    "heading3": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 14, "bold": true, "line_multiple": 1.5},
+    "body": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 12, "line_multiple": 1.5},
+    "table": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 10.5, "line_multiple": 1.5},
+    "toc_heading": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 16, "bold": true, "line_multiple": 1.5},
+    "toc1": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 12, "bold": true, "line_multiple": 1.5},
+    "toc2": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 12, "bold": false, "line_multiple": 1.5},
+    "toc3": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 12, "bold": false, "line_multiple": 1.5},
+    "cover_project": {"east_asia": "宋体", "ascii": "Times New Roman", "size_pt": 22, "bold": true, "line_multiple": 1.0}
+  },
+  "limits": "Selected clauses only. Font names in OOXML do not prove installed-font availability or visual fidelity. Cover project-name single spacing is an explicit exception."
+}

@@ -92,16 +92,82 @@ def test_http_upload_read_search_no_model_and_reject_paths(tmp_path, monkeypatch
 
 
 async def test_completed_but_outdated_task_cannot_be_reported_as_reused(tmp_path):
-    from report_agent.report_runtime import execute_task
-    from test_report_trunk import baseline
-    ws = workspace(tmp_path)
-    draft = baseline(ws)
-    Catalog(ws.store).import_file('access.txt', b'Synthetic updated source', 'access')
-    def no_model(*args):
-        raise AssertionError('An outdated committed task must request revision, not call a model.')
-    result = await execute_task(ws, draft['task_id'], no_model)
-    assert not result['reused'] and result['result'] is None
-    assert result['error'] == 'RESULT_OUTDATED_REQUEST_REVISION'
+    # Explicit retired execute_task migration: old committed content remains
+    # readable, but stale source-version bindings cannot be reused as current work.
+    from copy import deepcopy
+    import json
+    from langchain_core.messages import AIMessage
+    from report_agent import deep_runtime
+    from report_agent.store import Store
+    from report_agent.workspace import Workspace
+    from report_agent.content_store import ContentStore
+    from test_deep_runtime import Driver, call, invoke, observation
+    store = Store(tmp_path)
+    store.initialize({"goal": "Compile the selected current source version.",
+        "content_contract": "hierarchical-review-v1", "review_entrypoint": "delegated-reviewer-v1",
+        "sources": [{"id": "s", "title": "Access", "content": "Daytime access only.", "coverage": "complete"}]})
+    current, cs = Workspace(store), ContentStore(store)
+    public = {}
+    body = {"kind": "block", "body": {"text": "Daytime access only."}, "qualifiers": {}, "claim_kind": "fact"}
+    def first_task(messages):
+        public["old_source"] = observation(messages, "import_source_versions")["result"]["source_refs"][0]
+        return AIMessage(content="", tool_calls=[call("task", {"subagent_type": "writer",
+            "description": json.dumps({"goal": "Compile this selected source.", "input_ref": public["old_source"]})},
+            "catalog-original-writer")])
+    def produce(messages):
+        assert public["old_source"]["id"] in json.dumps([m.content for m in messages])
+        return invoke("process_report_content", operation_id="catalog-original-work", objective="Compile selected access restriction.",
+            object_type="ContentNode", input_refs=[public["old_source"]], source_selections=[{"source_id": "s"}])
+    def adopt(messages):
+        work = observation(messages, "process_report_content")
+        public["text_work_id"] = work["text_work_id"]
+        return invoke("commit_objects", operation_id="catalog-original-adoption", objects=[{
+            "client_key": "body", "type": "ContentNode", "text_work_id": work["text_work_id"]}])
+    def writer_return(messages):
+        return AIMessage(content=json.dumps({"node_ref": observation(messages, "commit_objects")["result"]["refs"]["body"],
+                                            "text_work_id": public["text_work_id"]}))
+    def finish_first(messages):
+        public["node_ref"] = observation(messages, "task")["node_ref"]
+        return AIMessage(content="Saved original source-bound draft only.")
+    first_driver = Driver(coordinator=[invoke("import_source_versions", operation_id="catalog-original-inputs", source_ids=["s"]),
+        first_task, finish_first], writer=[produce, adopt, writer_return], text_tool=[AIMessage(content=json.dumps(body))])
+    first = await deep_runtime.run_report(current, first_driver)
+    assert first["last_error"] is None, first
+    assert sum(role == "text_tool" for role, _, _ in first_driver.calls) == 1
+    old_node, old_source = deepcopy(cs.read(public["node_ref"])), deepcopy(cs.read(public["old_source"]))
+    old_receipt = deepcopy(store.get("text_work_receipt:" + public["text_work_id"]))
+    old_blocks = Catalog(store).read("s", 0, 10)["blocks"]
+    assert old_node["payload"] == body and old_node["owner_id"].startswith("content:writer:")
+    changed = Catalog(store).import_file("access.txt", b"Nighttime access only.", replaces_id="s")
+    new_id = changed["source"]["id"]
+    catalog = {x["id"]: x for x in Catalog(store).sources()}
+    assert catalog["s"]["current"] is False and catalog[new_id]["current"] is True
+    assert catalog["s"]["content"] == "Daytime access only."
+    def stale_produce(messages):
+        transcript = json.dumps([m.content for m in messages])
+        assert public["old_source"]["id"] in transcript and public["node_ref"]["id"] in transcript
+        return invoke("process_report_content", operation_id="catalog-stale-work", objective="Reuse only if selected source bindings are current.",
+            object_type="ContentNode", input_refs=[public["node_ref"], public["old_source"]],
+            source_selections=[{"source_id": "s"}])
+    def rejected(messages):
+        value = observation(messages, "process_report_content")
+        assert value["ok"] is False and value["code"] == "TEXT_WORK_SOURCE_VERSION_NOT_CURRENT_FOR_SELECTION"
+        assert not value.get("reused")
+        return AIMessage(content="Stale source binding rejected; no replacement content or successful reuse claimed.")
+    offset = max(step for role, step, _ in first_driver.calls if role == "coordinator") + 1
+    second_driver = Driver(coordinator=[None] * offset + [AIMessage(content="", tool_calls=[call("task", {
+        "subagent_type": "writer", "description": json.dumps({"goal": "Check currentness before new text work.",
+        "old_source_ref": public["old_source"], "old_content_ref": public["node_ref"]})}, "catalog-stale-writer")]),
+        AIMessage(content="Original draft preserved as historical; no current delivery selected.")],
+        writer=[stale_produce, rejected])
+    second = await deep_runtime.run_report(Workspace(Store(store.root)), second_driver)
+    assert second["last_error"] is None, second
+    assert not any(role == "text_tool" for role, _, _ in second_driver.calls)
+    assert len(cs.list_objects("ContentNode")) == 1 and not cs.list_objects("ReviewRecord")
+    assert cs.read(public["node_ref"]) == old_node and cs.read(public["old_source"]) == old_source
+    assert store.get("text_work_receipt:" + public["text_work_id"]) == old_receipt
+    assert Catalog(store).read("s", 0, 10)["blocks"] == old_blocks
+    assert second["status"] != "reviewed_draft" and not store.get("content_delivery")
 
 
 def test_result_search_is_metadata_and_paged_read_is_observed(tmp_path):

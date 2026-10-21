@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import httpx
 import openai
 from contextlib import asynccontextmanager
@@ -122,6 +123,8 @@ class BusinessBoundary(InvalidToolFeedback):
         self.workspace, self.role = workspace, role
         self.decision_only = decision_only
         self.lock = asyncio.Lock()
+        from .repetition_guard import KnownWriteRepetition
+        self.write_repetition = KnownWriteRepetition(workspace, role)
 
     async def awrap_model_call(self, request, handler):
         from .tool_argument_feedback import diagnostic_messages
@@ -174,7 +177,15 @@ class BusinessBoundary(InvalidToolFeedback):
             blocks = request.system_message.content_blocks if request.system_message else []
             request = request.override(system_message=SystemMessage(
                 content=[*blocks, {"type": "text", "text": notice}]))
-        return await handler(request)
+        prepared = self.write_repetition.prepare(request.messages, tool)
+        if prepared is not None:
+            from .repetition_guard import NOTICE
+            blocks = request.system_message.content_blocks if request.system_message else []
+            request = request.override(system_message=SystemMessage(
+                content=[*blocks, {"type": "text", "text": NOTICE}]))
+        response = await handler(request)
+        self.write_repetition.after_model(prepared, response)
+        return response
 
     async def awrap_tool_call(self, request, handler):
         async with self.lock:
@@ -199,6 +210,7 @@ class BusinessBoundary(InvalidToolFeedback):
             thread_id = runtime.config.get("configurable", {}).get("thread_id") if runtime else None
             if thread_id:
                 store.set("native_trace_thread_id", thread_id)
+            self.write_repetition.intercept(call, runtime.state.get("messages", []) if runtime else [])
             pending_updates = {}
             try:
                 from .tool_transport import decode_object_arguments
@@ -221,7 +233,51 @@ class BusinessBoundary(InvalidToolFeedback):
                     raise ActionRejected("SEARCH_ARGUMENTS_MUST_BE_QUERY_OFFSET_LIMIT_SOURCE_ID_TABLE_DETAIL")
                 from .hierarchical_tools import enabled as content_enabled
                 if call["name"] == "task" and content_enabled(self.workspace):
-                    from .content_tasks import delegated_task
+                    if self.role == "coordinator":
+                        if request.tool is None:
+                            # Native ToolNode owns unregistered-tool feedback;
+                            # do not create business task state before it runs.
+                            return await handler(request)
+                        from .content_tasks import task_tool
+                        from pydantic import ValidationError
+                        from langgraph.prebuilt.tool_node import ToolInvocationError
+                        from .tool_argument_feedback import compact_native_tool_error
+                        # The delegation guard reads business state before the native
+                        # handler. Validate against the same public schema first;
+                        # retain the original arguments and unset/default fields.
+                        schema = task_tool(request.tool).tool_call_schema
+                        try:
+                            schema.model_validate(call["args"])
+                        except ValidationError as exc:
+                            error = ToolInvocationError(call["name"], exc, call["args"])
+                            message = ToolMessage(error.message, tool_call_id=call["id"],
+                                                  name=call["name"], status="error")
+                            native = compact_native_tool_error(message, store)
+                            requirements = call["args"].get("review_requirements")
+                            schema_errors = exc.errors(include_input=False, include_context=False,
+                                                       include_url=False)
+                            if (isinstance(requirements, list) and any(
+                                    e["loc"] and e["loc"][0] == "review_requirements"
+                                    for e in schema_errors)):
+                                from .content_tasks import normalize_review_requirements
+                                try:
+                                    normalize_review_requirements(requirements)
+                                except ValidationError as domain:
+                                    detail = "INVALID_REVIEW_REQUIREMENTS: " + str(domain)
+                                    return ToolMessage(encode({
+                                        "accepted": False, "ok": False,
+                                        "code": "INVALID_REVIEW_REQUIREMENTS",
+                                        "message": detail,
+                                        "error": error_data(ActionRejected(detail)),
+                                        "retryable": False,
+                                        "receipt_id": call["args"].get("operation_id"),
+                                        "domain_validation_errors": domain.errors(
+                                            include_input=False, include_context=False, include_url=False),
+                                        "native_validation": json.loads(native.content),
+                                        "native_schema_errors": schema_errors}),
+                                        tool_call_id=call["id"], name=call["name"], status="error")
+                            return native
+                    from .content_tasks import delegated_task, invocation_binding
                     from .content_store import ContentStore
                     from .task_supervision import batch_needs_review_decision, task_status
                     from .supervision_plugins import delegated_return
@@ -265,7 +321,8 @@ class BusinessBoundary(InvalidToolFeedback):
                                 next_request = replace(next_request, state=state,
                                                        runtime=replace(runtime, state=state))
                             native_invocations += 1
-                            returned = await handler(next_request)
+                            with invocation_binding(self.workspace, actor, next_call):
+                                returned = await handler(next_request)
                             if isinstance(returned, Command) and isinstance(returned.update, dict):
                                 pending_updates.update(returned.update)
                                 return Command(graph=returned.graph, goto=returned.goto, resume=returned.resume,
@@ -303,6 +360,7 @@ class BusinessBoundary(InvalidToolFeedback):
                     result = Command(update={**pending_updates, "messages": [result]})
                 store.event("content_delegation_failed", {"tool_call_id": call["id"], **error_data(exc)})
             from .tool_argument_feedback import compact_native_tool_error
+            self.write_repetition.observe(call, result, runtime.state.get("messages", []) if runtime else [])
             return compact_native_tool_error(result, store)
 
 
@@ -333,6 +391,13 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
     store, catalog = workspace.store, Catalog(workspace.store)
     allowed_kinds = {"purpose", "plan"} if role == "knowledge" else {"review"} if role == "reviewer" else {"draft"}
 
+    def source_consumer_actor():
+        from .hierarchical_tools import enabled as content_enabled
+        from .text_work import actor_for_tool
+        # Retained non-hierarchical read-only helpers never had delegated actors.
+        # A configured policy without an actual actor still fails closed below.
+        return actor_for_tool(workspace, role) if content_enabled(workspace) else None
+
     def observations(runtime, result_id=None):
         # Native checkpoint namespaces distinguish separate delegated contexts.
         namespace = runtime.config.get("configurable", {}).get("checkpoint_ns", "") if runtime else "direct"
@@ -359,8 +424,12 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         next block offset in the source result, not a character or PDF-page cursor.
         Blocks and physical pages are not interchangeable: use each returned locator.
         inspect_source_page accepts a 1-based physical PDF page instead.
-        A compact tool-result preview may separately truncate returned text fields;
-        next_offset=None does not prove you have read that complete saved observation.
+        Selected frozen block text is preserved, not silently cropped by field name.
+        The platform may defer tool-return bodies. Follow the supplied recovery
+        reference/path; when observation_ref is supplied, read_tool_observation
+        recovers that actor-owned original. Recovery does not expand access.
+        next_offset=None covers source-block pagination only, not complete reading
+        of the saved observation or its deferred content.
 
         source_table_views adds mechanical PDF table rows for the returned physical
         pages when available. These separate whole-page supplements may be incomplete;
@@ -486,12 +555,19 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
                                 "Assess actual relevance; historical review feedback may guide a new revision.",
                 "knowledge": {k: v for k, v in evidence.items() if k != "facts"}}
 
-    async def analyze_text(source_id: str, purpose: str, offset: int = 0, limit: int = 10) -> dict:
+    async def analyze_text(source_id: str, purpose: str, offset: int = 0, limit: int = 10,
+                           runtime: ToolRuntime = None) -> dict:
         """Optional one-shot LLM analysis of a source page for a stated purpose, no delegation or writes."""
         result = await analyze_selected_evidence(workspace, text_model, purpose,
-            [{"source_id": source_id, "offset": offset, "limit": limit}], [])
+            [{"source_id": source_id, "offset": offset, "limit": limit}], [],
+            actor=source_consumer_actor())
         page = result["evidence"][0]["observation"]
-        return {**result, "source_id": source_id, "offset": offset, "next_offset": page.get("next_offset")}
+        value = {**result, "source_id": source_id, "offset": offset, "next_offset": page.get("next_offset")}
+        from .source_use import resolve_source_use_binding
+        if resolve_source_use_binding(workspace, source_consumer_actor()):
+            from .source_materials import returned, analysis_materials
+            return returned(workspace, role, 'analyze_text', value, analysis_materials(result), runtime)
+        return value
 
     async def analyze_evidence(question: str, source_selections: list[SourceSelection],
                                result_selections: list[ResultSelection],
@@ -517,13 +593,18 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
             content_owner = bound_actor(workspace, role, actor_for(role))
         result = await analyze_selected_evidence(workspace, text_model, question,
                                                   source_selections, result_selections,
-                                                  snapshot_ref, content_selections)
+                                                  snapshot_ref, content_selections,
+                                                  actor=source_consumer_actor())
         for selection in result["evidence"]:
             if selection["kind"] == "saved_result_text":
                 observations(runtime, selection["result_id"])
         if content_selections:
             receipt = ContentStore(store).observe(content_owner, result)
-            return {**result, "receipt_id": receipt["receipt_id"]}
+            result = {**result, "receipt_id": receipt["receipt_id"]}
+        from .source_use import resolve_source_use_binding
+        if resolve_source_use_binding(workspace, source_consumer_actor()):
+            from .source_materials import returned, analysis_materials
+            return returned(workspace, role, 'analyze_evidence', result, analysis_materials(result), runtime)
         return result
 
     def submit_result(kind: Literal["purpose", "plan", "materials", "draft", "review"],

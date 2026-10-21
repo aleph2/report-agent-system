@@ -1,0 +1,63 @@
+{
+  "at": "2026-10-21T01:53:42.190650+00:00",
+  "candidate": "baseline-candidate-20261021-rc1",
+  "status": "Offline full regression accepted by Neo; candidate snapshot; post-OCR real integration pending",
+  "baseline_exists": false,
+  "full_regression": {
+    "collected": 2604,
+    "passed": 2595,
+    "failed": 0,
+    "setup_skipped": 9,
+    "collection_skipped_modules": 2,
+    "shards": 6,
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "original_154_mapped_all_pass": true,
+    "historical_exact_pass_retained": [
+      2327,
+      2381,
+      2531,
+      2592
+    ],
+    "all_phases_complete": true,
+    "coverage_exact": true,
+    "frozen_files_unchanged": true
+  },
+  "scope": "Original non-R1 repairs, R1 explicit Agent material selection/shared interfaces and source-use P2; original requirements and predicates retained; input migrations explicitly recorded.",
+  "migrations": {
+    "six_R1_handoff_candidates": "Explicit Agent selection of original Requirement references; all50 original assert ASTs preserved, scenarios/actions intentionally migrated and historical failures retained.",
+    "three_heading_locators": "Current preview/navigation wording; negative detector retains actual marker.",
+    "P2_original_positive": "Exact already-authorized source versions registered by host; actual Agent selection receipt supplied, all26 original assertion ASTs preserved.",
+    "post_full_three_failures_two_files": "Independent request-hash literal v5->v6 (57asserts equivalent after inverse literal); real Store/canonical Actor fixture for paired-image unit tests (14assert ASTs unchanged). Production source unchanged for these last migrations; focused55PASS."
+  },
+  "coverage_exclusions": [
+    "Nine actual graph/vector tests skipped without dedicated graph fixture; not PASS and not qualified by this candidate.",
+    "Two optional GEPA/DSPy modules skipped during discovery; no new optimizer/learning scope.",
+    "Offline fake-model regression does not prove actual model judgment, real report completeness, Office/Windows platform equivalence or whole-system acceptance."
+  ],
+  "remaining": "One fresh post-existing-OCR real integration plus joint assessment before first whole-system baseline.",
+  "data_cleaning": "New empty isolated case/library; no old report/nodes/reviews/checkpoints/model cache as current work. Preserve original inputs/OCR/history/trace and persistent used/unknown budget.",
+  "email": "stopped",
+  "DeepSeek_consultations": [
+    31,
+    32,
+    33
+  ],
+  "evidence": {
+    "full_run_local": ".analysis/integration-baseline-20261020/non-r1-repairs/step23-r1-p2-six-shard-full-resumed-20261021T013140Z",
+    "all_phase_audit_sha256": "1cf4d35d949329122781192829859d17253e2537e1240f6a51e072b1504f6931",
+    "recent_differential_sha256": "c0c2be2915e6e62ce097f829e43089469b01fb4ea7687044e39a73c07cc5f5ff",
+    "Neo_final": {
+      "path": ".analysis/integration-baseline-20261020/non-r1-repairs/neo-six-shard-full-final-acceptance-20261021.json",
+      "sha256": "4b0ca2cd5e171b8cacf87dfb1ef79cf384cdd519720ff9ec57ab44cdeb6470b8"
+    }
+  },
+  "reproducibility": "Code/test candidate, not a self-contained archive. Some recorded-response tests require retained external local .analysis fixtures and historical harness files; see external-local-fixture-hashes.json. Their raw contents stay out of Git and must not be uploaded as engineering inputs.",
+  "current_iteration_budget": "New separate50000000-token user authorization; historical budgets/unknown retained, not reset or transferred."
+}

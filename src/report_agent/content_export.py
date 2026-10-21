@@ -170,6 +170,9 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                     for cell, value in zip(table.add_row().cells, values):
                         cell.text = str(value)
                 presentation.format_table(table, options, style)
+                footnote = presentation.table_footnote(body)
+                if footnote is not None:
+                    doc.add_paragraph(footnote)
             elif kind == "figure":
                 from .document_tools import vision_source_image
                 png, _ = vision_source_image(source_workspace, body["source_id"], body.get("page", 1), None)
@@ -376,6 +379,11 @@ async def inspect_render(contents, actor, render_ref, page, question, client=Non
     provenance = {"source_id": render_ref["id"], "render_ref": render_ref,
         "export_ref": record["payload"]["export_ref"], "page": page,
         "coverage": "full_page_image" if crop is None else "region_only", "crop": crop}
+    policy_ref = None
+    if reference_source_id:
+        from types import SimpleNamespace
+        from .source_use import validate_source_versions
+        policy_ref = validate_source_versions(SimpleNamespace(store=contents.store), actor, [reference_source_id])
     if crop is not None or reference_source_id:
         import math
         from PIL import Image, ImageDraw
@@ -422,7 +430,8 @@ async def inspect_render(contents, actor, render_ref, page, question, client=Non
     owns = client is None
     client = client or configured_vision_client()
     try:
-        result = await _observe(contents.store, png, provenance, question, client, actor)
+        result = await _observe(contents.store, png, provenance, question, client, actor,
+                                **({'policy_ref': policy_ref} if policy_ref else {}))
         return contents.observe(actor, result)
     finally:
         if owns:

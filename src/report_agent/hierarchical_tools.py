@@ -102,8 +102,17 @@ def content_tools(workspace, role, runtime_identity=None):
         from .task_supervision import assignment, source_selection_bindings, review_readiness, readiness_metadata
         owner = actor()
         saved = assignment(contents, owner.task_id)
+        from .content_tasks import current_invocation, ASSIGNMENT_NOTE
         result = {"ok": True, "task_id": owner.task_id, "assignment": saved,
+                  "assignment_note": ASSIGNMENT_NOTE,
+                  "current_invocation": current_invocation(workspace, owner),
                   "source_selection_bindings": source_selection_bindings(contents, saved.get("review_requirements") or [])}
+        from .source_use import resolve_source_use_binding, _policy
+        policy_ref = resolve_source_use_binding(workspace, owner)
+        if policy_ref:
+            result['source_use'] = {'policy_ref': policy_ref,
+                'versions': _policy(workspace.store, policy_ref)['versions'],
+                'note': 'Exact enrolled source versions may supplement initial eligible materials for the same task. Choose captured refs and located selections explicitly; required materials and write permissions are unchanged.'}
         if saved.get('review_snapshot_ref') and saved.get('review_requirements'):
             result['readiness'] = review_readiness(contents, saved['review_snapshot_ref'], saved['review_requirements'])
             if runtime is not None:

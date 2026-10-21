@@ -37,20 +37,48 @@ def schema_check(s):
         schema_check(s['items'])
 
 
-async def test_all_native_and_business_tools_compile(ws):
-    seed(ws)
-    d = Driver(coordinator=[invoke('task', subagent_type='writer', description='Inspect only; return observations.'),
-                            AIMessage(content='Unresolved; no delivery selected.')],
-               writer=[AIMessage(content='No content changes.')])
-    result = await run_report(ws, d)
-    assert result['last_error'] is None, result
-    assert any(role == 'writer' for role, _, _ in d.calls)
-    functions = [s for bindings in d.bindings.values() for batch in bindings for s in batch]
-    for role in ('coordinator', 'writer', 'reviewer', 'rubric_grader'):
-        functions.extend(function(t) for t in business_tools(ws, role, None, d('text_tool')))
-    functions.append(convert_to_openai_tool(HierarchicalResponse)['function'])
+async def test_all_native_and_business_tools_compile(tmp_path):
+    # Explicit migration: compile today's published roles and native bindings;
+    # the retired automatic rubric_grader/HierarchicalResponse is not an entrypoint.
+    from report_agent.store import Store
+    from report_agent.workspace import Workspace
+    from report_agent.content_store import ContentStore
+    from test_bounded_review import review_call
+    store = Store(tmp_path)
+    store.initialize({"goal": "Inspect synthetic tool contracts only.",
+        "content_contract": "hierarchical-review-v1", "review_entrypoint": "delegated-reviewer-v1",
+        "sources": [{"id": "s", "title": "Rule", "content": "Class B permits 75 to 100.", "coverage": "complete"}]})
+    current = Workspace(store)
+    cs, _, refs, snapshot, _ = seed(current)
+    review = review_call(snapshot, refs)
+    review["args"].pop("supervision_plugin", None)
+    writer_call = invoke("task", subagent_type="writer", description="Inspect only; return observations.")
+    writer_call.tool_calls[0]["id"] = "compile-writer"
+    layout_call = invoke("task", subagent_type="layout", description="Inspect this assigned snapshot only.",
+                         layout_snapshot_ref=snapshot)
+    layout_call.tool_calls[0]["id"] = "compile-layout"
+    d = Driver(coordinator=[
+        writer_call,
+        AIMessage(content="", tool_calls=[review]),
+        layout_call,
+        AIMessage(content="Unresolved; no delivery selected.")],
+        writer=[AIMessage(content="No content changes.")],
+        reviewer=[AIMessage(content="No independent judgment claimed.")],
+        layout=[AIMessage(content="No layout or visual judgment claimed.")])
+    before = cs.list_objects("ContentNode"), cs.list_objects("Criterion")
+    result = await run_report(current, d)
+    assert result["last_error"] is None, result
+    roles = {"coordinator", "writer", "reviewer", "layout"}
+    assert {role for role, _, _ in d.calls} == roles
+    assert set(d.bindings) == roles
+    functions = [f for batches in d.bindings.values() for batch in batches for f in batch]
+    for role in sorted(roles):
+        functions.extend(function(t) for t in business_tools(current, role, None, d("text_tool")))
+    assert functions
     for f in functions:
-        schema_check(StrictCodec(f).function['parameters'])
+        schema_check(StrictCodec(f).function["parameters"])
+    assert before == (cs.list_objects("ContentNode"), cs.list_objects("Criterion"))
+    assert not cs.list_objects("ReviewRecord")
 
 
 def test_optional_absent_null_empty_and_open_nested_json_are_distinct():

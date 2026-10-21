@@ -159,8 +159,9 @@ async def test_inconsistent_pass_is_preserved_raw_and_never_silently_repaired(ws
     raw["items"][0]["coverage"]["unchecked"] = ["Actual missing comparison"]
     model = Model(json.dumps(raw))
     with delegated_task(ws, "coordinator", review_call(snapshot, refs)) as (_, reviewer):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ActionRejected, match='REVIEW_OUTPUT_CONTRACT_INVALID') as failure:
             await perform_review(ws, reviewer, model, "invalid", ["rule-comparison"])
+        assert isinstance(failure.value.__cause__, ValidationError)
     assert not cs.list_objects("ReviewRecord")
     with ws.store.connect() as db:
         assert db.execute("SELECT COUNT(*) FROM analyses").fetchone()[0] == 1
@@ -200,8 +201,9 @@ async def test_compound_partial_check_remains_incomplete_and_cannot_claim_comple
         "requirement_index": 1, "purpose": "Second comparison material", "refs": [refs["claim"]]})
     with delegated_task(ws, "coordinator", call) as (_, reviewer):
         if overclaim:
-            with pytest.raises(ValidationError, match="CHECK_DECLARATION_CONFLICTS"):
+            with pytest.raises(ActionRejected, match="REVIEW_OUTPUT_CONTRACT_INVALID.*CHECK_DECLARATION_CONFLICTS") as failure:
                 await perform_review(ws, reviewer, Model(json.dumps(raw)), "partial", ["rule-comparison"])
+            assert isinstance(failure.value.__cause__, ValidationError)
             assert not cs.list_objects("ReviewRecord")
         else:
             result = await perform_review(ws, reviewer, Model(json.dumps(raw)), "partial", ["rule-comparison"])
@@ -280,8 +282,9 @@ async def test_completed_output_with_omitted_observation_links_is_rejected(ws):
     del raw["items"][0]["check_results"][0]["observation_indexes"]
     model = Model(json.dumps(raw))
     with delegated_task(ws, "coordinator", review_call(snapshot, refs)) as (_, reviewer):
-        with pytest.raises(ValidationError, match="observation_indexes"):
+        with pytest.raises(ActionRejected, match="REVIEW_OUTPUT_CONTRACT_INVALID.*observation_indexes") as failure:
             await perform_review(ws, reviewer, model, "missing-links", ["rule-comparison"])
+        assert isinstance(failure.value.__cause__, ValidationError)
     assert len(model.calls) == 1 and not cs.list_objects("ReviewRecord")
 
 

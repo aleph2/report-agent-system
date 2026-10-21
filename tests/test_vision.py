@@ -128,17 +128,31 @@ async def test_each_role_can_observe_but_no_role_or_path_parameter(tmp_path, mon
 
 
 @pytest.mark.asyncio
-async def test_vision_model_uses_authorized_account_without_changing_agent_model(tmp_path, monkeypatch):
+@pytest.mark.parametrize('sdk_retries', [None, 0, 5], ids=['default', 'explicit-zero', 'explicit-five'])
+async def test_vision_model_uses_authorized_account_without_changing_agent_model(tmp_path, monkeypatch, sdk_retries):
     monkeypatch.setenv('REPORT_BASE_URL', 'https://unit.invalid/v1')
     monkeypatch.setenv('REPORT_API_KEY', 'synthetic-secret')
     monkeypatch.setenv('REPORT_MODEL', 'glm-5.3')
+    monkeypatch.delenv('REPORT_CONNECT_RETRIES', raising=False)
+    if sdk_retries is None:
+        monkeypatch.delenv('REPORT_SDK_RETRIES', raising=False)
+    else:
+        monkeypatch.setenv('REPORT_SDK_RETRIES', str(sdk_retries))
     vision = configured_vision_client()
-    agent = configured_model(workspace(tmp_path).store, 'writer')
-    assert agent.model_name == 'glm-5.3'
-    assert str(vision.base_url).rstrip('/') == agent.openai_api_base
-    assert vision.max_retries == 0
-    assert not hasattr(vision, 'callbacks')
-    await vision.close()
+    agent = None
+    try:
+        agent = configured_model(workspace(tmp_path).store, 'writer')
+        assert agent.model_name == 'glm-5.3'
+        assert str(vision.base_url).rstrip('/') == agent.openai_api_base
+        expected = 0 if sdk_retries is None else sdk_retries
+        assert vision.max_retries == agent.max_retries == expected
+        assert not hasattr(vision, 'callbacks')
+    finally:
+        await vision.close()
+        if agent is not None:
+            await agent.root_async_client.close()
+            agent.root_client.close()
+    assert vision.is_closed()
 
 
 def test_missing_config_fails_without_model_fallback(monkeypatch):

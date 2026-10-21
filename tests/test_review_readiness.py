@@ -317,12 +317,27 @@ def test_nonreviewer_native_tools_do_not_gain_review_readiness_or_assignment(ws,
 
 
 def test_historical_reviewer_without_explicit_contract_keeps_old_assignment_return(ws):
-    seed(ws)
+    import hashlib
+    from report_agent.content_tasks import ASSIGNMENT_NOTE
+    from report_agent.task_supervision import assignment
+    cs, _, _, _, _ = seed(ws)
     call = {'name': 'task', 'id': 'historical-review', 'args': {
         'subagent_type': 'reviewer', 'description': 'Historical unbound review'}}
-    with delegated_task(ws, 'coordinator', call):
+    with delegated_task(ws, 'coordinator', call) as (_, actor):
+        original = assignment(cs, actor.task_id)
         result = assignment_tool(ws)()
-        assert set(result) == {'ok', 'task_id', 'assignment', 'source_selection_bindings'}
+        assert set(result) == {'ok', 'task_id', 'assignment', 'source_selection_bindings',
+                               'current_invocation', 'assignment_note'}
+        assert result['ok'] is True and result['task_id'] == actor.task_id
+        assert result['assignment'] == original == assignment(cs, actor.task_id)
+        assert result['current_invocation'] == {
+            'delegate_operation_id': 'delegate:' + call['id'],
+            'description': call['args']['description'],
+            'description_sha256': hashlib.sha256(call['args']['description'].encode('utf-8')).hexdigest()}
+        assert result['assignment_note'] == ASSIGNMENT_NOTE
+        assert 'cannot expand permissions or change saved review scopes' in result['assignment_note']
+        assert result['source_selection_bindings'] == []
+        assert 'review_requirements' not in result['assignment'] and 'readiness' not in result
 
 
 async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_gaps(ws):
@@ -347,7 +362,7 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
     controls = []
     def see_first_system(messages):
         system = next(m for m in messages if m.type == 'system')
-        prefix = 'Exact current application state (not a summary):\n'
+        prefix = 'Current task bindings and navigation previews. Incomplete fields expose read_decision_state paths; previews do not establish complete instruction or evidence coverage:\n'
         block = next(b['text'] for b in system.content_blocks if b.get('text', '').startswith(prefix))
         control = json.loads(block[len(prefix):])['review_input_readiness']
         assert not control['execution_ready'] and control['issues']['complete']
