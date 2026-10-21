@@ -25,37 +25,43 @@ from test_hierarchical_runtime import grade, select, no_network
 
 
 async def passed_delivery(ws):
+    """Dated stored-state protocol fixture, not an executed historical runtime.
+
+    The DOCX read is real. delivery_evidence explicitly labels its visual data
+    synthetic; none of these positive records is report-quality evidence.
+    """
     cs, actor, refs, snapshot, all_refs = seed(ws)
     export = export_snapshot(cs, actor, "export", snapshot)["result"]["export_ref"]
-    checks = delivery_evidence(cs, snapshot, export)
-    driver = Driver(coordinator=[select(snapshot, export), AIMessage(content="Selected.")],
-        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied", checks)])
-    result = await deep_runtime.run_report(ws, driver)
-    assert result["status"] == "reviewed_draft", result
+    reviewer = actor_for("reviewer")
+    checks = delivery_evidence(cs, snapshot, export, actor=reviewer)
+    receipt = cs.read_context(reviewer, snapshot)["receipt_id"]
+    data = {**submission(snapshot, refs, review_item(snapshot, refs["k"], receipt, "satisfied")),
+            "delivery_checks": checks}
+    cs.submit_review(reviewer, "dated-static-final", data,
+        {"origin": "dated-stored-projection-fixture", "model_executed": False}, delivery_export_ref=export)
+    tools = {t.__name__: t for t in content_tools(ws, "coordinator")}
+    tools["select_content_delivery"]("dated-static-selection", Ref.model_validate(snapshot), Ref.model_validate(export))
+    assert project_state(ws)["status"] == "reviewed_draft"
     return cs, actor, refs, snapshot, all_refs, export, checks
 
 
 async def test_late_defect_invalidates_status_and_native_rerun(ws):
+    # Explicit migration: read historical projection again without reviving the
+    # retired mandatory rubric rerun. No new native execution is claimed.
     cs, actor, refs, snapshot, _, export, checks = await passed_delivery(ws)
     reviewer = actor_for("reviewer")
     receipt = cs.read_context(reviewer, snapshot)["receipt_id"]
     cs.submit_review(reviewer, "late-defect", submission(snapshot, refs,
         review_item(refs["claim"], refs["k"], receipt, "not_satisfied", "node")), {})
     assert project_state(ws)["status"] == "changes_required"
+    records = deepcopy(cs.list_objects("ReviewRecord"))
     tools = {t.__name__: t for t in content_tools(ws, "coordinator")}
     tools["select_content_delivery"]("retain", Ref.model_validate(snapshot), Ref.model_validate(export), "preserve_unresolved")
-    driver = Driver(rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied", checks)])
-    original = driver.respond
-    async def respond(role, messages):
-        if role == "coordinator":
-            driver.calls.append((role, 0, list(messages)))
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(content="Retain known defect."))])
-        return await original(role, messages)
-    driver.respond = respond
-    result = await deep_runtime.run_report(ws, driver)
-    assert result["last_error"] is None, result
-    assert any(role == "rubric_grader" for role, _, _ in driver.calls)
-    assert result["status"] == "changes_required"
+    reread = tools["content_status"]()
+    assert reread["current_review"]["overall_verdict"] == "not_satisfied"
+    assert reread["current_review"]["status"] == "changes_required"
+    assert project_state(ws)["status"] == "changes_required"
+    assert cs.list_objects("ReviewRecord") == records
 
 
 async def test_new_selection_cannot_inherit_old_pass(ws):
@@ -73,7 +79,7 @@ async def test_new_selection_cannot_inherit_old_pass(ws):
 
 async def test_corrected_final_record_cannot_supply_positive_coverage(ws):
     cs, _, refs, snapshot, _, _, checks = await passed_delivery(ws)
-    reviewer = actor_for("rubric_grader")
+    reviewer = actor_for("reviewer")
     old = ws.store.get("content_final_review")["review_ref"]
     receipt = cs.read_context(reviewer, snapshot)["receipt_id"]
     replacement = {**submission(snapshot, refs, review_item(snapshot, refs["k"], receipt, "undetermined")),
@@ -117,15 +123,61 @@ def test_content_correction_does_not_require_unperformed_page_checks(ws):
     assert all(c["verdict"] is None and not c["observations"] for c in cs.read(new)["payload"]["delivery_checks"])
 
 
-async def test_content_pass_with_unperformed_delivery_is_not_final_pass(ws):
-    cs, actor, refs, snapshot, _ = seed(ws)
-    export = export_snapshot(cs, actor, "export", snapshot)["result"]["export_ref"]
-    driver = Driver(coordinator=[select(snapshot, export), AIMessage(content="Selected."), AIMessage(content="Unperformed page review retained.")],
-        rubric_grader=[invoke("read_context", target_ref=snapshot), grade(snapshot, refs, "satisfied")])
+async def test_content_pass_with_unperformed_delivery_is_not_final_pass(tmp_path):
+    # Explicit migration: current scoped Reviewer evidence, not the retired
+    # automatic rubric grader. Seeded content and scripted positive are protocol
+    # fixtures; neither establishes generation quality or engineering validity.
+    import json
+    from test_task_supervision import ws as native_fixture
+    from test_bounded_review import review_call
+    ws = native_fixture.__wrapped__(tmp_path)
+    cs, _, refs, snapshot, _ = seed(ws)
+    source = next(r for r in cs.read(snapshot)["payload"]["refs"] if r["type"] == "SourceArtifact")
+    assigned = review_call(snapshot, refs, reads=[source])
+    assigned["args"].pop("supervision_plugin", None)
+    positive = {"items": [{"scope_id": "rule-comparison", "checked_requirement_indexes": [0],
+        "execution_state": "completed", "verdict": "satisfied",
+        "observations": [{"evidence_index": 0, "locator": "claim", "observation": "Synthetic claim observed."},
+            {"evidence_index": 1, "locator": "source", "observation": "Synthetic source observed."}],
+        "check_results": [{"requirement_index": 0, "execution_state": "completed",
+            "result": "Scripted local positive for protocol control.", "observation_indexes": [0, 1], "remaining": ""}],
+        "coverage": {"checked": ["Synthetic protocol comparison"], "unchecked": [], "blocked": [],
+            "basis": "Literal synthetic fixture; no engineering quality claim."},
+        "reason": "Synthetic positive to test scoped versus final status only.", "findings": []}]}
+    observed = {}
+    def select_export(messages):
+        exported = observation(messages, "export_content_snapshot")
+        assert exported["ok"], exported
+        observed["export"] = exported["result"]["export_ref"]
+        return AIMessage(content="", tool_calls=[assigned])
+    def retain_selection(messages):
+        records = cs.list_objects("ReviewRecord")
+        assert len(records) == 1
+        observed["review"] = records[0]["ref"]
+        return invoke("select_content_delivery", operation_id="select-unchecked",
+            snapshot_ref=snapshot, export_ref=observed["export"], ending_reason="preserve_unresolved")
+    def check_status(messages):
+        state = observation(messages, "content_status")["current_review"]
+        assert len(state["items"]) == 1
+        assert state["items"][0]["review_ref"] == observed["review"]
+        assert state["items"][0]["verdict"] == "satisfied"
+        assert state["overall_verdict"] is None and not state["final_review_current"]
+        assert state["delivery_checks"] == []
+        observed["status"] = state
+        return AIMessage(content="Local positive retained; delivery checks unperformed and whole report unassessed.")
+    driver = Driver(coordinator=[invoke("export_content_snapshot", operation_id="export-unchecked", snapshot_ref=snapshot),
+        select_export, retain_selection, invoke("content_status"), check_status],
+        reviewer=[invoke("perform_assigned_review", operation_id="scoped-positive", scope_ids=["rule-comparison"],
+            source_selections=[], content_selections=[]), AIMessage(content="Synthetic scoped positive only.")],
+        text_tool=[AIMessage(content=json.dumps(positive))])
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
-    assert result["status"] == "needs_attention"
-    assert result["content_final_review"]["overall_verdict"] is None
+    assert observed["status"]["snapshot_ref"] == snapshot
+    assert ws.store.get("content_final_review") is None
+    assert not cs.list_objects("RenderArtifact")
+    assert len(cs.list_objects("ReviewRecord")) == 1
+    assert sum(role == "text_tool" for role, _, _ in driver.calls) == 1
+    assert not any(role in {"layout", "rubric_grader"} for role, _, _ in driver.calls)
 
 
 def test_page_judgment_cannot_use_content_receipt_or_wrong_export(ws):
@@ -166,43 +218,56 @@ def test_task_binding_is_required_and_restored_after_failure(ws):
             pass
 
 
-async def test_native_delegation_separates_writers_and_resumes_original_owner(ws):
+async def test_native_delegation_separates_writers_and_resumes_original_owner(tmp_path):
+    from test_task_supervision import ws as native_fixture
+    ws = native_fixture.__wrapped__(tmp_path)
     cs, _, refs, _, _ = seed(ws)
     created = {}
-    payload = cs.read(refs["claim"])["payload"]
-    def save_a(messages):
+    payload = {"kind": "chapter", "body": {"text": "Owned section"},
+               "qualifiers": {}, "claim_kind": "structure"}
+    def first_action(messages):
+        human = next(m for m in reversed(messages) if m.type == "human")
+        if "Write B" in str(human.content):
+            return edit_a("b-attempt")
+        if "Continue A" in str(human.content):
+            return edit_a("a-resumed")
+        assert "Write A" in str(human.content)
         return invoke("commit_objects", operation_id="a-create", objects=[{"client_key": "a", "type": "ContentNode", "payload": payload}])
-    def done_a(messages):
-        created["a"] = observation(messages, "commit_objects")["result"]["refs"]["a"]
-        return AIMessage(content="A committed.")
+    def observe_commit(messages):
+        returned = observation(messages, "commit_objects")
+        if returned.get("ok") is False:
+            assert returned["message"] == "FORBIDDEN: object owner"
+            created["b_rejected"] = True
+            return AIMessage(content="B cannot overwrite A.")
+        ref = returned["result"]["refs"]["a"]
+        created["a" if ref["version"] == 1 else "revision"] = ref
+        return AIMessage(content="Saved own structural decision.")
     def edit_a(operation):
         return invoke("commit_objects", operation_id=operation, objects=[{"client_key": "a", "type": "ContentNode",
             "previous_ref": created["a"], "payload": {**payload, "body": {"text": "Owned revision"}}}])
-    def reject_b(messages):
-        assert observation(messages, "commit_objects")["code"] == "FORBIDDEN"
-        return AIMessage(content="B cannot overwrite A.")
+    def start_b(messages):
+        page = observation(messages, "read_object_index")
+        assert page["total"] == 1 and page["next_offset"] is None
+        created["public_a_task"] = page["objects"][0]["ref"]
+        assert created["public_a_task"]["type"] == "DelegatedTask"
+        return AIMessage(content="", tool_calls=[call("task", {
+            "subagent_type": "writer", "description": "Write B"}, "task-b")])
     def resume(messages):
         return AIMessage(content="", tool_calls=[call("task", {"subagent_type": "writer", "description": "Continue A",
-            "resume_content_task_id": cs.read(created["a"])["task_id"]}, "resume-a")])
-    def revised(messages):
-        created["revision"] = observation(messages, "commit_objects")["result"]["refs"]["a"]
-        return AIMessage(content="Original producer revised A.")
+            "resume_content_task_id": created["public_a_task"]["id"]}, "resume-a")])
     driver = Driver(coordinator=[AIMessage(content="", tool_calls=[call("task", {"subagent_type": "writer", "description": "Write A"}, "task-a")]),
-        AIMessage(content="", tool_calls=[call("task", {"subagent_type": "writer", "description": "Write B"}, "task-b")]), resume, AIMessage(content="Finished ownership test.")])
-    steps = [save_a, done_a, lambda m: edit_a("b-attempt"), reject_b, lambda m: edit_a("a-resumed"), revised]
-    original, count = driver.respond, {"n": 0}
-    async def respond(role, messages):
-        if role != "writer":
-            return await original(role, messages)
-        action = steps[count["n"]]
-        count["n"] += 1
-        return ChatResult(generations=[ChatGeneration(message=action(messages))])
-    driver.respond = respond
+        invoke("read_object_index", object_type="DelegatedTask"), start_b, resume,
+        AIMessage(content="Finished ownership test; no semantic approval.")],
+        writer=[first_action, observe_commit])
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
-    assert count["n"] == 6
+    assert sum(role == "writer" for role, _, _ in driver.calls) == 6
+    assert created["b_rejected"]
     assert created["revision"]["version"] == 2
     assert cs.read(created["a"])["owner_id"] == cs.read(created["revision"])["owner_id"]
+    assert cs.read(created["a"])["task_id"] == cs.read(created["revision"])["task_id"] == created["public_a_task"]["id"]
+    assert cs.read(created["a"])["payload"] == payload
+    assert cs.read(created["revision"])["payload"]["body"]["text"] == "Owned revision"
     assert len(cs.list_objects("DelegatedTask")) == 2
 
 

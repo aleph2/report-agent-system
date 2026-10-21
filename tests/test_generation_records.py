@@ -76,6 +76,7 @@ async def test_actual_producer_schema_receipt_adoption_and_word_preserve_the_bou
 
 
 async def test_receipt_notes_have_bounded_presence_and_exact_owned_recovery(ws):
+    import hashlib
     _,_,refs,_,_=seed(ws);activate(ws)
     answer=envelope('Long parser diagnostic. '*900)
     model=Model(json.dumps(answer))
@@ -84,13 +85,31 @@ async def test_receipt_notes_have_bounded_presence_and_exact_owned_recovery(ws):
         raw=json.dumps(result)
         shown=TaskContext(ws,'writer').bound_result(ToolMessage(content=raw,name='process_report_content',tool_call_id='work'))
         packet=json.loads(shown.content)
-        meta=packet['metadata']['generation_record']
-        assert meta['note_count']==1 and meta['content_deferred']
-        assert meta['digest']==digest(answer['generation_notes'])
-        assert len(shown.content)<10000 and 'Long parser diagnostic.' not in shown.content
+        assert packet['representation'] == 'exact-public-result-v2'
+        meta=packet['metadata']
+        assert meta['generation_notes'] == answer['generation_notes']
+        assert meta['text_work_id'] == result['text_work_id']
+        assert meta['output_count'] == 1 and meta['details_deferred']
+        entry=meta['outputs']['entries'][0]
+        assert entry['payload_digest'] == digest(payload())
+        assert entry['qualifiers'] == payload()['qualifiers']
+        assert entry['body_deferred'] and 'body' not in entry
+        assert packet['sha256'] == hashlib.sha256(raw.encode('utf-8')).hexdigest()
         restored=ws.store.get('tool_observation:'+packet['observation_ref'])
         assert restored['text']==raw and restored['owner']==actor.id
-        assert read_observation(ws,'writer',packet['observation_ref'],0,6000)['text']==raw[:6000]
+        chunks,offset=[],0
+        while True:
+            page=read_observation(ws,'writer',packet['observation_ref'],offset,6000)
+            assert page['sha256'] == packet['sha256'] and len(page['text']) <= 6000
+            chunks.append(page['text'])
+            if page['next_offset'] is None:
+                break
+            offset=page['next_offset']
+        assert len(chunks) > 1 and ''.join(chunks) == raw
+        assert ws.store.get('tool_observation:'+packet['observation_ref']) == restored
+    with delegated_task(ws,'coordinator',call('different-observation-owner')):
+        with pytest.raises(ActionForbidden,match='observation owner'):
+            read_observation(ws,'writer',packet['observation_ref'],0,6000)
 
 
 @pytest.mark.parametrize('bad',[{'output_index':1,'text':'Note'}, {'output_index':True,'text':'Note'}, {'output_index':0,'text':'  '}])
@@ -130,7 +149,8 @@ async def test_actual_issue_workbook_retains_technical_qualifier_without_process
         assert cs.read(saved)['payload']==table
 
 
-async def test_native_graph_adopts_enveloped_batch_and_exports_actual_word_and_excel(ws,monkeypatch):
+@pytest.mark.parametrize('reference_delivery', [False, True])
+async def test_native_graph_adopts_enveloped_batch_and_exports_actual_word_and_excel(ws,monkeypatch,reference_delivery):
     import test_text_work as existing
     from report_agent.content_store import ContentStore
     from report_agent.content_workbook import read_workbook
@@ -143,7 +163,7 @@ async def test_native_graph_adopts_enveloped_batch_and_exports_actual_word_and_e
             'generation_notes':[{'output_index':i,'text':process_note} for i in range(3)]})}) for m in outputs]
         return original_driver(*args,**kwargs)
     monkeypatch.setattr(existing,'Driver',driver_with_receipt_notes)
-    await existing.test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx(ws)
+    await existing.test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx(ws,reference_delivery)
     cs=ContentStore(ws.store)
     for record in cs.list_objects('ExportArtifact'):
         p=record['payload'];raw=(ws.store.root/p['file_ref']).read_bytes()

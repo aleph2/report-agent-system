@@ -137,3 +137,17 @@ def representation_identity(workspace, actor, evidence):
         else:
             values.append(item)
     return digest(sorted({encode(v) for v in values})) if recognized else None
+
+
+def analysis_materials(result):
+    """Exact direct source inputs of this real analysis, not semantic lineage.
+
+    Model interpretations are not original facts. Empty means no direct source
+    blocks supplied to this analysis; it grants neither access nor completeness.
+    """
+    return [{**part, 'kind': 'model_text_interpretation',
+             'analysis_operation': result['operation'],
+             'limitations': [*part['limitations'],
+                 'Model interpretation of these direct inputs; semantic correctness is unverified.']}
+            for entry in result['evidence'] if entry['kind'] == 'source_blocks'
+            for part in block_material(entry['observation'])]

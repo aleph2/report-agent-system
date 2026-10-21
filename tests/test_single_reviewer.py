@@ -62,16 +62,44 @@ async def test_feedback_returns_control_without_automatic_grader(ws, verdict):
     new_path(ws)
     cs, actor, refs, snapshot, _ = seed(ws)
     export = export_snapshot(cs, actor,"export",snapshot)["result"]["export_ref"]
-    def submit(messages):
-        receipt = observation(messages,"read_context")["receipt_id"]
-        data = submission(snapshot,refs,review_item(refs["claim"],refs["k"],receipt,verdict))
-        return invoke("submit_review",operation_id="review",review=data,delivery_export_ref=export)
+    source = next(ref for ref in cs.read(snapshot)['payload']['refs'] if ref['type'] == 'SourceArtifact')
+    assignment = review_assignment(snapshot, refs)
+    assignment['review_requirements'][0]['required_materials'] = [{
+        'requirement_index': 0, 'purpose': 'Compare the assigned claim with its original rule',
+        'refs': [refs['claim'], source]}]
+    checked = []
+    def checker(messages):
+        packet = json.loads(messages[-1].content)
+        indexes = [next(i for i, item in enumerate(packet['evidence'])
+            if item['kind'] == 'saved_object' and item['object']['ref'] == ref)
+            for ref in (refs['claim'], source)]
+        assert [packet['evidence'][i]['object']['payload'] for i in indexes] == [
+            cs.read(ref)['payload'] for ref in (refs['claim'], source)]
+        complete = verdict is not None
+        observations = [{'evidence_index': index, 'locator': name, 'observation': text}
+            for index, name, text in zip(indexes, ['claim', 'rule'],
+                ['Adopted class B uses 70.', 'Class B permits 75 to 100.'])] if complete else []
+        checked.append(packet)
+        return AIMessage(content=json.dumps({'items': [{
+            'scope_id': 'delivery', 'checked_requirement_indexes': [0] if complete else [],
+            'execution_state': 'completed' if complete else 'blocked', 'verdict': verdict,
+            'observations': observations,
+            'check_results': [{'requirement_index': 0,
+                'execution_state': 'completed' if complete else 'blocked',
+                'result': 'Compared the supplied claim and rule.' if complete else 'Comparison not performed.',
+                'observation_indexes': [0, 1] if complete else [],
+                'remaining': '' if complete else 'The assigned comparison remains unfinished.'}],
+            'coverage': {'checked': ['rule comparison'] if complete else [], 'unchecked': [],
+                'blocked': [] if complete else ['rule comparison'], 'basis': 'Actual assigned scope.'},
+            'reason': 'Retain the actual result or unfinished comparison.', 'findings': []}]}))
     driver = Driver(coordinator=[
         invoke("select_content_delivery",operation_id="select",snapshot_ref=snapshot,export_ref=export),
-        invoke("task",**review_assignment(snapshot, refs)),
+        invoke("task",**assignment),
         invoke("record_execution_decision",operation_id="decision",decision="continue",reason="Investigate next useful correction",evidence=["saved review"],unresolved=["remaining checks"]),
         invoke("read_feedback"), AIMessage(content="Preserved incomplete delivery.")],
-        reviewer=[invoke("read_context",target_ref=snapshot),submit,AIMessage(content="Saved review and limitations.")])
+        reviewer=[invoke('perform_assigned_review', operation_id='review', scope_ids=['delivery'],
+                         source_selections=[], content_selections=[]),
+                  AIMessage(content="Saved review and limitations.")], text_tool=[checker])
     result=await deep_runtime.run_report(ws,driver)
     assert result["last_error"] is None, result
     assert "rubric_grader" not in driver.created
@@ -80,6 +108,8 @@ async def test_feedback_returns_control_without_automatic_grader(ws, verdict):
     assert not current_delivery(ws.store)["final_review_current"]
     assert result["execution_status"] == "completed"
     assert current_delivery(ws.store)["overall_verdict"] != "satisfied"
+    assert len(checked) == 1 and len(cs.list_objects('ReviewRecord')) == 1
+    assert 'submit_review' not in {tool['name'] for tool in driver.bindings['reviewer'][0]}
     assert any("read_feedback" in str(m.tool_calls) for role,_,msgs in driver.calls if role=="coordinator" for m in msgs if isinstance(m,AIMessage))
 
 

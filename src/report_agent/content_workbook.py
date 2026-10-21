@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .content_models import Ref
 from .content_export import _asset
 from .errors import ActionForbidden, ActionRejected
+from . import content_layout as presentation
 
 
 class WorkbookSheet(BaseModel):
@@ -68,6 +69,12 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             header_row = len(rows) + 1
             rows += [body['columns'], *body['rows']]
             table_stop = len(rows)
+            footnote = presentation.table_footnote(body)
+            if footnote is not None:
+                start = len(rows) + 1
+                rows.append([footnote])
+                mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'table-footnote',
+                                 'row_start': start, 'row_stop': len(rows) + 1})
             seen_notes = set()
             for note_ref in sheet.get('note_refs', []):
                 key = Ref.model_validate(note_ref).key()
@@ -118,6 +125,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             'template_ref': 'frozen-tables-notes-xlsx-v2',
             'export_config': {'format': 'xlsx', 'sheets': sheets, 'report_export_ref': report_export_ref,
                 'exporter_digest': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                'layout_engine_digest': hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
                 'limitation': 'Version link is provenance, not a claim of Word/Excel consistency or review.'}})
         mapping_ref = contents._insert(db, actor, 'MappingArtifact', {'snapshot_ref': snapshot_ref,
             'export_ref': export_ref, 'anchor_records': mappings,

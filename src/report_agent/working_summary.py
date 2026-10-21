@@ -115,10 +115,13 @@ class WorkingSummary(SummarizationMiddleware):
     async def _acreate_summary(self,messages):
         import time
         failure_key=self._failure_key() if self.store else None
-        if failure_key and self.store.get(failure_key):
+        previous=self.store.get(failure_key) if failure_key else None
+        if previous:
+            original_reason=previous.get('reason','UNKNOWN_HISTORICAL_FAILURE')
             self.store.event('context_summary_retry_blocked',{'model_called':False,
-                'original_history_retained':True,'reason':'SUMMARY_POLICY_REPAIR_REQUIRED'})
-            raise SummaryRepairRequired('SUMMARY_POLICY_REPAIR_REQUIRED')
+                'original_history_retained':True,'reason':'SUMMARY_POLICY_REPAIR_REQUIRED',
+                'original_reason':original_reason})
+            raise SummaryRepairRequired('SUMMARY_POLICY_REPAIR_REQUIRED: original_reason='+original_reason)
         started=time.perf_counter()
         recovery=[]
         if self.store and self.role:
@@ -141,15 +144,23 @@ class WorkingSummary(SummarizationMiddleware):
             self.store.set(failure_key,{'reason':'SUMMARY_OUTCOME_PENDING',
                 'input_digest':digest(formatted),'original_history_retained':True})
             self.store.event('working_summary_intent',{'scope_key':failure_key,'input_digest':digest(formatted)})
+        from .request_budget import logical_request_admission, RequestBudgetExceeded
         try:
-            response=await self.model.ainvoke(self.summary_prompt.format(messages=formatted),
-                config={'metadata':{'lc_source':'summarization'}})
+            with logical_request_admission() as admission:
+                response=await self.model.ainvoke(self.summary_prompt.format(messages=formatted),
+                    config={'metadata':{'lc_source':'summarization'}})
         except BaseException as exc:
+            proof=admission.not_dispatched_proof(exc) if isinstance(exc,RequestBudgetExceeded) else None
             if failure_key:
-                self.store.set(failure_key,{'reason':'SUMMARY_OUTCOME_UNKNOWN',
-                    'exception_type':type(exc).__name__,'original_history_retained':True})
-                self.store.event('working_summary_outcome_unknown',{'scope_key':failure_key,
-                    'exception_type':type(exc).__name__,'automatic_replay':False})
+                record={'reason':'SUMMARY_NOT_DISPATCHED' if proof else 'SUMMARY_OUTCOME_UNKNOWN',
+                    'exception_type':type(exc).__name__,'original_history_retained':True}
+                if proof:
+                    record.update(provider_outcome='not_dispatched', raw_response_received=False,
+                                  usage=None, admission_proof=proof)
+                self.store.set(failure_key,record)
+                self.store.event('working_summary_not_dispatched' if proof else 'working_summary_outcome_unknown',
+                    {'scope_key':failure_key, **record,
+                     'automatic_replay':False})
             raise
         text=response.text
         reason=(response.response_metadata or {}).get('finish_reason')

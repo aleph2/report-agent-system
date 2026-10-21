@@ -792,6 +792,7 @@ class ContentStore:
             payload = old["payload"]
             selected = self.selected_review_items(payload, item_indexes)
             keys = {Ref.model_validate(r).key() for r in new["payload"]["refs"]}
+            keys.add(Ref.model_validate(new_snapshot).key())
             required = [r for i in selected for r in [i["target_ref"], i["criterion_ref"], *self.item_dependencies(payload, i)]]
             if item_indexes is None:
                 required += [payload["target_ref"], *payload["criteria_refs"], *payload["dependency_refs"]]

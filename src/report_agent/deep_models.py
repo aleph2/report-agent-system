@@ -351,6 +351,7 @@ def configured_model(store, role):
     # Apply retries at construction: changing the Pydantic field afterward does
     # not update the SDK clients already initialized by ChatOpenAI.
     return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
+                      **({"profile": {"image_inputs": False, "image_tool_message": False}} if not is_deepseek else {}),
                       http_async_client=model_async_client(store, role), http_client=model_sync_client(store, role),
                       disable_streaming=True,
                       reasoning_effort=os.environ.get("REPORT_REASONING_EFFORT", "high") if is_deepseek else "high",

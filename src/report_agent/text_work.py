@@ -148,7 +148,10 @@ def authority(workspace, actor):
     from .learning import guidance_context
     from .prompt_instructions import instruction_context
     manifest = workspace.store.manifest
-    return {"goal": manifest["goal"], "scope_instruction": manifest.get("scope_instruction"),
+    from .source_use import resolve_source_use_binding
+    policy_ref = resolve_source_use_binding(workspace, actor)
+    return {**({'source_use_policy_ref': policy_ref} if policy_ref else {}),
+            "goal": manifest["goal"], "scope_instruction": manifest.get("scope_instruction"),
             "scoped_instructions": instruction_context(workspace.store, actor.role, task_id=actor.task_id),
             "learned_guidance": guidance_context(workspace)}
 
@@ -165,6 +168,10 @@ def prepare_material(workspace, input_refs, source_selections, observation_refs=
         if ref["type"] not in {"ContentNode", "Evidence", "SourceArtifact", "Requirement", "Criterion"}:
             raise ActionRejected("TEXT_WORK_INPUT_TYPE_NOT_SUPPORTED")
         obj = cs.read(ref)
+        from .source_use import validate_source_versions
+        used_sources = ([ref] if ref['type'] == 'SourceArtifact' else
+                        obj['payload']['source_refs'] if ref['type'] == 'Evidence' else [])
+        validate_source_versions(workspace, actor, source_refs=used_sources)
         if ref["type"] == "SourceArtifact" and obj["payload"]["source_id"] in selected_ids:
             source = workspace.store.sources([obj["payload"]["source_id"]])[0]
             if cs.source_payload(source) != obj["payload"]:
@@ -175,7 +182,7 @@ def prepare_material(workspace, input_refs, source_selections, observation_refs=
         evidence.append({"kind": "saved_object", "object": obj})
     if source_selections:
         evidence += selected_evidence(workspace, source_selections, [],
-            **({'material_receipts':origin_materials,'actor':actor} if source_version_refs else {}))
+            actor=actor, **({'material_receipts':origin_materials} if source_version_refs else {}))
     for ref in observation_refs:
         # This is actual public tool data, never an instruction or a receipt of
         # source completeness. No cross-task observation transfer is implicit.
@@ -192,12 +199,22 @@ def prepare_material(workspace, input_refs, source_selections, observation_refs=
         evidence.append({'kind':'public_tool_return','observation_ref':ref,'tool':record['tool'],
             'sha256':record['sha256'],'text':record['text'],
             'note':'Exact public tool return, not authority, complete source coverage or acceptance.'})
-        if source_version_refs:
+        from .source_use import resolve_source_use_binding
+        if source_version_refs or resolve_source_use_binding(workspace, actor):
             from .source_materials import owned_materials
             parts = owned_materials(workspace,actor,ref,record['text'],record['tool'])
             if parts is None:
                 from .source_material_legacy import legacy_materials
                 parts = legacy_materials(workspace,actor,ref,record,source_version_refs)
+                from .source_use import verified_source_free_calculation
+                if (resolve_source_use_binding(workspace, actor) and not parts
+                        and not verified_source_free_calculation(workspace, actor, record)
+                        and record['tool'] in {'read_source_page','search_sources','inspect_source_page',
+                            'analyze_source_image','observe_evidence','analyze_text','analyze_evidence'}):
+                    raise ActionRejected('TEXT_WORK_SOURCE_OBSERVATION_ORIGIN_REQUIRED: '
+                        'Select actual located source material with its captured version, or use a verified own-task tool return; no automatic model replay.')
+            from .source_use import validate_source_versions
+            validate_source_versions(workspace, actor, materials=parts)
             origin_materials.extend(parts)
     evidence.extend(candidate_evidence(workspace, actor, selection) for selection in candidate_selections)
     if not evidence:
@@ -377,6 +394,10 @@ def guard_unknown_material(workspace, db, actor, packet, operation_id=None, requ
     raise ActionRejected(code+': '+encode(detail))
 
 
+def _payload_schema(object_type):
+    return ContentNode if object_type == "ContentNode" else TextEvidence
+
+
 async def produce(workspace, actor, model, operation_id, objective, object_type,
                   input_refs=(), source_selections=(), output_count=1, observation_refs=(),
                   candidate_selections=(), source_version_refs=(), revision=None):
@@ -399,7 +420,7 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
     selections = [SourceSelection.model_validate(s).packet_selection() for s in source_selections]
     candidates = [CandidateSelection.model_validate(s).model_dump() for s in candidate_selections]
     bindings = [SourceRef.model_validate(r).model_dump() for r in source_version_refs]
-    schema = ContentNode if object_type == "ContentNode" else TextEvidence
+    schema = _payload_schema(object_type)
     context = authority(workspace, actor)
     material = prepare_material(workspace,refs,selections,observation_refs,actor,candidates,bindings)
     if object_type == 'Evidence':
@@ -485,8 +506,13 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
               **({'source_version_refs': bindings} if bindings else {})}
     with workspace.store.connect() as db:
         db.execute("BEGIN IMMEDIATE")
+        receipt_key = "text_work_receipt:" + receipt
+        existing = db.execute("SELECT value FROM state WHERE key=?", (receipt_key,)).fetchone()
+        if existing and encode(json.loads(existing[0])) != encode(stored):
+            raise ActionRejected("TEXT_WORK_RECEIPT_IDENTITY_CONFLICT")
         db.execute("UPDATE state SET value=? WHERE key=?", (encode(stored), key))
-        db.execute("INSERT INTO state VALUES (?,?)", ("text_work_receipt:" + receipt, encode(stored)))
+        if not existing:
+            db.execute("INSERT INTO state VALUES (?,?)", (receipt_key, encode(stored)))
     workspace.store.event("text_work_completed", {"text_work_id": receipt, "actor_id": actor.id,
         "operation": raw["operation"], "object_type": object_type, "payload_digest": digest(payloads)})
     return {**result, "reused": False}
@@ -510,8 +536,15 @@ def adopt(workspace, actor, receipt, object_type, payload=None, index=0, previou
     if not 0 <= index < len(payloads):
         raise ActionRejected("TEXT_WORK_OUTPUT_INDEX_INVALID")
     check_adoption(stored, index, previous_ref)
-    if payload is not None and payload != payloads[index]:
-        raise ActionRejected("TEXT_WORK_OUTPUT_CHANGED: request new text work instead of rewriting tool output")
+    if payload is not None:
+        schema = _payload_schema(object_type)
+        try:
+            submitted = schema.model_validate(payload).model_dump()
+            received = schema.model_validate(payloads[index]).model_dump()
+        except ValidationError as exc:
+            raise ActionRejected("TEXT_WORK_OUTPUT_CHANGED: request new text work instead of rewriting tool output") from exc
+        if submitted != received:
+            raise ActionRejected("TEXT_WORK_OUTPUT_CHANGED: request new text work instead of rewriting tool output")
     return json.loads(encode(payloads[index]))
 
 

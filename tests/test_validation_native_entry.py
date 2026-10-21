@@ -40,6 +40,10 @@ def local(tmp_path):
 
 @pytest.fixture
 def host(tmp_path, monkeypatch, local):
+    # The real host harness writes these process keys before entry checks.
+    # Register undo before it runs, retaining each caller value or absence.
+    monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
+    monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
     area = Path(__file__).resolve().parents[1]/'.analysis/implementation-resumed-20261014'
     monkeypatch.syspath_prepend(str(area))
     harness = importlib.import_module('continue_full_chain_validation17')

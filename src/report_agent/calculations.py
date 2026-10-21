@@ -33,5 +33,7 @@ def sum_products(terms: list[list[str]]) -> dict:
                     "total": str(total), "precision": context.prec,
                     "rounded": context.flags.get(Inexact, False),
                     "limitation": "Arithmetic only. Input selection, units and applicable rules are not verified."}
+    except ActionRejected:
+        raise
     except (DecimalException, ValueError, TypeError):
         raise ActionRejected("INVALID_DECIMAL_CALCULATION") from None

@@ -46,8 +46,160 @@ def offline(monkeypatch):
     monkeypatch.setattr(deep_runtime, "configured_model", forbidden)
 
 
+EARLY_VALIDATION_MUTATIONS = {"hash", "target", "source", "foreign_source_path", "graph", "resume", "interrupt", "error"}
+
+
+def historical_public_state_fixture(tmp_path, monkeypatch):
+    """Dated data-format fixture only: no model run or terminal graph is asserted."""
+    store = Store(tmp_path / "baseline")
+    source = store.root / "sources/access.txt"
+    source.parent.mkdir()
+    source.write_bytes(b"Daytime access only.")
+    store.initialize({"goal": "Historical public-state validation fixture; no executed model history.",
+        "sources": [{"id": "s", "title": "Access notice", "content": "Daytime access only.",
+            "coverage": "complete", "copied_path": "sources/access.txt",
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}]})
+    workspace = Workspace(store)
+    Catalog(store)
+    draft = {"id": "historical-fixture-draft", "kind": "draft", "body": "Anytime access [s].",
+        "source_ids": ["s"], "fact_ids": [], "origin": "dated-format-static-test-fixture"}
+    with store.connect() as db:
+        db.execute("INSERT INTO results VALUES (?,?,?)", (draft["id"], "historical-fixture", encode(draft)))
+    for key,value in {"acceptance_mode": recovery.MODE, "knowledge_enabled": False,
+            "delivery": {"draft_id": draft["id"]}, "rubric_status": "satisfied",
+            "report_status": "completed"}.items():
+        store.set(key,value)
+    # Explicit synthetic public-state input, never evidence of an executed run.
+    store.event("deep_run_finished", {"fixture_only": True, "executed": False})
+    (store.root / "run.lock").touch()
+    with sqlite3.connect(store.root / "checkpoints.db") as db:
+        db.execute("CREATE TABLE non_executable_fixture(note TEXT)")
+        db.execute("INSERT INTO non_executable_fixture VALUES ('Not a native checkpoint or terminal-state proof')")
+    feedback = tmp_path / "feedback.txt"
+    feedback.write_text("Check the historical source restriction.",encoding="utf-8")
+    def forbidden_graph(*args, **kwargs):
+        pytest.fail("PREVALIDATION_MUST_NOT_BUILD_OR_READ_GRAPH")
+    monkeypatch.setattr(recovery, "project_agent", forbidden_graph)
+    return workspace,draft,feedback
+
+
+def historical_standard_projection_fixture(tmp_path, monkeypatch):
+    """Dated stored projection only; no executed review or native checkpoint claim."""
+    from report_agent.acceptance import (
+        AcceptanceCriterionInput, active_criteria, criteria_identity,
+        criteria_rules, requirement_basis,
+    )
+    from report_agent.acceptance_review import contract_identity as acceptance_contract
+    from report_agent.review import review_delivery, export_configuration, observation_version
+    from report_agent.store import digest, encode
+
+    workspace, draft, feedback = historical_public_state_fixture(tmp_path, monkeypatch)
+    store = workspace.store
+    basis = requirement_basis(workspace)
+    criterion = AcceptanceCriterionInput.model_validate({
+        "id": "dated-static-criterion-1",
+        "requirement_refs": ["commission: source access restrictions"],
+        "condition": "The adopted access restriction agrees with the source.",
+        "scope": "Access recommendation",
+        "evidence_expectation": "Locate supporting source statement.",
+        "allowed_limitations": "Genuine uncertainty may remain explicitly attributed.",
+    }).model_dump()
+    acceptance = {
+        "id": "dated-static-acceptance-1", "kind": "acceptance",
+        "body": encode({"version": recovery.MODE, "requirement_basis": basis,
+            "basis_hash": digest(basis), "criteria": [criterion],
+            "reason": "Historical format fixture only; not an executed model review."}),
+        "source_ids": ["s"], "input_ids": [], "fact_ids": [],
+        "origin": "dated-format-static-test-fixture",
+    }
+    draft = {**draft, "input_ids": [acceptance["id"]]}
+    with store.connect() as db:
+        db.execute("INSERT INTO results VALUES (?,?,?)",
+            (acceptance["id"], "dated-static-acceptance", encode(acceptance)))
+        db.execute("UPDATE results SET data=? WHERE id=?", (encode(draft), draft["id"]))
+
+    # No experiment/search-view configuration: this is the existing historical format.
+    assert store.get("review_context_experiment") is None
+    assert store.get("source_search_view") is None
+    current = active_criteria(workspace)
+    assert current["id"] == acceptance["id"] and current["current"] is True
+    assert draft["input_ids"] == [current["id"]]
+    prompt_hash = digest("Synthetic dated prompt identity; never asserted to have run")
+    store.set("active_reviewer_prompt_hash", prompt_hash)
+    store.set("active_rubric_hash", digest(criteria_rules(current)))
+    target = {
+        "draft_id": draft["id"],
+        "draft_body_sha256": hashlib.sha256(draft["body"].encode()).hexdigest(),
+        "rubric_hash": digest(criteria_rules(current)),
+        "reviewer_prompt_hash": prompt_hash,
+        "review_context_experiment": None, "source_search_view": None,
+        "review_response_contract": acceptance_contract(),
+        "acceptance_criteria": criteria_identity(current),
+        "export_configuration_hash": export_configuration(workspace),
+        "observation_version": observation_version(workspace, draft["id"]),
+    }
+    record = {
+        "grading_run_id": "dated-static-never-executed", "iteration": 0,
+        "result": "satisfied", "unverified": False,
+        "explanation": "Synthetic historical record for version projection only.",
+        "criteria": [{"name": criterion["id"], "passed": True,
+            "status": "satisfied", "evidence": [],
+            "explanation": "Stored historical fixture; no semantic correctness claim.",
+            "needed_outcome": "No runtime or engineering acceptance is asserted."}],
+        "target": target, "origin": "dated-format-static-test-fixture",
+    }
+    store.set("rubric_reviews", [record])
+    assert review_delivery(workspace, draft["id"])["status"] == "reviewed_draft"
+    return workspace, draft, feedback
+
+
+def test_historical_public_state_control_is_valid_without_claiming_checkpoint_completion(tmp_path, monkeypatch):
+    workspace,draft,feedback = historical_public_state_fixture(tmp_path,monkeypatch)
+    before = recovery.tree_hashes(workspace.store.root)
+    feedback_bytes = feedback.read_bytes()
+    public = recovery.read_public_state(workspace.store.root / "state.db")
+    sources = recovery.validate_baseline(workspace.store.root,public,draft["id"],
+        hashlib.sha256(draft["body"].encode()).hexdigest())
+    assert sources == workspace.store.manifest["sources"]
+    assert recovery.tree_hashes(workspace.store.root) == before and feedback.read_bytes() == feedback_bytes
+
+
+def test_historical_standard_projection_valid_control_does_not_claim_execution(tmp_path, monkeypatch):
+    from report_agent.review import review_delivery
+    workspace, draft, feedback = historical_standard_projection_fixture(tmp_path, monkeypatch)
+    before = recovery.tree_hashes(workspace.store.root)
+    feedback_bytes = feedback.read_bytes()
+    public = recovery.read_public_state(workspace.store.root / "state.db")
+    sources = recovery.validate_baseline(workspace.store.root, public, draft["id"],
+        hashlib.sha256(draft["body"].encode()).hexdigest())
+    assert sources == workspace.store.manifest["sources"]
+    assert active_criteria(workspace)["current"] is True
+    assert review_delivery(workspace, draft["id"])["status"] == "reviewed_draft"
+    assert recovery.tree_hashes(workspace.store.root) == before
+    assert feedback.read_bytes() == feedback_bytes
+
+
 @pytest.fixture
-async def completed(tmp_path):
+async def completed(tmp_path, request, monkeypatch):
+    mutation = getattr(getattr(request.node,"callspec",None),"params",{}).get("mutation")
+    if mutation == "standard":
+        return historical_standard_projection_fixture(tmp_path, monkeypatch)
+    if (mutation in EARLY_VALIDATION_MUTATIONS or mutation == "preview"
+            or request.node.name == "test_existing_nested_live_and_symlink_destinations_are_refused"):
+        result = historical_public_state_fixture(tmp_path,monkeypatch)
+        if mutation == "preview":
+            from docx import Document
+            workspace,_,_ = result
+            folder = workspace.store.root / "previews/static-fixture"
+            folder.mkdir(parents=True)
+            docx = folder / "report.docx"
+            document = Document()
+            document.add_paragraph("Historical preview fixture; no executed model review.")
+            document.save(docx)
+            (folder / "summary.json").write_text(encode({"docx": {
+                "path": str(docx.resolve()), "sha256": recovery.file_hash(docx)}}),encoding="utf-8")
+        return result
+
     store = Store(tmp_path / "baseline")
     source = store.root / "sources/access.txt"
     source.parent.mkdir()
@@ -61,7 +213,9 @@ async def completed(tmp_path):
     driver = Driver(coordinator=[save_standards(), save_draft(workspace, "Anytime access [s]."),
                                  select, AIMessage(content="Saved synthetic draft.")],
                     rubric_grader=[lambda messages: verdict(workspace, ["satisfied"])])
-    result = await deep_runtime.run_report(workspace, driver)
+    # Explicit test-only graph dependency: preparation still reads a real same-topology historical checkpoint.
+    monkeypatch.setattr(recovery, "project_agent", _historical_completed_agent)
+    result = await _historical_completed_run(workspace, driver)
     assert result["status"] == "reviewed_draft", result
     draft = next(r for r in workspace.results() if r["kind"] == "draft")
     feedback = tmp_path / "feedback.txt"
@@ -124,7 +278,7 @@ async def test_completed_copy_receives_feedback_and_normal_new_run_revises_with_
     driver = Driver(coordinator=[None] * 4 + [inspect_new_call,
                     save_draft(workspace, "Daytime access only [s].", original["id"]), select,
                     AIMessage(content="Saved corrected synthetic report.")], rubric_grader=[grade])
-    result = await deep_runtime.run_report(workspace, driver)
+    result = await _historical_completed_run(workspace, driver)
     assert result["last_error"] is None and result["status"] == "reviewed_draft", result
     assert driver.calls[0][0] == "coordinator" and received and graded
     new_reviews = workspace.store.get("rubric_reviews")
@@ -187,15 +341,27 @@ async def test_refuses_unsafe_preparation_without_changing_baseline(completed, t
         data = json.loads(path.read_text())
         data["docx"]["path"] = str(tmp_path / "foreign/report.docx")
         path.write_text(encode(data))
+    if mutation == "standard":
+        from report_agent.review import review_delivery
+        assert active_criteria(workspace)["current"] is True
+        assert review_delivery(workspace, draft["id"])["status"] != "reviewed_draft"
     before = recovery.tree_hashes(workspace.store.root)
+    feedback_before = feedback.read_bytes()
     with pytest.raises(ValueError, match=error):
         await recovery.prepare(*args)
     assert recovery.tree_hashes(workspace.store.root) == before
+    if mutation in EARLY_VALIDATION_MUTATIONS:
+        assert feedback.read_bytes() == feedback_before
+        assert not args[1].exists()
+    elif mutation in {"preview", "standard"}:
+        assert feedback.read_bytes() == feedback_before
+        assert (args[1] / "feedback-recovery-incomplete.json").is_file()
+        assert not (args[1] / "feedback-recovery-receipt.json").exists()
 
 
 async def test_native_pending_checkpoint_is_refused_even_when_public_flags_say_complete(completed, tmp_path):
     workspace, _, _ = completed
-    async with deep_runtime.project_agent(workspace, lambda role: recovery.NoCallModel(),
+    async with _historical_completed_agent(workspace, lambda role: recovery.NoCallModel(),
                                          rules=criteria_rules(active_criteria(workspace))) as agent:
         await agent.aupdate_state({"configurable": {"thread_id": "report"}}, {},
                                   as_node="TodoListMiddleware.after_model")
@@ -211,7 +377,9 @@ async def test_native_pending_checkpoint_is_refused_even_when_public_flags_say_c
 async def test_existing_nested_live_and_symlink_destinations_are_refused(completed, tmp_path):
     import fcntl
 
-    workspace, _, _ = completed
+    workspace, _, feedback = completed
+    before = recovery.tree_hashes(workspace.store.root)
+    feedback_before = feedback.read_bytes()
     existing = tmp_path / "existing"
     existing.mkdir()
     for destination in (existing, workspace.store.root, workspace.store.root / "child", tmp_path):
@@ -225,6 +393,9 @@ async def test_existing_nested_live_and_symlink_destinations_are_refused(complet
         fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(RuntimeError, match="BASELINE_ALREADY_RUNNING"):
             await recovery.prepare(*arguments(completed, tmp_path / "live"))
+    assert recovery.tree_hashes(workspace.store.root) == before
+    assert feedback.read_bytes() == feedback_before
+    assert not (tmp_path / "live").exists()
 
 
 def test_backup_reads_committed_wal_without_creating_baseline_sidecars(tmp_path):
@@ -241,3 +412,56 @@ def test_backup_reads_committed_wal_without_creating_baseline_sidecars(tmp_path)
         with sqlite3.connect(tmp_path / "copied.db") as copied:
             assert copied.execute("SELECT value FROM evidence").fetchone()[0] == "committed in WAL"
         assert recovery.tree_hashes(baseline) == before
+
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _historical_completed_agent(workspace, model_factory, *, rules=""):
+    """Real historical topology for component tests; construction/inspection is read-only."""
+    from inspect import iscoroutinefunction
+    from langchain.agents import create_agent
+    from langchain.agents.middleware import TodoListMiddleware
+    from langchain_core.tools import StructuredTool
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    from report_agent.review import native_review
+
+    tools = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
+             else StructuredTool.from_function(t)
+             for t in deep_runtime.business_tools(workspace, "coordinator", None, None)]
+    async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
+        graph = create_agent(model=model_factory("coordinator"), tools=tools,
+            system_prompt=deep_runtime.COORDINATOR + "\n" + deep_runtime.ACCEPTANCE_GUIDANCE,
+            middleware=[deep_runtime.BusinessBoundary(workspace, "coordinator"), TodoListMiddleware(),
+                native_review(workspace, model_factory("rubric_grader"), [], rules=rules)],
+            checkpointer=saver, name="report_coordinator")
+        yield graph
+
+
+async def _historical_completed_run(workspace, driver):
+    from report_agent.acceptance import MODE, bind_mode
+    from report_agent.review import reconcile_review, reviewer_prompt
+    from report_agent.store import digest
+
+    with workspace.store.run_lock():
+        workspace.initialize()
+        workspace.store.set("acceptance_default", MODE)
+        assert bind_mode(workspace) == MODE
+        workspace.store.set("active_reviewer_prompt_hash", digest(reviewer_prompt(requirement_acceptance=True)))
+        criteria = active_criteria(workspace)
+        rules = criteria_rules(criteria) if criteria else ""
+        config = {"configurable": {"thread_id": "report"}}
+        async with _historical_completed_agent(workspace, driver, rules=rules) as graph:
+            await graph.ainvoke({"messages": [HumanMessage(content=encode(deep_runtime.project_view(workspace)))],
+                "rubric": rules}, config)
+            state = await graph.aget_state(config)
+            assert not state.next and not state.interrupts
+            workspace.store.set("checkpoint_resume", bool(state.next))
+            workspace.store.set("native_interrupts", [{"id": i.id, "value": i.value} for i in state.interrupts])
+            reconcile_review(workspace, state.values)
+            result = project_state(workspace)
+        # Truthful fixture provenance only after actual graph termination; never emitted by inspection.
+        workspace.store.event("deep_run_finished", {"component_fixture": "historical-completed-recovery",
+            "executed": True, "status": result["status"]})
+        return result

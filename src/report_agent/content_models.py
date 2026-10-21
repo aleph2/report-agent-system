@@ -1,7 +1,7 @@
 """Versioned business contracts; validation establishes structure, not truth."""
 from __future__ import annotations
 
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -19,6 +19,10 @@ class Ref(Contract):
 
     def key(self):
         return (self.type, self.id, self.version)
+
+
+class ArtifactRef(Ref):
+    type: Literal["ExportArtifact", "RenderArtifact"]
 
 
 class SnapshotReplacement(Contract):
@@ -47,16 +51,27 @@ class Criterion(Contract):
     allowed_limits: str
 
 
+class TableBody(Contract):
+    """One table-shape declaration for published schema and runtime validation."""
+    model_config = ConfigDict(extra="allow")
+    columns: list[Any] = Field(min_length=1, strict=True)
+    rows: list[Annotated[list[Any], Field(strict=True)]] = Field(strict=True,
+        description="Every row must have exactly the same number of cells as columns; validated by the application.")
+
+    @model_validator(mode="after")
+    def rectangular(self) -> Self:
+        if any(len(row) != len(self.columns) for row in self.rows):
+            raise ValueError("TABLE_REQUIRES_NAMED_COLUMNS_AND_RECTANGULAR_ROWS")
+        return self
+
+
 class ContentNode(Contract):
     model_config = ConfigDict(extra="forbid", json_schema_extra={"allOf": [
         {"if": {"properties": {"kind": {"enum": ["report", "chapter", "block", "cell", "claim"]}}, "required": ["kind"]},
          "then": {"properties": {"body": {"type": "object", "required": ["text"],
              "properties": {"text": {"type": "string", "minLength": 1, "description": "Complete rendered text; must contain non-whitespace content. Other fields do not replace text."}}}}}},
         {"if": {"properties": {"kind": {"const": "table"}}, "required": ["kind"]},
-         "then": {"properties": {"body": {"type": "object", "required": ["columns", "rows"],
-             "properties": {"columns": {"type": "array", "minItems": 1},
-                            "rows": {"type": "array", "items": {"type": "array"},
-                                "description": "Every row must have exactly the same number of cells as columns; validated by the application."}}}}}},
+         "then": {"properties": {"body": TableBody.model_json_schema()}}},
         {"if": {"properties": {"kind": {"const": "figure"}}, "required": ["kind"]},
          "then": {"properties": {"body": {"type": "object", "required": ["source_id", "caption", "page"],
              "properties": {"source_id": {"type": "string", "minLength": 1},
@@ -65,16 +80,14 @@ class ContentNode(Contract):
                                 "description": "Explicit 1-based physical PDF page index, not a printed page label or caption. Use integer 1 for a single raster image. No string labels, inferred page or implicit first-page selection."}}}}}}
     ]})
     kind: Literal["report", "chapter", "block", "table", "cell", "claim", "figure"]
-    body: dict[str, Any] = Field(description="Kind-specific complete content: report/chapter/block/cell/claim require nonblank text; table requires named columns and rectangular rows; figure requires source_id, caption and page (a positive integer 1-based physical PDF page; integer 1 for a single raster image). Auxiliary fields do not substitute for these rendered fields.")
+    body: dict[str, Any] = Field(description="Kind-specific complete content: report/chapter/block/cell/claim require nonblank text; table requires named columns and rectangular rows; figure requires source_id, caption and page (a positive integer 1-based physical PDF page; integer 1 for a single raster image). Auxiliary fields do not substitute for these rendered fields. Tables may include a visible footnote string: nonblank text is exported verbatim, absent/null/blank adds no note, and non-text footnotes are explicitly rejected at export.")
     qualifiers: dict[str, Any] = Field(description="Report-visible technical qualifications, uncertainty and source attribution. Nonstructural keys and values are rendered in Word/Excel, not hidden metadata. Preserve real engineering unknowns and conflicting evidence here or in body. Processing/OCR diagnostics and model execution notes belong in the text-work result's separate generation_notes, not these report fields.")
     claim_kind: Literal["fact", "calculation", "inference", "recommendation", "structure"]
 
     @model_validator(mode="after")
     def actual_content(self) -> Self:
         if self.kind == "table":
-            if (not self.body.get("columns") or not isinstance(self.body.get("rows"), list)
-                    or any(len(row) != len(self.body["columns"]) for row in self.body["rows"])):
-                raise ValueError("TABLE_REQUIRES_NAMED_COLUMNS_AND_RECTANGULAR_ROWS")
+            TableBody.model_validate(self.body)
         elif self.kind == "figure":
             if not self.body.get("source_id") or not self.body.get("caption"):
                 raise ValueError("FIGURE_REQUIRES_SOURCE_AND_CAPTION")
@@ -197,7 +210,7 @@ class ReviewItem(Contract):
         description="Zero-based indexes of actually performed required_checks in the saved task's matching scope_id. Wording may differ; indexes do not establish correctness.")
     dependency_refs: list[Ref] | None = None
     assessment_kind: Literal["content", "export", "render"] = "content"
-    artifact_refs: list[Ref] = Field(default_factory=list)
+    artifact_refs: list[ArtifactRef] = Field(default_factory=list)
     execution_state: Literal["not_started", "running", "completed", "blocked"]
     verdict: Literal["satisfied", "not_satisfied", "undetermined"] | None
     observations: list[Observation]
@@ -235,8 +248,6 @@ class ReviewItem(Contract):
             raise ValueError("CHECK_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
         if self.assessment_kind != "content" and not self.artifact_refs:
             raise ValueError("ARTIFACT_ASSESSMENT_REQUIRES_EXACT_EXPORT_OR_RENDER")
-        if any(r.type not in {"ExportArtifact", "RenderArtifact"} for r in self.artifact_refs):
-            raise ValueError("ARTIFACT_REF_TYPE_REQUIRED")
         if self.execution_state == "not_started" and self.verdict is not None:
             raise ValueError("UNEXECUTED_REVIEW_HAS_NO_VERDICT")
         if self.verdict is not None and not self.observations:
@@ -270,7 +281,7 @@ class ReviewSubmission(Contract):
 class DeliveryCheck(Contract):
     """System delivery responsibilities, separate from business criteria and methods."""
     kind: Literal["export", "render"]
-    artifact_refs: list[Ref] = Field(default_factory=list)
+    artifact_refs: list[ArtifactRef] = Field(default_factory=list)
     execution_state: Literal["not_started", "running", "completed", "blocked"]
     verdict: Literal["satisfied", "not_satisfied", "undetermined"] | None
     observations: list[Observation]
@@ -279,8 +290,6 @@ class DeliveryCheck(Contract):
 
     @model_validator(mode="after")
     def consistent(self) -> Self:
-        if any(r.type not in {"ExportArtifact", "RenderArtifact"} for r in self.artifact_refs):
-            raise ValueError("ARTIFACT_REF_TYPE_REQUIRED")
         if self.verdict is not None:
             expected = "RenderArtifact" if self.kind == "render" else "ExportArtifact"
             if not self.observations or not any(r.type == expected for r in self.artifact_refs):

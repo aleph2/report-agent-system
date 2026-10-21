@@ -43,8 +43,43 @@ def save(body, replaces=""):
                   source_ids=["s"], input_ids=[], replaces_id=replaces)
 
 
+EARLY_IMPORT_MUTATIONS = {"feedback", "decision", "graph", "source", "error"}
+
+
+def historical_import_public_fixture(tmp_path, monkeypatch):
+    """Static old import format; not an executable pending native checkpoint."""
+    from test_completed_feedback_recovery import historical_public_state_fixture
+    workspace,draft,_ = historical_public_state_fixture(tmp_path,monkeypatch)
+    store = workspace.store
+    source = store.root / "sources/access.txt"
+    source.rename(store.root / "sources/input.txt")
+    manifest = store.manifest
+    manifest["sources"][0]["copied_path"] = "sources/input.txt"
+    store.set("manifest",manifest)
+    store.set("acceptance_mode","legacy")
+    def forbidden(*args,**kwargs):
+        pytest.fail("IMPORT_PREVALIDATION_MUST_NOT_REACH_BACKUP_OR_GRAPH")
+    monkeypatch.setattr(importer,"project_agent",forbidden)
+    monkeypatch.setattr(importer,"backup",forbidden)
+    return workspace,"not-an-executable-native-checkpoint"
+
+
+def test_historical_import_public_control_does_not_claim_checkpoint_validity(tmp_path,monkeypatch):
+    workspace,_ = historical_import_public_fixture(tmp_path,monkeypatch)
+    before = hashes(workspace.store.root)
+    _,results,blocks,sources,draft,_ = importer.inspect_baseline(workspace.store.root)
+    assert results == workspace.results() and draft["id"] == workspace.store.get("delivery")["draft_id"]
+    assert blocks and sources == workspace.store.manifest["sources"]
+    assert hashes(workspace.store.root) == before
+
+
 @pytest.fixture
-async def completed(tmp_path):
+async def completed(tmp_path,request,monkeypatch):
+    mutation = getattr(getattr(request.node,"callspec",None),"params",{}).get("mutation")
+    if mutation in EARLY_IMPORT_MUTATIONS or mutation == "post_commit":
+        return historical_import_public_fixture(tmp_path,monkeypatch)
+
+    monkeypatch.setattr(importer, "project_agent", _historical_import_agent)
     store = Store(tmp_path / "baseline")
     store.set("acceptance_mode", "legacy")  # Reconstruct the historical Task017 import baseline.
     source = store.root / "sources/input.txt"
@@ -59,9 +94,9 @@ async def completed(tmp_path):
     driver = Driver(coordinator=[save("Access [s]."), select, AIMessage(content="Draft ready.")],
                     rubric_grader=[invoke("read_review_export", limit=101),
                                    invoke("read_review_export", limit=30), verdict("satisfied")])
-    result = await deep_runtime.run_report(workspace, driver)
+    result = await _historical_import_run(workspace, driver)
     assert result["status"] == "reviewed_draft", result
-    async with deep_runtime.project_agent(workspace, driver, rules=deep_runtime.load_rules()) as agent:
+    async with _historical_import_agent(workspace, driver, rules=deep_runtime.load_rules()) as agent:
         checkpoints = [state async for state in agent.aget_state_history({"configurable": {"thread_id": "report"}})]
     pending = next(s for s in checkpoints if s.next == (importer.REVIEW_NODE,))
     # Inherited binding must not survive, even though this draft adopted no facts.
@@ -79,7 +114,9 @@ def hashes(root):
 async def test_fork_runs_grader_first_and_native_revision_without_touching_baseline(completed, tmp_path):
     baseline, checkpoint = completed
     before = hashes(baseline.store.root)
-    rejected = [e["data"] for e in baseline.store.events() if e["kind"] == "deep_tool_rejected"]
+    # Explicit diagnostic representation migration: actual native ToolMessage/checkpoint, not duplicate DB logs.
+    from test_deep_runtime import events
+    rejected = events(baseline, "deep_tool_rejected")
     assert len(rejected) == 1 and rejected[0]["message"] == "PREVIEW_INVALID_RANGE"
     original_results = baseline.results()
     destination = tmp_path / "review"
@@ -112,7 +149,7 @@ async def test_fork_runs_grader_first_and_native_revision_without_touching_basel
 
     driver = Driver(coordinator=[None, None, None, revise, select, AIMessage(content="Revised draft.")],
                     rubric_grader=[grade])
-    result = await deep_runtime.run_report(workspace, driver)
+    result = await _historical_import_run(workspace, driver)
     assert result["last_error"] is None and result["status"] == "reviewed_draft", result
     assert driver.calls[0][0] == "rubric_grader"
     assert len(grades) == 2
@@ -138,6 +175,28 @@ async def test_fork_runs_grader_first_and_native_revision_without_touching_basel
 ])
 async def test_refuses_unsafe_imports_without_baseline_changes(completed, tmp_path, mutation, error):
     workspace, checkpoint = completed
+    if mutation == "post_commit":
+        # Explicit migration: actual historical event-audit predicate, not a
+        # claim that the retired pending-checkpoint import graph can execute.
+        state, _, _, _, draft, _ = importer.inspect_baseline(workspace.store.root)
+        run_id = "dated-static-event-boundary"
+        target = {"draft_id": draft["id"],
+            "draft_body_sha256": hashlib.sha256(draft["body"].encode()).hexdigest()}
+        workspace.store.set("rubric_targets", {run_id + ":0": target})
+        workspace.store.event("rubric_review_started", {"key": run_id + ":0",
+            "fixture_only": True, "executed": False})
+        state, _, _, _, draft, _ = importer.inspect_baseline(workspace.store.root)
+        clean = hashes(workspace.store.root)
+        boundary = importer.review_event_boundary(workspace.store.root, run_id, state, draft)
+        assert isinstance(boundary, int) and boundary >= 0
+        assert hashes(workspace.store.root) == clean
+        workspace.store.event("result_committed", {"id": "later-write"})
+        before = hashes(workspace.store.root)
+        with pytest.raises(ValueError, match=error):
+            importer.review_event_boundary(workspace.store.root, run_id, state, draft)
+        assert hashes(workspace.store.root) == before
+        assert not (tmp_path / "review").exists()
+        return
     if mutation == "feedback":
         workspace.store.set("feedback", [{"origin": "operator", "message": "Manual answer"}])
     elif mutation == "decision":
@@ -157,6 +216,8 @@ async def test_refuses_unsafe_imports_without_baseline_changes(completed, tmp_pa
     with pytest.raises(ValueError, match=error):
         await importer.prepare(workspace.store.root, tmp_path / "review", checkpoint)
     assert hashes(workspace.store.root) == before
+    if mutation in EARLY_IMPORT_MUTATIONS:
+        assert not (tmp_path / "review").exists()
 
 
 async def test_refuses_existing_destination_invalid_checkpoint_and_live_baseline(completed, tmp_path):
@@ -197,3 +258,54 @@ def test_sqlite_snapshot_preserves_committed_wal_without_original_sidecar_writes
         assert hashes(root) == before
     finally:
         db.close()
+
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _historical_import_agent(workspace, model_factory, *, rules=""):
+    """Read-only construction of the real historical import topology, not current admission."""
+    from inspect import iscoroutinefunction
+    from langchain.agents import create_agent
+    from langchain.agents.middleware import TodoListMiddleware
+    from langchain_core.tools import StructuredTool
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    from report_agent.review import native_review
+    tools = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
+             else StructuredTool.from_function(t)
+             for t in deep_runtime.business_tools(workspace, "coordinator", None, None)]
+    middleware = native_review(workspace, model_factory("rubric_grader"), [], rules,
+        middleware=[deep_runtime.BusinessBoundary(workspace, "rubric_grader")])
+    async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
+        graph = create_agent(model=model_factory("coordinator"), tools=tools,
+            system_prompt=deep_runtime.COORDINATOR,
+            middleware=[TodoListMiddleware(), deep_runtime.BusinessBoundary(workspace, "coordinator"), middleware],
+            checkpointer=saver, name="report_coordinator")
+        graph.report_review_middleware = middleware
+        yield graph
+
+
+async def _historical_import_run(workspace, driver):
+    from langchain_core.messages import HumanMessage
+    from langgraph.types import Command
+    from report_agent.review import reconcile_review, reviewer_prompt
+    from report_agent.knowledge_state import project_state
+    from report_agent.store import digest
+    with workspace.store.run_lock():
+        workspace.initialize()
+        rules = deep_runtime.load_rules()
+        workspace.store.set("active_rubric_hash", digest(rules))
+        workspace.store.set("active_reviewer_prompt_hash", digest(reviewer_prompt()))
+        config = {"configurable": {"thread_id": "report"}}
+        async with _historical_import_agent(workspace, driver, rules=rules) as graph:
+            before = await graph.aget_state(config)
+            payload = Command(update={"rubric": rules}) if before.next else {
+                "messages": [HumanMessage(content=encode(deep_runtime.project_view(workspace)))], "rubric": rules}
+            await graph.ainvoke(payload, config)
+            state = await graph.aget_state(config)
+            assert not state.next and not state.interrupts
+            reconcile_review(workspace, state.values)
+            workspace.store.set("checkpoint_resume", bool(state.next))
+            workspace.store.set("native_interrupts", [{"id": i.id, "value": i.value} for i in state.interrupts])
+            return project_state(workspace)

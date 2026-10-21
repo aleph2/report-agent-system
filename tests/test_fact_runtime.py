@@ -76,9 +76,16 @@ def test_read_result_and_export_expose_unknown_currentness(ws, monkeypatch):
     read = bound(ws, graph, "read_result")(result["id"])
     assert not read["current"]
     assert read["knowledge"]["status"] == "unknown"
-    text = "\n".join(p.text for p in Document(BytesIO(export_docx(ws, result["id"]))).paragraphs)
+    text = "\n".join(p.text for p in Document(BytesIO(
+        export_docx(ws, result["id"], include_execution_record=True))).paragraphs)
     assert "current validity is unknown" in text
     assert "[source]" in text  # Commit retained provenance even when graph is down.
+    uncertainty = 'The original groundwater record is missing; its level remains unresolved.'
+    ws.issue('source_missing', uncertainty, ['source'])
+    customer = "\n".join(p.text for p in Document(BytesIO(export_docx(ws, result['id']))).paragraphs)
+    assert uncertainty in customer and '[source]' in customer
+    assert result['body'] in customer
+    assert result['id'] not in customer and 'Knowledge validity at export:' not in customer
 
 
 def test_revision_removes_only_explicit_predecessor_before_task_creation(ws):

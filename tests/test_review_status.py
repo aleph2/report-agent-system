@@ -79,6 +79,48 @@ def test_known_defect_survives_later_pass_and_handling_until_explicit_correction
     assert "review_superseded" in row["review_history"][0]["recheck_reasons"]
 
 
+async def test_explicit_corrected_positive_is_read_without_repeating_generation_or_review(ws):
+    """Host-supplied correction/reuse protocol, not Agent-initiated correction proof."""
+    from copy import deepcopy
+    from report_agent.content_export import _bytes
+    ws.store.set("manifest", {**ws.store.manifest, "review_entrypoint": "delegated-reviewer-v1"})
+    cs, author, refs, snapshot, _ = seed(ws)
+    old = save(cs, snapshot, refs, refs["claim"], verdict="not_satisfied")
+    new = save(cs, snapshot, refs, refs["claim"], operation="later-corrected-positive")
+    assert status(cs, snapshot, refs["claim"])["scopes"][0]["verdict"] == "not_satisfied"
+    old_record, new_record = deepcopy(cs.read(old)), deepcopy(cs.read(new))
+    correction = cs.supersede_review(actor_for("reviewer"), "explicit-correction-for-reuse", old, new,
+        "Same-owner explicit withdrawal of the historical mistaken finding; not implicit latest-pass wins.")
+    assert correction["ok"]
+    assert status(cs, snapshot, refs["claim"])["scopes"][0]["verdict"] == "satisfied"
+    assert cs.read(old) == old_record and cs.read(new) == new_record
+    exported = export_snapshot(cs, author, "saved-corrected-word", snapshot)["result"]["export_ref"]
+    payload = cs.read(exported)["payload"]
+    word = _bytes(ws.store, payload["file_ref"], payload["file_digest"])
+    originals = deepcopy(cs.list_objects()), deepcopy(ws.store.manifest), word
+
+    def read_saved_word(messages):
+        row = observation(messages, "read_review_status")["result"]["objects"][0]
+        assert row["scopes"][0]["verdict"] == "satisfied"
+        assert len(row["review_history"]) == 2 and not row["needs_recheck"]
+        return invoke("read_content_export", export_ref=exported)
+
+    def finish(messages):
+        actual = observation(messages, "read_content_export")
+        assert actual["ok"] and actual["result"]["file_digest"] == payload["file_digest"]
+        return AIMessage(content="Reuse the exact saved corrected judgment and Word; no new authoring or checking.")
+
+    driver = Driver(coordinator=[invoke("read_review_status", snapshot_ref=snapshot, target_ref=refs["claim"]),
+        read_saved_word, finish])
+    result = await deep_runtime.run_report(ws, driver)
+    assert result["last_error"] is None, result
+    assert {role for role, _, _ in driver.calls} == {"coordinator"}
+    assert len(driver.calls) == 3
+    assert (cs.list_objects(), ws.store.manifest, _bytes(ws.store, payload["file_ref"], payload["file_digest"])) == originals
+    assert status(cs, snapshot, refs["claim"])["scopes"][0]["verdict"] == "satisfied"
+    assert not ws.store.get("content_final_review")
+
+
 def test_old_snapshot_needs_explicit_reuse_and_unchanged_target_is_not_never_reviewed(ws):
     cs, actor, refs, snapshot, all_refs = seed(ws)
     review = save(cs, snapshot, refs, refs["claim"])
@@ -187,7 +229,8 @@ async def test_native_grader_reads_inventory_then_submits_its_own_judgment(ws):
     driver = Driver(coordinator=[select(snapshot, export), AIMessage(content="Selected.")],
         rubric_grader=[invoke("read_review_status", snapshot_ref=snapshot), inspect_inventory,
                        grade(snapshot, refs, "satisfied", delivery_evidence(cs, snapshot, export))])
-    result = await deep_runtime.run_report(ws, driver)
+    from hierarchical_fixtures import historical_hierarchical_review
+    result = await historical_hierarchical_review(ws, driver)
     assert result["last_error"] is None, result
     assert result["status"] == "reviewed_draft"
     current = status(cs, snapshot, snapshot)

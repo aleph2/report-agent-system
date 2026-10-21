@@ -122,24 +122,55 @@ async def test_native_final_schema_and_pages_can_reach_real_freeze_without_body_
 
 
 async def test_large_status_and_historical_projection_keep_navigation_without_changing_original(ws):
-    populate(ws)
+    from report_agent.task_context import read_observation
+    cs, actor, _, refs = populate(ws)
     activate(ws)
     status = {t.__name__: t for t in content_tools(ws, 'coordinator')}['content_status']()
     middleware = TaskContext(ws, 'coordinator')
     message = middleware.bound_result(ToolMessage(content=encode(status), name='content_status',
         tool_call_id='status-call', id='status-message'))
     packet = json.loads(message.content)
-    assert packet['metadata']['object_metadata_tool'] == 'read_object_index'
-    assert packet['metadata']['observed_object_count'] == 281
-    assert len(message.content) < 6000
+    assert packet['representation'] == 'exact-public-result-v2'
+    assert packet['metadata'] == status and packet['complete_original_in_decision']
+    assert [entry['ref'] for entry in packet['metadata']['objects']] == refs
+    for entry in packet['metadata']['objects']:
+        original = cs.read(entry['ref'])
+        assert entry['payload_digest'] == original['payload_digest']
+        assert entry['owner_id'] == actor.id and entry['task_id'] == actor.task_id
+    indexed, offset, fingerprint = [], 0, ''
+    tools = {t.__name__:t for t in content_tools(ws, 'coordinator')}
+    while True:
+        page = tools['read_object_index'](offset=offset, inventory_digest=fingerprint)
+        indexed.extend(entry['ref'] for entry in page['objects'])
+        fingerprint = page['inventory_digest']
+        if page['next_offset'] is None:
+            break
+        offset = page['next_offset']
+    assert indexed == refs
     key = 'tool_observation:' + packet['observation_ref']
     saved = deepcopy(ws.store.get(key))
-    packet['metadata'] = {}  # Persisted old native representation of this return.
-    old = message.model_copy(update={'content': encode(packet)})
+    chunks, offset = [], 0
+    while True:
+        page = read_observation(ws, 'coordinator', packet['observation_ref'], offset, 6000)
+        assert page['sha256'] == packet['sha256']
+        chunks.append(page['text'])
+        if page['next_offset'] is None:
+            break
+        offset = page['next_offset']
+    assert ''.join(chunks) == encode(status)
+    # Synthetic persisted pre-v2 frame: both wire and delivery markers are old,
+    # and it has no new-format binding. The owned original is unchanged.
+    legacy = deepcopy(packet)
+    legacy.pop('representation')
+    legacy['metadata'] = {}
+    legacy_delivery = {**message.additional_kwargs['report_observation_delivery'],
+                       'representation': 'metadata_and_literal_fragments'}
+    old = message.model_copy(update={'content': encode(legacy), 'artifact': None,
+        'additional_kwargs': {**message.additional_kwargs, 'report_observation_delivery': legacy_delivery}})
     update = await middleware.abefore_model({'messages': [old]}, None)
     changed = update['messages'][0]
     assert (changed.id, changed.tool_call_id) == ('status-message', 'status-call')
-    assert json.loads(changed.content)['metadata']['observed_object_count'] == 281
+    assert json.loads(changed.content)['metadata'] == status
     assert ws.store.get(key) == saved
     assert await middleware.abefore_model({'messages': [changed]}, None) is None
     ws.store.set(key, {**saved, 'owner': 'another-task'})

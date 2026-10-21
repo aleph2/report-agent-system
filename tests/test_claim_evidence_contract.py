@@ -142,8 +142,11 @@ def test_contract_bound_before_recovery_and_cannot_change(workspace, monkeypatch
     assert reopened.get("review_context_binding") == bound
 
 
-async def test_contract_change_rejected_before_old_approval_early_return(workspace, monkeypatch):
+async def test_contract_change_rejected_before_old_approval_early_return(tmp_path, monkeypatch):
     from report_agent import deep_runtime
+    from test_task_supervision import ws as native_fixture
+    workspace = native_fixture.__wrapped__(tmp_path)
+    # Dated configuration-binding fixture only; not an executable old fork or checkpoint.
     fresh_import(workspace.store)
     configure_context_experiment(workspace.store, CANDIDATE)
     workspace.store.set("checkpoint_resume", False)

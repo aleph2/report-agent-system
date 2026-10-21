@@ -149,7 +149,10 @@ def assigned_structure(contents, snapshot_ref, targets):
 def compact_context(context):
     """Lossless references to full server state, not an LLM summary of authority."""
     result = {k:bounded_metadata(v,[k]) for k,v in context.items() if k not in {
-        'scope_instruction','assignment','review_tasks','operator_feedback','issues','execution_decision','learned_guidance','scoped_instructions'}}
+        'scope_instruction','assignment','review_tasks','operator_feedback','issues','execution_decision','learned_guidance','scoped_instructions','current_invocation'}}
+    if 'current_invocation' in context:
+        # This is the actual instruction, not metadata about a retrievable body.
+        result['current_invocation'] = context['current_invocation']
     if context.get('scoped_instructions') is not None:
         # Exact currently applicable instructions and unresolved alternatives
         # must survive both metadata projection and conversation compaction.

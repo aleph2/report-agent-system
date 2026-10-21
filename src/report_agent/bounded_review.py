@@ -2,9 +2,9 @@
 import json
 from typing import Literal
 
-from pydantic import Field, ValidationError
+from pydantic import Field
 
-from .content_models import Contract, Coverage, Finding, ReviewItem, CheckResult
+from .content_models import Contract, Coverage, Finding, ReviewItem, CheckResult, Ref
 from .content_store import ContentStore
 from .content_tasks import bound_actor
 from .content_selection import ContentSelection
@@ -15,6 +15,7 @@ from .task_supervision import (assignment, validate_requirements, missing_requir
                                MAX_AUTOMATIC_SOURCE_CHARACTERS, required_source_spans,
                                source_extents_in_observation)
 from .review_input import review_material_context
+from .output_contract import received_output
 
 
 # Same character scale as the existing excerpt capability. This is a local
@@ -61,6 +62,10 @@ class Assessments(Contract):
 TOOL_PROMPT = """Perform the requested scoped content assessments using the saved assignment,
 its original criteria/allowed limits, commissioning scope and supplied actual evidence.
 Assess only requested_scope_ids. The organizer cannot replace the saved requirements.
+Original Requirement bodies appear only when explicitly selected by the organizer;
+linked references alone do not mean their bodies were supplied or compared. Preserve
+an unresolved assigned comparison as a gap; report a genuinely outside-scope mismatch
+to the coordinator without expanding your task or waiving original outcomes.
 For every requested scope return an item using the supplied output_schema (JSON only).
 Use zero-based checked_requirement_indexes for actions actually performed, with concrete
 checked descriptions and located observations referring to zero-based evidence_index.
@@ -108,7 +113,11 @@ artifact editing or further model calls are available to this bounded operation.
 
 ORGANIZER_PROMPT = """Organize the assigned review using the saved task, exact objects and
 original materials. Select relevant evidence and call perform_assigned_review for
-substantive content judgments. That tool loads the saved requirements and criteria directly;
+substantive content judgments. That tool loads the saved checks, criteria and declared
+required materials. Choose relevant linked original Requirement bodies explicitly through
+original_requirement_refs; read_context on the assigned Criterion exposes their exact
+refs/versions. Linked references do not automatically load their bodies. Select them
+when needed for your assigned question; no fixed read sequence is required.
 you do not rewrite their standards or write replacement verdicts. Several related
 scopes may be checked in one call. Explore missing material and relationships as
 needed within the saved material pool. Unresolved bindings go to the coordinator;
@@ -151,7 +160,8 @@ not rewrite the assignment. Missing-body feedback does not grant access.
 
 
 async def perform_review(workspace, actor, model, operation_id, scope_ids,
-                         source_selections=(), content_selections=()):
+                         source_selections=(), content_selections=(), original_requirement_refs=(),
+                         source_version_refs=()):
     if actor.role != "reviewer":
         raise ActionForbidden("FORBIDDEN: bounded review belongs to delegated reviewer")
     cs = ContentStore(workspace.store)
@@ -199,7 +209,26 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
     pool.update({encode(s["source_ref"]): s["source_ref"] for s in source_ranges})
     if any(encode(ContentSelection.model_validate(s).ref.model_dump()) not in pool for s in content_selections):
         raise ActionRejected("REVIEW_MATERIAL_OUTSIDE_ASSIGNED_POOL")
-    source_ids = set()
+    from .source_use import resolve_source_use_binding, validate_source_versions
+    from .content_inputs import SourceRef
+    policy_ref = resolve_source_use_binding(workspace, actor)
+    supplemental_refs = {}
+    for raw_ref in source_version_refs:
+        ref = SourceRef.model_validate(raw_ref).model_dump()
+        supplemental_refs.setdefault(encode(ref), ref)
+    if supplemental_refs and not policy_ref:
+        raise ActionRejected('REVIEW_SUPPLEMENT_REQUIRES_BOUND_SOURCE_USE_AUTHORITY')
+    validate_source_versions(workspace, actor, source_refs=supplemental_refs.values())
+    supplemental_ids = set()
+    for ref in supplemental_refs.values():
+        payload = cs.read(ref)['payload']
+        source = workspace.store.sources([payload['source_id']])[0]
+        if not source.get('current', True) or cs.source_payload(source) != payload:
+            raise ActionRejected('REVIEW_SOURCE_VERSION_CHANGED')
+        supplemental_ids.add(payload['source_id'])
+    if not supplemental_ids <= {SourceSelection.model_validate(s).source_id for s in source_selections}:
+        raise ActionRejected('REVIEW_SUPPLEMENT_REQUIRES_EXPLICIT_SOURCE_SELECTION')
+    source_ids = set(supplemental_ids)
     for ref in pool.values():
         obj = cs.read(ref)
         if ref["type"] == "SourceArtifact":
@@ -224,12 +253,18 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
         for s in source_ranges]
     for raw_selection in source_selections:
         selection = SourceSelection.model_validate(raw_selection)
-        if not any(source_id == selection.source_id and start <= selection.offset
+        if selection.source_id not in supplemental_ids and not any(source_id == selection.source_id and start <= selection.offset
                 and selection.offset+selection.limit <= end for source_id,start,end in eligible_spans):
             raise ActionRejected("REVIEW_SOURCE_RANGE_OUTSIDE_TASK: bind exact eligible spans before selecting source blocks")
     evidence = [{"kind": "saved_object", "object": cs.read(ref)} for ref in refs.values()]
+    # Optional inventory is not material consumption. Check actual packet refs.
+    for entry in evidence:
+        obj = entry['object']
+        used = ([obj['ref']] if obj['ref']['type'] == 'SourceArtifact' else
+                obj['payload']['source_refs'] if obj['ref']['type'] == 'Evidence' else [])
+        validate_source_versions(workspace, actor, source_refs=used)
     source_origins, materials = {}, []
-    if spans:
+    if spans or supplemental_refs:
         mandatory = [SourceSelection(source_id=cs.read(s['source_ref'])['payload']['source_id'],
             offset=s['offset'], limit=s['limit'], table_detail=s.get('table_detail')).packet_selection() for s in spans]
         # Deduplicate identical actual views, not semantically similar material.
@@ -242,14 +277,16 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
         source_refs = {encode(s['source_ref']): s['source_ref'] for s in spans}
         # Eligible additional source ranges retain exact version identity too.
         source_refs.update({encode(s['source_ref']): s['source_ref'] for s in source_ranges
-            if cs.read(s['source_ref'])['payload']['source_id'] in {v['source_id'] for v in selections.values()}})
+            if cs.read(s['source_ref'])['payload']['source_id'] in {v['source_id'] for v in selections.values()}
+            and cs.read(s['source_ref'])['payload']['source_id'] not in supplemental_ids})
+        source_refs.update(supplemental_refs)
         for index, origin in source_origins.items():
             entry = additional[index]
             entry['source_material_receipt'] = origin
             entry['source_version_refs'] = [ref for ref in source_refs.values()
                 if cs.read(ref)['payload']['source_id'] == entry['selection']['source_id']]
     else:
-        additional = selected_evidence(workspace, source_selections, [], snapshot, content_selections) if (source_selections or content_selections) else []
+        additional = selected_evidence(workspace, source_selections, [], snapshot, content_selections, actor=actor) if (source_selections or content_selections) else []
     # Validate selected ranges, then avoid replaying an already supplied whole node.
     evidence += [e for e in additional if e["kind"] != "content_node_selection" or encode(e["selection"]["ref"]) not in refs]
     context = review_material_context(cs, snapshot, selected, evidence, pool)
@@ -261,7 +298,7 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
         cs.observe(actor,gap)
         return gap
     evidence.append({'kind':'snapshot_structure','structure':context})
-    if spans:
+    if spans or supplemental_refs:
         from .prepared_material import compile_material
         prepared = compile_material(workspace, actor, evidence, source_refs.values(), materials)
         evidence = prepared.evidence
@@ -279,12 +316,40 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
                 if any(ref in bound for ref in [*m['refs'], *[s['source_ref'] for s in m.get('source_spans', [])]])]
         prepared.require_bounded_size('REVIEW_MATERIAL_EXCEEDS_BOUNDED_INPUT', dependencies)
     criteria = {encode(r["criterion_ref"]): cs.read(r["criterion_ref"]) for r in selected}
+    from .prepared_material import compile_material
+    # Eligibility preserves the existing task/immutable snapshot boundary. It is
+    # not a relevance decision: only the Agent's explicit exact refs are loaded.
+    linked = {encode(ref) for criterion in criteria.values()
+              for ref in criterion["payload"]["requirement_refs"]}
+    members = {encode(ref) for ref in cs.read(snapshot)["payload"]["refs"]}
+    originals = {}
+    for raw_ref in original_requirement_refs:
+        ref = Ref.model_validate(raw_ref).model_dump()
+        key = encode(ref)
+        if ref["type"] != "Requirement" or key not in linked or key not in members:
+            raise ActionRejected("REVIEW_ORIGINAL_REQUIREMENT_OUTSIDE_ASSIGNED_SNAPSHOT")
+        originals.setdefault(key, ref)
+    original_material = compile_material(workspace, actor,
+        [{"kind": "saved_object", "object": cs.read(ref)} for ref in originals.values()])
+    # This existing local bound is not a whole provider-context guarantee. Never
+    # trim selected material, switch versions or infer that omitted facts are absent.
+    original_material.require_bounded_size('REVIEW_REQUIREMENTS_EXCEED_BOUNDED_INPUT',
+        {i: [{"requirement_ref": ref, "purpose": "Explicitly selected original Requirement."}]
+         for i, ref in enumerate(originals.values())})
+    evidence += original_material.evidence
+    refs.update(originals)
     inputs = {"task_id": actor.task_id, "assignment": {
         "review_snapshot_ref": snapshot, "review_requirements": selected},
         "commission": {k: workspace.store.manifest.get(k) for k in ("goal", "scope_instruction")},
         "requested_scope_ids": scope_ids, "criteria": list(criteria.values()),
+        "selected_original_requirement_refs": list(originals.values()),
         "evidence": evidence, "output_schema": Assessments.model_json_schema()}
-    contract = 'assigned-review-source-spans-v1' if spans else 'assigned-review-v5'
+    if policy_ref:
+        inputs['source_use_policy_ref'] = policy_ref
+    if supplemental_refs:
+        inputs['selected_source_version_refs'] = list(supplemental_refs.values())
+    contract = ('assigned-review-supplement-v1' if supplemental_refs else
+                'assigned-review-source-spans-v2' if spans else 'assigned-review-v6')
     request_hash = digest({"input": inputs, "model": model_identity(model),
         "system": TOOL_PROMPT, "contract": contract})
     key = "bounded_review_result:" + actor.task_id + ":" + operation_id
@@ -307,32 +372,46 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
     text = raw["analysis"]
     if isinstance(text, str) and text.strip().startswith("```"):
         text = "\n".join(text.strip().splitlines()[1:-1])
-    assessments = Assessments.model_validate_json(text)
+    with received_output('REVIEW_OUTPUT_CONTRACT_INVALID', raw['operation']):
+        assessments = Assessments.model_validate_json(text)
     if len(assessments.items) != len(scope_ids) or {i.scope_id for i in assessments.items} != set(scope_ids):
         raise ActionRejected("REVIEW_TOOL_RETURNED_DIFFERENT_SCOPE: raw response preserved")
     by_scope = {r["scope_id"]: r for r in selected}
     # Receipts describe the exact material supplied to this model invocation.
     receipt_ids, dependencies = [], list(refs.values())
+    material_dependencies = list(refs.values())
     for index, entry in enumerate(evidence):
         if entry["kind"] == "saved_object":
             observed = {"objects": [entry["object"]]}
         elif entry["kind"] == "content_node_selection":
             observed = {"selections": [entry]}
             dependencies.append(entry["selection"]["ref"])
+            material_dependencies.append(entry["selection"]["ref"])
         elif entry['kind']=='snapshot_structure':
             observed = {'snapshot_structure':entry['structure']}
             dependencies.append(snapshot)
         elif entry['kind']=='source_version_binding':
             observed = {'source_version_binding':entry}
             dependencies.append(entry['object']['ref'])
+            material_dependencies.append(entry['object']['ref'])
         else:
             observed = {"evidence": [entry]}
             source_id = entry["selection"]["source_id"]
             source_payload = cs.source_payload(workspace.store.sources([source_id])[0])
-            existing = next((r for r in cs.list_objects("SourceArtifact") if r["payload_digest"] == digest(source_payload)), None)
-            ref = existing["ref"] if existing else cs.capture_sources(actor,
-                "review-source:" + raw["operation"] + ":" + str(index), [source_id])["result"]["source_refs"][0]
-            dependencies.append(ref)
+            if supplemental_refs:
+                # Already compiled against the actual own-task material receipt.
+                # Do not choose a saved alias or silently capture another version.
+                exact_refs = entry.get('source_version_refs', [])
+                if not exact_refs:
+                    raise ActionRejected('REVIEW_SOURCE_MATERIAL_VERSION_BINDING_MISSING')
+                dependencies.extend(exact_refs)
+                material_dependencies.extend(exact_refs)
+            else:
+                existing = next((r for r in cs.list_objects("SourceArtifact") if r["payload_digest"] == digest(source_payload)), None)
+                ref = existing["ref"] if existing else cs.capture_sources(actor,
+                    "review-source:" + raw["operation"] + ":" + str(index), [source_id])["result"]["source_refs"][0]
+                dependencies.append(ref)
+                material_dependencies.append(ref)
         observed.update(analysis_operation=raw["operation"], evidence_index=index)
         receipt_ids.append(cs.observe(actor, observed)["receipt_id"])
     items = []
@@ -351,7 +430,19 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
         item = {**assessment.model_dump(exclude={"observations"}), "observations": observations,
             "target_ref": req["target_ref"], "criterion_ref": req["criterion_ref"],
             "scope": "; ".join(req["required_checks"]), "assessment_kind": "content"}
-        item = ReviewItem.model_validate(item).model_dump()
+        local_checks = {extent['requirement_index'] for extent in req.get('content_check_scopes', [])
+                        if extent['kind'] == 'local_body'}
+        structure_used = (any(evidence[obs.evidence_index]['kind'] == 'snapshot_structure'
+                              for obs in assessment.observations)
+                          or any(finding.basis_kind == 'snapshot_structure' for finding in assessment.findings))
+        if (local_checks == set(range(len(req['required_checks'])))
+                and all(extent['kind'] == 'local_body' for extent in req.get('content_check_scopes', []))
+                and not structure_used):
+            # Only the automatic structure context is excluded; keep every
+            # actual material dependency, whether cited in a finding or not.
+            item['dependency_refs'] = list({encode(ref): ref for ref in material_dependencies}.values())
+        with received_output('REVIEW_OUTPUT_CONTRACT_INVALID', raw['operation']):
+            item = ReviewItem.model_validate(item).model_dump()
         for finding in assessment.findings:
             if finding.requirement_index >= len(req['required_checks']):
                 raise ActionRejected('REVIEW_FINDING_OUTSIDE_ASSIGNED_CHECK')
@@ -402,8 +493,11 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
 
 
 def review_tool(workspace, model):
+    from .content_inputs import SourceRef
     async def perform_assigned_review(operation_id: str, scope_ids: list[str],
-            source_selections: list[SourceSelection], content_selections: list[ContentSelection]) -> dict:
+            source_selections: list[SourceSelection], content_selections: list[ContentSelection],
+            original_requirement_refs: list[Ref] | None = None,
+            source_version_refs: list[SourceRef] | None = None) -> dict:
         """Perform and save content judgments for selected saved task scopes.
 
         Each assigned check needs required_materials with exact bound refs or
@@ -419,10 +513,21 @@ def review_tool(workspace, model):
         still require selection. Snapshot metadata is not a body-read receipt.
         large whole-source body requirements return a pre-call gap rather than
         embedding a complete document. Use located Evidence and explicit ranges.
-        Additional source_selections must fit source_ranges declared in this task;
+        Additional source_selections fit source_ranges declared in this task, or
+        explicitly selected source_version_refs enrolled in this task's trusted
+        source-use binding (see read_task_assignment). These supplement the same
+        question only; no required material, original target or write permission
+        changes. Pass actual captured SourceArtifact refs and located selections;
+        capture/read access alone does not grant supplemental checker use.
+        Legacy tasks without this binding retain their original range limits;
         use each captured SourceArtifact.payload.source_id as source_id, not its
         Ref.id. read_task_assignment exposes the exact ID/range mapping.
         owning a source file does not authorize selecting arbitrary blocks from it.
+        original_requirement_refs optionally selects exact Requirement versions linked
+        by the selected Criteria and contained in the assigned snapshot. Discover refs
+        through read_context on the Criterion; only explicit choices load original bodies.
+        Omission/empty selects none. Snapshot-bound old versions remain valid; no latest
+        version substitution, permission expansion or automatic linked-body loading.
         empty lists are allowed only when no additional material is necessary.
         Returns actual model findings and incomplete work, with immutable review IDs.
         Multiple related scopes may share one call; there is no per-node call limit.
@@ -430,13 +535,7 @@ def review_tool(workspace, model):
         """
         from .hierarchical_tools import actor_for
         actor = bound_actor(workspace, "reviewer", actor_for("reviewer"))
-        try:
-            return await perform_review(workspace, actor, model, operation_id, scope_ids,
-                                        source_selections, content_selections)
-        except ValidationError as exc:
-            # Native business middleware returns this rejection to the organizer.
-            # Keep the raw assessment; do not repair its verdict or call again.
-            details = exc.errors(include_input=False, include_context=False)
-            raise ActionRejected("REVIEW_OUTPUT_CONTRACT_INVALID: raw response preserved; "
-                "retain incomplete work without repeating this assessment. " + encode(details)) from exc
+        return await perform_review(workspace, actor, model, operation_id, scope_ids,
+                                    source_selections, content_selections,
+                                    original_requirement_refs or (), source_version_refs or ())
     return perform_assigned_review

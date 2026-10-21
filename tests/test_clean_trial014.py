@@ -6,7 +6,7 @@ from pathlib import Path
 import socket
 
 import httpx
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 import pytest
 
 from report_agent import deep_runtime
@@ -67,18 +67,22 @@ def baseline(root):
 
 def test_clean_import_preserves_only_originals_and_frozen_blocks(tmp_path):
     old = baseline(tmp_path / "baseline")
+    with old.connect() as db:
+        original_state = db.execute("SELECT * FROM state ORDER BY key").fetchall()
     destination = tmp_path / "clean"
     receipt = prepare(old.root, destination)
     fresh = Store(destination)
     with fresh.connect() as db:
         assert {k for (k,) in db.execute("SELECT key FROM state")} == {
-            "manifest", "status", "report_status", "clean_import"}
+            "manifest", "status", "report_status", "clean_import", "acceptance_default"}
         for table in ("results", "artifacts", "analyses", "work_items", "result_replacements", "source_versions"):
             assert db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
         blocks = db.execute("SELECT * FROM source_blocks ORDER BY source_id,ordinal").fetchall()
         assert "OLD_OUTCOME" not in encode(db.execute("SELECT * FROM state").fetchall())
     with old.connect() as db:
         assert blocks == db.execute("SELECT * FROM source_blocks ORDER BY source_id,ordinal").fetchall()
+        assert original_state == db.execute("SELECT * FROM state ORDER BY key").fetchall()
+    assert fresh.get('acceptance_default') == 'requirement-derived-v1'
     assert set(fresh.manifest) == {"goal", "sources", "scope_instruction", "export"}
     assert fresh.manifest["sources"] == old.manifest["sources"]
     assert (destination / "sources/input.txt").read_bytes() == (old.root / "sources/input.txt").read_bytes()
@@ -93,24 +97,40 @@ def test_clean_import_preserves_only_originals_and_frozen_blocks(tmp_path):
 def test_native_effective_tools_cannot_read_host_development_file(tmp_path, role):
     old = baseline(tmp_path / "baseline")
     prepare(old.root, tmp_path / "clean")
-    workspace = Workspace(Store(tmp_path / "clean"))
+    clean = Store(tmp_path / "clean")
+    # The historical importer is tested above. Reuse only verified synthetic
+    # originals/OCR in a fresh native project, not its retired execution state.
+    native = Store(tmp_path / "native")
+    for source in clean.manifest["sources"]:
+        data = (clean.root / source["copied_path"]).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == source["sha256"]
+        destination = native.root / source["copied_path"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+    native.initialize({**clean.manifest, "content_contract": "hierarchical-review-v1",
+                       "review_entrypoint": "delegated-reviewer-v1"})
+    Catalog(native)
+    with clean.connect() as db:
+        blocks = db.execute("SELECT * FROM source_blocks ORDER BY source_id,ordinal").fetchall()
+    with native.connect() as db:
+        db.execute("DELETE FROM source_blocks")
+        db.executemany("INSERT INTO source_blocks VALUES (?,?,?,?)", blocks)
+    workspace = Workspace(native)
     host_file = tmp_path / "developer-only.md"
     host_file.write_text("HOST_DEVELOPMENT_SECRET", encoding="utf-8")
     script = [invoke("read_file", file_path=str(host_file)),
               invoke("write_file", file_path="/scratch.txt", content="VIRTUAL_ONLY"),
               invoke("read_file", file_path="/scratch.txt"),
-              invoke("ask_human", category="source_missing", description="Offline boundary test.")]
+              AIMessage(content="File isolation observed; no engineering acceptance.")]
     scripts = {role: script}
     if role != "coordinator":
-        scripts["coordinator"] = [invoke("task", subagent_type=role, description="Check synthetic file isolation.")]
+        scripts["coordinator"] = [invoke("task", subagent_type=role, description="Check synthetic file isolation."),
+                                  AIMessage(content="Isolation investigation finished.")]
     driver = Driver(**scripts)
 
     async def exercise():
-        async with deep_runtime.project_agent(workspace, driver, rules=load_rules()) as agent:
-            result = await agent.ainvoke(
-                {"messages": [("user", encode(deep_runtime.project_view(workspace)))], "rubric": load_rules()},
-                {"configurable": {"thread_id": "clean-isolation"}})
-            assert result.get("__interrupt__")
+        result = await deep_runtime.run_report(workspace, driver)
+        assert result["last_error"] is None, result
 
     asyncio.run(exercise())
     observations = [message for called_role, _, messages in driver.calls if called_role == role
@@ -126,3 +146,6 @@ def test_native_effective_tools_cannot_read_host_development_file(tmp_path, role
         assert not names & {"execute", "shell", "python", "import_file"}
     assert host_file.read_text() == "HOST_DEVELOPMENT_SECRET"
     assert not (workspace.store.root / "scratch.txt").exists()
+    with native.connect() as db:
+        assert db.execute("SELECT * FROM source_blocks ORDER BY source_id,ordinal").fetchall() == blocks
+    assert (native.root / "sources/input.txt").read_bytes() == (clean.root / "sources/input.txt").read_bytes()

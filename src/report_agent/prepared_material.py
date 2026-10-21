@@ -65,6 +65,8 @@ class PreparedMaterial:
 def compile_material(workspace, actor, evidence, source_version_refs=(), source_materials=()):
     """No new reading: version bindings must match actual origin-issued material."""
     cs = ContentStore(workspace.store)
+    from .source_use import validate_source_versions
+    validate_source_versions(workspace, actor, source_refs=source_version_refs, materials=source_materials)
     result = list(evidence)
     for raw in source_version_refs:
         ref = SourceRef.model_validate(raw).model_dump()

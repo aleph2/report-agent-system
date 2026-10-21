@@ -85,6 +85,8 @@ async def observe_source_image(workspace, source_id: str, question: str,
     if not isinstance(question, str) or not question.strip():
         raise ActionRejected("VISION_QUESTION_REQUIRED")
     # Source resolution happens before a request. No arbitrary local path or remote URL.
+    from .source_use import validate_source_versions
+    policy_ref = validate_source_versions(workspace, actor, [source_id])
     png, provenance = vision_source_image(workspace, source_id, page, crop)
     owns_client = client is None
     try:
@@ -95,13 +97,13 @@ async def observe_source_image(workspace, source_id: str, question: str,
         workspace.store.event("vision_error", result)
         return result
     try:
-        return await _observe(workspace.store, png, provenance, question, client, actor)
+        return await _observe(workspace.store, png, provenance, question, client, actor, policy_ref=policy_ref)
     finally:
         if owns_client:
             await client.close()
 
 
-async def _observe(store, png, provenance, question, client, actor=None):
+async def _observe(store, png, provenance, question, client, actor=None, *, policy_ref=None):
     from .bounded_operations import record_outcome
     from .request_budget import logical_request_admission
     from .vision_admission import reserve_vision
@@ -111,6 +113,8 @@ async def _observe(store, png, provenance, question, client, actor=None):
     settings = {"model": model, "endpoint_hash": digest(str(client.base_url)),
                 "max_tokens": MAX_OUTPUT_TOKENS, "instruction": VISION_INSTRUCTION,
                 "contract": "source-vision-v2"}
+    if policy_ref:
+        settings['source_use_policy_ref'] = policy_ref
     operation = digest({**settings, "source": provenance, "question": question,
                         "image_sha256": hashlib.sha256(png).hexdigest()})
     saved = store.analysis(operation)
@@ -123,7 +127,8 @@ async def _observe(store, png, provenance, question, client, actor=None):
         # A received invalid response is evidence, not a successful observation
         # or a reason to pay for the identical request again.
         return {**prior['result'], 'reused':True}
-    request = {"operation": operation, "model_requested": model,
+    request = {**({'source_use_policy_ref': policy_ref} if policy_ref else {}),
+               "operation": operation, "model_requested": model,
                "source": provenance, "question": question,
                "image_sha256": hashlib.sha256(png).hexdigest(),
                "sdk_max_retries": client.max_retries,
