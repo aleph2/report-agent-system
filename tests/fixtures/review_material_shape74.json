@@ -1,0 +1,457 @@
+{
+  "schema_version": 1,
+  "provenance": "Metadata-only transformation of retained 74-item failed review material. No original text, IDs, paths, figures or business checks.",
+  "source_material_sha256": "91c7d2e1be57754904dffa2aba7ba3f4a6aed615c3417d036a5ad98ae08ce489",
+  "items": [
+    {
+      "index": 0,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 686
+    },
+    {
+      "index": 1,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1988
+    },
+    {
+      "index": 2,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1115
+    },
+    {
+      "index": 3,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1897
+    },
+    {
+      "index": 4,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 3765
+    },
+    {
+      "index": 5,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 728
+    },
+    {
+      "index": 6,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 737
+    },
+    {
+      "index": 7,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 736
+    },
+    {
+      "index": 8,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 746
+    },
+    {
+      "index": 9,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 735
+    },
+    {
+      "index": 10,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 740
+    },
+    {
+      "index": 11,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 735
+    },
+    {
+      "index": 12,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 750
+    },
+    {
+      "index": 13,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 735
+    },
+    {
+      "index": 14,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 750
+    },
+    {
+      "index": 15,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 750
+    },
+    {
+      "index": 16,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 2348
+    },
+    {
+      "index": 17,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1854
+    },
+    {
+      "index": 18,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 2413
+    },
+    {
+      "index": 19,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1521
+    },
+    {
+      "index": 20,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1082
+    },
+    {
+      "index": 21,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 589
+    },
+    {
+      "index": 22,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 935
+    },
+    {
+      "index": 23,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 2262
+    },
+    {
+      "index": 24,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 2688
+    },
+    {
+      "index": 25,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 979
+    },
+    {
+      "index": 26,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 591
+    },
+    {
+      "index": 27,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1270
+    },
+    {
+      "index": 28,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1069
+    },
+    {
+      "index": 29,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1259
+    },
+    {
+      "index": 30,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1522
+    },
+    {
+      "index": 31,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1206
+    },
+    {
+      "index": 32,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 594
+    },
+    {
+      "index": 33,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1427
+    },
+    {
+      "index": 34,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1734
+    },
+    {
+      "index": 35,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1182
+    },
+    {
+      "index": 36,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 604
+    },
+    {
+      "index": 37,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1854
+    },
+    {
+      "index": 38,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1483
+    },
+    {
+      "index": 39,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1045
+    },
+    {
+      "index": 40,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 2043
+    },
+    {
+      "index": 41,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1604
+    },
+    {
+      "index": 42,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1130
+    },
+    {
+      "index": 43,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 3654
+    },
+    {
+      "index": 44,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 2130
+    },
+    {
+      "index": 45,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1438
+    },
+    {
+      "index": 46,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 3152
+    },
+    {
+      "index": 47,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1647
+    },
+    {
+      "index": 48,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1272
+    },
+    {
+      "index": 49,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 594
+    },
+    {
+      "index": 50,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1615
+    },
+    {
+      "index": 51,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 1342
+    },
+    {
+      "index": 52,
+      "kind": "saved_object",
+      "object_type": "ContentNode",
+      "serialized_characters": 602
+    },
+    {
+      "index": 53,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 12700
+    },
+    {
+      "index": 54,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 3441
+    },
+    {
+      "index": 55,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 3873
+    },
+    {
+      "index": 56,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 24035
+    },
+    {
+      "index": 57,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 4547
+    },
+    {
+      "index": 58,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 4631
+    },
+    {
+      "index": 59,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 6853
+    },
+    {
+      "index": 60,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 5415
+    },
+    {
+      "index": 61,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 6321
+    },
+    {
+      "index": 62,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 56073
+    },
+    {
+      "index": 63,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 22253
+    },
+    {
+      "index": 64,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 10415
+    },
+    {
+      "index": 65,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 2708
+    },
+    {
+      "index": 66,
+      "kind": "source_blocks",
+      "object_type": null,
+      "serialized_characters": 3009
+    },
+    {
+      "index": 67,
+      "kind": "snapshot_structure",
+      "object_type": null,
+      "serialized_characters": 33114
+    },
+    {
+      "index": 68,
+      "kind": "source_version_binding",
+      "object_type": "SourceArtifact",
+      "serialized_characters": 2173
+    },
+    {
+      "index": 69,
+      "kind": "source_version_binding",
+      "object_type": "SourceArtifact",
+      "serialized_characters": 2198
+    },
+    {
+      "index": 70,
+      "kind": "source_version_binding",
+      "object_type": "SourceArtifact",
+      "serialized_characters": 2225
+    },
+    {
+      "index": 71,
+      "kind": "source_version_binding",
+      "object_type": "SourceArtifact",
+      "serialized_characters": 1636
+    },
+    {
+      "index": 72,
+      "kind": "source_version_binding",
+      "object_type": "SourceArtifact",
+      "serialized_characters": 1538
+    },
+    {
+      "index": 73,
+      "kind": "source_version_binding",
+      "object_type": "SourceArtifact",
+      "serialized_characters": 2016
+    }
+  ],
+  "scope_check_counts": [
+    4,
+    3
+  ],
+  "extra_original_requirements": 2,
+  "note": "74 material entries include one snapshot_structure. Complete evidence additionally has two original Requirement objects (76 total). Sizes are synthetic payload targets, not provider tokens. Item sizes use compact JSON serialization (no separator spaces); they do not sum to the original store.encode material character measurement."
+}

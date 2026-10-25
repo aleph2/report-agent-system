@@ -1,0 +1,7 @@
+Freeze an exact version manifest, including applicable criteria and the full reference closure; this validates structure, not correctness or acceptance. Export need not wait for all reviews.
+
+Provide root_ref and explicit refs (which may be empty when the selected receipts supply the selected saves), and optionally saved_receipt_ids copied exactly from program-supplied successful save metadata. The program unions those saves with refs and follows the typed references contained in those exact saved objects. It accepts only your own saves or saves from your own delegated Writer tasks. It does not select latest heads, infer incoming relations or decide semantic relevance. You choose which saves belong in this snapshot. With saved_receipt_ids omitted or empty, refs must be the complete manifest as before.
+
+Members may only be Requirement, Criterion, SourceArtifact, Evidence, ContentNode or Relation, with one exact version per logical object. Tasks, snapshots, exports and review records are not members. Invalid trees, missing dependencies and conflicting versions are rejected atomically.
+
+root_ref and contains relations define report prose. Optional workbook_refs explicitly register workbook-only table or text-block nodes in the same manifest. They must be detached from the report tree without contains parents or children. Undeclared detached presentation nodes remain rejected. XLSX export must select all and only the registered workbook_refs when this channel is declared. Registration changes neither content nor ownership and is not semantic approval.

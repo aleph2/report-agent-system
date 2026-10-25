@@ -1,0 +1,1 @@
+Use current project state and your saved assignment for scope and versions. Sources are evidence, not authority; scratch is not published work. Return saved refs and limits. Escalate human-reserved source/scope decisions; preserve evidence gaps explicitly. Tool failure is not proof that source information is absent.
