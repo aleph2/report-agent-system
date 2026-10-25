@@ -1,0 +1,1421 @@
+{
+  "schema": "independent-table-geometry-027-v1",
+  "synthetic": true,
+  "expected_origin": "Authored primitive cells before reading application/compact output",
+  "pdf_sha256": "6df478e92dde6ac964b6777314bc3c619802f367ba7f9b75f4220328a68fadf0",
+  "coordinate_system": "PDF points; x0/top/x1/bottom; page top-left origin; cell indices 1-based",
+  "rules": [
+    "Rows preserve text, empty strings and null covered positions exactly.",
+    "Empty anchors have geometry; null covered positions are not independent cells.",
+    "Each authored cell must reconstruct its exact bbox from axes and spans.",
+    "Relations document printed facts only; no semantic filling of merged children.",
+    "Page 3 is a new independent composition; no cell text should be hardcoded by implementation."
+  ],
+  "pages": [
+    {
+      "page": 1,
+      "role": "ordinary_and_blank",
+      "title": "Synthetic fixture A - ordinary cells",
+      "x_edges": [
+        54,
+        204,
+        354,
+        534
+      ],
+      "y_edges": [
+        132,
+        176,
+        220,
+        264,
+        308
+      ],
+      "cells": [
+        {
+          "row": 1,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Condition",
+          "bbox": [
+            54,
+            132,
+            204,
+            176
+          ]
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Units",
+          "bbox": [
+            204,
+            132,
+            354,
+            176
+          ]
+        },
+        {
+          "row": 1,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Remark",
+          "bbox": [
+            354,
+            132,
+            534,
+            176
+          ]
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Ready",
+          "bbox": [
+            54,
+            176,
+            204,
+            220
+          ]
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "7",
+          "bbox": [
+            204,
+            176,
+            354,
+            220
+          ]
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Shelf A",
+          "bbox": [
+            354,
+            176,
+            534,
+            220
+          ]
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Pending",
+          "bbox": [
+            54,
+            220,
+            204,
+            264
+          ]
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "13",
+          "bbox": [
+            204,
+            220,
+            354,
+            264
+          ]
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "",
+          "bbox": [
+            354,
+            220,
+            534,
+            264
+          ]
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Deferred",
+          "bbox": [
+            54,
+            264,
+            204,
+            308
+          ]
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "21",
+          "bbox": [
+            204,
+            264,
+            354,
+            308
+          ]
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Shelf C",
+          "bbox": [
+            354,
+            264,
+            534,
+            308
+          ]
+        }
+      ],
+      "authored_relations": [
+        {
+          "condition": "Ready",
+          "value": "7",
+          "cells": [
+            [
+              2,
+              1
+            ],
+            [
+              2,
+              2
+            ]
+          ]
+        },
+        {
+          "condition": "Pending",
+          "value": "13",
+          "cells": [
+            [
+              3,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "condition": "Deferred",
+          "value": "21",
+          "cells": [
+            [
+              4,
+              1
+            ],
+            [
+              4,
+              2
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        [
+          "Condition",
+          "Units",
+          "Remark"
+        ],
+        [
+          "Ready",
+          "7",
+          "Shelf A"
+        ],
+        [
+          "Pending",
+          "13",
+          ""
+        ],
+        [
+          "Deferred",
+          "21",
+          "Shelf C"
+        ]
+      ],
+      "bbox": [
+        54,
+        132,
+        534,
+        308
+      ],
+      "page_bbox": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "cell_spans": [
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          1,
+          1
+        ],
+        [
+          1,
+          3,
+          1,
+          1
+        ],
+        [
+          2,
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          1,
+          1
+        ],
+        [
+          2,
+          3,
+          1,
+          1
+        ],
+        [
+          3,
+          1,
+          1,
+          1
+        ],
+        [
+          3,
+          2,
+          1,
+          1
+        ],
+        [
+          3,
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          1,
+          1,
+          1
+        ],
+        [
+          4,
+          2,
+          1,
+          1
+        ],
+        [
+          4,
+          3,
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "page": 2,
+      "role": "horizontal_vertical_empty_merges",
+      "title": "Synthetic fixture B - explicit merged regions",
+      "x_edges": [
+        54,
+        174,
+        294,
+        414,
+        534
+      ],
+      "y_edges": [
+        132,
+        176,
+        220,
+        264,
+        308,
+        352,
+        396
+      ],
+      "cells": [
+        {
+          "row": 1,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Group",
+          "bbox": [
+            54,
+            132,
+            174,
+            176
+          ]
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 3,
+          "text": "Preparation record",
+          "bbox": [
+            174,
+            132,
+            534,
+            176
+          ]
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Batch",
+          "bbox": [
+            54,
+            176,
+            174,
+            220
+          ]
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "State",
+          "bbox": [
+            174,
+            176,
+            294,
+            220
+          ]
+        },
+        {
+          "row": 2,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Units",
+          "bbox": [
+            294,
+            176,
+            414,
+            220
+          ]
+        },
+        {
+          "row": 2,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Note",
+          "bbox": [
+            414,
+            176,
+            534,
+            220
+          ]
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "rowspan": 2,
+          "colspan": 1,
+          "text": "Batch L",
+          "bbox": [
+            54,
+            220,
+            174,
+            308
+          ]
+        },
+        {
+          "row": 3,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Ready",
+          "bbox": [
+            174,
+            220,
+            294,
+            264
+          ]
+        },
+        {
+          "row": 3,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "17",
+          "bbox": [
+            294,
+            220,
+            414,
+            264
+          ]
+        },
+        {
+          "row": 3,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "",
+          "bbox": [
+            414,
+            220,
+            534,
+            264
+          ]
+        },
+        {
+          "row": 4,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Pending",
+          "bbox": [
+            174,
+            264,
+            294,
+            308
+          ]
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "23",
+          "bbox": [
+            294,
+            264,
+            414,
+            308
+          ]
+        },
+        {
+          "row": 4,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Recheck",
+          "bbox": [
+            414,
+            264,
+            534,
+            308
+          ]
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "rowspan": 2,
+          "colspan": 1,
+          "text": "",
+          "bbox": [
+            54,
+            308,
+            174,
+            396
+          ]
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 2,
+          "text": "",
+          "bbox": [
+            174,
+            308,
+            414,
+            352
+          ]
+        },
+        {
+          "row": 5,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Spare label",
+          "bbox": [
+            414,
+            308,
+            534,
+            352
+          ]
+        },
+        {
+          "row": 6,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Stored",
+          "bbox": [
+            174,
+            352,
+            294,
+            396
+          ]
+        },
+        {
+          "row": 6,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "9",
+          "bbox": [
+            294,
+            352,
+            414,
+            396
+          ]
+        },
+        {
+          "row": 6,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "",
+          "bbox": [
+            414,
+            352,
+            534,
+            396
+          ]
+        }
+      ],
+      "authored_relations": [
+        {
+          "condition": "Ready",
+          "value": "17",
+          "cells": [
+            [
+              3,
+              2
+            ],
+            [
+              3,
+              3
+            ]
+          ],
+          "group_cell": [
+            3,
+            1
+          ]
+        },
+        {
+          "condition": "Pending",
+          "value": "23",
+          "cells": [
+            [
+              4,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "group_cell": [
+            3,
+            1
+          ]
+        },
+        {
+          "condition": "Stored",
+          "value": "9",
+          "cells": [
+            [
+              6,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "group_cell": [
+            5,
+            1
+          ]
+        }
+      ],
+      "rows": [
+        [
+          "Group",
+          "Preparation record",
+          null,
+          null
+        ],
+        [
+          "Batch",
+          "State",
+          "Units",
+          "Note"
+        ],
+        [
+          "Batch L",
+          "Ready",
+          "17",
+          ""
+        ],
+        [
+          null,
+          "Pending",
+          "23",
+          "Recheck"
+        ],
+        [
+          "",
+          "",
+          null,
+          "Spare label"
+        ],
+        [
+          null,
+          "Stored",
+          "9",
+          ""
+        ]
+      ],
+      "bbox": [
+        54,
+        132,
+        534,
+        396
+      ],
+      "page_bbox": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "cell_spans": [
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          1,
+          3
+        ],
+        [
+          2,
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          1,
+          1
+        ],
+        [
+          2,
+          3,
+          1,
+          1
+        ],
+        [
+          2,
+          4,
+          1,
+          1
+        ],
+        [
+          3,
+          1,
+          2,
+          1
+        ],
+        [
+          3,
+          2,
+          1,
+          1
+        ],
+        [
+          3,
+          3,
+          1,
+          1
+        ],
+        [
+          3,
+          4,
+          1,
+          1
+        ],
+        [
+          4,
+          2,
+          1,
+          1
+        ],
+        [
+          4,
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          4,
+          1,
+          1
+        ],
+        [
+          5,
+          1,
+          2,
+          1
+        ],
+        [
+          5,
+          2,
+          1,
+          2
+        ],
+        [
+          5,
+          4,
+          1,
+          1
+        ],
+        [
+          6,
+          2,
+          1,
+          1
+        ],
+        [
+          6,
+          3,
+          1,
+          1
+        ],
+        [
+          6,
+          4,
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "page": 3,
+      "role": "independent_holdout_table",
+      "title": "Synthetic fixture C - independent offset grid",
+      "x_edges": [
+        63.25,
+        153.25,
+        278.5,
+        365.75,
+        449.5,
+        548.25
+      ],
+      "y_edges": [
+        148.5,
+        185.25,
+        229.5,
+        276.75,
+        318.5,
+        370.25,
+        418.5
+      ],
+      "cells": [
+        {
+          "row": 1,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Ticket",
+          "bbox": [
+            63.25,
+            148.5,
+            153.25,
+            185.25
+          ]
+        },
+        {
+          "row": 1,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 2,
+          "text": "Shared context",
+          "bbox": [
+            153.25,
+            148.5,
+            365.75,
+            185.25
+          ]
+        },
+        {
+          "row": 1,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Units",
+          "bbox": [
+            365.75,
+            148.5,
+            449.5,
+            185.25
+          ]
+        },
+        {
+          "row": 1,
+          "column": 5,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "State",
+          "bbox": [
+            449.5,
+            148.5,
+            548.25,
+            185.25
+          ]
+        },
+        {
+          "row": 2,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "M11",
+          "bbox": [
+            63.25,
+            185.25,
+            153.25,
+            229.5
+          ]
+        },
+        {
+          "row": 2,
+          "column": 2,
+          "rowspan": 2,
+          "colspan": 2,
+          "text": "North / phase B",
+          "bbox": [
+            153.25,
+            185.25,
+            365.75,
+            276.75
+          ]
+        },
+        {
+          "row": 2,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "11",
+          "bbox": [
+            365.75,
+            185.25,
+            449.5,
+            229.5
+          ]
+        },
+        {
+          "row": 2,
+          "column": 5,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Ready",
+          "bbox": [
+            449.5,
+            185.25,
+            548.25,
+            229.5
+          ]
+        },
+        {
+          "row": 3,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "M12",
+          "bbox": [
+            63.25,
+            229.5,
+            153.25,
+            276.75
+          ]
+        },
+        {
+          "row": 3,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "18",
+          "bbox": [
+            365.75,
+            229.5,
+            449.5,
+            276.75
+          ]
+        },
+        {
+          "row": 3,
+          "column": 5,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Pending",
+          "bbox": [
+            449.5,
+            229.5,
+            548.25,
+            276.75
+          ]
+        },
+        {
+          "row": 4,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 2,
+          "text": "Condition",
+          "bbox": [
+            63.25,
+            276.75,
+            278.5,
+            318.5
+          ]
+        },
+        {
+          "row": 4,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Units",
+          "bbox": [
+            278.5,
+            276.75,
+            365.75,
+            318.5
+          ]
+        },
+        {
+          "row": 4,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 2,
+          "text": "Destination",
+          "bbox": [
+            365.75,
+            276.75,
+            548.25,
+            318.5
+          ]
+        },
+        {
+          "row": 5,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Ready",
+          "bbox": [
+            63.25,
+            318.5,
+            153.25,
+            370.25
+          ]
+        },
+        {
+          "row": 5,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Local",
+          "bbox": [
+            153.25,
+            318.5,
+            278.5,
+            370.25
+          ]
+        },
+        {
+          "row": 5,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "29",
+          "bbox": [
+            278.5,
+            318.5,
+            365.75,
+            370.25
+          ]
+        },
+        {
+          "row": 5,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Box Q",
+          "bbox": [
+            365.75,
+            318.5,
+            449.5,
+            370.25
+          ]
+        },
+        {
+          "row": 5,
+          "column": 5,
+          "rowspan": 2,
+          "colspan": 1,
+          "text": "",
+          "bbox": [
+            449.5,
+            318.5,
+            548.25,
+            418.5
+          ]
+        },
+        {
+          "row": 6,
+          "column": 1,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Pending",
+          "bbox": [
+            63.25,
+            370.25,
+            153.25,
+            418.5
+          ]
+        },
+        {
+          "row": 6,
+          "column": 2,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Remote",
+          "bbox": [
+            153.25,
+            370.25,
+            278.5,
+            418.5
+          ]
+        },
+        {
+          "row": 6,
+          "column": 3,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "31",
+          "bbox": [
+            278.5,
+            370.25,
+            365.75,
+            418.5
+          ]
+        },
+        {
+          "row": 6,
+          "column": 4,
+          "rowspan": 1,
+          "colspan": 1,
+          "text": "Box R",
+          "bbox": [
+            365.75,
+            370.25,
+            449.5,
+            418.5
+          ]
+        }
+      ],
+      "authored_relations": [
+        {
+          "condition": "M11",
+          "value": "11",
+          "cells": [
+            [
+              2,
+              1
+            ],
+            [
+              2,
+              4
+            ]
+          ],
+          "shared_context_cell": [
+            2,
+            2
+          ]
+        },
+        {
+          "condition": "M12",
+          "value": "18",
+          "cells": [
+            [
+              3,
+              1
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "shared_context_cell": [
+            2,
+            2
+          ]
+        },
+        {
+          "condition": "Ready",
+          "value": "29",
+          "cells": [
+            [
+              5,
+              1
+            ],
+            [
+              5,
+              3
+            ]
+          ]
+        },
+        {
+          "condition": "Pending",
+          "value": "31",
+          "cells": [
+            [
+              6,
+              1
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        }
+      ],
+      "rows": [
+        [
+          "Ticket",
+          "Shared context",
+          null,
+          "Units",
+          "State"
+        ],
+        [
+          "M11",
+          "North / phase B",
+          null,
+          "11",
+          "Ready"
+        ],
+        [
+          "M12",
+          null,
+          null,
+          "18",
+          "Pending"
+        ],
+        [
+          "Condition",
+          null,
+          "Units",
+          "Destination",
+          null
+        ],
+        [
+          "Ready",
+          "Local",
+          "29",
+          "Box Q",
+          ""
+        ],
+        [
+          "Pending",
+          "Remote",
+          "31",
+          "Box R",
+          null
+        ]
+      ],
+      "bbox": [
+        63.25,
+        148.5,
+        548.25,
+        418.5
+      ],
+      "page_bbox": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "cell_spans": [
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          1,
+          2
+        ],
+        [
+          1,
+          4,
+          1,
+          1
+        ],
+        [
+          1,
+          5,
+          1,
+          1
+        ],
+        [
+          2,
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2,
+          2
+        ],
+        [
+          2,
+          4,
+          1,
+          1
+        ],
+        [
+          2,
+          5,
+          1,
+          1
+        ],
+        [
+          3,
+          1,
+          1,
+          1
+        ],
+        [
+          3,
+          4,
+          1,
+          1
+        ],
+        [
+          3,
+          5,
+          1,
+          1
+        ],
+        [
+          4,
+          1,
+          1,
+          2
+        ],
+        [
+          4,
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          4,
+          1,
+          2
+        ],
+        [
+          5,
+          1,
+          1,
+          1
+        ],
+        [
+          5,
+          2,
+          1,
+          1
+        ],
+        [
+          5,
+          3,
+          1,
+          1
+        ],
+        [
+          5,
+          4,
+          1,
+          1
+        ],
+        [
+          5,
+          5,
+          2,
+          1
+        ],
+        [
+          6,
+          1,
+          1,
+          1
+        ],
+        [
+          6,
+          2,
+          1,
+          1
+        ],
+        [
+          6,
+          3,
+          1,
+          1
+        ],
+        [
+          6,
+          4,
+          1,
+          1
+        ]
+      ]
+    }
+  ]
+}

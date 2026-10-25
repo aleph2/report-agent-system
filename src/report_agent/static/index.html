@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>报告工作台</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>报告工作台</h1>
+    <div class="connection"><span id="model-mode">模型状态待获取</span><span id="connection" role="status">正在连接…</span></div>
+  </header>
+  <main>
+    <section class="project" aria-labelledby="project-heading">
+      <h2 id="project-heading">项目</h2>
+      <dl><dt>项目名称</dt><dd id="project-name">未提供</dd><dt>编制目标</dt><dd>
+        <p id="goal">正在获取…</p>
+        <details id="goal-details"><summary>完整编制目标</summary><p id="goal-full">正在获取…</p></details>
+      </dd></dl>
+    </section>
+    <section class="execution" aria-labelledby="execution-heading">
+      <div><h2 id="execution-heading">执行状态</h2><strong id="status" class="state" role="status">待连接</strong><p id="runtime" class="metadata"></p></div>
+      <div class="activity"><h2>当前动作</h2><p id="activity" role="status">等待状态数据</p></div>
+      <div class="run-control"><button id="run" class="primary" type="button" aria-describedby="run-reason" disabled>运行</button><p id="run-reason">等待状态数据</p></div>
+    </section>
+    <div id="api-error" class="error" role="alert" hidden></div>
+    <div id="system-error" class="error" role="alert" hidden></div>
+    <div id="action-notice" class="notice" role="status" hidden></div>
+    <section id="interrupt-panel" class="warning" aria-labelledby="interrupt-heading" hidden>
+      <h2 id="interrupt-heading">运行等待人工决定</h2>
+      <p id="interrupt-status" role="status"></p>
+      <ul id="interrupts"></ul>
+    </section>
+    <div id="source-change-notice" class="warning" role="status" hidden></div>
+    <section class="run-history" aria-labelledby="run-history-heading">
+      <h2 id="run-history-heading">运行进展</h2>
+      <p id="run-history-empty" class="muted">暂无运行记录</p>
+      <ol id="run-history"></ol>
+      <details id="agent-summary-panel" hidden><summary>最近运行说明</summary><p id="agent-summary"></p></details>
+    </section>
+    <section class="library" aria-labelledby="library-heading">
+      <div class="section-heading"><h2 id="library-heading">资料库</h2><span id="sources-count" class="muted">正在获取…</span></div>
+      <form id="upload-form" class="upload-form">
+        <div class="field"><label for="source-file">上传资料</label><input id="source-file" type="file" accept=".txt,.md,.docx,.pdf" required></div>
+        <div class="field"><label for="source-replaces">替换当前资料（可选）</label><select id="source-replaces"><option value="">新增资料（不替换）</option></select></div>
+        <button id="upload-submit" type="submit" disabled>上传资料</button>
+      </form>
+      <p class="metadata">上传仅保存资料及可提取文本，不自动调用模型或 OCR。</p>
+      <div id="upload-feedback" class="notice" role="status" hidden></div>
+      <p id="sources-empty" class="muted">正在获取资料…</p>
+      <div id="sources" class="source-list"></div>
+      <section id="source-reader" class="source-reader" aria-labelledby="source-reader-heading" hidden>
+        <div class="section-heading"><h3 id="source-reader-heading">资料正文</h3><button id="source-close" type="button">关闭正文</button></div>
+        <p id="source-reader-meta" class="metadata"></p>
+        <p id="source-reader-limitations" class="warning" hidden></p>
+        <div id="source-read-error" class="error" role="alert" hidden></div>
+        <p id="source-read-status" class="metadata" role="status"></p>
+        <div id="source-blocks"></div>
+        <nav class="pager" aria-label="资料正文分页"><button id="source-prev" type="button" disabled>上一页</button><button id="source-next" type="button" disabled>下一页</button><button id="source-retry" type="button" hidden>重试读取</button></nav>
+      </section>
+      <section class="library-search" aria-labelledby="search-heading">
+        <h3 id="search-heading">资料检索</h3>
+        <form id="search-form" class="search-form"><label for="search-query">关键词</label><input id="search-query" type="search" required><button type="submit">检索</button></form>
+        <p id="search-method" class="metadata"></p>
+        <p id="search-coverage" class="metadata"></p>
+        <div id="search-error" class="error" role="alert" hidden></div>
+        <p id="search-status" class="metadata" role="status"></p>
+        <div id="search-matches"></div>
+        <nav class="pager" aria-label="检索结果分页"><button id="search-prev" type="button" disabled>上一页</button><button id="search-next" type="button" disabled>下一页</button><button id="search-retry" type="button" hidden>重试检索</button></nav>
+      </section>
+    </section>
+    <div class="workspace">
+      <div class="main-column">
+        <section aria-labelledby="delivery-heading">
+          <div class="section-heading"><h2 id="delivery-heading">报告交付</h2><span id="delivery-status" class="state">待获取</span></div>
+          <p id="delivery-info" class="muted">正在获取交付记录…</p>
+          <button id="download" type="button" disabled>下载报告 DOCX</button>
+          <button id="download-workbook" type="button" disabled>下载配套 Excel</button>
+          <p class="muted">报告草稿不代表工程签审。</p>
+        </section>
+        <section aria-labelledby="tasks-heading">
+          <div class="section-heading"><h2 id="tasks-heading">成果提交记录</h2><span id="tasks-count" class="muted"></span></div>
+          <div class="table-wrap"><table><thead><tr><th scope="col">成果类型</th><th scope="col">目标 / 错误</th><th scope="col">提交状态</th></tr></thead><tbody id="tasks"></tbody></table></div>
+          <p id="tasks-empty" class="muted">正在获取提交记录…</p>
+        </section>
+        <section aria-labelledby="results-heading">
+          <div class="section-heading"><h2 id="results-heading">成果</h2><span id="results-count" class="muted"></span></div>
+          <p id="results-empty" class="muted">正在获取成果…</p><div id="results"></div>
+        </section>
+        <section aria-labelledby="corrections-heading">
+          <div class="section-heading"><h2 id="corrections-heading">成果纠错</h2><span id="corrections-count" class="muted"></span></div>
+          <form id="correction-form">
+            <div class="field"><label for="correction-result">需要纠正的成果</label><select id="correction-result" required><option value="">选择成果</option></select></div>
+            <div class="field"><label for="correction-description">问题与修订要求</label><textarea id="correction-description" required></textarea></div>
+            <button id="correction-submit" type="submit" disabled>记录纠错请求</button>
+          </form>
+          <p class="metadata">仅记录请求，由成果责任方修订；本次提交不运行模型。</p>
+          <div id="correction-feedback" class="notice" role="status" hidden></div>
+          <p id="corrections-empty" class="muted">暂无纠错请求</p>
+          <div id="corrections"></div>
+        </section>
+      </div>
+      <aside aria-labelledby="issues-heading">
+        <div class="section-heading"><h2 id="issues-heading">待人处理</h2><strong id="issues-count">—</strong></div>
+        <p id="issues-empty" class="muted">正在获取待处理事项…</p><div id="issues"></div>
+      </aside>
+    </div>
+    <details class="logs"><summary>运行日志 <span id="events-count" class="muted"></span></summary><pre id="events">正在获取日志…</pre></details>
+    <section aria-labelledby="learning-heading">
+      <div class="section-heading"><h2 id="learning-heading">反馈与经验</h2><button id="learning-refresh" type="button">刷新反馈</button></div>
+      <p id="learning-status" role="status">正在读取反馈配置…</p>
+      <div id="learning-panel" hidden>
+        <form id="learning-form">
+          <div class="field"><label for="learning-report">报告版本</label><select id="learning-report" required></select></div>
+          <div class="field"><label for="learning-target">反馈位置</label><select id="learning-target" required></select></div>
+          <details><summary>查看所选版本内容</summary><pre id="learning-preview"></pre></details>
+          <fieldset><legend>补充依据（可选）</legend>
+            <p class="metadata">选择本项目已有的证据或资料版本。未选择时仅记录报告原文作为上下文；资料摘录仅展示开头，不代表已核实。</p>
+            <div id="learning-evidence-list"></div>
+          </fieldset>
+          <div class="field"><label for="learning-correction">问题、修改建议与依据</label><textarea id="learning-correction" required></textarea></div>
+          <button id="learning-submit" type="submit">保存反馈</button>
+        </form>
+        <p class="metadata">反馈会关联所选报告原文。填写的事实仍需核实；保存反馈不会修改报告或启动模型。</p>
+        <div id="learning-notice" role="status"></div>
+        <h3>已记录反馈</h3><div id="learning-feedback-list"></div>
+        <h3>经验版本</h3><p class="metadata">发布后可供同客户范围内的报告使用。发布旧版本即回滚；撤回后不再供后续查询使用。发布不代表已证明报告质量提升。</p>
+        <div id="learning-experiences"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/learning.js" defer></script>
+</body>
+</html>

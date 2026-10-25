@@ -1,0 +1,174 @@
+{
+  "F_INV-correct": {
+    "verdict": "satisfied",
+    "reason": "全部原始事实与计算一致，甲乙正文完整。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  },
+  "F_INV-wrong_but_arithmetic_consistent": {
+    "verdict": "not_satisfied",
+    "reason": "报告把D03标为可用、D04标为停用，可用总数仍为3及60.0%；算术自洽但两条事实错误。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  },
+  "F_INV-uncertain": {
+    "verdict": "undetermined",
+    "reason": "两份同等级授权台账：A的D04.available=true，B为false，其余行相同；无优先级/有效日期可裁决。乙可用数分别1或0，总可用数分别3或2，结论会改变。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  },
+  "F_TRAIN-correct": {
+    "verdict": "satisfied",
+    "reason": "P01、P03完成，其余未完成，比例50.0%。",
+    "facts": {
+      "completed": [
+        "P01",
+        "P03"
+      ],
+      "count": 2,
+      "total": 4,
+      "rate": "50.0%"
+    }
+  },
+  "F_TRAIN-wrong_but_arithmetic_consistent": {
+    "verdict": "not_satisfied",
+    "reason": "P02被列为完成、P03被列为未完成；总数和50.0%仍正确。",
+    "facts": {
+      "completed": [
+        "P01",
+        "P03"
+      ],
+      "count": 2,
+      "total": 4,
+      "rate": "50.0%"
+    }
+  },
+  "F_TRAIN-uncertain": {
+    "verdict": "undetermined",
+    "reason": "两份同等级来源对P03.A分别给61和59，B均60；无优先级可裁决。P03完成与否因此改变，完成总数分别2或1；保留两值及冲突。",
+    "facts": {
+      "completed": [
+        "P01",
+        "P03"
+      ],
+      "count": 2,
+      "total": 4,
+      "rate": "50.0%"
+    }
+  },
+  "F_INV-omitted": {
+    "verdict": "not_satisfied",
+    "reason": "交付确缺乙正文：固定snapshot完整inventory只有乙标题；完整读取其绑定body及子节点均无乙内容；I3要求仍有效。不是只因初始packet缺页推断缺稿。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  },
+  "F_INV-packet_gap": {
+    "verdict": "satisfied",
+    "reason": "Writer选材未含D03原始行，但Reviewer授权材料池内有完整台账。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  },
+  "F_INV-body_exists_not_selected": {
+    "verdict": "satisfied",
+    "reason": "同一I3；乙正文实际存在于固定snapshot并已授权，但未进入初始selection。通过实际读取可取得；不得把选材缺口判成真实缺稿。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  },
+  "F_INV-body_exists_unreadable": {
+    "verdict": "undetermined",
+    "reason": "乙正文实际存在但当前任务无合法可用读取路径；明确当前证据/权限不足，不能据此宣称交付缺稿或已通过。",
+    "facts": {
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "甲": {
+        "total": 2,
+        "available": 2,
+        "rate": "100.0%"
+      },
+      "乙": {
+        "total": 3,
+        "available": 1,
+        "rate": "33.3%"
+      }
+    }
+  }
+}

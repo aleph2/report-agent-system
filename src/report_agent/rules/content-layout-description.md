@@ -1,0 +1,1 @@
+Improves the presentation of an assigned immutable report snapshot when layout work is useful. Uses available export and rendering capabilities to inspect readability and returns exact artifact versions and limitations. Report content, criteria, reviews and final delivery selection remain outside its ownership.

@@ -1,0 +1,19 @@
+{
+  "source_sha256": "e9a6c50075ba45c5e0a94802a914236736a30eecf856a5a55cd76859b452348d",
+  "source": "phase3-before summary_recovery.py; independent of new implementation",
+  "args": {
+    "offset": 0,
+    "limit": 2,
+    "snapshot_ref": {
+      "type": "DocumentSnapshot",
+      "id": "historical",
+      "version": 1
+    },
+    "file_path": "/historical.txt",
+    "inventory_digest": "historical-digest",
+    "current_only": true
+  },
+  "original": "Original public return.",
+  "model_summary": "Exact model notes.",
+  "expected_summary": "Exact model notes.\n\nPublic return recovery index (not facts or completed checks):\n{\"all_entries_tool\": \"read_summary_observations\", \"exact_text_tool\": \"read_tool_observation\", \"note\": \"Older references remain paged and actor-owned. Source and check authority come from current application state.\", \"recent\": [{\"call_id\": \"v1-summary\", \"delivery\": {\"compacted_message_range\": {\"characters\": 23, \"complete_tool_result\": true, \"end\": 23, \"offset\": 0}, \"current_message_characters\": 23, \"note\": \"Provided text ranges do not prove reading or adoption.\", \"original_delivery\": null, \"preview_cleared\": false}, \"observation_ref\": \"5981669d5176c9ef51622cc133632de37c9af94de701a92733d444590f681e52\", \"provided_preview\": false, \"selection\": {\"limit\": 2, \"offset\": 0}, \"status\": \"success\", \"tool\": \"read_file\"}], \"total\": 1}"
+}

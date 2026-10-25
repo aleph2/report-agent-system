@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.runs/
+.analysis/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.db
+*.db-shm
+*.db-wal
+
+# Operational/private data stays local in this publication snapshot.
+.memory/
+.ase/
+.operator/
+.outputs/
+outputs/
+deliveries/

@@ -1,0 +1,13 @@
+{
+  "R1-C1-coverage-retention": [
+    "chk1 Compare the synthetic scope and template; retain every required section and name differences.",
+    "chk2 Compare the synthetic indicator, grading and weight tables with their supplied definitions.",
+    "chk3 Retain readable source paragraphs and diagrams with their synthetic source references.",
+    "chk4 Retain unresolved questions and limits; do not turn them into certain conclusions."
+  ],
+  "R1-C2-objects-basis": [
+    "chk1 Compare the synthetic object inventory with the design and survey; list omissions or unsupported inclusions.",
+    "chk2 Verify synthetic SLOPE-A inclusion, its stated dimensions and the exact supplied method exception.",
+    "chk3 Keep synthetic SLOPE-B and SLOPE-C as boundary candidates unless their supplied evidence supports inclusion."
+  ]
+}

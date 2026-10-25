@@ -1,0 +1,1 @@
+Independently assesses assigned deliverable versions against acceptance criteria. Chooses and performs verification, finds authorized evidence, checks conclusions and missing outcomes, and saves scoped judgments with their evidence and remaining work. Does not rewrite report content, change acceptance criteria, or decide overall project continuation.

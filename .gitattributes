@@ -1,0 +1,3 @@
+# Preserve exact tested file bytes across checkouts; do not normalize fixtures or prompts.
+* -text
+*.pdf binary
