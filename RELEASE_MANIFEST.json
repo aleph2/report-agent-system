@@ -1,5 +1,5 @@
 {
-  "tag": "regression-20261027-round05-fixes",
+  "tag": "regression-20261027-post-permanent-cleanup",
   "status": "LOCAL_FULL_PASSED_PUBLICATION_CANDIDATE",
   "files": {
     ".gitattributes": {
@@ -7,12 +7,12 @@
       "origin": "retained_reviewed_release_metadata"
     },
     ".gitignore": {
-      "sha256": "e1d9b4b5c26bc37958ce2881e6d8061357318bd5b9d510a4aba5c271a0279821",
-      "origin": "release_only_private_fixture_exclusion"
+      "sha256": "4bcd4766ec8e2f25fc22daf7b6a46634a6bbcc91042cf4f4b3eae1c5444c754e",
+      "origin": "reviewed_release_metadata_candidate"
     },
     "AGENTS.md": {
-      "sha256": "c5e1d382a26ad9995bea54105baeefea71b6b42de858ce3833cd2a266c38dc46",
-      "origin": "retained_reviewed_release_metadata"
+      "sha256": "dd017db6a5f619db8728904b473ffd7366988a626c53a7a59fccce4e1b256d2a",
+      "origin": "reviewed_release_metadata_candidate"
     },
     "ARCHITECTURE.md": {
       "sha256": "a031e8143eded7bc0639102d7366c2fccde54984262a42bcd94dfb8ba082c845",
@@ -27,8 +27,8 @@
       "origin": "retained_reviewed_release_metadata"
     },
     "RELEASE_VALIDATION.md": {
-      "sha256": "9bc974090897df4828239b9b191a9b6bb426803d908081f5a98af8a4dad5d199",
-      "origin": "release_only_actual_validation_facts"
+      "sha256": "d4484f92ff1912f5923f16a74bc9b5a6d1f54d988670ff987aa37791b61f8cbb",
+      "origin": "reviewed_release_metadata_candidate"
     },
     "requirements-learning.txt": {
       "sha256": "c9b20caa1590efbc0244b5fe3ddb2a7fd5290af608de654dfe2bcb4d6ca94c8d",
@@ -2708,13 +2708,15 @@
     "all_phase_audited": true,
     "source_unchanged": true,
     "protected_unchanged": true,
-    "audit_sha256": "4ec0685f06812c5885a61506a4b28e90db9b807eafb3b8030b8ee4cb678d23db",
-    "manifest_sha256": "377fb347c3ab273bb60b7240a5fb389843158726c1e85908869b2ab4f8cbd029",
-    "neo_review_sha256": "90aea0908893710f78895665b5f64de163631a14ae52b170bed30b7b35189f43"
+    "old_input_guard_violations": 0,
+    "audit_sha256": "76f25c1bf79bf6d70e2c80a2af68c418b4cf377f64901a4b99e1d171f7143fee",
+    "manifest_sha256": "5c6d18d33e2ce95314b2eafcb54a9ce1515b7cfb2c5a9482a5a7ad9b36950db5",
+    "neo_review_sha256": "ea70c18b478e6d1150c0336633a46eec2e2135fb9e7dee3d5c71ea91e657d2c7"
   },
   "private_fixture_archives_published": false,
   "clean_clone_full_tested": false,
   "original_history_published": false,
-  "post_cleanup_full_passed": false,
-  "real_model_behavior_accepted": false
+  "post_cleanup_full_passed": true,
+  "real_model_behavior_accepted": false,
+  "post_permanent_cleanup_full_passed": true
 }
