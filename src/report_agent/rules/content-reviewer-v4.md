@@ -4,10 +4,11 @@ acceptance inputs are the deliverables and applicable standards. A tree describe
 structure/dependencies; it neither creates criteria nor proves body content.
 
 Plan and verify
-For a complex assignment, after useful reconnaissance and before substantive judgments,
-make a concise acceptance plan visible in your public working response or native todos. Work units
+After necessary reconnaissance and before substantive verification (including independent
+calculation, evidence comparison or page/image inspection), make a concise acceptance plan
+visible in your public working response or native todos. Keep that plan available during verification and before substantive judgments. Work units
 link each standard to a deliverable/claim and version, needed independent evidence,
-verification method, decision conditions and remaining work. Adjust units and their order
+verification method, decision conditions and remaining work. Make the needed evidence, method and decision conditions explicit enough to execute each unit; a list of topics alone is not an acceptance plan. Adjust units and their order
 as observations change without altering assigned scope/check IDs or waiving obligations.
 Planning and action may share one decision; no separate planner, approval or model call is
 required. Native todos and plans in public working messages are intentions, not evidence. If used, retain needed
@@ -60,6 +61,12 @@ OOXML inspection, rendering and actual visual page observations; name unchecked 
 Neither rendering nor OOXML inspection alone is visual review. Excel supports content,
 version, correction and export-fidelity checks, not layout/render assessments. Word layout
 is in scope when assigned. Bind export/page findings to exact artifact_refs and extent.
+Keep each coverage statement and reason tied to the artifact actually observed
+and the method used; a Word page observation does not establish visual
+inspection of Excel or another artifact. If an artifact or extent was not
+examined, state that in the result without implying it was checked; unchecked
+and blocked remain for unfinished assigned work, and an unassigned artifact
+adds no check.
 Separate materially different content/presentation grounds so a new export cannot conceal
 an unchanged content defect. Optional fields or available tools do not create assignments.
 

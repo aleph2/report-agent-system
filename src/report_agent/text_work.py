@@ -532,7 +532,16 @@ def adopt(workspace, actor, receipt, object_type, payload=None, index=0, previou
         except ValidationError as exc:
             raise ActionRejected("TEXT_WORK_OUTPUT_CHANGED: request new text work instead of rewriting tool output") from exc
         if submitted != received:
-            raise ActionRejected("TEXT_WORK_OUTPUT_CHANGED: request new text work instead of rewriting tool output")
+            changed_fields = sorted(k for k in submitted.keys() | received.keys()
+                                    if submitted.get(k) != received.get(k))
+            diagnostic = {"object_type": object_type, "output_index": index,
+                          "changed_fields": changed_fields}
+            if "qualifiers" in changed_fields:
+                left, right = submitted["qualifiers"], received["qualifiers"]
+                diagnostic["changed_qualifier_keys"] = sorted(k for k in left.keys() | right.keys()
+                    if k not in left or k not in right or left[k] != right[k])
+            raise ActionRejected("TEXT_WORK_OUTPUT_CHANGED: request new text work instead of rewriting tool output",
+                                 diagnostic=diagnostic)
     return json.loads(encode(payloads[index]))
 
 

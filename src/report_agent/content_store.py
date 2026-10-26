@@ -684,8 +684,7 @@ class ContentStore:
                 validate_artifact_items(self, db, requirements, data)
             elif native and (any(i['assessment_kind'] != 'content' for i in data['items']) or data['delivery_checks']):
                 from .artifact_review import validate_artifact_items
-                validate_artifact_items(self, db, requirements,
-                    {**data, 'items':[i for i in data['items'] if i['assessment_kind'] != 'content']})
+                validate_artifact_items(self, db, requirements, data, skip_content=True)
             for item_index, item in enumerate(data["items"]):
                 if item["criterion_ref"] not in data["criteria_refs"]:
                     raise ActionRejected("UNDECLARED_CRITERION")

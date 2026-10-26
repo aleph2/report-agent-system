@@ -436,6 +436,8 @@ def _v4_task(workspace, call):
         payload['handoff_release_digest'] = release(manifest(workspace.store))['digest']
         payload['scoped_instructions'] = instruction_context(workspace.store, role, task_id=task_id, db=db)
         if role == 'reviewer':
+            if manifest(workspace.store).get('review_plan_contract') is not None:
+                payload['review_plan_contract'] = manifest(workspace.store)['review_plan_contract']
             if review is None:
                 raise ActionRejected('REVIEW_SELECTION_REQUIRED')
             payload.update(bind(cs, db, co, review, 'delegate:'+call['id'], task_id))

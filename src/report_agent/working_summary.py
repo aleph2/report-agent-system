@@ -38,9 +38,7 @@ class WorkingSummary(SummarizationMiddleware):
         self.role=role
         self.prompt_source=prompt_source
 
-    def _failure_key(self):
-        from .evidence_analysis import model_identity
-        from .store import digest
+    def _failure_context(self):
         from langgraph.config import get_config
         try:
             config=get_config().get('configurable',{})
@@ -51,9 +49,68 @@ class WorkingSummary(SummarizationMiddleware):
         pieces=namespace.split('|')
         if pieces[-1].startswith(self.name+'.before_model:'):
             namespace='|'.join(pieces[:-1])
-        return 'summary_policy_failure:'+digest({'thread':config.get('thread_id','direct'),
-            'namespace':namespace,'prompt':self.summary_prompt,'model':model_identity(self.model),
-            'policy':SUMMARY_POLICY})
+        return {'thread':config.get('thread_id','direct'), 'namespace':namespace}
+
+    def _failure_key(self):
+        from .evidence_analysis import model_identity
+        from .store import digest
+        return 'summary_policy_failure:'+digest({**self._failure_context(),
+            'prompt':self.summary_prompt,'model':model_identity(self.model),'policy':SUMMARY_POLICY})
+
+    def _failure_state(self, failure_key, pending=None):
+        from .store import digest, encode
+        from .task_context import actor_id
+        from .workspace import Workspace
+        scope = {**self._failure_context(), 'role':self.role,
+                 'actor':actor_id(Workspace(self.store),self.role) if self.role else None}
+        scope_key = 'summary_failure_scope:'+digest(scope)
+        with self.store.connect() as db:
+            if pending is not None:
+                db.execute('BEGIN IMMEDIATE')
+            rows = db.execute("SELECT key,value FROM state WHERE key LIKE 'summary_policy_failure:%' "
+                              "OR key LIKE 'summary_failure_scope:%'").fetchall()
+            try:
+                saved = {key:json.loads(value) for key,value in rows}
+            except (TypeError,ValueError):
+                raise SummaryRepairRequired('SUMMARY_FAILURE_SCOPE_INVALID: preserve stored records') from None
+            bindings = {}
+            for key,value in saved.items():
+                if not key.startswith('summary_failure_scope:'):
+                    continue
+                if (not isinstance(value,dict) or set(value) != {'scope','failure_key'}
+                        or not isinstance(value['scope'],dict)
+                        or set(value['scope']) != {'thread','namespace','role','actor'}
+                        or not all(isinstance(value['scope'][field],str) for field in ('thread','namespace'))
+                        or not all(value['scope'][field] is None or isinstance(value['scope'][field],str) for field in ('role','actor'))
+                        or key != 'summary_failure_scope:'+digest(value['scope'])
+                        or not isinstance(value['failure_key'],str)
+                        or not value['failure_key'].startswith('summary_policy_failure:')
+                        or value['failure_key'] not in saved):
+                    raise SummaryRepairRequired('SUMMARY_FAILURE_SCOPE_INVALID: '+key)
+                target = value['failure_key']
+                if target in bindings:
+                    raise SummaryRepairRequired('SUMMARY_FAILURE_SCOPE_CONFLICT: '+target)
+                bindings[target] = key
+            for key,value in saved.items():
+                if key.startswith('summary_policy_failure:') and value is not None:
+                    if not isinstance(value,dict) or not isinstance(value.get('reason'),str) or not value['reason']:
+                        raise SummaryRepairRequired('SUMMARY_FAILURE_RECORD_INVALID: '+key)
+                    if key not in bindings:
+                        raise SummaryRepairRequired('SUMMARY_FAILURE_UNSCOPED_HISTORICAL: '+key
+                            +' original_reason='+str(value.get('reason','UNKNOWN_HISTORICAL_FAILURE'))
+                            +'; scope cannot be proven; manual diagnosis required')
+            previous_key = saved.get(scope_key,{}).get('failure_key',failure_key)
+            previous = saved.get(previous_key)
+            if previous:
+                return previous_key, previous
+            if pending is not None:
+                # Claim the original failure record and its scope together; never hold across a model call.
+                if failure_key in bindings and bindings[failure_key] != scope_key:
+                    raise SummaryRepairRequired('SUMMARY_FAILURE_SCOPE_CONFLICT: '+failure_key)
+                db.execute('INSERT OR REPLACE INTO state VALUES (?,?)',(failure_key,encode(pending)))
+                db.execute('INSERT OR REPLACE INTO state VALUES (?,?)',
+                    (scope_key,encode({'scope':scope,'failure_key':failure_key})))
+            return failure_key, None
 
     def _label_notes(self, message):
         """Expose derivation on the wire; keep native role, ID and exact old text."""
@@ -96,8 +153,7 @@ class WorkingSummary(SummarizationMiddleware):
 
     async def _acreate_summary(self,messages):
         import time
-        failure_key=self._failure_key() if self.store else None
-        previous=self.store.get(failure_key) if failure_key else None
+        failure_key,previous=self._failure_state(self._failure_key()) if self.store else (None,None)
         if previous:
             original_reason=previous.get('reason','UNKNOWN_HISTORICAL_FAILURE')
             self.store.event('context_summary_retry_blocked',{'model_called':False,
@@ -117,7 +173,8 @@ class WorkingSummary(SummarizationMiddleware):
             from .summary_recovery import capture
             from .workspace import Workspace
             recovery=capture(Workspace(self.store),self.role,messages)
-        formatted=get_buffer_string([self._label_notes(m) for m in messages],format='xml')
+        formatted=('Historical subset being compacted; newer messages may remain outside it.\n\n'
+                   +get_buffer_string([self._label_notes(m) for m in messages],format='xml'))
         if self.store and self.role:
             from .task_context import exact_task_context
             from .decision_state import compact_context
@@ -126,12 +183,17 @@ class WorkingSummary(SummarizationMiddleware):
             context = compact_context(exact_task_context(Workspace(self.store), self.role))
             formatted += ('\n\nCurrent application context captured at '
                 +datetime.now(timezone.utc).isoformat()+' (same actor projection; '
-                'not historical dialogue; incomplete previews remain incomplete; resource values '
-                'are observations at this time, not lasting permissions or completed checks):\n'+encode(context))
+                'not historical dialogue; may reflect later events; incomplete previews remain incomplete; resource values '
+                'are observations at this time, not lasting permissions or completed checks). An earlier failure '
+                'and this later state are separate; it is not proof that an earlier rejected call committed '
+                'or that a second channel exists.\n'+encode(context))
         if failure_key:
             from .store import digest
-            self.store.set(failure_key,{'reason':'SUMMARY_OUTCOME_PENDING',
+            _, concurrent=self._failure_state(failure_key,{'reason':'SUMMARY_OUTCOME_PENDING',
                 'input_digest':digest(formatted),'original_history_retained':True})
+            if concurrent:
+                raise SummaryRepairRequired('SUMMARY_POLICY_REPAIR_REQUIRED: original_reason='+
+                    str(concurrent.get('reason','UNKNOWN_HISTORICAL_FAILURE')))
             self.store.event('working_summary_intent',{'scope_key':failure_key,'input_digest':digest(formatted)})
         from .request_budget import logical_request_admission, RequestBudgetExceeded
         try:

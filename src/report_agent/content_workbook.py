@@ -1,6 +1,7 @@
 """Serialize agent-owned frozen tables with provenance; never author their contents."""
 import hashlib
 import json
+import math
 import re
 from io import BytesIO
 from pathlib import Path
@@ -61,6 +62,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                 raise ActionRejected('WORD_WORKBOOK_SNAPSHOT_MISMATCH')
         names = set()
         workbook, mappings = Workbook(), []
+        unverified_annotation_rows = []
         workbook.remove(workbook.active)
         def text(value):
             value = str(value) if value is not None else ''
@@ -80,6 +82,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             body = node['body']
             rows = [[str(k), text(v) if not isinstance(v, (dict, list)) else json.dumps(v, ensure_ascii=False)]
                     for k, v in node.get('qualifiers', {}).items()]
+            annotation_rows = [(i, 2) for i in range(1, len(rows) + 1)]
             header_row = len(rows) + 1
             rows += [body['columns'], *body['rows']]
             table_stop = len(rows)
@@ -87,6 +90,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             if footnote is not None:
                 start = len(rows) + 1
                 rows.append([footnote])
+                annotation_rows.append((start, 1))
                 mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'table-footnote',
                                  'row_start': start, 'row_stop': len(rows) + 1})
             seen_notes = set()
@@ -104,6 +108,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                 rows += [[note_label, line] for line in note['body']['text'].split('\n')]
                 rows += [[str(k), text(v) if not isinstance(v, (dict, list)) else json.dumps(v, ensure_ascii=False)]
                          for k, v in note.get('qualifiers', {}).items()]
+                annotation_rows.extend((i, 2) for i in range(start, len(rows) + 1))
                 mappings.append({'node_ref': note_ref, 'sheet': name, 'kind': 'note',
                                  'row_start': start, 'row_stop': len(rows) + 1})
             if len(rows) > 1048576 or max(map(len, rows)) > 16384:
@@ -119,6 +124,27 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                         cell.fill = PatternFill('solid', fgColor='244A63')
             for index in range(1, max(map(len, rows)) + 1):
                 ws.column_dimensions[get_column_letter(index)].width = 28
+            if expression == READER_EXPRESSION_V2:
+                last_column = max(map(len, rows))
+                for row_index, text_column in annotation_rows:
+                    value = ws.cell(row_index, text_column).value or ''
+                    width = 28 * (last_column - text_column + 1) * 0.8
+                    def lines(value, width):
+                        # Conservative glyph estimate calibrated with native print, not font metrics.
+                        return sum(max(1, math.ceil(2 * len(line) / width))
+                                   for line in str(value).split('\n'))
+                    count = lines(value, width)
+                    if text_column > 1:
+                        count = max(count, lines(ws.cell(row_index, 1).value or '', 28 * 0.8))
+                    height = 16 * count + 8
+                    if height > 409:
+                        # Excel's row-height limit: retain auto-wrap and disclose unverified print fit.
+                        unverified_annotation_rows.append({'sheet': name, 'row': row_index})
+                        continue
+                    if text_column < last_column:
+                        ws.merge_cells(start_row=row_index, start_column=text_column,
+                                       end_row=row_index, end_column=last_column)
+                    ws.row_dimensions[row_index].height = height
             ws.freeze_panes = f'A{header_row + 1}'
             ws.auto_filter.ref = f'A{header_row}:{get_column_letter(len(body["columns"]))}{table_stop}'
             ws.print_title_rows = f'{header_row}:{header_row}'
@@ -140,7 +166,9 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             'export_config': {'format': 'xlsx', 'sheets': sheets, 'report_expression_profile': expression, 'report_export_ref': report_export_ref,
                 'exporter_digest': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'layout_engine_digest': hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
-                'limitation': 'Version link is provenance, not a claim of Word/Excel consistency or review.'}})
+                **({'annotation_layout_unverified_rows': unverified_annotation_rows} if unverified_annotation_rows else {}),
+                'limitation': 'Version link is provenance, not a claim of Word/Excel consistency or review.'
+                    + (' Oversized annotations retain original wrapping; single-row print fit is unverified.' if unverified_annotation_rows else '')}})
         mapping_ref = contents._insert(db, actor, 'MappingArtifact', {'snapshot_ref': snapshot_ref,
             'export_ref': export_ref, 'anchor_records': mappings,
             'unrendered_dependency_nodes': [r for r in snapshot['payload']['refs'] if r['type'] == 'ContentNode' and r not in [m['node_ref'] for m in mappings]],

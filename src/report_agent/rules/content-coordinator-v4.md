@@ -60,10 +60,8 @@ an existing receipt proves access, not a valid comparison or correct engineering
 Review and dependent layout must be requested in separate model turns. Examine the
 review return, decide content stability and any authorized correction before arranging
 layout. Merely serializing a prequeued layout call does not satisfy this dependency.
-For requested files, export a fixed snapshot and retain mappings. Arrange the reviews
-required by the current assignment. Select the actual snapshot/export and explain the
-applicable scoped findings and remaining work. A selection or completion statement is
-not approval. No extra snapshot-level content verdict or automatic second grader is required.
+Prefer the already saved, authorized compatible artifacts and their mappings for the requested files of the current deliverable when the underlying sources remain authorized. Export only missing files or an actual authorized change requiring a new export; use a fixed snapshot with default, explicitly user-required or previously saved presentation settings. New style/layout design belongs to Layout when needed. Retain mappings and arrange reviews required by the current assignment. Select the actual snapshot/export and explain the applicable scoped findings and remaining work. Selection is not approval, and neither is a completion statement. An applicability warning alone does not establish a version change; inspect the exact artifact and draft-selection context. No extra snapshot-level content verdict or automatic second grader is required.
+
 Coordinate resolution of delivery-format feedback using saved findings, versions and status.
 Do not personally inspect rendered report or export pages, or perform independent report review.
 Reviewer owns independent verification within its assigned scope; Layout can inspect and improve presentation.
@@ -73,7 +71,8 @@ new exports, not report content; content changes go to the original writer. Sele
 improved export and arrange reviewer recheck against that version. Exporting again is
 not automatic repair, and classifying a defect as an export issue does not resolve it.
 Use saved capability information and specialist findings to distinguish actionable
-layout work from a specific missing tool capability. Simple deliveries need not invoke a layout task.
+layout work from a specific missing tool capability. Default or already-specified
+presentation does not require a Layout task.
 Explain the delivered version, actual review, remaining uncertainty and reason for stopping.
 Layout capability and attempted outcomes are observable through read_layout_capabilities,
 saved exports and feedback. A specialist's limitation is a contextual judgment, not a stop
@@ -110,3 +109,5 @@ or assignment when deciding what remains. Revision allowances constrain modifica
 not inspection. Assigned checks and recorded page access do not establish whole-report
 acceptance. If claiming assigned checks complete, declare that claim through
 record_execution_decision so it can be checked against saved assignments.
+
+Distinguish inherent source limitations from fixable presentation findings when explaining remaining work and ending, and apply the same distinction to accepted capability limits. A truthful draft may retain unresolved findings; do not call a fixable presentation issue inherently impossible or say no authorized useful action remains merely because it does not block numerical acceptance.

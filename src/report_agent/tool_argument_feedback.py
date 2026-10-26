@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from .store import encode, digest
 
 
-def compact_native_tool_error(message, store):
+def compact_native_tool_error(message, store, *, args=None, schema=None):
     """Keep schema diagnostics without replaying the entire rejected payload.
 
     The original tool call remains in the native transcript; the full native
@@ -26,10 +26,21 @@ def compact_native_tool_error(message, store):
     identity = digest(message.content)
     store.event('native_tool_schema_error', {'tool_call_id': message.tool_call_id,
         'tool': message.name, 'error_digest': identity, 'native_error': message.content})
+    root_contract = {}
+    if isinstance(args, dict) and schema is not None:
+        contract = schema if isinstance(schema, dict) else schema.model_json_schema()
+        allowed = set(contract.get('properties', {}))
+        required = set(contract.get('required', []))
+        received = set(args)
+        root_contract = {'root_contract': {
+            'received_keys': sorted(received), 'required_keys': sorted(required),
+            'allowed_keys': sorted(allowed),
+            'missing_required_keys': sorted(required - received),
+            'unexpected_keys': sorted(received - allowed)}}
     return message.model_copy(update={'content': encode({
         'ok': False, 'code': 'NATIVE_TOOL_VALIDATION_ERROR',
         'execution_state': 'not_established', 'tool': message.name,
-        'diagnostic': diagnostic, 'native_error_digest': identity,
+        'diagnostic': diagnostic, 'native_error_digest': identity, **root_contract,
         'note': 'Full native diagnostic is retained in project events. This error wording alone does not establish whether the handler ran. Inspect the operation receipt and preserved outputs before choosing a recovery; do not assume no model call or side effect occurred.'})})
 
 

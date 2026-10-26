@@ -258,7 +258,10 @@ def exact_task_context(workspace, role):
                     "scopes": [{"scope_id": r["requirement"]["scope_id"],
                         "state": r["state"], "reason": r["reason"],
                         "review_ref": r.get("review_ref")} for r in progress["requirements"]]}
-            if (role == 'reviewer' and manifest.get('context_projection') == REVIEW_MATERIALS_PROJECTION
+            projection = workspace.store.get('context_projection_binding')
+            if projection is None:
+                projection = manifest.get('context_projection')
+            if (role == 'reviewer' and projection == REVIEW_MATERIALS_PROJECTION
                     and task.get('review_interface_profile') == 'review-interfaces-v4'):
                 receipts = [receipt_metadata(workspace, actor, receipt, json.loads(raw))
                     for receipt, raw in db.execute(
