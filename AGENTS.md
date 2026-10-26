@@ -26,3 +26,14 @@ Provided/read/planned/saved/completed are different from correctness or engineer
 Keep credentials, customer sources, operational history and private reasoning archives local.
 Read RELEASE_VALIDATION.md before claiming historical tests reproduce from a fresh clone.
 Publication uses a reviewed, sanitized snapshot; it must not add private local history.
+
+## Independent execution storage
+
+Each fresh execution owns its input snapshot, state, checkpoints and outputs.
+Do not depend on another execution's temporary or writable directory. Keep
+managed fixtures and explicitly shared durable libraries/financial records
+outside run containers. Reuse verified snapshots with provenance and hashes,
+not live links to old runs. Verify dependencies before dispatch; fail on missing
+inputs instead of recreating an empty ledger or retired run. Regression uses
+fresh directories and records forbidden old-input accesses. Python guard
+coverage must not be described as an operating-system-wide sandbox.
