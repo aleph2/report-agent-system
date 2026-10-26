@@ -30,7 +30,7 @@ from test_vision import VisionModel
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ORIGINAL = ROOT / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r3/visual-artifact-pair'
+ORIGINAL = ROOT / 'tests/fixtures/historical-duty/real/live-r3/visual-artifact-pair'
 
 
 def rebind_strings(value, identities, changes, path='$'):

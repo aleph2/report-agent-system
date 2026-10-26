@@ -187,7 +187,7 @@ def _native_review_requirement(*, clarified=False):
     return create_model("NativeReviewRequirement", __base__=ReviewRequirement, **fields)
 
 
-def native_review_submission_schema(*, v4=False):
+def native_review_submission_schema(*, v4=False, scope_selectors=False):
     """Native tool documentation only; preserve the original save validators."""
     from .content_models import ReviewSubmission, ReviewItem, CheckResult, Finding
     field = _documented_field
@@ -207,6 +207,18 @@ def native_review_submission_schema(*, v4=False):
         target_ref=field(ReviewItem, "target_ref", description=_NATIVE_SNAPSHOT_TARGET),
         check_results=field(ReviewItem, "check_results", list[check] | None),
         findings=field(ReviewItem, "findings", list[finding]))
+    if scope_selectors:
+        if not v4:
+            raise ActionRejected('REVIEW_SUBMISSION_SELECTORS_REQUIRE_NATIVE_V4')
+        from .content_models import Contract
+        from .review_scope_selectors import IDENTITY_FIELDS
+        fields = {name: field(item, name, description=info.description)
+                  for name, info in item.model_fields.items() if name not in IDENTITY_FIELDS}
+        fields['checked_requirement_indexes'] = field(ReviewItem, 'checked_requirement_indexes',
+            description='Zero-based indexes of actually performed required_checks within the selected assigned scope, not outer scope indexes.')
+        item = create_model('NativeReviewScopeItem', __base__=Contract, **fields,
+            assigned_scope_index=(int, Field(ge=0, strict=True,
+                description="Zero-based index into this current task's full saved review_requirements; the program binds its exact target_ref, criterion_ref, scope_id and assessment_kind. Free-text scope remains model-supplied.")))
     return create_model("NativeReviewSubmission", __base__=ReviewSubmission,
         target_ref=field(ReviewSubmission, "target_ref", description=_NATIVE_SNAPSHOT_TARGET),
         items=field(ReviewSubmission, "items", list[item]))
@@ -436,6 +448,8 @@ def _v4_task(workspace, call):
         payload['handoff_release_digest'] = release(manifest(workspace.store))['digest']
         payload['scoped_instructions'] = instruction_context(workspace.store, role, task_id=task_id, db=db)
         if role == 'reviewer':
+            if manifest(workspace.store).get('review_submission_contract') is not None:
+                payload['review_submission_contract'] = manifest(workspace.store)['review_submission_contract']
             if manifest(workspace.store).get('review_plan_contract') is not None:
                 payload['review_plan_contract'] = manifest(workspace.store)['review_plan_contract']
             if review is None:

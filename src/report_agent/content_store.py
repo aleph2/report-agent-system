@@ -333,9 +333,16 @@ class ContentStore:
         allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation"}
         if any(r[0] not in allowed for r in by_key):
             raise ActionRejected("INVALID_SNAPSHOT_TYPE")
+        missing_refs, referrers = {}, []
         for record in by_key.values():
-            if any(ref.key() not in by_key for ref in refs_in(record["payload"])):
-                raise ActionRejected("INCOMPLETE_REFERENCE_CLOSURE")
+            missing = {ref.key(): ref.model_dump() for ref in refs_in(record["payload"]) if ref.key() not in by_key}
+            if missing:
+                missing_refs.update(missing)
+                referrers.append({'ref': record['ref'], 'missing_refs': list(missing.values())})
+        if missing_refs:
+            raise ActionRejected("INCOMPLETE_REFERENCE_CLOSURE", diagnostic={
+                'reason': 'referenced_objects_missing_from_manifest', 'parameter_path': ['refs'],
+                'missing_refs': list(missing_refs.values()), 'referrers': referrers})
         parents, edges, positions = {}, {}, set()
         for record in by_key.values():
             p = record["payload"]

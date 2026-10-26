@@ -27,6 +27,11 @@ LEGACY_PROMPTS = 'legacy-v1'
 CONCISE_PROMPTS = 'concise-v1'
 
 
+def validate_review_submission_contract(manifest):
+    from .review_scope_selectors import validate_contract
+    return validate_contract(manifest)
+
+
 def validate_review_plan_contract(manifest):
     from .errors import ActionRejected
     if 'review_plan_contract' not in manifest:
@@ -59,6 +64,15 @@ def report_prompt_profile(store):
 
 def report_rule_source(name, prompt_profile=LEGACY_PROMPTS):
     return name + '-concise' if prompt_profile == CONCISE_PROMPTS else name
+
+
+def submit_review_source(prompt_profile=LEGACY_PROMPTS, review_submission_contract=None):
+    from .review_scope_selectors import CONTRACT
+    if review_submission_contract not in (None, CONTRACT):
+        from .errors import ActionRejected
+        raise ActionRejected('UNKNOWN_REVIEW_SUBMISSION_CONTRACT')
+    return report_rule_source('native-submit-review-selectors' if review_submission_contract
+                              else 'native-submit-review-v4', prompt_profile)
 
 
 def validate_report_expression_profile(manifest):
@@ -321,7 +335,8 @@ def review_handoff_source(interface_profile, prompt_profile=LEGACY_PROMPTS):
     return 'native-review-handoff-v2' if interface_profile in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3} else 'native-review-handoff'
 
 
-def role_sources(role, expression_profile, interface_profile, prompt_profile=LEGACY_PROMPTS):
+def role_sources(role, expression_profile, interface_profile, prompt_profile=LEGACY_PROMPTS,
+                 review_submission_contract=None):
     source = expression_source('content-'+role, expression_profile)
     current = validate_report_prompt_profile({'report_prompt_profile':prompt_profile,
         'review_interface_profile':interface_profile, 'report_expression_profile':expression_profile}) == CONCISE_PROMPTS
@@ -329,6 +344,16 @@ def role_sources(role, expression_profile, interface_profile, prompt_profile=LEG
         source = report_rule_source('content-coordinator-v4', prompt_profile)
     elif current:
         source = 'content-' + role + '-v4'
+    if review_submission_contract is not None:
+        from .review_scope_selectors import CONTRACT
+        if review_submission_contract != CONTRACT:
+            from .errors import ActionRejected
+            raise ActionRejected('UNKNOWN_REVIEW_SUBMISSION_CONTRACT')
+        if interface_profile != REVIEW_INTERFACE_V4:
+            from .errors import ActionRejected
+            raise ActionRejected('REVIEW_SUBMISSION_SELECTORS_REQUIRE_NATIVE_V4')
+        if role == 'reviewer':
+            source = 'content-reviewer-v4'
     sources = ['content-common-v4' if current else 'content-common', source]
     if interface_profile == REVIEW_INTERFACE_V4 and role in {'writer','reviewer'}:
         sources.append(report_rule_source('deliverable-declaration-v4' if role == 'writer' else 'review-basis-v4', prompt_profile))

@@ -286,11 +286,13 @@ class CurrentReviewPlan(AgentMiddleware):
 
 
 class AgentPromptBoundary(AgentMiddleware):
-    def __init__(self, workspace, role, *, source=None, expression_profile=None, interface_profile=None, prompt_profile=None):
+    def __init__(self, workspace, role, *, source=None, expression_profile=None, interface_profile=None,
+                 prompt_profile=None, review_submission_contract=None):
         self.workspace, self.role, self.source = workspace, role, source
         self.expression_profile = expression_profile
         self.interface_profile = interface_profile
         self.prompt_profile = prompt_profile
+        self.review_submission_contract = review_submission_contract
 
     async def awrap_model_call(self, request, handler):
         independent_optimizer = self.source == 'experience-optimizer' and self.role == 'experience_optimizer'
@@ -307,8 +309,14 @@ class AgentPromptBoundary(AgentMiddleware):
             if self.prompt_profile is not None else report_prompt_profile(self.workspace.store))
         interface = ('not_applicable' if self.source is not None else self.interface_profile
                      if self.interface_profile is not None else review_interface_profile(self.workspace.store))
+        from .handoff_release import manifest as bound_manifest
+        from .prompt_sources import validate_review_submission_contract, submit_review_source
+        submission_contract = (None if self.source is not None else self.review_submission_contract
+            if self.review_submission_contract is not None else
+            validate_review_submission_contract(bound_manifest(self.workspace.store)))
         if interface == 'review-interfaces-v4' and self.source is None:
-            expected = '\n\n'.join(load_prompt(s) for s in role_sources(self.role, expression_profile, interface, text_profile))
+            expected = '\n\n'.join(load_prompt(s) for s in role_sources(
+                self.role, expression_profile, interface, text_profile, submission_contract))
         saved_handoff = interface == REVIEW_INTERFACE_V3 and self.role in {'coordinator', 'writer'}
         if saved_handoff:
             expected += '\n\n' + load_prompt('saved-reference-handoff')
@@ -321,7 +329,7 @@ class AgentPromptBoundary(AgentMiddleware):
         files = ([self.source] if self.source else ['legacy-review-organizer'] if self.role == 'reviewer'
             and not native_reviewer(self.workspace.store) else ['content-common', role_source])
         if interface == 'review-interfaces-v4' and self.source is None:
-            files = role_sources(self.role, expression_profile, interface, text_profile)
+            files = role_sources(self.role, expression_profile, interface, text_profile, submission_contract)
         if saved_handoff:
             files.append('saved-reference-handoff')
         if self.role in {'writer','reviewer','layout'}:
@@ -366,7 +374,8 @@ class AgentPromptBoundary(AgentMiddleware):
             names = {t.get('function', {}).get('name') for t in tools}
             tool_files += [report_rule_source(source, text_profile) if name != 'confirm_review_reuse' else source for name, source in {
                 'select_content_delivery':'select-content-delivery-v4',
-                'submit_review':'native-submit-review-v4',
+                'submit_review':submit_review_source(LEGACY_PROMPTS,
+                    submission_contract if self.role == 'reviewer' else None),
                 'confirm_review_reuse':'native-review-reuse-v4',
                 'commit_objects':'deliverable-save-tool-v4',
                 'save_text_node':'deliverable-save-tool-v4'}.items() if name in names]

@@ -917,6 +917,8 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     text_profile = validate_report_prompt_profile(manifest)
     from .review_work_units import bind_contract
     bind_contract(workspace, manifest)
+    from .review_scope_selectors import bind_contract as bind_submission_contract
+    submission_contract = bind_submission_contract(workspace, manifest)
     from .prompt_sources import record_runtime_version
     runtime_version_ref = record_runtime_version(workspace.store)
     from .prompt_sources import delegation_profile, SEPARATE_DESCRIPTION, validate_review_interface_profile
@@ -961,10 +963,12 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 *([working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
                 BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions),
                 AgentPromptBoundary(workspace, role, expression_profile=expression_profile,
-                                    interface_profile=interface_profile, prompt_profile=text_profile)]
+                                    interface_profile=interface_profile, prompt_profile=text_profile,
+                                    review_submission_contract=submission_contract)]
 
     def configured_prompt(role):
-        prompt = (role_prompt(role, expression_profile=expression_profile, interface_profile=interface_profile, prompt_profile=text_profile)
+        prompt = (role_prompt(role, expression_profile=expression_profile, interface_profile=interface_profile,
+                             prompt_profile=text_profile, review_submission_contract=submission_contract)
                   if interface_profile == 'review-interfaces-v4' else
                   role_prompt(role) if expression_profile == REPORT_EXPRESSION_V1 else
                   role_prompt(role, expression_profile=expression_profile))
@@ -1023,6 +1027,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                   'report_content_input_profile':input_profile,
                   'report_expression_profile':expression_profile,
                   **({'report_prompt_profile':text_profile} if 'report_prompt_profile' in manifest else {}),
+                  **({'report_review_submission_contract':submission_contract} if submission_contract else {}),
                   **({'report_handoff_release': release(manifest)} if interface_profile == 'review-interfaces-v4' else {})})
     agent.report_failure_diagnostics = diagnostics
     # Retain the configured native instance for one-time legacy checkpoint upgrade.

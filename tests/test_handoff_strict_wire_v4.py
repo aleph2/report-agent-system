@@ -41,7 +41,7 @@ async def test_v4_deepseek_strict_sdk_wire_roundtrips_legal_business_choices(cas
         result = await model.bind_tools([tool]).ainvoke([HumanMessage('Synthetic codec contract only.')])
         assert result.tool_calls[0]['args'] == arguments and not result.invalid_tool_calls
         assert wires[0]['tools'][0]['function']['strict'] is True
-        destination = Path(__file__).resolve().parents[1]/'.analysis/minimal-handoff-implementation-20261025/effective-deepseek-v4.json'
+        destination = case[0].store.root / 'effective-deepseek-v4.json'
         destination.write_text(json.dumps({'synthetic_only':True, 'wire':wires[0],
             'decoded_arguments':result.tool_calls[0]['args'],
             'limitation':'SDK codec protocol only; no provider acceptance, production parameter or autonomy proof.'},

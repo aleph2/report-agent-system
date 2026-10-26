@@ -212,6 +212,7 @@ def compact_context(context):
             'total':len(requirements), 'read_state_path':['assignment','review_requirements'],
             'next_offset':20 if len(requirements)>20 else None,
             'scopes':[{'scope_id':r['scope_id'],'target_ref':r['target_ref'],'criterion_ref':r['criterion_ref'],
+                **({'assigned_scope_index':i} if assignment.get('review_submission_contract') == 'task-scope-selectors-v1' else {}),
                 'required_checks':bounded_metadata(r['required_checks'], ['assignment','review_requirements',i,'required_checks']),
                 'required_materials_declared':len(r.get('required_materials', [])),
                 'read_state_path':['assignment','review_requirements',i]} for i,r in enumerate(requirements[:20])]}
@@ -260,6 +261,10 @@ def read_state(workspace, role, path, offset=0, limit=20, characters=6000, expec
             or type(characters) is not int or not 1 <= characters <= 6000):
         raise ActionRejected('INVALID_STATE_PAGE')
     state = exact_task_context(workspace, role)  # Enforces server-bound actor/task.
+    if state.get('assignment', {}).get('review_submission_contract') is not None:
+        from .review_scope_selectors import requirements_view
+        state = {**state, 'assignment': {**state['assignment'],
+            'review_requirements': requirements_view(state['assignment'])}}
     if expected_state_digest is not None and expected_state_digest != state['state_digest']:
         raise ActionRejected('STATE_CHANGED_READ_CURRENT_PACKET')
     value = state

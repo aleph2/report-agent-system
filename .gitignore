@@ -21,3 +21,6 @@ __pycache__/
 .outputs/
 outputs/
 deliveries/
+
+# Local-private recorded inputs and historical hosts must never be staged.
+tests/fixtures/historical-duty/

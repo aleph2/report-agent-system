@@ -11,7 +11,7 @@ missing applicable standards against the original requirements and commission.
 
 Apply your role's acceptance-plan and independent-verification principles to this assignment.
 For a mechanically projected Criterion, its whole verbatim outcome is required_checks[0].
-Use the server scope_id and actual local check indexes when saving through submit_review.
+Use the assigned scope identity represented by the current submit_review schema and actual local check indexes when saving.
 Preserve defects, missing evidence and incomplete work; reading, planning or saving is not
 correctness. Content and standards remain read-only. Reuse prior items only through explicit
 compatible confirm_review_reuse mappings from old_item_index to the current new_scope_id.

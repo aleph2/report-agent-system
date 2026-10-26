@@ -321,7 +321,7 @@ async def test_native_writer_replays_r10_recovery_paths_before_exact_adoption(ws
     assert capture['fixture_producer_calls'] == 1 and capture['later_text_calls'] == 0
     assert not capture['oracle']['handoffs']
     original_trace = (Path(__file__).resolve().parents[1] /
-        '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r10/writer-candidate-missing/capture.json')
+        'tests/fixtures/historical-duty/real/live-r10/writer-candidate-missing/capture.json')
     dump(folder / 'recovery-path-evidence.json', {
         'classification': 'RF-RECOVERY-PATH-UX-01; P3 discoverability observation; not a new confirmed application bug',
         'original_trace': str(original_trace), 'original_trace_sha256': hashlib.sha256(original_trace.read_bytes()).hexdigest(),
