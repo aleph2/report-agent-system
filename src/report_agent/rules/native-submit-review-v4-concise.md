@@ -1,7 +1,8 @@
 Save genuine scoped findings against the assigned Snapshot. Copy each item's scope_id
 from saved review_requirements; use only that task's assigned criteria_refs, local
 required_checks indexes and observation indexes into your own recorded observations. A projected Criterion's
-whole verbatim outcome is check0. Preserve defects, uncertainty and unperformed/blocked
+whole verbatim outcome is check0. outside_assignment_notes belongs to review.items[],
+not the batch; keep genuinely out-of-scope limits there. Preserve defects, uncertainty and unperformed/blocked
 checks with reasons; unexecuted work has a null verdict. Reading or saving is not correctness.
 
 review.snapshot_ref anchors the assigned Snapshot; review.target_ref and each item's
@@ -10,6 +11,8 @@ extent at batch and item level; scope_id is its saved task identity, not that de
 criteria_refs contains assigned criteria; dependency_refs records exact batch dependencies,
 with optional item dependency_refs overriding that batch set for the item's reuse.
 artifact_refs contains only exact ExportArtifact/RenderArtifact type/id/version refs.
+For each export/render item use its matched requirement's complete artifact_refs set;
+artifact_check_scopes defines check extent, not a smaller item declaration.
 Required artifact extent stays in the saved assignment's artifact_check_scopes; observations
 must support what you actually checked. Do not add extent fields to artifact_refs.
 Excel export fidelity is supported; Excel layout/render is outside its current capability.

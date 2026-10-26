@@ -65,14 +65,27 @@ def artifact_gaps(contents, requirement, item, observations, *, check_scope=None
     return gaps
 
 
-def validate_artifact_items(contents, db, requirements, data):
+def validate_artifact_items(contents, db, requirements, data, *, skip_content=False):
     """Only this exact delegated artifact scope may publish through the new route."""
-    for item in data['items']:
+    for item_index, item in enumerate(data['items']):
         if item['assessment_kind'] == 'content':
+            if skip_content:  # Native content is validated separately; preserve mixed-item positions.
+                continue
             raise ActionRejected('CONTENT_JUDGMENT_REQUIRES_BOUNDED_CHECKER')
         requirement = matching_requirement(requirements, item)
-        if not requirement or set(map(encode, item['artifact_refs'])) != set(map(encode, requirement['artifact_refs'])):
-            raise ActionRejected('ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE')
+        if requirement is None:
+            raise ActionRejected('ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE', diagnostic={
+                'reason': 'artifact_scope_identity_not_assigned',
+                'parameter_path': ['review', 'items', item_index], 'scope_id': item.get('scope_id')})
+        expected, provided = requirement['artifact_refs'], item['artifact_refs']
+        expected_keys, provided_keys = set(map(encode, expected)), set(map(encode, provided))
+        if provided_keys != expected_keys:
+            raise ActionRejected('ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE', diagnostic={
+                'reason': 'artifact_ref_set_mismatch', 'scope_id': requirement.get('scope_id'),
+                'parameter_path': ['review', 'items', item_index, 'artifact_refs'],
+                'expected_artifact_refs': expected, 'provided_artifact_refs': provided,
+                'missing_artifact_refs': [r for r in expected if encode(r) not in provided_keys],
+                'extra_artifact_refs': [r for r in provided if encode(r) not in expected_keys]})
         observations = []
         for obs in item['observations']:
             row = db.execute('SELECT data FROM content_observations WHERE id=?', (obs['receipt_id'],)).fetchone()

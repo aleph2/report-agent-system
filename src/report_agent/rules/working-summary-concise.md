@@ -13,9 +13,15 @@ revision limits are supplied independently from application state on each decisi
 call; this summary cannot replace or change them. Retain relevant uncertainty and
 outstanding intentions. Old navigation output can be represented by its recovery
 references; do not copy large bodies. Current application context is appended when
-available. Use it to recognize superseded or contradicted historical claims, keeping
-feedback provenance and unresolved uncertainty; do not turn a caller's proposed
-conclusion into a verified fact or treat feedback as a new source observation.
+available and may reflect events later than the historical subset being compacted;
+keep the two time scopes distinct. Use it to recognize superseded or contradicted
+historical claims only when the later observation is actually present; a later saved
+record alone does not prove that an earlier failed or rejected call committed or
+that a second channel exists, so leave an unobserved transition unresolved. Take
+checked/unchecked status from the actual saved field; a limitation stated only
+in a result is not an unchecked item, and a missing field is not evidence of
+unchecked. Do not turn a caller's proposed conclusion into a verified fact or
+treat feedback as a new source observation.
 Preserve the exact parameter path shown by a returned diagnostic or an available schema;
 never reverse field nesting or infer a general schema rule from one rejection. If the
 schema is unavailable, retain the diagnostic and leave the general rule unresolved.

@@ -206,6 +206,9 @@ class BusinessBoundary(InvalidToolFeedback):
                     request = request.override(tool_call=call)
                     store.event("deep_tool_argument_decoded", {"role": self.role, "tool": call["name"],
                         "tool_call_id": call["id"], "fields": fields, "codec": "strict-json-object-v1"})
+                from .review_work_units import require_before_verification, prepare_native_todos, retain_native_todos
+                review_todos = prepare_native_todos(self.workspace, self.role, call, runtime.state if runtime else {})
+                require_before_verification(self.workspace, self.role, call, runtime.state if runtime else {})
                 from .prompt_sources import review_interface_profile
                 if (call['name'] == 'export_content_snapshot'
                         and review_interface_profile(store) == 'review-interfaces-v4'):
@@ -257,7 +260,7 @@ class BusinessBoundary(InvalidToolFeedback):
                             error = ToolInvocationError(call["name"], exc, call["args"])
                             message = ToolMessage(error.message, tool_call_id=call["id"],
                                                   name=call["name"], status="error")
-                            native = compact_native_tool_error(message, store)
+                            native = compact_native_tool_error(message, store, args=call["args"], schema=schema)
                             requirements = call["args"].get("review_requirements")
                             schema_errors = exc.errors(include_input=False, include_context=False,
                                                        include_url=False)
@@ -365,6 +368,7 @@ class BusinessBoundary(InvalidToolFeedback):
                               if content_enabled(self.workspace) else await handler(request))
                 else:
                     result = await handler(request)
+                result = retain_native_todos(result, review_todos)
             except (ActionRejected, ActionForbidden) as exc:
                 from .hierarchical_tools import enabled as content_enabled
                 error = {"accepted": False, "error": error_data(exc)}
@@ -394,7 +398,8 @@ class BusinessBoundary(InvalidToolFeedback):
                 store.event("content_delegation_failed", {"tool_call_id": call["id"], **error_data(exc)})
             from .tool_argument_feedback import compact_native_tool_error
             self.write_repetition.observe(call, result, runtime.state.get("messages", []) if runtime else [])
-            return compact_native_tool_error(result, store)
+            return compact_native_tool_error(result, store, args=request.tool_call["args"],
+                                             schema=request.tool.tool_call_schema if request.tool else None)
 
 
 def result_view(result):
@@ -910,6 +915,8 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     expression_profile = validate_report_expression_profile(manifest)
     from .prompt_sources import validate_report_prompt_profile, CONCISE_PROMPTS
     text_profile = validate_report_prompt_profile(manifest)
+    from .review_work_units import bind_contract
+    bind_contract(workspace, manifest)
     from .prompt_sources import record_runtime_version
     runtime_version_ref = record_runtime_version(workspace.store)
     from .prompt_sources import delegation_profile, SEPARATE_DESCRIPTION, validate_review_interface_profile
@@ -940,8 +947,11 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         from .prompt_sources import native_reviewer
         from .prompt_provenance import AgentPromptBoundary, CurrentReviewPlan
         from .execution_progress import ExecutionProgress
+        from .prompt_sources import validate_review_plan_contract
+        from .review_work_units import ReviewPlanning
+        todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
         return [FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
-                *([TodoListMiddleware(), CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
+                *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
                   [TodoListMiddleware()] if role == 'coordinator' and native_reviewer(workspace.store) else []),
                 *([TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
                 *([ExecutionProgress(workspace,role)]

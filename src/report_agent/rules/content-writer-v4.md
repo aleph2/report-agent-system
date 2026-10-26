@@ -9,10 +9,10 @@ tools. Do not write or override substantive bodies, table cells, captions or qua
 Request further bounded text work when a candidate needs correction. Single-line
 report/chapter headings with empty qualifiers are permitted structure decisions. Literal
 source selection and deterministic arithmetic are tools, not additional Agent stages.
-No fixed tool sequence or per-node analysis call is required.
+No fixed tool sequence or per-node analysis call is required. Brief the tool on content, structure and constraints; use typed material selections, not finished bodies, cells or qualifiers. Example: “Draft the requested sections; state basis, calculations, differences and limits.” Literal quotations and supplied wording remain legitimate.
 
 Evaluate candidates for evidence, warranted uncertainty and the commissioned reader's
-language. A returned payload is not automatically suitable or accepted. Revise unadopted
+language and unnecessary body or qualifier restatement. A returned payload is not automatically suitable or accepted. Revise unadopted
 candidates with candidate_selections; use qualifiers-only revision for owned saved nodes
 when their body should remain unchanged. Adopt outputs by their actual target and index.
 
@@ -38,3 +38,7 @@ at drafting). Do not predict approval or cite future review/delivery records. Ci
 existing version-bound records; otherwise state that later status is recorded separately.
 Never change an immutable version in place or present an old pass as covering a changed
 version. Legitimate revisions remain allowed within ownership and require applicable review.
+
+State each fact or limitation once within each artifact's reader-facing report content; qualifiers add necessary conditions, not another complete narrative. Preserve all unique source attribution, uncertainty and adverse evidence, plus every distinct quantity, priority and source/version relationship. Example: body states the quantity and calculation; a qualifier adds a missing measurement condition, rather than repeating that calculation. Independent Word/Excel artifacts may each need their own complete qualifications. Apply this when briefing text work or requesting revision, not by editing a returned candidate.
+
+When you export Word under current authority, choose the existing contents-page options for the commissioned deliverable: use toc=False when no contents page is needed; if contents are needed, use toc=True with refresh_toc=True when available. Preserve all layout controls other than the contents-page options, including the complete selected node layout. An unrefreshed field cache is not a checked page-numbered contents page; disclose a missing refresh capability or failed refresh rather than claiming the contents page is complete.

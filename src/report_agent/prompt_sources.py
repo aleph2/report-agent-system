@@ -27,6 +27,20 @@ LEGACY_PROMPTS = 'legacy-v1'
 CONCISE_PROMPTS = 'concise-v1'
 
 
+def validate_review_plan_contract(manifest):
+    from .errors import ActionRejected
+    if 'review_plan_contract' not in manifest:
+        return None
+    if manifest['review_plan_contract'] != 'work-units-v1':
+        raise ActionRejected('UNKNOWN_REVIEW_PLAN_CONTRACT')
+    if (manifest.get('review_interface_profile') != REVIEW_INTERFACE_V4
+            or manifest.get('review_execution_mode') != NATIVE_REVIEW
+            or manifest.get('context_policy') != 'stateful-tools-v2'
+            or manifest.get('context_projection') != 'review-materials-v1'):
+        raise ActionRejected('REVIEW_PLAN_REQUIRES_NATIVE_COMPLETE_MATERIALS')
+    return manifest['review_plan_contract']
+
+
 def validate_report_prompt_profile(manifest):
     from .errors import ActionRejected
     value = manifest.get('report_prompt_profile', LEGACY_PROMPTS)

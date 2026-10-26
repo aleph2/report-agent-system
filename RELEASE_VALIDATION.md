@@ -1,31 +1,27 @@
-# Validation of regression-20261026
+# Validation: regression-20261026-round04-fixes
 
-This is a sanitized source snapshot published after the local frozen-source full02 run.
-The package version remains 0.1.0; the Git tag identifies this snapshot.
+Local frozen-source full02 completed: 3,550 unique collected tests; 3,541 passed, zero failures,
+nine graph-environment setup skips. Every setup/call/teardown and JUnit result was audited;
+no missing or duplicate tests. All six processes exited successfully. The frozen source and
+protected historical data remained unchanged. Final publication review binds this exact manifest.
 
-## Actual local regression outcome
+This snapshot retains the previous sanitized release history and adds current source/tests.
+All application, test, script and pyproject bytes match the current frozen source. Original
+tests are retained. The prior full01 completed with 3,540 passed, one failed and nine graph
+environment setup skips. Its single cancellation test timed out at its unchanged five-second
+synchronization wait, before its preservation assertions. An isolated original test passed;
+a controlled fake-model delay reproduced the same wait failure after selection was saved.
+The new full02 isolates the entire prototype module before running the other five shards.
+No production source, original assertion or five-second timeout was changed for that result.
+The full02 result above comes from a fresh complete execution, not reuse of the isolated pass.
 
-- 3,441 unique collected tests across six whole-module shards.
-- 3,432 passed; zero failures; nine setup skips requiring a dedicated graph environment.
-- Two optional collection modules were not covered: GEPA and DSPy were not installed.
-- All setup/call/teardown phases and JUnit results were audited, with no missing or duplicate tests.
-- The frozen source and protected historical data remained unchanged during the run.
-- Original tests were retained. Prior compatibility failures were repaired without deleting,
-  skipping or weakening their assertions.
+Two optional collection modules requiring GEPA/DSPy remain outside covered tests.
+A fresh clone has not reproduced the local suite; some historical replay tests require
+separately retained private fixtures. Credentials, customer inputs, private reasoning/traces,
+operational data, ledgers and the original development Git history are excluded.
 
-## Snapshot and evidence boundaries
-
-Application, test, script and pyproject bytes match the tested frozen source. Generated
-package metadata is omitted. README, architecture/development notes, Git attributes and
-ignore rules are release-only metadata; their replacements are listed in RELEASE_MANIFEST.json.
-This snapshot does not include local Git history, credentials, customer source/OCR data,
-private traces/reasoning, ledgers, operational output or private historical model archives.
-Some unchanged historical replay tests require those separately retained private fixtures.
-A fresh clone has not been run through the full historical suite; the local result must
-not be represented as a clean-clone reproduction result.
-
-Current behavioral validation explicitly selects V4, concise-v1, reader-v2 and
-review-materials-v1. Legacy interfaces and tests remain supported within their tested scope.
-Deterministic regression success does not establish semantic report quality, real-model
-termination, presentation acceptance or engineering sign-off. A new fake-data/real-model
-round is a separate validation and is not yet complete for this source.
+The optional work-units-v1 contract provides structured native Reviewer planning and binding;
+structure alone does not prove meaningful verification. V4 parent-checkpoint reentry remains
+a documented recovery limitation. Direct child persistence tests are not root-recovery proof.
+Fake-model mechanics do not establish real report semantics, termination, presentation
+quality or engineering sign-off. A fresh fake-data/real-model round is still pending.
