@@ -29,7 +29,7 @@ from test_deep_runtime import Driver
 from test_vision import VisionModel
 
 
-ARCHIVE = Path(__file__).resolve().parents[1] / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r3/visual-artifact-pair'
+ARCHIVE = Path(__file__).resolve().parents[1] / 'tests/fixtures/historical-duty/real/live-r3/visual-artifact-pair'
 ARCHIVE_HASHES = {
     'model-output.json': '861a1009ca4ec565693d0a98f60bd59c75b7a90c714c3e2b81809d77654b8a53',
     'independent-input.json': 'dfdc75731ff95b8b5936491ef660ffbf646aaafc7cb8085439026ce741401b09',

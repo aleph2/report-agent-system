@@ -87,7 +87,7 @@ async def test_native_review_feedback_correction_save_return_and_explicit_adopti
     messages = [m for role, _, batch in driver.calls if role=='reviewer' for m in batch if isinstance(m,ToolMessage)]
     assert any(m.status=='error' and 'REVIEW_ITEM_OUTSIDE_ASSIGNMENT' in m.content for m in messages)
     from pathlib import Path
-    destination = Path(__file__).resolve().parents[1]/'.analysis/minimal-handoff-implementation-20261025/native-protocol-evidence.json'
+    destination = case[0].store.root / 'native-protocol-evidence.json'
     record, = cs.list_objects('ReviewRecord')
     destination.write_text(json.dumps({'synthetic_scripted_protocol_only':True,
         'native_intent':request['id'], 'review_ref':record['ref'], 'task_id':record['task_id'],

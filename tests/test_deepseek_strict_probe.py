@@ -6,7 +6,9 @@ import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
-from run_deepseek_strict_probe import strict_schema, GraderResponse, read, FREEZE
+from run_deepseek_strict_probe import strict_schema, GraderResponse, read
+
+FREEZE = Path(__file__).parent / 'fixtures/historical-duty/deepseek-base/frozen-request.json'
 
 
 def test_actual_wire_schema_preserves_fields_and_binds_ids():

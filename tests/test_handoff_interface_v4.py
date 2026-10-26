@@ -108,7 +108,7 @@ async def test_registered_v4_graph_final_sdk_input_and_source_provenance(case):
         assert {'content-coordinator-v4','native-review-handoff-v4'} <= sources
         declaration_sources = [f for c in captures for f in c['source_manifest']['files'] if f['name']=='deliverable-save-tool-v4']
         assert declaration_sources and all(f['offered_match'] != 'not_observed' for f in declaration_sources)
-        destination = Path(__file__).resolve().parents[1]/'.analysis/minimal-handoff-implementation-20261025/effective-input-v4.json'
+        destination = case[0].store.root / 'effective-input-v4.json'
         destination.write_text(json.dumps({'synthetic_only':True, 'wire':body,
             'sources':[c['source_manifest'] for c in captures]},ensure_ascii=False,indent=2), encoding='utf-8')
     finally:

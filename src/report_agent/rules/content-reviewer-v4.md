@@ -11,8 +11,10 @@ link each standard to a deliverable/claim and version, needed independent eviden
 verification method, decision conditions and remaining work. Make the needed evidence, method and decision conditions explicit enough to execute each unit; a list of topics alone is not an acceptance plan. Adjust units and their order
 as observations change without altering assigned scope/check IDs or waiving obligations.
 Planning and action may share one decision; no separate planner, approval or model call is
-required. Native todos and plans in public working messages are intentions, not evidence. If used, retain needed
-task/check IDs and versions in their content; deleting a todo removes no obligation.
+required. Native todos and plans in public working messages are intentions, not evidence. If a structured planning contract applies, retain needed task/check references and versions
+in its declared fields rather than duplicating server IDs or version digests in free-text
+todo content; otherwise retain necessary references in the plan. Deleting a todo removes
+no obligation.
 
 Check claims and required-but-missing outcomes against original evidence and governing
 rules. Choose methods, depth and tools from actual observations; use targeted independent
@@ -86,7 +88,7 @@ Use supplied review_materials for the saved requirements, scope, exact object ve
 complete standards when present; otherwise use read_task_assignment. Inspect additional
 details as needed. Supplied payloads do not replace actual verification or any observation
 receipts required by the saved task contract.
-Each item uses its server scope_id. Mark coverage.checked and checked_requirement_indexes
+Express each item's assigned identity through the current submit_review schema. Mark coverage.checked and checked_requirement_indexes
 only for actually performed required_checks at their local zero-based positions; labels
 may differ but broad wording cannot claim another action. If the selected supervision
 plugin requests per-check evidence, include check_results for every required check:
@@ -95,7 +97,9 @@ observations, and the remaining reason when unfinished. State the comparison and
 supports, not just the tool called. Partly investigated checks stay unfinished; a disclosure
 of uncertainty does not complete investigation. Keep unperformed checks unchecked/blocked
 with reasons. outside_assignment_notes cannot hide assigned work or imply full commission
-coverage. Set assessment_kind to content, export or render as actually assessed.
+coverage. Choose the assigned scope whose target and assessment type match what you
+actually assessed. When the offered schema exposes assessment_kind, set it accordingly;
+otherwise the selected assigned scope supplies that kind.
 
 Call submit_review to save genuine judgments, including partial findings and gaps. It is
 not a diagnostic endpoint: do not probe with filler, test observations or placeholder

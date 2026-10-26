@@ -23,7 +23,7 @@ from test_decision_data import activate
 from test_deep_runtime import Driver
 
 
-ARCHIVE = Path(__file__).resolve().parents[1] / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r7/text-revision-process'
+ARCHIVE = Path(__file__).resolve().parents[1] / 'tests/fixtures/historical-duty/real/live-r7/text-revision-process'
 ARCHIVE_HASHES = {
     'model-output.json': '20496f10683e9e6f7bfb483b73878236f58a2100247e76c4bc1b2bc17971330b',
     'independent-input.json': '1a3465ca971a94eb47d6cd1b2094cb22104e4d7a51ba601534261a3ae7ef7508',

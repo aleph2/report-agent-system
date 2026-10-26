@@ -24,10 +24,11 @@ def enabled(workspace):
     return hasattr(workspace, "store") and bound_manifest(workspace.store).get("content_contract") == SCHEMA_VERSION
 
 
-def role_prompt(role, *, expression_profile=None, interface_profile=None, prompt_profile='legacy-v1'):
+def role_prompt(role, *, expression_profile=None, interface_profile=None, prompt_profile='legacy-v1',
+                review_submission_contract=None):
     from .prompt_sources import load_prompt, role_sources, REPORT_EXPRESSION_V1
     return '\n\n'.join(load_prompt(s) for s in role_sources(role,
-        expression_profile or REPORT_EXPRESSION_V1, interface_profile, prompt_profile))
+        expression_profile or REPORT_EXPRESSION_V1, interface_profile, prompt_profile, review_submission_contract))
 
 
 def actor_for(role):
@@ -42,10 +43,15 @@ def content_tools(workspace, role, runtime_identity=None):
         from .content_tasks import bound_actor
         return bound_actor(workspace, role, fallback)
     from .prompt_sources import review_interface_profile, report_expression_profile, report_prompt_profile
+    from .review_scope_selectors import validate_contract
+    submission_contract = validate_contract(bound_manifest(workspace.store))
+    selector_mode = role == 'reviewer' and submission_contract is not None
     effective_role = 'reviewer' if role == 'rubric_grader' else role
     role_options = ({'interface_profile':'review-interfaces-v4',
         'expression_profile':report_expression_profile(workspace.store), 'prompt_profile':report_prompt_profile(workspace.store)}
         if review_interface_profile(workspace.store) == 'review-interfaces-v4' else {})
+    if selector_mode:
+        role_options['review_submission_contract'] = submission_contract
     identity = runtime_identity or {"contract": SCHEMA_VERSION, "runtime": "deepagents-0.7.19",
         "role": role, "service": (workspace.store.get("role_model_services") or {}).get(role),
         "prompt_hash": digest(role_prompt(effective_role, **role_options))
@@ -111,8 +117,11 @@ def content_tools(workspace, role, runtime_identity=None):
         from .task_supervision import assignment, source_selection_bindings, review_readiness, readiness_metadata
         owner = actor()
         saved = assignment(contents, owner.task_id)
+        from .review_scope_selectors import requirements_view
+        visible = ({**saved, 'review_requirements': requirements_view(saved)}
+                   if saved.get('review_submission_contract') is not None else saved)
         from .content_tasks import current_invocation, ASSIGNMENT_NOTE
-        result = {"ok": True, "task_id": owner.task_id, "assignment": saved,
+        result = {"ok": True, "task_id": owner.task_id, "assignment": visible,
                   "assignment_note": ASSIGNMENT_NOTE,
                   "current_invocation": current_invocation(workspace, owner),
                   "source_selection_bindings": source_selection_bindings(contents, saved.get("review_requirements") or [])}
@@ -305,7 +314,11 @@ def content_tools(workspace, role, runtime_identity=None):
         This persists a real assessment, not a dry run. Never submit diagnostic filler
         or placeholder verdicts to test argument formatting.
         """
-        return contents.submit_review(actor(), operation_id, review.model_dump(), identity,
+        value = review.model_dump()
+        if selector_mode:
+            from .review_scope_selectors import expand_submission
+            value = expand_submission(contents, actor(), value)
+        return contents.submit_review(actor(), operation_id, value, identity,
             delivery_export_ref.model_dump() if delivery_export_ref else None)
 
     def read_delivery_review_context(snapshot_ref: Ref, export_ref: Ref) -> dict:
@@ -510,10 +523,15 @@ def content_tools(workspace, role, runtime_identity=None):
                 adopted = [r.model_dump() for r in adopted_review_task_refs or []]
                 if len({encode(r) for r in adopted}) != len(adopted):
                     raise ActionRejected('DUPLICATE_ADOPTED_REVIEW_TASK')
-                for ref in adopted:
+                for index, ref in enumerate(adopted):
                     other = saved_task(contents, db, actor(), ref, snap['ref'])
-                    if validate_basis(contents, db, other['payload'])['digest'] != basis['digest']:
-                        raise ActionRejected('REVIEW_ASSIGNMENT_BASIS_MISMATCH')
+                    other_basis = validate_basis(contents, db, other['payload'])
+                    if other_basis['digest'] != basis['digest']:
+                        raise ActionRejected('REVIEW_ASSIGNMENT_BASIS_MISMATCH', diagnostic={
+                            'reason': 'adopted_assignment_uses_different_basis',
+                            'parameter_path': ['review_assignment_refs', index],
+                            'basis_assignment_ref': base['ref'], 'provided_assignment_ref': other['ref'],
+                            'expected_basis_digest': basis['digest'], 'provided_basis_digest': other_basis['digest']})
                 delivery.update(review_interface_profile='review-interfaces-v4',
                     review_basis_assignment_ref=base['ref'], adopted_review_task_refs=adopted)
             if workbook_export_ref is not None:
@@ -524,7 +542,12 @@ def content_tools(workspace, role, runtime_identity=None):
                         not payload.get('file_ref', '').endswith('.xlsx') or
                         payload.get('snapshot_ref') != snap['ref'] or
                         payload.get('export_config', {}).get('report_export_ref') != export['ref']):
-                    raise ActionRejected('COMPANION_EXPORT_VERSION_MISMATCH')
+                    raise ActionRejected('COMPANION_EXPORT_VERSION_MISMATCH', diagnostic={
+                        'reason': 'companion_must_bind_selected_word_and_snapshot',
+                        'parameter_path': ['workbook_export_ref'],
+                        'selected_word_export_ref': export['ref'], 'workbook_export_ref': workbook['ref'],
+                        'expected_snapshot_ref': snap['ref'], 'workbook_snapshot_ref': payload.get('snapshot_ref'),
+                        'workbook_report_export_ref': payload.get('export_config', {}).get('report_export_ref')})
                 delivery['workbook_export_ref'] = workbook['ref']
             db.execute("INSERT OR REPLACE INTO state VALUES ('content_delivery', ?)", (encode(delivery),))
             # Retain historical final evidence; applicability is checked against the
@@ -651,7 +674,9 @@ def content_tools(workspace, role, runtime_identity=None):
         workbook_with_selection.__name__ = 'export_content_workbook'
         workbook_with_selection.__doc__ = load_prompt('export-content-workbook-v4')
         export_content_snapshot, export_content_workbook = export_with_selection, workbook_with_selection
-        submit_review.__doc__ = load_prompt(report_rule_source('native-submit-review-v4', text_profile))
+        from .prompt_sources import submit_review_source
+        submit_review.__doc__ = load_prompt(submit_review_source(text_profile,
+            submission_contract if selector_mode else None))
     if interface == REVIEW_INTERFACE_V3:
         freeze_snapshot_with_receipts.__name__ = 'freeze_snapshot'
         freeze_snapshot_with_receipts.__doc__ = load_prompt('freeze-receipts-v3')
@@ -660,7 +685,8 @@ def content_tools(workspace, role, runtime_identity=None):
         read_content_index.__doc__ = load_prompt('native-content-index-tool-v4' if text_profile == CONCISE_PROMPTS else 'native-content-index-tool')
         if interface in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, 'review-interfaces-v4'}:
             from .content_tasks import native_review_submission_schema
-            submit_review.__annotations__['review'] = native_review_submission_schema(v4=interface == 'review-interfaces-v4')
+            submit_review.__annotations__['review'] = native_review_submission_schema(
+                v4=interface == 'review-interfaces-v4', scope_selectors=selector_mode)
     common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
               read_review_status, observe_evidence, read_feedback, record_handoff,
               assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,

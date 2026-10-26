@@ -159,7 +159,7 @@ async def test_final_native_sdk_prompt_and_short_description_keep_complete_bindi
         with delegated_task(Workspace(cs.store), 'coordinator', resume):
             assert read_state(Workspace(cs.store), 'reviewer', ['assignment', 'review_commission_basis'])['value'] == payload['review_commission_basis']
         assert not cs.list_objects('ReviewRecord')
-        target = Path(__file__).resolve().parents[1]/'.analysis/prompt-contract-fix-20261025/effective-sdk-inputs.json'
+        target = case[0].store.root / 'effective-sdk-inputs.json'
         target.write_text(json.dumps({'offline_scripted_protocol_only': True, 'wires': wires,
             'co_capture': capture}, ensure_ascii=False, indent=2), encoding='utf-8')
     finally:

@@ -26,7 +26,7 @@ from test_deep_runtime import Driver
 from test_hierarchical_content import seed
 
 
-ARCHIVE = Path(__file__).resolve().parents[1] / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r1'
+ARCHIVE = Path(__file__).resolve().parents[1] / 'tests/fixtures/historical-duty/real/live-r1'
 FALSE_FINAL = 'Both assigned comparisons are satisfied and the whole report is accepted.'
 
 

@@ -17,8 +17,8 @@ evidence; do not regenerate the entire author's analysis as the default method.
 Targeted independent recalculation is legitimate when it can verify a material claim.
 
 For a projected Criterion outcome, required_checks contains that whole verbatim
-outcome at local index 0. Use the server-assigned scope_id and actual check indexes
-when saving through submit_review. A plan, read, linked source or saved record does
+outcome at local index 0. Use the assigned scope identity represented by the current submit_review schema
+and actual local check indexes when saving. A plan, read, linked source or saved record does
 not prove correctness. Preserve established defects, missing evidence and incomplete
 checks. Content and standards remain read-only. Explicit compatible prior-item reuse
 uses confirm_review_reuse with old_item_index to current new_scope_id; older records
