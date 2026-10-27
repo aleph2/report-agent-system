@@ -37,8 +37,22 @@ async def close_model(model):
 async def test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget(ws, monkeypatch, tmp_path, new_id):
     model = offline_model(ws, monkeypatch)
     dispatched, cancelled = [], []
+    from types import SimpleNamespace
+    import report_agent.model_invocation as invocation
+    deadlines = []
+    def timeout_when_dispatched(delay):
+        assert delay == .05
+        timer = asyncio.timeout(None)
+        deadlines.append(timer)
+        return timer
+    scenario_asyncio = SimpleNamespace(**vars(asyncio))
+    scenario_asyncio.timeout = timeout_when_dispatched
+    # Stage this in-flight fault after preparation without patching global asyncio.
+    monkeypatch.setattr(invocation, 'asyncio', scenario_asyncio)
     async def handle(request):
         dispatched.append(request)
+        assert len(deadlines) == 1
+        deadlines[0].reschedule(asyncio.get_running_loop().time() + .05)
         try:
             await asyncio.Event().wait()
         except asyncio.CancelledError:
@@ -75,7 +89,8 @@ async def test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_
                             after_failure, after_query, after_replay])
     try:
         with token_budget(tokens):
-            result = await run_report(ws, model_factory=lambda role: model if role == 'text_tool' else driver(role))
+            result = await asyncio.wait_for(run_report(ws,
+                model_factory=lambda role: model if role == 'text_tool' else driver(role)), 30)
         assert result['last_error'] is None
         assert len(dispatched) == 1 and cancelled == [True]
         assert tokens.snapshot()['reserved_or_unknown_upper_bounds'] == 10000
@@ -87,6 +102,36 @@ async def test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_
         receipt = ws.store.get('bounded_review_attempt:' + attempts[0]['data']['operation'])
         assert receipt['state'] == 'unknown' and receipt['raw_response_received'] is False
         assert receipt['result']['usage'] is None
+    finally:
+        await close_model(model)
+
+
+async def test_inflight_timeout_scenario_survives_cold_sdk_preparation(ws, monkeypatch, tmp_path):
+    import time
+    from report_agent.deep_models import GLMChatOpenAI
+    original = GLMChatOpenAI._get_request_payload
+    def slow_payload(self, *args, **kwargs):
+        time.sleep(.15)
+        return original(self, *args, **kwargs)
+    monkeypatch.setattr(GLMChatOpenAI, '_get_request_payload', slow_payload)
+    await test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget(
+        ws, monkeypatch, tmp_path, False)
+
+
+async def test_real_deadline_bounds_sdk_preparation_before_http_send(ws, monkeypatch):
+    model = offline_model(ws, monkeypatch)
+    dispatched = []
+    async def prepare(request):
+        await asyncio.Event().wait()
+    async def transport(request):
+        dispatched.append(request)
+        raise AssertionError('SDK preparation must remain inside the real total deadline')
+    monkeypatch.setattr(model.root_async_client, '_prepare_request', prepare)
+    model.http_async_client._transport = httpx.MockTransport(transport)
+    try:
+        with pytest.raises(ModelRequestDeadlineExceeded):
+            await asyncio.wait_for(model.ainvoke('Synthetic pre-HTTP wait.'), 30)
+        assert dispatched == []
     finally:
         await close_model(model)
 

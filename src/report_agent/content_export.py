@@ -327,6 +327,12 @@ def read_export(contents, actor, export_ref):
     else:
         from .report_preview import _structure
         structure, text = _structure(data)
+        from .prompt_sources import review_interface_profile
+        if contents.store.get('manifest') is not None and review_interface_profile(contents.store) == 'review-interfaces-v4':
+            from .content_models import RenderState
+            state = RenderState(execution_state='not_attempted', capability_state='not_probed')
+            # The legacy preview label describes no attempt, not a capability test.
+            structure['render'].update(state.model_dump(), status=state.execution_state)
     return contents.observe(actor, {"export_ref": export_ref, "file_digest": record["payload"]["file_digest"],
         "structure": structure, "text": text, "limitation": "Actual OOXML content; not visual observation."})
 
@@ -358,8 +364,17 @@ def render_export(contents, actor, operation_id, export_ref):
         from .office_render import convert_pdf
         pdf, version = convert_pdf(contents.store, data, suffix)
         if pdf is None:
-            return {"execution_state": "blocked", "verdict": None, "code": "RENDER_UNAVAILABLE",
-                    "export_ref": export_ref, "diagnostic": version}
+            result = {"execution_state": "blocked", "verdict": None, "code": "RENDER_UNAVAILABLE",
+                      "export_ref": export_ref, "diagnostic": version}
+            from .prompt_sources import review_interface_profile
+            if contents.store.get('manifest') is not None and review_interface_profile(contents.store) == 'review-interfaces-v4':
+                from .content_models import RenderState
+                attempts = version.get('attempts') if isinstance(version, dict) and version.get('code') == 'RENDER_UNAVAILABLE' else None
+                known = isinstance(attempts, list)
+                result['render_state'] = RenderState(
+                    execution_state='failed' if known and attempts else 'blocked',
+                    capability_state='unavailable' if known and not attempts else 'unknown').model_dump()
+            return result
         import pypdfium2 as pdfium
         pages = []
         with pdfium.PdfDocument(pdf) as document:
@@ -387,7 +402,12 @@ def render_export(contents, actor, operation_id, export_ref):
         if computed.get('execution_state') == 'blocked':
             return computed
         ref = contents._insert(db, actor, "RenderArtifact", computed)
-        return {"render_ref": ref, "pages": computed['page_assets'], "execution_state": "completed", "verdict": None}
+        result = {"render_ref": ref, "pages": computed['page_assets'], "execution_state": "completed", "verdict": None}
+        from .prompt_sources import review_interface_profile
+        if contents.store.get('manifest') is not None and review_interface_profile(contents.store) == 'review-interfaces-v4':
+            from .content_models import RenderState
+            result['render_state'] = RenderState(execution_state='completed', capability_state='available').model_dump()
+        return result
 
     return contents.detached_operation(actor, operation_id, {"render": export_ref}, prepare, execute, finalize)
 

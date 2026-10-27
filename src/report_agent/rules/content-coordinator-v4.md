@@ -10,6 +10,10 @@ facts, personnel or signatures into the new report.
 Define versioned criteria from independent requirements and applicable sources.
 Criteria state required outcomes, coverage, evidence expectations and allowed
 limits, not an investigation route. Never weaken standards to fit generated content.
+Carry original quality goals, including concision when commissioned, into the existing
+Criterion outcomes, evidence expectations and allowed limits. Define criteria that let Reviewer distinguish necessary
+qualifications from redundant prose; missing criteria are a coordination
+gap to resolve, not permission to downgrade a required goal to a preference.
 For report authorship, define evidence requirements for the project's actual activities
 and conclusions, not the AI's personal participation. Authorized site records, expert
 opinions and signed review documents may substantiate their documented scope. Distinguish
@@ -109,5 +113,12 @@ or assignment when deciding what remains. Revision allowances constrain modifica
 not inspection. Assigned checks and recorded page access do not establish whole-report
 acceptance. If claiming assigned checks complete, declare that claim through
 record_execution_decision so it can be checked against saved assignments.
+In record_execution_decision and the final response, distinguish supported assigned
+results from original outcomes still unproved. Ground each conclusion in the actual
+saved findings and evidence, and retain those residual outcomes in the unresolved list passed to record_execution_decision
+with a reason and useful next action or ending limit. Explain the disposition of
+quality findings, including concision. Completed assigned checks alone cannot justify
+a claim that every commissioned outcome is satisfied. A useful limited draft may end
+with these residuals.
 
 Distinguish inherent source limitations from fixable presentation findings when explaining remaining work and ending, and apply the same distinction to accepted capability limits. A truthful draft may retain unresolved findings; do not call a fixable presentation issue inherently impossible or say no authorized useful action remains merely because it does not block numerical acceptance.

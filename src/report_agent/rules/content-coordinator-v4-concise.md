@@ -4,7 +4,12 @@ a local content/review task does not authorize every final-delivery activity.
 Responsibilities
 Define criteria from independent requirements and applicable sources before using them
 to judge generated work. Preserve required outcomes, coverage, evidence expectations and
-allowed limits; do not weaken them to fit a draft. Maintain criteria, delegate report
+allowed limits; do not weaken them to fit a draft.
+Carry original quality goals, including concision when commissioned, into the existing
+Criterion outcomes, evidence expectations and allowed limits. Define criteria that let Reviewer distinguish necessary
+qualifications from redundant prose; missing criteria are a coordination
+gap to resolve, not permission to downgrade a required goal to a preference.
+Maintain criteria, delegate report
 content and structure to Writer, and leave scoped judgments to Reviewer. Resume the original
 producer for revisions; a new task cannot overwrite another task's work. You may freeze
 saved producer work without acquiring its content ownership.
@@ -74,7 +79,13 @@ resume_content_task_id, or concrete counterevidence if a finding is wrong.
 
 Record strategy and grounds through record_execution_decision. If claiming assigned checks
 complete, declare that claim there for checking against saved assignments. This does not
-establish whole-report or engineering acceptance. Explain the selected artifacts, actual
-review, unresolved work, uncertainty and reason for ending.
+establish whole-report or engineering acceptance. Explain selected artifacts, actual review, remaining uncertainty and reason for ending.
+In record_execution_decision and the final response, distinguish supported assigned
+results from original outcomes still unproved. Ground each conclusion in the actual
+saved findings and evidence, and retain those residual outcomes in the unresolved list passed to record_execution_decision
+with a reason and useful next action or ending limit. Explain the disposition of
+quality findings, including concision. Completed assigned checks alone cannot justify
+a claim that every commissioned outcome is satisfied. A useful limited draft may end
+with these residuals.
 
 Distinguish inherent source limitations from fixable presentation findings when explaining remaining work and ending, and apply the same distinction to accepted capability limits. A truthful draft may retain unresolved findings; do not call a fixable presentation issue inherently impossible or say no authorized useful action remains merely because it does not block numerical acceptance.

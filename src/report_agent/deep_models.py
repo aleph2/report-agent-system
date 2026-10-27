@@ -5,6 +5,8 @@ import os
 import asyncio
 import re
 import json
+from contextlib import contextmanager
+from contextvars import ContextVar
 from urllib.parse import urlparse
 
 import httpx
@@ -276,14 +278,16 @@ class LocalAudit(BaseCallbackHandler):
 class RuntimeStatus(BaseCallbackHandler):
     """Current activity and sanitized failure metadata, not a model transcript."""
 
-    def __init__(self, store, role):
+    def __init__(self, store, role, *, model_service_role=None):
         self.store, self.role = store, role
+        self.model_service_role = model_service_role
 
     def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs):
         self.store.set("report_activity", self.role)
 
     def on_llm_error(self, error, *, run_id, **kwargs):
-        self.store.event("deep_model_error", {"run_id": str(run_id), "role": self.role, **error_data(error)})
+        service = {"model_service_role": self.model_service_role} if self.model_service_role else {}
+        self.store.event("deep_model_error", {"run_id": str(run_id), "role": self.role, **service, **error_data(error)})
 
 
 def connection_retry_count():
@@ -391,11 +395,33 @@ def model_sync_client(store=None, role=None, *, capacity_profile=None):
                     'response':[observe_http_headers, account_response_sync, *([permanent_error] if sdk_retries else [])]})
 
 
+_CLIENT_OWNER = ContextVar('report_model_client_owner', default=None)
+
+
+@contextmanager
+def model_client_ownership(owner):
+    token = _CLIENT_OWNER.set(owner)
+    try:
+        yield
+    finally:
+        _CLIENT_OWNER.reset(token)
+
+
 def configured_model(store, role):
     from .model_config import role_service, role_generation
     name, url, key = role_service(role)
     name = name.removeprefix("openai/")
     from .input_capacity import profile_for_service
+    client_owner = _CLIENT_OWNER.get()
+    def clients(response_hooks=()):
+        profile = profile_for_service(name, url)
+        asynchronous = model_async_client(store, role, list(response_hooks), capacity_profile=profile)
+        if client_owner is not None:
+            client_owner(asynchronous, True)
+        synchronous = model_sync_client(store, role, capacity_profile=profile)
+        if client_owner is not None:
+            client_owner(synchronous, False)
+        return {'http_async_client': asynchronous, 'http_client': synchronous}
     if name.startswith("deepseek-") and urlparse(url).hostname == "api.deepseek.com":
         role_generation(store, role, name, url)
         if not key or not url or urlparse(url).scheme != "https":
@@ -407,8 +433,7 @@ def configured_model(store, role):
         if strict:
             url = 'https://api.deepseek.com/beta'
         return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False, deepseek_strict=strict,
-            http_async_client=model_async_client(store, role, [strict_wire_audit(store, role)] if strict else [], capacity_profile=profile_for_service(name, url)),
-            http_client=model_sync_client(store, role, capacity_profile=profile_for_service(name, url)),
+            **clients([strict_wire_audit(store, role)] if strict else []),
             disable_streaming=True, reasoning_effort=effort, max_tokens=131072 if effort == "max" else 65536,
             max_retries=sdk_retry_count(), extra_body={"thinking": {"type": "enabled"}},
             timeout=model_request_timeout(),
@@ -426,7 +451,7 @@ def configured_model(store, role):
     # not update the SDK clients already initialized by ChatOpenAI.
     return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
                       **({"profile": {"image_inputs": False, "image_tool_message": False}} if not is_deepseek else {}),
-                      http_async_client=model_async_client(store, role, capacity_profile=profile_for_service(name, url)), http_client=model_sync_client(store, role, capacity_profile=profile_for_service(name, url)),
+                      **clients(),
                       **generation, max_retries=sdk_retry_count(),
                       timeout=model_request_timeout(),
                       model_kwargs={"parallel_tool_calls": False},
