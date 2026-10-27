@@ -222,7 +222,10 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             visible = {key: value for key, value in visible.items()
                 if f"{'来源说明' if key == 'source_note' else key}：{value}" not in body_lines}
             if visible:
-                text = "；".join(f"{'来源说明' if key == 'source_note' else key}：{value}" for key, value in visible.items())
+                parts = [f"{'来源说明' if key == 'source_note' else key}：{value}" for key, value in visible.items()]
+                text = parts[0]
+                for part in parts[1:]:
+                    text += (" " if text.rstrip().endswith(('。', '！', '？', '.', '!', '?')) else "；") + part
                 if style and style.qualifier_placement == 'end_notes':
                     number = len(end_notes) + 1
                     end_notes.append((number, ref, visible, text, style.qualifier_font_size))
@@ -315,7 +318,33 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
     return contents.operation(actor, operation_id, request, execute)
 
 
+def _reviewer_export_scope(contents, actor):
+    if actor.role != 'reviewer' or contents.store.get('manifest') is None:
+        return None
+    from .prompt_sources import review_interface_profile
+    if review_interface_profile(contents.store) != 'review-interfaces-v4':
+        return None
+    from types import SimpleNamespace
+    from .content_tasks import bound_actor
+    from .task_context import complete_review_materials
+    workspace = SimpleNamespace(store=contents.store)
+    if bound_actor(workspace, 'reviewer', None) != actor or actor.id != 'content:reviewer:' + actor.task_id:
+        raise ActionForbidden('FORBIDDEN: reviewer task binding')
+    task = contents.read({'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
+    if task.get('role') != 'reviewer' or not task.get('review_snapshot_ref'):
+        raise ActionForbidden('FORBIDDEN: reviewer task binding')
+    allowed = {Ref.model_validate(record['ref']).key()
+               for record in complete_review_materials(workspace, task)['objects']}
+    return workspace, task, allowed
+
+
+def _require_review_export(scope, export_ref):
+    if scope is not None and Ref.model_validate(export_ref).key() not in scope[2]:
+        raise ActionForbidden('FORBIDDEN: export outside reviewer assignment')
+
+
 def read_export(contents, actor, export_ref):
+    _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     record = contents.read(export_ref)
     if export_ref["type"] != "ExportArtifact":
         raise ActionRejected("EXPORT_REQUIRED")
@@ -338,6 +367,7 @@ def read_export(contents, actor, export_ref):
 
 
 def render_export(contents, actor, operation_id, export_ref):
+    _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     def prepare(db):
         export = contents._read(db, export_ref)
         if export_ref["type"] != "ExportArtifact":
@@ -421,6 +451,21 @@ async def inspect_render(contents, actor, render_ref, page, question, client=Non
     record = contents.read(render_ref)
     if render_ref["type"] != "RenderArtifact" or not question.strip():
         raise ActionRejected("RENDER_AND_QUESTION_REQUIRED")
+    scope = _reviewer_export_scope(contents, actor)
+    if scope is not None:
+        from .review_work_units import material_allowed
+        workspace, task, allowed = scope
+        export_ref = record['payload']['export_ref']
+        if Ref.model_validate(render_ref).key() not in allowed:
+            _require_review_export(scope, export_ref)
+        if not material_allowed(workspace, task, Ref.model_validate(render_ref), allowed):
+            raise ActionForbidden('FORBIDDEN: render outside reviewer assignment')
+        export_payload = contents.read(export_ref)['payload']
+        if (export_ref.get('type') != 'ExportArtifact' or not export_payload.get('file_digest')
+                or record['payload'].get('snapshot_ref') != task['review_snapshot_ref']
+                or export_payload.get('snapshot_ref') != task['review_snapshot_ref']
+                or record['payload'].get('export_digest') != export_payload.get('file_digest')):
+            raise ActionForbidden('FORBIDDEN: render provenance mismatch')
     pages = record["payload"]["page_assets"]
     if not 1 <= page <= len(pages):
         raise ActionRejected("PAGE_OUT_OF_RANGE")

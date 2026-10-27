@@ -1,14 +1,14 @@
-# Validation: regression-20261027-unified-r06
+# Validation: regression-20261027-round09
 
-Shared agent runtime lifecycle and typed render-state contracts were aligned; Reviewer prompts preserve original quality requirements and evidence limits, and Co prompts retain unresolved obligations instead of expanding a local pass. Explicit historical runtime profiles remain supported.
+Resolved: preserve qualifier text while avoiding duplicate sentence punctuation; avoid applying the legacy rubric model guard to ordinary delegated review; bind v4 Reviewer export and page access to exact assigned artifacts.
 
-The fresh offline full regression collected 3639 unique tests: 3630 passed, zero failed, nine existing dedicated-graph setup skips. All original 3634 previous-run nodes remain, plus five accepted migration controls. Neo independently checked all 10908 phase records and corresponding JUnit results. The five previous failures now pass after reviewed default-expectation and fixture corrections that preserve business assertions; previous failure evidence remains local.
+Offline regression collected 3663 tests: 3654 passed, zero failed, nine existing graph setup skips. Two optional modules were not collected. The isolated Python input fence has documented limits; private fixtures, runtime data, credentials, financial records and original development history are not included. Clean-clone full test reproducibility is not established.
 
-All 741 local source files and 1331 protected files were unchanged during execution. Published exact-source files match the tested snapshot byte for byte. Private fixture archives, runtime data, financial records, credentials and original development Git history are excluded. The public clone full suite is not established because historical replay tests require the private fixture bundle.
+Round09 ran real models with synthetic inputs: 88 attempts, 7,010,472 recorded tokens, no model timeout and no new unsettled reservation. The mixed default path and qualifier output were exercised; authorized reviewer artifact access was exercised, while unauthorized runtime negative cases remain supported by offline tests only.
 
-Nine dedicated graph integration tests require REPORT_GRAPH_TEST_URI; optional GEPA and DSPy modules were not collected because those dependencies are absent. Python input fencing verified normal children and wrapper-grandchildren with no actual old-input violations; it is not an OS sandbox and does not cover alternate interpreters, Python -S or non-Python children. Loopback, shared HOME and OS temporary storage are not universally isolated.
+Known issues: a strict at-most-once concision criterion conflicts with the author brief and the reviewers' satisfied judgments; an unqualified claim that all eight strict criteria were met is not independently accepted. Fourteen failed tool actions were observed and corrected or retained as scoped limitations. The final Word remains readable with a page-break/whitespace improvement opportunity. Explicit comparison-material grants and a full system-wide authorization audit remain future work. Excel visual readability is outside the latest user scope.
 
-This tag establishes offline non-regression, not improved real-LLM Reviewer detection, Co semantic correctness, Office capability or engineering acceptance. Those require the separate authorized synthetic real-model round. No model reasoning-effort changes are included. Email is paused.
+This release supports a qualified draft, not engineering sign-off or a claim that every issue was resolved.
 
-Full audit SHA256: 6fed48a7c2daaaa1d8962f389f92335de8e04900000a7028a61c953e4534517e
-Independent review SHA256: 9e7d3c0a8e98c257e53281715d2e8311b9d935f315fe5f2162977ca9ec048409
+Full audit SHA256: ddc958c10ac7b8b8a3bdac5a741b5a91aab14c7bb5bd69bd49686cdcb20c56db
+Round09 independent review SHA256: a933c72d1e271ba8050d7e93e9a52dc058b29b231b4f96429c297837f34a17b7

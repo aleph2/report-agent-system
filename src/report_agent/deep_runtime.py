@@ -4,6 +4,7 @@ from .prompt_sources import load_prompt
 
 import asyncio
 import json
+import os
 import httpx
 import openai
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -1074,9 +1075,16 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
         bind_source_search(workspace)
         from .review_context import bind_context_experiment, experiment_config
         bind_context_experiment(workspace.store)
+        from .handoff_release import manifest as bound_manifest
+        manifest = bound_manifest(workspace.store)
         if model_factory is None:
             from .deep_models import bind_grader_trial
-            bind_grader_trial(workspace.store)
+            delegated = (manifest.get('content_contract') == 'hierarchical-review-v1'
+                and manifest.get('review_entrypoint') == 'delegated-reviewer-v1')
+            legacy = any(workspace.store.get(key) for key in
+                ('grader_model_trial', 'review_import017', 'rubric_targets', 'rubric_reviews'))
+            if not delegated or legacy or os.environ.get('REPORT_GRADER_MODEL'):
+                bind_grader_trial(workspace.store)
             from .model_config import bind_role_services
             bind_role_services(workspace.store)
         workspace.initialize()
@@ -1088,7 +1096,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
         acceptance = enabled(workspace) and not hierarchical
         criteria = active_criteria(workspace) if acceptance else None
         rules = (criteria_rules(criteria) if criteria else "") if acceptance else load_rules()
-        delegated_review = hierarchical and store.manifest.get("review_entrypoint") != "native-rubric-v1"
+        delegated_review = hierarchical and manifest.get("review_entrypoint") != "native-rubric-v1"
         if hierarchical:
             rules = "" if delegated_review else "Review the exact selected version using hierarchical-review-v1."
         native_enabled = acceptance or bool(rules)
