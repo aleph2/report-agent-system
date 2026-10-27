@@ -326,3 +326,29 @@ def test_qualifiers_can_move_without_loss_or_snapshot_mutation(ws):
     with pytest.raises(ActionRejected):
         export_snapshot(cs, actor, 'hide-notes', snap, {'nodes':[
             {'node_ref':refs['claim'], 'qualifier_placement':'hidden'}]})
+
+
+@pytest.mark.parametrize('placement', ['adjacent', 'end_notes'])
+@pytest.mark.parametrize(('first', 'separator'), [
+    ('缺少检测记录。', ' '), ('Incomplete.  ', ' '),
+    ('未检测！', ' '), ('未检测？', ' '), ('Incomplete!', ' '), ('Incomplete?', ' '),
+    ('缺少检测记录', '；'),
+])
+def test_qualifier_separator_preserves_sentence_punctuation(ws, placement, first, separator):
+    cs, actor, refs, _, _ = seed(ws)
+    root = cs.read(refs['root'])['payload']
+    updated = cs.commit(actor, 'punctuation-root', [{
+        'client_key': 'root', 'type': 'ContentNode', 'previous_ref': refs['root'],
+        'payload': {**root, 'qualifiers': {'a限制': first, 'b范围': '本次仅核对资料', 'c状态': '待核'}}
+    }])['result']['refs']['root']
+    # Create a self-contained snapshot: the new root has no children.
+    snap = cs.freeze(actor, 'punctuation-snapshot', updated, [updated])['result']['snapshot_ref']
+    result = export_snapshot(cs, actor, 'punctuation-export', snap, {'toc': False,
+        'nodes': [{'node_ref': updated, 'qualifier_placement': placement}]})['result']
+    text = '\n'.join(p.text for p in document(ws, result).paragraphs)
+    assert f'a限制：{first}{separator}b范围：本次仅核对资料；c状态：待核' in text
+    qualifiers = {'a限制': first, 'b范围': '本次仅核对资料', 'c状态': '待核'}
+    assert cs.read(updated)['payload']['qualifiers'] == qualifiers
+    mapping = cs.read(result['mapping_ref'])['payload']
+    anchors = mapping['qualifier_anchor_records'] if placement == 'end_notes' else mapping['anchor_records']
+    assert any(row['node_ref'] == updated and row['qualifiers'] == qualifiers for row in anchors)
