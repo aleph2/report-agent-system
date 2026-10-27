@@ -6,7 +6,7 @@ import asyncio
 import json
 import httpx
 import openai
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Annotated, Literal
 from pydantic import Field
 from uuid import uuid4
@@ -1038,9 +1038,25 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
 @asynccontextmanager
 async def project_agent(workspace, model_factory=None, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
-    factory = model_factory or (lambda role: configured_model(workspace.store, role))
-    async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
-        yield build_agent(workspace, factory, saver, knowledge, rules, decision_only=decision_only)
+    async with AsyncExitStack() as resources:
+        factory = model_factory
+        if factory is None:
+            models, clients = {}, set()
+            def own(client, asynchronous):
+                if id(client) not in clients:
+                    clients.add(id(client))
+                    if asynchronous:
+                        resources.push_async_callback(client.aclose)
+                    else:
+                        resources.callback(client.close)
+            def factory(role):
+                if role not in models:
+                    from .deep_models import model_client_ownership
+                    with model_client_ownership(own):
+                        models[role] = configured_model(workspace.store, role)
+                return models[role]
+        async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
+            yield build_agent(workspace, factory, saver, knowledge, rules, decision_only=decision_only)
 
 
 async def run_report(workspace, model_factory=None, *, knowledge=None, decision_only=False):

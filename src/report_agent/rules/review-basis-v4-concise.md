@@ -16,3 +16,7 @@ Preserve defects, missing evidence and incomplete work; reading, planning or sav
 correctness. Content and standards remain read-only. Reuse prior items only through explicit
 compatible confirm_review_reuse mappings from old_item_index to the current new_scope_id.
 Old records do not automatically complete this task. Return saved results and gaps.
+Use the commission origin to relate assigned judgments to original outcomes.
+Keep unproved original outcomes visible in your return to Co,
+even when a narrower assigned check can be saved as satisfied. A saved record or a
+corrected submission does not itself supply the missing evidence.

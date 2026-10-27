@@ -1,40 +1,14 @@
-# Validation: regression-20261027-post-permanent-cleanup
+# Validation: regression-20261027-unified-r06
 
-The fresh post-permanent-cleanup offline regression collected 3,601 unique tests:
-3,592 passed, zero failed, and nine existing dedicated-graph-service setup skips.
-Two optional GEPA/DSPy collection modules remain uncovered. All 10,794 expected
-setup/call/teardown reports and JUnit outcomes were audited, with no missing,
-unexpected or duplicate tests. All six shards exited successfully. Neo independently
-reviewed the actual results. No prior passing fragments were reused.
+Shared agent runtime lifecycle and typed render-state contracts were aligned; Reviewer prompts preserve original quality requirements and evidence limits, and Co prompts retain unresolved obligations instead of expanding a local pass. Explicit historical runtime profiles remain supported.
 
-The complete 733-file local source snapshot and 1,331 protected local files were
-unchanged throughout this run. The sole pre-run source change was the requested
-execution-independence policy in the local developer AGENTS.md. Business code,
-runtime role prompts, configuration and original tests were unchanged. All 667
-published exact-source files match the new local frozen source byte for byte.
-Sanitized release documentation and publication exclusions remain separate metadata.
+The fresh offline full regression collected 3639 unique tests: 3630 passed, zero failed, nine existing dedicated-graph setup skips. All original 3634 previous-run nodes remain, plus five accepted migration controls. Neo independently checked all 10908 phase records and corresponding JUnit results. The five previous failures now pass after reviewed default-expectation and fixture corrections that preserve business assertions; previous failure evidence remains local.
 
-This run used a new source/fixture snapshot and private temporary interpreter,
-with the accepted shared third-party dependencies. Normal Python workers and the
-unchanged test wrapper's children rejected original-project, real-finance,
-quarantine and foreign-execution inputs. Synthetic guard probes were separated
-from actual full-run logs; the actual run recorded zero forbidden input accesses.
-This is Python open/SQLite input fencing, not an OS sandbox: alternate interpreters,
-Python -S, non-Python children, shared HOME and unspecified OS temporary storage
-are not claimed to be universally isolated.
+All 741 local source files and 1331 protected files were unchanged during execution. Published exact-source files match the tested snapshot byte for byte. Private fixture archives, runtime data, financial records, credentials and original development Git history are excluded. The public clone full suite is not established because historical replay tests require the private fixture bundle.
 
-Historical run directories were permanently retired after independent financial
-retention. Rounds 03-06 and the entire local analysis directory remain preserved.
-Operational data, ledgers, authorization history and private recorded fixtures are
-not published. The independent financial directory is explicitly Git-ignored.
-Some replay tests need the retained private fixture bundle, so a clean GitHub clone's
-complete regression has not been demonstrated.
+Nine dedicated graph integration tests require REPORT_GRAPH_TEST_URI; optional GEPA and DSPy modules were not collected because those dependencies are absent. Python input fencing verified normal children and wrapper-grandchildren with no actual old-input violations; it is not an OS sandbox and does not cover alternate interpreters, Python -S or non-Python children. Loopback, shared HOME and OS temporary storage are not universally isolated.
 
-This tag records offline non-regression and execution-storage policy. It does not
-close the known real-agent review-coverage/completion-claim concerns, prove semantic
-Reviewer effectiveness, or claim report/engineering acceptance. No new report or
-paid model call was started and no unknown outcome was replayed or hold released.
+This tag establishes offline non-regression, not improved real-LLM Reviewer detection, Co semantic correctness, Office capability or engineering acceptance. Those require the separate authorized synthetic real-model round. No model reasoning-effort changes are included. Email is paused.
 
-Local full audit SHA256: 76f25c1bf79bf6d70e2c80a2af68c418b4cf377f64901a4b99e1d171f7143fee
-Local full manifest SHA256: 5c6d18d33e2ce95314b2eafcb54a9ce1515b7cfb2c5a9482a5a7ad9b36950db5
-Independent full review SHA256: ea70c18b478e6d1150c0336633a46eec2e2135fb9e7dee3d5c71ea91e657d2c7
+Full audit SHA256: 6fed48a7c2daaaa1d8962f389f92335de8e04900000a7028a61c953e4534517e
+Independent review SHA256: 9e7d3c0a8e98c257e53281715d2e8311b9d935f315fe5f2162977ca9ec048409

@@ -261,6 +261,11 @@ def working_summary(model,store,role=None,*,prompt_profile=LEGACY_PROMPTS):
     prompt=PROMPT if source=='working-summary' else load_prompt(source)
     defaults=compute_summarization_defaults(model)
     summary=model.model_copy() if hasattr(model,'model_copy') else model
+    if summary is not model and role and isinstance(getattr(summary, 'callbacks', None), list):
+        from .deep_models import RuntimeStatus
+        # The shared service keeps its identity; activity belongs to this history's actor.
+        summary.callbacks = [RuntimeStatus(c.store, role, model_service_role=c.role)
+                             if isinstance(c, RuntimeStatus) else c for c in summary.callbacks]
     if hasattr(summary,'max_tokens'):
         summary.max_tokens=SUMMARY_OUTPUT_LIMIT
     if hasattr(summary,'reasoning_effort'):

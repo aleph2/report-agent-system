@@ -111,6 +111,9 @@ def test_reinitialization_preserves_explicit_interface_without_migrating_absent_
             {'id': 's', 'title': 'Fixture', 'content': 'Supplied fixture text.', 'coverage': 'complete'}]}
         if selected:
             data['review_interface_profile'] = selected
+        else:
+            # Build a historical absent-release case, not today's implicit fresh default.
+            data['context_policy'] = 'stateful-tools-v1'
         manifest.write_text(json.dumps(data))
         monkeypatch.setattr('sys.argv', ['report-agent', 'init', '--project', str(root), '--manifest', str(manifest)])
         assert main() == 0

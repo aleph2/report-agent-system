@@ -23,3 +23,7 @@ not prove correctness. Preserve established defects, missing evidence and incomp
 checks. Content and standards remain read-only. Explicit compatible prior-item reuse
 uses confirm_review_reuse with old_item_index to current new_scope_id; older records
 do not automatically complete this task. Return the actual saved result and gaps.
+Use the commission origin to relate assigned judgments to original outcomes.
+Keep unproved original outcomes visible in your return to Co,
+even when a narrower assigned check can be saved as satisfied. A saved record or a
+corrected submission does not itself supply the missing evidence.
