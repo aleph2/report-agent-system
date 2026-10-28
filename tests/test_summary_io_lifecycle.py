@@ -39,9 +39,23 @@ async def test_summary_preserves_history_and_actual_outcome_classification(ws, m
     if local_refusal:
         monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
     sent = []
+    deadlines = []
+    if not local_refusal:
+        from types import SimpleNamespace
+        import report_agent.model_invocation as invocation
+        def timeout_when_dispatched(delay):
+            assert delay == .05
+            timer = asyncio.timeout(None)
+            deadlines.append(timer)
+            return timer
+        scenario_asyncio = SimpleNamespace(**vars(asyncio))
+        scenario_asyncio.timeout = timeout_when_dispatched
+        monkeypatch.setattr(invocation, 'asyncio', scenario_asyncio)
 
     async def transport(request):
+        assert not local_refusal and len(deadlines) == 1
         sent.append(request)
+        deadlines[0].reschedule(asyncio.get_running_loop().time() + .05)
         await asyncio.Event().wait()
 
     model.http_async_client._transport = httpx.MockTransport(transport)
@@ -53,7 +67,7 @@ async def test_summary_preserves_history_and_actual_outcome_classification(ws, m
     try:
         with token_budget(tokens):
             with pytest.raises(RequestBudgetExceeded if local_refusal else ModelRequestDeadlineExceeded) as caught:
-                await summary._acreate_summary(history)
+                await asyncio.wait_for(summary._acreate_summary(history), 30)
             if local_refusal:
                 assert str(caught.value) == 'AUTHORIZED_TOKEN_BUDGET_REACHED'
         saved = ws.store.get(summary._failure_key())

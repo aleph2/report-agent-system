@@ -426,7 +426,7 @@ def configured_model(store, role):
         role_generation(store, role, name, url)
         if not key or not url or urlparse(url).scheme != "https":
             raise RuntimeError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")
-        effort = os.environ.get("REPORT_REASONING_EFFORT", "max")
+        effort = os.environ.get("REPORT_REASONING_EFFORT", "high")
         if effort not in {"low", "high", "max"}:
             raise RuntimeError("DEEPSEEK_REASONING_EFFORT_INVALID")
         strict = os.environ.get('REPORT_DEEPSEEK_STRICT', '0') == '1'

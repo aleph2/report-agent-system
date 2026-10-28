@@ -268,12 +268,20 @@ def working_summary(model,store,role=None,*,prompt_profile=LEGACY_PROMPTS):
                              if isinstance(c, RuntimeStatus) else c for c in summary.callbacks]
     if hasattr(summary,'max_tokens'):
         summary.max_tokens=SUMMARY_OUTPUT_LIMIT
-    if hasattr(summary,'reasoning_effort'):
-        summary.reasoning_effort=None
-    if hasattr(summary,'extra_body') and getattr(summary,'openai_api_base',None):
-        if str(getattr(summary,'model_name','')).startswith('deepseek-'):
-            summary.extra_body={**(summary.extra_body or {}),**(
-                {'thinking':{'type':'disabled'}} if urlsplit(str(summary.openai_api_base)).hostname=='api.deepseek.com'
-                else {'enable_thinking':False})}
+    binding = store.get('role_generation') if store else None
+    has_policy = isinstance(binding, dict) and 'working_summary' in binding
+    policy = binding.get('working_summary') if has_policy else None
+    if has_policy and (policy != {'reasoning_effort': 'high'} or not all(
+            isinstance(binding.get(role), dict) and binding[role].get('reasoning_effort') == 'high'
+            for role in ('coordinator', 'writer', 'reviewer', 'layout', 'text_tool'))):
+        raise RuntimeError('INVALID_WORKING_SUMMARY_GENERATION_POLICY')
+    if not has_policy:
+        if hasattr(summary,'reasoning_effort'):
+            summary.reasoning_effort=None
+        if hasattr(summary,'extra_body') and getattr(summary,'openai_api_base',None):
+            if str(getattr(summary,'model_name','')).startswith('deepseek-'):
+                summary.extra_body={**(summary.extra_body or {}),**(
+                    {'thinking':{'type':'disabled'}} if urlsplit(str(summary.openai_api_base)).hostname=='api.deepseek.com'
+                    else {'enable_thinking':False})}
     return WorkingSummary(model=summary,store=store,role=role,prompt_source=source,trigger=defaults['trigger'],
         keep=defaults['keep'],trim_tokens_to_summarize=None,summary_prompt=prompt)

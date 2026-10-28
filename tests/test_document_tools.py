@@ -179,7 +179,8 @@ def test_catalog_blob_is_bound_to_project_and_old_version_is_readable(tmp_path):
     with pytest.raises(ActionRejected, match="SOURCE_NOT_IN_PROJECT"):
         source_page_info(other, first, 1)
     with ws.store.connect() as db:
-        db.execute("UPDATE source_versions SET original=? WHERE id=?", (pdf_bytes(("Tampered",)), first))
+        sha = db.execute("SELECT object_sha256 FROM source_originals WHERE source_id=?", (first,)).fetchone()[0]
+    (ws.store.root / 'sources' / 'objects' / sha).write_bytes(pdf_bytes(("Tampered",)))
     with pytest.raises(ActionRejected, match="SOURCE_ORIGINAL_SHA256_MISMATCH"):
         source_page_info(ws, first, 1)
 

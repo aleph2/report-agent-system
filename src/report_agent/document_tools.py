@@ -62,14 +62,10 @@ def _original(workspace, source_id):
     source = next((s for s in store.manifest["sources"] if s["id"] == source_id), None)
     data = None
     if source is None:
-        # Do not instantiate Catalog: its constructor initializes tables/blocks.
-        uri = store.path.resolve().as_uri() + "?mode=ro"
-        with closing(sqlite3.connect(uri, uri=True)) as db:
-            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_versions'").fetchone()
-            row = db.execute("SELECT data, original FROM source_versions WHERE id=?", (source_id,)).fetchone() if exists else None
+        row = store.source_original(source_id)
         if row is None:
             raise ActionRejected("SOURCE_NOT_IN_PROJECT")
-        source, data = json.loads(row[0]), row[1]
+        source, data = row
         if source.get("id") != source_id:
             raise ActionRejected("SOURCE_METADATA_MISMATCH")
 
@@ -148,19 +144,8 @@ def physical_page_number(locator):
 
 
 def _frozen_page_blocks(workspace, source_id, page):
-    """Match only the explicit physical-page locators written by our importers."""
-    uri = workspace.store.path.resolve().as_uri() + "?mode=ro"
-    matched = []
-    with closing(sqlite3.connect(uri, uri=True)) as db:
-        exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_blocks'").fetchone()
-        if not exists:
-            return matched
-        for ordinal, locator, text in db.execute(
-            "SELECT ordinal, locator, text FROM source_blocks WHERE source_id=? ORDER BY ordinal", (source_id,)
-        ):
-            if physical_page_number(locator) == page:
-                matched.append({"ordinal": ordinal, "locator": locator, "text": text})
-    return matched
+    """Match only explicit imported physical-page locators."""
+    return workspace.store.source_page_blocks(source_id, page)
 
 
 def source_page_info(workspace, source_id: str, page: int) -> dict:

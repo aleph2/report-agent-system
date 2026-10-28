@@ -20,6 +20,8 @@ class Catalog:
                 CREATE TABLE IF NOT EXISTS source_versions (
                     id TEXT PRIMARY KEY, operation TEXT UNIQUE NOT NULL,
                     data TEXT NOT NULL, original BLOB NOT NULL);
+                CREATE TABLE IF NOT EXISTS source_originals (
+                    source_id TEXT PRIMARY KEY, object_sha256 TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS source_blocks (
                     source_id TEXT NOT NULL, ordinal INTEGER NOT NULL,
                     locator TEXT NOT NULL, text TEXT NOT NULL,
@@ -83,7 +85,10 @@ class Catalog:
                       "coverage": parsed["coverage"], "limitations": parsed["limitations"],
                       "content": "\n\n".join(b["text"] for b in parsed["blocks"]),
                       "origin": "operator_upload"}
-            db.execute("INSERT INTO source_versions VALUES (?, ?, ?, ?)", (source_id, operation, encode(source), data))
+            from .original_storage import save_original
+            object_sha = save_original(self.store, data)
+            db.execute("INSERT INTO source_versions VALUES (?, ?, ?, ?)", (source_id, operation, encode(source), b""))
+            db.execute("INSERT INTO source_originals VALUES (?, ?)", (source_id, object_sha))
             self._blocks(db, source_id, parsed["blocks"])
             row = db.execute("SELECT value FROM state WHERE key='source_changes'").fetchone()
             changes = json.loads(row[0]) if row else []
