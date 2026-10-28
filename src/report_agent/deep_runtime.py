@@ -344,7 +344,7 @@ class BusinessBoundary(InvalidToolFeedback):
                                 return Command(graph=returned.graph, goto=returned.goto, resume=returned.resume,
                                                update=dict(pending_updates))
                             return returned
-                        result = await delegated_return(contents, actor, native_call, invoke_native)
+                        result = await delegated_return(contents, actor, native_call, invoke_native, runtime=runtime)
                         from .prompt_sources import review_interface_profile, REVIEW_INTERFACE_V3
                         if actor.role == 'writer' and review_interface_profile(store) in {REVIEW_INTERFACE_V3, 'review-interfaces-v4'}:
                             from .content_tasks import attach_saved_reference_metadata

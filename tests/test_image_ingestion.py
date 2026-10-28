@@ -85,8 +85,7 @@ def test_catalog_registers_original_no_fabricated_text_and_vision_is_read_only(t
     assert provenance["coverage"] == "full_image"
     assert provenance["page"] == 1 and provenance["crop"] is None
     assert provenance["width"] == 100 and provenance["height"] == 80
-    with ws.store.connect() as db:
-        assert db.execute("SELECT original FROM source_versions WHERE id=?", (sid,)).fetchone()[0] == data
+    assert ws.store.source_original(sid)[1] == data
 
 
 @pytest.mark.parametrize("format,suffix", [("PNG", "png"), ("JPEG", "jpg"), ("WEBP", "webp")])

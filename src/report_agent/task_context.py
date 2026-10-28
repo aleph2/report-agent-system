@@ -27,7 +27,7 @@ REVIEW_MATERIALS_PROJECTION = 'review-materials-v1'
 NAVIGATION_TOOLS = frozenset({"read_file", "grep", "glob", "ls", "project_status",
     "content_status", "read_task_supervision", "read_review_status", "read_content_index",
     "read_decision_state", "read_task_assignment", "read_review_obligation_coverage",
-    "read_execution_trace"})
+    "read_execution_trace", "read_summary_observations"})
 
 
 def enabled(workspace):

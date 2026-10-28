@@ -23,6 +23,14 @@ HOST_ADMISSION_REASONS = frozenset({
 })
 
 
+def enforce_host_admission(*, used_plus_held, limit, unknown, failed):
+    """Keep the cause of a host refusal distinct without releasing holds."""
+    if used_plus_held > limit:
+        raise RequestBudgetExceeded('HOST_TOKEN_BUDGET_REACHED')
+    if unknown or failed:
+        raise RequestBudgetExceeded('HOST_TECHNICAL_FAILURE_PENDING')
+
+
 class RequestBudget:
     def __init__(self, maximum, *, deadline_monotonic=None):
         if isinstance(maximum, bool) or not isinstance(maximum, int) or maximum < 1:

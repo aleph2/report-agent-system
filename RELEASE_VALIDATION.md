@@ -1,14 +1,11 @@
-# Validation: regression-20261027-round09
+# Validation: regression-20261028-ocr-fake01
 
-Resolved: preserve qualifier text while avoiding duplicate sentence punctuation; avoid applying the legacy rubric model guard to ordinary delegated review; bind v4 Reviewer export and page access to exact assigned artifacts.
+The release retains SQLite and moves newly imported original files to a hash-addressed local store, while existing database BLOBs remain readable. Source material access is unified for original and page data, not every business query. Repeated context previews and large return indexes are reduced without removing access to complete observations. Model reasoning settings were aligned with high.
 
-Offline regression collected 3663 tests: 3654 passed, zero failed, nine existing graph setup skips. Two optional modules were not collected. The isolated Python input fence has documented limits; private fixtures, runtime data, credentials, financial records and original development history are not included. Clean-clone full test reproducibility is not established.
+Offline: 3710 collected; 3701 passed, zero failed, nine graph-service setup skips. GEPA/DSPy optional modules were unavailable. Some historical private fixtures and runtime state are deliberately excluded; full reproducibility from this sanitized snapshot has not been established.
 
-Round09 ran real models with synthetic inputs: 88 attempts, 7,010,472 recorded tokens, no model timeout and no new unsettled reservation. The mixed default path and qualifier output were exercised; authorized reviewer artifact access was exercised, while unauthorized runtime negative cases remain supported by offline tests only.
+Fake OCR + real LLM: 81 attempts, 5,059,940 tokens, no model timeout, no new held/unknown; four image-only pages processed, 69 text blocks and pagination exercised. Six assigned content checks are supported by independent review; five tool refusals were subsequently corrected. Word and risk workbook content were independently compared against the same snapshot.
 
-Known issues: a strict at-most-once concision criterion conflicts with the author brief and the reviewers' satisfied judgments; an unqualified claim that all eight strict criteria were met is not independently accepted. Fourteen failed tool actions were observed and corrected or retained as scoped limitations. The final Word remains readable with a page-break/whitespace improvement opportunity. Explicit comparison-material grants and a full system-wide authorization audit remain future work. Excel visual readability is outside the latest user scope.
+Known limitations: one low-severity source-description error about blank lines; Word pages were not rendered for visual verification; Excel visual/print presentation was outside scope. Vision requests relied on the provider default high rather than an explicit reasoning_effort. This is a synthetic-data result, not real engineering approval. Robust restart, context/payload follow-ups and on-demand tool search remain to be implemented and validated. No previous real runtime or unknown reservations were replayed.
 
-This release supports a qualified draft, not engineering sign-off or a claim that every issue was resolved.
-
-Full audit SHA256: ddc958c10ac7b8b8a3bdac5a741b5a91aab14c7bb5bd69bd49686cdcb20c56db
-Round09 independent review SHA256: a933c72d1e271ba8050d7e93e9a52dc058b29b231b4f96429c297837f34a17b7
+Previous round09 strict concision-criteria and general authorization limitations remain open; this simpler synthetic case does not establish closure. Round09 independent review SHA256: a933c72d1e271ba8050d7e93e9a52dc058b29b231b4f96429c297837f34a17b7.

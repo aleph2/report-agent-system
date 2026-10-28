@@ -47,6 +47,15 @@ class Store:
             db.close()
 
     @contextmanager
+    def read_only(self):
+        db = sqlite3.connect(self.path.resolve().as_uri() + '?mode=ro', uri=True, timeout=15)
+        try:
+            db.execute('PRAGMA query_only=ON')
+            yield db
+        finally:
+            db.close()
+
+    @contextmanager
     def run_lock(self):
         # The initial CLI is WSL/Linux and deliberately single-worker per project.
         import fcntl
@@ -105,6 +114,43 @@ class Store:
     def set(self, key: str, value: object):
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO state VALUES (?, ?)", (key, encode(value)))
+
+    def source_original(self, source_id):
+        """Read imported source metadata and its legacy or external original."""
+        with self.read_only() as db:
+            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_versions'").fetchone()
+            if not exists:
+                return None
+            mapped = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_originals'").fetchone()
+            if mapped:
+                row = db.execute("SELECT s.data, o.object_sha256 FROM source_versions s LEFT JOIN source_originals o ON o.source_id=s.id WHERE s.id=?", (source_id,)).fetchone()
+            else:
+                old = db.execute("SELECT data FROM source_versions WHERE id=?", (source_id,)).fetchone()
+                row = (old[0], None) if old else None
+            if row is None:
+                return None
+            source = json.loads(row[0])
+            if row[1] is None:
+                data = db.execute("SELECT original FROM source_versions WHERE id=?", (source_id,)).fetchone()[0]
+            else:
+                data = None
+        if row[1] is not None:
+            from .original_storage import read_original
+            data = read_original(self, row[1], source.get('bytes'))
+        return source, data
+
+    def source_page_blocks(self, source_id, page):
+        from .document_tools import physical_page_number
+        matched = []
+        with self.read_only() as db:
+            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_blocks'").fetchone()
+            if not exists:
+                return matched
+            for ordinal, locator, text in db.execute(
+                    "SELECT ordinal, locator, text FROM source_blocks WHERE source_id=? ORDER BY ordinal", (source_id,)):
+                if physical_page_number(locator) == page:
+                    matched.append({"ordinal": ordinal, "locator": locator, "text": text})
+        return matched
 
     @property
     def manifest(self) -> dict:

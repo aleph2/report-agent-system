@@ -21,6 +21,8 @@ SETTING = 'REPORT_COORDINATOR_REASONING_EFFORT'
 @pytest.fixture
 def configured(tmp_path, monkeypatch):
     monkeypatch.setattr(os, 'environ', os.environ.copy())
+    # Preserve these historical max-specific compatibility checks explicitly.
+    monkeypatch.setenv('REPORT_REASONING_EFFORT', 'max')
     monkeypatch.delenv(SETTING, raising=False)
     path = tmp_path / 'model.env'
     write_config(path)

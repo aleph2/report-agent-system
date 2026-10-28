@@ -169,7 +169,11 @@ def prepare_material(workspace, input_refs, source_selections, observation_refs=
         # This is actual public tool data, never an instruction or a receipt of
         # source completeness. No cross-task observation transfer is implicit.
         record=workspace.store.get('tool_observation:'+ref)
-        if actor is None or not record or record['owner']!=actor.id:
+        if actor is None:
+            raise ActionForbidden('FORBIDDEN: text-work observation owner')
+        if not record:
+            raise ActionRejected('TEXT_WORK_OBSERVATION_NOT_FOUND: use read_summary_observations to locate an owned observation_ref')
+        if record['owner']!=actor.id:
             raise ActionForbidden('FORBIDDEN: text-work observation owner')
         if record['tool'] not in {'read_source_page','search_sources','inspect_source_page','analyze_source_image',
                                   'read_content_selection','read_content_export','observe_evidence','analyze_text','analyze_evidence'}:
