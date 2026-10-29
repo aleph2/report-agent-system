@@ -234,7 +234,7 @@ def progress_response_fact(store, call, response, contributions):
     _capture(store,'prompt_response_fact',fact)
 
 
-def classify_agent_system(system, expected):
+def classify_agent_system(system, expected, *, optional_todo=False):
     """Compare ordered application blocks and named platform contributions.
 
     An unexplained residual is retained, never erased or called validated. The
@@ -254,6 +254,11 @@ def classify_agent_system(system, expected):
         text = block.get('text')
         if block.get('type') == 'text' and text in {WRITE_TODOS_SYSTEM_PROMPT, '\n\n'+WRITE_TODOS_SYSTEM_PROMPT}:
             sources.append({'source':'langchain/TodoListMiddleware', 'sha256':digest(text)})
+        elif (optional_todo and block.get('type') == 'text' and
+              text in {load_prompt('reviewer-optional-todo').strip(),
+                       '\n\n' + load_prompt('reviewer-optional-todo').strip()}):
+            sources.append({'source':'langchain/TodoListMiddleware optional',
+                            'files':['reviewer-optional-todo'], 'sha256':digest(text)})
         elif remaining and block == {'type':'text','text':remaining[0]['text']}:
             part = remaining.pop(0)
             sources.append({'source':part['source'], 'sha256':digest(part['text']),
@@ -285,10 +290,36 @@ class CurrentReviewPlan(AgentMiddleware):
         return await handler(request)
 
 
+def project_plan_history(request, workspace=None):
+    """Preserve plan history in the model request."""
+    return request
+
+
+def bind_history_projection(workspace):
+    """Explicit fresh-case profile; never reinterpret an existing checkpoint."""
+    from .errors import ActionRejected
+    from .handoff_release import manifest as bound_manifest
+    selected = bound_manifest(workspace.store).get('history_projection_profile')
+    bound = workspace.store.get('history_projection_binding')
+    if selected not in (None, 'exact-history-v1'):
+        raise ActionRejected('UNKNOWN_HISTORY_PROJECTION_PROFILE')
+    if bound is not None and bound != selected:
+        raise ActionRejected('HISTORY_PROJECTION_BINDING_CHANGED')
+    if selected is None:
+        return False
+    if bound is None:
+        from .model_config import _execution_history
+        if _execution_history(workspace.store):
+            raise ActionRejected('HISTORY_PROJECTION_REQUIRES_FRESH_PROJECT')
+        workspace.store.set('history_projection_binding', selected)
+    return True
+
+
 class AgentPromptBoundary(AgentMiddleware):
     def __init__(self, workspace, role, *, source=None, expression_profile=None, interface_profile=None,
                  prompt_profile=None, review_submission_contract=None):
         self.workspace, self.role, self.source = workspace, role, source
+        self.history_projection = bind_history_projection(workspace) if source is None else False
         self.expression_profile = expression_profile
         self.interface_profile = interface_profile
         self.prompt_profile = prompt_profile
@@ -303,7 +334,7 @@ class AgentPromptBoundary(AgentMiddleware):
         expected = (load_prompt(self.source) if self.source else load_prompt('legacy-review-organizer') if self.role == 'reviewer'
                     and not native_reviewer(self.workspace.store) else
                     load_prompt('content-common') + '\n\n' + load_prompt(role_source))
-        from .prompt_sources import (REVIEW_INTERFACE_V3, role_sources, context_source, describe_current_tools,
+        from .prompt_sources import (REVIEW_INTERFACE_V3, role_sources, render_role_sources, context_source, describe_current_tools,
             report_prompt_profile, report_rule_source, LEGACY_PROMPTS, CONCISE_PROMPTS)
         text_profile = (LEGACY_PROMPTS if self.source is not None else self.prompt_profile
             if self.prompt_profile is not None else report_prompt_profile(self.workspace.store))
@@ -314,22 +345,26 @@ class AgentPromptBoundary(AgentMiddleware):
         submission_contract = (None if self.source is not None else self.review_submission_contract
             if self.review_submission_contract is not None else
             validate_review_submission_contract(bound_manifest(self.workspace.store)))
+        plan_contract = (bound_manifest(self.workspace.store).get('review_plan_contract')
+                         if self.source is None else None)
         if interface == 'review-interfaces-v4' and self.source is None:
-            expected = '\n\n'.join(load_prompt(s) for s in role_sources(
-                self.role, expression_profile, interface, text_profile, submission_contract))
+            selected_sources = role_sources(self.role, expression_profile, interface, text_profile,
+                                            submission_contract, plan_contract)
+            expected = render_role_sources(selected_sources, plan_contract if self.role == 'reviewer' else None)
         saved_handoff = interface == REVIEW_INTERFACE_V3 and self.role in {'coordinator', 'writer'}
         if saved_handoff:
             expected += '\n\n' + load_prompt('saved-reference-handoff')
         if self.role in {'writer','reviewer','layout'}:
             expected += '\n' + load_prompt(context_source(self.role, interface, text_profile))
         blocks = request.system_message.content_blocks if request.system_message else []
-        status, sources = classify_agent_system(request.system_message, expected)
+        status, sources = classify_agent_system(request.system_message, expected,
+            optional_todo=self.role == 'reviewer' and plan_contract == 'optional-v1')
         if status == 'static_mismatch':
             raise PromptCompositionError('PROMPT_STATIC_ROLE_REPLACED')
         files = ([self.source] if self.source else ['legacy-review-organizer'] if self.role == 'reviewer'
             and not native_reviewer(self.workspace.store) else ['content-common', role_source])
         if interface == 'review-interfaces-v4' and self.source is None:
-            files = role_sources(self.role, expression_profile, interface, text_profile, submission_contract)
+            files = role_sources(self.role, expression_profile, interface, text_profile, submission_contract, plan_contract)
         if saved_handoff:
             files.append('saved-reference-handoff')
         if self.role in {'writer','reviewer','layout'}:
@@ -385,6 +420,8 @@ class AgentPromptBoundary(AgentMiddleware):
                 tool_files.append('export-content-snapshot-v4')
         if tool_files:
             sources.append({'source':'native_registered_tools', 'files':tool_files, 'sha256':digest(tool_text)})
+        if self.history_projection and self.source is None:
+            request = project_plan_history(request, self.workspace)
         offered = {'messages':[{'role':'system','content':blocks},
             *[m.model_dump(mode='json') for m in request.messages]], 'tools':tools,
             'delegation_prompt_profile':profile,

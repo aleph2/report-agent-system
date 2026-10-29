@@ -31,9 +31,9 @@ async def test_exact_recovery_pages_use_existing_owner_ref_and_clear_old_checkpo
     update = await mw.abefore_model({'messages': history}, None)
     by_id = {m.id: m for m in update['messages']}
     first = json.loads(by_id['range-0'].content)
-    assert first['preview_cleared'] and first['observation_ref'] == ref
-    assert first['previously_presented_range']['offset'] == 0
-    assert first['previously_presented_range']['end'] == 6000
+    assert not first.get('preview_cleared') and first['observation_ref'] == ref
+    assert first['offset'] == 0 and first['end'] == 6000
+    assert first['text'] == original[:6000]
     assert first['sha256'] == saved['sha256']
     for offset in (6000, 12000):
         message = by_id['range-'+str(offset)]
@@ -115,9 +115,8 @@ async def test_masked_history_keeps_pairs_and_does_not_change_business_evidence(
         history.extend([AIMessage(content='',tool_calls=[{'id':str(i),'name':'read_file','args':{},'type':'tool_call'}]),
             mw.bound_result(ToolMessage('x'*9000,name='read_file',tool_call_id=str(i),id='result'+str(i)))])
     update=await mw.abefore_model({'messages':history},None)
-    assert len(update['messages'])==2
-    assert {m.tool_call_id for m in update['messages']}=={'0','1'}
-    assert all(m.additional_kwargs['report_preview_cleared'] for m in update['messages'])
+    assert update is None
+    assert all(not m.additional_kwargs.get('report_preview_cleared') for m in history)
     # Bodies that can establish a business read, and actual images, are untouched.
     evidence=ToolMessage('x'*9000,name='read_context',tool_call_id='body')
     assert mw.bound_result(evidence) is evidence
@@ -145,9 +144,9 @@ async def test_large_history_pages_offload_with_exact_actor_scoped_recovery(ws):
             read_observation(ws,'rubric_grader',packet['observation_ref'])
         history.extend([AIMessage(content='',tool_calls=[{'id':str(i),'name':'read_execution_trace','args':{},'type':'tool_call'}]),result])
     update=await mw.abefore_model({'messages':history},None)
-    assert len(update['messages'])==1 and update['messages'][0].tool_call_id=='0'
-    first=json.loads(update['messages'][0].content)
-    assert first['preview_cleared']
+    assert update is None
+    first=json.loads(history[1].content)
+    assert not first.get('preview_cleared') and first['text']==raw[:6000]
     assert ws.store.get('tool_observation:'+first['observation_ref'])['text']==raw
 
 
@@ -356,3 +355,42 @@ async def test_native_checkpoint_continuation_recovers_output_and_current_decisi
     assert recovered['text']==raw[6000:12000] and original in raw
     assert 'Preserve contradiction; do not resolve it.' in str(final[0].content)
     assert sum(m.name=='write_file' for m in final if isinstance(m,ToolMessage))==1
+
+
+def test_old_navigation_guidance_is_shared_without_losing_identity():
+    from report_agent.task_context import compact_navigation_guidance
+    from langchain_core.messages import ToolMessage
+    import json
+    note="Old navigation preview removed; exact original remains available. Not a source absence or completed check."
+    def message(i, text=note, cleared=True):
+        packet={"observation_ref":str(i),"sha256":"hash"+str(i),"previously_presented_range":{"offset":i,"end":i+1},"preview_cleared":True,"read_tool":"read_tool_observation","note":text}
+        return ToolMessage(json.dumps(packet),name="read_file",tool_call_id=str(i),id="m"+str(i),additional_kwargs={"report_preview_cleared":cleared})
+    original=[message(1),message(2),message(3,"Different note"),message(4,cleared=False)]
+    projected, shared=compact_navigation_guidance(original)
+    assert shared and len(projected)==len(original)
+    for before,after in zip(original[:2],projected[:2]):
+        expected=json.loads(before.content); del expected["note"]
+        assert json.loads(after.content)==expected and after.tool_call_id==before.tool_call_id and after.id==before.id
+        assert json.loads(before.content)["note"]==note
+    assert projected[2:]==original[2:]
+
+
+async def test_native_model_receives_one_shared_navigation_note_and_exact_refs(ws):
+    from report_agent.deep_runtime import run_report
+    from report_agent.task_context import save_observation, _OLD_NAVIGATION_NOTE
+    from test_deep_runtime import Driver, invoke
+    seed(ws); ws.store.set("context_policy", "stateful-tools-v1")
+    raw="Exact source qualifier 原文。"*1400
+    ref,_=save_observation(ws,"coordinator",ToolMessage(raw,name="read_source",tool_call_id="source"))
+    def finish(messages):
+        pages=[m for m in messages if isinstance(m,ToolMessage) and m.name=="read_tool_observation"]
+        assert len(pages)==4
+        first=[json.loads(m.content) for m in pages[:2]]
+        assert all(not p.get('preview_cleared') and p['observation_ref']==ref for p in first)
+        assert [p['offset'] for p in first]==[0,6000]
+        assert [p['text'] for p in first]==[raw[:6000],raw[6000:12000]]
+        return AIMessage(content="Synthetic recovery only.")
+    driver=Driver(coordinator=[invoke("read_tool_observation",observation_ref=ref,offset=i,characters=6000) for i in (0,6000,12000,18000)]+[finish])
+    result=await run_report(ws,driver)
+    assert result["last_error"] is None
+    assert read_observation(ws,"coordinator",ref)["text"]==raw[:6000]

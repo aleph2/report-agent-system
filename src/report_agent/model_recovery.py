@@ -90,7 +90,7 @@ def canonical_input(payload):
     return value
 
 
-def activate_recovery(store, *, authorization, blocked_calls=(), blocked_wire_hashes=()):
+def activate_recovery(store, *, authorization, blocked_calls=(), blocked_wire_hashes=(), version=1):
     """Explicit host activation; never reset counters, old receipts or token holds.
 
     blocked_calls are canonical identities certified by historical boundary
@@ -98,11 +98,15 @@ def activate_recovery(store, *, authorization, blocked_calls=(), blocked_wire_ha
     """
     if not authorization:
         raise ValueError('RECOVERY_AUTHORIZATION_REQUIRED')
-    policy = {'version': 1, 'authorization': authorization, 'extra_per_call': 1,
+    if type(version) is not int or version not in {1, 2}:
+        raise ValueError('INVALID_RECOVERY_POLICY_VERSION')
+    policy = {'version': version, 'authorization': authorization, 'extra_per_call': 1,
               'extra_per_case': 4, 'cooldown_seconds': 120, 'exhaustions_to_open': 2,
               'backoff_seconds': 2, 'extra_token_ceiling': 8_000_000,
               'blocked_calls': sorted(set(blocked_calls)),
               'blocked_wire_hashes': sorted(set(blocked_wire_hashes))}
+    if version == 2:
+        policy.update(extra_per_call=0, extra_per_case=0, extra_token_ceiling=0)
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         prior = db.execute('SELECT value FROM state WHERE key=?', (POLICY_KEY,)).fetchone()
@@ -133,7 +137,7 @@ def load_recovery_policy(store):
             policy = _get(db, POLICY_KEY, missing)
         if policy is missing:
             return None
-        if (not isinstance(policy, dict) or policy.get('version') != 1
+        if (not isinstance(policy, dict) or type(policy.get('version')) is not int or policy.get('version') not in {1, 2}
                 or not policy.get('authorization')
                 or any(type(policy.get(k)) is not int or policy[k] < 0 for k in (
                     'extra_per_call', 'extra_per_case', 'cooldown_seconds',
@@ -141,7 +145,9 @@ def load_recovery_policy(store):
                 or any(not isinstance(policy.get(k), list) or any(
                     not isinstance(v, str) or len(v) != 64
                     or any(c not in '0123456789abcdef' for c in v) for v in policy[k])
-                    for k in ('blocked_calls', 'blocked_wire_hashes'))):
+                    for k in ('blocked_calls', 'blocked_wire_hashes'))
+                or (policy.get('version') == 2 and any(policy.get(k) != 0 for k in
+                    ('extra_per_call', 'extra_per_case', 'extra_token_ceiling')))):
             raise ValueError('INVALID_RECOVERY_POLICY')
         return policy
     except Exception as exc:

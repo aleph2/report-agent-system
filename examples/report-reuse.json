@@ -1,0 +1,12 @@
+{
+  "synthetic": true,
+  "name": "Cedar compilation and review",
+  "goal": "Write a concise report compiling the fictional Cedar maintenance access arrangements. Include scope, supplied arrangements and their limits; cite sources. Reuse suitable saved materials. Obtain an independent review of the saved report and select it for delivery. The agreed scope is daytime access only: night-time routing is explicitly outside scope, not a missing deliverable. No new design or engineering sign-off.",
+  "sources": [
+    {"id": "brief", "title": "Project scope", "coverage": "complete", "content": "Cedar maintenance report compiles the supplied daytime pedestrian access arrangement during the maintenance week. Structural assessment and night-time arrangements are outside scope."},
+    {"id": "access", "title": "Confirmed arrangement", "coverage": "complete", "content": "During the maintenance week, from 08:00 to 17:00 pedestrians use the east footpath. The west footpath is closed during maintenance."}
+  ],
+  "existing_artifacts": [
+    {"title": "Verified supplied access note", "body": "During the maintenance week from 08:00 to 17:00, pedestrians use the east footpath; the west footpath is closed [access]. This compilation does not cover night-time arrangements or structural assessment [brief].", "source_ids": ["brief", "access"]}
+  ]
+}

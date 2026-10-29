@@ -16,7 +16,7 @@ _LOCK = RLock()
 
 
 @lru_cache(maxsize=2)
-def _load(cache_dir: str):
+def _load(cache_dir: str, local_only: bool = False):
     from fastembed import TextEmbedding
     from huggingface_hub import snapshot_download
 
@@ -27,6 +27,8 @@ def _load(cache_dir: str):
     try:
         path = snapshot_download(**options, local_files_only=True)
     except LocalEntryNotFoundError:
+        if local_only:
+            raise
         path = snapshot_download(**options)
     with (Path(path) / "model_optimized.onnx").open("rb") as model_file:
         if hashlib.file_digest(model_file, "sha256").hexdigest() != MODEL_SHA256:
@@ -48,14 +50,15 @@ class LocalEmbedding:
     dimensions = 384
     coverage_note = "First 512 model tokens of title + body; full text remains readable."
 
-    def __init__(self, cache_dir: str | None = None):
+    def __init__(self, cache_dir: str | None = None, *, local_only: bool = False):
+        self.local_only = local_only
         self.cache_dir = cache_dir or os.environ.get(
             "REPORT_EMBEDDING_CACHE", str(Path.home() / ".cache/report-agent-system/embeddings")
         )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         with _LOCK:
-            model = _load(self.cache_dir)
+            model = _load(self.cache_dir, self.local_only)
             return [row.tolist() for row in model.embed(texts, batch_size=8, parallel=None)]
 
     def embed_query(self, text: str) -> list[float]:

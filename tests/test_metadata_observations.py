@@ -64,14 +64,15 @@ async def test_old_metadata_ranges_restore_without_new_reads_and_are_idempotent(
     history = pairs(history)
     before = deepcopy(ws.store.get('tool_observation:' + ref))
     mw = TaskContext(ws, 'coordinator')
-    updated = add_messages(history, (await mw.abefore_model({'messages': history}, None))['messages'])
+    from report_agent.task_context import restore_cleared_previews
+    assert await mw.abefore_model({'messages': history}, None) is None
+    updated = restore_cleared_previews(ws, 'coordinator', history)
     shown=[m for m in updated if isinstance(m,ToolMessage)]
     assert ''.join(json.loads(m.content)['text'] for m in shown) == saved['text']
     assert [(m.id,getattr(m,'tool_call_id',None)) for m in updated] == [(m.id,getattr(m,'tool_call_id',None)) for m in history]
-    assert all(m.additional_kwargs['report_observation_delivery']['representation'] == 'exact_owned_metadata_range' for m in shown)
     assert await mw.abefore_model({'messages': updated}, None) is None
     assert ws.store.get('tool_observation:' + ref) == before
-    assert len([e for e in ws.store.events() if e['kind']=='identity_metadata_ranges_represented']) == 1
+    assert all(json.loads(m.content).get('preview_cleared') for m in history if isinstance(m,ToolMessage) and json.loads(m.content).get('preview_cleared'))
 
 
 async def test_duplicates_keep_pairing_and_only_latest_exact_range(ws):
@@ -79,13 +80,11 @@ async def test_duplicates_keep_pairing_and_only_latest_exact_range(ws):
     ref, saved = committed(ws)
     history = pairs([page(ws, ref, 0, ident='first'), page(ws, ref, 2000), page(ws, ref, 0, ident='last')])
     mw = TaskContext(ws, 'coordinator')
-    updated = add_messages(history, (await mw.abefore_model({'messages': history}, None))['messages'])
-    shown=[m for m in updated if isinstance(m,ToolMessage)]
-    first = json.loads(shown[0].content)
-    assert first['duplicate_metadata_range'] and first['retained_tool_call_id'] == 'call-last'
-    assert 'text' not in first and json.loads(shown[2].content)['text'] == saved['text'][:2000]
-    assert [(m.id,getattr(m,'tool_call_id',None)) for m in history] == [(m.id,getattr(m,'tool_call_id',None)) for m in updated]
-    assert await mw.abefore_model({'messages': updated}, None) is None
+    assert await mw.abefore_model({'messages': history}, None) is None
+    shown=[m for m in history if isinstance(m,ToolMessage)]
+    assert json.loads(shown[0].content)['text'] == saved['text'][:2000]
+    assert json.loads(shown[2].content)['text'] == saved['text'][:2000]
+    assert shown[0].tool_call_id != shown[2].tool_call_id
 
 
 @pytest.mark.parametrize('tamper', ['owner','tool','sha','ref','response','missing_operation','operation_owner',

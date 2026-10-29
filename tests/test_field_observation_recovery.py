@@ -116,12 +116,11 @@ async def test_field_coordinates_survive_clear_native_compaction_serialization_a
         history.extend([AIMessage('',id=f'a{i}',tool_calls=[{'name':'read_tool_observation','id':str(i),'args':args,'type':'tool_call'}]),
             mw.bound_result(ToolMessage(encode(observation_tool(ws,'coordinator')(**args)),id=f't{i}',name='read_tool_observation',tool_call_id=str(i)))])
     updates=await mw.abefore_model({'messages':history},None)
-    history=add_messages(history,updates['messages'])
-    first=next(m for m in history if m.id=='t0');cleared=json.loads(first.content)
-    assert cleared['field_path']==['first'] and cleared['cursor_scope']=='json_string_value'
-    assert cleared['previously_presented_range']['offset']==1200
-    assert cleared['previously_presented_range']['field_path']==['first']
-    assert cleared['field_sha256']==hashlib.sha256(original['first'].encode()).hexdigest()
+    if updates: history=add_messages(history,updates['messages'])
+    first=next(m for m in history if m.id=='t0');packet=json.loads(first.content)
+    assert packet['field_path']==['first'] and packet['cursor_scope']=='json_string_value'
+    assert packet['offset']==1200 and packet['text']==original['first'][1200:5200]
+    assert packet['field_sha256']==hashlib.sha256(original['first'].encode()).hexdigest()
     assert retain_identity_ranges(ws,'coordinator',history)==history
     history.append(HumanMessage('Continue'))
     summary=WorkingSummary(model=RunnableLambda(lambda _:AIMessage('Continue from recorded observations.')),

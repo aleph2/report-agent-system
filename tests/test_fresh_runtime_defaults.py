@@ -32,9 +32,10 @@ def initialize(tmp_path, monkeypatch, extra=None):
 
 def test_fresh_implicit_native_case_uses_complete_valid_current_bundle(tmp_path, monkeypatch):
     store = initialize(tmp_path, monkeypatch)
-    assert {key:store.manifest.get(key) for key in CURRENT} == CURRENT
+    fresh = {**CURRENT, 'review_plan_contract':'optional-v1', 'history_projection_profile':'exact-history-v1'}
+    assert {key:store.manifest.get(key) for key in fresh} == fresh
     bound = release(store.manifest)
-    assert bound['review_plan_contract'] == 'work-units-v1'
+    assert bound['review_plan_contract'] == 'optional-v1'
     assert bound['delegation_prompt_profile'] == 'separate-description-v1'
 
 

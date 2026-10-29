@@ -36,12 +36,15 @@ def validate_review_plan_contract(manifest):
     from .errors import ActionRejected
     if 'review_plan_contract' not in manifest:
         return None
-    if manifest['review_plan_contract'] != 'work-units-v1':
+    if manifest['review_plan_contract'] not in {'work-units-v1', 'optional-v1'}:
         raise ActionRejected('UNKNOWN_REVIEW_PLAN_CONTRACT')
+    if (manifest['review_plan_contract'] == 'optional-v1'
+            and manifest.get('history_projection_profile') != 'exact-history-v1'):
+        raise ActionRejected('OPTIONAL_REVIEW_PLAN_REQUIRES_COMMON_HISTORY')
     if (manifest.get('review_interface_profile') != REVIEW_INTERFACE_V4
             or manifest.get('review_execution_mode') != NATIVE_REVIEW
             or manifest.get('context_policy') != 'stateful-tools-v2'
-            or manifest.get('context_projection') != 'review-materials-v1'):
+            or manifest.get('context_projection') not in {'review-materials-v1', 'review-materials-v2'}):
         raise ActionRejected('REVIEW_PLAN_REQUIRES_NATIVE_COMPLETE_MATERIALS')
     return manifest['review_plan_contract']
 
@@ -123,6 +126,36 @@ def load_prompt(name):
     if not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]*', name):
         raise ValueError('INVALID_INTERNAL_PROMPT_NAME')
     return (RULES / (name + '.md')).read_text(encoding='utf-8')
+
+
+def render_role_source(name, review_plan_contract=None):
+    text = load_prompt(name)
+    if review_plan_contract != 'optional-v1':
+        return text
+    if name == 'content-reviewer-v4':
+        before, rest = text.split('Plan and verify\n', 1)
+        _, after = rest.split('\nCheck claims and required-but-missing outcomes', 1)
+        return before + load_prompt('reviewer-optional-plan') + '\nCheck claims and required-but-missing outcomes' + after
+    if name == 'content-reviewer':
+        before, rest = text.split('For a complex assignment, form an explicit acceptance plan', 1)
+        _, after = rest.split('Deleting a todo never deletes an obligation.\n', 1)
+        return before + load_prompt('reviewer-optional-plan') + after
+    if name == 'review-basis-v4':
+        before, rest = text.split('Plan work units linking an acceptance standard', 1)
+        _, after = rest.split('\nFor a projected Criterion outcome,', 1)
+        return before + load_prompt('review-basis-optional-plan') + '\nFor a projected Criterion outcome,' + after
+    if name == 'review-basis-v4-concise':
+        old = "Apply your role's acceptance-plan and independent-verification principles to this assignment.\n"
+        if text.count(old) != 1:
+            raise ValueError('OPTIONAL_REVIEW_BASIS_TEMPLATE_MISMATCH')
+        return text.replace(old, load_prompt('review-basis-optional-plan'))
+    return text
+
+
+def render_role_sources(sources, review_plan_contract=None):
+    fragments = {'reviewer-optional-plan', 'review-basis-optional-plan'}
+    return '\n\n'.join(render_role_source(name, review_plan_contract)
+                           for name in sources if name not in fragments)
 
 
 def source_manifest(store, sources, offered):
@@ -207,6 +240,10 @@ def source_manifest(store, sources, offered):
         for location, role, value in locations:
             observed = ('literal' if text and text in value else
                         'trimmed_literal' if text.strip() and text.strip() in value else None)
+            if (observed is None and 'reviewer-optional-plan' in names
+                    and name in {'content-reviewer', 'content-reviewer-v4', 'review-basis-v4', 'review-basis-v4-concise'}
+                    and render_role_source(name, 'optional-v1') in value):
+                observed = 'derived_optional_plan'
             # Only the known summary envelope is formatted into a Human message.
             if observed is None and name in {'working-summary', 'working-summary-concise'} and text.count('{messages}') == 1:
                 prefix, suffix = text.split('{messages}')
@@ -336,7 +373,7 @@ def review_handoff_source(interface_profile, prompt_profile=LEGACY_PROMPTS):
 
 
 def role_sources(role, expression_profile, interface_profile, prompt_profile=LEGACY_PROMPTS,
-                 review_submission_contract=None):
+                 review_submission_contract=None, review_plan_contract=None):
     source = expression_source('content-'+role, expression_profile)
     current = validate_report_prompt_profile({'report_prompt_profile':prompt_profile,
         'review_interface_profile':interface_profile, 'report_expression_profile':expression_profile}) == CONCISE_PROMPTS
@@ -357,6 +394,8 @@ def role_sources(role, expression_profile, interface_profile, prompt_profile=LEG
     sources = ['content-common-v4' if current else 'content-common', source]
     if interface_profile == REVIEW_INTERFACE_V4 and role in {'writer','reviewer'}:
         sources.append(report_rule_source('deliverable-declaration-v4' if role == 'writer' else 'review-basis-v4', prompt_profile))
+    if role == 'reviewer' and review_plan_contract == 'optional-v1':
+        sources += ['reviewer-optional-plan', 'review-basis-optional-plan']
     return sources
 
 

@@ -1,11 +1,38 @@
-# Validation: regression-20261028-ocr-fake01
+# fake-ocr-real-llm-20261029-rc1
 
-The release retains SQLite and moves newly imported original files to a hash-addressed local store, while existing database BLOBs remain readable. Source material access is unified for original and page data, not every business query. Repeated context previews and large return indexes are reduced without removing access to complete observations. Model reasoning settings were aligned with high.
+状态：完整合成流程候选快照，保留已知问题；不是无缺陷正式交付或工程签发。
 
-Offline: 3710 collected; 3701 passed, zero failed, nine graph-service setup skips. GEPA/DSPy optional modules were unavailable. Some historical private fixtures and runtime state are deliberately excluded; full reproducibility from this sanitized snapshot has not been established.
+## 本版改进与变化
+相对此前发布 main 8e54420 的受测源码，固定以下已有实现；本次仅做版本归档，不新增业务修复：
+- 加入基于角色已授权工具元数据的自主工具发现/选择，工具注册版本绑定；词法检索及可选混合检索保留权限边界。
+- 本地向量检索支持 local_only，缺缓存时明确失败，避免该路径自动下载模型。
+- 原生运行完成/中断/失败状态处理收敛到共享入口，增加恢复和来源ID错误反馈的离线覆盖。
+- 严格恢复策略保留未知请求，防止旧请求被无证据重放；本次运行独立账本且历史账只读保留。
+- 历史投影/去重回退状态被固定：不将配置名理解成已重新启用历史隐藏；Reviewer可选计划模式沿用当前受测实现。
+- 完成一次从3份4页图像扫描输入出发的真实模型全流程：Writer、独立Reviewer、Word/Excel导出、Layout与排版后审核均实际执行。
+这些是代码/本轮可观察变化，不等同于已测得所有维度性能改善。
 
-Fake OCR + real LLM: 81 attempts, 5,059,940 tokens, no model timeout, no new held/unknown; four image-only pages processed, 69 text blocks and pagination exercised. Six assigned content checks are supported by independent review; five tool refusals were subsequently corrected. Word and risk workbook content were independently compared against the same snapshot.
+## 验证
+- 全量离线收集3929唯一节点；原并行片在ONNX导入段错误后保留证据，43项串行续验通过。独立联合核验3920 passed、9 setup skipped、0 failed。
+- 另2个可选模块因缺gepa/dspy未收集。原并行进程并非全部成功；不能抹去段错误。
+- synthetic/nonblind OCR+real LLM运行：2026-10-29 08:32:55至10:35:14 UTC，2小时2分19秒，310次结算，共21,691,914 token，held=0。
+- 最终快照、Word、Excel和独立审核任务同版本；两风险表98个对应单元格一致。
+- 原始扫描四页均有实际视觉读取；A=18米/120米、B=25米/80米、施工日期由2026-03-01更正为2026-04-15、地下水资料缺失且不得推断不存在，与最终文本吻合。
+- 这只支持本组合成资料的有限事实核对，不证明真实多页OCR准确率。2m为工程预留，未独立证明provider硬上界。
 
-Known limitations: one low-severity source-description error about blank lines; Word pages were not rendered for visual verification; Excel visual/print presentation was outside scope. Vision requests relied on the provider default high rather than an explicit reasoning_effort. This is a synthetic-data result, not real engineering approval. Robust restart, context/payload follow-ups and on-demand tool search remain to be implemented and validated. No previous real runtime or unknown reservations were replayed.
+## 已发现问题
+- P2 排版：最终10页渲染第6页页首孤立残句“亡。”，并有缩进呈现残留；表格/标题的既有排版测试不证明这一正文孤行曾被修复，也未证明同一问题回归。阻断无缺陷正式成品，可作为明确保留问题的草稿。
+- P2 效率候选：第3个Reviewer任务23次submit_review被拒、5次成功，涉及必填字段、精确成果引用、声明范围与执行状态；不能把程序校验通过当语义正确。
+- 修订后Co委派全8项全量复审并重读来源，造成重复工作。后续按用户决定优化Agent行为，只复审变化及直接影响；本次未修改提示词。
+- 首个Reviewer任务目标含导出审查但授权未含导出文件，读取被拒；后续新任务可读并形成正式记录。需改进委派信息与授权匹配，不能放宽权限校验。
+- Writer早期两次证据处理因来源绑定/观察引用被拒，重复读取后纠正，造成额外往返。
+- P3 暂定稳定性风险：ONNX Runtime原生导入段错误，串行续验及3次独立导入未复现，根因未知、未宣称修复。
 
-Previous round09 strict concision-criteria and general authorization limitations remain open; this simpler synthetic case does not establish closure. Round09 independent review SHA256: a933c72d1e271ba8050d7e93e9a52dc058b29b231b4f96429c297837f34a17b7.
+## 后续重点与限制
+先分析实际公开轨迹，结合官方资料及DeepSeek建议，区分角色职责、工具契约、提示词与学习机制问题，再提出最小调整。学习机制和数据库独立耗时本轮未验；不声称已优化。真实数据运行尚未开始，必须按既定验收条件处理。
+
+## 源码与发布范围
+此tag固定本轮实际受测隔离源码，不覆盖Windows开发目录的未提交改动。受测清单原为767项；所有私有historical-duty fixture、另含真实资料提取文本的boundary-trace-20261018.json及生成egg-info不入本tag当前文件集，四个历史继续执行脚本也不入本版。其余文件按原字节存入，manifest记录全部受测SHA及排除项。
+未上传原始工程资料、运行数据库、密钥、财务账本、checkpoint、私有推理或私有回放。排除私有fixture后，公开检出不能声称完整复现本轮全量；原始完整证据仍留本地。保留此前发布副本的已发布根文档，RELEASE_VALIDATION为本版最新说明。
+
+补充隐私说明：boundary-trace-20261018.json已存在此前远端历史，本tag从当前文件集移除；这不等于删除或重写远端旧历史。本次仅推新tag。

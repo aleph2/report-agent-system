@@ -209,11 +209,13 @@ def compact_context(context):
             if k not in {'review_requirements'}}
         invocation = context.get('current_invocation')
         assignment_goal = assignment.get('goal')
-        if (isinstance(assignment_goal, str) and len(assignment_goal) > 800
-                and isinstance(invocation, dict) and invocation.get('description') == assignment_goal):
-            result['assignment']['goal'] = {'same_as':['current_invocation','description'],
+        if (isinstance(assignment_goal, str) and isinstance(invocation, dict)
+                and invocation.get('description') == assignment_goal):
+            reference = {'same_as':['current_invocation','description'],
                 'characters':len(assignment_goal), 'sha256':digest(assignment_goal),
                 'complete':False, 'read_state_path':['assignment','goal']}
+            if len(encode(reference)) < len(encode(result['assignment']['goal'])):
+                result['assignment']['goal'] = reference
         requirements = assignment.get('review_requirements') or []
         result['assignment']['review_scope_inventory'] = {
             'total':len(requirements), 'read_state_path':['assignment','review_requirements'],

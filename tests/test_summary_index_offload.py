@@ -62,9 +62,10 @@ async def test_old_index_preview_clears_without_losing_original_tail(ws):
         msg=middleware.bound_result(ToolMessage(content=raw,tool_call_id=str(i),name='read_summary_observations'))
         history.extend([ai,msg])
     update=await middleware.abefore_model({'messages':history},None)
-    cleared=update['messages'][0]
-    assert cleared.tool_call_id=='0' and cleared.additional_kwargs['report_preview_cleared']
-    ref=cleared.additional_kwargs['report_observation_ref']
+    assert update is None
+    original=history[1]
+    assert not original.additional_kwargs.get('report_preview_cleared')
+    ref=original.additional_kwargs['report_observation_ref']
     assert read_observation(ws,'coordinator',ref,6000,6000)['text']==originals[0][6000:12000]
     capture(ws,'coordinator',history+[AIMessage(content='',tool_calls=[{'id':'later','name':'project_status','args':{}}]),
         ToolMessage(content='new result',tool_call_id='later',name='project_status')])
@@ -89,9 +90,9 @@ async def test_real_v2_index_snapshot_survives_clear_compaction_and_reopen(ws):
         msg=middleware.bound_result(ToolMessage(content=raw,id='t-'+ident,tool_call_id=ident,name='read_summary_observations'))
         calls.extend([ai,msg])
     updates=await middleware.abefore_model({'messages':calls},None)
-    calls=add_messages(calls,updates['messages'])
+    if updates: calls=add_messages(calls,updates['messages'])
     first=next(m for m in calls if m.id=='t-index-0')
-    assert first.additional_kwargs['report_preview_cleared']
+    assert not first.additional_kwargs.get('report_preview_cleared')
     ref=first.additional_kwargs['report_observation_ref']
     assert capture(ws,'coordinator',calls)
     summary=WorkingSummary(model=RunnableLambda(lambda _:AIMessage('Synthetic continuation.')),
@@ -122,7 +123,7 @@ async def test_actual_native_recovery_index_keeps_exact_tail(ws):
     assert len(expected)>6000
     def retrieve(messages):
         indices=[m for m in messages if isinstance(m,ToolMessage) and m.name=='read_summary_observations']
-        assert indices[0].additional_kwargs['report_preview_cleared']
+        assert not indices[0].additional_kwargs.get('report_preview_cleared')
         ref=indices[0].additional_kwargs['report_observation_ref']
         return invoke('read_tool_observation',observation_ref=ref,offset=6000,characters=6000)
     def finish(messages):

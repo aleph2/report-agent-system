@@ -400,9 +400,9 @@ async def test_metadata_survives_navigation_preview_clear_and_exact_recovery(ws)
         followers = [context.bound_result(ToolMessage('navigation ' * 1000, name='project_status',
                       tool_call_id='later-' + str(i))) for i in range(2)]
         update = await context.abefore_model({'messages': [shown, *followers]}, None)
-        cleared = next(m for m in update['messages'] if m.tool_call_id == 'assignment')
-        packet = json.loads(cleared.content)
-        assert packet['preview_cleared'] and packet['decision_metadata'] == first['decision_metadata']
+        assert update is None  # history is preserved, not automatically cleared
+        packet = json.loads(shown.content)
+        assert not packet.get('preview_cleared', False) and packet['decision_metadata'] == first['decision_metadata']
         chunks, offset = [], 0
         while True:
             page = read_observation(ws, 'reviewer', first['observation_ref'], offset, 6000)
