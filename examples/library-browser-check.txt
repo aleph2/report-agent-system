@@ -1,0 +1,13 @@
+Synthetic browser fixture only; unrelated to engineering delivery.
+Marker01: Shared library test.
+Marker02: Preserve line positions.
+Marker03: No model call requested.
+Marker04: No OCR requested.
+Marker05: Test paged reading.
+Marker06: Test literal retrieval.
+Marker07: Original bytes remain saved.
+Marker08: New relevance is unassessed.
+Marker09: A search hit is not full coverage.
+Marker10: Continue reading on the next page.
+Marker11: Last-page content.
+Marker12: <img src=x onerror=alert(1)> is plain source text.

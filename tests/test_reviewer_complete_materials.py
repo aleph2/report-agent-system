@@ -107,7 +107,8 @@ def test_material_projection_requires_v4_before_model_construction(case, profile
         build_agent(workspace, forbidden, None)
 
 
-async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(case, monkeypatch):
+@pytest.mark.parametrize("profile", ["review-materials-v1", "review-materials-v2"])
+async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(case, monkeypatch, profile):
     import httpx
     from types import SimpleNamespace
     from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
@@ -125,7 +126,7 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
         return objects
     monkeypatch.setattr(fixture, 'work', long_work)
     cs, _, criteria, _ = prepared(case)
-    workspace = configure(cs)
+    workspace = configure(cs, profile)
     wires = []
     with delegated_task(workspace, 'coordinator', review_call(criteria)):
         middleware = TaskContext(workspace, 'reviewer')
@@ -305,3 +306,69 @@ def test_wrong_evidence_uuid_fails_without_aliasing_then_explicit_correction_rea
         assert corrected['receipt_id']
         assert encode(evidence) in encode(corrected)
         assert cs.list_objects('ReviewRecord') == []
+
+
+async def test_full_materials_reviewer_keeps_exact_invocation_and_aliases_equal_goal(case):
+    cs, _, criteria, _ = prepared(case)
+    workspace = configure(cs)
+    goal="Inspect each supplied requirement carefully. "*14
+    assert 200 < len(goal) < 800
+    call=review_call(criteria); call["args"]["description"]=goal
+    with delegated_task(workspace, "coordinator", call):
+        packet=await presented(TaskContext(workspace,"reviewer"),[])
+        assert packet["current_invocation"]["description"]==goal
+        assert packet["assignment"]["goal"]["same_as"]==["current_invocation","description"]
+        assert packet["assignment"]["goal"]["read_state_path"]==["assignment","goal"]
+        assert packet["review_materials"]["objects_complete"] is True
+
+
+async def test_pooled_projection_preserves_exact_full_materials_and_scope(case):
+    from report_agent.task_context import complete_review_materials, exact_task_context, expand_review_material_refs
+    cs, _, criteria, _ = prepared(case)
+    workspace = configure(cs, "review-materials-v2")
+    with delegated_task(workspace, "coordinator", review_call(criteria)):
+        exact=exact_task_context(workspace,"reviewer")
+        expected=complete_review_materials(workspace,exact["assignment"])
+        packet=await presented(TaskContext(workspace,"reviewer"),[])
+        assert expand_review_material_refs(packet["review_materials"])==expected
+        assert packet["review_materials"]["objects_complete"] is True
+
+
+async def test_pooled_mapped_scopes_on_sdk_wire_reconstruct_after_store_reopen(case):
+    import httpx
+    from types import SimpleNamespace
+    from langchain_core.messages import SystemMessage,HumanMessage
+    from report_agent.deep_models import GLMChatOpenAI,model_async_client
+    from report_agent.store import Store
+    from report_agent.task_context import complete_review_materials,exact_task_context,expand_review_material_refs
+    from test_prompt_native_sdk_inputs import completion
+    cs,declared,criteria,_=prepared(case)
+    workspace=configure(cs,"review-materials-v2")
+    target=declared["refs"]["a-body"]
+    scope={"kind":"mapped","items":[{"criterion_ref":c,"target_ref":target,"assessment_kind":"content","extent":"local_body"} for c in criteria]}
+    wires=[]
+    with delegated_task(workspace,"coordinator",review_call(criteria,scope=scope)):
+        task=exact_task_context(workspace,"reviewer")["assignment"]
+        original=complete_review_materials(workspace,task)
+        client=model_async_client(cs.store,"reviewer")
+        async def transport(request):
+            wires.append(json.loads(request.content));return completion(request,"Synthetic observation only.")
+        client._transport=httpx.MockTransport(transport);client._mounts.clear()
+        model=GLMChatOpenAI(model="glm-5.3",api_key="offline-only",base_url="https://fixture.invalid/v1",use_responses_api=False,http_async_client=client,max_retries=0,disable_streaming=True)
+        try:
+            for current in (TaskContext(workspace,"reviewer"),TaskContext(Workspace(Store(cs.store.root)),"reviewer")):
+                request=SimpleNamespace(messages=[],system_message=SystemMessage("Role authority."))
+                request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
+                async def handler(projected): return await model.ainvoke([projected.system_message,HumanMessage("Review the assigned scopes.")])
+                await current.awrap_model_call(request,handler)
+        finally:
+            await model.root_async_client.close();model.root_client.close()
+        assert len(wires)==2
+        for wire in wires:
+            system=next(m["content"] for m in wire["messages"] if m["role"]=="system")
+            frame=next(json.loads(b["text"].split("\n",1)[1]) for b in system if isinstance(b,dict) and b.get("text","").startswith("Current task bindings"))
+            view=frame["review_materials"]
+            assert len(view["material_refs_pool"])==1
+            assert all(item["material_refs_pool_index"]==0 for item in view["requirements"])
+            assert expand_review_material_refs(view)==original
+        assert cs.list_objects("ReviewRecord")==[]

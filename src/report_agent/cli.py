@@ -16,7 +16,8 @@ FRESH_NATIVE_DEFAULTS = {
     'report_prompt_profile': 'concise-v1',
     'context_policy': 'stateful-tools-v2',
     'context_projection': 'review-materials-v1',
-    'review_plan_contract': 'work-units-v1',
+    'history_projection_profile': 'exact-history-v1',
+    'review_plan_contract': 'optional-v1',
     'review_submission_contract': 'task-scope-selectors-v1',
 }
 

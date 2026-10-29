@@ -5,7 +5,7 @@ from .errors import ActionRejected
 
 FIELDS = ('review_interface_profile', 'delegation_prompt_profile', 'operation_identity_profile',
     'content_input_profile', 'report_expression_profile', 'content_contract', 'review_entrypoint',
-    'review_execution_mode', 'goal', 'scope_instruction', 'report_id', 'report_category', 'source_use', 'report_prompt_profile', 'review_plan_contract', 'review_submission_contract')
+    'review_execution_mode', 'goal', 'scope_instruction', 'report_id', 'report_category', 'source_use', 'report_prompt_profile', 'review_plan_contract', 'review_submission_contract', 'tool_discovery_profile', 'history_projection_profile')
 METADATA = {'review_interface_profile': 'report_review_interface_profile',
     'delegation_prompt_profile': 'report_delegation_prompt_profile',
     'operation_identity_profile': 'report_operation_identity_profile',
@@ -21,6 +21,10 @@ def release(manifest):
     from .operation_identity import validate_profile
     from .store import digest
     validate_review_interface_profile(manifest)
+    if manifest.get('tool_discovery_profile') not in (None, 'agent-search-v1', 'agent-search-v2'):
+        raise ActionRejected('UNKNOWN_TOOL_DISCOVERY_PROFILE')
+    if manifest.get('history_projection_profile') not in (None, 'exact-history-v1'):
+        raise ActionRejected('UNKNOWN_HISTORY_PROJECTION_PROFILE')
     validate_report_prompt_profile(manifest)
     plan_contract = validate_review_plan_contract(manifest)
     validate_review_submission_contract(manifest)

@@ -51,7 +51,7 @@ def host(tmp_path, monkeypatch, local):
     monkeypatch.setattr(harness, 'CASE', tmp_path)
     out = tmp_path/'window'
     out.mkdir()
-    (tmp_path/'.runs').mkdir()
+    (tmp_path/'synthetic-runtime').mkdir()
     monkeypatch.setattr(harness, 'OUT', out)
     monkeypatch.setattr(harness, 'code_hashes', lambda: {'synthetic': 'bound'})
     monkeypatch.setattr(harness, 'load_mixed_services', lambda _: None)

@@ -480,8 +480,18 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         """
         from .source_tables import present_source_tables
         from .source_materials import returned, block_material
-        value = present_source_tables(workspace, catalog.read(source_id, offset, limit), table_detail)
+        try:
+            page = catalog.read(source_id, offset, limit)
+        except ActionRejected as exc:
+            if str(exc) != "SOURCE_NOT_IN_PROJECT":
+                raise
+            raise ActionRejected("SOURCE_NOT_IN_PROJECT: use a source catalog ID, not SourceArtifact.ref.id; check project_status or the authorized SourceArtifact payload.source_id") from None
+        value = present_source_tables(workspace, page, table_detail)
         return returned(workspace,role,'read_source_page',value,block_material(value),runtime)
+
+    if store.get("tool_discovery_binding") == "agent-search-v2":
+        read_source_page.__annotations__["source_id"] = Annotated[str, Field(
+            description="Exact source catalog ID from project_status or an authorized SourceArtifact payload.source_id; not SourceArtifact.ref.id.")]
 
     def search_sources(query: str, offset: int = 0, limit: int = 10,
                        source_id: str | None = None,
@@ -908,6 +918,8 @@ def require_native_runtime(workspace):
 
 def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
+    from .tool_discovery import bind_profile
+    bind_profile(workspace.store, workspace.store.manifest.get("tool_discovery_profile"))
     manifest = workspace.store.manifest
     from .operation_identity import validate_profile as operation_profile
     identity_profile = operation_profile(manifest)
@@ -943,8 +955,9 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     backend = StateBackend()
     summary_service = model_factory("coordinator") if managed_context else None
     summary_options = {'prompt_profile': text_profile} if text_profile == CONCISE_PROMPTS else {}
+    discovery_registries = {}
 
-    def middleware(role, subagent_descriptions=()):
+    def middleware(role, subagent_descriptions=(), registered=()):
         from .task_context import enabled as context_enabled, TaskContext
         from .working_summary import working_summary
         from .prompt_sources import native_reviewer
@@ -952,9 +965,19 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         from .execution_progress import ExecutionProgress
         from .prompt_sources import validate_review_plan_contract
         from .review_work_units import ReviewPlanning
-        todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
+        plan_contract = validate_review_plan_contract(manifest)
+        if role == 'reviewer' and plan_contract == 'work-units-v1':
+            todo = ReviewPlanning(workspace)
+        elif role == 'reviewer' and plan_contract == 'optional-v1':
+            from .prompt_sources import load_prompt
+            todo = TodoListMiddleware(system_prompt=load_prompt('reviewer-optional-todo').strip())
+        else:
+            todo = TodoListMiddleware()
+        discovery = ToolDiscovery(registered, profile=discovery_profile) if discovery_enabled else None
+        if discovery is not None:
+            discovery_registries[role] = discovery.fingerprints
         return [FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
-                *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
+                *([todo, *([] if managed_context and manifest.get('history_projection_profile') == 'exact-history-v1' else [CurrentReviewPlan(workspace)])] if role == 'reviewer' and native_reviewer(workspace.store) else
                   [TodoListMiddleware()] if role == 'coordinator' and native_reviewer(workspace.store) else []),
                 *([TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
                 *([ExecutionProgress(workspace,role)]
@@ -963,13 +986,15 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 # Writer GLM-5.3 has forced thinking; its authored calls remain unchanged.
                 *([working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
                 BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions),
+                *([discovery] if discovery is not None else []),
                 AgentPromptBoundary(workspace, role, expression_profile=expression_profile,
                                     interface_profile=interface_profile, prompt_profile=text_profile,
                                     review_submission_contract=submission_contract)]
 
     def configured_prompt(role):
         prompt = (role_prompt(role, expression_profile=expression_profile, interface_profile=interface_profile,
-                             prompt_profile=text_profile, review_submission_contract=submission_contract)
+                             prompt_profile=text_profile, review_submission_contract=submission_contract,
+                             review_plan_contract=manifest.get('review_plan_contract'))
                   if interface_profile == 'review-interfaces-v4' else
                   role_prompt(role) if expression_profile == REPORT_EXPRESSION_V1 else
                   role_prompt(role, expression_profile=expression_profile))
@@ -986,12 +1011,21 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     def context_guidance(role):
         from .prompt_sources import context_source
         return load_prompt(context_source(role, interface_profile, text_profile))
-    subagents = [{"name": role,
-                  "description": load_prompt('content-' + role + '-description') if prompt_profile == SEPARATE_DESCRIPTION else prompt,
-                  "system_prompt": prompt + "\n" + context_guidance(role),
-                  "model": model_factory(role), "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
-                  "middleware": middleware(role)} for role, prompt in roles.items()
-                 if hierarchical or not (native_enabled and role == "reviewer")]
+    from .tool_discovery import ToolDiscovery
+    discovery_profile = manifest.get('tool_discovery_profile')
+    if discovery_profile not in (None, 'agent-search-v1', 'agent-search-v2'):
+        raise ActionRejected('UNKNOWN_TOOL_DISCOVERY_PROFILE')
+    discovery_enabled = discovery_profile in {'agent-search-v1', 'agent-search-v2'}
+    subagents = []
+    for role, prompt in roles.items():
+        if not hierarchical and native_enabled and role == "reviewer":
+            continue
+        role_model = model_factory(role)
+        registered = business_tools(workspace, role, knowledge, model_factory("text_tool"))
+        subagents.append({"name": role,
+            "description": load_prompt('content-' + role + '-description') if prompt_profile == SEPARATE_DESCRIPTION else prompt,
+            "system_prompt": prompt + "\n" + context_guidance(role),
+            "model": role_model, "tools": registered, "middleware": middleware(role, registered=registered)})
     # New hierarchical runs use the delegated reviewer only. The former automatic
     # grader remains behind an explicit historical compatibility setting.
     review_middleware = []
@@ -1011,10 +1045,18 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                                            middleware=[*([TodoListMiddleware()] if acceptance else []),
                                                        BusinessBoundary(workspace, "rubric_grader")])]
     from .native_trace import trace_tools
-    agent = create_deep_agent(model=model_factory("coordinator"),
-                             tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool")) + trace_tools(checkpointer),
+    coordinator_model = model_factory("coordinator")
+    coordinator_tools = business_tools(workspace, "coordinator", knowledge, model_factory("text_tool"))
+    coordinator_middleware = middleware("coordinator", tuple((s['name'], s['description']) for s in subagents), coordinator_tools)
+    if discovery_enabled:
+        from .tool_discovery import bind_registry
+        if runtime_version_ref is None:
+            raise ActionRejected("TOOL_DISCOVERY_RUNTIME_IDENTITY_UNAVAILABLE")
+        bind_registry(workspace.store, discovery_registries, runtime_ref=runtime_version_ref)
+    agent = create_deep_agent(model=coordinator_model,
+                             tools=coordinator_tools + trace_tools(checkpointer),
                              system_prompt=configured_prompt("coordinator") if hierarchical else COORDINATOR + ("\n" + ACCEPTANCE_GUIDANCE if acceptance else ""), subagents=subagents, backend=backend,
-                             middleware=[*middleware("coordinator", tuple((s['name'], s['description']) for s in subagents)),
+                             middleware=[*coordinator_middleware,
                                          *([] if native_reviewer(workspace.store) else [TodoListMiddleware()]), *review_middleware],
                              checkpointer=checkpointer, name="report_coordinator")
     from .failure_diagnostics import FailureDiagnostics
@@ -1039,6 +1081,8 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
 @asynccontextmanager
 async def project_agent(workspace, model_factory=None, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
+    from .tool_discovery import bind_profile
+    bind_profile(workspace.store, workspace.store.manifest.get("tool_discovery_profile"))
     async with AsyncExitStack() as resources:
         factory = model_factory
         if factory is None:
@@ -1058,6 +1102,68 @@ async def project_agent(workspace, model_factory=None, knowledge=None, rules="",
                 return models[role]
         async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
             yield build_agent(workspace, factory, saver, knowledge, rules, decision_only=decision_only)
+
+
+def finish_native_run(workspace, snapshot, result, *, delegated_review, native_enabled, hierarchical):
+    """Apply the native graph completion, interrupt and status bookkeeping."""
+    store = workspace.store
+    if delegated_review:
+        store.set("report_status", "completed")
+    elif native_enabled:
+        if hierarchical:
+            from .hierarchical_review import reconcile
+            reconcile(workspace, snapshot.values)
+        else:
+            reconcile_review(workspace, snapshot.values)
+    store.set("checkpoint_resume", bool(snapshot.next))
+    store.set("native_interrupts", [{"id": i.id, "value": i.value} for i in snapshot.interrupts])
+    if snapshot.interrupts:
+        from .text_work_interrupts import KIND
+        from .execution_progress import KIND as PROGRESS_KIND
+        status = ("needs_attention" if any(i.value.get("kind") in {KIND,PROGRESS_KIND} for i in snapshot.interrupts)
+                  else "needs_human")
+        store.set("report_status", "decision_observed" if store.get("decision_observation") else status)
+        if any(i.value.get('kind')==PROGRESS_KIND for i in snapshot.interrupts):
+            store.set('report_error',{'failure_kind':'execution_progress_attention','automatic_resume':False})
+    elif store.get("report_status") == "running":
+        store.set("report_status", "needs_attention")
+    messages = result.get("messages", [])
+    if messages:
+        store.set("agent_summary", messages[-1].content)
+    store.event("deep_run_finished", {"status": store.get("report_status")})
+
+
+def fail_native_run(workspace, exc, diagnostics, *, progress_recovery_keys=()):
+    """Record a native graph failure using the standard public classification."""
+    store = workspace.store
+    diagnostic = diagnostics.record(exc, phase="run_report")
+    failure = {**error_data(exc), **(diagnostic or {})}
+    from .model_recovery import recovery_block
+    from .input_capacity import capacity_failure, capacity_handling
+    technical_timeout = is_model_timeout(exc)
+    recovery_blocked = recovery_block(exc) is not None
+    capacity = capacity_failure(exc)
+    from .request_budget import RequestBudgetExceeded
+    progress_limit=bool(progress_recovery_keys) and isinstance(exc,RequestBudgetExceeded)
+    own_progress_limit = progress_limit and getattr(exc, 'execution_progress_recovery_key', None) in progress_recovery_keys
+    if progress_limit:
+        from .execution_progress import mark_observation_limit
+        mark_observation_limit(workspace,progress_recovery_keys,exc)
+    store.set("report_status", "needs_attention" if technical_timeout or recovery_blocked or capacity or progress_limit else "failed")
+    if capacity is not None:
+        handling = capacity_handling(capacity, 'root_agent')
+        failure.update(failure_kind='model_capacity_blocked', capacity=capacity,
+                       handling=handling, handling_owner=handling['handling_owner'], automatic_resume=False)
+    elif progress_limit:
+        failure.update(failure_kind='execution_progress_attention' if own_progress_limit else 'host_admission_blocked',automatic_resume=False,
+            observation_window_stopped=True,
+            recovery='Host diagnosis and a different verified condition are required; the consumed observation grant cannot be replayed.')
+    elif technical_timeout or recovery_blocked:
+        failure.update(failure_kind='model_recovery_blocked' if recovery_blocked else 'model_request_timeout', automatic_resume=False,
+                       recovery='Inspect the existing native checkpoint and attempt receipts; '
+                                'no unknown request replay or successful review is implied.')
+    store.set("report_error", failure)
+    store.event("deep_run_error", failure)
 
 
 async def run_report(workspace, model_factory=None, *, knowledge=None, decision_only=False):
@@ -1203,64 +1309,15 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                             exc.execution_progress_pending_nodes=list(pending.next)
                         raise
                 snapshot = await agent.aget_state(config)
-                if delegated_review:
-                    store.set("report_status", "completed")
-                elif native_enabled:
-                    if hierarchical:
-                        from .hierarchical_review import reconcile
-                        reconcile(workspace, snapshot.values)
-                    else:
-                        reconcile_review(workspace, snapshot.values)
-                store.set("checkpoint_resume", bool(snapshot.next))
-                store.set("native_interrupts", [{"id": i.id, "value": i.value} for i in snapshot.interrupts])
-                if snapshot.interrupts:
-                    from .text_work_interrupts import KIND
-                    from .execution_progress import KIND as PROGRESS_KIND
-                    status = ("needs_attention" if any(i.value.get("kind") in {KIND,PROGRESS_KIND} for i in snapshot.interrupts)
-                              else "needs_human")
-                    store.set("report_status", "decision_observed" if store.get("decision_observation") else status)
-                    if any(i.value.get('kind')==PROGRESS_KIND for i in snapshot.interrupts):
-                        store.set('report_error',{'failure_kind':'execution_progress_attention','automatic_resume':False})
-                elif store.get("report_status") == "running":
-                    store.set("report_status", "needs_attention")
-                messages = result.get("messages", [])
-                if messages:
-                    store.set("agent_summary", messages[-1].content)
-                store.event("deep_run_finished", {"status": store.get("report_status")})
+                finish_native_run(workspace, snapshot, result, delegated_review=delegated_review,
+                                  native_enabled=native_enabled, hierarchical=hierarchical)
         except asyncio.CancelledError:
             store.set("report_status", "interrupted")
             store.set("report_error", {"type": "CancelledError", "message": "INTERRUPTED_CHECKPOINT_AVAILABLE"})
             store.event("deep_run_cancelled", {"type": "CancelledError", "message": "MODEL_RESPONSE_MAY_BE_INCOMPLETE"})
             raise
         except Exception as exc:
-            diagnostic = diagnostics.record(exc, phase="run_report")
-            failure = {**error_data(exc), **(diagnostic or {})}
-            from .model_recovery import recovery_block
-            from .input_capacity import capacity_failure, capacity_handling
-            technical_timeout = is_model_timeout(exc)
-            recovery_blocked = recovery_block(exc) is not None
-            capacity = capacity_failure(exc)
-            from .request_budget import RequestBudgetExceeded
-            progress_limit=bool(progress_recovery_keys) and isinstance(exc,RequestBudgetExceeded)
-            own_progress_limit = progress_limit and getattr(exc, 'execution_progress_recovery_key', None) in progress_recovery_keys
-            if progress_limit:
-                from .execution_progress import mark_observation_limit
-                mark_observation_limit(workspace,progress_recovery_keys,exc)
-            store.set("report_status", "needs_attention" if technical_timeout or recovery_blocked or capacity or progress_limit else "failed")
-            if capacity is not None:
-                handling = capacity_handling(capacity, 'root_agent')
-                failure.update(failure_kind='model_capacity_blocked', capacity=capacity,
-                               handling=handling, handling_owner=handling['handling_owner'], automatic_resume=False)
-            elif progress_limit:
-                failure.update(failure_kind='execution_progress_attention' if own_progress_limit else 'host_admission_blocked',automatic_resume=False,
-                    observation_window_stopped=True,
-                    recovery='Host diagnosis and a different verified condition are required; the consumed observation grant cannot be replayed.')
-            elif technical_timeout or recovery_blocked:
-                failure.update(failure_kind='model_recovery_blocked' if recovery_blocked else 'model_request_timeout', automatic_resume=False,
-                               recovery='Inspect the existing native checkpoint and attempt receipts; '
-                                        'no unknown request replay or successful review is implied.')
-            store.set("report_error", failure)
-            store.event("deep_run_error", failure)
+            fail_native_run(workspace, exc, diagnostics, progress_recovery_keys=progress_recovery_keys)
         finally:
             store.set("report_activity", "")
             if own_knowledge is not None:
@@ -1270,3 +1327,6 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
             state.update(content_delivery=store.get("content_delivery"), content_final_review=store.get("content_final_review"),
                          content_execution_decision=store.get("content_execution_decision"))
         return state
+
+
+

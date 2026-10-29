@@ -20,3 +20,18 @@ def test_changed_invocation_does_not_hide_original_assignment():
     item=compact_context(context)['assignment']['goal']
     assert item['preview'] and item['read_state_path']==['assignment','goal']
     assert 'same_as' not in item
+
+
+def test_medium_identical_assignment_uses_reference_when_it_saves_space():
+    goal="synthetic assignment "*30
+    assert len(goal)<800
+    context={"goal":"project","assignment":{"goal":goal},"current_invocation":{"description":goal},"operator_feedback":[],"issues":[]}
+    result=compact_context(context)
+    assert result["current_invocation"]["description"]==goal
+    assert result["assignment"]["goal"]["same_as"]==["current_invocation","description"]
+
+def test_short_identical_assignment_is_not_expanded_by_reference():
+    goal="short"
+    context={"goal":"project","assignment":{"goal":goal},"current_invocation":{"description":goal},"operator_feedback":[],"issues":[]}
+    result=compact_context(context)
+    assert result["assignment"]["goal"] == goal

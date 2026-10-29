@@ -25,10 +25,11 @@ def enabled(workspace):
 
 
 def role_prompt(role, *, expression_profile=None, interface_profile=None, prompt_profile='legacy-v1',
-                review_submission_contract=None):
-    from .prompt_sources import load_prompt, role_sources, REPORT_EXPRESSION_V1
-    return '\n\n'.join(load_prompt(s) for s in role_sources(role,
-        expression_profile or REPORT_EXPRESSION_V1, interface_profile, prompt_profile, review_submission_contract))
+                review_submission_contract=None, review_plan_contract=None):
+    from .prompt_sources import role_sources, render_role_sources, REPORT_EXPRESSION_V1
+    sources = role_sources(role, expression_profile or REPORT_EXPRESSION_V1, interface_profile,
+                           prompt_profile, review_submission_contract, review_plan_contract)
+    return render_role_sources(sources, review_plan_contract if role == 'reviewer' else None)
 
 
 def actor_for(role):
@@ -52,6 +53,8 @@ def content_tools(workspace, role, runtime_identity=None):
         if review_interface_profile(workspace.store) == 'review-interfaces-v4' else {})
     if selector_mode:
         role_options['review_submission_contract'] = submission_contract
+    if effective_role == 'reviewer' and bound_manifest(workspace.store).get('review_plan_contract') == 'optional-v1':
+        role_options['review_plan_contract'] = 'optional-v1'
     identity = runtime_identity or {"contract": SCHEMA_VERSION, "runtime": "deepagents-0.7.19",
         "role": role, "service": (workspace.store.get("role_model_services") or {}).get(role),
         "prompt_hash": digest(role_prompt(effective_role, **role_options))
