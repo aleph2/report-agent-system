@@ -35,7 +35,7 @@ def test_co_can_page_all_basis_tasks_beyond_twenty_with_exact_state_digest(case)
     assert summary['read_state_path'] == ['review_tasks','tasks',0,'review_commission_basis']
 
 
-def test_v4_runtime_review_identity_uses_its_effective_role_prompt(case):
+async def test_v4_runtime_review_identity_uses_its_effective_role_prompt(case, monkeypatch):
     from report_agent.hierarchical_tools import content_tools, role_prompt
     from report_agent.content_models import ReviewSubmission
     from report_agent.store import digest
@@ -45,11 +45,12 @@ def test_v4_runtime_review_identity_uses_its_effective_role_prompt(case):
     with delegated_task(ws, 'coordinator', review_call(criteria[:1])) as (_, actor):
         task = task_record(cs, actor)['payload']
         receipt = cs.observe(actor, {'objects':[cs.read(output['refs']['a-body'])]})['receipt_id']
-        raw = candidate(task['review_snapshot_ref'], {'root':output['refs']['a'], 'k':criteria[0],
-            'support':output['refs']['support']}, [receipt], verdict='satisfied')
-        raw['items'][0]['scope_id'] = task['review_requirements'][0]['scope_id']
-        submit = next(t for t in content_tools(ws, 'reviewer') if t.__name__ == 'submit_review')
-        result = submit('effective-prompt-identity', ReviewSubmission(**raw))
-        record = cs.read(result['result']['review_ref'])
+        from support.review_message_entry import ReviewEntryProbe
+        from test_review_message import message
+        probe = ReviewEntryProbe(ws, monkeypatch)
+        response = await probe.request(actor, [receipt], message())
+        result = await probe.graph().ainvoke({'messages':[response]})
+        assert result['messages'][-1].status == 'success', result['messages'][-1].content
+        record, = cs.list_objects('ReviewRecord')
         assert record['payload']['runtime_identity']['prompt_hash'] == digest(role_prompt(
             'reviewer', interface_profile='review-interfaces-v4'))

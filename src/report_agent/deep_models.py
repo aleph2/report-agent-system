@@ -234,6 +234,8 @@ class GLMChatOpenAI(ChatOpenAI):
                     raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
                 wire['reasoning_content'] = reasoning
         observe_model_boundary('payload_completed')
+        from .live_messages import validate_wire
+        validate_wire(payload, strict=self.deepseek_strict)
         from .prompt_provenance import bind_wire_payload
         bind_wire_payload(payload)
         return payload

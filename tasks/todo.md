@@ -258,3 +258,36 @@ R06验收补充（未执行）：P2独立fixtures+827时序；P3落源前审具�
 已实施typed渲染事实、summary主体与模型服务分离、默认host模型/client所有权、CLI隐式fresh完整V4合同、Co/Reviewer/审核basis受审输出要求及文档边界。Writer/Layout提示词与角色模型/effort未改。SR1–6自包含样例用于后续语义校准，shape/SDK装配绿不等于自主审核改善；目前未做全量或真实报告，root透明重入与Optimizer/RAG/DB保持后置。
 
 最终定向结果：关联组184P，最后CLI省略旧mode兼容补验17P（分批，不合并为201同源）；原测试零改动，未全量/报告。精确版本/首次失败/Neo结果见上述实施记录。
+
+
+## 2026-10-30 全Agent自解释业务消息重构（仅计划）
+
+共同原则已由用户确认；下列代码/验证任务未执行。Main写、Neo独审，不开新branch，不改highway；提示词/实际输入差异单独审核。
+
+- [ ] D00 全角色/全部现有操作清单及字段合同、技能证据台账；依赖/范围/未决完整。
+- [ ] R10 Reviewer内部证据兼容写入真实ReviewRecord：RED/GREEN、旧记录/事务/证据/负面/版本。
+- [ ] R11 校验/状态/交付/复用直接消费者闭环；不只验证能保存。
+- [ ] C10 复用Co字典/适配，实际task→ToolNode→原binder，权限/身份/版本不变。
+- [ ] RC20 Reviewer平面消息真实入口、字典版本/后续读取/恢复；单check先闭合，不暗删旧复杂能力。
+- [ ] I20 实际system/说明/schema/字典/返回/错误差异审核，提示词最小改动另审，未批准不启用。
+- [ ] V20 原历史用例fake+真实LLM对照及真实记录/下游，指标和质量一起验。
+- [ ] W30 Writer逐业务薄片接入，正文/来源/关系/表格与旧消费者兼容。
+- [ ] L40 Layout逐能力接入，内容只读及导出/视觉/版本边界。
+- [ ] E50 experience_optimizer通信接入（先明确原模块所有权），不改学习/发布策略。
+- [ ] A60 全操作覆盖清单关闭与跨Agent恢复/交接；公开旧兼容和未迁移项。
+- [ ] F70 新同源完整回归：ONNX例外单独、其余五片，Neo核全部节点/phase/JUnit/hash/skip。
+- [ ] F80 完整fake OCR+真实LLM、独立Reviewer/WordExcel/终态与overhead验收；全量提交/tag。
+- [ ] EXT 后续扩展规则的具体开发约定差异审核及合同一致性自动检查；未实装不得声称CI强制。
+
+完整依赖、验收、技能动作与证据要求见tasks/plan.md“2026-10-30 全Agent自解释业务消息重构计划”；所有勾选须附具体版本/命令/结果/限制及Neo处置。
+
+## 2026-10-30 fake02连接失败与断点恢复（用户认证邮件09:37 UTC）
+
+- [ ] P2 视觉HTTP观测归属：vision/store=None与外层writer/coordinator不继承同一scope，成功与失败视觉均缺HTTP阶段；应复用现有观测上下文，离线验证角色/连接阶段记录，不记录图片/凭据、不改变重试和预算行为。阻断精确网络根因判断，不单独阻断有边界的验证；Main负责，修复另经Neo审核。
+- [ ] P2 计时口径：同一失败调用单调583.004秒而事件墙钟约601–602秒；保留两种原始时间，查清差异，不把18–19秒猜成DB或协调开销。阻断精确overhead分摊，不阻断口径明确的状态报告；Main负责，先离线复核。
+- [ ] P2 受控重试需求：用户要求有重试机制。先复用SDK/transport/model_recovery已有能力，核当前host为何SDK/connect=0、policy=None；区分已证未发送、明确错误响应与结果未知。重试须独立attempt、沿用同轮额度/权限、记录原因并保留原unknown/held，禁止多层重试叠加或盲目重放。当前具体供应商/代理原因待验证，不能写成已修复。
+- [ ] 断点重启（当前执行事项，尚未验证）：用户已要求恢复；先核fake02真实checkpoint、已终态Writer子任务、已完成视觉与后续任务能否继承。保留原873.312秒失败终态及858925 used/2000000 held，本轮续跑不重置为新1亿；不直接再run只接受fresh的旧host、不从头重算、不清历史错误来绕过准入。Neo审核实际恢复方案，若入口不支持，先给出精确阻断及最小离线验证，不宣称已经续跑。
+
+证据：`.analysis/all-agent-data-dictionary-plan-20261030/fake02-latency-analysis01.md`、`fake02-latency-public-evidence01.json`、`fake02-terminal-review01.json`；新指令原文/来源核验：`.analysis/task059-mail/received-1a18c2b7bf31a8ba.json`。只新增本节，原任务与证据保留。
+
+09:53 UTC用户补充：恢复须从失败点开始；不确定时可“修为可确定 / 重新起一轮”。现有27P只证Co可接收原Writer不能恢复的反馈，不证原Writer失败点续跑。本项仍待修复验证，Main停止Co级continuation候选，按用户新轮方案准备独立03，复用已过全量产品与原宿主机制；原02现场/未决保留。见`fake03-authorization-preparation01.md`，未声明旧case恢复成功。

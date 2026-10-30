@@ -318,8 +318,10 @@ def content_tools(workspace, role, runtime_identity=None):
         if selector_mode:
             from .review_scope_selectors import expand_submission
             value = expand_submission(contents, actor(), value)
+        from .live_messages import current_review_binding
         return contents.submit_review(actor(), operation_id, value, identity,
-            delivery_export_ref.model_dump() if delivery_export_ref else None)
+            delivery_export_ref.model_dump() if delivery_export_ref else None,
+            review_message_binding=current_review_binding(workspace, actor()))
 
     def read_delivery_review_context(snapshot_ref: Ref, export_ref: Ref) -> dict:
         """Read criteria and object inventory for exact versions; no review tasks are generated.
@@ -696,6 +698,9 @@ def content_tools(workspace, role, runtime_identity=None):
     from .learning import report_tools
     common += report_tools(workspace, actor)
     if role in {"reviewer", "rubric_grader"}:
+        if role == 'reviewer' and interface == 'review-interfaces-v4':
+            from .live_messages import review_tool
+            submit_review = review_tool(workspace, actor, contents, identity)
         return common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
     if role in {"coordinator", "writer"}:
         common += [import_source_versions, commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]

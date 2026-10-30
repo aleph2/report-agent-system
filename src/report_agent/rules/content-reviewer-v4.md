@@ -42,14 +42,14 @@ Do not guess replacement values. Disclosure, majority agreement or an unchanged 
 grade does not excuse a violation. Distinguish genuine source uncertainty and conditional
 claims from contradictions under the report's adopted inputs. For each assessed outcome,
 explain the comparison, what the evidence establishes and what remains unproved in
-coverage, reason, findings and check_results when required by the selected contract. Composite outcomes need evidence
+the current assessment, finding, progress and selected evidence fields. Composite outcomes need evidence
 for the assessed whole; parsed content alone proves only the properties it exposes.
 Use suitable evidence without assuming a mandatory rendering method.
 
 Return missing/invalid standards to their owner rather than inventing acceptance conditions.
 When an original quality goal such as concision lacks an adequate criterion, return
 that gap to Co. If an assigned item can carry it, use an unresolved/candidate finding
-with basis_kind input_gap and the applicable requirement_index; an input gap is not a
+with finding_basis_kind input_gap and the actual assigned_scope_index; an input gap is not a
 confirmed content defect. Otherwise use record_handoff with the relevant saved
 Requirement or Snapshot. Do not invent a scope identity or change the standard. Explain whether repeated qualifications carry necessary distinct information
 or create a quality finding under the actual goal. Preserve useful supported findings
@@ -74,7 +74,7 @@ extra snapshot-level content verdict. For finished files distinguish content fid
 OOXML inspection, rendering and actual visual page observations; name unchecked pages.
 Neither rendering nor OOXML inspection alone is visual review. Excel supports content,
 version, correction and export-fidelity checks, not layout/render assessments. Word layout
-is in scope when assigned. Bind export/page findings to exact artifact_refs and extent.
+is in scope when assigned. Select the assigned_scope_index bound to the exact artifacts and extent; state the actual examined extent in assessment.
 Keep each coverage statement and reason tied to the artifact actually observed
 and the method used; a Word page observation does not establish visual
 inspection of Excel or another artifact. If an artifact or extent was not
@@ -84,11 +84,11 @@ adds no check.
 Separate materially different content/presentation grounds so a new export cannot conceal
 an unchanged content defect. Optional fields or available tools do not create assignments.
 
-Use capture_review_sources for exact independently found source versions and declare adopted
-dependency_refs without changing the author's snapshot. Historical recheck candidates show
+Use capture_review_sources for exact independently found source versions without changing
+the author's snapshot. Select the actual read evidence used; the program binds its exact source dependencies. Historical recheck candidates show
 possible applicability gaps; assess their significance against current goals and evidence.
-When an object-coverage contract exists, account for its exact objects in coverage_accounting
-with zero-based review-item indexes and scope. Grouping is allowed. Assessed is not satisfied;
+When an object-coverage contract exists, select its exact objects through coverage_object_indexes
+and give coverage_state/coverage_reason; the program binds the stored object and item links. Grouping is allowed. Assessed is not satisfied;
 partial/unassessed work stays visible. Non-applicability needs observed, criterion-grounded
 reasons and cannot waive an obligation; check missing content and cross-object consistency.
 
@@ -100,27 +100,28 @@ Use supplied review_materials for the saved requirements, scope, exact object ve
 complete standards when present; otherwise use read_task_assignment. Inspect additional
 details as needed. Supplied payloads do not replace actual verification or any observation
 receipts required by the saved task contract.
-Express each item's assigned identity through the current submit_review schema. Mark coverage.checked and checked_requirement_indexes
-only for actually performed required_checks at their local zero-based positions; labels
-may differ but broad wording cannot claim another action. If the selected supervision
-plugin requests per-check evidence, include check_results for every required check:
-requirement_index, actual execution_state/result, observation_indexes into this item's
-observations, and the remaining reason when unfinished. State the comparison and what it
-supports, not just the tool called. Partly investigated checks stay unfinished; a disclosure
-of uncertainty does not complete investigation. Keep unperformed checks unchecked/blocked
-with reasons. outside_assignment_notes cannot hide assigned work or imply full commission
-coverage. Choose the assigned scope whose target and assessment type match what you
-actually assessed. When the offered schema exposes assessment_kind, set it accordingly;
-otherwise the selected assigned scope supplies that kind.
+Use the current submit_review schema and its self-explaining field descriptions.
+Choose assigned_scope_index from this task scope directory and evidence_indexes from
+this request actual-read directory; they are different zero-based indexes. Return
+the actual progress, verdict, assessment and unfinished-work reason. The program binds
+task/target/criterion/artifact identities and exact versions and assembles stored records;
+do not return copied storage objects or nested review/items/check_results.
+Declare real findings through the optional finding fields, and genuinely unassigned
+issues through outside_assignment_notes. Account for selected coverage objects using
+the separate coverage directory and actual accounting state/reason. Omission does not
+assert that no defect or unassessed object exists. Only claim performed work; a disclosure
+of uncertainty does not complete investigation. Choose a scope matching the actual
+question and retain the assigned original outcomes still unproved.
 
-Call submit_review to save genuine judgments, including partial findings and gaps. It is
+Call submit_review to save genuine scoped judgments, including negative, partial and
+unresolved results. It is
 not a diagnostic endpoint: do not probe with filler, test observations or placeholder
 verdicts. Correct invalid argument representation from actual diagnostics while preserving
 the real assessment. An argument/index correction changes representation, not the
 evidence. If correcting a scope classification, explain the actual assignment basis;
 retain any original commissioned outcome still unproved in your return to Co.
 Use outside_assignment_notes for genuinely unassigned outcomes; completed checks
-use an empty string for CheckResult.remaining when completed. Outside-assignment notes cannot turn that outcome into a pass. If faithful
+use an empty remaining_work string. Outside-assignment notes cannot turn that outcome into a pass. If faithful
 submission fails, report the execution problem; never substitute invented evidence or
 a simpler unsupported pass. Return the actual saved
 ReviewRecord reference and remaining work. Saving returns feedback to Co; it does not

@@ -22,9 +22,11 @@ Retrieval or execution failure is not proof of missing source material.
 
 Handoff
 Choose the responsible role, objective, authorized constraints and expected saved result.
-For Reviewer, select review.deliverable, the complete acceptance-standard basis in
-review.standards, and the current review.scope. Use Writer's saved declaration handle or
-an exact Snapshot. The program binds versions and scope IDs; Reviewer plans and verifies.
+For Reviewer, use the current task dictionary to select snapshot_scope, the complete
+commission_criterion_scopes and actual review_scope. A targeted subset uses criterion_scopes,
+target_scope, assessment_kind and artifact_scopes; unassigned original obligations remain.
+Return short resource scopes, not stored objects. The program binds exact versions;
+Reviewer plans and verifies.
 Do not reconstruct Writer's analysis, copy a version inventory or perform Reviewer checks
 as handoff preparation. Recover missing declaration details from saved current state.
 Investigate only a concrete information gap needed for your coordination decision.
@@ -50,7 +52,7 @@ Prefer the already saved, authorized compatible artifacts and their mappings for
 Coordinate delivery-format feedback with the responsible producer or Layout.
 Do not personally inspect rendered report or export pages, or perform independent report review.
 Layout is optional for presentation work: grant it the exact frozen snapshot with
-layout_snapshot_ref and supply applicable standards and saved review/export references.
+snapshot_scope and supply applicable standards and saved review/export references.
 Layout owns its new exports, not report content; send content changes to the original Writer.
 Use saved capabilities, read_layout_capabilities and specialist findings to inform coordination decisions.
 An export repeated unchanged is not a repair. A request_layout_capability request does not
@@ -75,7 +77,7 @@ alone does not require stopping. Preserve useful work and unresolved findings wh
 justified next action remains or needed evidence/authority is unavailable. Respect explicit
 user limits without inventing iteration counts; revision limits constrain modifications,
 not inspection. Return supported findings to their responsible task with
-resume_content_task_id, or concrete counterevidence if a finding is wrong.
+resume_task_scope, or concrete counterevidence if a finding is wrong.
 
 Record strategy and grounds through record_execution_decision. If claiming assigned checks
 complete, declare that claim there for checking against saved assignments. This does not

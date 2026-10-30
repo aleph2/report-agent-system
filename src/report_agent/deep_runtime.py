@@ -166,11 +166,28 @@ class BusinessBoundary(InvalidToolFeedback):
         if prepared is not None:
             from .repetition_guard import NOTICE
             request = append_declared_system(request, NOTICE, 'rules/repetition-notice')
-        response = await handler(request)
+        from .live_messages import prepare_request, model_offer, bind_response
+        request, offer = prepare_request(self.workspace, self.role, request)
+        with model_offer(offer):
+            response = await handler(request)
+        bind_response(self.workspace, offer, response)
         self.write_repetition.after_model(prepared, response)
         return response
 
     async def awrap_tool_call(self, request, handler):
+        from .live_messages import tool_binding
+        try:
+            with tool_binding(self.workspace, self.role, request) as bound_request:
+                return await self._awrap_bound_tool_call(bound_request, handler)
+        except ActionRejected as exc:
+            if self.workspace.store.get('decision_observation'):
+                raise
+            return ToolMessage(encode({'ok': False, 'code': str(exc).split(':')[0],
+                'message': str(exc), 'retryable': False,
+                **({'diagnostic': exc.diagnostic} if exc.diagnostic is not None else {})}), tool_call_id=request.tool_call['id'],
+                name=request.tool_call['name'], status='error')
+
+    async def _awrap_bound_tool_call(self, request, handler):
         async with self.lock:
             call = request.tool_call
             store = self.workspace.store
@@ -256,7 +273,9 @@ class BusinessBoundary(InvalidToolFeedback):
                         schema = task_tool(request.tool, review_profile=review_profile(store), interface_profile=interface,
                             prompt_profile=report_prompt_profile(store)).tool_call_schema
                         try:
-                            schema.model_validate(call["args"])
+                            # The current flat message was validated before resource assembly.
+                            if interface != 'review-interfaces-v4':
+                                schema.model_validate(call["args"])
                         except ValidationError as exc:
                             error = ToolInvocationError(call["name"], exc, call["args"])
                             message = ToolMessage(error.message, tool_call_id=call["id"],

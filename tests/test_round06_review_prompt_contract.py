@@ -1,3 +1,4 @@
+from support.flat_task_fixture import task_arguments
 """Final SDK instruction regression, not proof of autonomous semantic judgment."""
 import json
 import httpx
@@ -15,6 +16,7 @@ async def test_final_sdk_keeps_original_outcomes_and_evidence_contract(case, che
     cs, _, ws, request = configured(case)
     cs.store.set('manifest', {**cs.store.manifest, 'report_prompt_profile':'concise-v1',
         'report_expression_profile':'reader-expression-v2', 'operation_identity_profile':'native-tool-runtime-v1'})
+    model_args = task_arguments(cs, case[1], request['args'])
     models, bodies = {}, {}
     def factory(role):
         if role in models:
@@ -24,7 +26,7 @@ async def test_final_sdk_keeps_original_outcomes_and_evidence_contract(case, che
             bodies.setdefault(role, []).append(json.loads(http_request.content))
             delegate = role == 'coordinator' and len(bodies[role]) == 1
             return completion(http_request, 'Synthetic transport only; no acceptance asserted.',
-                              ('task', request['args']) if delegate else None)
+                              ('task', model_args) if delegate else None)
         client._transport = httpx.MockTransport(transport)
         client._mounts.clear()
         models[role] = GLMChatOpenAI(model='glm-5.3', api_key='fixture-only',

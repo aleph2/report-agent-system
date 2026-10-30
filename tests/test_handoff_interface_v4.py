@@ -19,10 +19,10 @@ def test_v4_schema_exposes_three_choices_without_raw_version_manifest(case):
     tool = task_tool(StructuredTool.from_function(task), review_profile='native-reviewer-v2',
                      interface_profile='review-interfaces-v4')
     schema = tool.args_schema.model_json_schema()
-    assert 'review' in schema['properties']
+    assert 'review' not in schema['properties']
     assert not {'review_requirements', 'review_snapshot_ref'} & schema['properties'].keys()
-    assert set(schema['$defs']['ReviewSelection']['properties']) == {'deliverable','standards','scope'}
-    assert 'scope_id' not in schema['$defs']['MappedItem']['properties']
+    assert {'snapshot_scope', 'commission_criterion_scopes', 'review_scope'} <= schema['properties'].keys()
+    assert 'scope_id' not in schema['properties'] and schema['additionalProperties'] is False
 
 
 def test_bound_graph_uses_its_release_and_commission_after_store_changes(case):
@@ -60,7 +60,7 @@ def test_v4_role_sources_remove_co_preparation_without_replacing_writer_body_rul
     from report_agent.prompt_sources import load_prompt
     co = role_prompt('coordinator', interface_profile='review-interfaces-v4')
     assert 'For a reviewer task provide review_snapshot_ref and review_requirements' not in co
-    assert 'review.deliverable' in co and 'review.standards' in co and 'review.scope' in co
+    assert 'snapshot_scope' in co and 'commission_criterion_scopes' in co and 'review_scope' in co
     for expression in ['report-expression-v1', 'reader-expression-v2']:
         original = role_prompt('writer', expression_profile=expression)
         v4 = role_prompt('writer', expression_profile=expression, interface_profile='review-interfaces-v4')
@@ -96,7 +96,8 @@ async def test_registered_v4_graph_final_sdk_input_and_source_provenance(case):
         body = next(w['body'] for w in wires if w['role']=='coordinator')
         task = next(t['function'] for t in body['tools'] if t['function']['name']=='task')
         assert 'read_decision_state' in {t['function']['name'] for t in body['tools']}
-        assert 'review' in task['parameters']['properties']
+        assert 'review' not in task['parameters']['properties']
+        assert {'snapshot_scope', 'commission_criterion_scopes', 'review_scope'} <= task['parameters']['properties'].keys()
         assert 'review_requirements' not in task['parameters']['properties']
         assert 'For a reviewer task provide review_snapshot_ref and review_requirements' not in json.dumps(body)
         from report_agent.prompt_sources import load_prompt

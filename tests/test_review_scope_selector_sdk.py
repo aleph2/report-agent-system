@@ -1,3 +1,4 @@
+from support.flat_task_fixture import task_arguments
 """Actual SDK wire and saved canonical review, with fake model decisions only."""
 from collections import Counter
 from copy import deepcopy
@@ -30,6 +31,7 @@ async def test_native_sdk_scope_identity_and_honest_partial_save(case,text_profi
               'operation_identity_profile':'native-tool-runtime-v1'}
     if enabled:manifest['review_submission_contract']=CONTRACT
     ws.store.set('manifest',manifest)
+    model_args = task_arguments(cs, case[1], request['args'])
     models,bodies,counts={}, {},Counter()
     todo=unit_todo(output['refs']['a-body'])
     todo['content']='Compare the assigned saved text with the actual acceptance outcome.'
@@ -46,7 +48,7 @@ async def test_native_sdk_scope_identity_and_honest_partial_save(case,text_profi
             step=counts[role];counts[role]+=1
             text='Scoped result retained; unresolved original obligations remain.';tool=None
             if role=='coordinator':
-                if step==0:tool=('task',request['args'])
+                if step==0:tool=('task',model_args)
             elif step==0:tool=('write_todos',{'todos':[todo]})
             elif step==1:tool=('read_context',{'target_ref':output['refs']['a']})
             elif step==2:tool=('read_context',{'target_ref':output['refs']['a-body']})
@@ -62,21 +64,9 @@ async def test_native_sdk_scope_identity_and_honest_partial_save(case,text_profi
                         observed.append({'receipt_id':reply['receipt_id'],'locator':'Exact saved root/body object',
                             'observation':'Read literal synthetic report content; original support remains to be compared.'})
                 if len(observed)==2:
-                    item={'scope':'Partial comparison of saved content','execution_state':'running','verdict':None,
-                        'observations':observed,'checked_requirement_indexes':[],
-                        'check_results':[{'requirement_index':0,'execution_state':'partial',
-                            'result':'Read exact saved text; original support comparison remains.',
-                            'observation_indexes':[0,1],'remaining':'Compare original support before a conclusion.'}],
-                        'coverage':{'checked':[],'unchecked':requirement['required_checks'],'blocked':[],
-                                    'basis':'Actual reads do not complete independent verification.'},
-                        'reason':'A real partial check, not acceptance or a schema probe.'}
-                    if enabled:item['assigned_scope_index']=0
-                    else:item.update({k:deepcopy(requirement.get(k,'content' if k=='assessment_kind' else None)) for k in IDENTITY})
-                    value={'target_ref':requirement['target_ref'],'snapshot_ref':task['review_snapshot_ref'],
-                        'scope':'Partial assigned comparison','criteria_refs':[requirement['criterion_ref']],
-                        'dependency_refs':[],'items':[item]}
-                    arguments={'review':value}
-                    tool=('submit_review',arguments)
+                    tool=('submit_review', {'assigned_scope_index':0, 'execution_state':'partial',
+                        'verdict':None, 'assessment':'Read exact saved text; original support comparison remains.',
+                        'evidence_indexes':[0,1], 'remaining_work':'Compare original support before a conclusion.'})
                 else:text='Required reads did not return two receipts; no review submitted.'
             response=completion(request_http,text,tool)
             value=response.json()
@@ -91,10 +81,10 @@ async def test_native_sdk_scope_identity_and_honest_partial_save(case,text_profi
         assert result['last_error'] is None,result
         first=bodies['reviewer'][0]
         offered=next(t['function'] for t in first['tools'] if t['function']['name']=='submit_review')
-        schema=offered['parameters'];review=dereference(schema['properties']['review'],schema)
-        item=dereference(dereference(review['properties']['items'],schema)['items'],schema)
-        assert ('assigned_scope_index' in item['properties']) is enabled
-        assert (not IDENTITY & item['properties'].keys()) is enabled
+        schema=offered['parameters']
+        assert 'assigned_scope_index' in schema['properties']
+        assert not IDENTITY & schema['properties'].keys()
+        assert 'review' not in schema['properties'] and schema['additionalProperties'] is False
         assert 'operation_id' not in schema['properties']
         system=json.dumps([m['content'] for m in first['messages'] if m['role']=='system'],ensure_ascii=False)
         if enabled:assert re.search(r'assigned_scope_index\\?"\s*:\s*0',system),system[-1500:]
@@ -111,12 +101,9 @@ async def test_native_sdk_scope_identity_and_honest_partial_save(case,text_profi
         assert set(bodies)=={'coordinator','reviewer'}
         captures=[ws.store.get(e['data']['capture_key']) for e in ws.store.events() if e['kind']=='prompt_final_http_input']
         reviewer=[c for c in captures if c['purpose']=='reviewer'];assert reviewer
-        selected='native-submit-review-selectors' if enabled else 'native-submit-review-v4'
-        if text_profile=='concise-v1':selected+='-concise'
         for capture in reviewer:
-            assert capture['status']!='unexplained',capture['sources']
-            names={f['name']:f for f in capture['source_manifest']['files']}
-            assert selected in names and names[selected]['offered_match']!='not_observed'
+            assert capture['expected_wire_available']
+            assert capture['final_tool_schema_sha256']
     finally:
         for model in models.values():
             await model.root_async_client.close();model.root_client.close()
@@ -147,6 +134,7 @@ async def test_shared_sdk_model_uses_each_child_scope_zero_and_captured_release(
     cs.store.set('manifest',{**cs.store.manifest,'review_submission_contract':CONTRACT,
                             'report_prompt_profile':'concise-v1','report_expression_profile':'reader-expression-v2'})
     requests=[review_call(criteria[index:index+1],identity='native-child-'+str(index)) for index in range(2)]
+    model_requests = [{**r, 'args':task_arguments(cs, case[1], r['args'])} for r in requests]
     models={};counts=Counter();reviewed={};wires=[]
     def factory(role):
         if role in models:return models[role]
@@ -161,10 +149,10 @@ async def test_shared_sdk_model_uses_each_child_scope_zero_and_captured_release(
                 changed={**cs.store.manifest,'goal':'A later unbound goal'}
                 changed.pop('review_submission_contract')
                 cs.store.set('manifest',changed)
-                value=completion(request_http,'',('task',requests[0]['args'])).json()
+                value=completion(request_http,'',('task',model_requests[0]['args'])).json()
                 calls=value['choices'][0]['message']['tool_calls'];calls[0]['id']=requests[0]['id']
                 calls.append({**deepcopy(calls[0]),'id':requests[1]['id'],
-                    'function':{'name':'task','arguments':json.dumps(requests[1]['args'])}})
+                    'function':{'name':'task','arguments':json.dumps(model_requests[1]['args'])}})
                 return httpx.Response(200,json=value)
             actor=bound_actor(ws,'reviewer',None)
             task=task_record(cs,actor)['payload'];requirement=task['review_requirements'][0]
@@ -186,7 +174,9 @@ async def test_shared_sdk_model_uses_each_child_scope_zero_and_captured_release(
                     verdict=None,state='running')
                 for field in IDENTITY:value['items'][0].pop(field,None)
                 value['items'][0]['assigned_scope_index']=0
-                selected=('submit_review',{'review':value})
+                selected=('submit_review',{'assigned_scope_index':0,'execution_state':'partial','verdict':None,
+                    'assessment':'Read scoped text; evidence remains incomplete.','evidence_indexes':[0],
+                    'remaining_work':'Compare original support before a conclusion.'})
                 reviewed[actor.task_id]=deepcopy(requirement)
             else:
                 return completion(request_http,'Saved actual partial comparison; evidence remains incomplete.')

@@ -230,20 +230,18 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
     if interface_profile == 'review-interfaces-v4':
         if review_profile != NATIVE_REVIEW:
             raise ActionRejected('REVIEW_INTERFACE_PROFILE_REQUIRES_NATIVE_HIERARCHICAL')
-        from .review_binding import ReviewSelection
-        from .content_models import Ref
+        from .co_review_message import CoTaskMessage
+        from .native_operation_tools import MessageTool
         from .prompt_sources import report_rule_source
-        schema = create_model('MinimalContentTaskToolSchema', __base__=tool.args_schema,
-            description=_documented_field(tool.args_schema, 'description',
-                description=load_prompt(report_rule_source('native-task-description-v4', prompt_profile)).strip()),
-            review=(ReviewSelection | None, Field(default=None,
-                description='Reviewer only: choose the saved deliverable, complete acceptance-standard basis and current scope. The program binds versions; Reviewer plans and verifies.')),
-            supervision_plugin=(str | None, Field(default=None, description='Optional existing reviewer supervision plugin.')),
-            layout_snapshot_ref=(Ref | None, Field(default=None, description='Exact saved snapshot presentation grant, layout only.')),
-            resume_content_task_id=(str | None, Field(default=None, description='Saved task to continue within unchanged permissions.')))
+        field = deepcopy(tool.args_schema.model_fields['description'])
+        field.description = CoTaskMessage.model_fields['description'].description
+        schema = create_model('CoTaskToolMessage', __base__=CoTaskMessage,
+            description=(field.annotation, field))
         descriptions = '\n\n'.join(f'- {name}: {description}' for name, description in subagent_descriptions)
-        return tool.model_copy(update={'args_schema': schema,
-            'description': load_prompt(report_rule_source('native-review-handoff-v4', prompt_profile)).strip()+'\n\n'+descriptions})
+        return MessageTool.from_function(tool.func, coroutine=tool.coroutine, name=tool.name,
+            args_schema=schema, message_model=schema,
+            description='Delegate the actual goal to an available role using this request resource-scope dictionary. '
+                        'The program binds exact resources and stores the assignment; use only the current flat fields.\n\n'+descriptions)
     if review_profile not in {BOUNDED_REVIEW, NATIVE_REVIEW}:
         raise ActionRejected("UNKNOWN_REVIEW_EXECUTION_PROFILE")
     from .prompt_sources import REVIEW_INTERFACE_V1, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, review_handoff_source

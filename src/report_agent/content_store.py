@@ -568,7 +568,8 @@ class ContentStore:
             "total": len(refs), "next_offset": offset + limit if offset + limit < len(refs) else None,
             "unreturned_refs": refs[:offset] + refs[offset + limit:]})
 
-    def submit_review(self, actor, operation_id, submission, runtime_identity, delivery_export_ref=None):
+    def submit_review(self, actor, operation_id, submission, runtime_identity, delivery_export_ref=None,
+                      *, review_message_binding=None):
         from .prompt_sources import native_reviewer, review_profile
         from .handoff_release import manifest
         native = native_reviewer(self.store)
@@ -584,6 +585,9 @@ class ContentStore:
         def save(db):
             if actor.role not in {"reviewer", "rubric_grader"}:
                 raise ActionForbidden("FORBIDDEN: review writer")
+            if review_message_binding is not None:
+                from .review_message import validate_message_binding
+                validate_message_binding(self, db, actor, review_message_binding)
             data = ReviewSubmission.model_validate(submission).model_dump()
             if mode == "bounded-tool-v1":
                 if any(i["assessment_kind"] == "content" for i in data["items"]):
@@ -777,6 +781,8 @@ class ContentStore:
                 db.execute("INSERT OR REPLACE INTO state VALUES ('content_final_review', ?)", (encode(final),))
             return {"review_ref": review_ref}
         request = {"submit_review": submission, "runtime_identity": runtime_identity}
+        if review_message_binding is not None:
+            request['review_message_binding'] = digest(review_message_binding)
         if delivery_export_ref is not None:
             request["delivery_export_ref"] = delivery_export_ref
         return self.operation(actor, operation_id, request, save)

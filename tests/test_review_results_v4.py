@@ -95,6 +95,11 @@ def test_model_tool_descriptions_match_v4_reuse_scope_and_delivery_fields(case):
     for role, names in [('coordinator',{'select_content_delivery'}),('reviewer',{'submit_review','confirm_review_reuse'})]:
         tools = {t.__name__:t for t in content_tools(ws,role)}
         for name in names:
+            if name == 'submit_review':
+                from report_agent.review_message import ReviewMessage
+                assert tools[name].message_model is ReviewMessage
+                assert 'program binds exact identities' in tools[name].__doc__
+                continue
             assert load_prompt({'select_content_delivery':'select-content-delivery-v4',
                 'submit_review':'native-submit-review-v4','confirm_review_reuse':'native-review-reuse-v4'}[name]).strip() == tools[name].__doc__.strip()
 

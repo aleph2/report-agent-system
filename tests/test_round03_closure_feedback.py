@@ -111,7 +111,8 @@ async def test_actual_sdk_wrong_submit_wrapper_reports_offered_root_keys(request
         cs.store.set("manifest", {**cs.store.manifest,
             "report_prompt_profile":"concise-v1", "report_expression_profile":"reader-expression-v2"})
         ws = configure(cs)
-        request = review_call(criteria)["args"]
+        from support.flat_task_fixture import task_arguments
+        request = task_arguments(cs, request.getfixturevalue('case')[1], review_call(criteria)['args'])
     else:
         ws = request.getfixturevalue("ws")
         native(ws)
@@ -166,7 +167,10 @@ async def test_actual_sdk_wrong_submit_wrapper_reports_offered_root_keys(request
         if interface == "v4":
             assert captured[0]["state"]["review_materials"]["objects_complete"] is True
             assert cs.store.get("context_projection_binding") == "review-materials-v1"
-        assert "review" in feedback["root_contract"]["missing_required_keys"]
+        if interface == "v4":
+            assert {"assessment", "verdict", "evidence_indexes"} <= set(feedback["root_contract"]["missing_required_keys"])
+        else:
+            assert "review" in feedback["root_contract"]["missing_required_keys"]
         assert feedback["root_contract"]["unexpected_keys"]==["arguments"]
         assert not cs.list_objects("ReviewRecord")
         assert not any(role=="text_tool" for role in counts)

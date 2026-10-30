@@ -9,6 +9,7 @@ from report_agent.handoff_release import release
 from report_agent.content_tasks import delegated_task
 from report_agent.workspace import Workspace
 from test_deep_runtime import Driver, invoke, observation, call
+from support.flat_task_fixture import task_arguments
 from test_deliverable_declaration_v4 import case
 from test_review_binding_v4 import prepared, review_call
 
@@ -52,7 +53,7 @@ async def test_native_first_calculation_needs_plan_only_under_explicit_contract(
         feedback.append(observation(messages, tool_name))
         return AIMessage('Retained this synthetic protocol result; no semantic acceptance.')
 
-    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'type': 'tool_call'}]),
+    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'args': task_arguments(cs, case[1], request['args']), 'type': 'tool_call'}]),
                                  AIMessage('End isolated protocol fixture.')],
                     reviewer=[invoke(tool_name, **({'kind': 'calculation'} if tool_name == 'observe_evidence' else {}),
                                      terms=[['9', '120'], ['6', '180']]), after_calculation])
@@ -102,7 +103,7 @@ async def test_native_todo_preserves_unit_metadata_before_valid_calculation(case
         observed.append(observation(messages, 'observe_evidence'))
         return AIMessage('End this synthetic state-retention test, not semantic acceptance.')
 
-    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'type': 'tool_call'}]), AIMessage('Done.')],
+    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'args': task_arguments(cs, case[1], request['args']), 'type': 'tool_call'}]), AIMessage('Done.')],
                     reviewer=[invoke('write_todos', todos=[todo]), calculate, finish])
     await build_agent(ws, driver, None).ainvoke({'messages': [HumanMessage('Synthetic unit retention.')]})
     assert len(observed) == 1 and observed[0]['ok'], observed
@@ -123,7 +124,7 @@ async def test_public_structured_plan_and_calculation_can_share_one_decision(cas
 
     declaration = AIMessage(content=json.dumps({'review_plan': {'todos': [todo]}}),
         tool_calls=[call('observe_evidence', {'kind': 'calculation', 'terms': [['9', '120']]}, 'same-decision')])
-    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'type': 'tool_call'}]), AIMessage('Done.')],
+    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'args': task_arguments(cs, case[1], request['args']), 'type': 'tool_call'}]), AIMessage('Done.')],
                     reviewer=[declaration, finish])
     await build_agent(ws, driver, None).ainvoke({'messages': [HumanMessage('Synthetic same-turn plan.')]})
     assert len(seen) == 1 and seen[0]['ok'], seen
@@ -161,7 +162,7 @@ async def test_public_json_keys_not_raw_substrings_decide_plan_intent(case, text
         seen.append(observation(messages, 'calculate'))
         return AIMessage('End JSON intent boundary fixture.')
 
-    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'type': 'tool_call'}]), AIMessage('Done.')],
+    driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'args': task_arguments(cs, case[1], request['args']), 'type': 'tool_call'}]), AIMessage('Done.')],
         reviewer=[invoke('write_todos', todos=[unit_todo(output['refs']['a-body'])]), verify, finish])
     await build_agent(ws, driver, None).ainvoke({'messages': [HumanMessage('Only this synthetic parser case.')]})
     assert len(seen) == 1
