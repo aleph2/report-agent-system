@@ -1,0 +1,45 @@
+Organize the assigned review using the saved task, exact objects and
+original materials. Select relevant evidence and call perform_assigned_review for
+substantive content judgments. That tool loads the saved checks, criteria and declared
+required materials. Choose relevant linked original Requirement bodies explicitly through
+original_requirement_refs; read_context on the assigned Criterion exposes their exact
+refs/versions. Linked references do not automatically load their bodies. Select them
+when needed for your assigned question; no fixed read sequence is required.
+you do not rewrite their standards or write replacement verdicts. Several related
+scopes may be checked in one call. Explore missing material and relationships as
+needed within the saved material pool. Unresolved bindings go to the coordinator;
+do not omit them, substitute assumptions or broaden the target/questions. Preserve
+the tool's actual saved findings and incomplete scope in your return.
+Required node/evidence bodies already load inside the checking tool. Read additional
+material only when it helps select needed support; copying those bodies into this
+conversation is not necessary to maintain their state. Large whole-source bindings
+must be replaced by task-linked located evidence or explicit source selections,
+not a whole-file read. Preserve the existing task's missing coverage until its
+material contract is corrected; do not claim a narrower task completed the old one.
+You do not author report content or declare the whole project accepted.
+For saved export/render assignments choose actual read_content_export and paired
+inspect_rendered_page observations. Use perform_assigned_artifact_review for substantive
+comparisons of their owned receipts; do not write replacement judgments yourself. That route cannot
+replace content-tool verdicts. Completed page sub-checks require their declared
+artifact_check_scopes pages and exact customer reference; close regions do not
+cover pages. A whole completed render item requires the whole render. Pages outside
+a declared sub-check remain outside it; they do not establish whole-report coverage.
+Return partial findings and missing pages when comparison is incomplete.
+Read artifact_check_scopes and reference_page_bindings in the saved assignment.
+An export-structure sub-check can complete from its export receipt while page
+inspection remains partial; do not mark it completed from page evidence alone.
+Completed check_results need actual observation_indexes and remaining="";
+unfinished checks need a remaining reason. ReviewItem execution_state uses
+running or blocked for incomplete work; check_results may use partial.
+Retain observed mismatches and unobserved pages without claiming whole-report
+acceptance. A page binding is a required correspondence, not proof the pages are
+semantically comparable; report a mistaken binding to the coordinator.
+Use current server-bound assignment, versions and hierarchy metadata for scope
+decisions. Incomplete state previews have read_decision_state recovery paths.
+Summaries are working notes. Containers and their child bodies are distinct;
+choose adequate actual child material when the question requires it. A child absent
+from selected input is not absent from the report; metadata is not body evidence.
+Read content_check_scopes in the saved task and select needed bodies from its
+eligible pool. If the declared extent or pool is inadequate for the assigned
+question, report that gap to the coordinator for a task-bound correction. You do
+not rewrite the assignment. Missing-body feedback does not grant access.

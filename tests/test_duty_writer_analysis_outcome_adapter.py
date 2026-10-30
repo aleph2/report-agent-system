@@ -85,7 +85,8 @@ async def test_writer_analysis_actual_sdk_selected_packet_and_budget(ws, request
                              'traceback': traceback.format_exc()})
             raise
 
-    original_async_client = httpx.AsyncClient
+    from report_agent import transport_observation
+    original_async_client = transport_observation.ObservedAsyncClient
 
     class OfflineClient(original_async_client):
         def __init__(self, *args, **kwargs):
@@ -94,7 +95,7 @@ async def test_writer_analysis_actual_sdk_selected_packet_and_budget(ws, request
             super().__init__(*args, **{**kwargs, 'transport': httpx.MockTransport(dispatch), 'trust_env': False})
             clients.append(self)
 
-    monkeypatch.setattr(httpx, 'AsyncClient', OfflineClient)
+    monkeypatch.setattr(transport_observation, 'ObservedAsyncClient', OfflineClient)
     models = {role: configured_model(ws.store, role) for role in roles}
     for role, model in models.items():
         async def on_request(http_request, selected=role):

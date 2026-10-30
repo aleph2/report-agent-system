@@ -74,6 +74,29 @@ class LearningLibrary:
                               (scope.customer, scope.project)).fetchall()
         return [dict(zip(("feedback_id", "status", "claim_id", "error_type"), row)) for row in rows]
 
+    def runtime_observation(self, scope, observation):
+        """Host fact ingestion into the existing queue; not a report correction."""
+        if (not isinstance(observation,dict) or not observation.get('episode_id')
+                or not observation.get('scope') or not (observation.get('notice_deliveries') or observation.get('origin_notice_deliveries'))):
+            raise ActionRejected('RUNTIME_OBSERVATION_REQUIRES_EPISODE_AND_DELIVERY_FACTS')
+        binding=observation.get('binding') or {}
+        payload={'customer':scope.customer,'project':scope.project,'kind':'runtime_observation',
+            'snapshot':binding.get('snapshot_ref'),'target':binding.get('root_ref'),
+            'observation':observation,'before':{'origin':'runtime_control_observation','semantic_progress_verified':False},
+            'evidence':{'observed_refs':observation.get('observed_refs',[]),
+                'notice_deliveries':observation['notice_deliveries'],
+                'origin_notice_deliveries':observation.get('origin_notice_deliveries',[]),'recovery':observation.get('recovery')}}
+        data={'id':digest(payload),**payload}
+        with self.store.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            old=db.execute('SELECT data FROM learning_feedback WHERE id=?',(data['id'],)).fetchone()
+            if old:return json.loads(old[0])
+            db.execute('INSERT INTO learning_feedback VALUES (?,?,?,?)',(data['id'],scope.customer,scope.project,encode(data)))
+            db.execute("INSERT INTO learning_queue VALUES (?,?,?,'queued',NULL,NULL)",(data['id'],scope.customer,scope.project))
+            self._audit(db,'runtime_observation_received',{'id':data['id'],'episode_id':observation['episode_id'],
+                'not_a_report_correction':True,'quality_verified':False})
+        return data
+
     def claim_feedback(self, scope):
         """Host worker only, while holding the report project lock. No automatic retry."""
         with self.store.connect() as db:

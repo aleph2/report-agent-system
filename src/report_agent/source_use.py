@@ -29,7 +29,9 @@ def immutable_version_digest(payload):
 
 
 def _commission(store):
-    return digest({k: store.manifest.get(k) for k in ('report_id', 'goal', 'scope_instruction', 'report_category')})
+    from .handoff_release import manifest
+    value = manifest(store)
+    return digest({k: value.get(k) for k in ('report_id', 'goal', 'scope_instruction', 'report_category')})
 
 
 def _policy(store, ref):

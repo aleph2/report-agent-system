@@ -375,7 +375,9 @@ async def test_recovery_after_criteria_commit_keeps_one_version(native_access_ws
     driver, captured, body = native_access_driver(ws)
     driver.fail_once = ("coordinator", 2)
     first = await deep_runtime.run_report(ws, driver)
-    assert first["status"] == "failed"
+    assert first["status"] == "needs_attention"
+    assert first["last_error"]["failure_kind"] == "model_request_timeout"
+    assert first["last_error"]["automatic_resume"] is False
     assert first["last_error"]["message"] == "MODEL_REQUEST_TIMEOUT"
     cs = ContentStore(ws.store)
     before = cs.list_objects("Criterion")

@@ -57,6 +57,7 @@ def test_actual_candidate_delivery_uses_copied_library_and_preserves_canonical(t
         "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}]}
     case["visual_page_exclusions"] = {"source": [2, 3]}
     ws = prepare_rollout(tmp_path / "rollout", case, {COMPONENT: "GEPA-authored revision"}, seed, tmp_path / "canonical")
+    assert ws.store.manifest['review_execution_mode']=='native-reviewer-v2'
     assert ws.store.get("visual_page_exclusions") is None
     preference = guidance_context(ws)["customer_preferences"][0]
     assert preference["strategy"] == "GEPA-authored revision"

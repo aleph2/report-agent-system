@@ -605,7 +605,9 @@ class Workspace:
             delivery = self.delivery(delivery["draft_id"], delivery["review_id"])
         status = self.store.get("report_status", "ready")
         if status in {"reviewed_draft", "unreviewed_draft", "changes_required", "needs_human", "system_error", "needs_attention"} and delivery:
-            status = delivery["status"]
+            from .execution_progress import protected
+            if not (status=='needs_attention' and protected(self)):
+                status = delivery["status"]
         tasks = self.tasks()
         impact = self.impact()
         stale = set(impact["stale_result_ids"])

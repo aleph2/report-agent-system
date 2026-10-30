@@ -7,6 +7,19 @@ from pathlib import Path
 from .store import Store
 from .workspace import Workspace
 
+FRESH_NATIVE_DEFAULTS = {
+    'review_interface_profile': 'review-interfaces-v4',
+    'delegation_prompt_profile': 'separate-description-v1',
+    'operation_identity_profile': 'native-tool-runtime-v1',
+    'content_input_profile': 'relation-endpoints-v2',
+    'report_expression_profile': 'reader-expression-v2',
+    'report_prompt_profile': 'concise-v1',
+    'context_policy': 'stateful-tools-v2',
+    'context_projection': 'review-materials-v1',
+    'review_plan_contract': 'work-units-v1',
+    'review_submission_contract': 'task-scope-selectors-v1',
+}
+
 
 def main():
     parser = argparse.ArgumentParser(description="Independent report-agent prototype")
@@ -32,6 +45,16 @@ def main():
             parser.error("init requires --manifest")
         with store.run_lock():
             manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+            existing = store.get('manifest')
+            if existing is not None:
+                for key in (*FRESH_NATIVE_DEFAULTS, 'content_contract', 'review_entrypoint', 'review_execution_mode'):
+                    if key not in manifest and key in existing:
+                        manifest[key] = existing[key]
+            elif (not any(key in manifest for key in FRESH_NATIVE_DEFAULTS)
+                  and manifest.get('content_contract', 'hierarchical-review-v1') == 'hierarchical-review-v1'
+                  and manifest.get('review_entrypoint', 'delegated-reviewer-v1') == 'delegated-reviewer-v1'
+                  and manifest.get('review_execution_mode', 'native-reviewer-v2') == 'native-reviewer-v2'):
+                manifest.update(FRESH_NATIVE_DEFAULTS)
             if args.report_category:
                 manifest['report_category'] = args.report_category
             if args.report_id:
@@ -42,10 +65,33 @@ def main():
                 manifest.setdefault('context_policy', 'stateful-tools-v1')
             manifest.setdefault("content_contract", "hierarchical-review-v1")
             manifest.setdefault("review_entrypoint", "delegated-reviewer-v1")
-            manifest.setdefault("review_execution_mode", "bounded-tool-v1")
+            if existing is None:
+                manifest.setdefault("review_execution_mode", "native-reviewer-v2")
             if manifest['content_contract']=='hierarchical-review-v1':
                 manifest.setdefault('context_policy','stateful-tools-v1')
                 manifest.setdefault('decision_data_policy','reference-data-v1')
+            from .prompt_sources import (SEPARATE_DESCRIPTION, separate_description_supported,
+                                         validate_delegation_profile, validate_review_interface_profile)
+            if 'delegation_prompt_profile' not in manifest:
+                if existing is not None and 'delegation_prompt_profile' in existing:
+                    manifest['delegation_prompt_profile'] = existing['delegation_prompt_profile']
+                elif existing is None and separate_description_supported(manifest):
+                    manifest['delegation_prompt_profile'] = SEPARATE_DESCRIPTION
+            validate_delegation_profile(manifest)
+            if ('review_interface_profile' not in manifest and existing is not None
+                    and 'review_interface_profile' in existing):
+                manifest['review_interface_profile'] = existing['review_interface_profile']
+            validate_review_interface_profile(manifest)
+            from .operation_identity import validate_profile as validate_operation_profile
+            from .prompt_sources import validate_content_input_profile, validate_report_expression_profile
+            for key in ('operation_identity_profile', 'content_input_profile', 'report_expression_profile'):
+                if key not in manifest and existing is not None and key in existing:
+                    manifest[key] = existing[key]
+            validate_operation_profile(manifest)
+            validate_content_input_profile(manifest)
+            validate_report_expression_profile(manifest)
+            from .handoff_release import release
+            release(manifest)
             store.initialize(manifest)
             Workspace(store).initialize()
         result = store.status()

@@ -16,6 +16,7 @@ from .errors import ActionRejected
 from .store import encode, digest
 from .evidence_analysis import SourceTableView
 from .content_inputs import SourceRef
+from .review_input import snapshot_body_topology, body_extent_refs, scope_body_pool
 
 
 class ReviewSourceRange(Contract):
@@ -74,7 +75,7 @@ class ContentCheckScope(Contract):
 
 
 class ReviewRequirement(Contract):
-    target_ref: Ref
+    target_ref: Ref = Field(description="Exact assessment target. For bounded content review, select a ContentNode (including an explicitly scoped report root); review_snapshot_ref is the version anchor, not a content-tool target. Other review routes retain their own target capabilities.")
     criterion_ref: Ref
     scope_id: str = Field(min_length=1)
     assessment_kind: str = Field(default="content", pattern="^(content|export|render)$")
@@ -118,6 +119,46 @@ class ReviewRequirement(Contract):
         return self
 
 
+def review_contract_issues(requirements):
+    """Explain index errors from the original call; no validation or repair authority.
+
+    Normal schema/domain validation still decides admission. This projection only
+    supplies locations and the existing distinctness rules to the calling model.
+    """
+    issues = []
+    if not isinstance(requirements, list):
+        return issues
+    for item_index, item in enumerate(requirements):
+        if not isinstance(item, dict) or not isinstance(item.get('required_checks'), list):
+            continue
+        count = len(item['required_checks'])
+        for field in ('required_materials', 'artifact_check_scopes', 'content_check_scopes'):
+            extents = item.get(field, [])
+            if not isinstance(extents, list):
+                continue
+            seen = set()
+            for extent_index, extent in enumerate(extents):
+                if not isinstance(extent, dict) or type(extent.get('requirement_index')) is not int:
+                    continue
+                index = extent['requirement_index']
+                path = f'review_requirements/{item_index}/{field}/{extent_index}'
+                detail = {'allowed_index_range': {'minimum': 0, 'exclusive_maximum': count},
+                          'actual_index': index, 'index_owner': 'this ReviewRequirement.required_checks'}
+                if not 0 <= index < count:
+                    issues.append({'code': 'CHECK_INDEX_OUT_OF_RANGE',
+                                   'path': path + '/requirement_index', **detail})
+                if field == 'artifact_check_scopes':
+                    key, code = index, 'ARTIFACT_CHECK_SCOPE_DUPLICATE_INDEX'
+                elif field == 'content_check_scopes':
+                    key, code = (index, encode(extent.get('node_ref'))), 'CONTENT_CHECK_SCOPE_DUPLICATE_NODE'
+                else:
+                    continue  # Multiple required materials may belong to one check.
+                if key in seen:
+                    issues.append({'code': code, 'path': path, **detail})
+                seen.add(key)
+    return issues
+
+
 def assignment(contents, task_id):
     return contents.read({"type": "DelegatedTask", "id": task_id, "version": 1})["payload"]
 
@@ -145,7 +186,6 @@ def required_source_spans(requirements):
             for r in requirements for m in r.get('required_materials', []) for s in m.get('source_spans', [])]
 
 
-MAX_AUTOMATIC_SOURCE_CHARACTERS = 16000
 
 
 def review_identity(value):
@@ -164,7 +204,21 @@ def historical_read_refs(requirement, members, observed=None):
             and (observed is None or encode(r) in observed)}
 
 
-def review_readiness(contents, snapshot_ref, requirements):
+def content_review_capability_issue(requirement):
+    """Describe the content tool's actual capability; never change a saved scope."""
+    target = requirement['target_ref']
+    if requirement['assessment_kind'] == 'content' and target['type'] == 'ContentNode':
+        return None
+    return {'code': 'BOUNDED_TOOL_SUPPORTS_NODE_CONTENT_ONLY',
+            'scope_id': requirement['scope_id'], 'target_ref': target,
+            'assessment_kind': requirement['assessment_kind'],
+            'tool': 'perform_assigned_review', 'supported_target_types': ['ContentNode'],
+            'model_called': False,
+            'reason': f"Unsupported review route: assessment_kind={requirement['assessment_kind']}, target type={target['type']}. perform_assigned_review requires assessment_kind=content and target type ContentNode.",
+            'correction': 'The Coordinator must explicitly correct the task target or choose a compatible review route. Changing selections or operation_id does not change the saved target. Preserve the original checks, evidence requirements and versions; no automatic target conversion.'}
+
+
+def review_readiness(contents, snapshot_ref, requirements, *, commission_basis=None):
     """Read-only static diagnostics; never binds evidence or judges its adequacy.
 
     Exact objects are resolved once per analysis, with no cache across calls.
@@ -202,12 +256,20 @@ def review_readiness(contents, snapshot_ref, requirements):
                   'A DocumentSnapshot and nonempty saved requirements are required.')
         return {'execution_ready': False, 'issues': issues}
     members = {encode(r) for r in [snap['ref'], *snap['payload']['refs']]}
-    keys, scopes = set(), {}
-    manifest = contents.store.manifest
+    keys, scopes, topology = set(), {}, None
+    from .handoff_release import manifest as bound_manifest
+    manifest = {**contents.store.manifest, **bound_manifest(contents.store)}
     designated = manifest.get('presentation_references', [])
     for ri, requirement in enumerate(requirements):
         base, scope = f'/review_requirements/{ri}', requirement['scope_id']
         kind = requirement['assessment_kind']
+        if manifest.get('review_execution_mode') == 'bounded-tool-v1' and kind == 'content':
+            capability = content_review_capability_issue(requirement)
+            if capability:
+                issue(capability['code'], f'{base}/target_ref', capability['reason'], scope,
+                      ref=capability['target_ref'], kind='capability',
+                      tool=capability['tool'], supported_target_types=capability['supported_target_types'],
+                      correction=capability['correction'], model_called=False)
         key = review_identity(requirement)
         if scope in scopes:
             issue('DUPLICATE_TASK_REVIEW_SCOPE', base,
@@ -219,7 +281,9 @@ def review_readiness(contents, snapshot_ref, requirements):
         keys.add(key)
         for field in ('target_ref', 'criterion_ref'):
             ref = requirement[field]
-            if encode(ref) not in members or field == 'criterion_ref' and ref['type'] != 'Criterion':
+            allowed = ({encode(r) for r in commission_basis['criterion_refs']}
+                       if field == 'criterion_ref' and commission_basis is not None else members)
+            if encode(ref) not in allowed or field == 'criterion_ref' and ref['type'] != 'Criterion':
                 issue('TASK_REVIEW_REQUIREMENT_OUTSIDE_SNAPSHOT', f'{base}/{field}',
                       'Exact target and Criterion must belong to the assigned snapshot.', scope, ref=ref)
         for i, ref in enumerate(requirement['required_read_refs']):
@@ -249,8 +313,7 @@ def review_readiness(contents, snapshot_ref, requirements):
                 issue('TASK_MATERIAL_REQUIRES_CONTENT_EVIDENCE_OR_SOURCE', path, 'Material must be content, located evidence or source.', scope, check, ref)
             if ref['type'] != 'SourceArtifact' and encode(ref) not in members:
                 issue('TASK_MATERIAL_OUTSIDE_SNAPSHOT', path, 'Exact non-source material must belong to the assigned snapshot.', scope, check, ref)
-        body_pool = {encode(r) for r in [requirement['target_ref'], *requirement['required_read_refs'],
-                                        *[r for r, _, _ in materials]] if r['type'] == 'ContentNode'}
+        body_pool = scope_body_pool(requirement)
         extent_keys = set()
         for i, extent in enumerate(requirement.get('content_check_scopes', [])):
             ref, check = extent['node_ref'], extent['requirement_index']
@@ -265,6 +328,20 @@ def review_readiness(contents, snapshot_ref, requirements):
             if reasons:
                 issue('CONTENT_CHECK_SCOPE_OUTSIDE_ASSIGNMENT', f'{base}/content_check_scopes/{i}',
                       '; '.join(reasons), scope, check, ref)
+            elif manifest.get('review_execution_mode') == 'bounded-tool-v1' and kind == 'content':
+                if topology is None:
+                    _, topology = snapshot_body_topology(contents, snap)
+                required = body_extent_refs(topology, extent)
+                missing = [r for r in required if encode(r) not in body_pool]
+                if missing:
+                    issue('REVIEW_BODY_EXTENT_OUTSIDE_MATERIAL_POOL', f'{base}/content_check_scopes/{i}',
+                          'Declared body extent includes nodes outside this scope material pool. '
+                          'Coordinator must explicitly correct the assignment; no access is granted. '
+                          'Eligible but unselected bodies are not this admission gap.',
+                          scope, check, ref, kind='unbound_body', missing_refs=missing,
+                          required_body_count=len(required), bound_body_count=len(required)-len(missing),
+                          unbound_body_count=len(missing), missing_refs_complete=True,
+                          state='extent_not_authorized', model_called=False)
             extent_keys.add(ek)
         for i, ref in enumerate(requirement['artifact_refs']):
             path = f'{base}/artifact_refs/{i}'
@@ -326,13 +403,9 @@ def review_readiness(contents, snapshot_ref, requirements):
         for ref, path, check in mandatory:
             if ref['type'] == 'SourceArtifact':
                 source = read(ref, path, scope, check)
-                if source and len(source['payload']['content']) > MAX_AUTOMATIC_SOURCE_CHARACTERS:
-                    issue('REVIEW_SOURCE_RANGE_REQUIRED', path,
-                          'Mandatory full-source body exceeds automatic input limit; bind located Evidence instead. Eligible ranges do not satisfy a whole-body requirement.',
-                          scope, check, ref, kind='oversized_source', characters=len(source['payload']['content']))
     result = {'execution_ready': not issues, 'issues': issues,
             'automatically_loaded_refs': automatically_loaded_refs,
-            'limitation': 'Static assignment readiness only; no source reading receipt, comparison, verdict or acceptance.'}
+            'limitation': 'Static readiness for all assigned scopes, not a source reading receipt or verdict. False does not prohibit a supported selected scope: inspect issue.scope_id. Unfinished scopes remain unfinished; partial execution is not whole-task completion.'}
     spans = required_source_spans(requirements)
     if spans:
         result['automatically_loaded_source_spans'] = spans
@@ -345,9 +418,11 @@ def readiness_metadata(readiness):
     Keep exact issue locations and refs as whole entries. When an unusually large
     assignment cannot fit, its original remains recoverable and counts say so.
     """
-    issues = [{k: issue[k] for k in ('code', 'kind', 'scope_id', 'requirement_index', 'path', 'ref', 'characters', 'state')
+    issues = [{k: issue[k] for k in ('code', 'kind', 'scope_id', 'requirement_index', 'path', 'ref', 'characters', 'state', 'tool', 'supported_target_types', 'required_body_count', 'bound_body_count', 'unbound_body_count', 'utf8_bytes', 'maximum_utf8_bytes', 'capacity_policy_ref')
                if k in issue} for issue in readiness['issues']]
     for shown, original in zip(issues, readiness['issues']):
+        if 'missing_refs' in original:
+            shown['missing_refs_location'] = 'Full exact list in original observation; not reproduced in bounded metadata.'
         if 'reason' in original:
             shown.update(reason=original['reason'][:160], reason_complete=len(original['reason']) <= 160)
             if len(original['reason']) > 160:
@@ -383,8 +458,8 @@ def readiness_metadata(readiness):
     return result
 
 
-def validate_requirements(contents, snapshot_ref, requirements):
-    readiness = review_readiness(contents, snapshot_ref, requirements)
+def validate_requirements(contents, snapshot_ref, requirements, *, commission_basis=None):
+    readiness = review_readiness(contents, snapshot_ref, requirements, commission_basis=commission_basis)
     structural = [i for i in readiness['issues'] if i['kind'] == 'structural']
     if structural:
         raise ActionRejected(structural[0]['code'] + ': ' + encode(readiness))
@@ -425,6 +500,29 @@ def source_extents_in_observation(contents, actor_id, value):
     extents = []
     if value.get('ok') is False or value.get('status') == 'failed' or value.get('execution_state') == 'blocked':
         return extents
+    native = value.get('native_source_material_receipt')
+    if native:
+        stored = contents.store.get('source_material:' + native)
+        if not stored or stored.get('actor', {}).get('id') != actor_id:
+            raise ActionRejected('REVIEW_SOURCE_RECEIPT_OWNER_MISMATCH')
+        original = contents.store.get('tool_observation:' + stored['body_ref'])
+        if not original:
+            raise ActionRejected('SOURCE_MATERIAL_ORIGINAL_CHANGED')
+        record = verify(SimpleNamespace(store=contents.store), Actor(**stored['actor']),
+                        native, original['text'], stored['tool'])
+        page = json.loads(original['text'])
+        # Only actual frozen block reads prove block spans. Images, snippets,
+        # character excerpts and model analyses do not become whole-source reads.
+        for material in record['materials']:
+            if (stored['tool'] != 'read_source_page' or material['kind'] != 'frozen_source_selection'
+                    or material['selected_value_digest'] != digest(page.get('blocks', []))
+                    or material['supplement_digest'] != digest(page.get('source_table_views', []))):
+                continue
+            for ref in material['source_version_refs']:
+                payload = contents.read(SourceRef.model_validate(ref).model_dump())['payload']
+                if material['source_payload_digest'] == digest(payload):
+                    extents.append({'source_ref':ref, 'ordinals':material['selection']['ordinals'],
+                                    'table_detail':page.get('table_detail') or 'full'})
     for entry in value.get('evidence', []):
         if entry.get('kind') != 'source_blocks' or not entry.get('source_material_receipt'):
             continue
@@ -542,10 +640,19 @@ def reconcile(contents, task_id):
         for record in records:
             # Reuse already reviewed unaffected work only when it explicitly applies.
             for index, item in enumerate(record["payload"]["items"]):
+                original_item = item
+                if contract.get('review_interface_profile') == 'review-interfaces-v4' and record['task_id'] != task_id:
+                    mapped = any(r['payload'].get('target_task_ref', {}).get('id') == task_id
+                        and r['payload']['review_ref'] == record['ref']
+                        and {'old_item_index': index, 'new_scope_id': requirement['scope_id']} in r['payload'].get('item_mappings', [])
+                        for r in history[1])
+                    if not mapped:
+                        continue
+                    item = {**item, 'scope_id':requirement['scope_id']}
                 if review_identity(item) != review_identity(requirement):
                     continue
                 original = next((r for r in task_contracts.get(record["task_id"], []) if
-                    review_identity(r) == review_identity(requirement)), None)
+                    review_identity(r) == review_identity(original_item)), None)
                 if original is None and requirement.get("content_check_scopes"):
                     # A legacy declaration with no assignment cannot establish
                     # compatibility with a newly explicit body extent.
@@ -590,7 +697,8 @@ def reconcile(contents, task_id):
         missing_artifacts = [r for r in requirement["artifact_refs"] if r not in item.get("artifact_refs", [])]
         artifact_coverage_gaps = []
         scoped_artifact_assignment = False
-        if requirement["assessment_kind"] != "content" and contents.store.manifest.get("review_execution_mode") == "bounded-tool-v1":
+        from .handoff_release import manifest as bound_manifest
+        if requirement["assessment_kind"] != "content" and bound_manifest(contents.store).get('review_execution_mode') == "bounded-tool-v1":
             from .artifact_review import artifact_gaps
             with contents.store.connect() as db:
                 observations = [json.loads(row[0]) for obs in item["observations"]
@@ -673,6 +781,8 @@ def task_status(contents, offset=0, limit=20):
     tasks = [r for r in contents.list_objects("DelegatedTask") if r["payload"].get("review_requirements")]
     page = tasks[offset:offset + limit]
     return {"tasks": [{"task_ref": t["ref"], "goal": t["payload"]["goal"],
+                      **({'review_commission_basis':t['payload']['review_commission_basis'],
+                          'review_interface_profile':'review-interfaces-v4'} if t['payload'].get('review_commission_basis') else {}),
                       **reconcile(contents, t["ref"]["id"]),
                       "followup": contents.store.get("content_task_followup:" + t["ref"]["id"])} for t in page],
             "total": len(tasks), "next_offset": offset + limit if offset + limit < len(tasks) else None}
@@ -686,7 +796,12 @@ def obligation_coverage(contents, snapshot_ref):
     tasks = [t for t in contents.list_objects("DelegatedTask")
              if t["payload"].get("review_snapshot_ref") == snapshot_ref]
     criteria = []
-    for ref in snap["payload"]["criteria_refs"]:
+    bases = {t['payload']['review_commission_basis']['digest']: t['payload']['review_commission_basis']
+             for t in tasks if t['payload'].get('review_commission_basis')}
+    refs = {encode(r):r for r in snap['payload']['criteria_refs']}
+    for basis in bases.values():
+        refs.update({encode(r):r for r in basis['criterion_refs']})
+    for ref in refs.values():
         criterion = contents.read(ref)
         scopes = [{"task_ref": t["ref"], "requirement": r}
                   for t in tasks for r in t["payload"].get("review_requirements", []) if r["criterion_ref"] == ref]
@@ -694,6 +809,7 @@ def obligation_coverage(contents, snapshot_ref):
                          "requirements": [contents.read(r) for r in criterion["payload"]["requirement_refs"]],
                          "assigned_scopes": scopes, "assignment_present": bool(scopes)})
     return {"snapshot_ref": snapshot_ref, "criteria": criteria,
+            **({'commission_bases':list(bases.values()), 'semantic_coverage_verified':False} if bases else {}),
             "criteria_without_assignment": [c["criterion"]["ref"] for c in criteria if not c["assignment_present"]],
             "semantic_coverage_verified": False,
             "limitation": "Assigned scopes are not proof that every independent outcome is covered or substantively checked. Compare outcomes and actual checks; scoped rechecks do not close other commissioned omissions."}

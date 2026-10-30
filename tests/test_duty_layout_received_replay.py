@@ -30,7 +30,7 @@ from test_task_supervision import ws, offline
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ORIGINAL = ROOT / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r3'
+ORIGINAL = ROOT / 'tests/fixtures/historical-duty/real/live-r3'
 PINNED = {
     'layout-standard': {
         'model-output.json': 'ab9c1ea70f59a8a996bf9c7a7d09e3c7db88fa87dce13fa9cc034fd4c25ecfdc',

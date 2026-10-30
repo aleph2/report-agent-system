@@ -45,6 +45,9 @@ def _legacy_current_delivery(store):
 
 def current_delivery(store):
     """Expose evidence without inventing a snapshot acceptance task or verdict."""
+    selected = store.get('content_delivery')
+    if selected and selected.get('review_interface_profile') == 'review-interfaces-v4':
+        return _v4_delivery(store, selected)
     if store.manifest.get("review_entrypoint") == "native-rubric-v1":
         return _legacy_current_delivery(store)
     selected = store.get("content_delivery")
@@ -106,3 +109,60 @@ def current_delivery(store):
     # A scoped finding never becomes an inferred whole-report verdict.
     result["status"] = "review_evidence_available" if result["items"] or result["delivery_checks"] else "not_assessed"
     return result
+
+
+def _v4_delivery(store, selected):
+    from .task_supervision import reconcile
+    from .store import encode
+    cs = ContentStore(store)
+    basis_task = cs.read(selected['review_basis_assignment_ref']) if selected.get('review_basis_assignment_ref') else None
+    basis = basis_task['payload']['review_commission_basis'] if basis_task else None
+    basis_digest = basis['digest'] if basis else None
+    criteria = basis['criterion_refs'] if basis else []
+    owner = basis_task['owner_id'] if basis_task else selected['selected_by']
+    relevant_tasks = [t for t in cs.list_objects('DelegatedTask') if t['owner_id'] == owner
+        and t['payload'].get('review_snapshot_ref') == selected['snapshot_ref']
+        and t['payload'].get('review_requirements')]
+    tasks = [t for t in relevant_tasks if basis and t['payload'].get('review_commission_basis', {}).get('digest') == basis_digest]
+    prior_tasks = [{'task_ref':t['ref'], 'basis_digest':t['payload'].get('review_commission_basis', {}).get('digest'),
+        'basis_state':'recorded' if t['payload'].get('review_commission_basis') else 'not_recorded', 'adopted':False,
+        'criterion_refs':t['payload'].get('review_commission_basis', {}).get('criterion_refs'),
+        'assigned_scopes':t['payload']['review_requirements'],
+        'accounting':reconcile(cs, t['ref']['id'])} for t in relevant_tasks
+        if not basis or t['payload'].get('review_commission_basis', {}).get('digest') != basis_digest]
+    adopted = {encode(r) for r in selected['adopted_review_task_refs']}
+    assigned = {encode(r['criterion_ref']) for t in tasks for r in t['payload']['review_requirements']}
+    accounts, items, violations, prior_findings = [], [], [], []
+    for task in tasks:
+        account = reconcile(cs, task['ref']['id'])
+        account['adopted'] = encode(task['ref']) in adopted
+        accounts.append(account)
+        if not account['adopted']:
+            continue
+        for result in account['requirements']:
+            if result.get('review_ref'):
+                item = cs.read(result['review_ref'])['payload']['items'][result['item_index']]
+                if cs.item_applies(item, selected['snapshot_ref'], selected['export_ref'], selected.get('workbook_export_ref')):
+                    items.append({'review_ref':result['review_ref'], 'item_index':result['item_index'],
+                                  'adopted_task_ref':task['ref'], **item})
+    # Known defects remain visible even when their task's positive work is not adopted.
+    for review in cs.list_objects('ReviewRecord'):
+        for index, item in enumerate(review['payload']['items']):
+            withdrawn, relevant, _ = cs.review_item_state(review, selected['snapshot_ref'], index)
+            if (relevant and not withdrawn and item['verdict'] == 'not_satisfied'
+                    and cs.item_applies(item, selected['snapshot_ref'], selected['export_ref'], selected.get('workbook_export_ref'))):
+                entry = {'review_ref':review['ref'], 'item_index':index, **item}
+                if item['criterion_ref'] in criteria:
+                    violations.append(entry)
+                else:
+                    prior_findings.append({**entry, 'applicability':'prior_standard_requires_review'})
+    return {'status':'review_evidence_available' if items else 'not_assessed',
+        'overall_verdict':None, 'semantic_coverage_verified':False, 'coverage_complete':None,
+        **selected, 'criteria_refs':criteria if basis else None,
+        'original_requirement_refs':basis['original_requirement_refs'] if basis else None, 'review_commission_basis':basis,
+        'unassigned_criterion_refs':[r for r in criteria if encode(r) not in assigned] if basis else None,
+        'review_tasks':accounts, 'prior_basis_tasks':prior_tasks, 'prior_basis_findings':prior_findings,
+        'items':items, 'confirmed_violations':violations,
+        'delivery_checks':[], 'delivery_violations':[], 'needs_recheck':[],
+        'execution_decision':store.get('content_execution_decision'),
+        'limitation':'Mechanical assignment and saved-evidence accounting only; no semantic or engineering acceptance.'}

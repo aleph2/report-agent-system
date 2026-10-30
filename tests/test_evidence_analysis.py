@@ -63,7 +63,7 @@ async def test_exact_selections_versions_and_business_artifacts_unchanged(sample
     assert "private" not in result
 
 
-async def test_cache_binds_question_actual_content_parameters_and_contract(sample, monkeypatch):
+async def test_cache_binds_question_actual_content_parameters_and_configured_prompt(sample, monkeypatch, tmp_path):
     ws, report, model = sample
     sources = [{"source_id": "source"}]
     results = [{"result_id": report["id"]}]
@@ -74,13 +74,56 @@ async def test_cache_binds_question_actual_content_parameters_and_contract(sampl
     model.reasoning_effort = "medium"
     third = await module.analyze_selected_evidence(ws, model, "Compare.", sources, results)
     assert third["operation"] != first["operation"]
-    monkeypatch.setattr(module, "ANALYSIS_PROMPT", module.ANALYSIS_PROMPT + " Contract revision.")
+    from report_agent import prompt_sources
+    rules = tmp_path / "configured-rules"
+    rules.mkdir()
+    (rules / "evidence-analysis.md").write_text(module.ANALYSIS_PROMPT, encoding="utf-8")
+    monkeypatch.setattr(prompt_sources, "RULES", rules)
+    # A byte-identical configured reload retains the content-derived identity.
+    monkeypatch.setattr(module, "ANALYSIS_PROMPT", prompt_sources.load_prompt("evidence-analysis"))
+    reloaded = await module.analyze_selected_evidence(ws, model, "Compare.", sources, results)
+    assert reloaded["reused"] and reloaded["operation"] == third["operation"]
+    assert len(model.calls) == 2
+    revised = module.ANALYSIS_PROMPT + " Contract revision."
+    (rules / "evidence-analysis.md").write_text(revised, encoding="utf-8")
+    # Explicit reload represents a new configured process; production has no hot reload.
+    monkeypatch.setattr(module, "ANALYSIS_PROMPT", prompt_sources.load_prompt("evidence-analysis"))
     fourth = await module.analyze_selected_evidence(ws, model, "Compare.", sources, results)
     assert fourth["operation"] != third["operation"]
+    assert len(model.calls) == 3 and model.calls[-1][0][1] == revised
     fifth = await module.analyze_selected_evidence(ws, model, "Different question.", sources, results)
     sixth = await module.analyze_selected_evidence(ws, model, "Different question.", sources,
                                                 [{"result_id": report["id"], "characters": 10}])
     assert len({r["operation"] for r in [first, third, fourth, fifth, sixth]}) == 5
+
+
+@pytest.mark.parametrize("revision", ["code-only", "file-only"])
+async def test_unmatched_prompt_revision_rejected_before_cache_or_model(sample, monkeypatch, tmp_path, revision):
+    from report_agent import prompt_sources
+    from report_agent.prompt_provenance import PromptCompositionError
+    ws, report, model = sample
+    sources, results = [{"source_id": "source"}], [{"result_id": report["id"]}]
+    await module.analyze_selected_evidence(ws, model, "Compare.", sources, results)
+    rules = tmp_path / "configured-rules"
+    rules.mkdir()
+    (rules / "evidence-analysis.md").write_text(module.ANALYSIS_PROMPT, encoding="utf-8")
+    monkeypatch.setattr(prompt_sources, "RULES", rules)
+    if revision == "code-only":
+        monkeypatch.setattr(module, "ANALYSIS_PROMPT", module.ANALYSIS_PROMPT + " Unconfigured edit.")
+    else:
+        (rules / "evidence-analysis.md").write_text(module.ANALYSIS_PROMPT + " Unloaded edit.", encoding="utf-8")
+    before_events = ws.store.events()
+    with ws.store.connect() as db:
+        before_state = db.execute("SELECT * FROM state ORDER BY key").fetchall()
+        before_cache = db.execute("SELECT * FROM analyses ORDER BY operation").fetchall()
+    monkeypatch.setattr(ws.store, "analysis", lambda *a: pytest.fail("Rejected prompt reached cache"))
+    with pytest.raises(PromptCompositionError, match="PROMPT_STATIC_COMPOSITION_MISMATCH"):
+        await module.analyze_selected_evidence(ws, model, "Compare.", sources, results)
+    assert len(model.calls) == 1
+    assert ws.store.events() == before_events
+    with ws.store.connect() as db:
+        assert db.execute("SELECT * FROM state ORDER BY key").fetchall() == before_state
+        assert db.execute("SELECT * FROM analyses ORDER BY operation").fetchall() == before_cache
 
 
 async def test_missing_or_invalid_selections_rejected_before_cache_and_model(sample, monkeypatch):

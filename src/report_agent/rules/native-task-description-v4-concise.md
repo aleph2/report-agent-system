@@ -1,0 +1,1 @@
+Current objective, authorized task-specific constraints, remaining question and expected saved return. The configured System supplies the role. For Reviewer use review to select the deliverable, complete standard basis and scope; do not restate its inventory here. Include necessary task information absent from the saved assignment.

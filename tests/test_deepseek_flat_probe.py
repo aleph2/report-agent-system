@@ -8,9 +8,17 @@ import pytest
 from jsonschema.exceptions import ValidationError as SchemaError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+import run_deepseek_flat_probe as probe
 from run_deepseek_flat_probe import (
-    BASE, PLAN, URL, OpenAI, httpx, payload_for, read, request_observer, validate_public,
+    PLAN, URL, OpenAI, httpx, payload_for, read, request_observer, validate_public,
 )
+
+BASE = Path(__file__).parent / 'fixtures/historical-duty/deepseek-strict'
+
+
+@pytest.fixture(autouse=True)
+def frozen_input_root(monkeypatch):
+    monkeypatch.setattr(probe, 'BASE', BASE)
 
 
 def flat_public():

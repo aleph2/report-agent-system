@@ -1,0 +1,64 @@
+{
+  "head": "896c9975cac648e7cd5636e4ef6b38d5e71b459f",
+  "collected": 1868,
+  "collection_errors": [],
+  "collection_skips": [
+    {
+      "name": "tests.test_gepa_report_adapter_optional",
+      "detail": "('/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_gepa_report_adapter_optional.py', 6, \"Skipped: could not import 'gepa': No module named 'gepa'\")"
+    },
+    {
+      "name": "tests.test_learning_gepa_optional",
+      "detail": "('/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_learning_gepa_optional.py', 9, \"Skipped: could not import 'dspy': No module named 'dspy'\")"
+    }
+  ],
+  "unrun": [],
+  "outcomes": {
+    "passed": 1726,
+    "failed": 112,
+    "error": 21,
+    "skipped": 9
+  },
+  "observed_outcomes": {
+    "passed": 1726,
+    "failed": 112,
+    "error": 21,
+    "skipped": 9
+  },
+  "outcome_differences": [],
+  "coverage": {
+    "statements": 12710,
+    "covered_statements": 11066,
+    "line_percent": 87.06530291109362,
+    "branches": 5048,
+    "covered_branches": 4050,
+    "branch_percent": 80.22979397781299
+  },
+  "source_files": 93,
+  "interface_union_role_name_count": 173,
+  "middleware_attempted_union_role_name_count": 45,
+  "unattributed_tool_entries": 110,
+  "protocol_families": 24,
+  "condition_groups": 18,
+  "mcdc_total_percent": null,
+  "baseline_result": {
+    "pytest_exit_code": 1,
+    "elapsed_seconds": 1150.412452339002,
+    "source_changes": [],
+    "network_connections_denied": 0,
+    "provider_calls_allowed": false,
+    "conditions_measured_by_coverage_py": false
+  },
+  "observed_result": {
+    "pytest_exit_code": 1,
+    "elapsed_seconds": 932.3489251639985,
+    "source_changes": [
+      "docs/reviews/round0-coverage-20261018/inventory.py"
+    ],
+    "network_connections_denied": 0,
+    "provider_calls_allowed": false,
+    "network_guard_scope": "This Python process only; not a provider audit or subprocess firewall.",
+    "cleanup_errors": [],
+    "conditions_measured_by_coverage_py": false
+  }
+}

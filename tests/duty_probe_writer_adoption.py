@@ -25,7 +25,7 @@ from test_decision_data import activate
 from test_deep_runtime import Driver, invoke
 
 
-ARCHIVE = Path(__file__).resolve().parents[1] / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r2'
+ARCHIVE = Path(__file__).resolve().parents[1] / 'tests/fixtures/historical-duty/real/live-r2'
 CASES = ('full-adopt', 'missing-adopt', 'missing-read-handoff', 'missing-incomplete')
 
 

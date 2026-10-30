@@ -80,7 +80,7 @@ async def learning_lifecycle(case, monkeypatch, request, failure):
     model = offline_model(ws, monkeypatch)
     # Only the timeout probe shortens the real adapter-owned deadline. The
     # delayed MockTransport is entered first; no external cancellation is used.
-    monkeypatch.setattr(deep_models, 'MODEL_REQUEST_DEADLINE_SECONDS', 1 if failure == 'deadline_unknown' else 600)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 1 if failure == 'deadline_unknown' else 600)
     tokens = TokenBudget(ws.store.root / 'probe-budget.db', 10000000, {'glm-5.3': 2000000})
     cap = RequestBudget(1)
     if failure == 'not_dispatched':

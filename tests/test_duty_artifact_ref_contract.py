@@ -27,7 +27,7 @@ from test_vision import VisionModel
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ORIGINAL = ROOT / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r12/visual-artifact-columns-complete'
+ORIGINAL = ROOT / 'tests/fixtures/historical-duty/real/live-r12/visual-artifact-columns-complete'
 PINNED = {
     'wire-responses.json': '3f5b921e9872e4d689d5a5d19fa7862d9981cfbc4ae83527b06ca4dcac34bb70',
     'wire-requests.json': '37962f2c9c6b71a2d30d3750e8a30a9022280900cadcf46c6974b46be05b84ae',

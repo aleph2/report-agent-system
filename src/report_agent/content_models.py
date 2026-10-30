@@ -12,6 +12,12 @@ class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class RenderState(Contract):
+    """This operation's renderer facts, not visual review or host-wide support."""
+    execution_state: Literal["not_attempted", "completed", "failed", "blocked"]
+    capability_state: Literal["not_probed", "available", "unavailable", "unsupported", "unknown"]
+
+
 class Ref(Contract):
     type: str = Field(min_length=1)
     id: str = Field(min_length=1)

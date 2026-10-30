@@ -1,5 +1,111 @@
 # Independent Report Agent System
 
+## Independent execution directories (user decision, 2026-10-27)
+
+Each fresh execution owns its writable input snapshot, state, checkpoints and
+outputs. It must not require files, databases or checkpoints inside another run's
+temporary directory. Keep reusable test inputs in managed fixtures, source material
+in an independent durable library, and financial records in their independent
+durable location. Explicitly import a verified snapshot when reuse is necessary;
+retain provenance and hashes without requiring the old run directory to exist.
+
+Before dispatch, record and verify the execution's dependencies. Reject missing
+inputs or references to another run's writable storage; never silently recreate an
+empty ledger or restore retired runs. Historical audit pins are evidence, not
+mandatory live dependencies of a new execution. Neo checks this boundary during
+the existing review. Regression runs use fresh directories and the existing
+old-input access guard, including normal Python children; report its sandbox limits
+honestly. Do not weaken tests or copy old run trees to make isolation checks pass.
+
+## Development skills: use evidence, not names (user decision, 2026-10-25)
+
+At each development task start, resume after context compression, or change of phase:
+use `using-agent-skills` to identify the phase, select applicable skills, read their
+`SKILL.md`, and state their purpose in one sentence. Reuse previously read guidance
+and evidence only when the recorded version, inputs and scope remain applicable;
+do not reload every skill mechanically. Apply this to Codex, Neo and delegated
+participants; give delegated work the relevant rules and evidence destination.
+
+- **Ponytail:** apply to implementation, fixes, refactoring and reviews. Explain the
+  smallest complete change, existing mechanisms reused and any necessary limits.
+- **Graphify:** for codebase structure/dependency questions, query a relevant existing
+  graph first, then verify the affected current source. Record graph coverage/staleness
+  and actual query evidence. Do not rebuild graphs merely to claim skill use.
+- **Agent Skills:** choose the actual phase workflow, such as requirements, interface
+  design, debugging, TDD or documentation; execute its applicable steps within scope.
+- **Langfuse:** consult for AI prompting, traces, evaluation and experiments. Record
+  actual inputs, versions, observations and expected outcomes as relevant. Distinguish
+  local method use from live platform integration; no connection/upload/optimization
+  claim without corresponding evidence. Missing credentials do not prevent unrelated work.
+- For role/prompt work also select `agent-prompt-design` and, when optimizing prompts,
+  tool descriptions or handoffs, `octocode-prompt-optimizer` as applicable.
+
+Use the [existing verification-record section](tasks/plan.md#技能使用与验证记录模板).
+Record participant/task, applicability, skill path and version/hash, actual actions,
+exact evidence, limitations and Neo's disposition. A skill name, a read receipt or
+agreement between models is not proof of application. Mark not-applicable, blocked,
+partially applied or unverified items with concrete reasons; do not backfill unsupported
+history or turn missing evidence into a pass. Reused evidence must name the original
+artifact and why its versions/conditions still apply. No private reasoning or secrets.
+
+Neo supervises within the existing development review: check relevant actions and
+artifacts against the selected skill, require correction of unsupported claims or
+missing applicable steps, and record the remaining limits. A filename/hash alone proves
+existence/integrity, not correct execution. If independent review is unavailable, say so;
+do not claim it passed. This is no new report-runtime approval stage or automation.
+User authority and task scope override generic skill examples: skills do not authorize
+installs, uploads, paid runs, full regressions, report restarts or unknown-request replay.
+For documentation-only work, verify the actual diff, references and preservation;
+do not run product tests solely to satisfy a generic skill checklist.
+
+## Shared-checkout ownership (user decision, 2026-10-25)
+
+Before writing, read the current two-chat file ownership in
+`.analysis/session-skills-coordination-20261025/ownership.md` and the actual target
+diff/version. One source file has one writing chat at a time; record a transfer
+before another chat edits it. Current Main owns handoff/runtime/prompts/shared
+configuration and master plans. The feedback-learning chat owns its named test
+and analysis files; business-source work first names exact non-overlapping files
+for Neo's boundary review. Shared runtime changes are proposed to Main rather
+than edited concurrently. Preserve other uncommitted work; no whole-tree reset,
+restore, stash, formatting or staging to absorb it. Record chat/owned files and
+baseline with the existing skill/action/evidence verification. This is coordination,
+not a filesystem lock; direct human edits still require reconciliation.
+Shared Git index/stage/commit/revert operations also have one current operator
+(Main until an explicit transfer), even when each chat names its own files.
+
+## Synthetic real-model validation budget (latest user decision, 2026-10-26)
+
+Each report-generation fake-data + real-LLM test round is authorized up to
+**50,000,000 tokens**, including all phases, helpers and checkpoint continuations,
+counting actual used tokens plus new reserved/unknown bounds. A continuation does
+not reset the round's already consumed budget. There is **no request-count cap**.
+The user cancelled separate cumulative-budget approvals: do not ask again for a
+cumulative top-up within this standing per-round authorization.
+
+Preserve every historical ledger row, hold, unknown outcome and authorization
+receipt. The existing cumulative ledger maximum is an accounting implementation
+container, not a separate human budget gate. If its technical maximum needs an
+amendment, cite this standing policy and retain an exact auditable receipt; do not
+invent a new human grant, reset usage or release/replay old unknown requests.
+Do not hot-change an in-flight host's pinned finance/configuration. Reconcile at a
+safe actual terminal/checkpoint boundary when necessary, using the same round's
+total used+held. Do not run extra work merely to spend the ceiling.
+
+Prioritize completing a useful whole round to expose behavior, while containing
+non-blocking defects. Preserve first failures and autonomous corrections, analyze
+Trace/Context and root causes, define Agent/program responsibilities and acceptance
+standards, implement test-first fixes, validate each causal repair with fake data
+and real LLM as needed, run affected regressions and the appropriate full suite,
+then compare a fresh whole round against preserved outputs. Passing mechanics is
+not semantic or engineering acceptance. Technical failures and unknown outcomes
+still require diagnosis; this policy does not authorize blind retry or replay.
+
+Authority and operational boundaries:
+`.memory/fake-real-validation-budget-policy-20261026.json`.
+Older 10m/20m/30m and cumulative grants remain historical evidence; this latest
+specific decision governs current and future rounds of this class.
+
 ## Neo leads technical decisions (user decision, 2026-10-15)
 
 The user rejected Main's spending suspension and instructed: "Let Neo take over
@@ -180,3 +286,31 @@ The issue-led design review includes already-fixed defects (user decision,
 weakness, provides sound scoped containment, or leaves sibling paths exposed.
 Reuse valid evidence and retain sound local fixes; do not treat a fixed status
 as design acceptance or require a refactor without an evidenced benefit.
+
+
+## Round-completion summary email (latest user decision, 2026-10-26)
+
+After each report-generation test round reaches an actual terminal and Neo reviews
+the outcome, send one concise summary from private-contact@example.invalid to the previously
+authorized correspondent private-contact@example.invalid. Include actual flow/artifacts,
+role/helper token use, first failures and corrections, unresolved issues and next
+steps; failed/incomplete rounds must be labelled honestly. Aggregate continuations
+as one round. Persist exact intent/evidence/body hashes before send, verify Gmail
+account, reconcile Sent before an unknown retry, and save successful message/thread
+IDs. Never resend sent intents. Preserve all prior unknown outcomes, mail history
+and watermarks. This does not restart inbox polling, progress emails, or the paused
+mail heartbeat. Policy: `.analysis/task059-mail/round-summary-policy-20261026.json`.
+
+
+## Observing WSL SQLite databases (confirmed incident, 2026-10-26)
+
+All reads of a live WSL-owned case or token ledger must use the owning WSL Python
+runtime with SQLite mode=ro/query_only and promptly closed connections. Windows
+SQLite must not directly open those live files, even in read-only mode: a bounded
+synthetic experiment reproduced SQLITE_IOERR_DELETE during WSL commit. If Windows
+needs SQL access, create a separate consistent snapshot through SQLite backup in
+WSL, close it, then inspect only that copy. Do not use raw live-file copies or
+immutable mode to bypass journals, change journal mode as a workaround, retry a
+failed commit blindly, or release/replay unknown model attempts. Preserve original
+state and diagnose transaction outcome before recovery. Evidence and limits:
+.analysis/synthetic-native-20261026-04/storage-incident/reproduced-cause-summary.json.

@@ -27,17 +27,28 @@ class Catalog:
             """)
             for source in store.manifest["sources"]:
                 if not db.execute("SELECT 1 FROM source_blocks WHERE source_id=?", (source["id"],)).fetchone():
-                    self._blocks(db, source["id"], [{"locator": "manifest text", "text": source["content"]}])
+                    self._blocks(db, source["id"], [{"locator": "manifest text", "text": source["content"]}], idempotent=True)
 
     @staticmethod
-    def _blocks(db, source_id, blocks):
+    def _blocks(db, source_id, blocks, *, idempotent=False):
         ordinal = 0
         for block in blocks:
             # All characters remain retrievable; chunk boundaries are not semantic claims.
             for start in range(0, len(block["text"]), 4000):
                 text = block["text"][start:start + 4000]
-                db.execute("INSERT INTO source_blocks VALUES (?, ?, ?, ?)",
-                           (source_id, ordinal, f'{block["locator"]}; chars {start + 1}-{start + len(text)}', text))
+                locator = f'{block["locator"]}; chars {start + 1}-{start + len(text)}'
+                values = (source_id, ordinal, locator, text)
+                if idempotent:
+                    # Only the manifest's initial lazy seed uses this path.
+                    # Exact concurrent seeds are safe; a conflict rolls back
+                    # this connection's entire initialization transaction.
+                    db.execute('INSERT INTO source_blocks VALUES (?, ?, ?, ?) '
+                               'ON CONFLICT(source_id, ordinal) DO NOTHING', values)
+                    if db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? AND ordinal=?',
+                                  (source_id, ordinal)).fetchone() != (locator, text):
+                        raise ActionRejected('INITIAL_SOURCE_BLOCK_CONFLICT')
+                else:
+                    db.execute('INSERT INTO source_blocks VALUES (?, ?, ?, ?)', values)
                 ordinal += 1
 
     def sources(self):

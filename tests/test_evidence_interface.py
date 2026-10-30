@@ -45,36 +45,27 @@ def test_final_registered_schema_exposes_count_and_block_units(ws):
             assert actual == expected
 
 
-async def test_size_failure_reaches_native_agent_with_exact_components_and_no_text_call(ws, monkeypatch):
+async def test_large_material_reaches_native_producer_without_trimming(ws, monkeypatch):
+    from test_text_work import content
     item = {'kind': 'source_blocks', 'selection': {'source_id': 's', 'offset': 0, 'limit': 1},
             'observation': {'blocks': [{'text': 'Relevant text'}],
                             'source_table_views': [{'geometry': 'x' * 65000}]}}
     original = deepcopy(item)
     monkeypatch.setattr(text_work, 'selected_evidence', lambda *a, **k: [item])
-    diagnostics = []
     def inspect(messages):
-        error = observation(messages, 'process_report_content')
-        assert error['code'] == 'TEXT_WORK_SELECT_SMALLER_LOCATED_EVIDENCE'
-        details = json.loads(error['message'].split(': ', 1)[1])
-        assert details['encoded_characters'] == len(encode([item]))
-        assert details['maximum_encoded_characters'] == 64000
-        assert details['items'][0]['table_supplements_characters'] == len(encode(item['observation']['source_table_views']))
-        assert details['producer_invoked'] is False
-        diagnostics.append(details)
-        return AIMessage(content='Size diagnosed; choose next material separately.')
-    driver = Driver(coordinator=[AIMessage(content='', tool_calls=[writer_call()]),
-        AIMessage(content='No text producer invoked, no report acceptance.')],
+        work = observation(messages, 'process_report_content')
+        assert work['text_work_id']
+        return AIMessage(content='Generation received; not adopted.')
+    driver = Driver(coordinator=[AIMessage(content='', tool_calls=[writer_call()]), AIMessage(content='No acceptance claim.')],
         writer=[invoke('process_report_content', operation_id='large', objective='Describe selected material',
-            object_type='ContentNode', source_selections=[{'source_id': 's'}]), inspect])
-    await run_report(ws, driver)
-    assert diagnostics and item == original
-    assert not any(role == 'text_tool' for role, _, _ in driver.calls)
-    # Inspect the schema actually bound by the native graph, after middleware.
-    schemas = [s for batch in driver.bindings['writer'] for s in batch]
-    for schema in (s for s in schemas if s['name'] == 'process_report_content'):
-        assert schema['parameters']['properties']['output_count']['maximum'] == 32
-    with ws.store.connect() as db:
-        assert not db.execute("SELECT key FROM state WHERE key LIKE 'text_work:%:large'").fetchall()
+            object_type='ContentNode', source_selections=[{'source_id': 's'}]), inspect],
+        text_tool=[AIMessage(content=json.dumps(content()))])
+    result = await run_report(ws, driver)
+    assert result['last_error'] is None, result
+    assert item == original
+    calls = [messages for role, _, messages in driver.calls if role == 'text_tool']
+    assert len(calls) == 1 and 'x' * 65000 in calls[0][-1].content
+
 
 
 def test_valid_success_packet_is_unchanged_and_not_limited_to_two_selections(ws, monkeypatch):

@@ -181,17 +181,17 @@ async def test_missing_actual_tail_is_precall_gap(ws):
     assert not ws.store.get('evidence_analysis_attempts')
 
 
-async def test_whole_packet_bound_before_provider_without_trimming(ws):
+async def test_whole_packet_material_survives_without_independent_size_gate(ws):
     _, _, _, _, call = setup(ws, limit=20)
-    model = Model()
+    from test_explicit_original_requirement_selection import partial_model
+    model = partial_model()
     with delegated_task(ws, 'coordinator', call) as (_, actor):
-        with pytest.raises(ActionRejected, match='REVIEW_MATERIAL_EXCEEDS_BOUNDED_INPUT') as err:
-            await perform_review(ws, actor, model, 'too-large', ['rule-comparison'])
-        diagnostic = json.loads(str(err.value).split(': ',1)[1])
-        assert diagnostic['encoded_characters'] > 64000
-        assert diagnostic['producer_invoked'] is False
-        assert any(x['dependencies'] for x in diagnostic['items'] if x['kind']=='source_blocks')
-    assert not model.calls
+        await perform_review(ws, actor, model, 'large-material', ['rule-comparison'])
+    packet = json.loads(model.calls[0][1][1])
+    assert len(encode(packet['evidence'])) > 64000
+    sources = [e for e in packet['evidence'] if e['kind'] == 'source_blocks']
+    assert sources and sources[0]['selection']['limit'] == 20
+
 
 
 def test_existing_requirement_serialization_does_not_gain_empty_fields(ws):
@@ -204,16 +204,10 @@ def test_existing_requirement_serialization_does_not_gain_empty_fields(ws):
         RequiredSourceSpan.model_validate({'source_ref':refs['claim'],'offset':0,'limit':1})
 
 
-def test_shared_size_boundary_is_encoded_unicode_characters():
-    empty = encode([{'kind':'saved_object','object':{'text':''}}])
-    exact = encode([{'kind':'saved_object','object':{'text':'x'*(64000-len(empty))}}])
-    assert len(exact) == 64000
-    PreparedMaterial(exact, frozenset()).require_bounded_size()
-    # Exact historical diagnostic still comes from the same encoded object math.
+def test_material_measurement_preserves_unicode_without_a_capacity_gate():
     item = {'kind':'saved_object', 'object':{'text':'汉'*65000}}
     prepared = PreparedMaterial(encode([item]), frozenset())
-    with pytest.raises(ActionRejected, match='TEXT_WORK_SELECT_SMALLER_LOCATED_EVIDENCE') as err:
-        prepared.require_bounded_size()
-    value = json.loads(str(err.value).split(': ',1)[1])
-    assert value['encoded_characters'] == len(encode([item]))
-    assert value['items'] == [{'index':0,'kind':'saved_object','encoded_characters':len(encode(item))}]
+    assert prepared.encoded_characters == len(encode([item]))
+    assert prepared.evidence == [item]
+    assert not hasattr(prepared, 'require_bounded_size')
+

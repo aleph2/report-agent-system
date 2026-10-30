@@ -1,0 +1,1830 @@
+{
+  "status": "completed_scoped_structural_baseline_review_not_system_acceptance",
+  "owner": "Neo",
+  "measurement": {
+    "interfaces": "Final native registered/model-bound schemas for four report roles and separate learner, including framework tools. Host APIs separate. Text-tool is not a decision agent.",
+    "levels": [
+      "schema offered",
+      "attempted call",
+      "handler entered",
+      "outcome/side effect asserted"
+    ],
+    "configuration": "List legal managed/reference/decision_only/learning/optional capability combinations; do not require impossible cartesian products.",
+    "paths": "24 explicit critical protocol families; state list is the initial agreed denominator, not all mathematical program paths.",
+    "conditions": "18 risk-selected decision groups, not exhaustive all-src conditions. MC/DC requires decision-local feasible independent pairs; no current percentage claimed.",
+    "branch": "Main reports complete src statement/branch and active/retired applicability separately. coverage.py cannot establish MC/DC.",
+    "safety": "No product edits/instrumentation yet. Main tests only with temporary stores, fake models, network denied and MockTransport allowed. No live Store/Workspace construction, paid call, migration or original ledger mutation.",
+    "evidence": "Test names map candidates only. Verify actual parameter-expanded nodeid, assertions/outcome and hashes. Previous green and source reads are not current runtime baseline.",
+    "platform": "Fake injection can bypass configured adapter. Require explicit configured_model+MockTransport and native ToolNode/middleware/serializer paths. Third-party internals outside application branch denominator."
+  },
+  "protocol_paths": [
+    {
+      "id": "P01",
+      "name": "有效native注册/角色工具矩阵",
+      "entry": "deep_runtime.build_agent/business_tools; learning_runtime.build_optimizer",
+      "states": "active/retired; report roles+learner; final native schemas; optional configs",
+      "candidate_tests": [
+        "tests/test_text_work.py::test_active_reviewer_has_only_independent_semantic_publication_routes",
+        "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools": "passed",
+          "tests/test_text_work.py::test_active_reviewer_has_only_independent_semantic_publication_routes": "passed"
+        },
+        "outcomes": {
+          "passed": 2
+        },
+        "matched_count": 2,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P02",
+      "name": "委派/actor权限",
+      "entry": "content_tasks.delegated_task/bound_actor",
+      "states": "caller role; task binding; wrong workspace/role; own/foreign writes",
+      "candidate_tests": [
+        "tests/test_text_work.py::test_receipts_do_not_expand_role_task_or_revision_ownership",
+        "tests/test_task_supervision.py::test_writer_owns_body_coordinator_can_freeze_without_acquiring_it"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_task_supervision.py::test_writer_owns_body_coordinator_can_freeze_without_acquiring_it": "passed",
+          "tests/test_text_work.py::test_receipts_do_not_expand_role_task_or_revision_ownership": "passed"
+        },
+        "outcomes": {
+          "passed": 2
+        },
+        "matched_count": 2,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P03",
+      "name": "旧任务恢复保义务",
+      "entry": "content_tasks.delegated_task; task_supervision.reconcile",
+      "states": "new/resume; changed requirements/snapshot/plugin/layout grant",
+      "candidate_tests": [
+        "tests/test_task_supervision.py::test_resuming_task_cannot_narrow_its_requirements",
+        "tests/test_task_supervision.py::test_reused_scope_id_with_different_checks_does_not_reuse_old_completion"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_task_supervision.py::test_reused_scope_id_with_different_checks_does_not_reuse_old_completion": "passed",
+          "tests/test_task_supervision.py::test_resuming_task_cannot_narrow_its_requirements": "passed"
+        },
+        "outcomes": {
+          "passed": 2
+        },
+        "matched_count": 2,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P04",
+      "name": "源读取到下一模型",
+      "entry": "source_materials.returned; TaskContext; decision_data",
+      "states": "small exact read; native offload; owned recovery",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_explicit_source_read_reaches_next_model_without_field_clipping",
+        "tests/test_boundary_refactor.py::test_native_offload_keeps_source_data_deferred_and_exactly_recoverable"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_boundary_refactor.py::test_explicit_source_read_reaches_next_model_without_field_clipping": "passed",
+          "tests/test_boundary_refactor.py::test_native_offload_keeps_source_data_deferred_and_exactly_recoverable": "passed"
+        },
+        "outcomes": {
+          "passed": 2
+        },
+        "matched_count": 2,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P05",
+      "name": "大正文/表数据递延",
+      "entry": "decision_data.offloaded_controls",
+      "states": "object/selection/result/page; no reinsertion; nested errors/limitations retained",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies",
+        "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[False]": "passed",
+          "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[True]": "passed",
+          "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations[read_source_page]": "passed",
+          "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations[search_sources]": "passed"
+        },
+        "outcomes": {
+          "passed": 4
+        },
+        "matched_count": 4,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P06",
+      "name": "控制/typed错误/身份最终交付",
+      "entry": "decision_data.deliver_controls; TaskContext.awrap_model_call",
+      "states": "success/error; normal/offloaded; serializer; tamper; idempotence",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+        "tests/test_boundary_refactor.py::test_typed_rejection_is_not_erased_or_promoted_after_offload",
+        "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction": "passed",
+          "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]": "passed",
+          "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[sha256]": "passed",
+          "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]": "passed",
+          "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[public_digest]": "passed",
+          "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[stored_text]": "passed",
+          "tests/test_boundary_refactor.py::test_typed_rejection_is_not_erased_or_promoted_after_offload": "passed"
+        },
+        "outcomes": {
+          "passed": 7
+        },
+        "matched_count": 7,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P07",
+      "name": "receipt到实质工具选材",
+      "entry": "source_materials.verify; prepared_material.compile_material",
+      "states": "owner/rawbytes; source version/parser/blocks; full/references",
+      "candidate_tests": [
+        "tests/test_source_view_selection.py::test_default_selection_and_actual_full_packet_are_unchanged",
+        "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version",
+        "tests/test_source_view_selection.py::test_archived_block_tamper_cannot_borrow_current_source_identity"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_source_view_selection.py::test_default_selection_and_actual_full_packet_are_unchanged": "passed",
+          "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[sha256-new-file-sha-selection-observation]": "passed",
+          "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[sha256-new-file-sha-observation-selection]": "passed",
+          "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[parser-new-parser-version-selection-observation]": "passed",
+          "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[parser-new-parser-version-observation-selection]": "passed",
+          "tests/test_source_view_selection.py::test_archived_block_tamper_cannot_borrow_current_source_identity[text]": "passed",
+          "tests/test_source_view_selection.py::test_archived_block_tamper_cannot_borrow_current_source_identity[locator]": "passed"
+        },
+        "outcomes": {
+          "passed": 7
+        },
+        "matched_count": 7,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P08",
+      "name": "生产/receipt/原样采用",
+      "entry": "text_work.produce/adopt",
+      "states": "fresh model; no write before adopt; exact owner/content",
+      "candidate_tests": [
+        "tests/test_text_work.py::test_tool_produces_without_business_write_and_writer_adopts_exact_payload",
+        "tests/test_text_work.py::test_real_native_graph_uses_independent_service_before_saving_owned_body"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_text_work.py::test_tool_produces_without_business_write_and_writer_adopts_exact_payload": "passed",
+          "tests/test_text_work.py::test_real_native_graph_uses_independent_service_before_saving_owned_body": "passed"
+        },
+        "outcomes": {
+          "passed": 2
+        },
+        "matched_count": 2,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P09",
+      "name": "非法或不完整输出",
+      "entry": "evidence_analysis.analyze_evidence_packet; text_work.parse_produced_output",
+      "states": "JSON/schema; length/refusal/toolcalls/empty; received-invalid vs unknown; no replay",
+      "candidate_tests": [
+        "tests/test_text_work.py::test_failed_or_unknown_work_is_preserved_without_semantic_retry",
+        "tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable",
+        "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_text_work.py::test_failed_or_unknown_work_is_preserved_without_semantic_retry[invalid JSON]": "passed",
+          "tests/test_text_work.py::test_failed_or_unknown_work_is_preserved_without_semantic_retry[answer1]": "passed",
+          "tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable[length]": "passed",
+          "tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable[content_filter]": "passed",
+          "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[length-analyze_text]": "passed",
+          "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[length-analyze_evidence]": "passed",
+          "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[refusal-analyze_text]": "passed",
+          "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[refusal-analyze_evidence]": "passed",
+          "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[unknown-analyze_text]": "passed",
+          "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[unknown-analyze_evidence]": "passed"
+        },
+        "outcomes": {
+          "passed": 10
+        },
+        "matched_count": 10,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P10",
+      "name": "限定词修订CAS",
+      "entry": "text_work_revision; text_work.adopt",
+      "states": "body same; type/count/target/owner/current version; previous_ref",
+      "candidate_tests": [
+        "tests/test_text_work_scoped_revision.py::test_native_produce_adopt_then_exact_qualifier_revision_preserves_body",
+        "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_text_work_scoped_revision.py::test_native_produce_adopt_then_exact_qualifier_revision_preserves_body": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[missing_qualifiers]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[body_in_output]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[missing_previous]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[wrong_target]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[wrong_owner]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[stale_target]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[duplicate]": "passed",
+          "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[authority]": "passed"
+        },
+        "outcomes": {
+          "passed": 10
+        },
+        "matched_count": 10,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P11",
+      "name": "缓存/重放/并发",
+      "entry": "ContentStore.operation/commit; text_work",
+      "states": "same request; conflict; one head winner; own cache observation",
+      "candidate_tests": [
+        "tests/test_hierarchical_content.py::test_immutable_versions_cas_and_atomic_batch",
+        "tests/test_hierarchical_content.py::test_same_head_concurrency_has_one_winner",
+        "tests/test_content_selection.py::test_analysis_receipt_uses_current_actor_even_on_cache_hit"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_content_selection.py::test_analysis_receipt_uses_current_actor_even_on_cache_hit": "passed",
+          "tests/test_hierarchical_content.py::test_immutable_versions_cas_and_atomic_batch": "passed",
+          "tests/test_hierarchical_content.py::test_same_head_concurrency_has_one_winner": "passed"
+        },
+        "outcomes": {
+          "passed": 3
+        },
+        "matched_count": 3,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P12",
+      "name": "0派发本地拒绝与新父操作",
+      "entry": "request_budget; bounded_operations",
+      "states": "proof; raw+outer CAS; old failure unchanged; fresh parent one rearm",
+      "candidate_tests": [
+        "tests/test_not_dispatched_recovery.py::test_native_pending_refusal_replay_then_explicit_new_work_adopts_once",
+        "tests/test_not_dispatched_recovery.py::test_linked_cas_is_atomic_idempotent_and_cannot_reclassify_unknown",
+        "tests/test_not_dispatched_recovery.py::test_only_one_new_parent_can_readmit_raw_operation"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_not_dispatched_recovery.py::test_linked_cas_is_atomic_idempotent_and_cannot_reclassify_unknown": "passed",
+          "tests/test_not_dispatched_recovery.py::test_only_one_new_parent_can_readmit_raw_operation": "passed",
+          "tests/test_not_dispatched_recovery.py::test_native_pending_refusal_replay_then_explicit_new_work_adopts_once": "passed"
+        },
+        "outcomes": {
+          "passed": 3
+        },
+        "matched_count": 3,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P13",
+      "name": "已派发deadline/取消",
+      "entry": "deep_models; evidence_analysis; vision",
+      "states": "deadline vs outer cancellation; admitted then refused; unknown retained",
+      "candidate_tests": [
+        "tests/test_bounded_deadline.py::test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget",
+        "tests/test_bounded_deadline.py::test_outer_cancellation_is_not_a_local_deadline",
+        "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_bounded_deadline.py::test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget[False]": "passed",
+          "tests/test_bounded_deadline.py::test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget[True]": "passed",
+          "tests/test_bounded_deadline.py::test_outer_cancellation_is_not_a_local_deadline": "passed",
+          "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved[settlement]": "passed",
+          "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved[retry_admission]": "passed"
+        },
+        "outcomes": {
+          "passed": 5
+        },
+        "matched_count": 5,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P14",
+      "name": "返回后的记账/诊断失败",
+      "entry": "token_budget; transport_observation; deep_models",
+      "states": "sync/async; missing usage; settlement/observer failure; no SDK resend",
+      "candidate_tests": [
+        "tests/test_token_budget.py::test_sdk_does_not_resend_received_response_after_local_settlement_failure",
+        "tests/test_token_budget.py::test_malformed_json_shapes_and_inconsistent_usage_keep_reservation_without_retry",
+        "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_token_budget.py::test_malformed_json_shapes_and_inconsistent_usage_keep_reservation_without_retry": "passed",
+          "tests/test_token_budget.py::test_sdk_does_not_resend_received_response_after_local_settlement_failure": "passed",
+          "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_http_attempt_response]": "passed",
+          "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_http_attempt_started]": "passed",
+          "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_transport_retry_policy]": "passed",
+          "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_http_phase]": "passed"
+        },
+        "outcomes": {
+          "passed": 6
+        },
+        "matched_count": 6,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P15",
+      "name": "正常工厂到HTTP适配器",
+      "entry": "deep_models.configured_model/model_async_client/model_sync_client",
+      "states": "actual parameters; strict schema; retry/deadline; MockTransport",
+      "candidate_tests": [
+        "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request",
+        "tests/test_transport_observation.py::test_complete_response_preserves_result_exact_settlement_and_phase_order",
+        "tests/test_reference_delivery.py::test_configured_clients_install_budget_hook"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request[glm-5.3-https://offline.invalid/v1]": "passed",
+          "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request[deepseek-v4.1-flash-https://offline.invalid/v1]": "passed",
+          "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request[deepseek-flash-https://api.deepseek.com]": "passed",
+          "tests/test_reference_delivery.py::test_configured_clients_install_budget_hook": "passed",
+          "tests/test_transport_observation.py::test_complete_response_preserves_result_exact_settlement_and_phase_order": "passed"
+        },
+        "outcomes": {
+          "passed": 5
+        },
+        "matched_count": 5,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P16",
+      "name": "审核readiness/范围/大小",
+      "entry": "task_supervision.review_readiness; bounded_review.perform_review",
+      "states": "ambiguous/empty scope; unresolved; missing source tail; size before model",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_ambiguous_scope_is_rejected_at_assignment_before_any_model",
+        "tests/test_required_source_spans.py::test_missing_actual_tail_is_precall_gap",
+        "tests/test_required_source_spans.py::test_whole_packet_bound_before_provider_without_trimming"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_boundary_refactor.py::test_ambiguous_scope_is_rejected_at_assignment_before_any_model": "passed",
+          "tests/test_required_source_spans.py::test_missing_actual_tail_is_precall_gap": "passed",
+          "tests/test_required_source_spans.py::test_whole_packet_bound_before_provider_without_trimming": "passed"
+        },
+        "outcomes": {
+          "passed": 3
+        },
+        "matched_count": 3,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P17",
+      "name": "逐check材料/保存/reconcile",
+      "entry": "task_supervision.missing_required_materials/source_extents_in_observation; ContentStore.submit_review",
+      "states": "view/version/ordinal; metadata-only; owner/rawbytes; no borrowing",
+      "candidate_tests": [
+        "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material",
+        "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt",
+        "tests/test_required_source_spans.py::test_one_check_cannot_borrow_another_checks_source",
+        "tests/test_required_source_spans.py::test_reconciliation_independently_rechecks_per_check_linkage"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_required_source_spans.py::test_reconciliation_independently_rechecks_per_check_linkage": "passed",
+          "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[metadata_only]": "passed",
+          "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_view]": "passed",
+          "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_version]": "passed",
+          "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_ordinal]": "passed",
+          "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_source]": "passed",
+          "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[missing_block]": "passed",
+          "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[unlinked]": "passed",
+          "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[metadata]": "passed",
+          "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[wrong_owner]": "passed",
+          "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[changed_bytes]": "passed",
+          "tests/test_required_source_spans.py::test_one_check_cannot_borrow_another_checks_source": "passed"
+        },
+        "outcomes": {
+          "passed": 12
+        },
+        "matched_count": 12,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P18",
+      "name": "历史比较/时间边界",
+      "entry": "task_supervision.historical_read_refs/review_read_refs; ContentStore.submit_review",
+      "states": "declared exact dependency; own whole read; not target; no later/foreign/partial repair",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_explicit_historical_comparison_can_execute_save_and_reconcile",
+        "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority",
+        "tests/test_task_supervision.py::test_later_foreign_failed_partial_and_wrong_version_reads_do_not_retroactively_close"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_boundary_refactor.py::test_explicit_historical_comparison_can_execute_save_and_reconcile": "passed",
+          "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[undeclared]": "passed",
+          "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[unread]": "passed",
+          "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[foreign_read]": "passed",
+          "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[wrong_version]": "passed",
+          "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[target]": "passed",
+          "tests/test_task_supervision.py::test_later_foreign_failed_partial_and_wrong_version_reads_do_not_retroactively_close": "passed"
+        },
+        "outcomes": {
+          "passed": 7
+        },
+        "matched_count": 7,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P19",
+      "name": "artifact checker保存与公开判定",
+      "entry": "artifact_review; ContentStore.submit_review",
+      "states": "fresh/cache; export receipt; full pages vs crop/version; partial vs whole",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_artifact_review_returns_saved_findings_on_fresh_and_cached_path",
+        "tests/test_artifact_review.py::test_native_deepagents_tool_publication_uses_server_task_binding",
+        "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change0]": "passed",
+          "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change1]": "passed",
+          "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change2]": "passed",
+          "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change3]": "passed",
+          "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change4]": "passed",
+          "tests/test_artifact_review.py::test_native_deepagents_tool_publication_uses_server_task_binding": "passed",
+          "tests/test_boundary_refactor.py::test_artifact_review_returns_saved_findings_on_fresh_and_cached_path": "passed"
+        },
+        "outcomes": {
+          "passed": 7
+        },
+        "matched_count": 7,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P20",
+      "name": "快照闭包/Word+Excel",
+      "entry": "ContentStore.freeze/derive; content_export; content_workbook",
+      "states": "base+additions; explicit replacements/relations; atomic failure; same snapshot and link",
+      "candidate_tests": [
+        "tests/test_snapshot_derivation.py::test_registered_197_member_base_two_additions_word_excel_exact_pair",
+        "tests/test_snapshot_derivation.py::test_replacements_require_exact_base_and_explicit_updated_relations",
+        "tests/test_text_work.py::test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_snapshot_derivation.py::test_registered_197_member_base_two_additions_word_excel_exact_pair": "passed",
+          "tests/test_snapshot_derivation.py::test_replacements_require_exact_base_and_explicit_updated_relations": "passed",
+          "tests/test_text_work.py::test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx[False]": "passed",
+          "tests/test_text_work.py::test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx[True]": "passed"
+        },
+        "outcomes": {
+          "passed": 4
+        },
+        "matched_count": 4,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P21",
+      "name": "目录/渲染结构保真",
+      "entry": "content_export; content_layout; exporting",
+      "states": "rootTOC; images/lists/tables/inline; explicit headings; conflicts",
+      "candidate_tests": [
+        "tests/test_boundary_refactor.py::test_document_has_one_directory_even_with_nested_report_nodes",
+        "tests/test_boundary_refactor.py::test_styles_do_not_split_lists_soft_lines_or_tables",
+        "tests/test_boundary_refactor.py::test_explicit_heading_boundaries_preserve_cross_line_emphasis_links_and_numbering"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_boundary_refactor.py::test_document_has_one_directory_even_with_nested_report_nodes": "passed",
+          "tests/test_boundary_refactor.py::test_styles_do_not_split_lists_soft_lines_or_tables": "passed",
+          "tests/test_boundary_refactor.py::test_explicit_heading_boundaries_preserve_cross_line_emphasis_links_and_numbering": "passed"
+        },
+        "outcomes": {
+          "passed": 3
+        },
+        "matched_count": 3,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P22",
+      "name": "checkpoint/interrupt/new turn",
+      "entry": "deep_runtime.run_report; separate host harness",
+      "states": "pending; existing terminal new turn; no human answer; same history/task",
+      "candidate_tests": [
+        "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches",
+        "tests/test_validation_native_entry.py::test_completed_real_graph_gets_new_project_view_without_losing_history",
+        "tests/test_task_context.py::test_native_checkpoint_continuation_recovers_output_and_current_decision"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_task_context.py::test_native_checkpoint_continuation_recovers_output_and_current_decision": "passed",
+          "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[pending-False-False-True-PENDING_NATIVE_CONTINUATION_REQUIRED]": "passed",
+          "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[pending-True-True-True-PENDING_NATIVE_CONTINUATION_REQUIRED]": "passed",
+          "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-True-False-True-TERMINAL_NATIVE_THREAD_REQUIRED]": "passed",
+          "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-False-True-True-TERMINAL_NATIVE_THREAD_REQUIRED]": "passed",
+          "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-False-False-False-EXISTING_NATIVE_THREAD_REQUIRED]": "passed",
+          "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[invalid-False-False-True-UNKNOWN_NATIVE_ENTRY_MODE]": "passed",
+          "tests/test_validation_native_entry.py::test_completed_real_graph_gets_new_project_view_without_losing_history": "passed"
+        },
+        "outcomes": {
+          "passed": 8
+        },
+        "matched_count": 8,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P23",
+      "name": "summary/恢复/当前权威",
+      "entry": "working_summary; summary_recovery; TaskContext",
+      "states": "usable/unusable; reopen no replay; actor; exact refs and current assignment",
+      "candidate_tests": [
+        "tests/test_task_context.py::test_repeated_compaction_cannot_change_exact_task_or_obligations",
+        "tests/test_summary_context_provenance.py::test_actual_native_summary_input_includes_current_feedback_and_bound_assignment",
+        "tests/test_summary_context_provenance.py::test_new_feedback_or_clock_does_not_clear_unknown_summary_failure"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_summary_context_provenance.py::test_actual_native_summary_input_includes_current_feedback_and_bound_assignment": "passed",
+          "tests/test_summary_context_provenance.py::test_new_feedback_or_clock_does_not_clear_unknown_summary_failure": "passed",
+          "tests/test_task_context.py::test_repeated_compaction_cannot_change_exact_task_or_obligations": "passed"
+        },
+        "outcomes": {
+          "passed": 3
+        },
+        "matched_count": 3,
+        "all_declared_states_proved": false
+      }
+    },
+    {
+      "id": "P24",
+      "name": "学习反馈/候选/发布/指导",
+      "entry": "learning; learning_runtime; learning_worker; learning_api",
+      "states": "queue empty/failed; inactive candidate; release/revoke; tenant scope; actual input",
+      "candidate_tests": [
+        "tests/test_learning_worker.py::test_empty_and_duplicate_feedback_do_not_call_model_twice",
+        "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+        "tests/test_task_context.py::test_released_preferences_reach_actual_model_input_and_follow_release",
+        "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools"
+      ],
+      "runtime_evidence": {
+        "kind": "actual_candidate_outcomes_not_all_protocol_states",
+        "matrix": "docs/reviews/round0-coverage-20261018/path-matrix.json",
+        "matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+        "runtime_tests": {
+          "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke": "passed",
+          "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools": "passed",
+          "tests/test_learning_worker.py::test_empty_and_duplicate_feedback_do_not_call_model_twice": "passed",
+          "tests/test_task_context.py::test_released_preferences_reach_actual_model_input_and_follow_release": "passed"
+        },
+        "outcomes": {
+          "passed": 4
+        },
+        "matched_count": 4,
+        "all_declared_states_proved": false
+      }
+    }
+  ],
+  "critical_conditions": [
+    {
+      "id": "C01",
+      "file": "src/report_agent/content_tasks.py",
+      "function": "bound_actor",
+      "anchor": "if not binding or",
+      "atomic_conditions": [
+        "binding exists",
+        "workspace matches",
+        "role matches"
+      ],
+      "paths": "P02",
+      "gap": "Independent wrong workspace and role contrasts unknown.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        37
+      ],
+      "function_lines": [
+        33
+      ],
+      "source_sha256": "ed898bf4815f07d12166da82b85e127ef38cff63a3eab0d6dc1e8ba5536c273e"
+    },
+    {
+      "id": "C02",
+      "file": "src/report_agent/content_tasks.py",
+      "function": "delegated_task",
+      "anchor": "if ((requirements is not None",
+      "atomic_conditions": [
+        "supplied requirements unchanged",
+        "supplied snapshot unchanged"
+      ],
+      "paths": "P03",
+      "gap": "Plugin/layout/owner guards are separate decisions.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        117
+      ],
+      "function_lines": [
+        62
+      ],
+      "source_sha256": "ed898bf4815f07d12166da82b85e127ef38cff63a3eab0d6dc1e8ba5536c273e"
+    },
+    {
+      "id": "C03",
+      "file": "src/report_agent/decision_data.py",
+      "function": "deliver_controls",
+      "anchor": "if (binding.owner !=",
+      "atomic_conditions": [
+        "owner",
+        "tool",
+        "call_id",
+        "status"
+      ],
+      "paths": "P06",
+      "gap": "Current mutation parameter list covers owner/call_id but not tool/status.",
+      "mcdc": "partial_passing_independent_oracles_audited_not_full_decision_coverage",
+      "decision_lines": [
+        213
+      ],
+      "function_lines": [
+        194
+      ],
+      "source_sha256": "4ebebffc2302a0a8fc9dd87c54315abb59d06d023fb13646c6b118d957912bdb",
+      "runtime_audit_id": "C03"
+    },
+    {
+      "id": "C04",
+      "file": "src/report_agent/decision_data.py",
+      "function": "deliver_controls",
+      "anchor": "if (not stored or",
+      "atomic_conditions": [
+        "archive exists",
+        "stored owner",
+        "stored tool",
+        "stored sha",
+        "actual raw sha",
+        "derived ref"
+      ],
+      "paths": "P06",
+      "gap": "SHA tamper can invalidate multiple leaves simultaneously.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        217
+      ],
+      "function_lines": [
+        194
+      ],
+      "source_sha256": "4ebebffc2302a0a8fc9dd87c54315abb59d06d023fb13646c6b118d957912bdb"
+    },
+    {
+      "id": "C05",
+      "file": "src/report_agent/source_materials.py",
+      "function": "verify",
+      "anchor": "if (record['tool'] !=",
+      "atomic_conditions": [
+        "tool",
+        "public raw hash",
+        "derived body ref"
+      ],
+      "paths": "P07",
+      "gap": "Contract/digest/actor/original archive are separate guards.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        80
+      ],
+      "function_lines": [
+        72
+      ],
+      "source_sha256": "8b5764d620bc9860cc180038c741c099979cfc143ce737c75e9bcc057354782a"
+    },
+    {
+      "id": "C06",
+      "file": "src/report_agent/text_work.py",
+      "function": "produce",
+      "anchor": "if type(output_count) is not int",
+      "atomic_conditions": [
+        "exact int excluding bool",
+        "count>=1",
+        "count<=32"
+      ],
+      "paths": "P08/P09",
+      "gap": "0/1/32/33 and bool/nonint parameter evidence pending.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        391
+      ],
+      "function_lines": [
+        380
+      ],
+      "source_sha256": "72e3ebccc676a6924b0e030612f98ebf5a8d8e07a69762646c461309fdf8e3e4"
+    },
+    {
+      "id": "C07",
+      "file": "src/report_agent/text_work.py",
+      "function": "adopt",
+      "anchor": "if (digest(authority",
+      "atomic_conditions": [
+        "current authority equal",
+        "reprepared evidence digest equal"
+      ],
+      "paths": "P08/P10",
+      "gap": "Need authority-only and evidence-only change pairs.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        504
+      ],
+      "function_lines": [
+        495
+      ],
+      "source_sha256": "72e3ebccc676a6924b0e030612f98ebf5a8d8e07a69762646c461309fdf8e3e4"
+    },
+    {
+      "id": "C08",
+      "file": "src/report_agent/text_work_revision.py",
+      "function": "bind_revision",
+      "anchor": "if object_type !=",
+      "atomic_conditions": [
+        "ContentNode type",
+        "count equals targets"
+      ],
+      "paths": "P10",
+      "gap": "Need wrong type with valid count pair.",
+      "mcdc": "partial_passing_independent_oracles_audited_not_full_decision_coverage",
+      "decision_lines": [
+        30
+      ],
+      "function_lines": [
+        28
+      ],
+      "source_sha256": "5726b8d844f0c20b633371d6de57bbdd7b8bf496ed2603a333323be9150fb90b",
+      "runtime_audit_id": "C08"
+    },
+    {
+      "id": "C09",
+      "file": "src/report_agent/text_work_revision.py",
+      "function": "compose_revision",
+      "anchor": "if (not base or",
+      "atomic_conditions": [
+        "base present",
+        "owner matches",
+        "payload digest matches"
+      ],
+      "paths": "P10",
+      "gap": "Admission wrong-owner test is not proof of later composition guard.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        63
+      ],
+      "function_lines": [
+        53
+      ],
+      "source_sha256": "5726b8d844f0c20b633371d6de57bbdd7b8bf496ed2603a333323be9150fb90b"
+    },
+    {
+      "id": "C10",
+      "file": "src/report_agent/bounded_review.py",
+      "function": "perform_review",
+      "anchor": "if not scope_ids or",
+      "atomic_conditions": [
+        "nonempty scope_ids",
+        "unique IDs",
+        "all IDs resolve exactly once"
+      ],
+      "paths": "P16",
+      "gap": "New creation guard may require explicit old saved ambiguity fixture.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        167
+      ],
+      "function_lines": [
+        153
+      ],
+      "source_sha256": "97e2b9e3aa2697340d67d14b3a40ebcb6de6d26f60195109b0cff5a989c292bf"
+    },
+    {
+      "id": "C11",
+      "file": "src/report_agent/task_supervision.py",
+      "function": "missing_required_materials",
+      "anchor": "if unresolved or",
+      "atomic_conditions": [
+        "binding resolved",
+        "all refs supplied",
+        "all mandatory extents supplied"
+      ],
+      "paths": "P17",
+      "gap": "Predicate-level check/version/view/ordinal pairs also required.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        476
+      ],
+      "function_lines": [
+        459
+      ],
+      "source_sha256": "48db598517ae75f3de1154817dc5488d25ce6a8acab25d9d346feb4b09eb2dfc"
+    },
+    {
+      "id": "C12",
+      "file": "src/report_agent/request_budget.py",
+      "function": "not_dispatched_proof",
+      "anchor": "if self.admitted or",
+      "atomic_conditions": [
+        "zero admissions",
+        "at least one refusal",
+        "same exception object"
+      ],
+      "paths": "P12/P13",
+      "gap": "Independent exception-identity pair not established.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        94
+      ],
+      "function_lines": [
+        92
+      ],
+      "source_sha256": "c8ce557f16b6b7cf618a214600923af806af55561297c8cfb9f532d33d685c34"
+    },
+    {
+      "id": "C13",
+      "file": "src/report_agent/bounded_operations.py",
+      "function": "reserve_once",
+      "anchor": "if (parent is None or",
+      "atomic_conditions": [
+        "parent exists",
+        "parent reserved",
+        "new parent key",
+        "expected identity matches"
+      ],
+      "paths": "P12",
+      "gap": "Race one-winner is not all independent conditions.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        23
+      ],
+      "function_lines": [
+        12
+      ],
+      "source_sha256": "0c4e5363f1625e160fcd0289bed5728af0677f6a757fcb04d5cf188dcaf165f9"
+    },
+    {
+      "id": "C14",
+      "file": "src/report_agent/bounded_operations.py",
+      "function": "record_not_dispatched",
+      "anchor": "if (not reservations or",
+      "atomic_conditions": [
+        "reservations nonempty",
+        "not_dispatched outcome",
+        "zero admitted",
+        "refusal exact int",
+        "refusal positive"
+      ],
+      "paths": "P12",
+      "gap": "Proof predicate versus per-record CAS must be separated.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        47
+      ],
+      "function_lines": [
+        41
+      ],
+      "source_sha256": "0c4e5363f1625e160fcd0289bed5728af0677f6a757fcb04d5cf188dcaf165f9"
+    },
+    {
+      "id": "C15",
+      "file": "src/report_agent/evidence_analysis.py",
+      "function": "analyze_evidence_packet",
+      "anchor": "rejected = (",
+      "atomic_conditions": [
+        "accepted finish",
+        "no refusal",
+        "no invalid toolcalls",
+        "no toolcalls",
+        "nonempty output"
+      ],
+      "paths": "P09",
+      "gap": "Simultaneous response defects do not prove independence.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        209
+      ],
+      "function_lines": [
+        140
+      ],
+      "source_sha256": "8a23d2ea1793ac0b2fc82ed76f9ade40408ffa4afcad239050a1dccbcf6fb7a9"
+    },
+    {
+      "id": "C16",
+      "file": "src/report_agent/artifact_review.py",
+      "function": "public_result",
+      "anchor": "if (record['ref'] !=",
+      "atomic_conditions": [
+        "exact ref",
+        "ReviewRecord type",
+        "owner",
+        "task",
+        "snapshot",
+        "actual digest"
+      ],
+      "paths": "P19",
+      "gap": "Fresh/cache success not independent negative identity coverage.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        149
+      ],
+      "function_lines": [
+        145
+      ],
+      "source_sha256": "7cec99521b5bd18b3f57fb59eff79f783bbc9601b6962e619e6e9eef32d66367"
+    },
+    {
+      "id": "C17",
+      "file": "src/report_agent/working_summary.py",
+      "function": "_acreate_summary",
+      "anchor": "if (not isinstance(text,str)",
+      "atomic_conditions": [
+        "string",
+        "nonblank",
+        "not truncated",
+        "no tool calls"
+      ],
+      "paths": "P23",
+      "gap": "NFR10 local-refusal→unknown remains known issue, not a valid expected classification.",
+      "mcdc": "unknown",
+      "decision_lines": [
+        159
+      ],
+      "function_lines": [
+        115
+      ],
+      "source_sha256": "159e703780f4ee4416b8de0c5c505af81dbda430326700edcc8cc09e47fa98bc"
+    },
+    {
+      "id": "C18",
+      "file": "src/report_agent/learning.py",
+      "function": "use",
+      "anchor": "if not released or",
+      "atomic_conditions": [
+        "release exists",
+        "exact requested version active"
+      ],
+      "paths": "P24",
+      "gap": "Scope/queue/publication predicates separate from use.",
+      "mcdc": "partial_passing_independent_oracles_audited_not_full_decision_coverage",
+      "decision_lines": [
+        196
+      ],
+      "function_lines": [
+        189
+      ],
+      "source_sha256": "64cf50908385cacce70ac475004f82c3285f5a0b8bb12b09331f7a1ee29ce21d",
+      "runtime_audit_id": "C18"
+    }
+  ],
+  "known_gaps": [
+    "Normal CLI/UI persistent budget binding unverified; installed hooks alone insufficient.",
+    "Text-tool zero-dispatch tests do not establish artifact/summary caller correctness (NFR05/10).",
+    "decision_data_delivered pre-offload event is not consumption evidence.",
+    "Feedback UI refresh NFR06 needs JS/DOM evidence, outside Python percentage.",
+    "Provider strict capability and real semantic judgments not proved by offline coverage.",
+    "Guard groups do not include every token-budget/ContentStore/learning predicate; add discovered critical decisions explicitly, do not report an all-system MC/DC denominator."
+  ],
+  "static_check": {
+    "head": "896c9975cac648e7cd5636e4ef6b38d5e71b459f",
+    "observed_at_utc": "2026-10-18T02:15:07.5343964Z",
+    "candidate_base_nodeids_exist": true,
+    "parameter_expanded_runtime_nodeids_verified": true,
+    "executed_tests_by_neo": 0,
+    "product_files_modified_by_neo": 0,
+    "application_jobs_by_neo": 0,
+    "protocol_families": 24,
+    "selected_decision_groups": 18,
+    "all_src_condition_census_complete": false,
+    "mcdc_current_evidence": "Three selected groups have passing paired-oracle evidence; all-system percentage unknown; remaining15 groups not independently audited",
+    "unmeasured_not_zero_or_passed": true
+  },
+  "measurement_script_review": {
+    "path": "docs/reviews/round0-coverage-20261018/measure.py",
+    "sha256": "a966c7966db145a3d76387724ea923dde2460613f83917eac61c61428dbe2e75",
+    "status": "baseline_method_accepted_subject_to_explicit_limits",
+    "limits": [
+      "Wrapper entry is invocation evidence, not business handler execution or asserted contract outcome.",
+      "Do not double-count BusinessBoundary and BaseTool observations.",
+      "Record test/config/origin for schema and retain unobserved adapters or role combinations as unknown.",
+      "In-process socket guard does not establish child-process network isolation; inspected CLI-init child has no report job.",
+      "Include measurement implementation and actual fixtures in reproducibility hashes.",
+      "Always restore observer and save failure receipts even if coverage reporting fails.",
+      "Compare observed and unobserved test outcomes; schema union is not an exhaustive denominator."
+    ],
+    "application_defects_inferred_from_measurement_limits": false,
+    "recheck": {
+      "current_sha256": "2cdfdd7308e38ab683d3947ddcfcf88b3e7c93ddc2c877a4a427c7e640acbfd8",
+      "scoped_changes_checked": [
+        "schema observed_at includes test and manifest config",
+        "JSON fixture and diagnostic Python hashes added",
+        "coverage-report/source-after/observer failures retained separately",
+        "observer finish uses finally to restore patches",
+        "network guard explicitly process-local"
+      ],
+      "first_baseline_version": ".analysis/round0-coverage-20261018/measure-baseline-version.py",
+      "first_baseline_version_not_relabelled_as_updated_probe": true
+    }
+  },
+  "independent_condition_audits": [
+    {
+      "id": "C03",
+      "source": "src/report_agent/decision_data.py:213",
+      "decision": "owner_mismatch OR tool_mismatch OR call_id_mismatch OR status_mismatch",
+      "baseline_nodeid": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+      "baseline_precondition": "Native reviewer task bound; valid original artifact; all four identity comparisons match",
+      "baseline_vector": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "baseline_assertion": "deliver_controls(ws, reviewer, reply) is reply; final OpenAI wire retains limitation",
+      "negative_pairs": [
+        {
+          "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+          "target": "owner_mismatch",
+          "vector": [
+            true,
+            false,
+            false,
+            false
+          ],
+          "assertion": "ActionRejected matching PUBLIC_DELIVERY_",
+          "caveat": "Later original-owner guard also protects this tamper; generic error prefix does not isolate oracle to first guard"
+        },
+        {
+          "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+          "target": "call_id_mismatch",
+          "vector": [
+            false,
+            false,
+            true,
+            false
+          ],
+          "assertion": "ActionRejected matching PUBLIC_DELIVERY_",
+          "caveat": "No later call-id comparison found in this function"
+        }
+      ],
+      "missing_independent_conditions": [
+        "tool_mismatch",
+        "status_mismatch"
+      ],
+      "mcdc": "partial_independent_pairs_supported_missing_conditions_remain",
+      "runtime_evidence": {
+        "kind": "passing_actual_test_cases_plus_source_oracle_audit_not_instrumented_condition_trace",
+        "baseline_observations_sha256": "b702370109b9d8aba1c45bdc66fa6d2e59350fe5b909b182a9926beb53e9378e",
+        "observed_observations_sha256": "bdfcb09a866680b1c1a63da0d73582c3dfa5b19fb3ba315f73872ad3039665f9",
+        "tests": [
+          {
+            "nodeid": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+            "baseline_phases": [
+              {
+                "test": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.0786157180009468,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.41947727499791654,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0029472210007952526,
+                "detail": null
+              }
+            ],
+            "observed_phases": [
+              {
+                "test": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.12345433199880063,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.5436306939991482,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0026742109985207208,
+                "detail": null
+              }
+            ],
+            "both_call_phases_passed": true
+          },
+          {
+            "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+            "baseline_phases": [
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.09496087699881173,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.18248412899993127,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0007893200017861091,
+                "detail": null
+              }
+            ],
+            "observed_phases": [
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.11102706200108514,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.23893809100263752,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0007203140012279619,
+                "detail": null
+              }
+            ],
+            "both_call_phases_passed": true
+          },
+          {
+            "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+            "baseline_phases": [
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.11336732299969299,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.2664599679992534,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0007641939992026892,
+                "detail": null
+              }
+            ],
+            "observed_phases": [
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.0880629860002955,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.23957107900059782,
+                "detail": null
+              },
+              {
+                "test": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0032752999977674335,
+                "detail": null
+              }
+            ],
+            "both_call_phases_passed": true
+          }
+        ]
+      },
+      "inspected_source_and_assertions": true,
+      "instrumented_condition_values": false
+    },
+    {
+      "id": "C08",
+      "source": "src/report_agent/text_work_revision.py:30",
+      "decision": "unsupported_type OR target_count_mismatch",
+      "baseline_nodeid": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+      "baseline_precondition": "Bound writer; exact owned ContentNode; one target; output_count=1",
+      "baseline_vector": [
+        false,
+        false
+      ],
+      "baseline_assertion": "First producer and adopt succeed; repeated producer returns original receipt; one model call",
+      "negative_pairs": [
+        {
+          "nodeid": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+          "target": "target_count_mismatch",
+          "vector": [
+            false,
+            true
+          ],
+          "assertion": "Two distinct owned targets, output_count remains 1; exception, zero model calls, original TABLE payload unchanged"
+        }
+      ],
+      "missing_independent_conditions": [
+        "unsupported_type with matching count"
+      ],
+      "mcdc": "partial_independent_pairs_supported_missing_conditions_remain",
+      "runtime_evidence": {
+        "kind": "passing_actual_test_cases_plus_source_oracle_audit_not_instrumented_condition_trace",
+        "baseline_observations_sha256": "b702370109b9d8aba1c45bdc66fa6d2e59350fe5b909b182a9926beb53e9378e",
+        "observed_observations_sha256": "bdfcb09a866680b1c1a63da0d73582c3dfa5b19fb3ba315f73872ad3039665f9",
+        "tests": [
+          {
+            "nodeid": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+            "baseline_phases": [
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.044365540001308545,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.12038627400033874,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0006509699996968266,
+                "detail": null
+              }
+            ],
+            "observed_phases": [
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.04136724999989383,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.0934247899967886,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_replay_after_adoption_preserves_receipt_and_cannot_create_new_node",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0005119479974382557,
+                "detail": null
+              }
+            ],
+            "both_call_phases_passed": true
+          },
+          {
+            "nodeid": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+            "baseline_phases": [
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.03943951400287915,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.06968090499867685,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0006678700010525063,
+                "detail": null
+              }
+            ],
+            "observed_phases": [
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.04078552399732871,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.056978489003086,
+                "detail": null
+              },
+              {
+                "test": "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0006707499996991828,
+                "detail": null
+              }
+            ],
+            "both_call_phases_passed": true
+          }
+        ]
+      },
+      "inspected_source_and_assertions": true,
+      "instrumented_condition_values": false
+    },
+    {
+      "id": "C18",
+      "source": "src/report_agent/learning.py:196",
+      "decision": "missing_release_row OR released_version_mismatch",
+      "baseline_nodeid": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+      "baseline_precondition": "Same candidate version1; accessible same-customer scope; nonempty use reason; release(version1) exists",
+      "baseline_vector": [
+        false,
+        false
+      ],
+      "baseline_assertion": "library.use succeeds before revocation",
+      "negative_pairs": [
+        {
+          "nodeid": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+          "target": "released_version_mismatch",
+          "vector": [
+            false,
+            true
+          ],
+          "assertion": "After release(None), library.use same candidate/version/scope raises EXPERIENCE_NOT_ACTIVE",
+          "internal_state": "release(None) inserts or replaces row with SQL NULL; fetchone=(None,), so row exists",
+          "caveat": "Foreign-customer use fails earlier in _read and is not evidence for this decision"
+        }
+      ],
+      "missing_independent_conditions": [
+        "missing_release_row, using accessible unreleased candidate"
+      ],
+      "mcdc": "partial_independent_pairs_supported_missing_conditions_remain",
+      "runtime_evidence": {
+        "kind": "passing_actual_test_cases_plus_source_oracle_audit_not_instrumented_condition_trace",
+        "baseline_observations_sha256": "b702370109b9d8aba1c45bdc66fa6d2e59350fe5b909b182a9926beb53e9378e",
+        "observed_observations_sha256": "bdfcb09a866680b1c1a63da0d73582c3dfa5b19fb3ba315f73872ad3039665f9",
+        "tests": [
+          {
+            "nodeid": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+            "baseline_phases": [
+              {
+                "test": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.12364977300239843,
+                "detail": null
+              },
+              {
+                "test": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.09465663499941002,
+                "detail": null
+              },
+              {
+                "test": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.0007025220002105925,
+                "detail": null
+              }
+            ],
+            "observed_phases": [
+              {
+                "test": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+                "phase": "setup",
+                "outcome": "passed",
+                "duration": 0.14770665199830546,
+                "detail": null
+              },
+              {
+                "test": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+                "phase": "call",
+                "outcome": "passed",
+                "duration": 0.07912116399893421,
+                "detail": null
+              },
+              {
+                "test": "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+                "phase": "teardown",
+                "outcome": "passed",
+                "duration": 0.000647105996904429,
+                "detail": null
+              }
+            ],
+            "both_call_phases_passed": true
+          }
+        ]
+      },
+      "inspected_source_and_assertions": true,
+      "instrumented_condition_values": false
+    }
+  ],
+  "interface_inventory_review": {
+    "raw_path": ".analysis/round0-coverage-20261018/interface-inventory.json",
+    "raw_sha256": "7f4ff07232ef5eb94abf2479b546fdc1dd515764ec9790f6f45c5b6af9241f71",
+    "raw_is_initial_probe_with_known_fixture_limits": true,
+    "registration_denominator": "Compiled ToolNode route surface, with role/profile/schema/stage deduplication",
+    "model_visible_denominator": "Final ScriptedChat.bind_tools schemas, six bounded profiles only",
+    "optimizer_compiled_counts": [
+      14,
+      15
+    ],
+    "optimizer_final_visible_counts": [
+      6,
+      7
+    ],
+    "difference_explained_by": "learning_runtime.CandidateBoundary.awrap_model_call filters tools",
+    "managed_child_missing_binding": "Probe did not use normal delegated_task context; not a product defect",
+    "coordinator_graph_recursion": "Probe limit5 reached after binding; not evidence runtime cannot finish",
+    "approved_diagnostic_fix": "Temporary seed snapshot, normal child task binding and layout grant; sentinel immediately after original bind_tools records schema; restore patches; retain initial probe",
+    "still_uncovered": [
+      "decision_only permission surface despite unchanged schema",
+      "all possible manifest and optional capability configurations",
+      "host CLI/UI routes",
+      "hidden compiled route authority under fabricated calls",
+      "all model adapters final serialization"
+    ],
+    "reviewed_initial_snapshot_path": ".analysis/round0-coverage-20261018/interface-inventory-attempt1.json",
+    "latest_surface": {
+      "path": ".analysis/round0-coverage-20261018/interface-inventory.json",
+      "sha256": "ec8277b424f7a8b76518874d27fdabb184ae0211c2db81cb59ba82cfa68a5939",
+      "probe_errors": 0,
+      "configuration_count": 6,
+      "report_role_profile_surfaces": 16,
+      "optimizer_role_profile_surfaces": 2,
+      "final_binding_present_for_all_declared_profiles": true,
+      "business_behavior_tested": false,
+      "semantic_acceptance": false
+    }
+  },
+  "next_increment_recommendations": [
+    {
+      "id": "R0-G01",
+      "priority": "P1",
+      "classification": "normal-entry budget protection contract/evidence gap, not a claim historical overspend",
+      "action_blocked": "claim normal CLI/UI is protected by cumulative budget and enable paid execution relying on that claim",
+      "first_step": "Tests only: normal configured adapter and MockTransport through actual CLI/UI temporary case; no manual external with-budget substitution",
+      "files": [
+        "tests/test_token_budget.py",
+        "tests/test_operator_instructions.py",
+        "src/report_agent/cli.py",
+        "src/report_agent/webapp.py",
+        "src/report_agent/deep_runtime.py",
+        "src/report_agent/deep_models.py",
+        "src/report_agent/request_budget.py",
+        "src/report_agent/token_budget.py"
+      ]
+    },
+    {
+      "id": "R0-G02",
+      "priority": "P2",
+      "classification": "sibling caller lifecycle proof missing; known NFR05/NFR10 remain distinct from all failures",
+      "action_blocked": "claim safe artifact/summary automatic recovery or retry unresolved outcome",
+      "first_step": "Tests only: zero-dispatch, unknown, received-invalid, persistence failure and replay through actual caller",
+      "files": [
+        "tests/test_bounded_artifact_text_work.py",
+        "tests/test_glm_native_summary.py",
+        "tests/test_summary_context_provenance.py",
+        "tests/test_not_dispatched_recovery.py",
+        "src/report_agent/artifact_review.py",
+        "src/report_agent/working_summary.py",
+        "src/report_agent/bounded_operations.py"
+      ]
+    },
+    {
+      "id": "R0-G03",
+      "priority": "P2",
+      "classification": "public I/O outcome/side-effect evidence incomplete",
+      "action_blocked": "claim all interfaces/protocols/conditions covered",
+      "first_step": "Extend existing native boundary oracles by inventoried role/schema/state; no application change before red proof",
+      "files": [
+        "tests/test_boundary_refactor.py",
+        "tests/test_evidence_interface.py"
+      ]
+    },
+    {
+      "id": "R0-G04",
+      "priority": "P2",
+      "classification": "three audited compound decisions have missing independent conditions",
+      "action_blocked": "claim complete local or all-system MC/DC",
+      "first_step": "Tests only: tool/status mismatch, revision type-only mismatch, accessible candidate with no release row",
+      "files": [
+        "tests/test_boundary_refactor.py",
+        "tests/test_text_work_scoped_revision.py",
+        "tests/test_learning.py"
+      ]
+    }
+  ],
+  "ui_evidence": {
+    "result": ".analysis/round0-coverage-20261018/ui-result.json",
+    "result_sha256": "c4b9202d35bd072e488a99d01439e99cdc8d72e8783247ec0e45b8f124d82e46",
+    "passed": 19,
+    "failed": 0,
+    "kind": "Existing static DOM VM oracles, not browser",
+    "app_js_branch_coverage": null,
+    "learning_js_loaded": false,
+    "v8_report_covers_harness_only": true
+  },
+  "measured_baseline": {
+    "metrics": "docs/reviews/round0-coverage-20261018/metrics.json",
+    "metrics_sha256": "065931539239ec6b6cb53e0e52e934f40c898116f64e4a96d7e9f9443dd86d0f",
+    "result": {
+      "head": "896c9975cac648e7cd5636e4ef6b38d5e71b459f",
+      "collected": 1868,
+      "collection_errors": [],
+      "collection_skips": [
+        {
+          "name": "tests.test_gepa_report_adapter_optional",
+          "detail": "('/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_gepa_report_adapter_optional.py', 6, \"Skipped: could not import 'gepa': No module named 'gepa'\")"
+        },
+        {
+          "name": "tests.test_learning_gepa_optional",
+          "detail": "('/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/tests/test_learning_gepa_optional.py', 9, \"Skipped: could not import 'dspy': No module named 'dspy'\")"
+        }
+      ],
+      "unrun": [],
+      "outcomes": {
+        "passed": 1726,
+        "failed": 112,
+        "error": 21,
+        "skipped": 9
+      },
+      "observed_outcomes": {
+        "passed": 1726,
+        "failed": 112,
+        "error": 21,
+        "skipped": 9
+      },
+      "outcome_differences": [],
+      "coverage": {
+        "statements": 12710,
+        "covered_statements": 11066,
+        "line_percent": 87.06530291109362,
+        "branches": 5048,
+        "covered_branches": 4050,
+        "branch_percent": 80.22979397781299
+      },
+      "source_files": 93,
+      "interface_union_role_name_count": 173,
+      "middleware_attempted_union_role_name_count": 45,
+      "unattributed_tool_entries": 110,
+      "protocol_families": 24,
+      "condition_groups": 18,
+      "mcdc_total_percent": null,
+      "baseline_result": {
+        "pytest_exit_code": 1,
+        "elapsed_seconds": 1150.412452339002,
+        "source_changes": [],
+        "network_connections_denied": 0,
+        "provider_calls_allowed": false,
+        "conditions_measured_by_coverage_py": false
+      },
+      "observed_result": {
+        "pytest_exit_code": 1,
+        "elapsed_seconds": 932.3489251639985,
+        "source_changes": [
+          "docs/reviews/round0-coverage-20261018/inventory.py"
+        ],
+        "network_connections_denied": 0,
+        "provider_calls_allowed": false,
+        "network_guard_scope": "This Python process only; not a provider audit or subprocess firewall.",
+        "cleanup_errors": [],
+        "conditions_measured_by_coverage_py": false
+      }
+    },
+    "all_system_mcdc_percent": null,
+    "all_protocol_paths_percent": null,
+    "all_interface_contract_percent": null,
+    "instrumented_condition_trace": false,
+    "summary_check": "1868 unique collected/runtime nodeids:1726 passed+112 failed+21 error+9 skipped. Two optional-module collection skips are separate."
+  },
+  "review_assembly_note": {
+    "local_first_assembly_failed": "PowerShell ConvertFrom-Json could not parse empty-key context data in coverage.json and temporary dictionary aggregation was unsuitable",
+    "correction": "Rebuilt all runtime fields from saved test reports and Main metrics/path-matrix; exact primary nodes asserted call passed in both runs",
+    "application_or_test_execution_affected": false
+  },
+  "runtime_path_check": {
+    "raw_call_reports_checked": 121,
+    "note": "Mapped protocol entries may overlap; every mapped call phase passed. No full-state path percentage.",
+    "primary_condition_nodeids_checked": 6,
+    "primary_condition_setup_call_teardown_all_passed_in_both_runs": true
+  },
+  "representative_failure_review": [
+    {
+      "id": "R0-F01",
+      "evidence": "tests/test_generation_records.py:146",
+      "severity": "P2",
+      "classification": "test helper signature drift",
+      "proven": "Missing reference_delivery argument before intended trunk executes",
+      "action_blocked": "Use this generation-notes batch export test as evidence",
+      "product_defect_established": false
+    },
+    {
+      "id": "R0-F02",
+      "evidence": [
+        "tests/test_generation_records.py:87",
+        "tests/test_object_index.py:132"
+      ],
+      "severity": "P2",
+      "classification": "test oracles still require retired clipping/summary fields",
+      "proven": "public_value preserves generation_notes and business envelope instead",
+      "action_blocked": "Claim these old oracle failures prove current information loss or restore clipping to pass",
+      "product_defect_established": false
+    },
+    {
+      "id": "R0-F03",
+      "evidence": "tests/test_text_work_candidate_inputs.py:146",
+      "severity": "P2",
+      "classification": "ineffective monkeypatch",
+      "proven": "Test patches text_work imported alias; PreparedMaterial method reads prepared_material module constant",
+      "action_blocked": "Claim actual size threshold was reduced or that failure proves production cap bypass",
+      "product_defect_established": false
+    },
+    {
+      "id": "R0-F04",
+      "historical_candidate": "UF-STRICT / NFR-C04",
+      "evidence": [
+        "tests/test_deepseek_strict.py:107",
+        "src/report_agent/deepseek_strict.py:103",
+        "src/report_agent/deep_models.py:166",
+        ".analysis/round0-coverage-20261018/interface-inventory.json"
+      ],
+      "severity": "P2",
+      "classification": "current strict-adapter schema compatibility defect confirmed this round",
+      "proven": "Final Coordinator commit_objects schema includes allOf in all4 report profiles; StrictCodec rejects allOf; strict adapter compiles offered tools before HTTP",
+      "action_blocked": "Dispatch a strict-provider request that offers this schema",
+      "containment": "Non-strict GLM path unaffected by this finding; fail closed before send. No permission or domain validator weakening authorized.",
+      "product_defect_established": true,
+      "actual_paid_trigger_claimed": false,
+      "full_native_strict_semantics_proved": false
+    },
+    {
+      "id": "R0-F05",
+      "evidence": "tests/test_vision.py:139",
+      "severity": "P2",
+      "classification": "retry configuration not isolated in test",
+      "proven": "Client uses sdk_retry_count from REPORT_SDK_RETRIES; test sets endpoint/key/model but not retry variable",
+      "action_blocked": "Use retries5vs0 assertion as evidence of unauthorized actual retries",
+      "product_defect_established": false,
+      "actual_http_retry_count_in_this_test": "not established by constructor-only assertion"
+    }
+  ],
+  "completion": {
+    "status": "scoped_review_complete",
+    "application_repaired_in_round0": false,
+    "application_acceptance": false,
+    "real_llm_validation": false,
+    "original_full_review_files_changed": false,
+    "report_files_owned": [
+      "neo-scope-review.md",
+      "neo-scope-review.json",
+      "neo-final-review.md"
+    ],
+    "main_report_read": "baseline.md",
+    "main_report_claims": "Accepted scoped metrics and limitations; stale path runtime evidence placeholder corrected in final artifact",
+    "original_UF_STRICT_updated_only_in_new_review": true,
+    "UF_BODY": "not completed by strict compile failure",
+    "coverage_goals_reached": false,
+    "final_path_matrix_sha256": "5c65f5ba460c37e4c3ffe99318749fc552f717ded4f92212fa9dedaa00303d4c",
+    "closed_at_utc": "2026-10-18T02:39:45.1759619Z"
+  }
+}

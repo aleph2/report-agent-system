@@ -1,0 +1,646 @@
+[
+  {
+    "id": "P01",
+    "name": "有效native注册/角色工具矩阵",
+    "entry": "deep_runtime.build_agent/business_tools; learning_runtime.build_optimizer",
+    "states": "active/retired; report roles+learner; final native schemas; optional configs",
+    "candidate_tests": [
+      "tests/test_text_work.py::test_active_reviewer_has_only_independent_semantic_publication_routes",
+      "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools": "passed",
+      "tests/test_text_work.py::test_active_reviewer_has_only_independent_semantic_publication_routes": "passed"
+    },
+    "outcomes": {
+      "passed": 2
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P02",
+    "name": "委派/actor权限",
+    "entry": "content_tasks.delegated_task/bound_actor",
+    "states": "caller role; task binding; wrong workspace/role; own/foreign writes",
+    "candidate_tests": [
+      "tests/test_text_work.py::test_receipts_do_not_expand_role_task_or_revision_ownership",
+      "tests/test_task_supervision.py::test_writer_owns_body_coordinator_can_freeze_without_acquiring_it"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_task_supervision.py::test_writer_owns_body_coordinator_can_freeze_without_acquiring_it": "passed",
+      "tests/test_text_work.py::test_receipts_do_not_expand_role_task_or_revision_ownership": "passed"
+    },
+    "outcomes": {
+      "passed": 2
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P03",
+    "name": "旧任务恢复保义务",
+    "entry": "content_tasks.delegated_task; task_supervision.reconcile",
+    "states": "new/resume; changed requirements/snapshot/plugin/layout grant",
+    "candidate_tests": [
+      "tests/test_task_supervision.py::test_resuming_task_cannot_narrow_its_requirements",
+      "tests/test_task_supervision.py::test_reused_scope_id_with_different_checks_does_not_reuse_old_completion"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_task_supervision.py::test_reused_scope_id_with_different_checks_does_not_reuse_old_completion": "passed",
+      "tests/test_task_supervision.py::test_resuming_task_cannot_narrow_its_requirements": "passed"
+    },
+    "outcomes": {
+      "passed": 2
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P04",
+    "name": "源读取到下一模型",
+    "entry": "source_materials.returned; TaskContext; decision_data",
+    "states": "small exact read; native offload; owned recovery",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_explicit_source_read_reaches_next_model_without_field_clipping",
+      "tests/test_boundary_refactor.py::test_native_offload_keeps_source_data_deferred_and_exactly_recoverable"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_boundary_refactor.py::test_explicit_source_read_reaches_next_model_without_field_clipping": "passed",
+      "tests/test_boundary_refactor.py::test_native_offload_keeps_source_data_deferred_and_exactly_recoverable": "passed"
+    },
+    "outcomes": {
+      "passed": 2
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P05",
+    "name": "大正文/表数据递延",
+    "entry": "decision_data.offloaded_controls",
+    "states": "object/selection/result/page; no reinsertion; nested errors/limitations retained",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies",
+      "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[False]": "passed",
+      "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[True]": "passed",
+      "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations[read_source_page]": "passed",
+      "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations[search_sources]": "passed"
+    },
+    "outcomes": {
+      "passed": 4
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P06",
+    "name": "控制/typed错误/身份最终交付",
+    "entry": "decision_data.deliver_controls; TaskContext.awrap_model_call",
+    "states": "success/error; normal/offloaded; serializer; tamper; idempotence",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+      "tests/test_boundary_refactor.py::test_typed_rejection_is_not_erased_or_promoted_after_offload",
+      "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction": "passed",
+      "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]": "passed",
+      "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[sha256]": "passed",
+      "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]": "passed",
+      "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[public_digest]": "passed",
+      "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[stored_text]": "passed",
+      "tests/test_boundary_refactor.py::test_typed_rejection_is_not_erased_or_promoted_after_offload": "passed"
+    },
+    "outcomes": {
+      "passed": 7
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P07",
+    "name": "receipt到实质工具选材",
+    "entry": "source_materials.verify; prepared_material.compile_material",
+    "states": "owner/rawbytes; source version/parser/blocks; full/references",
+    "candidate_tests": [
+      "tests/test_source_view_selection.py::test_default_selection_and_actual_full_packet_are_unchanged",
+      "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version",
+      "tests/test_source_view_selection.py::test_archived_block_tamper_cannot_borrow_current_source_identity"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_source_view_selection.py::test_default_selection_and_actual_full_packet_are_unchanged": "passed",
+      "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[sha256-new-file-sha-selection-observation]": "passed",
+      "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[sha256-new-file-sha-observation-selection]": "passed",
+      "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[parser-new-parser-version-selection-observation]": "passed",
+      "tests/test_source_view_selection.py::test_new_source_version_not_reinterpreted_as_archived_version[parser-new-parser-version-observation-selection]": "passed",
+      "tests/test_source_view_selection.py::test_archived_block_tamper_cannot_borrow_current_source_identity[text]": "passed",
+      "tests/test_source_view_selection.py::test_archived_block_tamper_cannot_borrow_current_source_identity[locator]": "passed"
+    },
+    "outcomes": {
+      "passed": 7
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P08",
+    "name": "生产/receipt/原样采用",
+    "entry": "text_work.produce/adopt",
+    "states": "fresh model; no write before adopt; exact owner/content",
+    "candidate_tests": [
+      "tests/test_text_work.py::test_tool_produces_without_business_write_and_writer_adopts_exact_payload",
+      "tests/test_text_work.py::test_real_native_graph_uses_independent_service_before_saving_owned_body"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_text_work.py::test_tool_produces_without_business_write_and_writer_adopts_exact_payload": "passed",
+      "tests/test_text_work.py::test_real_native_graph_uses_independent_service_before_saving_owned_body": "passed"
+    },
+    "outcomes": {
+      "passed": 2
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P09",
+    "name": "非法或不完整输出",
+    "entry": "evidence_analysis.analyze_evidence_packet; text_work.parse_produced_output",
+    "states": "JSON/schema; length/refusal/toolcalls/empty; received-invalid vs unknown; no replay",
+    "candidate_tests": [
+      "tests/test_text_work.py::test_failed_or_unknown_work_is_preserved_without_semantic_retry",
+      "tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_text_work.py::test_failed_or_unknown_work_is_preserved_without_semantic_retry[invalid JSON]": "passed",
+      "tests/test_text_work.py::test_failed_or_unknown_work_is_preserved_without_semantic_retry[answer1]": "passed",
+      "tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable[length]": "passed",
+      "tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable[content_filter]": "passed",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[length-analyze_text]": "passed",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[length-analyze_evidence]": "passed",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[refusal-analyze_text]": "passed",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[refusal-analyze_evidence]": "passed",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[unknown-analyze_text]": "passed",
+      "tests/test_text_work.py::test_all_registered_source_analyses_reject_incomplete_and_do_not_replay[unknown-analyze_evidence]": "passed"
+    },
+    "outcomes": {
+      "passed": 10
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P10",
+    "name": "限定词修订CAS",
+    "entry": "text_work_revision; text_work.adopt",
+    "states": "body same; type/count/target/owner/current version; previous_ref",
+    "candidate_tests": [
+      "tests/test_text_work_scoped_revision.py::test_native_produce_adopt_then_exact_qualifier_revision_preserves_body",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_text_work_scoped_revision.py::test_native_produce_adopt_then_exact_qualifier_revision_preserves_body": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[missing_qualifiers]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[body_in_output]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[missing_previous]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[wrong_target]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[wrong_owner]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[stale_target]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[count]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[duplicate]": "passed",
+      "tests/test_text_work_scoped_revision.py::test_revision_boundary_rejects_wrong_shape_identity_or_authority[authority]": "passed"
+    },
+    "outcomes": {
+      "passed": 10
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P11",
+    "name": "缓存/重放/并发",
+    "entry": "ContentStore.operation/commit; text_work",
+    "states": "same request; conflict; one head winner; own cache observation",
+    "candidate_tests": [
+      "tests/test_hierarchical_content.py::test_immutable_versions_cas_and_atomic_batch",
+      "tests/test_hierarchical_content.py::test_same_head_concurrency_has_one_winner",
+      "tests/test_content_selection.py::test_analysis_receipt_uses_current_actor_even_on_cache_hit"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_content_selection.py::test_analysis_receipt_uses_current_actor_even_on_cache_hit": "passed",
+      "tests/test_hierarchical_content.py::test_immutable_versions_cas_and_atomic_batch": "passed",
+      "tests/test_hierarchical_content.py::test_same_head_concurrency_has_one_winner": "passed"
+    },
+    "outcomes": {
+      "passed": 3
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P12",
+    "name": "0派发本地拒绝与新父操作",
+    "entry": "request_budget; bounded_operations",
+    "states": "proof; raw+outer CAS; old failure unchanged; fresh parent one rearm",
+    "candidate_tests": [
+      "tests/test_not_dispatched_recovery.py::test_native_pending_refusal_replay_then_explicit_new_work_adopts_once",
+      "tests/test_not_dispatched_recovery.py::test_linked_cas_is_atomic_idempotent_and_cannot_reclassify_unknown",
+      "tests/test_not_dispatched_recovery.py::test_only_one_new_parent_can_readmit_raw_operation"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_not_dispatched_recovery.py::test_linked_cas_is_atomic_idempotent_and_cannot_reclassify_unknown": "passed",
+      "tests/test_not_dispatched_recovery.py::test_only_one_new_parent_can_readmit_raw_operation": "passed",
+      "tests/test_not_dispatched_recovery.py::test_native_pending_refusal_replay_then_explicit_new_work_adopts_once": "passed"
+    },
+    "outcomes": {
+      "passed": 3
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P13",
+    "name": "已派发deadline/取消",
+    "entry": "deep_models; evidence_analysis; vision",
+    "states": "deadline vs outer cancellation; admitted then refused; unknown retained",
+    "candidate_tests": [
+      "tests/test_bounded_deadline.py::test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget",
+      "tests/test_bounded_deadline.py::test_outer_cancellation_is_not_a_local_deadline",
+      "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_bounded_deadline.py::test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget[False]": "passed",
+      "tests/test_bounded_deadline.py::test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget[True]": "passed",
+      "tests/test_bounded_deadline.py::test_outer_cancellation_is_not_a_local_deadline": "passed",
+      "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved[settlement]": "passed",
+      "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved[retry_admission]": "passed"
+    },
+    "outcomes": {
+      "passed": 5
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P14",
+    "name": "返回后的记账/诊断失败",
+    "entry": "token_budget; transport_observation; deep_models",
+    "states": "sync/async; missing usage; settlement/observer failure; no SDK resend",
+    "candidate_tests": [
+      "tests/test_token_budget.py::test_sdk_does_not_resend_received_response_after_local_settlement_failure",
+      "tests/test_token_budget.py::test_malformed_json_shapes_and_inconsistent_usage_keep_reservation_without_retry",
+      "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_token_budget.py::test_malformed_json_shapes_and_inconsistent_usage_keep_reservation_without_retry": "passed",
+      "tests/test_token_budget.py::test_sdk_does_not_resend_received_response_after_local_settlement_failure": "passed",
+      "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_http_attempt_response]": "passed",
+      "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_http_attempt_started]": "passed",
+      "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_transport_retry_policy]": "passed",
+      "tests/test_transport_observation.py::test_old_and_new_observer_io_failure_never_resends_received_response[model_http_phase]": "passed"
+    },
+    "outcomes": {
+      "passed": 6
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P15",
+    "name": "正常工厂到HTTP适配器",
+    "entry": "deep_models.configured_model/model_async_client/model_sync_client",
+    "states": "actual parameters; strict schema; retry/deadline; MockTransport",
+    "candidate_tests": [
+      "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request",
+      "tests/test_transport_observation.py::test_complete_response_preserves_result_exact_settlement_and_phase_order",
+      "tests/test_reference_delivery.py::test_configured_clients_install_budget_hook"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request[glm-5.3-https://offline.invalid/v1]": "passed",
+      "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request[deepseek-v4.1-flash-https://offline.invalid/v1]": "passed",
+      "tests/test_model_request_timeout.py::test_timeout_reaches_constructed_chat_clients_and_request[deepseek-flash-https://api.deepseek.com]": "passed",
+      "tests/test_reference_delivery.py::test_configured_clients_install_budget_hook": "passed",
+      "tests/test_transport_observation.py::test_complete_response_preserves_result_exact_settlement_and_phase_order": "passed"
+    },
+    "outcomes": {
+      "passed": 5
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P16",
+    "name": "审核readiness/范围/大小",
+    "entry": "task_supervision.review_readiness; bounded_review.perform_review",
+    "states": "ambiguous/empty scope; unresolved; missing source tail; size before model",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_ambiguous_scope_is_rejected_at_assignment_before_any_model",
+      "tests/test_required_source_spans.py::test_missing_actual_tail_is_precall_gap",
+      "tests/test_required_source_spans.py::test_whole_packet_bound_before_provider_without_trimming"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_boundary_refactor.py::test_ambiguous_scope_is_rejected_at_assignment_before_any_model": "passed",
+      "tests/test_required_source_spans.py::test_missing_actual_tail_is_precall_gap": "passed",
+      "tests/test_required_source_spans.py::test_whole_packet_bound_before_provider_without_trimming": "passed"
+    },
+    "outcomes": {
+      "passed": 3
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P17",
+    "name": "逐check材料/保存/reconcile",
+    "entry": "task_supervision.missing_required_materials/source_extents_in_observation; ContentStore.submit_review",
+    "states": "view/version/ordinal; metadata-only; owner/rawbytes; no borrowing",
+    "candidate_tests": [
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material",
+      "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt",
+      "tests/test_required_source_spans.py::test_one_check_cannot_borrow_another_checks_source",
+      "tests/test_required_source_spans.py::test_reconciliation_independently_rechecks_per_check_linkage"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_required_source_spans.py::test_reconciliation_independently_rechecks_per_check_linkage": "passed",
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[metadata_only]": "passed",
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_view]": "passed",
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_version]": "passed",
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_ordinal]": "passed",
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[wrong_source]": "passed",
+      "tests/test_required_source_spans.py::test_extent_matcher_rejects_wrong_or_unread_material[missing_block]": "passed",
+      "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[unlinked]": "passed",
+      "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[metadata]": "passed",
+      "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[wrong_owner]": "passed",
+      "tests/test_required_source_spans.py::test_adoption_rechecks_linked_origin_receipt[changed_bytes]": "passed",
+      "tests/test_required_source_spans.py::test_one_check_cannot_borrow_another_checks_source": "passed"
+    },
+    "outcomes": {
+      "passed": 12
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P18",
+    "name": "历史比较/时间边界",
+    "entry": "task_supervision.historical_read_refs/review_read_refs; ContentStore.submit_review",
+    "states": "declared exact dependency; own whole read; not target; no later/foreign/partial repair",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_explicit_historical_comparison_can_execute_save_and_reconcile",
+      "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority",
+      "tests/test_task_supervision.py::test_later_foreign_failed_partial_and_wrong_version_reads_do_not_retroactively_close"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_boundary_refactor.py::test_explicit_historical_comparison_can_execute_save_and_reconcile": "passed",
+      "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[undeclared]": "passed",
+      "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[unread]": "passed",
+      "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[foreign_read]": "passed",
+      "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[wrong_version]": "passed",
+      "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[target]": "passed",
+      "tests/test_task_supervision.py::test_later_foreign_failed_partial_and_wrong_version_reads_do_not_retroactively_close": "passed"
+    },
+    "outcomes": {
+      "passed": 7
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P19",
+    "name": "artifact checker保存与公开判定",
+    "entry": "artifact_review; ContentStore.submit_review",
+    "states": "fresh/cache; export receipt; full pages vs crop/version; partial vs whole",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_artifact_review_returns_saved_findings_on_fresh_and_cached_path",
+      "tests/test_artifact_review.py::test_native_deepagents_tool_publication_uses_server_task_binding",
+      "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change0]": "passed",
+      "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change1]": "passed",
+      "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change2]": "passed",
+      "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change3]": "passed",
+      "tests/test_artifact_review.py::test_crop_wrong_page_version_or_reference_cannot_complete[change4]": "passed",
+      "tests/test_artifact_review.py::test_native_deepagents_tool_publication_uses_server_task_binding": "passed",
+      "tests/test_boundary_refactor.py::test_artifact_review_returns_saved_findings_on_fresh_and_cached_path": "passed"
+    },
+    "outcomes": {
+      "passed": 7
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P20",
+    "name": "快照闭包/Word+Excel",
+    "entry": "ContentStore.freeze/derive; content_export; content_workbook",
+    "states": "base+additions; explicit replacements/relations; atomic failure; same snapshot and link",
+    "candidate_tests": [
+      "tests/test_snapshot_derivation.py::test_registered_197_member_base_two_additions_word_excel_exact_pair",
+      "tests/test_snapshot_derivation.py::test_replacements_require_exact_base_and_explicit_updated_relations",
+      "tests/test_text_work.py::test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_snapshot_derivation.py::test_registered_197_member_base_two_additions_word_excel_exact_pair": "passed",
+      "tests/test_snapshot_derivation.py::test_replacements_require_exact_base_and_explicit_updated_relations": "passed",
+      "tests/test_text_work.py::test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx[False]": "passed",
+      "tests/test_text_work.py::test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_and_xlsx[True]": "passed"
+    },
+    "outcomes": {
+      "passed": 4
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P21",
+    "name": "目录/渲染结构保真",
+    "entry": "content_export; content_layout; exporting",
+    "states": "rootTOC; images/lists/tables/inline; explicit headings; conflicts",
+    "candidate_tests": [
+      "tests/test_boundary_refactor.py::test_document_has_one_directory_even_with_nested_report_nodes",
+      "tests/test_boundary_refactor.py::test_styles_do_not_split_lists_soft_lines_or_tables",
+      "tests/test_boundary_refactor.py::test_explicit_heading_boundaries_preserve_cross_line_emphasis_links_and_numbering"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_boundary_refactor.py::test_document_has_one_directory_even_with_nested_report_nodes": "passed",
+      "tests/test_boundary_refactor.py::test_styles_do_not_split_lists_soft_lines_or_tables": "passed",
+      "tests/test_boundary_refactor.py::test_explicit_heading_boundaries_preserve_cross_line_emphasis_links_and_numbering": "passed"
+    },
+    "outcomes": {
+      "passed": 3
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P22",
+    "name": "checkpoint/interrupt/new turn",
+    "entry": "deep_runtime.run_report; separate host harness",
+    "states": "pending; existing terminal new turn; no human answer; same history/task",
+    "candidate_tests": [
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches",
+      "tests/test_validation_native_entry.py::test_completed_real_graph_gets_new_project_view_without_losing_history",
+      "tests/test_task_context.py::test_native_checkpoint_continuation_recovers_output_and_current_decision"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_task_context.py::test_native_checkpoint_continuation_recovers_output_and_current_decision": "passed",
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[pending-False-False-True-PENDING_NATIVE_CONTINUATION_REQUIRED]": "passed",
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[pending-True-True-True-PENDING_NATIVE_CONTINUATION_REQUIRED]": "passed",
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-True-False-True-TERMINAL_NATIVE_THREAD_REQUIRED]": "passed",
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-False-True-True-TERMINAL_NATIVE_THREAD_REQUIRED]": "passed",
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-False-False-False-EXISTING_NATIVE_THREAD_REQUIRED]": "passed",
+      "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[invalid-False-False-True-UNKNOWN_NATIVE_ENTRY_MODE]": "passed",
+      "tests/test_validation_native_entry.py::test_completed_real_graph_gets_new_project_view_without_losing_history": "passed"
+    },
+    "outcomes": {
+      "passed": 8
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P23",
+    "name": "summary/恢复/当前权威",
+    "entry": "working_summary; summary_recovery; TaskContext",
+    "states": "usable/unusable; reopen no replay; actor; exact refs and current assignment",
+    "candidate_tests": [
+      "tests/test_task_context.py::test_repeated_compaction_cannot_change_exact_task_or_obligations",
+      "tests/test_summary_context_provenance.py::test_actual_native_summary_input_includes_current_feedback_and_bound_assignment",
+      "tests/test_summary_context_provenance.py::test_new_feedback_or_clock_does_not_clear_unknown_summary_failure"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_summary_context_provenance.py::test_actual_native_summary_input_includes_current_feedback_and_bound_assignment": "passed",
+      "tests/test_summary_context_provenance.py::test_new_feedback_or_clock_does_not_clear_unknown_summary_failure": "passed",
+      "tests/test_task_context.py::test_repeated_compaction_cannot_change_exact_task_or_obligations": "passed"
+    },
+    "outcomes": {
+      "passed": 3
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  },
+  {
+    "id": "P24",
+    "name": "学习反馈/候选/发布/指导",
+    "entry": "learning; learning_runtime; learning_worker; learning_api",
+    "states": "queue empty/failed; inactive candidate; release/revoke; tenant scope; actual input",
+    "candidate_tests": [
+      "tests/test_learning_worker.py::test_empty_and_duplicate_feedback_do_not_call_model_twice",
+      "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke",
+      "tests/test_task_context.py::test_released_preferences_reach_actual_model_input_and_follow_release",
+      "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools"
+    ],
+    "runtime_evidence": {
+      "baseline": ".analysis/round0-coverage-20261018/baseline/observations.json",
+      "comparison": ".analysis/round0-coverage-20261018/outcome-comparison.json",
+      "method": "Exact collected nodeid and call outcome; not full state-transition coverage"
+    },
+    "runtime_tests": {
+      "tests/test_learning.py::test_candidate_release_cross_project_isolation_and_revoke": "passed",
+      "tests/test_learning.py::test_optimizer_has_no_publication_or_report_write_tools": "passed",
+      "tests/test_learning_worker.py::test_empty_and_duplicate_feedback_do_not_call_model_twice": "passed",
+      "tests/test_task_context.py::test_released_preferences_reach_actual_model_input_and_follow_release": "passed"
+    },
+    "outcomes": {
+      "passed": 4
+    },
+    "path_assertion_coverage": "partial_evidence_not_all_states"
+  }
+]

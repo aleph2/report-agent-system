@@ -3,7 +3,8 @@
 The scripted checker explicitly supplies the gap. These tests measure whether
 the real runtime delivers Agent-selected independent requirements and preserves
 that response. The four handoff variants migrated from implicit runtime loading
-to explicit selection; their original body/version/gap/capacity assertions remain.
+to explicit selection; their original body/version/gap assertions remain. The historical oversize variant
+now proves full delivery instead of the removed character-limit refusal.
 """
 from copy import deepcopy
 import json
@@ -18,7 +19,6 @@ from langchain_core.messages import AIMessage, ToolMessage, messages_to_dict
 from report_agent import deep_runtime
 from report_agent.content_delivery import current_delivery
 from report_agent.content_store import ContentStore
-from report_agent.prepared_material import MAX_EVIDENCE_CHARACTERS
 from report_agent.task_context import exact_task_context
 from report_agent.task_supervision import reconcile
 from test_agent_duty_trace_cases import action, result_value, tool_reply
@@ -29,6 +29,9 @@ from test_hierarchical_content import seed
 from test_task_supervision import ws, offline
 
 
+HISTORICAL_FIXTURE_THRESHOLD = 64000  # Fixture size only; not a product material limit.
+
+
 ORIGINAL = ("Assess Objects A and B individually using their original design and guide.\n"
             "B's inclusion remains unresolved: disclosure alone is not its assessment.\n"
             "完整保留原要求末尾条件：重要结构物不能只因摘要缺高度而排除。")
@@ -37,7 +40,7 @@ OUTSIDE = "Other commissioned outcomes remain unreviewed; this local pass is not
 
 
 def prepare(ws, variant="normal"):
-    text = ORIGINAL + ("文" * (MAX_EVIDENCE_CHARACTERS - len(ORIGINAL) + 1) if variant == "oversize" else "")
+    text = ORIGINAL + ("文" * (HISTORICAL_FIXTURE_THRESHOLD - len(ORIGINAL) + 1) if variant == "oversize" else "")
     ws.store.set("manifest", {**ws.store.manifest, "goal": text})
     cs, actor, refs, snapshot, members = seed(ws)
     original_ref = next(r for r in members if r["type"] == "Requirement")
@@ -257,17 +260,9 @@ async def test_original_requirement_and_declared_gap_use_native_handoff(ws, requ
     driver = await run_review(ws, call, held, request)
     assert held["runtime"]["last_error"] is None, held["runtime"]
     if variant == "oversize":
-        from report_agent.store import encode
-        measured = len(encode([{"kind": "saved_object", "object": original}]))
-        assert MAX_EVIDENCE_CHARACTERS < measured < MAX_EVIDENCE_CHARACTERS + 2000
-        assert not held.get("checker_inputs"), "OVERSIZE_ORIGINAL_MUST_NOT_CALL_MODEL"
-        assert not cs.list_objects("ReviewRecord")
-        message = held["reviewer_tool_return"]
-        assert message["status"] == "error"
-        assert "REVIEW_REQUIREMENTS_EXCEED_BOUNDED_INPUT" in message["content"]
-        assert cs.read(original["ref"]) == original
-        assert not any(e["kind"] == "evidence_analysis_input" for e in ws.store.events())
-        return
+        assert len(original['payload']['text']) > HISTORICAL_FIXTURE_THRESHOLD
+        assert held['reviewer_tool_return']['status'] != 'error'
+        assert 'REVIEW_REQUIREMENTS_EXCEED_BOUNDED_INPUT' not in held['reviewer_tool_return']['content']
     packet = held["checker_inputs"][0]
     assert held["discovered_original"] == original
     assert packet["selected_original_requirement_refs"] == [original["ref"]]

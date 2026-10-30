@@ -1,0 +1,1 @@
+Creates and revises the assigned versioned report content using authorized requirements and sources. Owns its content and returns saved versions, supporting references, limitations and remaining work. Use for authorship and revisions; independent review is Reviewer work.

@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, ToolMessage, messages_to_dict
 
 from report_agent import deep_runtime
 from report_agent.content_tasks import delegated_task
+from report_agent.store import encode
 from report_agent.task_supervision import reconcile
 from test_agent_duty_trace_cases import result_value
 from report_agent.bounded_review import perform_review
@@ -130,6 +131,14 @@ async def _review_reuse(ws, case):
     current = current_call['args']['review_requirements'][0]
     current.update(deepcopy(prior_requirement))
     current['content_check_scopes'][0]['kind'] = 'subtree_bodies' if case.endswith('expanded') else 'local_body'
+    if case.endswith('expanded'):
+        # This probe concerns reuse under an authorized expanded extent. The
+        # historical local contract intentionally never included this new body.
+        current['material_refs'].append(additions['child'])
+    from report_agent.review_input import snapshot_body_topology, body_extent_refs, scope_body_pool
+    _, children = snapshot_body_topology(cs, cs.read(new))
+    assert all(encode(ref) in scope_body_pool(current) for ref in
+               body_extent_refs(children, current['content_check_scopes'][0]))
     current_call['args'].pop('supervision_plugin', None)
     current_call['args']['description'] = ('Assess whether the saved historical local review applies to the current assigned extent. '
         'Old review: ' + json.dumps(old_review) + '. Compare the saved assignment and change evidence. '

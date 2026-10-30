@@ -32,7 +32,7 @@ def response(payload=None, total=20):
 
 def make_model(ws, monkeypatch):
     model = offline_model(ws, monkeypatch)
-    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
     return model
 
 

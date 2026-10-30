@@ -37,8 +37,16 @@ def _bytes(store, asset, expected):
     return data
 
 
-def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None):
+def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None, *, deliverable=None):
     def execute(db):
+        nonlocal snapshot_ref
+        from .prompt_sources import review_interface_profile
+        v4 = review_interface_profile(contents.store) == 'review-interfaces-v4'
+        if deliverable is not None:
+            if not v4 or snapshot_ref is not None:
+                raise ActionRejected('EXPORT_DELIVERABLE_SELECTION_CONFLICT')
+            from .deliverables import resolve_snapshot
+            snapshot_ref = resolve_snapshot(contents, db, actor, deliverable)
         if actor.role not in {"coordinator", "writer", "layout"}:
             raise ActionForbidden("FORBIDDEN: export producer")
         snapshot = contents._read(db, snapshot_ref)
@@ -48,8 +56,11 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             delegated = (actor.id == "content:layout:" + actor.task_id and
                 task["payload"].get("role") == "layout" and
                 task["payload"].get("layout_snapshot_ref") == snapshot_ref)
-        if snapshot_ref["type"] != "DocumentSnapshot" or not (delegated or
-                actor.role != "layout" and snapshot["owner_id"] == actor.id):
+        allowed = delegated or actor.role != 'layout' and snapshot['owner_id'] == actor.id
+        if v4:
+            from .deliverables import export_allowed
+            allowed = export_allowed(contents, db, actor, snapshot)
+        if snapshot_ref["type"] != "DocumentSnapshot" or not allowed:
             raise ActionForbidden("FORBIDDEN: snapshot owner")
         if layout is not None and layout_from_export_ref is not None:
             raise ActionRejected("LAYOUT_AND_SOURCE_MUTUALLY_EXCLUSIVE")
@@ -101,14 +112,15 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             node = records[key]["payload"]
             style = node_options.get(key)
             level = (style.heading_level if style and style.heading_level else depth if node['kind'] == 'chapter' else None)
-            first = node['body'].get('text', '').split('\n', 1)[0]
+            heading_text = node['body'].get('text', '') if node['kind'] not in {'table', 'figure'} else ''
+            first = heading_text.split('\n', 1)[0]
             first_control = next((p for p in style.paragraphs if p.text == first), None) if style else None
             if first_control and first_control.heading_level:
                 level = first_control.heading_level
-            if level and level <= options.toc_depth:
-                toc_headings.append((node['body']['text'].split('\n', 1)[0], level))
+            if first and level and level <= options.toc_depth:
+                toc_headings.append((first, level))
             if style:
-                for line in node['body'].get('text', '').split('\n'):
+                for line in heading_text.split('\n'):
                     for paragraph in style.paragraphs:
                         if paragraph.text == line and paragraph.heading_level and paragraph.heading_level <= options.toc_depth:
                             if not (level and line == node['body']['text'].split('\n', 1)[0]):
@@ -205,8 +217,15 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 else:
                     presentation.emit_text(doc, body["text"], image_renderer, controls, table_formatter=format_embedded_table)
             visible = {k: v for k, v in node["qualifiers"].items() if k not in presentation.STRUCTURAL}
+            # Suppress only a full literal qualifier line already emitted in this node.
+            body_lines = body['text'].splitlines() if kind not in {'table', 'figure'} else []
+            visible = {key: value for key, value in visible.items()
+                if f"{'来源说明' if key == 'source_note' else key}：{value}" not in body_lines}
             if visible:
-                text = "；".join(f"{'来源说明' if key == 'source_note' else key}：{value}" for key, value in visible.items())
+                parts = [f"{'来源说明' if key == 'source_note' else key}：{value}" for key, value in visible.items()]
+                text = parts[0]
+                for part in parts[1:]:
+                    text += (" " if text.rstrip().endswith(('。', '！', '？', '.', '!', '?')) else "；") + part
                 if style and style.qualifier_placement == 'end_notes':
                     number = len(end_notes) + 1
                     end_notes.append((number, ref, visible, text, style.qualifier_font_size))
@@ -290,6 +309,8 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             result['layout_source'] = export_config['layout_source']
         return result
     request = {"export": snapshot_ref}
+    if deliverable is not None:
+        request['deliverable'] = deliverable
     if layout is not None:
         request["layout"] = layout
     if layout_from_export_ref is not None:
@@ -297,7 +318,33 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
     return contents.operation(actor, operation_id, request, execute)
 
 
+def _reviewer_export_scope(contents, actor):
+    if actor.role != 'reviewer' or contents.store.get('manifest') is None:
+        return None
+    from .prompt_sources import review_interface_profile
+    if review_interface_profile(contents.store) != 'review-interfaces-v4':
+        return None
+    from types import SimpleNamespace
+    from .content_tasks import bound_actor
+    from .task_context import complete_review_materials
+    workspace = SimpleNamespace(store=contents.store)
+    if bound_actor(workspace, 'reviewer', None) != actor or actor.id != 'content:reviewer:' + actor.task_id:
+        raise ActionForbidden('FORBIDDEN: reviewer task binding')
+    task = contents.read({'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
+    if task.get('role') != 'reviewer' or not task.get('review_snapshot_ref'):
+        raise ActionForbidden('FORBIDDEN: reviewer task binding')
+    allowed = {Ref.model_validate(record['ref']).key()
+               for record in complete_review_materials(workspace, task)['objects']}
+    return workspace, task, allowed
+
+
+def _require_review_export(scope, export_ref):
+    if scope is not None and Ref.model_validate(export_ref).key() not in scope[2]:
+        raise ActionForbidden('FORBIDDEN: export outside reviewer assignment')
+
+
 def read_export(contents, actor, export_ref):
+    _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     record = contents.read(export_ref)
     if export_ref["type"] != "ExportArtifact":
         raise ActionRejected("EXPORT_REQUIRED")
@@ -309,11 +356,18 @@ def read_export(contents, actor, export_ref):
     else:
         from .report_preview import _structure
         structure, text = _structure(data)
+        from .prompt_sources import review_interface_profile
+        if contents.store.get('manifest') is not None and review_interface_profile(contents.store) == 'review-interfaces-v4':
+            from .content_models import RenderState
+            state = RenderState(execution_state='not_attempted', capability_state='not_probed')
+            # The legacy preview label describes no attempt, not a capability test.
+            structure['render'].update(state.model_dump(), status=state.execution_state)
     return contents.observe(actor, {"export_ref": export_ref, "file_digest": record["payload"]["file_digest"],
         "structure": structure, "text": text, "limitation": "Actual OOXML content; not visual observation."})
 
 
 def render_export(contents, actor, operation_id, export_ref):
+    _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     def prepare(db):
         export = contents._read(db, export_ref)
         if export_ref["type"] != "ExportArtifact":
@@ -321,6 +375,17 @@ def render_export(contents, actor, operation_id, export_ref):
         suffix = Path(export['payload']['file_ref']).suffix
         if suffix not in {'.docx', '.xlsx'}:
             raise ActionRejected('RENDER_FORMAT_UNSUPPORTED')
+        from .operation_identity import NATIVE, profile
+        if contents.store.get('manifest') is not None and profile(contents.store) == NATIVE:
+            request_digest = digest({'actor': actor.__dict__, 'request': {'render': export_ref}})
+            rows = db.execute('SELECT operation_id,response FROM content_operations '
+                              'WHERE actor_id=? AND request_digest=? AND operation_id!=?',
+                              (actor.id, request_digest, operation_id)).fetchall()
+            for original_id, encoded in rows:
+                import json
+                if json.loads(encoded).get('code') == 'OPERATION_OUTCOME_UNRESOLVED':
+                    raise ActionRejected('RENDER_EXPORT_OUTCOME_UNRESOLVED: related original reservation '
+                        'unresolved; this new attempt did not execute; original_operation_id=' + original_id)
         return export
 
     def execute(export):
@@ -329,8 +394,17 @@ def render_export(contents, actor, operation_id, export_ref):
         from .office_render import convert_pdf
         pdf, version = convert_pdf(contents.store, data, suffix)
         if pdf is None:
-            return {"execution_state": "blocked", "verdict": None, "code": "RENDER_UNAVAILABLE",
-                    "export_ref": export_ref, "diagnostic": version}
+            result = {"execution_state": "blocked", "verdict": None, "code": "RENDER_UNAVAILABLE",
+                      "export_ref": export_ref, "diagnostic": version}
+            from .prompt_sources import review_interface_profile
+            if contents.store.get('manifest') is not None and review_interface_profile(contents.store) == 'review-interfaces-v4':
+                from .content_models import RenderState
+                attempts = version.get('attempts') if isinstance(version, dict) and version.get('code') == 'RENDER_UNAVAILABLE' else None
+                known = isinstance(attempts, list)
+                result['render_state'] = RenderState(
+                    execution_state='failed' if known and attempts else 'blocked',
+                    capability_state='unavailable' if known and not attempts else 'unknown').model_dump()
+            return result
         import pypdfium2 as pdfium
         pages = []
         with pdfium.PdfDocument(pdf) as document:
@@ -358,16 +432,40 @@ def render_export(contents, actor, operation_id, export_ref):
         if computed.get('execution_state') == 'blocked':
             return computed
         ref = contents._insert(db, actor, "RenderArtifact", computed)
-        return {"render_ref": ref, "pages": computed['page_assets'], "execution_state": "completed", "verdict": None}
+        result = {"render_ref": ref, "pages": computed['page_assets'], "execution_state": "completed", "verdict": None}
+        from .prompt_sources import review_interface_profile
+        if contents.store.get('manifest') is not None and review_interface_profile(contents.store) == 'review-interfaces-v4':
+            from .content_models import RenderState
+            result['render_state'] = RenderState(execution_state='completed', capability_state='available').model_dump()
+        return result
 
     return contents.detached_operation(actor, operation_id, {"render": export_ref}, prepare, execute, finalize)
 
 
 async def inspect_render(contents, actor, render_ref, page, question, client=None, *,
                          reference_source_id="", reference_page=1, crop=None):
+    if actor.role == "coordinator":
+        from .prompt_sources import review_interface_profile
+        if review_interface_profile(contents.store) == 'review-interfaces-v4':
+            raise ActionForbidden("FORBIDDEN: coordinator delegates page inspection")
     record = contents.read(render_ref)
     if render_ref["type"] != "RenderArtifact" or not question.strip():
         raise ActionRejected("RENDER_AND_QUESTION_REQUIRED")
+    scope = _reviewer_export_scope(contents, actor)
+    if scope is not None:
+        from .review_work_units import material_allowed
+        workspace, task, allowed = scope
+        export_ref = record['payload']['export_ref']
+        if Ref.model_validate(render_ref).key() not in allowed:
+            _require_review_export(scope, export_ref)
+        if not material_allowed(workspace, task, Ref.model_validate(render_ref), allowed):
+            raise ActionForbidden('FORBIDDEN: render outside reviewer assignment')
+        export_payload = contents.read(export_ref)['payload']
+        if (export_ref.get('type') != 'ExportArtifact' or not export_payload.get('file_digest')
+                or record['payload'].get('snapshot_ref') != task['review_snapshot_ref']
+                or export_payload.get('snapshot_ref') != task['review_snapshot_ref']
+                or record['payload'].get('export_digest') != export_payload.get('file_digest')):
+            raise ActionForbidden('FORBIDDEN: render provenance mismatch')
     pages = record["payload"]["page_assets"]
     if not 1 <= page <= len(pages):
         raise ActionRejected("PAGE_OUT_OF_RANGE")

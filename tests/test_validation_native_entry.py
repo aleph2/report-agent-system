@@ -1,4 +1,4 @@
-"""Host admission and actual native new-turn behavior; no semantic acceptance."""
+"""Frozen historical host admission and current native new-turn behavior; no semantic acceptance."""
 import importlib
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -44,7 +44,7 @@ def host(tmp_path, monkeypatch, local):
     # Register undo before it runs, retaining each caller value or absence.
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
     monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
-    area = Path(__file__).resolve().parents[1]/'.analysis/implementation-resumed-20261014'
+    area = Path(__file__).resolve().parents[1]/'tests/fixtures/historical-duty/host-20261014'
     monkeypatch.syspath_prepend(str(area))
     harness = importlib.import_module('continue_full_chain_validation17')
     monkeypatch.setattr(harness, 'ROOT', tmp_path)

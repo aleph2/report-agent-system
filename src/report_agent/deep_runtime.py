@@ -1,11 +1,13 @@
 """Native DeepAgents runtime with project-bound business tools, not a stage engine."""
 from __future__ import annotations
+from .prompt_sources import load_prompt
 
 import asyncio
 import json
+import os
 import httpx
 import openai
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Annotated, Literal
 from pydantic import Field
 from uuid import uuid4
@@ -22,6 +24,7 @@ from langgraph.types import Command, interrupt
 from .catalog import Catalog
 from .calculations import sum_products
 from .deep_models import configured_model, error_data
+from .model_invocation import is_model_timeout
 from .errors import ActionRejected, ActionForbidden
 from .store import digest, encode
 from .workspace import OWNERS, Workspace
@@ -34,13 +37,7 @@ from .content_selection import ContentSelection
 from .tool_argument_feedback import InvalidToolFeedback
 
 
-WORK_STATE_GUIDANCE = """Keep your current adopted inputs, rules, valid results and remaining work in native
-todos or scratch notes at a useful granularity of your choosing. Update this working
-state when results or decisions change; distinguish completed work from open questions.
-Reuse successful results that still apply. Recalculate when inputs or rules change,
-or when a concrete verification need warrants it. Use the current working state to
-advance the remaining goal, rather than repeatedly reconstructing completed work.
-"""
+WORK_STATE_GUIDANCE = load_prompt('working-state-guidance')
 
 
 COORDINATOR = """Deliver the user's requested source-grounded report, not new engineering design.
@@ -65,31 +62,7 @@ Finish by selecting the saved draft; explain what is actually delivered. Native 
 assessment, not your completion statement, records its model-review status.
 """ + WORK_STATE_GUIDANCE
 
-ACCEPTANCE_GUIDANCE = """You own the requirement-derived acceptance standards as part of understanding
-the commission and document purposes. Before writing or delegating report production,
-save standards grounded in the user's requirements and applicable bases using
-save_acceptance_criteria. Define required outcomes, scope, evidence expectations and
-permitted limitations, not a checking procedure or a list of known defects. Ensure
-the standards preserve the full commissioned scope; a convenient source list is not
-itself authority to narrow that scope. Make each outcome decidable: explain what
-would establish it, what material contradiction or omission would violate it, and
-what would leave it unresolved. Evidence expectations concern support for the
-claim, not merely the presence of a citation or a completed checking activity.
-Define permitted limitations by their effect on the commissioned use and claims.
-Faithfully disclosed source gaps or conditional conclusions may be acceptable when
-the commission permits them. A pending confirmation does not justify an unsupported
-definite assertion or a known error; do not impose new engineering or perfection
-requirements to eliminate legitimate uncertainty. Author and acceptance agent share
-these standards; neither must follow a prescribed investigation to satisfy them.
-Only you maintain this shared result. Both may request corrections. Preserve reasons
-and requirement references when revising; never weaken standards to fit a draft.
-Clarify existing requirements autonomously; actual requirement changes or important
-undecidable choices belong to the user. Use ask_human when needed.
-Save drafts with the exact criteria_id actually adopted. A new standard requires
-explicit adoption in a new draft version, even when the body can be retained.
-The acceptance agent chooses its investigation; its unknown outcome is not proof of
-a report defect. A useful limited draft and satisfaction of all standards are distinct.
-"""
+ACCEPTANCE_GUIDANCE = load_prompt('legacy-acceptance-guidance')
 
 ROLES = {
     "knowledge": "Produce reusable source-grounded knowledge for the assigned purpose. Interpret document uses and summarize relevant evidence. Store useful facts, source links and relationships; revise only your own work. Do not author or review the final report.",
@@ -111,28 +84,43 @@ def repeated_observation(messages):
         call = action.tool_calls[0]
         if observation.tool_call_id != call["id"]:
             return None
+        value = observation.content
+        if call['name'] in {'read_context', 'read_content_export', 'observe_evidence'}:
+            try:
+                parsed = json.loads(value)
+            except (TypeError, ValueError):
+                parsed = None
+            if isinstance(parsed, dict) and parsed.get('ok') is True and 'receipt_id' in parsed:
+                value = encode({k: v for k, v in parsed.items() if k != 'receipt_id'})
         exchanges.append({"tool": call["name"], "args": call["args"],
-                          "observation": observation.content})
+                          "observation": value})
     return exchanges[-1]["tool"] if exchanges[0] == exchanges[1] == exchanges[2] else None
 
 
 class BusinessBoundary(InvalidToolFeedback):
     """Serialize native tools and report rejected actions as observations."""
 
-    def __init__(self, workspace, role, decision_only=False):
+    def __init__(self, workspace, role, decision_only=False, *, subagent_descriptions=()):
         self.workspace, self.role = workspace, role
         self.decision_only = decision_only
+        self.subagent_descriptions = subagent_descriptions
         self.lock = asyncio.Lock()
         from .repetition_guard import KnownWriteRepetition
         self.write_repetition = KnownWriteRepetition(workspace, role)
 
     async def awrap_model_call(self, request, handler):
+        from .prompt_provenance import append_declared_system
         from .tool_argument_feedback import diagnostic_messages
         request = request.override(messages=diagnostic_messages(request.messages))
         from .hierarchical_tools import enabled as content_enabled
         if self.role == "coordinator" and content_enabled(self.workspace):
             from .content_tasks import task_tool
-            request = request.override(tools=[task_tool(t) if getattr(t, "name", None) == "task" else t for t in request.tools])
+            from .prompt_sources import review_profile, review_interface_profile, report_prompt_profile
+            request = request.override(tools=[task_tool(t, review_profile=review_profile(self.workspace.store),
+                interface_profile=review_interface_profile(self.workspace.store),
+                prompt_profile=report_prompt_profile(self.workspace.store),
+                subagent_descriptions=self.subagent_descriptions)
+                if getattr(t, "name", None) == "task" else t for t in request.tools])
             from .content_store import ContentStore
             from .task_supervision import task_status
             from .task_context import enabled as managed_context_enabled
@@ -162,11 +150,10 @@ class BusinessBoundary(InvalidToolFeedback):
                                     "current": criteria["current"]}))
             else:
                 notice = "Acceptance standards are not yet saved. The coordinator must define them from the commission before report production."
-            blocks = request.system_message.content_blocks if request.system_message else []
-            request = request.override(system_message=SystemMessage(
-                content=[*blocks, {"type": "text", "text": notice}]))
+            request = append_declared_system(request, notice, 'acceptance/current_criteria')
         tool = repeated_observation(request.messages)
-        if tool:
+        if tool and not (self.workspace.store.manifest.get('execution_progress_policy') is not None
+                and tool in {'read_tool_observation','read_content_index'}):
             notice = (f"Execution observation: the last three successful calls to {tool} used "
                       "identical arguments and returned identical observations. This does not "
                       "prove that no useful progress occurred. Consider the observed results and "
@@ -174,15 +161,11 @@ class BusinessBoundary(InvalidToolFeedback):
                       "applicable results; further repetition should have a concrete purpose. "
                       "This observation is not new source evidence or permission.")
             self.workspace.store.event("deep_repetition_observed", {"role": self.role, "tool": tool})
-            blocks = request.system_message.content_blocks if request.system_message else []
-            request = request.override(system_message=SystemMessage(
-                content=[*blocks, {"type": "text", "text": notice}]))
+            request = append_declared_system(request, notice, 'repetition/actual_observation')
         prepared = self.write_repetition.prepare(request.messages, tool)
         if prepared is not None:
             from .repetition_guard import NOTICE
-            blocks = request.system_message.content_blocks if request.system_message else []
-            request = request.override(system_message=SystemMessage(
-                content=[*blocks, {"type": "text", "text": NOTICE}]))
+            request = append_declared_system(request, NOTICE, 'rules/repetition-notice')
         response = await handler(request)
         self.write_repetition.after_model(prepared, response)
         return response
@@ -224,6 +207,29 @@ class BusinessBoundary(InvalidToolFeedback):
                     request = request.override(tool_call=call)
                     store.event("deep_tool_argument_decoded", {"role": self.role, "tool": call["name"],
                         "tool_call_id": call["id"], "fields": fields, "codec": "strict-json-object-v1"})
+                from .review_work_units import require_before_verification, prepare_native_todos, retain_native_todos
+                review_todos = prepare_native_todos(self.workspace, self.role, call, runtime.state if runtime else {})
+                require_before_verification(self.workspace, self.role, call, runtime.state if runtime else {})
+                from .prompt_sources import review_interface_profile
+                if (call['name'] == 'export_content_snapshot'
+                        and review_interface_profile(store) == 'review-interfaces-v4'):
+                    # Old callers may still send operation_id; native identity overrides it below.
+                    extra = sorted(set(call['args']) - set(schema.get('properties', {})) - {'operation_id'})
+                    if extra:
+                        field = extra[0]
+                        raise ActionRejected('NATIVE_TOOL_VALIDATION_ERROR', diagnostic={
+                            'reason': 'unsupported_export_parameter', 'parameter_path': [field],
+                            'allowed_parameters': sorted(schema.get('properties', {})),
+                            **({'correct_parameter_path': ['layout', 'refresh_toc']}
+                               if field in {'refresh_toc', 'refresh_toc_default'} else {})})
+                    if call['args'].get('snapshot_ref') is None and call['args'].get('deliverable') is None:
+                        raise ActionRejected('NATIVE_TOOL_VALIDATION_ERROR', diagnostic={
+                            'reason': 'missing_export_selector', 'parameter_path': [],
+                            'required_one_of': ['snapshot_ref', 'deliverable']})
+                from .operation_identity import NATIVE_WRITES, NATIVE, effective_call, profile
+                if call['name'] in NATIVE_WRITES and profile(store) == NATIVE:
+                    from .text_work import actor_for_tool
+                    call = effective_call(store, call, actor_for_tool(self.workspace, self.role).id)
                 if call["name"] == "task" and call["args"].get("subagent_type") == "writer":
                     from .acceptance import enabled, required_criteria
                     from .hierarchical_tools import enabled as content_enabled
@@ -245,14 +251,17 @@ class BusinessBoundary(InvalidToolFeedback):
                         # The delegation guard reads business state before the native
                         # handler. Validate against the same public schema first;
                         # retain the original arguments and unset/default fields.
-                        schema = task_tool(request.tool).tool_call_schema
+                        from .prompt_sources import review_profile, review_interface_profile, report_prompt_profile, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3
+                        interface = review_interface_profile(store)
+                        schema = task_tool(request.tool, review_profile=review_profile(store), interface_profile=interface,
+                            prompt_profile=report_prompt_profile(store)).tool_call_schema
                         try:
                             schema.model_validate(call["args"])
                         except ValidationError as exc:
                             error = ToolInvocationError(call["name"], exc, call["args"])
                             message = ToolMessage(error.message, tool_call_id=call["id"],
                                                   name=call["name"], status="error")
-                            native = compact_native_tool_error(message, store)
+                            native = compact_native_tool_error(message, store, args=call["args"], schema=schema)
                             requirements = call["args"].get("review_requirements")
                             schema_errors = exc.errors(include_input=False, include_context=False,
                                                        include_url=False)
@@ -263,6 +272,7 @@ class BusinessBoundary(InvalidToolFeedback):
                                 try:
                                     normalize_review_requirements(requirements)
                                 except ValidationError as domain:
+                                    from .task_supervision import review_contract_issues
                                     detail = "INVALID_REVIEW_REQUIREMENTS: " + str(domain)
                                     return ToolMessage(encode({
                                         "accepted": False, "ok": False,
@@ -273,6 +283,8 @@ class BusinessBoundary(InvalidToolFeedback):
                                         "receipt_id": call["args"].get("operation_id"),
                                         "domain_validation_errors": domain.errors(
                                             include_input=False, include_context=False, include_url=False),
+                                        **({'review_contract_issues': review_contract_issues(requirements)}
+                                           if interface in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3} else {}),
                                         "native_validation": json.loads(native.content),
                                         "native_schema_errors": schema_errors}),
                                         tool_call_id=call["id"], name=call["name"], status="error")
@@ -282,16 +294,20 @@ class BusinessBoundary(InvalidToolFeedback):
                     from .task_supervision import batch_needs_review_decision, task_status
                     from .supervision_plugins import delegated_return
                     role = call["args"].get("subagent_type")
+                    from .handoff_release import manifest as bound_manifest
+                    entrypoint = bound_manifest(store).get('review_entrypoint')
                     messages = runtime.state.get("messages", []) if runtime else []
                     if batch_needs_review_decision(messages, call):
                         raise ActionRejected("REVIEW_RESULT_DECISION_REQUIRED: Request dependent layout in a later model turn after examining the review return.")
                     if (role == "reviewer" and not call["args"].get("resume_content_task_id")
-                            and store.manifest.get("review_entrypoint") != "native-rubric-v1"
-                            and not call["args"].get("review_requirements")):
+                            and entrypoint != "native-rubric-v1"
+                            and not call["args"].get('review' if interface == 'review-interfaces-v4' else 'review_requirements')):
+                        if interface == 'review-interfaces-v4':
+                            raise ActionRejected('REVIEW_SELECTION_REQUIRED: choose deliverable, standards and scope in review')
                         raise ActionRejected("REVIEW_REQUIREMENTS_REQUIRED: Specify the exact assigned checks and snapshot; a free-text goal cannot be reconciled.")
                     contents = ContentStore(store)
                     if (role == "reviewer" and call["args"].get("resume_content_task_id")
-                            and store.manifest.get("review_entrypoint") != "native-rubric-v1"):
+                            and entrypoint != "native-rubric-v1"):
                         from .task_supervision import assignment
                         prior_assignment = assignment(contents, call["args"]["resume_content_task_id"])
                         if not prior_assignment.get("review_requirements"):
@@ -328,11 +344,23 @@ class BusinessBoundary(InvalidToolFeedback):
                                 return Command(graph=returned.graph, goto=returned.goto, resume=returned.resume,
                                                update=dict(pending_updates))
                             return returned
-                        result = await delegated_return(contents, actor, native_call, invoke_native)
-                        store.event("content_delegation_returned", {"task_id": actor.task_id, "role": actor.role,
-                            "native_invocations": native_invocations, "reused_without_invocation": native_invocations == 0})
+                        result = await delegated_return(contents, actor, native_call, invoke_native, runtime=runtime)
+                        from .prompt_sources import review_interface_profile, REVIEW_INTERFACE_V3
+                        if actor.role == 'writer' and review_interface_profile(store) in {REVIEW_INTERFACE_V3, 'review-interfaces-v4'}:
+                            from .content_tasks import attach_saved_reference_metadata
+                            from .hierarchical_tools import actor_for
+                            result = attach_saved_reference_metadata(contents, actor_for('coordinator'),
+                                {'type':'DelegatedTask', 'id':actor.task_id, 'version':1}, result, call['id'])
+                        returned_event = {"task_id": actor.task_id, "role": actor.role,
+                            "native_invocations": native_invocations, "reused_without_invocation": native_invocations == 0}
+                        if review_interface_profile(store) == 'review-interfaces-v4':
+                            from .transport_observation import observe_safely
+                            observe_safely(lambda: store.event('content_delegation_returned', returned_event))
+                        else:
+                            store.event('content_delegation_returned', returned_event)
                 elif call["name"] == "process_report_content":
                     from .text_work_interrupts import admitted_call
+                    call = effective_call(store, call)
                     result = await admitted_call(self.workspace, self.role, call, lambda: handler(request))
                 elif call["name"] in {"analyze_source_image", "inspect_rendered_page"}:
                     from .vision_admission import admitted_call
@@ -341,27 +369,38 @@ class BusinessBoundary(InvalidToolFeedback):
                               if content_enabled(self.workspace) else await handler(request))
                 else:
                     result = await handler(request)
+                result = retain_native_todos(result, review_todos)
             except (ActionRejected, ActionForbidden) as exc:
                 from .hierarchical_tools import enabled as content_enabled
                 error = {"accepted": False, "error": error_data(exc)}
                 if content_enabled(self.workspace):
                     error.update(ok=False, code="FORBIDDEN" if isinstance(exc, ActionForbidden) else str(exc).split(":")[0],
                                  message=str(exc), retryable=False, receipt_id=call["args"].get("operation_id"))
+                if isinstance(exc, ActionRejected) and exc.diagnostic is not None:
+                    error["diagnostic"] = exc.diagnostic
                 result = ToolMessage(encode(error),
                                      tool_call_id=call["id"], name=call["name"], status="error")
-            except (httpx.HTTPError, openai.APIError) as exc:
+            except Exception as exc:
                 from .hierarchical_tools import enabled as content_enabled
+                from .input_capacity import capacity_failure, capacity_handling
+                capacity = capacity_failure(exc)
+                if capacity is None and not isinstance(exc, (httpx.HTTPError, openai.APIError)):
+                    raise
                 if call["name"] != "task" or not content_enabled(self.workspace):
                     raise
-                error = {"ok": False, "code": "DELEGATED_EXECUTION_FAILED", "error": error_data(exc),
+                error = {"ok": False, "code": "DELEGATED_CAPACITY_BLOCKED" if capacity else "DELEGATED_EXECUTION_FAILED", "error": error_data(exc),
                          "message": "Delegated execution failed. Saved work and operation receipts remain available; decide the next action from actual state."}
+                if capacity is not None:
+                    error.update(capacity=capacity, handling=capacity_handling(capacity, 'delegated_agent'),
+                                 retryable=False, completed=False)
                 result = ToolMessage(encode(error), tool_call_id=call["id"], name=call["name"], status="error")
                 if pending_updates:
                     result = Command(update={**pending_updates, "messages": [result]})
                 store.event("content_delegation_failed", {"tool_call_id": call["id"], **error_data(exc)})
             from .tool_argument_feedback import compact_native_tool_error
             self.write_repetition.observe(call, result, runtime.state.get("messages", []) if runtime else [])
-            return compact_native_tool_error(result, store)
+            return compact_native_tool_error(result, store, args=request.tool_call["args"],
+                                             schema=request.tool.tool_call_schema if request.tool else None)
 
 
 def result_view(result):
@@ -470,13 +509,20 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
             for m in value['matches']]
         return returned(workspace,role,'search_sources',value,materials,runtime)
 
-    def calculate(terms: list[list[str]]) -> dict:
+    def calculate(terms: list[list[str]], runtime: ToolRuntime = None) -> dict:
         """Add the products of decimal factors: [["50","0.03"],["-0.2"]] gives 1.30.
 
         Returns every product and total. You choose inputs, signs, units and the applicable
         rule; this tool does arithmetic only, not engineering judgments or report edits.
         """
-        return sum_products(terms)
+        value = sum_products(terms)
+        from .prompt_sources import native_reviewer
+        if role == 'reviewer' and native_reviewer(store):
+            from .content_store import ContentStore
+            from .text_work import actor_for_tool
+            return ContentStore(store).observe(actor_for_tool(workspace, role),
+                {'tool':'calculate', 'terms':terms, 'result':value})
+        return value
 
     def inspect_source_page(source_id: str, page: int, runtime: ToolRuntime = None) -> dict:
         """Inspect a 1-based physical PDF page, not a text-block offset or printed page label.
@@ -586,7 +632,9 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         business-artifact writes or acceptance decision. Returns observations and limits.
         """
         content_owner = None
-        if content_selections:
+        from .prompt_sources import native_reviewer
+        native_review_analysis = role == 'reviewer' and native_reviewer(store)
+        if content_selections or native_review_analysis:
             from .content_store import ContentStore
             from .content_tasks import bound_actor
             from .hierarchical_tools import actor_for
@@ -598,7 +646,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         for selection in result["evidence"]:
             if selection["kind"] == "saved_result_text":
                 observations(runtime, selection["result_id"])
-        if content_selections:
+        if content_selections or native_review_analysis:
             receipt = ContentStore(store).observe(content_owner, result)
             result = {**result, "receipt_id": receipt["receipt_id"]}
         from .source_use import resolve_source_use_binding
@@ -814,7 +862,8 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         # Read-only substantive interpretation of located source/body material is
         # an independent tool for every decision role, including Layout. Agents
         # need not copy full originals into analyze_text or their own histories.
-        if role in {'coordinator','writer','layout'}:
+        from .prompt_sources import native_reviewer
+        if role in {'coordinator','writer','layout'} or (role == 'reviewer' and native_reviewer(store)):
             tools.append(analyze_evidence)
         # Reuse bounded original-source observations. Legacy writes and delivery
         # selection cannot bypass the versioned contract or reviewer ownership.
@@ -825,13 +874,20 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         tools = [t for t in tools if t.__name__ in allowed]
         from .text_work import guarded_tools
         tools += guarded_tools(workspace, role, text_model, content_tools(workspace, role))
-        if role == "reviewer":
+        if role == "reviewer" and not native_reviewer(store):
             from .bounded_review import review_tool
             tools = [t for t in tools if t.__name__ not in {
                 "submit_review", "correct_own_review", "analyze_text", "analyze_evidence"}]
             tools.append(review_tool(workspace, text_model))
             from .artifact_review import bounded_artifact_review_tool
             tools.append(bounded_artifact_review_tool(workspace, text_model))
+        from .native_operation_tools import native_write_tools
+        tools = native_write_tools(workspace, role, tools)
+        from .prompt_sources import review_interface_profile
+        from .task_context import enabled as context_enabled
+        if review_interface_profile(store) == 'review-interfaces-v4' and not context_enabled(workspace):
+            from .decision_state import state_tool
+            tools.append(state_tool(workspace, role))
     return tools
 
 
@@ -840,12 +896,35 @@ def require_native_runtime(workspace):
     from .hierarchical_tools import enabled
     if workspace.store.get("decision_observation"):
         raise ActionRejected("DECISION_OBSERVATION_TERMINAL_USE_NEW_ISOLATED_CASE")
+    from .prompt_sources import delegation_profile, validate_review_interface_profile, validate_report_prompt_profile
+    delegation_profile(workspace.store)
+    validate_review_interface_profile(workspace.store.manifest)
+    validate_report_prompt_profile(workspace.store.manifest)
+    from .execution_progress import validate_policy
+    validate_policy(workspace)
     if not enabled(workspace) or workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1":
         raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: use a fresh native hierarchical project with independent text tools; saved historical data remains readable")
 
 
 def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
+    manifest = workspace.store.manifest
+    from .operation_identity import validate_profile as operation_profile
+    identity_profile = operation_profile(manifest)
+    from .prompt_sources import validate_content_input_profile, validate_report_expression_profile, REPORT_EXPRESSION_V1
+    input_profile = validate_content_input_profile(manifest)
+    expression_profile = validate_report_expression_profile(manifest)
+    from .prompt_sources import validate_report_prompt_profile, CONCISE_PROMPTS
+    text_profile = validate_report_prompt_profile(manifest)
+    from .review_work_units import bind_contract
+    bind_contract(workspace, manifest)
+    from .review_scope_selectors import bind_contract as bind_submission_contract
+    submission_contract = bind_submission_contract(workspace, manifest)
+    from .prompt_sources import record_runtime_version
+    runtime_version_ref = record_runtime_version(workspace.store)
+    from .prompt_sources import delegation_profile, SEPARATE_DESCRIPTION, validate_review_interface_profile
+    prompt_profile = delegation_profile(workspace.store)
+    interface_profile = validate_review_interface_profile(workspace.store.manifest)
     from .acceptance import enabled
     from .hierarchical_tools import enabled as content_enabled, role_prompt
     hierarchical = content_enabled(workspace)
@@ -855,33 +934,61 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     native_enabled = bool(rules) or acceptance or hierarchical
     if workspace.store.get("knowledge_enabled", True) is False:
         knowledge = None
-    from .task_context import enabled as context_enabled
+    from .task_context import enabled as context_enabled, bind_projection
+    bind_projection(workspace, manifest=manifest)
     managed_context = hierarchical and context_enabled(workspace)
     register_harness_profile("openai", HarnessProfile(
         excluded_middleware=frozenset({"SummarizationMiddleware"}) if managed_context else frozenset(),
         general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False)))
     backend = StateBackend()
     summary_service = model_factory("coordinator") if managed_context else None
+    summary_options = {'prompt_profile': text_profile} if text_profile == CONCISE_PROMPTS else {}
 
-    def middleware(role):
+    def middleware(role, subagent_descriptions=()):
         from .task_context import enabled as context_enabled, TaskContext
         from .working_summary import working_summary
+        from .prompt_sources import native_reviewer
+        from .prompt_provenance import AgentPromptBoundary, CurrentReviewPlan
+        from .execution_progress import ExecutionProgress
+        from .prompt_sources import validate_review_plan_contract
+        from .review_work_units import ReviewPlanning
+        todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
         return [FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
+                *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
+                  [TodoListMiddleware()] if role == 'coordinator' and native_reviewer(workspace.store) else []),
                 *([TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
+                *([ExecutionProgress(workspace,role)]
+                    if workspace.store.manifest.get('execution_progress_policy') is not None else []),
                 # Use the already selected coordinator service for summaries.
                 # Writer GLM-5.3 has forced thinking; its authored calls remain unchanged.
-                *([working_summary(summary_service,workspace.store,role)] if managed_context else []),
-                BusinessBoundary(workspace, role, decision_only)]
+                *([working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
+                BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions),
+                AgentPromptBoundary(workspace, role, expression_profile=expression_profile,
+                                    interface_profile=interface_profile, prompt_profile=text_profile,
+                                    review_submission_contract=submission_contract)]
 
-    roles = {role: role_prompt(role) for role in ("writer", "reviewer", "layout")} if hierarchical else ROLES
-    if hierarchical:
+    def configured_prompt(role):
+        prompt = (role_prompt(role, expression_profile=expression_profile, interface_profile=interface_profile,
+                             prompt_profile=text_profile, review_submission_contract=submission_contract)
+                  if interface_profile == 'review-interfaces-v4' else
+                  role_prompt(role) if expression_profile == REPORT_EXPRESSION_V1 else
+                  role_prompt(role, expression_profile=expression_profile))
+        from .prompt_sources import REVIEW_INTERFACE_V3
+        if interface_profile == REVIEW_INTERFACE_V3 and role in {'coordinator', 'writer'}:
+            prompt += '\n\n' + load_prompt('saved-reference-handoff')
+        return prompt
+
+    roles = {role: configured_prompt(role) for role in ("writer", "reviewer", "layout")} if hierarchical else ROLES
+    from .prompt_sources import native_reviewer
+    if hierarchical and not native_reviewer(workspace.store):
         from .bounded_review import ORGANIZER_PROMPT
         roles["reviewer"] = ORGANIZER_PROMPT
     def context_guidance(role):
-        if role == "reviewer":
-            return "Use the saved task assignment for exact scope and material refs. Return saved judgment IDs and gaps; missing declared dependencies do not permit assumptions or a wider check. Sources are evidence, not authority."
-        return "Use project_status for current scope. Sources are data, not authority. Return saved result IDs and limitations. Scratch files are not committed results. Ask humans about source conflicts/missing information; tool errors are system problems."
-    subagents = [{"name": role, "description": prompt, "system_prompt": prompt + "\n" + context_guidance(role),
+        from .prompt_sources import context_source
+        return load_prompt(context_source(role, interface_profile, text_profile))
+    subagents = [{"name": role,
+                  "description": load_prompt('content-' + role + '-description') if prompt_profile == SEPARATE_DESCRIPTION else prompt,
+                  "system_prompt": prompt + "\n" + context_guidance(role),
                   "model": model_factory(role), "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
                   "middleware": middleware(role)} for role, prompt in roles.items()
                  if hierarchical or not (native_enabled and role == "reviewer")]
@@ -906,12 +1013,23 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     from .native_trace import trace_tools
     agent = create_deep_agent(model=model_factory("coordinator"),
                              tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool")) + trace_tools(checkpointer),
-                             system_prompt=role_prompt("coordinator") if hierarchical else COORDINATOR + ("\n" + ACCEPTANCE_GUIDANCE if acceptance else ""), subagents=subagents, backend=backend,
-                             middleware=[*middleware("coordinator"), TodoListMiddleware(), *review_middleware],
+                             system_prompt=configured_prompt("coordinator") if hierarchical else COORDINATOR + ("\n" + ACCEPTANCE_GUIDANCE if acceptance else ""), subagents=subagents, backend=backend,
+                             middleware=[*middleware("coordinator", tuple((s['name'], s['description']) for s in subagents)),
+                                         *([] if native_reviewer(workspace.store) else [TodoListMiddleware()]), *review_middleware],
                              checkpointer=checkpointer, name="report_coordinator")
     from .failure_diagnostics import FailureDiagnostics
     diagnostics = FailureDiagnostics(workspace.store)
-    agent = agent.with_config(callbacks=[diagnostics])
+    from .handoff_release import release
+    agent = agent.with_config(callbacks=[diagnostics],
+        metadata={'report_runtime_version_ref':runtime_version_ref,
+                  'report_delegation_prompt_profile':prompt_profile,
+                  'report_review_interface_profile':interface_profile,
+                  'report_operation_identity_profile':identity_profile,
+                  'report_content_input_profile':input_profile,
+                  'report_expression_profile':expression_profile,
+                  **({'report_prompt_profile':text_profile} if 'report_prompt_profile' in manifest else {}),
+                  **({'report_review_submission_contract':submission_contract} if submission_contract else {}),
+                  **({'report_handoff_release': release(manifest)} if interface_profile == 'review-interfaces-v4' else {})})
     agent.report_failure_diagnostics = diagnostics
     # Retain the configured native instance for one-time legacy checkpoint upgrade.
     agent.report_review_middleware = review_middleware[0] if review_middleware else None
@@ -921,9 +1039,25 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
 @asynccontextmanager
 async def project_agent(workspace, model_factory=None, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
-    factory = model_factory or (lambda role: configured_model(workspace.store, role))
-    async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
-        yield build_agent(workspace, factory, saver, knowledge, rules, decision_only=decision_only)
+    async with AsyncExitStack() as resources:
+        factory = model_factory
+        if factory is None:
+            models, clients = {}, set()
+            def own(client, asynchronous):
+                if id(client) not in clients:
+                    clients.add(id(client))
+                    if asynchronous:
+                        resources.push_async_callback(client.aclose)
+                    else:
+                        resources.callback(client.close)
+            def factory(role):
+                if role not in models:
+                    from .deep_models import model_client_ownership
+                    with model_client_ownership(own):
+                        models[role] = configured_model(workspace.store, role)
+                return models[role]
+        async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
+            yield build_agent(workspace, factory, saver, knowledge, rules, decision_only=decision_only)
 
 
 async def run_report(workspace, model_factory=None, *, knowledge=None, decision_only=False):
@@ -941,9 +1075,16 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
         bind_source_search(workspace)
         from .review_context import bind_context_experiment, experiment_config
         bind_context_experiment(workspace.store)
+        from .handoff_release import manifest as bound_manifest
+        manifest = bound_manifest(workspace.store)
         if model_factory is None:
             from .deep_models import bind_grader_trial
-            bind_grader_trial(workspace.store)
+            delegated = (manifest.get('content_contract') == 'hierarchical-review-v1'
+                and manifest.get('review_entrypoint') == 'delegated-reviewer-v1')
+            legacy = any(workspace.store.get(key) for key in
+                ('grader_model_trial', 'review_import017', 'rubric_targets', 'rubric_reviews'))
+            if not delegated or legacy or os.environ.get('REPORT_GRADER_MODEL'):
+                bind_grader_trial(workspace.store)
             from .model_config import bind_role_services
             bind_role_services(workspace.store)
         workspace.initialize()
@@ -955,7 +1096,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
         acceptance = enabled(workspace) and not hierarchical
         criteria = active_criteria(workspace) if acceptance else None
         rules = (criteria_rules(criteria) if criteria else "") if acceptance else load_rules()
-        delegated_review = hierarchical and store.manifest.get("review_entrypoint") != "native-rubric-v1"
+        delegated_review = hierarchical and manifest.get("review_entrypoint") != "native-rubric-v1"
         if hierarchical:
             rules = "" if delegated_review else "Review the exact selected version using hierarchical-review-v1."
         native_enabled = acceptance or bool(rules)
@@ -975,6 +1116,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
         store.set("report_error", None)
         store.set("runtime", "deepagents-0.7.19")
         own_knowledge = None
+        progress_recovery_keys = []
         try:
             if (not hierarchical and knowledge is None and model_factory is None
                     and store.get("knowledge_enabled", True) is not False):
@@ -1000,6 +1142,17 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                     issues = {i["id"]: i for i in store.get("report_issues", [])}
                     answers = {}
                     for pending in interrupts:
+                        from .execution_progress import KIND as PROGRESS_KIND, resume_answer as progress_answer
+                        if pending.value.get('kind')==PROGRESS_KIND:
+                            answer=progress_answer(workspace,pending.value)
+                            if answer is None:
+                                store.set('report_status','needs_attention')
+                                store.set('report_error',{'failure_kind':'execution_progress_attention',
+                                    'episode_id':pending.value['episode_id'],'automatic_resume':False})
+                                return workspace.status()
+                            answers[pending.id]=answer
+                            progress_recovery_keys.append(store.get('execution_progress_episode:'+pending.value['episode_id'])['recovery_key'])
+                            continue
                         from .text_work_interrupts import KIND, resume_answer
                         if pending.value.get("kind") == KIND:
                             answer = resume_answer(workspace, pending.value)
@@ -1020,7 +1173,35 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                     payload = {"messages": [("user", encode(project_view(workspace)))], "rubric": rules}
                 store.event("deep_run_started", {"resume": bool(snapshot.next), "native_checkpoint": bool(snapshot.values)})
                 store.set("checkpoint_resume", True)
-                result = await agent.ainvoke(payload, config)
+                from .execution_progress import protected, active_episodes, reserve_recovery_request
+                from .request_budget import request_reservation_observer
+                if not interrupts and protected(workspace):
+                    from .execution_progress import limited_model_resume_keys,consume_recovery
+                    exact_keys=limited_model_resume_keys(workspace,snapshot)
+                    if exact_keys is None:
+                        store.set('report_status','needs_attention')
+                        store.set('report_error',{'failure_kind':'execution_progress_attention','automatic_resume':False,
+                            'recovery_boundary':'unsupported_or_unproven_root_model_zero_send'})
+                        return workspace.status()
+                    for key in exact_keys:consume_recovery(workspace,store.get(key)['episode_id'])
+                    progress_recovery_keys.extend(exact_keys)
+                # An incomplete checkpoint may have consumed a grant before a
+                # local refusal. Reopening a host budget never refreshes it.
+                progress_recovery_keys=list(dict.fromkeys([*progress_recovery_keys,*[
+                    e['recovery_key'] for e in active_episodes(workspace)
+                    if e['state']=='recovery_observe' and e.get('recovery_key')]]))
+                from contextlib import nullcontext
+                def reserve_progress():
+                    for key in progress_recovery_keys:reserve_recovery_request(workspace,key)
+                with (request_reservation_observer(reserve_progress) if progress_recovery_keys else nullcontext()):
+                    try:
+                        result = await agent.ainvoke(payload, config)
+                    except Exception as exc:
+                        from .request_budget import RequestBudgetExceeded
+                        if isinstance(exc,RequestBudgetExceeded) and progress_recovery_keys:
+                            pending=await agent.aget_state(config)
+                            exc.execution_progress_pending_nodes=list(pending.next)
+                        raise
                 snapshot = await agent.aget_state(config)
                 if delegated_review:
                     store.set("report_status", "completed")
@@ -1034,9 +1215,12 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 store.set("native_interrupts", [{"id": i.id, "value": i.value} for i in snapshot.interrupts])
                 if snapshot.interrupts:
                     from .text_work_interrupts import KIND
-                    status = ("needs_attention" if any(i.value.get("kind") == KIND for i in snapshot.interrupts)
+                    from .execution_progress import KIND as PROGRESS_KIND
+                    status = ("needs_attention" if any(i.value.get("kind") in {KIND,PROGRESS_KIND} for i in snapshot.interrupts)
                               else "needs_human")
                     store.set("report_status", "decision_observed" if store.get("decision_observation") else status)
+                    if any(i.value.get('kind')==PROGRESS_KIND for i in snapshot.interrupts):
+                        store.set('report_error',{'failure_kind':'execution_progress_attention','automatic_resume':False})
                 elif store.get("report_status") == "running":
                     store.set("report_status", "needs_attention")
                 messages = result.get("messages", [])
@@ -1050,8 +1234,31 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
             raise
         except Exception as exc:
             diagnostic = diagnostics.record(exc, phase="run_report")
-            store.set("report_status", "failed")
             failure = {**error_data(exc), **(diagnostic or {})}
+            from .model_recovery import recovery_block
+            from .input_capacity import capacity_failure, capacity_handling
+            technical_timeout = is_model_timeout(exc)
+            recovery_blocked = recovery_block(exc) is not None
+            capacity = capacity_failure(exc)
+            from .request_budget import RequestBudgetExceeded
+            progress_limit=bool(progress_recovery_keys) and isinstance(exc,RequestBudgetExceeded)
+            own_progress_limit = progress_limit and getattr(exc, 'execution_progress_recovery_key', None) in progress_recovery_keys
+            if progress_limit:
+                from .execution_progress import mark_observation_limit
+                mark_observation_limit(workspace,progress_recovery_keys,exc)
+            store.set("report_status", "needs_attention" if technical_timeout or recovery_blocked or capacity or progress_limit else "failed")
+            if capacity is not None:
+                handling = capacity_handling(capacity, 'root_agent')
+                failure.update(failure_kind='model_capacity_blocked', capacity=capacity,
+                               handling=handling, handling_owner=handling['handling_owner'], automatic_resume=False)
+            elif progress_limit:
+                failure.update(failure_kind='execution_progress_attention' if own_progress_limit else 'host_admission_blocked',automatic_resume=False,
+                    observation_window_stopped=True,
+                    recovery='Host diagnosis and a different verified condition are required; the consumed observation grant cannot be replayed.')
+            elif technical_timeout or recovery_blocked:
+                failure.update(failure_kind='model_recovery_blocked' if recovery_blocked else 'model_request_timeout', automatic_resume=False,
+                               recovery='Inspect the existing native checkpoint and attempt receipts; '
+                                        'no unknown request replay or successful review is implied.')
             store.set("report_error", failure)
             store.event("deep_run_error", failure)
         finally:

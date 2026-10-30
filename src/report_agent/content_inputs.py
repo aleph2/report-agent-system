@@ -41,6 +41,9 @@ EvidenceInput = input_shape(Evidence, {
     'source_refs': list[SourceRef], 'input_refs': list[BatchRef], 'extraction_ref': BatchRef | None})
 RelationInput = input_shape(Relation, {
     'subject_ref': BatchRef, 'object_ref': BatchRef, 'basis_refs': list[BatchRef]})
+RelationInputV2 = input_shape(Relation, {
+    'subject_ref': BatchRef, 'object_ref': BatchRef, 'basis_refs': list[BatchRef]}, descriptions={
+    'predicate': 'contains requires ContentNode endpoints and position. supported_by and contradicted_by require a ContentNode subject_ref and an Evidence object_ref, not SourceArtifact. Same-batch client_key refs are resolved before endpoint validation.'})
 
 
 def object_shape(kind, payload):

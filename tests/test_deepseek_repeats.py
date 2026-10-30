@@ -7,7 +7,9 @@ import sys
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from run_deepseek_repeats import BASE, EXPECTED, read, schedule, sha, validate_result
+from run_deepseek_repeats import EXPECTED, read, schedule, sha, validate_result
+
+BASE = Path(__file__).parent / 'fixtures/historical-duty/deepseek-strict'
 
 
 def test_fixed_schedule_and_frozen_requests():

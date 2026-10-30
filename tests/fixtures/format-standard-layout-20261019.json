@@ -1,5 +1,5 @@
 {
-  "source_path": ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/format-standard-original-text.txt",
+  "source_path": "tests/fixtures/historical-duty/standards/format-standard-original-text.txt",
   "source_sha256": "2b50a74db2bb3aa9566de5373d7765cb6b512f7771031b3f8667dd7673fe2443",
   "source_sections": ["2.2", "3.1", "3.3", "4.1", "5.2", "7.2", "10.1"],
   "independent_origin": "Values transcribed from the archived customer standard, not generated from the exporter or its options.",

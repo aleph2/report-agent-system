@@ -62,7 +62,7 @@ def sync_operator_instructions(store):
     category = manifest.get('report_category')
     report_id = manifest.get('report_id') or str(store.root)
     policy = store.get('context_policy', manifest.get('context_policy'))
-    if policy not in {None, 'stateful-tools-v1'}:
+    if policy not in {None, 'stateful-tools-v1', 'stateful-tools-v2'}:
         raise ActionRejected('OPERATOR_PACK_REQUIRES_STATEFUL_TASK_CONTEXT')
     if not policy: store.set('context_policy', 'stateful-tools-v1')
     binding = {'policy': 'scoped-instructions-v1', 'report_id': report_id}

@@ -5,25 +5,22 @@ import os
 import asyncio
 import re
 import json
+from contextlib import contextmanager
+from contextvars import ContextVar
 from urllib.parse import urlparse
 
 import httpx
 import openai
-from .request_budget import account_request, RequestBudgetExceeded
+from .request_budget import account_request, RequestBudgetExceeded, HOST_ADMISSION_REASONS
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .errors import ActionForbidden, ActionRejected, ModelRequestDeadlineExceeded
+from .transport_observation import observation_scope, observe_model_boundary
 
 
-MODEL_READ_TIMEOUT_SECONDS = 600
-MODEL_REQUEST_DEADLINE_SECONDS = 600
-
-
-def model_request_timeout():
-    """Bound each transport attempt; SDK retries retain their separate limit."""
-    return httpx.Timeout(connect=15, read=MODEL_READ_TIMEOUT_SECONDS, write=60, pool=60)
+from .model_invocation import model_invocation, model_request_timeout, MODEL_REQUEST_DEADLINE_SECONDS
 
 
 def _http_status(exc):
@@ -43,18 +40,34 @@ def _exception_type(exc):
 
 def error_data(exc):
     """Presentation only: inspect trusted types/status, never provider text or URLs."""
+    from .prompt_provenance import PromptCompositionError
+    if isinstance(exc, PromptCompositionError):
+        return {'type':'PromptCompositionError', 'http_status':None,
+                'message':str(exc), 'automatic_retry':False}
+    from .model_recovery import recovery_block
+    blocked = recovery_block(exc)
+    if blocked is not None:
+        code = blocked.args[0] if len(blocked.args) == 1 else ''
+        return {'type': 'RecoveryBlocked', 'http_status': None,
+                'message': code if isinstance(code, str) and re.fullmatch(r'RECOVERY_[A-Z_]+', code)
+                else 'RECOVERY_POLICY_BLOCKED'}
     chain, seen, current = [], set(), exc
     while isinstance(current, BaseException) and id(current) not in seen and len(chain) < 5:
         chain.append(current)
         seen.add(id(current))
         current = current.__cause__
     status = next((value for item in chain if (value := _http_status(item)) is not None), None)
+    from .input_capacity import capacity_failure
+    capacity = capacity_failure(exc)
+    if capacity is not None:
+        return {"type": _exception_type(exc), "http_status": capacity['http_status'],
+                "message": "MODEL_CONTEXT_CAPACITY_REJECTED", "capacity": capacity}
     if any(isinstance(item, RequestBudgetExceeded) for item in chain):
         budget_error=next(item for item in chain if isinstance(item,RequestBudgetExceeded))
         code=str(budget_error)
         if code not in {'MODEL_REQUEST_BUDGET_REACHED','AUTHORIZED_TOKEN_BUDGET_REACHED',
                         'MODEL_TOKEN_BOUND_NOT_VERIFIED','TOKEN_BOUND_VIOLATION_REQUIRES_DIAGNOSIS',
-                        'STREAM_USAGE_BUDGET_NOT_SUPPORTED','TOKEN_LEDGER_SETTLEMENT_FAILED'}:
+                        'STREAM_USAGE_BUDGET_NOT_SUPPORTED','TOKEN_LEDGER_SETTLEMENT_FAILED'} | HOST_ADMISSION_REASONS:
             code='MODEL_REQUEST_BUDGET_REACHED'
         return {"type": "RequestBudgetExceeded", "http_status": None,
                 "message": code}
@@ -86,6 +99,9 @@ def error_data(exc):
         result["cause_types"] = [_exception_type(item) for item in chain[1:]]
     if current is not None:
         result["cause_chain_truncated"] = True
+    facts = getattr(exc, 'model_call_facts', None)
+    if facts is not None:
+        result['model_call'] = facts
     return result
 
 
@@ -119,22 +135,55 @@ class GLMChatOpenAI(ChatOpenAI):
         return result
 
     async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
-        # One logical model call, including SDK retries; not a report-run budget.
-        deadline = asyncio.timeout(MODEL_REQUEST_DEADLINE_SECONDS)
-        try:
-            async with deadline:
-                result = await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        except TimeoutError as exc:
-            if not deadline.expired():
-                raise
-            raise ModelRequestDeadlineExceeded(MODEL_REQUEST_DEADLINE_SECONDS) from exc
-        return self._decode_strict(result, kwargs.get('tools'))
+        client = self.http_async_client
+        store, role = getattr(client, 'observation_store', None), getattr(client, 'observation_role', None)
+        async def invoke():
+            async with model_invocation(store, role):
+                result = await super(GLMChatOpenAI, self)._agenerate(
+                    messages, stop=stop, run_manager=run_manager, **kwargs)
+                return self._decode_strict(result, kwargs.get('tools'))
+        from .model_recovery import load_recovery_policy, recover_model_call
+        if not load_recovery_policy(store):
+            return await invoke()
+        if self.root_async_client.max_retries != 0 or connection_retry_count() != 0:
+            from .model_recovery import RecoveryBlocked
+            raise RecoveryBlocked('RECOVERY_REQUIRES_SINGLE_RETRY_OWNER')
+        payload = self._get_request_payload(messages, stop=stop, **kwargs)
+        # Ordinary function schemas only describe possible local tool calls;
+        # server-executed/builtin tools are not pure inference recovery.
+        safe = all(t.get('type') == 'function' for t in payload.get('tools', []))
+        return await recover_model_call(store=store, role=role,
+            profile={'model': self.model_name, 'endpoint': str(self.openai_api_base),
+                     'strict': self.deepseek_strict}, payload=payload, invoke=invoke, safe=safe,
+            parse_raw=lambda raw: self._decode_strict(self._create_chat_result(raw), kwargs.get('tools')),
+            on_reuse=self._reused_result)
+
+    @staticmethod
+    def _reused_result(result, provenance):
+        # Callbacks must not report the cached usage as a second provider call.
+        output = result.llm_output or {}
+        result.llm_output = {**output, 'token_usage': {},
+                             'model_recovery_reused': True,
+                             'historical_token_usage': output.get('token_usage'),
+                             'model_recovery_provenance': provenance}
+        for generation in result.generations:
+            message = generation.message
+            message.additional_kwargs['model_recovery_reused'] = True
+            message.additional_kwargs['historical_usage_metadata'] = message.usage_metadata
+            message.additional_kwargs['model_recovery_provenance'] = provenance
+            message.response_metadata.pop('token_usage', None)
+            message.usage_metadata = None
+        return result
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-        result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        return self._decode_strict(result, kwargs.get('tools'))
+        client = self.http_client
+        with observation_scope(getattr(client, 'observation_store', None),
+                               getattr(client, 'observation_role', None)):
+            result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return self._decode_strict(result, kwargs.get('tools'))
 
     def _create_chat_result(self, response, generation_info=None):
+        observe_model_boundary('result_parse_started')
         result = super()._create_chat_result(response, generation_info)
         raw = response if isinstance(response, dict) else response.model_dump(warnings=False)
         for generation, choice in zip(result.generations, raw['choices'], strict=True):
@@ -147,9 +196,11 @@ class GLMChatOpenAI(ChatOpenAI):
                 if not isinstance(reasoning, str):
                     raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
                 generation.message.additional_kwargs['reasoning_content'] = reasoning
+        observe_model_boundary('result_parse_completed')
         return result
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        observe_model_boundary('payload_started')
         messages = self._convert_input(input_).to_messages()
         payload = super()._get_request_payload(messages, stop=stop, **kwargs)
         if payload.get('stream') or 'messages' not in payload:
@@ -182,6 +233,9 @@ class GLMChatOpenAI(ChatOpenAI):
                 if not isinstance(reasoning, str):
                     raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
                 wire['reasoning_content'] = reasoning
+        observe_model_boundary('payload_completed')
+        from .prompt_provenance import bind_wire_payload
+        bind_wire_payload(payload)
         return payload
 
 
@@ -224,14 +278,16 @@ class LocalAudit(BaseCallbackHandler):
 class RuntimeStatus(BaseCallbackHandler):
     """Current activity and sanitized failure metadata, not a model transcript."""
 
-    def __init__(self, store, role):
+    def __init__(self, store, role, *, model_service_role=None):
         self.store, self.role = store, role
+        self.model_service_role = model_service_role
 
     def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs):
         self.store.set("report_activity", self.role)
 
     def on_llm_error(self, error, *, run_id, **kwargs):
-        self.store.event("deep_model_error", {"run_id": str(run_id), "role": self.role, **error_data(error)})
+        service = {"model_service_role": self.model_service_role} if self.model_service_role else {}
+        self.store.event("deep_model_error", {"run_id": str(run_id), "role": self.role, **service, **error_data(error)})
 
 
 def connection_retry_count():
@@ -252,15 +308,27 @@ def sdk_retry_count():
     return int(value)
 
 
-def model_async_client(store=None, role=None, extra_hooks=()):
-    from .transport_observation import install_http_observer, observe_http_headers, observe_event
+def model_async_client(store=None, role=None, extra_hooks=(), *, capacity_profile=None):
+    from .transport_observation import install_http_observer, observe_http_headers, observe_event, ObservedAsyncClient
     retries = connection_retry_count()
     sdk_retries = sdk_retry_count()
     async def observe_start(request):
-        install_http_observer(request, store, role)
+        install_http_observer(request, store, role, asynchronous=True)
     async def observe_headers(response):
         observe_http_headers(response)
-    hooks = [account_request, observe_start, *extra_hooks]
+    from .input_capacity import capacity_request_hook
+    check_capacity = capacity_request_hook(capacity_profile, store)
+    async def admit_capacity(request):
+        from .model_recovery import admit_recovery_request
+        admit_recovery_request(request, store)
+        check_capacity(request)
+    from .prompt_provenance import admit_prompt_request, observe_prompt_request
+    async def admit_prompt(request):
+        admit_prompt_request(request)
+    async def observe_prompt(request):
+        observe_prompt_request(request, store, role)
+    # Configured adapter hooks precede the guard and financial reservation.
+    hooks = [admit_capacity, *extra_hooks, admit_prompt, account_request, observe_start, observe_prompt]
     from .token_budget import account_response
     responses = [observe_headers, account_response]
     if sdk_retries:
@@ -285,13 +353,17 @@ def model_async_client(store=None, role=None, extra_hooks=()):
                 "sdk_retries": sdk_retries, "read_write_status_retries": True})
     if retries and store is not None:
         async def observe_connections(request):
+            from .transport_observation import prior_native_trace, remember_connection_trace
+            previous = prior_native_trace(request, reset=True)
             async def trace(event, info):
+                if previous is not None:
+                    await previous(event, info)
                 if event in {"connection.connect_tcp.failed", "connection.connect_unix_socket.failed",
                              "connection.start_tls.failed", "connection.retry.started"}:
                     observe_event(store, "model_connection_retry_trace", {
                         "role": role, "event": event, "connect_retries": retries})
-            request.extensions["trace"] = trace
-        hooks.append(observe_connections)
+            remember_connection_trace(request, trace, previous)
+        hooks.insert(2, observe_connections)
         observe_event(store, "model_transport_retry_policy", {"role": role, "connect_retries": retries,
             "sdk_retries": 0, "read_write_status_retries": False})
     options = {"event_hooks": {"request": hooks, "response": responses}}
@@ -299,13 +371,13 @@ def model_async_client(store=None, role=None, extra_hooks=()):
         # HTTPX's native transport retries ConnectError/ConnectTimeout only.
         # It does not repeat HTTP requests after a read/write/status failure.
         options["transport"] = httpx.AsyncHTTPTransport(retries=retries)
-    return httpx.AsyncClient(**options)
+    return ObservedAsyncClient(observation_store=store, observation_role=role, **options)
 
 
-def model_sync_client(store=None, role=None):
+def model_sync_client(store=None, role=None, *, capacity_profile=None):
     from .request_budget import account_request_sync
     from .token_budget import account_response_sync
-    from .transport_observation import install_http_observer, observe_http_headers
+    from .transport_observation import install_http_observer, observe_http_headers, ObservedClient
     retries = connection_retry_count()
     sdk_retries = sdk_retry_count()
     def observe_start(request):
@@ -313,27 +385,55 @@ def model_sync_client(store=None, role=None):
     def permanent_error(response):
         if 400 <= response.status_code < 500 and response.status_code not in {408,409,429}:
             response.headers['x-should-retry'] = 'false'
-    return httpx.Client(transport=httpx.HTTPTransport(retries=retries),
-        event_hooks={'request':[account_request_sync, observe_start],
+    from .input_capacity import capacity_request_hook
+    from .prompt_provenance import admit_prompt_request, observe_prompt_request
+    return ObservedClient(observation_store=store, observation_role=role,
+        transport=httpx.HTTPTransport(retries=retries),
+        event_hooks={'request':[capacity_request_hook(capacity_profile, store), admit_prompt_request,
+                               account_request_sync, observe_start,
+                               lambda request: observe_prompt_request(request,store,role)],
                     'response':[observe_http_headers, account_response_sync, *([permanent_error] if sdk_retries else [])]})
 
 
+_CLIENT_OWNER = ContextVar('report_model_client_owner', default=None)
+
+
+@contextmanager
+def model_client_ownership(owner):
+    token = _CLIENT_OWNER.set(owner)
+    try:
+        yield
+    finally:
+        _CLIENT_OWNER.reset(token)
+
+
 def configured_model(store, role):
-    from .model_config import role_service
+    from .model_config import role_service, role_generation
     name, url, key = role_service(role)
     name = name.removeprefix("openai/")
+    from .input_capacity import profile_for_service
+    client_owner = _CLIENT_OWNER.get()
+    def clients(response_hooks=()):
+        profile = profile_for_service(name, url)
+        asynchronous = model_async_client(store, role, list(response_hooks), capacity_profile=profile)
+        if client_owner is not None:
+            client_owner(asynchronous, True)
+        synchronous = model_sync_client(store, role, capacity_profile=profile)
+        if client_owner is not None:
+            client_owner(synchronous, False)
+        return {'http_async_client': asynchronous, 'http_client': synchronous}
     if name.startswith("deepseek-") and urlparse(url).hostname == "api.deepseek.com":
+        role_generation(store, role, name, url)
         if not key or not url or urlparse(url).scheme != "https":
             raise RuntimeError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")
-        effort = os.environ.get("REPORT_REASONING_EFFORT", "max")
+        effort = os.environ.get("REPORT_REASONING_EFFORT", "high")
         if effort not in {"low", "high", "max"}:
             raise RuntimeError("DEEPSEEK_REASONING_EFFORT_INVALID")
         strict = os.environ.get('REPORT_DEEPSEEK_STRICT', '0') == '1'
         if strict:
             url = 'https://api.deepseek.com/beta'
         return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False, deepseek_strict=strict,
-            http_async_client=model_async_client(store, role, [strict_wire_audit(store, role)] if strict else []),
-            http_client=model_sync_client(store, role),
+            **clients([strict_wire_audit(store, role)] if strict else []),
             disable_streaming=True, reasoning_effort=effort, max_tokens=131072 if effort == "max" else 65536,
             max_retries=sdk_retry_count(), extra_body={"thinking": {"type": "enabled"}},
             timeout=model_request_timeout(),
@@ -346,17 +446,13 @@ def configured_model(store, role):
         if name not in {"glm-5.3", "deepseek-v4.1-flash"}:
             raise RuntimeError("AUTHORIZED_GRADER_MODEL_REQUIRED")
     is_deepseek = name.startswith("deepseek-")
-    thinking = ({"enable_thinking": True} if is_deepseek else
-                {"thinking": {"type": "enabled", "clear_thinking": False}})
+    generation = role_generation(store, role, name, url)
     # Apply retries at construction: changing the Pydantic field afterward does
     # not update the SDK clients already initialized by ChatOpenAI.
     return GLMChatOpenAI(model=name, base_url=url, api_key=key, use_responses_api=False,
                       **({"profile": {"image_inputs": False, "image_tool_message": False}} if not is_deepseek else {}),
-                      http_async_client=model_async_client(store, role), http_client=model_sync_client(store, role),
-                      disable_streaming=True,
-                      reasoning_effort=os.environ.get("REPORT_REASONING_EFFORT", "high") if is_deepseek else "high",
-                      max_tokens=65536, max_retries=sdk_retry_count(),
-                      extra_body=thinking,
+                      **clients(),
+                      **generation, max_retries=sdk_retry_count(),
                       timeout=model_request_timeout(),
                       model_kwargs={"parallel_tool_calls": False},
                       callbacks=[RuntimeStatus(store, role)])
@@ -414,10 +510,11 @@ def bind_grader_trial(store):
 def configured_vision_client():
     """Use the SDK directly so image payloads do not enter inherited model callbacks."""
     from .model_config import role_service
-    _, url, key = role_service("vision")
+    model, url, key = role_service("vision")
+    from .input_capacity import profile_for_service
     if not url or not key:
         raise RuntimeError("VISION_SERVICE_CONFIGURATION_REQUIRED")
     return openai.AsyncOpenAI(base_url=url, api_key=key,
-                             http_client=model_async_client(),
+                             http_client=model_async_client(role="vision", capacity_profile=profile_for_service(model.removeprefix("openai/"), url)),
                              max_retries=sdk_retry_count(),
                              timeout=model_request_timeout())

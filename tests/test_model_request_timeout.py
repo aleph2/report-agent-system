@@ -5,6 +5,30 @@ import pytest
 
 from report_agent.deep_models import configured_model, configured_vision_client
 from report_agent.store import Store
+from report_agent.errors import ModelRequestDeadlineExceeded
+
+
+def deadline_at_stage(monkeypatch, seconds):
+    """Expire the real timeout after this test reaches its asserted stage."""
+    from types import SimpleNamespace
+    import report_agent.model_invocation as invocation
+    deadlines = []
+
+    def timeout(value):
+        assert value == seconds
+        deadline = asyncio.timeout(None)
+        deadlines.append(deadline)
+        return deadline
+
+    monkeypatch.setattr(invocation, 'asyncio', SimpleNamespace(
+        timeout=timeout, CancelledError=asyncio.CancelledError))
+
+    def expire():
+        deadline, = deadlines
+        assert deadline.when() is None
+        deadline.reschedule(asyncio.get_running_loop().time())
+
+    return expire
 
 
 @pytest.mark.parametrize('model_name,url', [
@@ -62,23 +86,25 @@ async def test_vision_request_uses_ten_minute_read_timeout(monkeypatch):
     client._client._transport = httpx.MockTransport(handle)
     try:
         assert client.max_retries == 5
-        await client.chat.completions.create(model='offline', messages=[{'role': 'user', 'content': 'offline'}])
+        await client.chat.completions.create(model='glm-5.3', messages=[{'role': 'user', 'content': 'offline'}])
         assert seen == [{'connect': 15, 'read': 600, 'write': 60, 'pool': 60}]
     finally:
         await client.close()
 
 
 async def test_chat_deadline_cancels_inflight_sdk_without_later_retry(tmp_path, monkeypatch):
-    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', .02)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', .02)
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
     monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
     for suffix, value in [('MODEL', 'glm-5.3'), ('BASE_URL', 'https://offline.invalid/v1'), ('API_KEY', 'offline-key')]:
         monkeypatch.setenv('REPORT_COORDINATOR_' + suffix, value)
     model = configured_model(Store(tmp_path), 'coordinator')
     requests, canceled = [], []
+    expire = deadline_at_stage(monkeypatch, .02)
 
     async def handle(request):
         requests.append(request)
+        expire()
         try:
             await asyncio.Event().wait()
         except asyncio.CancelledError:
@@ -87,8 +113,9 @@ async def test_chat_deadline_cancels_inflight_sdk_without_later_retry(tmp_path, 
 
     model.http_async_client._transport = httpx.MockTransport(handle)
     try:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(ModelRequestDeadlineExceeded) as failure:
             await model.ainvoke('offline')
+        assert failure.value.deadline_seconds == .02
         await asyncio.sleep(.01)
         assert len(requests) == 1 and canceled == [True]
     finally:
@@ -99,7 +126,7 @@ async def test_chat_deadline_cancels_inflight_sdk_without_later_retry(tmp_path, 
 async def test_vision_deadline_is_failed_uncached_observation(tmp_path, monkeypatch):
     from report_agent.vision import observe_source_image
     from test_document_tools import workspace
-    monkeypatch.setattr('report_agent.vision.MODEL_REQUEST_DEADLINE_SECONDS', .02)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', .02)
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
     monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
     for suffix, value in [('MODEL', 'glm-5.3'), ('BASE_URL', 'https://offline.invalid/v1'), ('API_KEY', 'offline-key')]:
@@ -107,9 +134,11 @@ async def test_vision_deadline_is_failed_uncached_observation(tmp_path, monkeypa
     client = configured_vision_client()
     ws = workspace(tmp_path)
     requests, canceled = [], []
+    expire = deadline_at_stage(monkeypatch, .02)
 
     async def handle(request):
         requests.append(request)
+        expire()
         try:
             await asyncio.Event().wait()
         except asyncio.CancelledError:
@@ -129,23 +158,29 @@ async def test_vision_deadline_is_failed_uncached_observation(tmp_path, monkeypa
 
 
 async def test_deadline_also_bounds_sdk_retry_backoff(tmp_path, monkeypatch):
-    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', .03)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', .03)
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
     monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
     for suffix, value in [('MODEL', 'glm-5.3'), ('BASE_URL', 'https://offline.invalid/v1'), ('API_KEY', 'offline-key')]:
         monkeypatch.setenv('REPORT_COORDINATOR_' + suffix, value)
     model = configured_model(Store(tmp_path), 'coordinator')
     requests = []
+    expire = deadline_at_stage(monkeypatch, .03)
 
     async def handle(request):
         requests.append(request)
         return httpx.Response(503, json={'error': {'message': 'offline'}})
 
     model.http_async_client._transport = httpx.MockTransport(handle)
-    monkeypatch.setattr(model.root_async_client, '_calculate_retry_timeout', lambda *args: 1)
+    def backoff(*args):
+        assert len(requests) == 1
+        expire()
+        return 1
+    monkeypatch.setattr(model.root_async_client, '_calculate_retry_timeout', backoff)
     try:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(ModelRequestDeadlineExceeded) as failure:
             await model.ainvoke('offline')
+        assert failure.value.deadline_seconds == .03
         assert len(requests) == 1
     finally:
         await model.root_async_client.close()
