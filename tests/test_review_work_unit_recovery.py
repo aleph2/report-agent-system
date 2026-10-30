@@ -1,3 +1,4 @@
+from support.flat_task_fixture import task_arguments
 import json
 from langchain_core.messages import AIMessage
 from langgraph.types import interrupt
@@ -25,7 +26,7 @@ async def test_v4_root_reentry_preserves_unresolved_reservation_without_replay(c
     def done(messages):
         results.append(observation(messages, 'calculate'))
         return AIMessage('Synthetic verification; no review acceptance claimed.')
-    scripts = {'coordinator':[AIMessage('',tool_calls=[{**request,'type':'tool_call'}]),AIMessage('End.')],
+    scripts = {'coordinator':[AIMessage('',tool_calls=[{**request,'args': task_arguments(cs, case[1], request['args']), 'type':'tool_call'}]),AIMessage('End.')],
                'reviewer':[invoke('write_todos',todos=[todo]),checkpoint,done]}
     initial = await run_report(ws, Driver(**scripts))
     assert initial['status'] == 'needs_human', initial

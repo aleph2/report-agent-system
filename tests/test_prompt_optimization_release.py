@@ -43,7 +43,8 @@ async def test_final_current_sdk_tools_and_parameter_sources_are_optimized(case)
     cs, _, criteria, _ = prepared(case)
     cs.store.set('context_policy', 'stateful-tools-v2')
     cs.store.set('manifest', {**cs.store.manifest, 'report_expression_profile':'reader-expression-v2', 'report_prompt_profile':'concise-v1'})
-    review = review_call(criteria)['args']
+    from support.flat_task_fixture import task_arguments
+    review = task_arguments(cs, case[1], review_call(criteria)['args'])
     models, wires = {}, []
     def factory(role):
         if role not in models:
@@ -74,7 +75,7 @@ async def test_final_current_sdk_tools_and_parameter_sources_are_optimized(case)
         assert 'use labels and wording' in serialized
         assert '1-based physical PDF page' in serialized
         task = functions['task']
-        assert 'Delegate an authorized objective' in task['description']
+        assert 'request resource-scope dictionary' in task['description']
         assert 'check_results' not in task['description']
         assert set(task['parameters']['required']) >= {'description','subagent_type'}
         captures = [cs.store.get(e['data']['capture_key']) for e in cs.store.events()

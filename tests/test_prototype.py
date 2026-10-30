@@ -288,16 +288,19 @@ async def test_selected_result_survives_tail_failure_without_replay(native_ws):
     assert cs.list_objects() == objects and export_bytes() == data
 
 
-async def test_selected_result_survives_actual_task_cancellation(native_ws):
+@pytest.mark.parametrize('startup_delay', [0, 6], ids=['normal-startup', 'slow-startup'])
+async def test_selected_result_survives_actual_task_cancellation(native_ws, monkeypatch, startup_delay):
+    from contextlib import asynccontextmanager
     from langchain_core.messages import AIMessage
     from report_agent import deep_runtime
     from report_agent.workspace import Workspace
     from test_deep_runtime import Driver, invoke
 
     store = native_ws.store
-    cs, _, snapshot, export, export_bytes = saved_native_delivery(native_ws)
+    cs, actor, snapshot, export, export_bytes = saved_native_delivery(native_ws)
     saved_bytes = export_bytes()
     saved_objects = cs.list_objects()
+    ready = asyncio.Event()
     waiting = asyncio.Event()
 
     class WaitingDriver(Driver):
@@ -311,11 +314,42 @@ async def test_selected_result_survives_actual_task_cancellation(native_ws):
 
     decision = WaitingDriver(coordinator=[invoke("select_content_delivery",
         operation_id="select-saved", snapshot_ref=snapshot, export_ref=export)])
-    task = asyncio.create_task(deep_runtime.run_report(native_ws, decision))
-    await asyncio.wait_for(waiting.wait(), timeout=5)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    original_project_agent = deep_runtime.project_agent
+
+    @asynccontextmanager
+    async def observed_startup(*args, **kwargs):
+        await asyncio.sleep(startup_delay)
+        async with original_project_agent(*args, **kwargs) as agent:
+            ready.set()
+            yield agent
+
+    with monkeypatch.context() as patch:
+        patch.setattr(deep_runtime, 'project_agent', observed_startup)
+        task = asyncio.create_task(deep_runtime.run_report(native_ws, decision))
+        try:
+            # Initialization is separate from the original five-second business wait.
+            for phase, signal, timeout in [('startup', ready, 30), ('selected delivery', waiting, 5)]:
+                signal_wait = asyncio.create_task(signal.wait())
+                try:
+                    done, _ = await asyncio.wait({task, signal_wait}, timeout=timeout,
+                                                return_when=asyncio.FIRST_COMPLETED)
+                    if task in done:
+                        task.result()
+                        pytest.fail(f'Report ended before {phase}: {store.get("report_error")}')
+                    assert signal_wait in done, f'Timed out waiting for {phase}'
+                finally:
+                    signal_wait.cancel()
+                    await asyncio.gather(signal_wait, return_exceptions=True)
+            selection_receipt = cs.receipt(actor, 'select-saved')
+            assert selection_receipt['state'] == 'known_success'
+            assert store.get('content_delivery')['snapshot_ref'] == snapshot
+            assert store.get('content_delivery')['export_ref'] == export
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
     assert store.get("report_status") == "interrupted"
     assert store.get("report_error")["type"] == "CancelledError"
     selected = store.get("content_delivery")
@@ -332,6 +366,7 @@ async def test_selected_result_survives_actual_task_cancellation(native_ws):
     assert [(role, step) for role, step, _ in resumed.calls] == [("coordinator", 1)]
     assert not any(role in {"writer", "text_tool"} for role, _, _ in resumed.calls)
     assert store.get("content_delivery") == selected
+    assert cs.receipt(actor, 'select-saved') == selection_receipt
     assert cs.list_objects() == saved_objects
     assert export_bytes() == saved_bytes
 

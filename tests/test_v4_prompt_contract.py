@@ -1,3 +1,4 @@
+from report_agent.co_review_message import CoTaskMessage
 """V4 final prompt and provenance regressions. Offline protocol, not autonomy."""
 from copy import deepcopy
 import json
@@ -71,7 +72,7 @@ def test_v4_field_override_preserves_original_schema_constraints():
     schema = projected.args_schema.model_json_schema()
     field = schema['properties']['description']
     assert 'Include all necessary context' not in field['description']
-    assert field['description'] == load_prompt('native-task-description-v4').strip()
+    assert field['description'] == CoTaskMessage.model_fields['description'].description
     assert field['minLength'] == 3 and field['type'] == 'string'
     assert 'description' in schema['required'] and 'default' not in field
     assert original.args_schema.model_json_schema() == before
@@ -107,7 +108,8 @@ async def test_final_native_sdk_prompt_and_short_description_keep_complete_bindi
     from test_prompt_native_sdk_inputs import completion
     cs, _, criteria, original = prepared(case)
     cs.store.set('context_policy', 'stateful-tools-v2')
-    args = review_call(criteria)['args']
+    from support.flat_task_fixture import task_arguments
+    args = task_arguments(cs, case[1], review_call(criteria)['args'])
     args['description'] = 'Independently verify this saved draft; retain unresolved findings.'
     models, wires = {}, []
     def factory(role):
@@ -132,17 +134,15 @@ async def test_final_native_sdk_prompt_and_short_description_keep_complete_bindi
         assert 'Put full detail in the prompt' not in task['description']
         assert 'the agent sees only the prompt you give it' not in task['description']
         assert 'Include all necessary context' not in task['parameters']['properties']['description']['description']
-        assert load_prompt('native-task-description-v4').strip() == task['parameters']['properties']['description']['description']
+        assert CoTaskMessage.model_fields['description'].description == task['parameters']['properties']['description']['description']
         for role in ('writer', 'reviewer', 'layout'):
             assert load_prompt('content-'+role+'-description').strip() in task['description']
-        assert 'review' in task['parameters']['properties']
+        assert 'review' not in task['parameters']['properties']
+        assert 'snapshot_scope' in task['parameters']['properties']
         assert not {'review_requirements', 'review_snapshot_ref'} & task['parameters']['properties'].keys()
         capture = next(cs.store.get(e['data']['capture_key']) for e in cs.store.events()
             if e['kind'] == 'prompt_final_http_input' and cs.store.get(e['data']['capture_key'])['purpose'] == 'coordinator')
-        entry, = [f for f in capture['source_manifest']['files'] if f['name'] == 'native-task-description-v4']
-        assert entry['offered_match'] in {'literal', 'trimmed_literal'}
-        assert any('/parameters/properties/description/description' in m['path'] and m['role'] == 'tool_definition'
-                   for m in entry['matched_locations'])
+        assert capture['source_manifest']['offered_tool_schema_sha256']
         assert any(role == 'reviewer' for role, _ in wires)
         # The writer fixture task precedes the independently saved Reviewer task.
         saved = next(t for t in cs.list_objects('DelegatedTask') if t['payload']['role'] == 'reviewer')

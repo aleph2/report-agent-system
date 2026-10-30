@@ -26,7 +26,8 @@ async def test_v4_deepseek_strict_sdk_wire_roundtrips_legal_business_choices(cas
     original = convert_to_openai_tool(tool)['function']
     codec = StrictCodec(original)
     schema_check(codec.function['parameters'])
-    arguments = review_call(criteria)['args']
+    from support.flat_task_fixture import task_arguments
+    arguments = task_arguments(cs, case[1], review_call(criteria)['args'])
     encoded = codec.encode(arguments)
     assert codec.decode(encoded) == arguments
     wires = []

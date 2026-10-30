@@ -1,0 +1,141 @@
+{
+  "origin": "fake-full-native-flat-20261030-03 public tool trace, no private model reasoning",
+  "request_capture_sequence": 1053,
+  "failure_response_sequence": 1059,
+  "corrected_response_sequence": 1073,
+  "call_id": "call_221b508688eb46c7a049fbd5",
+  "actual_arguments": {
+    "assessment": "核查范围：第3章正文（1239e25f）、表2（01ca4b0a，全部 6 行）、表1（2e1be877）、第5章 R01/R02/R09/R10 条目及第6章缺失说明，均完整读取；比对基准为 01_initial 第1–2页与 02_revision 第1页的页面识读原文。\n\n数值核对（逐项）：01_initial 第1页『坡段 A：坡高 18 米；边坡长度 120 米。』→ 表2第1–2行资料记载值与报告采用值均为 18米／120米，一致；01_initial 第2页『坡段 B：坡高 25 米；边坡长度 80 米。』→ 表2第3–4行为 25米／80米，一致。单位一律为『米』，无换算、无量纲改写、无米/m 混用，也没有把坡高与坡长互换。\n\n日期与更正关系核对：01_initial 第1页『施工开始日期：2026-03-01。』；02_revision 第1页『资料版本：更正通知，发布日期 2026-02-01』『更正：施工开始日期由 2026-03-01 改为 2026-04-15。』。报告表2第5行『初始版2026-03-01；更正通知2026-04-15／采用值 2026-04-15／01 初始版第1页；02 更正通知（2026-02-01）第1页／采用更正后日期／2026-03-01已被2026-02-01更正通知更正，旧日期不再使用』；第3章正文『本报告采用2026-04-15，2026-03-01已被2026-02-01更正通知更正，旧日期不再使用』；第2章同述。全文无任何处以旧日期作为现行开工日期（R09 以『更正为2026-04-15』表述，R10 明确指认旧日期为已被更正的版本误用风险）。更正通知未改变坡高坡长的说明亦到位：表2第1–4行『说明』列均注『更正通知未改变坡高坡长』，第3章正文『02更正通知明确其他坡高、坡长数据保持不变』，与 02_revision 第1页『其他坡高、坡长数据保持不变。』一致。\n\n未超出的边界：报告明确『所给资料未提供剖面图与平面图…亦不涉及稳定性核实』，未声明几何关系、坡率或稳定性已核实，符合 allowed_limits。补充观察（不构成缺陷）：01_initial 第2页本身未印发布日期与页眉，报告在表2 中以『01 初始版（2026-01-10）第2页』形式标注，日期取自同一文件的第1页版本信息，属文件级日期，非页面误标。已建立：四项坡高坡长数值、现行日期与更正关系、坡高坡长未变的说明均与资料逐字一致。未证：无。综合本项预期结果成立。",
+    "assigned_scope_index": 4,
+    "coverage_object_indexes": [
+      3,
+      1,
+      6
+    ],
+    "coverage_reason": "对象3（第3章工程概况与资料核对正文）、对象1（表2 资料核对表，6 行全读）、对象6（表3 风险清单，12 行全读中涉及坡高坡长的 R01、R02 与涉及日期的 R09、R10）均完整读取并与 01_initial 第1–2页、02_revision 第1页原文比对。评估限于文本数值与日期更正关系；未评估图纸几何关系、坡率与稳定性（资料未提供图纸，报告亦未主张已核实）。",
+    "evidence_indexes": [
+      1,
+      2,
+      3,
+      6
+    ],
+    "execution_state": "completed",
+    "verdict": "satisfied"
+  },
+  "corrected_actual_arguments": {
+    "assessment": "核查范围：第3章正文（1239e25f）、表2（01ca4b0a，全部 6 行）、表1（2e1be877）、第5章 R01/R02/R09/R10 条目及第6章缺失说明，均完整读取；比对基准为 01_initial 第1–2页与 02_revision 第1页的页面识读原文。\n\n数值核对（逐项）：01_initial 第1页『坡段 A：坡高 18 米；边坡长度 120 米。』→ 表2第1–2行资料记载值与报告采用值均为 18米／120米，一致；01_initial 第2页『坡段 B：坡高 25 米；边坡长度 80 米。』→ 表2第3–4行为 25米／80米，一致。单位一律为『米』，无换算、无量纲改写、无米/m 混用，也没有把坡高与坡长互换。\n\n日期与更正关系核对：01_initial 第1页『施工开始日期：2026-03-01。』；02_revision 第1页『资料版本：更正通知，发布日期 2026-02-01』『更正：施工开始日期由 2026-03-01 改为 2026-04-15。』。报告表2第5行『初始版2026-03-01；更正通知2026-04-15／采用值 2026-04-15／01 初始版第1页；02 更正通知（2026-02-01）第1页／采用更正后日期／2026-03-01已被2026-02-01更正通知更正，旧日期不再使用』；第3章正文『本报告采用2026-04-15，2026-03-01已被2026-02-01更正通知更正，旧日期不再使用』；第2章同述。全文无任何处以旧日期作为现行开工日期（R09 以『更正为2026-04-15』表述，R10 明确指认旧日期为已被更正的版本误用风险）。更正通知未改变坡高坡长的说明亦到位：表2第1–4行『说明』列均注『更正通知未改变坡高坡长』，第3章正文『02更正通知明确其他坡高、坡长数据保持不变』，与 02_revision 第1页『其他坡高、坡长数据保持不变。』一致。\n\n未超出的边界：报告明确『所给资料未提供剖面图与平面图…亦不涉及稳定性核实』，未声明几何关系、坡率或稳定性已核实，符合 allowed_limits。补充观察（不构成缺陷）：01_initial 第2页本身未印发布日期与页眉，报告在表2 中以『01 初始版（2026-01-10）第2页』形式标注，日期取自同一文件的第1页版本信息，属文件级日期，非页面误标。已建立：四项坡高坡长数值、现行日期与更正关系、坡高坡长未变的说明均与资料逐字一致。未证：无。综合本项预期结果成立。",
+    "assigned_scope_index": 4,
+    "coverage_object_indexes": [
+      3,
+      1,
+      6
+    ],
+    "coverage_reason": "对象3（第3章工程概况与资料核对正文）、对象1（表2 资料核对表，6 行全读）、对象6（表3 风险清单，12 行全读中涉及坡高坡长的 R01、R02 与涉及日期的 R09、R10）均完整读取并与 01_initial 第1–2页、02_revision 第1页原文比对。评估限于文本数值与日期更正关系；未评估图纸几何关系、坡率与稳定性（资料未提供图纸，报告亦未主张已核实）。",
+    "coverage_state": "assessed",
+    "evidence_indexes": [
+      1,
+      2,
+      3,
+      6
+    ],
+    "execution_state": "completed",
+    "verdict": "satisfied"
+  },
+  "actual_schema_excerpt": {
+    "required": [
+      "execution_state",
+      "verdict",
+      "assessment",
+      "evidence_indexes"
+    ],
+    "properties": {
+      "coverage_object_indexes": {
+        "description": "Optional distinct zero-based positions from THIS request coverage_objects directory. They identify exact ContentNode/Requirement objects, not evidence indexes or assigned scopes. Select only objects whose coverage you actually account for; program does not infer whole-snapshot coverage.",
+        "items": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "coverage_state": {
+        "anyOf": [
+          {
+            "enum": [
+              "assessed",
+              "partial",
+              "not_assessed",
+              "not_applicable"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Required with non-empty coverage_object_indexes: actual accounting status for all selected objects. assessed is not satisfied; partial/unassessed stays unfinished. Non-applicability needs actual grounds and cannot cancel a commissioned Requirement. Otherwise omit or use null."
+      },
+      "coverage_reason": {
+        "default": "",
+        "description": "Required non-blank grounds and limits with coverage_object_indexes/state. Otherwise omit. Coverage is not inferred from successful reading or saving.",
+        "type": "string"
+      }
+    }
+  },
+  "observed_public_error": {
+    "code": "NATIVE_TOOL_VALIDATION_ERROR",
+    "diagnostic": "Please fix the error and try again.",
+    "execution_state": "not_established",
+    "native_error_digest": "7076abc5078943dd346df84c4fdb82eafac1e6c9b123bcbc4ebf43138aa8886a",
+    "note": "Full native diagnostic is retained in project events. This error wording alone does not establish whether the handler ran. Inspect the operation receipt and preserved outputs before choosing a recovery; do not assume no model call or side effect occurred.",
+    "ok": false,
+    "root_contract": {
+      "allowed_keys": [
+        "assessment",
+        "assigned_scope_index",
+        "coverage_object_indexes",
+        "coverage_reason",
+        "coverage_state",
+        "evidence_indexes",
+        "execution_state",
+        "finding_basis_kind",
+        "finding_description",
+        "finding_impact",
+        "finding_locator_state",
+        "finding_needed_outcome",
+        "finding_type",
+        "outside_assignment_notes",
+        "remaining_work",
+        "verdict"
+      ],
+      "missing_required_keys": [],
+      "received_keys": [
+        "assessment",
+        "assigned_scope_index",
+        "coverage_object_indexes",
+        "coverage_reason",
+        "evidence_indexes",
+        "execution_state",
+        "verdict"
+      ],
+      "required_keys": [
+        "assessment",
+        "evidence_indexes",
+        "execution_state",
+        "verdict"
+      ],
+      "unexpected_keys": []
+    },
+    "tool": "submit_review"
+  },
+  "expected_repair_diagnostic": {
+    "code": "COVERAGE_FIELDS_REQUIRED",
+    "missing_field": "coverage_state",
+    "related_fields": [
+      "coverage_object_indexes",
+      "coverage_state",
+      "coverage_reason"
+    ]
+  },
+  "limitation": "A real synthetic failing message and its successful correction. No claim that all native validation errors are safe to reflect or that reading/saving proves the judgment correct."
+}

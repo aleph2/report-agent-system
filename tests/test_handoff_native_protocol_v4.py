@@ -42,17 +42,12 @@ async def test_native_review_feedback_correction_save_return_and_explicit_adopti
         assert assigned['review_requirements'][0]['required_checks'] == [cs.read(criteria[0])['payload']['expected_outcome']]
         return invoke('read_context', target_ref=output['refs']['a-body'])
     def submission(messages, *, valid):
-        body = observation(messages, 'read_context')['receipt_id']
-        raw = candidate(assigned['review_snapshot_ref'], {'root':output['refs']['a'], 'k':criteria[0],
-            'support':output['refs']['support']}, [body], verdict='satisfied')
-        scope_id = assigned['review_requirements'][0]['scope_id']
+        from test_review_message import message
         if valid:
             failed = observation(messages, 'submit_review')
-            assert not failed['ok'] and failed['code'] == 'REVIEW_ITEM_OUTSIDE_ASSIGNMENT'
-            raw['items'][0]['scope_id'] = scope_id
-        else:
-            raw['items'][0]['scope_id'] = 'not-the-assigned-scope'
-        return AIMessage('', tool_calls=[call('submit_review', {'review':raw}, 'corrected-submit' if valid else 'first-submit')])
+            assert not failed['ok'] and failed['code'] == 'REVIEW_SCOPE_SELECTOR_INVALID'
+        return AIMessage('', tool_calls=[call('submit_review', message(assigned_scope_index=0 if valid else 99),
+            'corrected-submit' if valid else 'first-submit')])
     def returned(messages):
         result = observation(messages, 'submit_review')
         assert result['ok']
@@ -70,6 +65,8 @@ async def test_native_review_feedback_correction_save_return_and_explicit_adopti
         return AIMessage('Preserved scoped fixture result; not engineering acceptance.')
     request = review_call(criteria, scope={'kind':'mapped','items':[{'criterion_ref':criteria[0],
         'target_ref':output['refs']['a'], 'assessment_kind':'content'}]})
+    from support.flat_task_fixture import task_arguments
+    request['args'] = task_arguments(cs, case[1], request['args'])
     driver = Driver(coordinator=[AIMessage('', tool_calls=[{**request, 'type':'tool_call'}]),
         invoke('export_content_snapshot', deliverable={
             'kind':'deliverable','operation_id':'published'}), choose_delivery, finish],
@@ -85,7 +82,7 @@ async def test_native_review_feedback_correction_save_return_and_explicit_adopti
     attempts = [e['data'] for e in cs.store.events() if e['kind']=='native_delegation_reserved']
     assert len(attempts) == 1 and attempts[0]['native_tool_call_id'] == request['id']
     messages = [m for role, _, batch in driver.calls if role=='reviewer' for m in batch if isinstance(m,ToolMessage)]
-    assert any(m.status=='error' and 'REVIEW_ITEM_OUTSIDE_ASSIGNMENT' in m.content for m in messages)
+    assert any(m.status=='error' and 'REVIEW_SCOPE_SELECTOR_INVALID' in m.content for m in messages)
     from pathlib import Path
     destination = case[0].store.root / 'native-protocol-evidence.json'
     record, = cs.list_objects('ReviewRecord')

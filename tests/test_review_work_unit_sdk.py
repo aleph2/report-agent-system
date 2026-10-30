@@ -1,3 +1,4 @@
+from support.flat_task_fixture import task_arguments
 """Real native graph and SDK encoding with synthetic transport, no paid model."""
 import json
 from collections import Counter
@@ -21,6 +22,7 @@ async def test_sdk_reviewer_plan_schema_prompt_and_declared_sources(case, enable
     if not enabled:
         manifest.pop('review_plan_contract')
     ws.store.set('manifest', manifest)
+    model_args = task_arguments(cs, case[1], request['args'])
     models, bodies, counts = {}, {}, Counter()
     todo = unit_todo(output['refs']['a-body'])
     def factory(role):
@@ -32,7 +34,7 @@ async def test_sdk_reviewer_plan_schema_prompt_and_declared_sources(case, enable
             bodies.setdefault(role, []).append(body)
             step = counts[role]; counts[role] += 1
             if role == 'coordinator':
-                return completion(request_http, 'Synthetic end.', ('task', request['args']) if step == 0 else None)
+                return completion(request_http, 'Synthetic end.', ('task', model_args) if step == 0 else None)
             if step == 0:
                 return completion(request_http, '', ('write_todos', {'todos': [todo] if enabled else [
                     {'content':'Read synthetic assignment.', 'status':'pending'}]}))

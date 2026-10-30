@@ -40,6 +40,8 @@ async def test_registered_native_handoff_sdk_keeps_owned_receipt_index(case, cha
     workspace = configure(cs)
     foreign = cs.observe(Actor('foreign-reviewer', 'reviewer', 'foreign-task'),
                          {'secret': 'foreign payload'})['receipt_id']
+    from support.flat_task_fixture import task_arguments
+    model_args = task_arguments(cs, case[1], review_call(criteria)['args'])
     models, wires, counts = {}, [], Counter()
 
     def factory(role):
@@ -54,7 +56,7 @@ async def test_registered_native_handoff_sdk_keeps_owned_receipt_index(case, cha
             counts[role] += 1
             if role == 'coordinator':
                 if step == 0:
-                    return completion(request, '', ('task', review_call(criteria)['args']))
+                    return completion(request, '', ('task', model_args))
                 return completion(request, 'Fixture observation only; review was not performed.')
             assert role == 'reviewer'
             if step == 0:

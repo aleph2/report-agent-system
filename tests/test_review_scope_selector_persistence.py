@@ -43,7 +43,7 @@ def test_selector_preserves_actual_non_content_assessment_kind(case,kind):
         assert task_record(cs,actor)==before and not cs.list_objects('ReviewRecord')
 
 
-async def test_selector_save_receipt_survives_child_store_and_checkpoint_reopen(case,tmp_path):
+async def test_selector_save_receipt_survives_child_store_and_checkpoint_reopen(case,tmp_path,monkeypatch):
     cs,output,criteria,_=prepared(case);ws=Workspace(cs.store)
     cs.store.set('manifest',{**cs.store.manifest,'review_submission_contract':CONTRACT})
     request=review_call(criteria[:1],identity='persist-selector')
@@ -52,16 +52,14 @@ async def test_selector_save_receipt_survives_child_store_and_checkpoint_reopen(
     with delegated_task(ws,'coordinator',request) as (_,actor):
         task=task_record(cs,actor)['payload']
         receipt=cs.read_context(actor,output['refs']['a-body'])['receipt_id']
-        value=candidate(task['review_snapshot_ref'],{'root':output['refs']['a'],'k':criteria[0],
-            'support':output['refs']['support']},[receipt],verdict='satisfied')
-        item=value['items'][0]
-        for field in IDENTITY:item.pop(field,None)
-        item['assigned_scope_index']=0
-        function=native_tools(ws,'reviewer')['submit_review']
+        from support.review_message_entry import ReviewEntryProbe
+        from test_review_message import message
+        probe=ReviewEntryProbe(ws,monkeypatch)
+        answer=await probe.request(actor,[receipt],message(),call_id='saved-selector-call')
         async with AsyncSqliteSaver.from_conn_string(checkpoint) as saver:
-            graph=graph_for(function,saver)
-            result=await graph.ainvoke({'messages':[AIMessage('',tool_calls=[{
-                'name':'submit_review','id':'saved-selector-call','type':'tool_call','args':{'review':value}}])]},config)
+            graph=probe.graph(checkpointer=saver)
+            result=await graph.ainvoke({'messages':[answer]},config)
+            assert result['messages'][-1].status=='success',result['messages'][-1].content
             first=json.loads(result['messages'][-1].content)
             history=[state async for state in graph.aget_state_history(config)]
             pending=next(state for state in history if state.next==('tools',))
@@ -75,17 +73,20 @@ async def test_selector_save_receipt_survives_child_store_and_checkpoint_reopen(
     resume['args']['resume_content_task_id']=child_id
     with delegated_task(reopened,'coordinator',resume) as (_,recovered):
         assert recovered==actor
-        function=native_tools(reopened,'reviewer')['submit_review']
+        probe=ReviewEntryProbe(reopened,monkeypatch)
         async with AsyncSqliteSaver.from_conn_string(checkpoint) as saver:
-            replay=await graph_for(function,saver).ainvoke(None,pending.config)
+            replay=await probe.graph(checkpointer=saver).ainvoke(None,pending.config)
         assert json.loads(replay['messages'][-1].content)==first
         contents=ContentStore(reopened.store)
         assert contents.list_objects('ReviewRecord')==original
         assert contents.receipt(recovered,operation)==saved_receipt
-        changed=deepcopy(value);changed['items'][0]['reason']='Different semantic claim, same native call.'
-        with pytest.raises(ActionRejected,match='OPERATION_CONFLICT'):
-            await dispatch(function,'saved-selector-call',{'review':changed})
+        changed=deepcopy(answer);changed.tool_calls[0]['args']['assessment']='Different semantic claim, same native call.'
+        rejected=await probe.graph().ainvoke({'messages':[changed]})
+        assert rejected['messages'][-1].status=='error'
+        assert 'MESSAGE_CONTRACT_CALL_UNBOUND' in rejected['messages'][-1].content
         assert contents.list_objects('ReviewRecord')==original
+        assert contents.receipt(recovered,operation)==saved_receipt
+
 
 
 @pytest.mark.parametrize('failure',['foreign-receipt','missing-check'])

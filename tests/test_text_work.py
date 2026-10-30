@@ -282,8 +282,10 @@ async def test_already_constructed_graph_cannot_resume_unexecuted_observation(ws
     async with project_agent(ws, driver, decision_only=True) as graph:
         await graph.ainvoke({'messages': [('user', 'Choose useful source comparison')]}, config)
         assert ws.store.get('decision_observation')['executed'] is False
+        calls_before_resume = len(driver.calls)
         with pytest.raises(ActionRejected, match='DECISION_OBSERVATION_TERMINAL'):
             await graph.ainvoke(Command(resume=True), config)
+        assert len(driver.calls) == calls_before_resume
     assert not any(role == 'text_tool' for role, _, _ in driver.calls)
 
 
