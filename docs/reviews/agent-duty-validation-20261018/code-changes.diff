@@ -1,0 +1,1651 @@
+--- a/scripts/probe_agent_io.py
++++ b/scripts/probe_agent_io.py
+@@ -17,6 +17,7 @@
+ sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests')]
+ 
+ import httpx
++from filelock import FileLock
+ from jsonschema import Draft202012Validator
+ from langchain_core.messages import AIMessage, messages_to_dict
+ from report_agent.content_tasks import delegated_task
+@@ -28,7 +29,7 @@
+ from report_agent.token_budget import TokenBudget, token_budget
+ from report_agent.workspace import Workspace
+ from test_bounded_deadline import close_model
+-from test_bounded_review import review_call
++from test_bounded_review import Model, review_call
+ from test_decision_data import activate
+ from test_deep_runtime import Driver, invoke
+ from test_hierarchical_content import seed
+@@ -51,13 +52,40 @@
+                 'attempts': {row[0]: row for row in db.execute('SELECT * FROM attempts ORDER BY id')}}
+ 
+ 
+-def workspace(path, missing=False):
++def phase_admission(baseline, current, maximum, model_bounds, attempts=4):
++    """Conservative whole-wave admission; all HTTP still uses the parent ledger.
++
++    The phase lock serializes these probes. A wave can spend at most its shared
++    RequestBudget times the largest verified per-request bound, including retries.
++    No old unknown reservation is released or counted as a fresh phase request.
++    """
++    baseline, current = (json.loads(json.dumps(value)) for value in (baseline, current))
++    if (current['authorization'] != baseline['authorization'] or
++            any(current['attempts'].get(k) != row for k, row in baseline['attempts'].items())):
++        raise ValueError('PHASE_BASELINE_CHANGED')
++    if any(row[4] == 'bound_violation' for row in current['attempts'].values()):
++        raise ValueError('PHASE_BOUND_VIOLATION_REQUIRES_DIAGNOSIS')
++    added = [row for key, row in current['attempts'].items() if key not in baseline['attempts']]
++    used = sum(row[3] or 0 for row in added)
++    held = sum(row[2] for row in added if row[4] in ('reserved', 'unknown'))
++    if len(added) + attempts > 12:
++        raise ValueError('PHASE_HTTP_ATTEMPT_LIMIT')
++    upper = attempts * max(model_bounds.values())
++    if used + held + upper > maximum:
++        raise ValueError('PHASE_TOKEN_BUDGET_REACHED')
++    return {'maximum_tokens': maximum, 'recorded_tokens': used,
++            'reserved_or_unknown_upper_bounds': held, 'http_attempt_rows': len(added),
++            'next_wave_worst_case_tokens': upper, 'remaining_tokens': maximum - used - held,
++            'prior_attempt_rows_preserved': len(baseline['attempts'])}
++
++
++def workspace(path, missing=False, source_text=None):
+     store = Store(path)
+     store.initialize({'goal': 'Describe synthetic class B, preserving uncertainty.',
+         'content_contract': 'hierarchical-review-v1', 'review_entrypoint': 'delegated-reviewer-v1',
+         'sources': [{'id': 's', 'title': 'Synthetic rule', 'coverage': 'partial' if missing else 'complete',
+-                     'content': 'The class-B value table is absent from the supplied material.' if missing
+-                     else 'Class B permits 75 to 100.'}]})
++                     'content': source_text or ('The class-B value table is absent from the supplied material.' if missing
++                     else 'Class B permits 75 to 100.')}]})
+     ws = Workspace(store)
+     activate(ws)
+     return ws
+@@ -65,22 +93,69 @@
+ 
+ async def capture_role(ws, role):
+     _, _, refs, snapshot, _ = seed(ws)
++    if role == 'optimizer':
++        from report_agent.learning import binding
++        from report_agent.learning_runtime import run_optimizer
++        ws.store.set('learning_config', {'library_path': str(ws.store.root / 'library'), 'customer_id': 'synthetic'})
++        library, scope = binding(ws)
++        feedback = library.feedback(scope, {}, {}, 'Select the described class before choosing its score.',
++                                    'B,70', ['Synthetic source: class B permits 75–100.'])
++        driver = Driver(optimizer=[
++            invoke('read_learning_feedback', feedback_id=feedback['id'], field='before'),
++            invoke('read_learning_feedback', feedback_id=feedback['id'], field='evidence'),
++            AIMessage(content='Capture only; no changes.')])
++        await run_optimizer(ws, driver('optimizer'))
++        return driver.calls[-1][2], [{'type': 'function', 'function': t}
++                                    for t in driver.bindings['optimizer'][-1]]
++    if role == 'coordinator':
++        args = dict(review_call(snapshot, refs)['args'])
++        args.pop('supervision_plugin', None)
++        driver = Driver(coordinator=[invoke('task', **args), AIMessage(content='Capture only; no acceptance.')],
++            reviewer=[AIMessage(content=json.dumps({'snapshot_ref': snapshot,
++                'execution_state': 'partial', 'verdict': None,
++                'remaining': 'The class-B interval comparison was not performed. No acceptance is established.'}))])
++        result = await run_report(ws, driver)
++        assert result['last_error'] is None, result
++        return driver.calls[-1][2], [{'type': 'function', 'function': t}
++                                    for t in driver.bindings['coordinator'][-1]]
+     args = ({'subagent_type': 'writer', 'description':
+              'Prepare a paragraph about class B using source s. First inspect the actual source; do not invent the permitted range.'}
+             if role == 'writer' else dict(review_call(snapshot, refs)['args']))
++    if role == 'layout':
++        args = {'subagent_type': 'layout', 'layout_snapshot_ref': snapshot, 'description':
++                'Produce a Word draft from the granted snapshot. Use top/bottom/left margins 25mm, '
++                'right margin 15mm, body line spacing 1.5. Preserve all content and qualifiers. '
++                'No semantic acceptance is requested. Inspect capabilities or the snapshot if needed.'}
+     args.pop('supervision_plugin', None)
++    script = [AIMessage(content='Synthetic capture only.')]
++    if role == 'layout':
++        script = [invoke('read_layout_capabilities'), invoke('read_context', target_ref=snapshot), *script]
+     driver = Driver(coordinator=[invoke('task', **args), AIMessage(content='Synthetic capture ended.')],
+-                    **{role: [AIMessage(content='Synthetic capture only.')]})
++                    **{role: script})
+     result = await run_report(ws, driver)
+     assert result['last_error'] is None, result
+     selected = [messages for name, _, messages in driver.calls if name == role]
+-    assert len(selected) == 1
+-    return selected[0], [{'type': 'function', 'function': t} for t in driver.bindings[role][-1]]
++    assert len(selected) == len(script)
++    errors = [message for message in selected[-1] if getattr(message, 'status', None) == 'error']
++    assert not errors, [message.model_dump() for message in errors]
++    return selected[-1], [{'type': 'function', 'function': t} for t in driver.bindings[role][-1]]
+ 
+ 
+ def fixture(case):
+-    if case in ('writer', 'reviewer'):
+-        name, args = ('read_source_page', {'source_id': 's'}) if case == 'writer' else ('read_task_assignment', {})
++    if case == 'text-table':
++        return {'role': 'assistant', 'content': json.dumps({'kind': 'table',
++            'body': {'columns': ['Class', 'Permitted score'],
++                     'rows': [['A', '50–74'], ['B', '75–100']]},
++            'qualifiers': {'scope': 'Synthetic supplied table only'}, 'claim_kind': 'fact'})}
++    if case == 'qualifiers-only':
++        from test_text_work_scoped_revision import DELTA
++        return {'role': 'assistant', 'content': json.dumps(DELTA)}
++    if case in ('writer', 'reviewer', 'coordinator', 'layout', 'optimizer'):
++        name, args = {'writer': ('read_source_page', {'source_id': 's'}),
++                      'reviewer': ('read_task_assignment', {}),
++                      'coordinator': ('project_status', {}),
++                      'layout': ('read_layout_capabilities', {}),
++                      'optimizer': ('read_learning_feedback', {})}[case]
+         return {'role': 'assistant', 'content': None, 'tool_calls': [
+             {'id': 'synthetic-call', 'type': 'function',
+              'function': {'name': name, 'arguments': json.dumps(args)}}]}
+@@ -92,12 +167,22 @@
+         'claim_kind': 'fact'})}
+ 
+ 
+-async def probe(case, out, live):
++async def probe(case, out, live, requested_output_limit=0):
++    if type(requested_output_limit) is not int or requested_output_limit < 0:
++        raise ValueError('OUTPUT_LIMIT_MUST_BE_A_NONNEGATIVE_INTEGER')
+     folder = out / case
+     folder.mkdir()
+-    ws = workspace(folder / 'workspace', case == 'text-missing')
+-    role = case if case in ('writer', 'reviewer') else 'text_tool'
++    source_text = ('Supplied reference table. Columns, in this order: Class | Permitted score. '
++                   'Rows, in this order: A | 50–74; B | 75–100. Retain both rows and column order.'
++                   if case == 'text-table' else None)
++    ws = workspace(folder / 'workspace', case == 'text-missing', source_text)
++    role = case if case in ('writer', 'reviewer', 'coordinator', 'layout', 'optimizer') else 'text_tool'
+     model = configured_model(ws.store, role)
++    configured_output_limit = model.max_tokens
++    output_limit = requested_output_limit or configured_output_limit
++    if type(output_limit) is not int or output_limit < 1:
++        await close_model(model)
++        raise ValueError('EXPLICIT_OR_CONFIGURED_OUTPUT_LIMIT_REQUIRED')
+     wire_requests, responses = [], []
+ 
+     async def request_hook(request):
+@@ -114,53 +199,95 @@
+     model.http_async_client.event_hooks['response'].append(response_hook)
+     if not live:
+         async def transport(request):
++            answer = fixture(case) if case != 'content-checker' else {
++                'role': 'assistant', 'content': (await Model().ainvoke([])).content}
+             return httpx.Response(200, json={'id': 'offline-' + case, 'object': 'chat.completion',
+                 'created': 1, 'model': model.model_name,
+                 'choices': [{'index': 0, 'finish_reason': 'tool_calls' if role != 'text_tool' else 'stop',
+-                             'message': fixture(case)}],
++                             'message': answer}],
+                 'usage': {'prompt_tokens': 19, 'completion_tokens': 1, 'total_tokens': 20}})
+         await model.http_async_client._transport.aclose()
+         model.http_async_client._transport = httpx.MockTransport(transport)
+         model.http_async_client._mounts = {}
+     result = {'case': case, 'mode': 'live' if live else 'offline', 'model': model.model_name,
+-              'output_limit': 8192, 'generated_actions_executed': False}
++              'configured_output_limit': configured_output_limit,
++              'requested_output_limit': requested_output_limit,
++              'output_limit_source': 'explicit_probe_override' if requested_output_limit else 'configured_model',
++              'output_limit': output_limit, 'generated_actions_executed': False}
++    if out.name == 'contract-live-wave2' and case in ('coordinator', 'content-checker'):
++        result['prior_received_attempt'] = str(out.parent / 'roles-live-wave1' / case)
++        result['purpose'] = 'Reassess the same synthetic scenario with configured output capacity; prior length-bound response is preserved, not reused or relabelled.'
+     save(folder / 'intent.json', result)
+     try:
+         if role != 'text_tool':
+             messages, schemas = await capture_role(ws, role)
+             save(folder / 'native-input.json', {'messages': messages_to_dict(messages), 'tools': schemas})
+             bound = model.bind_tools(schemas)
+-            reply = await bound.ainvoke(messages, max_tokens=8192)
++            reply = await bound.ainvoke(messages, max_tokens=output_limit)
+             save(folder / 'model-output.json', reply.model_dump())
+             assert reply.response_metadata.get('finish_reason') in ('stop', 'tool_calls'), 'INCOMPLETE_RESPONSE'
+             assert not reply.invalid_tool_calls, 'INVALID_TOOL_CALL_JSON'
+-            assert reply.tool_calls, 'NO_STRUCTURED_ACTION_RETURNED'
++            assert reply.tool_calls or reply.content, 'EMPTY_RESPONSE'
+             by_name = {s['function']['name']: s['function']['parameters'] for s in schemas}
+             for call in reply.tool_calls:
+                 assert call['name'] in by_name, 'UNREGISTERED_TOOL'
+                 Draft202012Validator(by_name[call['name']]).validate(call['args'])
+             result['returned_actions'] = reply.tool_calls
+-            result['interpretation'] = 'Arguments validated; action suitability requires trace review. No tool executed.'
++            result['interpretation'] = 'Parsed response/arguments validated; action suitability requires separate trace review. No tool executed.'
+         else:
+             class Observed:
+-                max_tokens = 8192
++                max_tokens = output_limit
+ 
+                 def __getattr__(self, name):
+                     return getattr(model, name)
+ 
+                 async def ainvoke(self, messages):
+                     save(folder / 'text-tool-input.json', messages)
+-                    reply = await model.ainvoke(messages, max_tokens=8192)
++                    reply = await model.ainvoke(messages, max_tokens=output_limit)
+                     save(folder / 'model-output.json', reply.model_dump())
+                     return reply
+ 
+-            with delegated_task(ws, 'coordinator', writer_call()) as (_, actor):
+-                tool = tools(ws, 'writer', Observed())['process_report_content']
+-                result['tool_result'] = await tool('synthetic-' + case,
+-                    'Write one block describing class B using only the supplied material. If the value table is missing, '
+-                    'state that limitation; do not invent a range or select a score.',
++            if case == 'content-checker':
++                from report_agent.bounded_review import perform_review
++                cs, _, refs, snapshot, _ = seed(ws)
++                source = next(r for r in cs.read(snapshot)['payload']['refs'] if r['type'] == 'SourceArtifact')
++                with delegated_task(ws, 'coordinator', review_call(snapshot, refs, reads=[source])) as (_, actor):
++                    result['tool_result'] = await perform_review(ws, actor, Observed(), 'synthetic-check', ['rule-comparison'])
++            elif case == 'qualifiers-only':
++                from test_text_work_scoped_revision import TABLE, save_fixture, revision
++                from report_agent.content_store import ContentStore
++                with delegated_task(ws, 'coordinator', writer_call()) as (_, actor):
++                    ref = save_fixture(ws, actor)
++                    result['selected_original_ref'] = ref
++                    original = ContentStore(ws.store).read(ref)
++                    tool = tools(ws, 'writer', Observed())['process_report_content']
++                    result['tool_result'] = await tool('synthetic-qualifier-revision',
++                        'Remove only the old process commentary. Keep the technical weathering uncertainty. '
++                        'Return qualifiers only; do not change the existing table body or select a score.',
++                        'ContentNode', revision=revision(ref))
++                    assert result['tool_result']['payload']['body'] == TABLE['body']
++                    assert ContentStore(ws.store).read(ref) == original
++                    result['body_unchanged_and_original_not_adopted'] = True
++            else:
++                with delegated_task(ws, 'coordinator', writer_call()) as (_, actor):
++                    tool = tools(ws, 'writer', Observed())['process_report_content']
++                    objective = ('Produce one table ContentNode reproducing the complete supplied two-column table: '
++                        'same column labels/order and both rows, without adding a calculated total or selecting a score.'
++                        if case == 'text-table' else
++                        'Write one block describing class B using only the supplied material. If the value table is missing, '
++                        'state that limitation; do not invent a range or select a score.')
++                    result['tool_result'] = await tool('synthetic-' + case, objective,
+                     'ContentNode', source_selections=[{'source_id': 's'}])
+-            result['interpretation'] = 'Actual parser accepted candidate; no adoption or semantic acceptance.'
++                    if case == 'text-table':
++                        body = result['tool_result']['payload']['body']
++                        result['table_fixture_match'] = (
++                            result['tool_result']['payload'].get('kind') == 'table' and
++                            body.get('columns') == ['Class', 'Permitted score'] and
++                            body.get('rows') == [['A', '50–74'], ['B', '75–100']])
++            result['interpretation'] = (
++                'Actual parser saved an independent ReviewRecord in a synthetic workspace; not applied to the original report or whole-report acceptance.'
++                if case == 'content-checker' else
++                'Actual parser accepted candidate; no adoption into report content or semantic acceptance.')
+         result['status'] = 'passed_structure'
+     except Exception as exc:
+         result.update(status='blocked_before_http' if not wire_requests else 'failed',
+@@ -180,6 +307,10 @@
+     parser.add_argument('--live', action='store_true')
+     parser.add_argument('--env-file', type=Path)
+     parser.add_argument('--ledger', type=Path)
++    parser.add_argument('--phase-authorization', type=Path)
++    parser.add_argument('--wave', choices=['original', 'roles', 'contracts'], default='original')
++    parser.add_argument('--output-limit', type=int, default=0,
++                        help='Default 0 inherits the configured model limit; a positive value explicitly overrides capacity for this probe.')
+     args = parser.parse_args()
+     out = args.out.resolve()
+     out.mkdir(parents=True, exist_ok=False)  # Never replay an existing attempt directory.
+@@ -204,29 +335,56 @@
+             return original_connect(sock, *a, **kw)
+ 
+         socket.socket.connect = deny
+-        for role in ('', 'COORDINATOR_', 'WRITER_', 'REVIEWER_', 'TEXT_TOOL_', 'LAYOUT_'):
++        for role in ('', 'COORDINATOR_', 'WRITER_', 'REVIEWER_', 'TEXT_TOOL_', 'LAYOUT_', 'OPTIMIZER_'):
+             for key, value in {'MODEL': 'glm-5.3', 'BASE_URL': 'https://offline.invalid/v1', 'API_KEY': 'offline'}.items():
+                 os.environ['REPORT_' + role + key] = value
+         os.environ['REPORT_DEEPSEEK_STRICT'] = '0'
+         services = {'mode': 'offline fake service; production strict compatibility not established'}
+         budget = TokenBudget(out / 'offline-budget.db', 10000000, {'glm-5.3': 2000000})
++    if args.live:
++        expected = ROOT / '.analysis/agent-duty-validation-20261018/validation-budget-authorization.json'
++        if not args.phase_authorization or args.phase_authorization.resolve() != expected.resolve():
++            raise ValueError('EXPLICIT_CURRENT_PHASE_AUTHORIZATION_REQUIRED')
++        with FileLock(str(expected) + '.lock', timeout=0):
++            authorization = json.loads(expected.read_text(encoding='utf-8'))
++            assert authorization['maximum_tokens'] == 10000000
++            baseline_file = ROOT / authorization['baseline_ledger_rows']
++            assert hashlib.sha256(baseline_file.read_bytes()).hexdigest() == authorization['baseline_sha256']
++            phase = {'authorization_sha256': hashlib.sha256(expected.read_bytes()).hexdigest(),
++                     'baseline': json.loads(baseline_file.read_text(encoding='utf-8')),
++                     'maximum': authorization['maximum_tokens']}
++            admitted = phase_admission(phase['baseline'], ledger_rows(budget.path),
++                                       phase['maximum'], budget.model_bounds)
++            save(out / 'phase-admission.json', {**admitted,
++                 'authorization_sha256': phase['authorization_sha256']})
++            return await run_wave(args, out, budget, services, phase)
++    return await run_wave(args, out, budget, services)
++
++
++async def run_wave(args, out, budget, services, phase=None):
+     cap = RequestBudget(4)
+     hashes = code_hashes()
+     old_rows = ledger_rows(budget.path)
+     save(out / 'ledger-before.json', old_rows)
+-    summary = {'services': services, 'max_http_attempts_including_retries': 4,
++    summary = {'services': services, 'wave': args.wave, 'max_http_attempts_including_retries': 4,
+                'budget_before': budget.snapshot(), 'source_sha256': hashes,
+                'ledger_path': str(budget.path.resolve()),
+                'ledger_before_sha256': hashlib.sha256((out / 'ledger-before.json').read_bytes()).hexdigest(),
+                'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'cases': []}
+     save(out / 'registration.json', summary)
+     with token_budget(budget), request_budget(cap):
+-        for case in ('writer', 'reviewer', 'text-normal', 'text-missing'):
+-            result = await probe(case, out, args.live)
++        cases = {'original': ('writer', 'reviewer', 'text-normal', 'text-missing'),
++                 'roles': ('coordinator', 'layout', 'optimizer', 'content-checker'),
++                 'contracts': ('coordinator', 'content-checker', 'text-table', 'qualifiers-only')}[args.wave]
++        for case in cases:
++            result = await probe(case, out, args.live, args.output_limit)
+             summary['cases'].append(result)
+             summary['http_budget'] = cap.snapshot()
+             summary['budget_after'] = budget.snapshot()
+             now_rows = ledger_rows(budget.path)
++            if phase:
++                summary['phase_budget_after'] = phase_admission(phase['baseline'], now_rows,
++                    phase['maximum'], budget.model_bounds, attempts=0)
+             summary['previous_ledger_rows_unchanged'] = (now_rows['authorization'] == old_rows['authorization'] and
+                 all(now_rows['attempts'].get(k) == row for k, row in old_rows['attempts'].items()))
+             summary['code_unchanged_during_probes'] = code_hashes() == hashes
+--- /dev/null
++++ b/tests/test_agent_duty_handoffs.py
+@@ -0,0 +1,237 @@
++"""Responsibility handoffs through native agents; fake decisions, real boundaries."""
++import json
++
++import pytest
++from langchain_core.messages import AIMessage
++
++from report_agent.deep_runtime import run_report
++from test_agent_result_delivery import packet, reply
++from test_bounded_review import Model, review_call
++from test_decision_data import activate
++from test_deep_runtime import Driver, invoke
++from test_hierarchical_content import seed
++from test_task_supervision import ws, offline
++
++
++@pytest.mark.parametrize('role', ['writer', 'reviewer', 'layout'])
++@pytest.mark.parametrize('managed', [False, True])
++async def test_explicit_assignment_and_child_limits_reach_next_decision(ws, role, managed):
++    cs, _, refs, snapshot, _ = seed(ws)
++    if managed:
++        activate(ws)
++    requirement = ('Synthetic context. ' * 40 +
++                   'TAIL_REQUIREMENT: retain the complete table, including its unresolved footnote.')
++    child_result = json.dumps({'selected_ref': refs['claim'], 'complete': False,
++                              'remaining': 'TAIL_RETURN: original table has not been verified.'})
++    args = {'subagent_type': role, 'description': requirement}
++    if role == 'reviewer':
++        args = {**review_call(snapshot, refs)['args'], 'description': requirement}
++        args.pop('supervision_plugin', None)
++    elif role == 'layout':
++        args['layout_snapshot_ref'] = snapshot
++    inspected = []
++
++    def child(messages):
++        # Only explicitly sent task text is required; no imaginary inherited C1.
++        assert requirement in '\n'.join(str(m.content) for m in messages)
++        inspected.append('child')
++        return AIMessage(content=child_result)
++
++    def parent(messages):
++        returned = reply(messages, 'task')
++        assert child_result in str(returned.content)
++        assert 'TAIL_RETURN' in str(returned.content)
++        inspected.append('parent')
++        return AIMessage(content='Unfinished work is recorded, without claiming acceptance.')
++
++    driver = Driver(coordinator=[invoke('task', **args), parent], **{role: [child]})
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    assert inspected == ['child', 'parent']
++    tasks = cs.list_objects('DelegatedTask')
++    assert len(tasks) == 1 and tasks[0]['payload']['goal'] == requirement
++    assert not cs.list_objects('ReviewRecord')
++
++
++@pytest.mark.parametrize('managed', [False, True])
++async def test_writer_selected_criterion_and_source_reach_independent_text_tool(ws, managed):
++    cs, _, refs, snapshot, _ = seed(ws)
++    if managed:
++        activate(ws)
++    source = next(r for r in cs.read(snapshot)['payload']['refs'] if r['type'] == 'SourceArtifact')
++    selected = [refs['k'], source]
++    objective = 'Use the selected synthetic class table; preserve the exact constraint.'
++    answer = {'kind': 'block', 'body': {'text': 'Class B permits 75 to 100.'},
++              'qualifiers': {'limit': 'Synthetic example only; no engineering acceptance.'},
++              'claim_kind': 'fact'}
++    model = Model(json.dumps(answer))
++
++    def inspect(messages):
++        returned = packet(reply(messages, 'process_report_content'))
++        value = returned.get('metadata', returned)
++        assert value['semantic_correctness_verified'] is False
++        wire = json.loads(model.calls[0][1][1])
++        encoded = json.dumps(wire, ensure_ascii=False)
++        assert objective in encoded
++        # IDs alone are insufficient: the exact selected local payloads must arrive.
++        for ref in selected:
++            delivered = [item['object'] for item in wire['evidence']
++                         if item.get('kind') == 'saved_object' and item['object']['ref'] == ref]
++            assert len(delivered) == 1
++            assert delivered[0]['payload'] == cs.read(ref)['payload']
++        return AIMessage(content='Produced candidate only; adoption remains a separate action.')
++
++    driver = Driver(coordinator=[invoke('task', subagent_type='writer', description=objective),
++                                 AIMessage(content='Candidate result received.')],
++                    writer=[invoke('process_report_content', operation_id='explicit-inputs',
++                                   objective=objective, object_type='ContentNode', input_refs=selected), inspect])
++    result = await run_report(ws, lambda role: model if role == 'text_tool' else driver(role))
++    assert result['last_error'] is None, result
++    assert len(model.calls) == 1
++    assert len(cs.list_objects('ContentNode')) == 2
++
++
++@pytest.mark.parametrize('role', ['writer', 'layout'])
++@pytest.mark.parametrize('managed', [False, True])
++async def test_resume_instruction_delivery_diagnostic(ws, role, managed, request):
++    from report_agent.task_context import exact_task_context
++    cs, _, _, snapshot, _ = seed(ws)
++    if managed:
++        activate(ws)
++    old_goal = ('Use right margin 15mm.' if role == 'layout' else
++                'Prepare the synthetic report paragraph as a draft.')
++    new_goal = ('For this revision replace the previous 15mm right margin with 20mm; '
++                'keep all other content and permissions unchanged.' if role == 'layout' else
++                'For this revision replace the previous draft request: investigate the missing class evidence; '
++                'do not generate a paragraph yet. Ownership and source permissions are unchanged.')
++    captured = []
++
++    def child(messages):
++        state = exact_task_context(ws, role)
++        human = [m.content for m in messages if m.type == 'human']
++        captured.append({'human': human, 'application_state': state,
++                         'system': [m.content for m in messages if m.type == 'system']})
++        return AIMessage(content='Synthetic inspection only; no file changed.')
++
++    def resume(messages):
++        task = cs.list_objects('DelegatedTask')[0]
++        call = invoke('task', subagent_type=role, description=new_goal,
++                      resume_content_task_id=task['ref']['id'])
++        call.tool_calls[0]['id'] = 'resume-same-owner'
++        return call
++
++    args = {'subagent_type': role, 'description': old_goal}
++    if role == 'layout':
++        args['layout_snapshot_ref'] = snapshot
++    driver = Driver(coordinator=[invoke('task', **args), resume, AIMessage(content='Inspection ended.')],
++                    **{role: [child]})
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    assert len(captured) == 2
++    assert old_goal in str(captured[0]['human']) and new_goal in str(captured[1]['human'])
++    assert captured[0]['application_state']['actor_id'] == captured[1]['application_state']['actor_id']
++    assert len(cs.list_objects('DelegatedTask')) == 1
++    if role == 'layout':
++        assert captured[1]['application_state']['assignment']['layout_snapshot_ref'] == snapshot
++    # This diagnostic records a possible authority conflict for Neo to judge.
++    # A surviving original goal alone is NOT a proof of wrong model behavior.
++    request.node.user_properties.append(('resume_currentness_diagnostic', json.dumps({
++        'role': role, 'managed': managed, 'initial_goal': old_goal, 'new_instruction': new_goal,
++        'captured': captured, 'model_semantic_behavior_tested': False}, ensure_ascii=False)))
++
++
++@pytest.mark.parametrize('fault', ['source_240', 'producer_limits_removed'])
++async def test_existing_oracle_detects_historical_information_loss(ws, monkeypatch, fault, request):
++    from copy import deepcopy
++    import traceback
++    from report_agent import decision_data
++    from test_agent_result_delivery import (
++        test_each_report_agent_receives_source_tail_or_recovers_exact_field as source_oracle,
++        test_writer_generation_qualifications_reach_next_model_and_exact_save as producer_oracle)
++    original = decision_data.public_value
++    original_respond = Driver.respond
++    injected = []
++    assertion_sites = []
++
++    def lose_information(tool, value):
++        metadata, complete = original(tool, value)
++        target = 'read_source_page' if fault == 'source_240' else 'process_report_content'
++        if tool != target:
++            return metadata, complete
++        metadata = deepcopy(metadata)
++        if fault == 'source_240':
++            metadata['blocks'][0]['text'] = metadata['blocks'][0]['text'][:240]
++        else:
++            metadata['outputs']['entries'][0]['qualifiers'] = {}
++        injected.append(tool)
++        return metadata, complete
++
++    async def observe_original_assertion(self, role, messages):
++        try:
++            return await original_respond(self, role, messages)
++        except AssertionError as exc:
++            # Native execution turns child exceptions into last_error. Capture
++            # the untouched oracle's assertion before that normal handling.
++            assertion_sites.extend({'function': frame.name, 'line': frame.line,
++                                    'file': frame.filename, 'lineno': frame.lineno}
++                                   for frame in traceback.extract_tb(exc.__traceback__))
++            raise
++
++    monkeypatch.setattr(decision_data, 'public_value', lose_information)
++    monkeypatch.setattr(Driver, 'respond', observe_original_assertion)
++    with pytest.raises(AssertionError) as failure:
++        if fault == 'source_240':
++            await source_oracle(ws, monkeypatch, 'reviewer', False)
++        else:
++            await producer_oracle(ws, monkeypatch, False)
++    assert injected
++    expected_function, expected_expression = (
++        ('inspect_source', "assert shown['metadata']['blocks'][0]['text'] == literal")
++        if fault == 'source_240' else
++        ('inspect_generation', "assert value['outputs']['entries'][0]['qualifiers'] == payload['qualifiers']"))
++    assert any(site['function'] == expected_function and site['line'] == expected_expression
++               for site in assertion_sites), assertion_sites
++    request.node.user_properties.append(('oracle_sensitivity', json.dumps({
++        'fault': fault, 'injected_at': 'decision_data.public_value, memory only',
++        'unchanged_original_oracle_failed': True, 'assertion_sites': assertion_sites,
++        'outer_error': str(failure.value)[:1000],
++        'application_files_modified': False})))
++
++
++def test_existing_oracle_detects_incompatible_completion_reuse(ws, monkeypatch, request):
++    import inspect
++    import traceback
++    from report_agent import task_supervision
++    import test_task_supervision as retained
++
++    # Recreate only the historical missing comparison, in memory. Keep source
++    # receipts, versions, ownership and all other independent checks enabled.
++    source = inspect.getsource(task_supervision.reconcile)
++    comparison = '"source_ranges", "content_check_scopes", "artifact_check_scopes"'
++    assert source.count(comparison) == 1
++    changed = source.replace(comparison, '"source_ranges", "artifact_check_scopes"')
++    namespace = dict(task_supervision.__dict__)
++    exec(compile(changed, '<test-only-incompatible-completion>', 'exec'), namespace)
++    mutated = namespace['reconcile']
++    observed = []
++
++    def observe(contents, task_id):
++        result = mutated(contents, task_id)
++        observed.append(result)
++        return result
++
++    monkeypatch.setattr(task_supervision, 'reconcile', observe)
++    monkeypatch.setattr(retained, 'reconcile', observe)
++    with pytest.raises(AssertionError) as failure:
++        retained.test_saved_completion_reuse_requires_same_content_body_extent(
++            ws, 'local_body', 'subtree_bodies', 'root', False)
++    site = traceback.extract_tb(failure.value.__traceback__)[-1]
++    assert site.name == 'test_saved_completion_reuse_requires_same_content_body_extent'
++    assert site.line == 'assert outcome["execution_complete"] is expected_reuse'
++    assert len(observed) == 2 and observed[-1]['execution_complete'] is True
++    request.node.user_properties.append(('oracle_sensitivity', json.dumps({
++        'fault': 'reuse_local_review_for_subtree',
++        'injected_at': 'reconcile obligation comparison, memory only',
++        'unchanged_original_oracle_failed': True,
++        'assertion_site': {'function': site.name, 'line': site.line, 'lineno': site.lineno},
++        'mutated_result': observed[-1], 'application_files_modified': False}, ensure_ascii=False)))
+--- /dev/null
++++ b/tests/test_agent_duty_learning.py
+@@ -0,0 +1,186 @@
++"""Optimizer decisions stay distinct from analysis, adoption and publication."""
++import json
++
++import pytest
++from langchain_core.messages import AIMessage, ToolMessage
++
++from report_agent.learning_runtime import build_optimizer
++from test_agent_result_delivery import packet, reply
++from test_bounded_review import Model
++from test_deep_runtime import Driver, invoke
++from test_learning_text_work import case
++from test_task_supervision import ws, offline
++
++
++@pytest.mark.parametrize('category', ['project_fact', 'general_skill', 'customer_preference'])
++async def test_native_analysis_candidate_disposition_preserves_scope_and_inactive_status(case, category):
++    ws, library, scope, feedback = case
++    ws.store.set('learning_active_feedback', {'id': 'test-claim', 'feedback_ids': [feedback['id']]})
++    fact = {'title': 'Synthetic class table', 'strategy': 'B permits 75–100.',
++            'conditions': 'Only this synthetic supplied table.'}
++    model = Model(json.dumps({'findings': 'B,70 disagrees with the supplied table.', 'project_fact': fact}))
++    chosen = fact if category == 'project_fact' else {
++        'title': 'Compare actual table', 'strategy': 'Choose the described class before its score.',
++        'conditions': 'When the supplied guide defines classes.'}
++    observed = []
++
++    def propose(messages):
++        value = packet(reply(messages, 'analyze_learning_material'))
++        assert value['fact_correctness_verified'] is False
++        assert value['payload']['project_fact'] == fact
++        kwargs = {'analysis_id': value['analysis_id']} if category == 'project_fact' else {}
++        return invoke('propose_experience', feedback_ids=[feedback['id']], kind=category,
++                      **chosen, verification='Compare against supplied evidence', **kwargs)
++
++    def disposition(messages):
++        value = packet(reply(messages, 'propose_experience'))
++        # Inspect saved data too, rather than assuming the model return is a release.
++        candidates = library.list_versions(scope)
++        assert len(candidates) == 1, value
++        candidate = candidates[0]
++        assert candidate['kind'] == category
++        assert not library.search(scope)
++        observed.append(candidate)
++        return invoke('record_feedback_disposition', feedback_id=feedback['id'], outcome='candidate',
++                      rationale='Inactive candidate for later validation', experience_id=candidate['id'],
++                      experience_version=candidate['version'])
++
++    def finish(messages):
++        value = packet(reply(messages, 'record_feedback_disposition'))
++        assert value['outcome'] == 'candidate' and value['quality_verified'] is False
++        return AIMessage(content='Candidate saved; neither published nor validated.')
++
++    driver = Driver(optimizer=[invoke('analyze_learning_material', question='Compare class and interval',
++        feedback_selections=[{'feedback_id': feedback['id'], 'field': 'before'},
++                             {'feedback_id': feedback['id'], 'field': 'evidence'}]), propose, disposition, finish])
++    await build_optimizer(ws, driver('optimizer'), text_model=model).ainvoke(
++        {'messages': [('user', 'Investigate only the assigned synthetic feedback; do not publish.')]},
++        config={'recursion_limit': 16})
++    assert len(model.calls) == 1 and len(observed) == 1
++    wire = json.dumps(json.loads(model.calls[0][1][1]), ensure_ascii=False)
++    assert 'B,70' in wire and 'B permits 75–100' in wire
++    assert not library.search(scope)
++    assert feedback['id'] in ws.store.get('learning_job')['feedback_dispositions']
++
++
++@pytest.mark.parametrize('failure', ['received_invalid', 'unknown_transport'])
++async def test_learning_analysis_repetition_does_not_reissue_failed_request(case, failure):
++    import httpx
++    from pydantic import ValidationError
++    from report_agent.errors import ActionRejected
++    from report_agent.learning_runtime import optimizer_tools
++    from report_agent.learning_text_work import FeedbackSelection
++    ws, library, scope, feedback = case
++    model = Model('not valid JSON' if failure == 'received_invalid' else httpx.ReadTimeout('Unknown response'))
++    tool = {f.__name__: f for f in optimizer_tools(ws, text_model=model)}['analyze_learning_material']
++    selection = [FeedbackSelection(feedback_id=feedback['id'], field='evidence')]
++    for attempt in range(2):
++        error = (ValidationError if failure == 'received_invalid' else
++                 httpx.ReadTimeout if attempt == 0 else ActionRejected)
++        with pytest.raises(error):
++            await tool('Compare the selected rule', selection)
++    assert len(model.calls) == 1
++    assert not library.list_versions(scope)
++    assert not ws.store.get('learning_job').get('feedback_dispositions')
++
++
++async def test_saved_candidate_and_done_cannot_complete_other_feedback_or_replay(case):
++    from report_agent.errors import ActionRejected
++    from report_agent.learning_worker import consume_pending
++    ws, library, scope, first = case
++    second = library.feedback(scope, {}, {}, 'Missing rule still needs investigation', {}, ['Unresolved'])
++
++    def disposition(messages):
++        candidate = packet(reply(messages, 'propose_experience'))
++        return invoke('record_feedback_disposition', feedback_id=first['id'], outcome='candidate',
++                      rationale='Candidate awaits evaluation', experience_id=candidate['id'],
++                      experience_version=candidate['version'])
++
++    driver = Driver(optimizer=[invoke('propose_experience', feedback_ids=[first['id']],
++        kind='general_skill', title='Check rule', strategy='Read the rule before selecting a score',
++        conditions='When a rule is supplied', verification='Compare actual selected class'), disposition,
++        AIMessage(content='Done. Everything is complete.')])
++    with pytest.raises(ActionRejected, match='LEARNING_FEEDBACK_UNACCOUNTED'):
++        await consume_pending(ws, lambda: driver('optimizer'))
++    job = ws.store.get('learning_job')
++    assert job['state'] == 'failed'
++    assert set(job['feedback_dispositions']) == {first['id']}
++    assert second['id'] not in job['feedback_dispositions']
++    assert len(library.list_versions(scope)) == 1 and not library.search(scope)
++    assert all(row['status'] == 'failed' for row in library.queue_status(scope))
++    before = len(driver.calls)
++    assert await consume_pending(ws, lambda: pytest.fail('Failed jobs must not automatically replay')) == {'state': 'idle'}
++    assert len(driver.calls) == before
++
++
++@pytest.mark.parametrize('managed', [False, True])
++@pytest.mark.parametrize('revoked', [False, True])
++async def test_native_writer_cached_experience_respects_current_host_release(ws, tmp_path, managed, revoked, request):
++    from report_agent.deep_runtime import run_report
++    from report_agent.learning import binding, LearningScope
++    from test_decision_data import activate
++    from test_hierarchical_content import seed
++    from test_learning import proposal
++    cs, _, refs, _, _ = seed(ws)
++    before = cs.read(refs['claim'])
++    ws.store.set('learning_config', {'library_path': str(tmp_path / 'shared-learning'),
++                                     'customer_id': 'synthetic'})
++    library, report_scope = binding(ws)
++    origin = LearningScope(report_scope.customer, 'synthetic-origin-project')
++    candidate = proposal(library, origin)
++    library.release(origin, candidate['id'], 1, 'Synthetic host-authorized release')
++    if managed:
++        activate(ws)
++    observed = {}
++
++    def try_cached_use(messages):
++        items = packet(reply(messages, 'search_experience'))['items']
++        assert len(items) == 1 and items[0]['id'] == candidate['id']
++        assert items[0]['version'] == 1 and items[0]['strategy'] == candidate['strategy']
++        observed['retrieved'] = items[0]
++        # An authorized host event between retrieval and use; never an agent
++        # release tool or production library mutation.
++        if revoked:
++            library.release(origin, candidate['id'], None, 'Synthetic host withdrawal')
++        return invoke('record_experience_use', experience_id=candidate['id'], version=1,
++                      target_ref=refs['claim'], reason='Apply retrieved synthetic preference')
++
++    def inspect_use(messages):
++        message = next(m for m in reversed(messages) if isinstance(m, ToolMessage)
++                       and m.tool_call_id == 'record_experience_use')
++        with library.store.connect() as db:
++            count = db.execute("SELECT count(*) FROM learning_audit WHERE kind='application_declared'").fetchone()[0]
++        if revoked:
++            assert message.status == 'error'
++            assert 'EXPERIENCE_NOT_ACTIVE' in str(message.content)
++            assert count == 0 and not library.search(report_scope)
++            if managed:
++                from report_agent.task_context import exact_task_context
++                assert not exact_task_context(ws, 'writer')['learned_guidance']['customer_preferences']
++        else:
++            assert message.status == 'success'
++            assert packet(message)['experience']['id'] == candidate['id']
++            assert count == 1
++        observed['use'] = {'status': message.status, 'content': message.content,
++                           'declared_use_records': count}
++        return invoke('read_context', target_ref=refs['claim'])
++
++    def finish(messages):
++        shown = packet(reply(messages, 'read_context'))
++        value = shown.get('metadata', shown)
++        assert value['ok'] is True
++        assert value['result']['objects'][0]['payload'] == before['payload']
++        return AIMessage(content='Experience status checked; ordinary source work remains available.')
++
++    driver = Driver(coordinator=[invoke('task', subagent_type='writer',
++        description='Check the active customer preference; preserve source content.'),
++        AIMessage(content='Synthetic evidence received.')],
++        writer=[invoke('search_experience'), try_cached_use, inspect_use, finish])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    assert cs.read(refs['claim']) == before
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('native_release_currentness', json.dumps({
++        'managed': managed, 'revoked_between_retrieval_and_use': revoked,
++        'observed': observed, 'current_content_unchanged': True,
++        'real_model_strategy_quality_tested': False}, ensure_ascii=False)))
+--- /dev/null
++++ b/tests/test_agent_duty_artifacts.py
+@@ -0,0 +1,147 @@
++"""Actual native Layout bytes, independently checked against declared controls."""
++from io import BytesIO
++import json
++
++import pytest
++from docx import Document
++from docx.oxml.ns import qn
++from langchain_core.messages import AIMessage, ToolMessage
++
++from report_agent.deep_runtime import run_report
++from test_agent_result_delivery import packet, reply
++from test_decision_data import activate
++from test_deep_runtime import Driver, invoke
++from test_layout_table_controls import table_snapshot
++from test_task_supervision import ws, offline
++
++
++@pytest.mark.parametrize('managed', [False, True])
++@pytest.mark.parametrize('local_controls', [False, True])
++async def test_native_layout_parameters_reach_docx_and_parent_without_changing_content(ws, managed, local_controls):
++    cs, _, table_ref, snapshot, refs = table_snapshot(ws)
++    before = cs.read(snapshot), cs.read(table_ref), cs.read(refs['claim'])
++    if managed:
++        activate(ws)
++    controls = {'table_line_spacing': 1.5, 'outer_border_style': 'double', 'outer_border_width_pt': 0.5}
++    layout = {'toc': False, 'top_margin_mm': 25, 'bottom_margin_mm': 25,
++              'left_margin_mm': 25, 'right_margin_mm': 15, 'line_spacing': 1.5,
++              'styles': [{'name': 'Normal', 'font_size': 12, 'east_asia_font': '宋体'}]}
++    if local_controls:
++        layout['nodes'] = [{'node_ref': table_ref, **controls}]
++    else:
++        layout.update(controls)
++    returned = []
++
++    def child_return(messages):
++        result = packet(reply(messages, 'export_content_snapshot'))
++        result = result.get('metadata', result)['result']
++        returned.append(result)
++        return AIMessage(content=json.dumps({'export_ref': result['export_ref'],
++                                             'remaining': 'Independent review not performed.'}))
++
++    def parent(messages):
++        text = str(reply(messages, 'task').content)
++        assert returned[0]['export_ref']['id'] in text
++        assert 'Independent review not performed.' in text
++        return AIMessage(content='Export available, with review pending.')
++
++    driver = Driver(coordinator=[invoke('task', subagent_type='layout',
++        description='Apply these explicit synthetic layout controls only: ' + json.dumps(layout),
++        layout_snapshot_ref=snapshot), parent],
++        layout=[invoke('export_content_snapshot', operation_id='synthetic-layout', snapshot_ref=snapshot,
++                       layout=layout), child_return])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    doc = Document(BytesIO((ws.store.root / returned[0]['file_ref']).read_bytes()))
++    for section in doc.sections:
++        for name, mm in [('top', 25), ('bottom', 25), ('left', 25), ('right', 15)]:
++            assert abs(getattr(section, name + '_margin').mm - mm) < .05
++    assert doc.styles['Normal'].paragraph_format.line_spacing == 1.5
++    assert doc.styles['Normal'].font.size.pt == 12
++    assert doc.styles['Normal']._element.rPr.rFonts.get(qn('w:eastAsia')) == '宋体'
++    table = doc.tables[0]
++    assert [[cell.text for cell in row.cells] for row in table.rows] == [
++        ['项目', '原文'], ['岩性', '强风化；未经确认条件保留']]
++    for row in table.rows:
++        for cell in row.cells:
++            for para in cell.paragraphs:
++                assert para.paragraph_format.line_spacing == 1.5
++    for side in ('top', 'left', 'bottom', 'right'):
++        border = table._tbl.tblPr.find(qn('w:tblBorders')).find(qn('w:' + side))
++        assert border.get(qn('w:val')) == 'double' and border.get(qn('w:sz')) == '4'
++    assert before == (cs.read(snapshot), cs.read(table_ref), cs.read(refs['claim']))
++    assert not cs.list_objects('ReviewRecord')
++
++
++@pytest.mark.parametrize('managed', [False, True])
++async def test_real_layout_error_trace_reaches_agent_then_explicit_correction_exports(ws, managed, request):
++    """Replay the observed GLM hierarchy error; the fake agent chooses correction."""
++    cs, _, table_ref, snapshot, refs = table_snapshot(ws)
++    before = cs.read(snapshot), cs.read(table_ref), cs.read(refs['claim'])
++    if managed:
++        activate(ws)
++    operation_id = 'synthetic-layout-correction'
++    valid = {'toc': False, 'top_margin_mm': 25, 'bottom_margin_mm': 25,
++             'left_margin_mm': 25, 'right_margin_mm': 15, 'line_spacing': 1.5}
++    invalid = {**valid, 'qualifier_placement': 'adjacent'}
++    observed = {}
++
++    def correct(messages):
++        error = next(m for m in reversed(messages) if isinstance(m, ToolMessage)
++                     and m.tool_call_id == 'layout-invalid')
++        assert error.status == 'error'
++        # Do not require optional tool-message name or a particular wrapper.
++        diagnostic = str(error.content)
++        assert 'qualifier_placement' in diagnostic
++        assert 'extra_forbidden' in diagnostic or 'Extra inputs are not permitted' in diagnostic
++        assert not cs.list_objects('ExportArtifact')
++        assert not cs.list_objects('MappingArtifact')
++        assert before == (cs.read(snapshot), cs.read(table_ref), cs.read(refs['claim']))
++        with ws.store.connect() as db:
++            assert db.execute('SELECT count(*) FROM content_operations WHERE operation_id=?',
++                              (operation_id,)).fetchone()[0] == 0
++        observed['error'] = {'status': error.status, 'tool_call_id': error.tool_call_id,
++                             'content': error.content, 'export_count': 0,
++                             'mapping_count': 0,
++                             'operation_count': 0, 'content_unchanged': True}
++        call = invoke('export_content_snapshot', operation_id=operation_id, snapshot_ref=snapshot,
++                      layout={**valid, 'nodes': [{'node_ref': refs['claim'],
++                                                 'qualifier_placement': 'adjacent'}]})
++        call.tool_calls[0]['id'] = 'layout-corrected'
++        return call
++
++    def finished(messages):
++        returned = next(m for m in reversed(messages) if isinstance(m, ToolMessage)
++                        and m.tool_call_id == 'layout-corrected')
++        assert returned.status == 'success', returned
++        value = packet(returned)
++        value = value.get('metadata', value)
++        assert value['ok'] is True, value
++        observed['export'] = value['result']
++        return AIMessage(content='Synthetic export saved; independent review remains pending.')
++
++    first = invoke('export_content_snapshot', operation_id=operation_id, snapshot_ref=snapshot,
++                   layout=invalid)
++    first.tool_calls[0]['id'] = 'layout-invalid'
++    driver = Driver(coordinator=[invoke('task', subagent_type='layout',
++        description='Apply explicit synthetic margins and preserve the class B condition.',
++        layout_snapshot_ref=snapshot), AIMessage(content='Draft export received.')],
++        layout=[first, correct, finished])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    assert len(cs.list_objects('ExportArtifact')) == 1
++    doc = Document(BytesIO((ws.store.root / observed['export']['file_ref']).read_bytes()))
++    text = '\n'.join(p.text for p in doc.paragraphs)
++    assert 'For adopted class B use 70.' in text
++    assert 'condition' in text and 'class B' in text
++    for section in doc.sections:
++        for side, mm in [('top', 25), ('bottom', 25), ('left', 25), ('right', 15)]:
++            assert abs(getattr(section, side + '_margin').mm - mm) < .05
++    assert doc.styles['Normal'].paragraph_format.line_spacing == 1.5
++    assert before == (cs.read(snapshot), cs.read(table_ref), cs.read(refs['claim']))
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_derived_layout_correction', json.dumps({
++        'inspiration': '.analysis/agent-duty-validation-20261018/roles-live-wave1/layout',
++        'managed': managed, 'observed': observed,
++        'model_chose_correction': False, 'scripted_agent_explicitly_chose_correction': True,
++        'semantic_correctness_claimed': False}, ensure_ascii=False)))
+--- /dev/null
++++ b/tests/test_probe_phase_budget.py
+@@ -0,0 +1,64 @@
++"""Test-harness wave admission; no model call or production ledger write."""
++from copy import deepcopy
++import importlib.util
++from pathlib import Path
++
++import pytest
++
++spec = importlib.util.spec_from_file_location('probe_phase_under_test',
++    Path(__file__).resolve().parents[1] / 'scripts/probe_agent_io.py')
++probe = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(probe)
++
++
++def row(identity, used=None, state='reserved', reserved=2_000_000):
++    return [identity, 'verified-model', reserved, used, state, None, None, 'synthetic-time']
++
++
++def before():
++    # Historical unknowns remain unchanged, but are not charged twice to phase.
++    return {'authorization': [[1, 170_000_000, 'unchanged bounds']],
++            'attempts': {'old': row('old', state='unknown', reserved=26_000_000)}}
++
++
++@pytest.mark.parametrize('over', [0, 1])
++def test_phase_wave_exact_boundary_and_one_token_over(over):
++    baseline = before()
++    current = deepcopy(baseline)
++    current['attempts'].update(first=row('first', 1_000_000, 'settled'),
++                               second=row('second', 1_000_000 + over, 'settled'))
++    if over:
++        with pytest.raises(ValueError, match='PHASE_TOKEN_BUDGET_REACHED'):
++            probe.phase_admission(baseline, current, 10_000_000, {'verified-model': 2_000_000})
++    else:
++        result = probe.phase_admission(baseline, current, 10_000_000, {'verified-model': 2_000_000})
++        assert result['recorded_tokens'] == 2_000_000
++        assert result['reserved_or_unknown_upper_bounds'] == 0
++        assert result['next_wave_worst_case_tokens'] == 8_000_000
++        assert current['attempts']['old'] == baseline['attempts']['old']
++
++
++def test_new_unknown_keeps_upper_bound_even_without_usage():
++    baseline = before()
++    current = deepcopy(baseline)
++    current['attempts'].update(unknown=row('unknown', state='unknown'),
++                               small=row('small', 1, 'settled'))
++    with pytest.raises(ValueError, match='PHASE_TOKEN_BUDGET_REACHED'):
++        probe.phase_admission(baseline, current, 10_000_000, {'verified-model': 2_000_000})
++    assert current['attempts']['unknown'][3] is None
++
++
++def test_old_attempt_drift_is_not_reinterpreted_as_phase_allowance():
++    baseline = before()
++    current = deepcopy(baseline)
++    current['attempts']['old'][4] = 'known_not_sent'
++    with pytest.raises(ValueError, match='PHASE_BASELINE_CHANGED'):
++        probe.phase_admission(baseline, current, 10_000_000, {'verified-model': 2_000_000})
++
++
++def test_phase_cannot_spend_more_http_attempts_despite_small_usage():
++    baseline = before()
++    current = deepcopy(baseline)
++    current['attempts'].update({str(i): row(str(i), 1, 'settled') for i in range(9)})
++    with pytest.raises(ValueError, match='PHASE_HTTP_ATTEMPT_LIMIT'):
++        probe.phase_admission(baseline, current, 10_000_000, {'verified-model': 2_000_000})
+--- /dev/null
++++ b/tests/test_agent_duty_trace_cases.py
+@@ -0,0 +1,305 @@
++"""Trace-derived decisions through native runtime; scripted actions, real I/O.
++
++Historical I01/I02/I03 motivate the contrasts. Current model path error comes
++from contract-live-wave2/coordinator. No claim of model-chosen recovery.
++"""
++import json
++from copy import deepcopy
++
++import pytest
++from langchain_core.messages import AIMessage, ToolMessage
++
++from report_agent.deep_runtime import run_report
++from test_agent_result_delivery import packet
++from test_decision_data import activate
++from test_deep_runtime import Driver, invoke
++from test_hierarchical_content import seed
++from test_task_supervision import ws, offline
++
++
++def tool_reply(messages, call_id):
++    return next(m for m in reversed(messages)
++                if isinstance(m, ToolMessage) and m.tool_call_id == call_id)
++
++
++def result_value(message):
++    value = packet(message)
++    return value.get('metadata', value)
++
++
++def action(name, call_id, **args):
++    message = invoke(name, **args)
++    message.tool_calls[0]['id'] = call_id
++    return message
++
++
++@pytest.mark.parametrize('managed', [False, True])
++@pytest.mark.parametrize('misuse', ['missing_field', 'source_as_requirement'])
++async def test_coordinator_criterion_error_is_visible_and_no_partial_batch_is_saved(ws, managed, misuse, request):
++    cs, _, refs, snapshot, members = seed(ws)
++    if managed:
++        activate(ws)
++    requirement = next(ref for ref in members if ref['type'] == 'Requirement')
++    source = next(ref for ref in members if ref['type'] == 'SourceArtifact')
++    before = cs.list_objects('Criterion')
++    payload = {'requirement_refs': [requirement], 'purpose': 'Compare selected original table',
++               'scope': 'Synthetic class B', 'expected_outcome': 'Retain both columns and the condition.',
++               'evidence_expectation': 'The complete selected source table and its footnote.',
++               'allowed_limits': 'Actual weathering class remains unresolved.'}
++    valid = {'client_key': 'new', 'type': 'Criterion', 'payload': payload}
++    invalid = deepcopy(valid)
++    invalid['client_key'] = 'invalid'
++    if misuse == 'missing_field':
++        del invalid['payload']['evidence_expectation']
++    else:
++        invalid['payload']['requirement_refs'] = [source]
++    observed = {}
++
++    def correct(messages):
++        error = tool_reply(messages, 'criterion-invalid')
++        assert error.status == 'error'
++        expected = 'evidence_expectation' if misuse == 'missing_field' else 'requirement_refs'
++        assert expected in str(error.content)
++        assert cs.list_objects('Criterion') == before
++        with ws.store.connect() as db:
++            assert db.execute('SELECT count(*) FROM content_operations WHERE operation_id=?',
++                              ('criterion-trace',)).fetchone()[0] == 0
++        observed['rejection'] = error.content
++        # Input validation occurred before the business operation was registered.
++        return action('commit_objects', 'criterion-corrected', operation_id='criterion-trace', objects=[valid])
++
++    def finish(messages):
++        value = result_value(tool_reply(messages, 'criterion-corrected'))
++        assert value['ok'] is True, value
++        stored = cs.read(value['result']['refs']['new'])
++        assert stored['payload'] == payload
++        observed['saved_ref'] = stored['ref']
++        return AIMessage(content='Criterion saved. No report acceptance claimed.')
++
++    driver = Driver(coordinator=[action('commit_objects', 'criterion-invalid',
++                    operation_id='criterion-trace', objects=[valid, invalid]), correct, finish])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    schema = next(t['parameters'] for t in driver.bindings['coordinator'][0] if t['name'] == 'commit_objects')
++    branch = next(b for b in schema['properties']['objects']['items']['oneOf']
++                  if b['properties']['type']['const'] == 'Criterion')
++    shape = branch['properties']['payload']
++    assert set(shape['required']) == set(payload)
++    assert shape['properties']['requirement_refs']['items']['properties']['type']['const'] == 'Requirement'
++    assert len(cs.list_objects('Criterion')) == len(before) + 1
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'TC01', 'misuse': misuse, 'managed': managed, 'observed': observed,
++        'scripted_correction': True, 'paid_calls': 0})))
++
++
++@pytest.mark.parametrize('managed', [False, True])
++@pytest.mark.parametrize('misuse', ['paragraph_in_heading', 'table_as_structure', 'empty_body'])
++async def test_writer_structure_decision_and_substantive_body_remain_separate(ws, managed, misuse, request):
++    cs, _, _, _, _ = seed(ws)
++    if managed:
++        activate(ws)
++    initial = cs.list_objects('ContentNode')
++    heading = {'kind': 'chapter', 'body': {'text': 'Source evidence'}, 'qualifiers': {}, 'claim_kind': 'structure'}
++    invalid = deepcopy(heading)
++    if misuse == 'paragraph_in_heading':
++        invalid['body']['text'] += '\nThe synthetic rock class has been established.'
++    elif misuse == 'table_as_structure':
++        invalid.update(kind='table', body={'columns': ['Class'], 'rows': [['Established']]})
++    else:
++        invalid['body'] = {}
++    observed = {}
++
++    def reject_then_read(messages):
++        error = tool_reply(messages, 'structure-invalid')
++        value = result_value(error)
++        assert value['ok'] is False, value
++        assert value['code'] == 'SUBSTANTIVE_CONTENT_REQUIRES_TEXT_WORK', value
++        assert cs.list_objects('ContentNode') == initial
++        observed['rejection'] = value
++        # Known refusal is retained. This is a distinct, explicitly valid action.
++        return action('commit_objects', 'structure-valid', operation_id='valid-heading', objects=[
++            {'client_key': 'heading', 'type': 'ContentNode', 'payload': heading}])
++
++    def finish(messages):
++        value = result_value(tool_reply(messages, 'structure-valid'))
++        assert value['ok'] is True, value
++        node = cs.read(value['result']['refs']['heading'])
++        assert node['payload'] == heading
++        assert node['owner_id'].startswith('content:writer:')
++        observed['saved'] = node
++        return AIMessage(content='Structural heading saved; no substantive report generated.')
++
++    driver = Driver(coordinator=[invoke('task', subagent_type='writer',
++                    description='Organize the selected source evidence. Preserve unresolved conditions.'),
++                    AIMessage(content='Structure-only outcome received.')],
++                    writer=[action('commit_objects', 'structure-invalid', operation_id='invalid-structure', objects=[
++                        {'client_key': 'would_be_valid', 'type': 'ContentNode', 'payload': heading},
++                        {'client_key': 'invalid', 'type': 'ContentNode', 'payload': invalid}]),
++                        reject_then_read, finish])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    assert len(cs.list_objects('ContentNode')) == len(initial) + 1
++    # Native assembly constructs tool clients eagerly; only an invocation would
++    # violate this structure-only scenario's zero-text-work expectation.
++    assert not any(role == 'text_tool' for role, _, _ in driver.calls)
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'TC02', 'misuse': misuse, 'managed': managed, 'observed': observed,
++        'scripted_correction': True, 'paid_calls': 0})))
++
++
++async def test_real_coordinator_missing_path_error_then_explicit_current_state_read(ws, request):
++    from report_agent.content_tasks import delegated_task
++    from report_agent.decision_state import read_state
++    from report_agent.task_context import exact_task_context
++    from test_bounded_review import review_call
++
++    cs, _, refs, snapshot, _ = seed(ws)
++    # This observed call belongs to the active stateful-tools-v1 configuration.
++    # The unmanaged configuration does not register read_decision_state.
++    managed = True
++    activate(ws)
++    with delegated_task(ws, 'coordinator', review_call(snapshot, refs)):
++        pass  # Assigned scope exists and is genuinely unfinished.
++    expected = read_state(ws, 'coordinator', ['review_tasks'])['value']
++    observed = {}
++
++    def choose_current(messages):
++        value = result_value(tool_reply(messages, 'real-returned-action'))
++        assert value['ok'] is False and value['code'] == 'STATE_PATH_NOT_FOUND', value
++        current = exact_task_context(ws, 'coordinator')
++        assert 'assignment' not in current and current['review_tasks']['tasks']
++        if managed:
++            system = str([m.content for m in messages if m.type == 'system'])
++            assert 'review_tasks' in system
++        observed['rejection'] = value
++        return action('read_decision_state', 'explicit-current-read', path=['review_tasks'])
++
++    def finish(messages):
++        value = result_value(tool_reply(messages, 'explicit-current-read'))
++        assert value['value'] == expected, value
++        assert value['semantic_acceptance'] is False
++        assert value['value']['tasks'][0]['execution_complete'] is False
++        assert value['value']['tasks'][0]['remaining']
++        observed['recovered'] = value
++        return AIMessage(content='Assigned checks remain unfinished.')
++
++    driver = Driver(coordinator=[action('read_decision_state', 'real-returned-action', path=['assignment']),
++                                 choose_current, finish])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'real-coordinator-state-path', 'managed': managed, 'observed': observed,
++        'source': '.analysis/agent-duty-validation-20261018/contract-live-wave2/coordinator/result.json',
++        'scripted_correction': True, 'paid_calls': 0})))
++
++
++@pytest.mark.parametrize('managed', [False, True])
++async def test_writer_evidence_source_pool_requires_version_binding_before_text_service(ws, managed, request):
++    from test_bounded_review import Model
++
++    cs, _, _, snapshot, members = seed(ws)
++    source = next(ref for ref in members if ref['type'] == 'SourceArtifact')
++    if managed:
++        activate(ws)
++    before = cs.list_objects('Evidence')
++    expected = {'source_refs': [source], 'locator': 'selected block 0',
++                'excerpt': 'Class B permits 75 to 100.'}
++    service = Model(json.dumps(expected))
++    observed = {}
++    args = {'objective': 'Extract the selected original rule with its exact source version.',
++            'object_type': 'Evidence', 'source_selections': [{'source_id': 's', 'offset': 0, 'limit': 1}]}
++
++    def bind_version(messages):
++        value = result_value(tool_reply(messages, 'unbound-evidence'))
++        assert value['ok'] is False and value['code'] == 'TEXT_WORK_EVIDENCE_SOURCE_POOL_EMPTY', value
++        assert not service.calls
++        assert cs.list_objects('Evidence') == before
++        observed['unbound'] = value
++        return action('process_report_content', 'bound-evidence', operation_id='bound-evidence',
++                      source_version_refs=[source], **args)
++
++    def adopt(messages):
++        value = result_value(tool_reply(messages, 'bound-evidence'))
++        assert value['semantic_correctness_verified'] is False
++        assert len(service.calls) == 1
++        wire = json.loads(service.calls[0][1][1])
++        bindings = [item for item in wire['evidence'] if item['kind'] == 'source_version_binding']
++        assert len(bindings) == 1 and bindings[0]['object']['ref'] == source
++        selections = [item for item in wire['evidence'] if item['kind'] == 'source_blocks']
++        assert len(selections) == 1
++        assert selections[0]['selection'] == {'source_id': 's', 'offset': 0, 'limit': 1}
++        assert selections[0]['observation']['source']['id'] == 's'
++        assert selections[0]['observation']['blocks'] == [{
++            'locator': 'manifest text; chars 1-26', 'ordinal': 0, 'text': expected['excerpt']}]
++        if managed:
++            assert value['outputs']['complete'] is True
++            assert value['outputs']['total'] == 1
++            delivered = value['outputs']['entries'][0]
++            assert delivered['body_deferred'] is False
++        else:
++            delivered = value['payload']
++        for key, expected_value in expected.items():
++            assert delivered[key] == expected_value
++        observed['candidate'] = value
++        return action('commit_objects', 'adopt-evidence', operation_id='adopt-evidence', objects=[
++            {'client_key': 'e', 'type': 'Evidence', 'text_work_id': value['text_work_id']}])
++
++    def finish(messages):
++        value = result_value(tool_reply(messages, 'adopt-evidence'))
++        assert value['ok'] is True
++        saved = cs.read(value['result']['refs']['e'])
++        for key, expected_value in expected.items():
++            assert saved['payload'][key] == expected_value
++        assert saved['owner_id'].startswith('content:writer:')
++        observed['saved_ref'] = saved['ref']
++        return AIMessage(content='Literal evidence saved; no engineering judgment claimed.')
++
++    driver = Driver(coordinator=[invoke('task', subagent_type='writer', description=args['objective']),
++                                 AIMessage(content='Selected literal evidence received.')],
++                    writer=[action('process_report_content', 'unbound-evidence', operation_id='unbound-evidence', **args),
++                            bind_version, adopt, finish])
++    result = await run_report(ws, lambda role: service if role == 'text_tool' else driver(role))
++    assert result['last_error'] is None, result
++    assert len(service.calls) == 1 and len(cs.list_objects('Evidence')) == len(before) + 1
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'TC03', 'managed': managed, 'observed': observed,
++        'scripted_correction': True, 'paid_calls': 0})))
++
++
++def test_optional_optimizer_missing_dependency_has_terminal_evidence_without_execution(tmp_path, request):
++    import importlib.util
++    from report_agent.learning_evaluation import run_experiment
++    from test_learning_evaluation import Program, data, metric
++
++    if importlib.util.find_spec('dspy') is not None:
++        pytest.skip('This environment has the optional engine; missing-dependency path not applicable.')
++    root = tmp_path / 'optional-engine-diagnostic'
++
++    class NoExecution(Program):
++        def __call__(self, **inputs):
++            pytest.fail('A missing optimizer dependency must not execute the student or holdout.')
++
++    with pytest.raises(ModuleNotFoundError) as failure:
++        run_experiment(NoExecution('Synthetic baseline'), *data(), metric, None,
++                       output_directory=root, max_metric_calls=4,
++                       evaluator_version='synthetic-contract-v1', model_identity='never-invoked')
++    assert failure.value.name == 'dspy'
++    saved = json.loads((root / 'experiment.json').read_text())
++    assert saved['state'] == 'failed' and saved['error_type'] == 'ModuleNotFoundError'
++    assert saved['automatic_release'] is False
++    assert saved['baseline'] == {'answer': 'Synthetic baseline'}
++    assert 'candidate' not in saved and 'holdout' not in saved
++    before = (root / 'experiment.json').read_bytes()
++    with pytest.raises(FileExistsError):
++        run_experiment(NoExecution('Synthetic baseline'), *data(), metric, None,
++                       output_directory=root, max_metric_calls=4,
++                       evaluator_version='synthetic-contract-v1', model_identity='never-invoked')
++    assert (root / 'experiment.json').read_bytes() == before
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'E7-dependency-negative', 'terminal_record': saved,
++        'positive_gepa_path': 'environment-blocked', 'paid_calls': 0,
++        'authorization_enforcement_tested': False})))
+--- /dev/null
++++ b/tests/test_agent_duty_visual.py
+@@ -0,0 +1,230 @@
++"""Native agents, real PDF/Office images, fake vision only; no visual verdict."""
++import base64
++import hashlib
++import json
++
++import pytest
++from langchain_core.messages import AIMessage
++
++from report_agent.content_export import export_snapshot
++from report_agent.deep_runtime import run_report
++from test_agent_duty_trace_cases import action, result_value, tool_reply
++from test_bounded_review import review_call
++from test_decision_data import activate
++from test_deep_runtime import Driver, invoke
++from test_hierarchical_content import seed
++from test_ingestion import pdf_bytes
++from test_task_supervision import ws, offline
++from test_vision import VisionModel
++
++
++@pytest.mark.parametrize('role', ['reviewer', 'layout'])
++async def test_native_page_and_render_observations_keep_actual_images_and_extent(ws, monkeypatch, role, request):
++    data = pdf_bytes(('Printed label 91; physical page 1.', 'Printed label 110; physical page 2.'))
++    source_dir = ws.store.root / 'sources'
++    source_dir.mkdir(exist_ok=True)
++    original = source_dir / 'synthetic-reference.pdf'
++    original.write_bytes(data)
++    manifest = ws.store.manifest
++    manifest['sources'][0].update(filename=original.name, copied_path='sources/' + original.name,
++                                 sha256=hashlib.sha256(data).hexdigest())
++    ws.store.set('manifest', manifest)
++    activate(ws)
++    cs, owner, refs, snapshot, _ = seed(ws)
++    before = cs.read(snapshot), cs.read(refs['claim']), original.read_bytes()
++    exported = export_snapshot(cs, owner, 'fixture-word', snapshot)['result']
++    export_ref = exported['export_ref']
++    service = VisionModel(content='Synthetic image observation only; unseen pages and engineering status are unverified.')
++    monkeypatch.setattr('report_agent.vision.configured_vision_client', lambda: service)
++    monkeypatch.setattr('report_agent.deep_models.configured_vision_client', lambda: service)
++    observed = {}
++
++    def render(messages):
++        value = result_value(tool_reply(messages, 'source-page'))
++        assert value['status'] == 'observed', value
++        assert value['source']['page'] == 2
++        assert value['source']['source_id'] == 's'
++        assert value['source']['source_sha256'] == hashlib.sha256(data).hexdigest()
++        observed['source'] = value
++        return action('render_content_export', 'render-word', operation_id='native-render', export_ref=export_ref)
++
++    def inspect(messages):
++        value = result_value(tool_reply(messages, 'render-word'))
++        assert value['ok'] is True, value
++        rendered = value['result']
++        # Missing local Office is an explicit environment gap, not a fake pass.
++        assert rendered['execution_state'] == 'completed', rendered
++        record = cs.read(rendered['render_ref'])
++        assert record['payload']['export_ref'] == export_ref
++        assert record['payload']['export_digest'] == cs.read(export_ref)['payload']['file_digest']
++        assert record['payload']['renderer_identity']['binary_digest']
++        asset = record['payload']['page_assets'][0]
++        png = (ws.store.root / asset['asset_ref']).read_bytes()
++        assert hashlib.sha256(png).hexdigest() == asset['sha256']
++        assert png.startswith(b'\x89PNG')
++        observed['render'] = rendered
++        return action('inspect_rendered_page', 'full-page', render_ref=rendered['render_ref'], page=1,
++                      question='Describe this physical page only; no acceptance verdict.')
++
++    def repeat(messages):
++        value = result_value(tool_reply(messages, 'full-page'))
++        result = value['result']
++        assert result['status'] == 'observed', result
++        assert result['source']['export_ref'] == export_ref
++        assert result['source']['render_ref'] == observed['render']['render_ref']
++        assert result['source']['coverage'] == 'full_page_image'
++        assert result['source']['crop'] is None
++        assert len(service.calls) == 2
++        observed['full_page'] = value
++        return action('inspect_rendered_page', 'same-page', render_ref=observed['render']['render_ref'], page=1,
++                      question='Describe this physical page only; no acceptance verdict.')
++
++    def crop(messages):
++        value = result_value(tool_reply(messages, 'same-page'))['result']
++        assert value['reused'] is True
++        assert len(service.calls) == 2
++        return action('inspect_rendered_page', 'cropped-page', render_ref=observed['render']['render_ref'], page=1,
++                      question='Describe this physical page only; no acceptance verdict.', crop=[0, 0, .5, .5])
++
++    def invalid_page(messages):
++        value = result_value(tool_reply(messages, 'cropped-page'))
++        result = value['result']
++        assert result['status'] == 'observed' and result['reused'] is False
++        assert result['source']['coverage'] == 'region_only'
++        assert result['source']['crop'] == [0, 0, .5, .5]
++        assert result['image_sha256'] != observed['full_page']['result']['image_sha256']
++        assert len(service.calls) == 3
++        observed['crop'] = value
++        return action('inspect_rendered_page', 'outside-page', render_ref=observed['render']['render_ref'], page=999,
++                      question='Read this page.')
++
++    def finish(messages):
++        value = result_value(tool_reply(messages, 'outside-page'))
++        assert value['ok'] is False and value['code'] == 'PAGE_OUT_OF_RANGE', value
++        assert len(service.calls) == 3
++        observed['rejected_page'] = value
++        return AIMessage(content='Observed selected images only. No full-document review or acceptance.')
++
++    args = {'subagent_type': role, 'description': 'Inspect the selected original physical page and generated Word only.'}
++    if role == 'layout':
++        args['layout_snapshot_ref'] = snapshot
++    else:
++        args = {**review_call(snapshot, refs)['args'], 'description': args['description']}
++        args.pop('supervision_plugin', None)
++    driver = Driver(coordinator=[invoke('task', **args), AIMessage(content='Limited image observations received.')],
++                    **{role: [action('analyze_source_image', 'source-page', source_id='s', page=2,
++                                     question='Read only physical page 2; printed labels are not page indexes.'),
++                              render, inspect, repeat, crop, invalid_page, finish]})
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    image_hashes = []
++    for call in service.calls:
++        blocks = call['messages'][1]['content']
++        url = next(block['image_url']['url'] for block in blocks if block['type'] == 'image_url')
++        image_hashes.append(hashlib.sha256(base64.b64decode(url.split(',', 1)[1])).hexdigest())
++    assert image_hashes == [observed['source']['image_sha256'],
++                            observed['full_page']['result']['image_sha256'],
++                            observed['crop']['result']['image_sha256']]
++    assert before == (cs.read(snapshot), cs.read(refs['claim']), original.read_bytes())
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'TC05', 'role': role, 'observed': observed, 'actual_image_hashes': image_hashes,
++        'office_conversion_mocked': False, 'image_loader_mocked': False,
++        'fake_vision_responses': 3, 'paid_calls': 0, 'visual_correctness_proven': False})))
++
++
++async def test_native_layout_adjustment_generates_new_render_without_relabelling_old_observation(ws, monkeypatch, request):
++    from io import BytesIO
++    from docx import Document
++    from report_agent.content_export import render_export
++
++    cs, owner, refs, snapshot, _ = seed(ws)
++    activate(ws)
++    content_before = cs.read(snapshot), cs.read(refs['claim'])
++    old_export = export_snapshot(cs, owner, 'old-word', snapshot,
++        layout={'toc': False, 'right_margin_mm': 15,
++                'styles': [{'name': 'Normal', 'font_size': 12}]})['result']
++    old_render = render_export(cs, owner, 'old-render', old_export['export_ref'])['result']
++    assert old_render['execution_state'] == 'completed', old_render
++    original_docx = (ws.store.root / old_export['file_ref']).read_bytes()
++    old_doc = Document(BytesIO(original_docx))
++    service = VisionModel(content='Synthetic observation of only this attached image; no layout verdict.')
++    monkeypatch.setattr('report_agent.deep_models.configured_vision_client', lambda: service)
++    observed = {}
++    question = 'Inspect this actual generated page only.'
++
++    def choose_adjustment(messages):
++        value = result_value(tool_reply(messages, 'inspect-old'))['result']
++        assert value['source']['export_ref'] == old_export['export_ref']
++        assert value['source']['render_ref'] == old_render['render_ref']
++        observed['old'] = value
++        return action('export_content_snapshot', 'adjust-layout', operation_id='adjust-layout', snapshot_ref=snapshot,
++                      layout={'toc': False, 'right_margin_mm': 20,
++                              'styles': [{'name': 'Normal', 'font_size': 20}]})
++
++    def render_adjusted(messages):
++        value = result_value(tool_reply(messages, 'adjust-layout'))
++        assert value['ok'] is True, value
++        current = value['result']
++        assert current['export_ref'] != old_export['export_ref']
++        doc = Document(BytesIO((ws.store.root / current['file_ref']).read_bytes()))
++        assert abs(doc.sections[0].right_margin.mm - 20) < .05
++        assert doc.styles['Normal'].font.size.pt == 20
++        assert abs(old_doc.sections[0].right_margin.mm - 15) < .05
++        assert old_doc.styles['Normal'].font.size.pt == 12
++        assert [p.text for p in doc.paragraphs] == [p.text for p in old_doc.paragraphs]
++        assert cs.read(current['export_ref'])['payload']['snapshot_ref'] == snapshot
++        observed['new_export'] = current
++        return action('render_content_export', 'render-adjusted', operation_id='render-adjusted',
++                      export_ref=current['export_ref'])
++
++    def inspect_adjusted(messages):
++        value = result_value(tool_reply(messages, 'render-adjusted'))
++        assert value['ok'] is True, value
++        current = value['result']
++        assert current['execution_state'] == 'completed', current
++        assert current['render_ref'] != old_render['render_ref']
++        render_payload = cs.read(current['render_ref'])['payload']
++        assert render_payload['export_ref'] == observed['new_export']['export_ref']
++        assert render_payload['export_digest'] == cs.read(observed['new_export']['export_ref'])['payload']['file_digest']
++        observed['new_render'] = current
++        return action('inspect_rendered_page', 'inspect-adjusted', render_ref=current['render_ref'], page=1, question=question)
++
++    def historical_read(messages):
++        value = result_value(tool_reply(messages, 'inspect-adjusted'))['result']
++        assert value['source']['export_ref'] == observed['new_export']['export_ref']
++        assert value['source']['render_ref'] == observed['new_render']['render_ref']
++        assert value['reused'] is False
++        assert len(service.calls) == 2
++        observed['new'] = value
++        return action('inspect_rendered_page', 'read-old-again', render_ref=old_render['render_ref'], page=1, question=question)
++
++    def finish(messages):
++        value = result_value(tool_reply(messages, 'read-old-again'))['result']
++        assert value['reused'] is True and len(service.calls) == 2
++        assert value['source']['export_ref'] == old_export['export_ref']
++        assert value['source']['render_ref'] == old_render['render_ref']
++        assert value['image_sha256'] == observed['old']['image_sha256']
++        observed['historical_read'] = value
++        return AIMessage(content='New parameters exported and observed; old observation remains historical. No visual acceptance.')
++
++    driver = Driver(coordinator=[invoke('task', subagent_type='layout', layout_snapshot_ref=snapshot,
++                   description='Change right margin to20mm and Normal font to20pt; keep all report content unchanged.'),
++                   AIMessage(content='Adjusted export received; independent acceptance pending.')],
++                   layout=[action('inspect_rendered_page', 'inspect-old', render_ref=old_render['render_ref'], page=1, question=question),
++                           choose_adjustment, render_adjusted, inspect_adjusted, historical_read, finish])
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    for index, key in enumerate(['old', 'new']):
++        blocks = service.calls[index]['messages'][1]['content']
++        url = next(block['image_url']['url'] for block in blocks if block['type'] == 'image_url')
++        assert hashlib.sha256(base64.b64decode(url.split(',', 1)[1])).hexdigest() == observed[key]['image_sha256']
++    assert observed['old']['image_sha256'] != observed['new']['image_sha256']
++    assert (ws.store.root / old_export['file_ref']).read_bytes() == original_docx
++    assert content_before == (cs.read(snapshot), cs.read(refs['claim']))
++    assert not cs.list_objects('ReviewRecord')
++    request.node.user_properties.append(('trace_case', json.dumps({
++        'case': 'TC05-L6-adjust-observe', 'observed': observed,
++        'parameters_changed': {'right_margin_mm': [15, 20], 'Normal.font_size': [12, 20]},
++        'office_conversion_mocked': False, 'model_chose_adjustment': False,
++        'visual_correctness_proven': False, 'paid_calls': 0})))
+--- /dev/null
++++ b/tests/test_probe_output_limit.py
+@@ -0,0 +1,116 @@
++"""Probe capacity must match configuration unless an experiment overrides it.
++
++Use the real role/tool input, SDK and adapter with the probe's MockTransport.
++No provider request or production budget ledger is used.
++"""
++import argparse
++import importlib.util
++import json
++from pathlib import Path
++import sys
++
++import httpx
++import pytest
++
++
++spec = importlib.util.spec_from_file_location(
++    'probe_capacity_under_test',
++    Path(__file__).resolve().parents[1] / 'scripts/probe_agent_io.py')
++probe = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(probe)
++
++
++@pytest.fixture
++def models(monkeypatch):
++    for role in ('WRITER_', 'TEXT_TOOL_'):
++        for key, value in {'MODEL': 'glm-5.3', 'BASE_URL': 'https://offline.invalid/v1',
++                           'API_KEY': 'synthetic-key'}.items():
++            monkeypatch.setenv('REPORT_' + role + key, value)
++    monkeypatch.setenv('REPORT_DEEPSEEK_STRICT', '0')
++    captured = []
++    actual_factory = probe.configured_model
++
++    def configured(store, role):
++        model = actual_factory(store, role)
++        captured.append((model, model.max_tokens))
++        return model
++
++    monkeypatch.setattr(probe, 'configured_model', configured)
++    return captured
++
++
++@pytest.mark.parametrize('case', ['writer', 'text-normal'])
++@pytest.mark.parametrize('override', [None, 4096])
++async def test_probe_final_wire_inherits_configuration_unless_explicit(
++        tmp_path, models, case, override, record_property):
++    kwargs = {} if override is None else {'requested_output_limit': override}
++    result = await probe.probe(case, tmp_path, False, **kwargs)
++    model, configured = models[0]
++    expected = configured if override is None else override
++    assert result['status'] == 'passed_structure', result
++    assert result['output_limit'] == expected
++    assert result['configured_output_limit'] == configured
++    assert result['requested_output_limit'] == (0 if override is None else override)
++    assert result['output_limit_source'] == ('configured_model' if override is None else 'explicit_probe_override')
++    assert model.max_tokens == configured
++    folder = tmp_path / case
++    wire = json.loads((folder / 'wire-requests.json').read_text(encoding='utf-8'))
++    assert len(wire) == 1
++    # LangChain's OpenAI-compatible wire name differs by provider adapter.
++    limits = [wire[0][k] for k in ('max_tokens', 'max_completion_tokens') if k in wire[0]]
++    assert limits == [expected]
++    assert wire[0]['messages']
++    if case == 'writer':
++        assert wire[0]['tools'] and result['returned_actions']
++    else:
++        candidate = result['tool_result']
++        assert candidate['state'] == 'completed'
++        assert candidate['payload']['body']['text'] == 'Class B permits values from 75 to 100.'
++        assert candidate['model']['max_tokens'] == expected
++    assert result['observed_http_requests'] == result['observed_http_responses'] == 1
++    record_property('probe_evidence_dir', str(folder))
++    record_property('output_capacity', json.dumps({
++        'configured': configured, 'override': override, 'effective_wire': limits[0]}))
++
++
++async def test_cli_default_inherits_without_starting_a_wave(monkeypatch, tmp_path):
++    class Parsed(Exception):
++        pass
++
++    actual_parse = argparse.ArgumentParser.parse_args
++    captured = []
++
++    def parse(parser, *args, **kwargs):
++        captured.append(actual_parse(parser, *args, **kwargs))
++        raise Parsed
++
++    monkeypatch.setattr(sys, 'argv', ['probe_agent_io.py', '--out', str(tmp_path / 'wave')])
++    monkeypatch.setattr(argparse.ArgumentParser, 'parse_args', parse)
++    with pytest.raises(Parsed):
++        await probe.main()
++    assert captured[0].output_limit == 0
++    assert not (tmp_path / 'wave').exists()
++
++
++@pytest.mark.parametrize('case', ['writer', 'text-normal'])
++@pytest.mark.parametrize('problem', ['negative_override', 'missing_configuration'])
++async def test_invalid_capacity_does_not_send_http(tmp_path, models, monkeypatch, case, problem):
++    attempted = []
++
++    async def send(client, request, *args, **kwargs):
++        attempted.append(request)
++        raise AssertionError('Invalid capacity must be rejected before HTTP')
++
++    monkeypatch.setattr(httpx.AsyncClient, 'send', send)
++    configured = probe.configured_model
++    if problem == 'missing_configuration':
++        def missing(store, role):
++            model = configured(store, role)
++            model.max_tokens = None
++            return model
++        monkeypatch.setattr(probe, 'configured_model', missing)
++    with pytest.raises(ValueError, match='OUTPUT_LIMIT'):
++        await probe.probe(case, tmp_path, False,
++                          requested_output_limit=-1 if problem == 'negative_override' else 0)
++    assert attempted == []
++    assert not (tmp_path / case / 'wire-requests.json').exists()

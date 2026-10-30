@@ -22,7 +22,7 @@ from test_deep_runtime import Driver
 from test_task_supervision import ws, offline
 
 
-FIXTURE = Path(__file__).resolve().parents[1] / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/artifacts/r2-footnote-fixture'
+FIXTURE = Path(__file__).resolve().parents[1] / 'tests/fixtures/historical-duty/artifacts/r2-footnote-fixture'
 HASHES = {'independent-input.json': '638e90d621c760e801404ba842c4f5e071f98727155b10414d0cbbdbf2aded62',
           'model-output.json': 'a028d1cee54cf55c427ec53be04eaf05897e6f018999e8460e1149bbeacd5d9c'}
 CONTENT_SHA256 = '39433887895fb8ca1e29c99b981ac28913f4469896febdfa6e75c93c4ea4f02e'

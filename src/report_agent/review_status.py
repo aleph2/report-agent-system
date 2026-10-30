@@ -64,6 +64,29 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
     scope_export, scope_companion = delivery_scope(export_ref)
     scope_exports = [r for r in (scope_export, scope_companion) if r is not None]
 
+    def mismatch_details(artifacts, primary, companion):
+        reviewed = []
+        for ref in artifacts:
+            record = by_key.get(_key(ref)) or contents.read(ref)
+            normalized = record["payload"]["export_ref"] if ref["type"] == "RenderArtifact" else ref
+            if normalized not in reviewed:
+                reviewed.append(normalized)
+        queried = [r for r in (primary, companion) if r is not None]
+        same_selection = bool(selected and selected["snapshot_ref"] == snapshot_ref)
+        selected_refs = ([r for r in (selected["export_ref"], selected.get("workbook_export_ref")) if r is not None]
+                         if same_selection else [])
+        if any((by_key.get(_key(r)) or contents.read(r))["payload"].get("snapshot_ref") != snapshot_ref for r in reviewed):
+            reason = "different_artifact_snapshot"
+        elif same_selection and primary is not None and primary not in selected_refs:
+            reason = "query_not_in_selected_delivery"
+        elif any(r not in reviewed for r in queried):
+            reason = "selected_or_queried_artifacts_differ_from_reviewed_set"
+        else:
+            reason = "query_missing_reviewed_artifacts"
+        return {"reason": reason, "reviewed_export_refs": reviewed,
+                "query_export_refs": queried,
+                "missing_query_export_refs": [r for r in reviewed if r not in queried]}
+
     reviews = [r for r in records if r["ref"]["type"] == "ReviewRecord"]
     review_history = ([r for r in records if r["ref"]["type"] == "ReviewSupersession"],
                       [r for r in records if r["ref"]["type"] == "ReviewReuse"])
@@ -135,6 +158,8 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
                     "dependency_refs": contents.item_dependencies(payload, item), "reuse_refs": item_reuse,
                     "legacy_mixed_scope": kind == "combined",
                     "applicable": applicable, "recheck_reasons": reasons, "changed_source_refs": changed_sources[source_key]}
+                if "artifact_version_mismatch" in reasons:
+                    record["artifact_mismatch_details"] = mismatch_details(artifacts, own_primary, own_companion)
                 history.append(record)
                 if applicable:
                     group_key = encode([assessed_target, criterion, item.get("scope_id") or scope, kind, sorted(artifacts, key=_key)])
@@ -180,7 +205,17 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
             entry["overall_verdict"] = entry["delivery_review"]["overall_verdict"]
             entry["overall_basis"] = "legacy_final_review" if contents.store.manifest.get("review_entrypoint") == "native-rubric-v1" else "scoped_evidence_no_inferred_report_verdict"
         output.append(entry)
-    return {"snapshot_ref": snapshot_ref, "export_ref": export_ref,
+    query_context = {}
+    if any("artifact_mismatch_details" in h for entry in output for h in entry["review_history"]):
+        same_selection = bool(selected and selected["snapshot_ref"] == snapshot_ref)
+        query_context["artifact_query_context"] = {
+            "queried_export_refs": scope_exports,
+            "selection_matches_snapshot": same_selection,
+            "selected_delivery_export_refs": ([r for r in (selected["export_ref"], selected.get("workbook_export_ref")) if r is not None]
+                                              if same_selection else []),
+            "draft_selection_is_not_approval": True,
+            "note": "An applicability mismatch alone does not prove files changed. select_content_delivery can save an explicitly intended valid draft pair without prior approval. Selection creates no review and waives no source, scope, version or withdrawal checks."}
+    return {**query_context, "snapshot_ref": snapshot_ref, "export_ref": export_ref,
         **({"workbook_export_ref": scope_companion} if scope_companion is not None else {}), "objects": output,
         "total": len(inventory), "offset": offset, "returned_refs": page,
         "next_offset": offset + limit if offset + limit < len(inventory) else None,

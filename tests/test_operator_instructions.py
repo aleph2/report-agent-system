@@ -24,10 +24,12 @@ def pack(path):
     path.write_text(json.dumps(value),encoding='utf-8')
     return value
 
-def initialize(path,pack_path,category):
+def initialize(path,pack_path,category, *, context_policy=None):
     manifest={'goal':'Build one source-faithful report','content_contract':'hierarchical-review-v1',
         'review_entrypoint':'delegated-reviewer-v1',
         'sources':[{'id':'s','title':'Material','content':'Original fact','coverage':'complete'}]}
+    if context_policy is not None:
+        manifest['context_policy'] = context_policy
     source=path.parent/(path.name+'-manifest.json');source.write_text(json.dumps(manifest),encoding='utf-8')
     args=[sys.executable,'-m','report_agent.cli','init','--project',str(path),
         '--manifest',str(source),'--instruction-pack',str(pack_path),'--report-id',path.name]
@@ -52,9 +54,24 @@ async def test_cli_restart_normal_runtime_delivers_only_matching_category(tmp_pa
     effective=snapshot['scoped_instructions']['effective']
     assert bool(effective)==(category==CATEGORY)
     assert (TEXT in str(driver.calls[0][2][0].content))==(category==CATEGORY)
-    assert store.manifest['context_policy']=='stateful-tools-v1'
+    # Pack/category selects instruction scope, not a legacy runtime version.
+    assert store.manifest['context_policy']=='stateful-tools-v2'
     with store.run_lock():sync_operator_instructions(Store(store.root))
     assert len(store.get('prompt_instruction_registry')['versions'])==1
+
+@pytest.mark.parametrize('category',[CATEGORY,'design_quality_consultation',None])
+async def test_explicit_legacy_context_keeps_category_instruction_routing(tmp_path, category):
+    from report_agent.deep_runtime import run_report
+    from test_deep_runtime import Driver
+    p = tmp_path/'pack.json'; pack(p)
+    store = initialize(tmp_path/'legacy', p, category, context_policy='stateful-tools-v1')
+    driver = Driver(coordinator=[AIMessage(content='Scoped evidence only, not acceptance.')])
+    result = await run_report(Workspace(Store(store.root)), driver)
+    assert result['last_error'] is None
+    assert store.manifest['context_policy'] == 'stateful-tools-v1'
+    assert bool(instruction_context(store, 'coordinator')['effective']) == (category == CATEGORY)
+    assert (TEXT in str(driver.calls[0][2][0].content)) == (category == CATEGORY)
+
 
 def test_new_same_class_reports_use_original_version_including_version_history(tmp_path):
     p=tmp_path/'pack.json';value=pack(p)

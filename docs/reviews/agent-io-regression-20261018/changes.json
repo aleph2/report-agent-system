@@ -1,0 +1,31 @@
+{
+  "new_code": [
+    {
+      "path": "scripts/verify_agent_io.py",
+      "sha256": "e08aeea06e2f6ae5158903753ded2b55508f8776bb68a53ec564385017441759"
+    },
+    {
+      "path": "scripts/probe_agent_io.py",
+      "sha256": "760b2cffd8367bca71bd3121c607ed7fbcfcea36250b76e2a2ee211fb1b8a585"
+    },
+    {
+      "path": "tests/test_agent_io_siblings.py",
+      "sha256": "f58bdb8d3dd2e043e6ab5fb3e5a5a5817ec0b071abc6b351640dbb4875513078"
+    },
+    {
+      "path": "tests/test_agent_io_identity.py",
+      "sha256": "02a5ae50cfc5efab1b7d2145ccedfa87d9ea74882aa489d5bc8e3b6bc55ed121"
+    },
+    {
+      "path": "tests/test_artifact_io_lifecycle.py",
+      "sha256": "2fd6d1d8fd0bac15b66b04b3ab23457f935495e3d34e02fca22d9e93f817b4dc"
+    },
+    {
+      "path": "tests/test_summary_io_lifecycle.py",
+      "sha256": "1ffc8bdb933ee73522fd934970b31478aa9858d1e3234c91a6413c2c5a0d0189"
+    }
+  ],
+  "application_changes": [],
+  "preexisting_untracked_test_reused_unchanged": "tests/test_agent_result_delivery.py",
+  "source_diff": "code-changes.diff"
+}

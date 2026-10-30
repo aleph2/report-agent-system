@@ -1,0 +1,23 @@
+{
+  "decision_date": "2026-10-26 Australia/Sydney",
+  "authority": "Latest direct user: 每轮报告生成测试5000万token预算，不用再累计预算",
+  "round_cap": 50000000,
+  "applies_to_current_round": true,
+  "includes": "All phases and continuations, actual input/output/reasoning/helper usage plus new reserved/unknown bounds; resume never resets spend.",
+  "request_count_cap": null,
+  "cumulative_approval_required": false,
+  "historical_ledger": "Preserve all rows, holds, unknowns and authority history. Existing cumulative maximum is a technical accounting container, not a separate human approval gate. Any needed technical amendment must cite this standing policy, preserve prior rows and use exact auditable receipt.",
+  "current_inflight": "Continue existing approved host below its30m bound; no hot CAS or source/prompt changes during active request. If more headroom is needed, use safe terminal/checkpoint boundary under this50m policy without re-asking cumulative grant.",
+  "no_blind_retry_or_unknown_replay": true,
+  "workflow": [
+    "finish useful whole round and preserve evidence",
+    "analyze full public Trace/Context and first failures including recovered successes",
+    "root cause and Agent/program responsibility",
+    "minimum technical design with explicit acceptance standards",
+    "test-first fix",
+    "fake data + real LLM targeted causal validation",
+    "affected regressions then full regression when warranted",
+    "new whole-round non-regression comparison"
+  ],
+  "acceptance": "Runtime completion, persisted results and semantic/engineering acceptance are separate; correct scoped partial records may aggregate by actual exact identity."
+}

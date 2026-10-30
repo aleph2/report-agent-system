@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-19",
+  "implementer": "Codex Main",
+  "reviewer": "Neo",
+  "runs": [
+    {
+      "run": "retained-trace-final",
+      "passed_call_nodeids": 73,
+      "result_sha256": "ef080c3eb25a04ce96e1c371dc186087b56c0048d95d83e1ab938feccb6e6be8",
+      "source_unchanged": true,
+      "denied_network": []
+    },
+    {
+      "run": "native-layout-adjustment",
+      "passed_call_nodeids": 1,
+      "result_sha256": "7a4e85fdaea385d87357c37ad0d263d61791d5f1843cdb75c6bf56ec10ea48e3",
+      "source_unchanged": true,
+      "denied_network": []
+    },
+    {
+      "run": "output-limit-final",
+      "passed_call_nodeids": 14,
+      "result_sha256": "ebde766bea2022de9a2fcdc8aef3203f0284fb17d49ab95210f6ea61a5c16da1",
+      "source_unchanged": true,
+      "denied_network": []
+    }
+  ],
+  "unique_call_nodeids_across_listed_runs": 83,
+  "note": "Includes reused regressions and successful detection of a known defect; not new-test or full-duty count. The five budget tests overlap the 73 run.",
+  "full_duty_acceptance": false,
+  "application_source_changes": [],
+  "paid_http_attempts": 8,
+  "paid_recorded_tokens": 148507,
+  "new_paid_calls_for_output_default_fix": 0,
+  "new_unknown": 0,
+  "output_default_fix": {
+    "before": "output-limit-before: five failed / four passed; two default overrides + CLI default are target failures, two new metadata assertions absent",
+    "first_after": "output-limit-after: twelve passed / two failed due to wrong test assumption about raw candidate vs boundary envelope; source response state verified before correcting test",
+    "final": "output-limit-final: fourteen passed; actual final wire default and explicit capacities checked in two paths",
+    "wire_index": "../../../.analysis/agent-duty-validation-20261018/output-limit-final/wire-evidence-index.json"
+  },
+  "remaining": [
+    "D-RESUME-01 is confirmed and unrepaired",
+    "E7 positive GEPA execution environment missing dspy",
+    "44 duties do not have complete interface/path/condition or real-model behavioral coverage",
+    "No full customer report content/visual acceptance from these tests"
+  ],
+  "independent_review": {
+    "reviewer": "Neo",
+    "output_default_fix": "approved_after_source_and_archived_wire_review",
+    "review_sha256": "469108d0c7e97690fae225ff2fea8ff27983b3ea8279826710bb16aaa4ca774f",
+    "matrix_sha256": "1c9479e7da5b7f5f23ff7cf949bbe842a98ebc7f0abc02417f1db68a2eca155a",
+    "limits": "43 finite program slices; E7 positive blocked; D-RESUME-01 unrepaired"
+  }
+}

@@ -1,0 +1,1060 @@
+{
+  "scope": "Current implementation tests, not batch1 product refactor",
+  "unique_cases": 123,
+  "counts": {
+    "passed": 121,
+    "failed": 2
+  },
+  "testcases": [
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_context-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.097100958000738,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_context-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.726327554999443,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_context-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.812416695000138,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_context-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.112165267999444,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_content_selection-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.9048175900006754,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_content_selection-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.657008059999498,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_content_selection-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.195328530999177,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-read_content_selection-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.630541258999074,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-search_sources-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.1597525950001,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-search_sources-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.388225393000539,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-search_sources-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.8012013259995,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[native-search_sources-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.570283818999087,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_context-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.60984936100067,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_context-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.635781367000163,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_context-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.107108430000153,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_context-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.672906566000165,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_content_selection-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.9248614400003135,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_content_selection-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.5593844760005595,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_content_selection-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.279542412999945,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-read_content_selection-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.4978289020000375,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-search_sources-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.579081542000495,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-search_sources-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.176009988999795,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-search_sources-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.678191035000054,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_other_read_entries_keep_selected_tail_and_qualifications[managed-search_sources-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.333573579999211,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_text_tools_receive_exact_selection_and_return_exact_findings[analyze_text-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.7042397360000905,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_text_tools_receive_exact_selection_and_return_exact_findings[analyze_text-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 7.01092172800054,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_text_tools_receive_exact_selection_and_return_exact_findings[analyze_text-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 7.227070288001414,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_text_tools_receive_exact_selection_and_return_exact_findings[analyze_evidence-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.060339880999891,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_text_tools_receive_exact_selection_and_return_exact_findings[analyze_evidence-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.94368776599913,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_text_tools_receive_exact_selection_and_return_exact_findings[analyze_evidence-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.652380745999835,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_context-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.487126725998678,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_context-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.996755112999381,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_context-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.509567700999469,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_context-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.974168173999715,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_content_selection-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.5711542980006925,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_content_selection-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.398416440000801,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_content_selection-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.077589750999323,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_siblings.py::test_sibling_read_failures_reach_agent_without_success_or_side_effect[read_content_selection-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.2507151220015658,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_artifact_io_lifecycle.py::test_artifact_replay_preserves_actual_dispatch_classification[zero-dispatch]",
+      "when": "call",
+      "outcome": "failed",
+      "duration": 0.526918845000182,
+      "error": "tests/test_artifact_io_lifecycle.py:66: in test_artifact_replay_preserves_actual_dispatch_classification\n    assert expected in str(replay.value), json.dumps({\nE   AssertionError: {\"actual_error\": \"ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry\", \"raw\": {\"admission_proof\": {\"admitted_http_attempts\": 0, \"origin\": \"logical_request_admission_hook\", \"provider_outcome\": \"not_dispatched\", \"reason_code\": \"AUTHORIZED_TOKEN_BUDGET_REACHED\", \"refused_before_send\": 1, \"request_budget_at_refusal\": null, \"token_budget_at_refusal\": {\"attempt_states\": {}, \"maximum_tokens\": 1, \"note\": \"All current authorization cases share this ledger. Cached tokens are included once. Unknown results retain conservative reservations; this does not authorize extra work.\", \"origin\": \"authorized_persistent_transport_token_ledger\", \"recorded_tokens\": 0, \"remaining_for_new_reservations\": 1, \"reserved_or_unknown_upper_bounds\": 0}}, \"linked_reservation_keys\": [\"bounded_review_attempt:75b84a56997f22814187925ea88fb7002a918a9d57437b68036dcd73fc9e7f6d\"], \"operation\": \"75b84a56997f22814187925ea88fb7002a918a9d57437b68036dcd73fc9e7f6d\", \"provider_outcome\": \"not_dispatched\", \"raw_response_received\": false, \"state\": \"not_dispatched\"}, \"outer\": {\"request_hash\": \"9bedd9775e59c41bbd150ddd7dea5783165cc9a70297afe8b0acdd30d0220672\"}, \"dispatched\": 0, \"budget\": {\"origin\": \"authorized_persistent_transport_token_ledger\", \"maximum_tokens\": 1, \"recorded_tokens\": 0, \"reserved_or_unknown_upper_bounds\": 0, \"remaining_for_new_reservations\": 1, \"attempt_states\": {}, \"note\": \"All current authorization cases share this ledger. Cached tokens are included once. Unknown results retain conservative reservations; this does not authorize extra work.\"}}\nE   assert 'NOT_DISPATCHED' in 'ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry'\nE    +  where 'ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry' = str(ActionRejected('ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry'))\nE    +    where ActionRejected('ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry') = <ExceptionInfo ActionRejected('ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry') tblen=2>.value",
+      "record": ".analysis\\agent-io-regression-20261018\\lifecycle-proof\\result.json"
+    },
+    {
+      "nodeid": "tests/test_artifact_io_lifecycle.py::test_artifact_replay_preserves_actual_dispatch_classification[dispatched-timeout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.2354729420003423,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\lifecycle-proof\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[inline-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.0168576979995123,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[inline-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.0214304639994225,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[inline-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.2090479130001768,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[inline-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.0804117580009915,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[native-offload-coordinator]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.874573990999124,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[native-offload-writer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.913993980999294,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[native-offload-reviewer]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.855413971001326,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_each_report_agent_receives_source_tail_or_recovers_exact_field[native-offload-layout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 5.754897573000562,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_writer_generation_qualifications_reach_next_model_and_exact_save[inline]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.091968564998751,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_writer_generation_qualifications_reach_next_model_and_exact_save[native-offload]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.859480695999082,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_reviewer_incomplete_judgment_reaches_next_model[inline]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.7137944789992616,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_reviewer_incomplete_judgment_reaches_next_model[native-offload]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.6135881669997616,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_optimizer_exact_feedback_and_analysis_tails[read_learning_feedback]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.9872811200002616,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_result_delivery.py::test_optimizer_exact_feedback_and_analysis_tails[analyze_learning_material]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 1.3509296259999246,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_explicit_source_read_reaches_next_model_without_field_clipping",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.0792669100010244,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_completed_return_keeps_exact_late_limitations",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06475480799963407,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_ambiguous_scope_is_rejected_at_assignment_before_any_model",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.04063171800044074,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_explicit_historical_comparison_can_execute_save_and_reconcile",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.2694456770004763,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_document_has_one_directory_even_with_nested_report_nodes",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.10589963599886687,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_paragraph_formatting_preserves_markdown_image_and_emphasis",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.018388140000752173,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_public_trace_keeps_original_material_and_qualifications[1005]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07461596400025883,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_public_trace_keeps_original_material_and_qualifications[1147]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07087406599930546,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_real_review_controls_survive_native_filesystem_eviction",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 1.7425886580003862,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[owner]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07694339999943622,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[sha256]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.0864294080001855,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[tool_call_id]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07701724300022761,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[public_digest]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.09179385199968237,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_final_delivery_rejects_changed_identity_or_original[stored_text]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07957106399953773,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_artifact_review_returns_saved_findings_on_fresh_and_cached_path",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.3316290629991272,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_styles_do_not_split_lists_soft_lines_or_tables",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.02708484600043448,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[undeclared]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06733040399922174,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[unread]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.056016981001448585,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[foreign_read]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.061589414999616565,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[wrong_version]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07209048100048676,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_historical_comparison_exception_does_not_expand_authority[target]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06708499399974244,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_native_offload_keeps_source_data_deferred_and_exactly_recoverable",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 1.936940241001139,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_typed_rejection_is_not_erased_or_promoted_after_offload",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.961222665000605,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_explicit_heading_boundaries_preserve_cross_line_emphasis_links_and_numbering",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.009480098999119946,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[False]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.1698156369984645,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_native_offloaded_object_reads_keep_controls_without_reinlining_bodies[True]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 1.9744402760006778,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt[False]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 1.9632207630002085,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_native_page_and_saved_result_offload_preserves_limits_and_source_receipt[True]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.114777523000157,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations[read_source_page]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07956292500057316,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_boundary_refactor.py::test_offloaded_table_supplements_keep_all_page_failures_and_limitations[search_sources]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.07506967199879,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_evidence_interface.py::test_final_registered_schema_exposes_count_and_block_units",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06526410800142912,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_evidence_interface.py::test_size_failure_reaches_native_agent_with_exact_components_and_no_text_call",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.9029106739999406,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_evidence_interface.py::test_valid_success_packet_is_unchanged_and_not_limited_to_two_selections",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.028182416999698034,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_text_output_error_boundary.py::test_received_invalid_output_is_not_reported_as_unexecuted_arguments",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 3.5174093269997684,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_text_output_error_boundary.py::test_kind_body_invariants_are_machine_visible_in_output_and_adoption_schema",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06823467899994284,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_text_output_error_boundary.py::test_generic_native_error_text_alone_cannot_establish_nonexecution",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.00476640500164649,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_linked_cas_is_atomic_idempotent_and_cannot_reclassify_unknown",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.01500633000068774,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_only_one_new_parent_can_readmit_raw_operation",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.028373862000080408,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_native_pending_refusal_replay_then_explicit_new_work_adopts_once",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 6.989237211999352,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_failed_diagnostic_read_cannot_replace_admission_refusal",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.047613479000574443,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_native_vision_local_refusal_replay_is_failed_observation_without_dispatch",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 4.670523856000727,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_archived_input_collapses_only_identical_full_bindings",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.01024767400122073,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved[settlement]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.04474581500107888,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_not_dispatched_recovery.py::test_budget_exception_after_an_admitted_attempt_stays_unresolved[retry_admission]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.5553970069995557,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_context_provenance.py::test_actual_native_summary_input_includes_current_feedback_and_bound_assignment",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.09933619599905796,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_context_provenance.py::test_legacy_summary_gets_visible_provenance_without_rewriting_notes_or_protocol",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06784481700015021,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_context_provenance.py::test_summary_relabel_preserves_original_record_and_does_not_upgrade_claim",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.08132258499972522,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_context_provenance.py::test_wire_label_does_not_accumulate_into_next_native_compaction_trigger",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.05228176499986148,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_context_provenance.py::test_new_feedback_or_clock_does_not_clear_unknown_summary_failure",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.08138272399992275,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_identity.py::test_final_result_cannot_change_tool_or_promote_transport_status[tool]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.1123428770006285,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_agent_io_identity.py::test_final_result_cannot_change_tool_or_promote_transport_status[status]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.08516269599931547,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_task_supervision.py::test_resuming_task_cannot_narrow_its_requirements",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06765219299995806,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_task_supervision.py::test_new_required_material_cannot_reuse_an_old_completed_scope",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06952002599973639,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_task_supervision.py::test_uncertain_followup_is_not_reexecuted_on_checkpoint_replay",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.058563186999890604,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_native_writer_sees_actual_producer_limits_without_bulk_body_or_receipt_change",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.3987700770012452,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_32_indexes_limits_and_exact_recovery_remain_available",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.08128928299993277,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_empty_and_large_qualifiers_are_exact_and_no_acceptance_inferred",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.025972596000428894,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_old_owned_message_refreshes_exactly_once_with_original_pairing",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.06375607700101682,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[owner]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.04739938999955484,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[sha]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.04508174600050552,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[ref]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.03307377499913855,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[receipt]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.03823953200117103,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[payload_digest]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.037718900999607285,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[missing]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.036185143999318825,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_foreign_or_changed_original_is_not_reprojected[failed_receipt]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.039075040998795885,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_producer_observations.py::test_native_graph_represents_old_producer_return_without_second_text_call",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.8437502439992386,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_text_work_candidate_inputs.py::test_native_graph_final_schema_and_actual_revision_input",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 2.553475963000892,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_io_lifecycle.py::test_summary_preserves_history_and_actual_outcome_classification[zero-dispatch]",
+      "when": "call",
+      "outcome": "failed",
+      "duration": 0.5281228760013619,
+      "error": "tests/test_summary_io_lifecycle.py:56: in test_summary_preserves_history_and_actual_outcome_classification\n    assert saved['reason'] != 'SUMMARY_OUTCOME_UNKNOWN', {\nE   AssertionError: {'failure_record': {'exception_type': 'RequestBudgetExceeded', 'original_history_retained': True, 'reason': 'SUMMARY_O...k', 'admitted_http_attempts': 0, 'refused_before_send': 1, 'provider_outcome': 'not_dispatched', ...}, 'dispatched': 0}\nE   assert 'SUMMARY_OUTCOME_UNKNOWN' != 'SUMMARY_OUTCOME_UNKNOWN'",
+      "record": ".analysis\\agent-io-regression-20261018\\summary-lifecycle\\result.json"
+    },
+    {
+      "nodeid": "tests/test_summary_io_lifecycle.py::test_summary_preserves_history_and_actual_outcome_classification[dispatched-timeout]",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.15214766300050542,
+      "error": null,
+      "record": ".analysis\\agent-io-regression-20261018\\summary-lifecycle\\result.json"
+    }
+  ],
+  "records": [
+    {
+      "record": ".analysis\\agent-io-regression-20261018\\siblings-v2\\result.json",
+      "sha256": "baa06954a3886bd2773ba9e42729dea166a89e04ba751cdb9cf8991658aad31c",
+      "source_unchanged": true,
+      "denied_network": []
+    },
+    {
+      "record": ".analysis\\agent-io-regression-20261018\\state-and-identity-v2\\result.json",
+      "sha256": "05a15689f5589b7913f1f978c52918857cb23eaedd4bf59dba0ff2799588a2d8",
+      "source_unchanged": true,
+      "denied_network": []
+    },
+    {
+      "record": ".analysis\\agent-io-regression-20261018\\lifecycle-proof\\result.json",
+      "sha256": "c996672d0f490472ee6de94fcd901f0c88b3ae0be0a7af8f51e1b973d4b9d86d",
+      "source_unchanged": true,
+      "denied_network": []
+    },
+    {
+      "record": ".analysis\\agent-io-regression-20261018\\summary-lifecycle\\result.json",
+      "sha256": "6fd3696a44ad2a248e3a0366d3736bad46904257217f410a77212f5ac51a67e9",
+      "source_unchanged": true,
+      "denied_network": []
+    }
+  ],
+  "starting_baseline_file_changes": [],
+  "real_model": {
+    "attempts": 4,
+    "cases": [
+      {
+        "case": "writer",
+        "status": "passed_structure",
+        "requests": 1,
+        "responses": 1
+      },
+      {
+        "case": "reviewer",
+        "status": "passed_structure",
+        "requests": 1,
+        "responses": 1
+      },
+      {
+        "case": "text-normal",
+        "status": "passed_structure",
+        "requests": 1,
+        "responses": 1
+      },
+      {
+        "case": "text-missing",
+        "status": "passed_structure",
+        "requests": 1,
+        "responses": 1
+      }
+    ],
+    "recorded_tokens": 46603,
+    "old_ledger_rows_unchanged": true,
+    "code_unchanged_during_calls": true,
+    "record": ".analysis/agent-io-regression-20261018/probe-live-v1/result.json"
+  },
+  "independent_review": "neo-review.md",
+  "limits": [
+    "No all-interface/path/condition percentage claimed",
+    "No full report/visual/engineering acceptance",
+    "No application fix in this increment"
+  ]
+}

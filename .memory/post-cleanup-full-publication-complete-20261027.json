@@ -1,0 +1,16 @@
+{
+  "phase": "completed_waiting_user",
+  "cleanup": "133oldruns+52Qfiles removed;analysis+03-06+finance preserved",
+  "cleanup_space_net_bytes": 82579185664,
+  "full": "3592P0F9setup skips;2optional uncovered",
+  "audit": ".analysis/post-permanent-cleanup-full-20261027/full-runner/full/audit.json",
+  "neo_review": ".analysis/post-permanent-cleanup-full-20261027/full-runner/full/neo-full-review.json",
+  "tag": "regression-20261027-post-permanent-cleanup",
+  "commit": "e36f6f4ccb9dbb913f8946cc5615103a9906b017",
+  "publication_receipt": ".analysis/github-release-20261027-post-permanent-cleanup/publication-receipt.json",
+  "reviewer_effectiveness_concern": ".memory/reviewer-effectiveness-concern-20261027.json",
+  "business_fixes_not_performed": true,
+  "new_report_started": false,
+  "automation_resumed": false,
+  "next": "Wait for direct user instructions"
+}

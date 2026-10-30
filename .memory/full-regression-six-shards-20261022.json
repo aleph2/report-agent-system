@@ -1,0 +1,29 @@
+{
+  "recorded_at": "2026-10-22T00:26:54.792143+00:00",
+  "source": "direct desktop user in current conversation",
+  "latest_user_verbatim": "记下这个决定",
+  "decision_context_user_verbatim": [
+    "修复完，就做一次全面回归，不用停，全面回归做完就重启系统继续生成报告",
+    "所有设计，诊断都要deepseek参加",
+    "分了及部分在跑？上次是6部分?"
+  ],
+  "decision": {
+    "full_regression_default": "Reuse the previously accepted six disjoint whole-module parallel shards for this iteration and as the default for later full regressions, instead of silently reverting to one serial process. Explain and evaluate a necessary deviation with actual DeepSeek and Neo.",
+    "same_final_version": "Freeze source, tests, scripts and fixtures; independently collect the current complete suite and partition modules without overlap; preserve in-module pytest order.",
+    "isolation": "Separate process, Linux temp/SQLite/cache/log/JUnit paths; retain required localhost transport tests while denying external network under the documented Python guard limitations.",
+    "acceptance": "Audit all setup/call/teardown and collection outcomes, all six exit codes, JUnit, missing/duplicate/unexpected IDs, source drift and protected runtime hashes. Never stitch old PASS subsets into a new full-green claim.",
+    "collaboration": "Actual DeepSeek participates in all design and diagnosis; Neo independently reviews source, traces and actual results.",
+    "continuation": "After fixes and comprehensive regression pass, verify the actual safe native checkpoint boundary and resume report generation under existing authorization without routine reconfirmation. Never retry unknown requests or release their old reservations.",
+    "performance_limit": "Six shards is the established reuse default, not a promised sixfold speedup; account for measured resources and isolation."
+  },
+  "prior_success_evidence": {
+    "record": ".analysis\\integration-baseline-20261020\\non-r1-repairs\\neo-six-shard-full-final-acceptance-20261021.json",
+    "sha256": "4b0ca2cd5e171b8cacf87dfb1ef79cf384cdd519720ff9ec57ab44cdeb6470b8"
+  },
+  "current_reviews": [
+    "deepseek-harness-design/consultation-69-response.txt",
+    "neo-six-shard-offline-switch-design-review-20261022.json"
+  ],
+  "historical_serial_run": "full-03 retained as interrupted partial, not full success",
+  "no_report_dispatch_by_this_record": true
+}

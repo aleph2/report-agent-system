@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-27T06:51:23.498864+00:00",
+  "authority": "direct_desktop_user",
+  "verbatim": "以后不用这么算，每轮5000万token预算即可",
+  "round_tokens": 50000000,
+  "includes": "all cases, complete generation, helpers, continuations and new holds in same round",
+  "communication": "Do not repeatedly report cumulative-ledger top-up arithmetic; operate per round50m. Preserve accounting history and audit technical changes internally.",
+  "mail": "stopped"
+}

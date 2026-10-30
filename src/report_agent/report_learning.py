@@ -91,7 +91,7 @@ def prepare_rollout(root, case, candidate, seed, library_root):
         sources.append(selected)
     manifest = {"goal": case["goal"], "sources": sources,
                 "content_contract": "hierarchical-review-v1", "context_policy": "stateful-tools-v1",
-                "review_entrypoint": "delegated-reviewer-v1", "review_execution_mode": "bounded-tool-v1",
+                "review_entrypoint": "delegated-reviewer-v1", "review_execution_mode": "native-reviewer-v2",
                 "presentation_references": [], "scope_instruction": case.get("scope_instruction")}
     ws.store.initialize(manifest)
     ws.store.set("context_policy", "stateful-tools-v1")
@@ -226,6 +226,7 @@ def execution_trace(events, candidate):
 
 
 async def native_rollout(ws, root, *, maximum_requests, seconds):
+    from .model_invocation import MODEL_REQUEST_DEADLINE_SECONDS
     from .deep_runtime import project_agent, project_view
     from .request_budget import RequestBudget, request_budget
     from .model_config import bind_role_services
@@ -248,7 +249,7 @@ async def native_rollout(ws, root, *, maximum_requests, seconds):
     deadline = datetime.now(timezone.utc) + timedelta(seconds=seconds)
     record = {"state": "running", "started_at": datetime.now(timezone.utc).isoformat(),
         "pid": os.getpid(), "max_http_attempts": maximum_requests, "whole_case_seconds": seconds,
-        "deadline_utc": deadline.isoformat(), "logical_deadline_seconds": 600,
+        "deadline_utc": deadline.isoformat(), "logical_deadline_seconds": MODEL_REQUEST_DEADLINE_SECONDS,
         "automatic_retry": False, "original_revisions": False, "canonical_release": False}
     save_json(root / "started.json", record)
     whole_window = asyncio.timeout(seconds)

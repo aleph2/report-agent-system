@@ -1,11 +1,34 @@
 """Explicit provider bundles; credentials never fall across provider boundaries."""
 import os
+import sqlite3
 from urllib.parse import urlparse
 from dotenv import dotenv_values
+
+COORDINATOR_EFFORT = 'REPORT_COORDINATOR_REASONING_EFFORT'
+REVIEWER_EFFORT = 'REPORT_REVIEWER_REASONING_EFFORT'
+
+
+def _effort(value):
+    if value not in {'low', 'high', 'max'}:
+        raise RuntimeError('DEEPSEEK_REASONING_EFFORT_INVALID')
+    return value
 
 
 def load_mixed_services(env_file):
     config = dotenv_values(env_file)
+    global_effort = config.get('REPORT_REASONING_EFFORT', os.environ.get('REPORT_REASONING_EFFORT', 'high'))
+    try:
+        _effort(global_effort)
+    except RuntimeError as exc:
+        raise ValueError(str(exc)) from None
+    overrides = {key: config.get(key, os.environ.get(key))
+                 for key in (COORDINATOR_EFFORT, REVIEWER_EFFORT)}
+    for override in overrides.values():
+        if override is not None:
+            try:
+                _effort(override)
+            except RuntimeError as exc:
+                raise ValueError(str(exc)) from None
     bundles = {}
     for provider, prefix in (("deepseek", "HIGHWAY_MODEL_DEEPSEEK_"), ("glm", "HIGHWAY_MODEL_")):
         bundle = {k: config.get(prefix + k) for k in ("NAME", "BASE_URL", "API_KEY")}
@@ -26,7 +49,10 @@ def load_mixed_services(env_file):
         for target, source in (("MODEL", "NAME"), ("BASE_URL", "BASE_URL"), ("API_KEY", "API_KEY")):
             os.environ[prefix + target] = bundles[provider][source]
     os.environ.pop("REPORT_GRADER_MODEL", None)
-    os.environ["REPORT_REASONING_EFFORT"] = "max"
+    os.environ["REPORT_REASONING_EFFORT"] = global_effort
+    for key, override in overrides.items():
+        if override is not None:
+            os.environ[key] = override
     # The official beta wire protocol is not a generic compatible API feature.
     os.environ["REPORT_DEEPSEEK_STRICT"] = "1" if endpoint.hostname == "api.deepseek.com" else "0"
     os.environ["LANGSMITH_TRACING"] = "false"
@@ -56,5 +82,62 @@ def bind_role_services(store):
     previous = store.get("role_model_services")
     if previous and previous != effective:
         raise RuntimeError("ROLE_MODEL_SWITCH_REQUIRES_FRESH_PROJECT")
+    generation = None
+    if (any(os.environ.get(key) is not None for key in (COORDINATOR_EFFORT, REVIEWER_EFFORT))
+            or os.environ.get('REPORT_REASONING_EFFORT') == 'high'
+            or store.get('role_generation') is not None):
+        generation = {role: role_generation(store, role, *role_service(role)[:2])
+                      for role in ('coordinator', 'reviewer', 'writer', 'text_tool', 'layout')}
     if previous is None:
         store.set("role_model_services", effective)
+    if generation is not None and store.get('role_generation') is None:
+        if all(item['reasoning_effort'] == 'high' for item in generation.values()):
+            generation['working_summary'] = {'reasoning_effort': 'high'}
+        store.set('role_generation', generation)
+
+
+def _execution_history(store):
+    with store.connect() as db:
+        if db.execute("SELECT 1 FROM events WHERE kind IN "
+                      "('deep_model_request','model_transport_call','model_invocation_outcome') LIMIT 1").fetchone():
+            return True
+    path = store.root / 'checkpoints.db'
+    if path.exists():
+        try:
+            with sqlite3.connect(path.as_uri() + '?mode=ro', uri=True) as db:
+                if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='checkpoints'").fetchone():
+                    return db.execute('SELECT 1 FROM checkpoints LIMIT 1').fetchone() is not None
+        except sqlite3.DatabaseError:
+            raise RuntimeError('ROLE_GENERATION_HISTORY_REQUIRES_FRESH_PROJECT') from None
+    return False
+
+
+def role_generation(store, role, name, url):
+    """Resolve immutable factory options; providers encode their own wire fields."""
+    deepseek = name.removeprefix('openai/').startswith('deepseek-')
+    official = deepseek and urlparse(url).hostname == 'api.deepseek.com'
+    setting = {'coordinator': COORDINATOR_EFFORT, 'reviewer': REVIEWER_EFFORT}.get(role)
+    override = os.environ.get(setting) if setting else None
+    if override is not None:
+        _effort(override)
+        if not deepseek or official:
+            raise RuntimeError(role.upper() + '_GENERATION_OVERRIDE_REQUIRES_COMPATIBLE_DEEPSEEK')
+    effort = (_effort(override if override is not None else
+                      os.environ.get('REPORT_REASONING_EFFORT', 'high'))
+              if deepseek else 'high')
+    effective = {'reasoning_effort': effort,
+                 'max_tokens': 131072 if official and effort == 'max' else 65536,
+                 'disable_streaming': True,
+                 'extra_body': ({'thinking': {'type': 'enabled'}} if official else
+                                {'enable_thinking': True} if deepseek else
+                                {'thinking': {'type': 'enabled', 'clear_thinking': False}})}
+    bound = store.get('role_generation')
+    if bound is not None:
+        if role in bound and bound[role] != effective:
+            raise RuntimeError('ROLE_GENERATION_SWITCH_REQUIRES_FRESH_PROJECT')
+        return dict(bound.get(role, effective))
+    if deepseek and effort != 'max' and _execution_history(store):
+        raise RuntimeError('ROLE_GENERATION_HISTORY_REQUIRES_FRESH_PROJECT')
+    if override is not None and _execution_history(store):
+        raise RuntimeError('ROLE_GENERATION_SWITCH_REQUIRES_FRESH_PROJECT')
+    return effective

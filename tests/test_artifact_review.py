@@ -255,12 +255,22 @@ def test_declared_page_extent_completes_task_without_completing_whole_render(ws)
             artifact_review_tool(ws)('false-whole',ReviewSubmission.model_validate(data))
 
 
-async def test_native_deepagents_tool_publication_uses_server_task_binding(ws):
+@pytest.mark.parametrize('customer_instruction', [None, '客户协议样本：逐项核对设计与地勘差异，保留资料限定。'])
+async def test_native_deepagents_tool_publication_uses_server_task_binding(ws, customer_instruction, record_property):
     from langchain_core.messages import AIMessage, ToolMessage
     from report_agent.deep_runtime import run_report
     from test_deep_runtime import Driver, invoke
     from report_agent.hierarchical_tools import actor_for
     cs, refs, snap, export, render, source, call=setup(ws,kind='export')
+    instruction = None
+    if customer_instruction:
+        from report_agent.prompt_instructions import configure_report, save_instruction, release_instruction
+        ws.store.set('context_policy','stateful-tools-v1')
+        configure_report(ws.store,'fixture-report')
+        instruction = save_instruction(ws.store, {'id':'customer-scope', 'topic':'scope', 'scope':'report',
+            'report_id':'fixture-report', 'roles':['reviewer'], 'text':customer_instruction,
+            'source_decision':'Protocol fixture operator input'})
+        release_instruction(ws.store,'customer-scope',1,expected_active=None,reason='Fixture release')
     read_receipts=[]
     returned=[]
     def publish(messages):
@@ -275,6 +285,10 @@ async def test_native_deepagents_tool_publication_uses_server_task_binding(ws):
         assert request['snapshot_ref']==snap
         assert request['requirements'][0]['artifact_refs']==[export]
         assert request['evidence'][0]['receipt_id']==read_receipts[0]
+        if instruction:
+            assert request['commission']['scoped_instructions']['effective'] == [instruction]
+        else:
+            assert 'scoped_instructions' not in request['commission']
         with ws.store.connect() as db:
             row=db.execute('SELECT actor_id,data FROM content_observations WHERE id=?',
                 (read_receipts[0],)).fetchone()
@@ -309,3 +323,7 @@ async def test_native_deepagents_tool_publication_uses_server_task_binding(ws):
     assert returned[0]['review']==record['payload'] and not returned[0]['reused']
     assert sum(role=='text_tool' for role,_,_ in driver.calls)==1
     assert reconcile(cs,record['task_id'])['execution_complete']
+    from test_review_target_capability import retain_native_evidence
+    path = retain_native_evidence(ws, driver, 'artifact-instructions-'+str(bool(instruction)),
+        customer_instruction=instruction, saved_review=record)
+    record_property('native_evidence_path',str(path))

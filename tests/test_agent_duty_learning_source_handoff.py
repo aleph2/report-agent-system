@@ -26,7 +26,7 @@ from test_task_supervision import ws, offline
 
 
 ROOT = Path(__file__).resolve().parents[1]
-R11 = ROOT / '.analysis/agent-duty-validation-20261018/completion-execution-20261019/real/live-r11/optimizer-feedback-outcomes'
+R11 = ROOT / 'tests/fixtures/historical-duty/real/live-r11/optimizer-feedback-outcomes'
 R11_HASHES = {
     'wire-response-0004.json': '4c9a9f3c48b6212cdb99665965154dda7d291855a74dbae03b5bb85d2fffdab1',
     'capture.json': 'c0fb4b82b2f35aa2941afddf3dcd53bf8765ce4f4d55ecd6f7bbef2b6a1661c8',
@@ -40,8 +40,8 @@ def historical_call_and_rebinding(fixture, folder):
         raw = (R11 / name).read_bytes()
         assert hashlib.sha256(raw).hexdigest() == expected_hash
         originals[name] = json.loads(raw)
-        # Retain the selected observed call bytes; the full old capture stays
-        # immutable at its original path, referenced by its pinned digest.
+        # Retain the selected observed call bytes; the full frozen capture stays
+        # immutable in the fixture directory, referenced by its pinned digest.
         if name.startswith('wire-response'):
             (folder / ('r11-original-' + name)).write_bytes(raw)
     calls = originals['wire-response-0004.json']['choices'][0]['message']['tool_calls']

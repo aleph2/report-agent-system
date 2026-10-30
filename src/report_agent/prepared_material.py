@@ -7,8 +7,6 @@ from .content_store import ContentStore
 from .errors import ActionRejected
 from .store import digest, encode
 
-MAX_EVIDENCE_CHARACTERS = 64000
-
 @dataclass(frozen=True)
 class PreparedMaterial:
     encoded: str
@@ -25,30 +23,6 @@ class PreparedMaterial:
     @property
     def evidence_digest(self):
         return digest(self.evidence)
-
-    def require_bounded_size(self, code='TEXT_WORK_SELECT_SMALLER_LOCATED_EVIDENCE', dependencies=None):
-        """One size calculation for the exact encoded material; never trims it."""
-        evidence = self.evidence
-        if self.encoded_characters <= MAX_EVIDENCE_CHARACTERS:
-            return
-        parts = []
-        for index, item in enumerate(evidence):
-            detail = {'index': index, 'kind': item['kind'], 'encoded_characters': len(encode(item))}
-            if item['kind'] == 'source_blocks':
-                detail['selection'] = item['selection']
-                observation = item['observation']
-                detail['text_blocks_characters'] = len(encode(observation.get('blocks', [])))
-                detail['table_supplements_characters'] = len(encode(observation.get('source_table_views', [])))
-            if dependencies is not None:
-                detail['dependencies'] = dependencies.get(index, [])
-            parts.append(detail)
-        diagnostic = {'encoded_characters': self.encoded_characters,
-            'maximum_encoded_characters': MAX_EVIDENCE_CHARACTERS,
-            'item_count': len(evidence), 'items': parts[:20], 'unlisted_items': max(0, len(parts)-20),
-            'size_unit': 'Unicode characters of the complete encoded evidence JSON, including separators',
-            'producer_invoked': False,
-            'note': 'The limit is encoded evidence size, not selection count. Whole-page table supplements can dominate size. Choose relevant located material or your own supported public observations; do not treat unread or unselected information as absent. No evidence was automatically removed.'}
-        raise ActionRejected(code + ': ' + encode(diagnostic))
 
     def require_source(self):
         if not any(json.loads(ref)['type']=='SourceArtifact' for ref in self.allowed_refs):

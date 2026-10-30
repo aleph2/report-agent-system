@@ -1,0 +1,27 @@
+[
+  {
+    "path": "src/report_agent/artifact_review.py",
+    "before_sha256": "7cec99521b5bd18b3f57fb59eff79f783bbc9601b6962e619e6e9eef32d66367",
+    "after_sha256": "64ac225cd2b45f6b8f924439ff082530603190c57a9b4927676b43474a81fd24"
+  },
+  {
+    "path": "src/report_agent/evidence_analysis.py",
+    "before_sha256": "8a23d2ea1793ac0b2fc82ed76f9ade40408ffa4afcad239050a1dccbcf6fb7a9",
+    "after_sha256": "e19b318683f9add503f3ed76b4d5e15fd6cb782a5194023b2336ae218fab3816"
+  },
+  {
+    "path": "src/report_agent/working_summary.py",
+    "before_sha256": "159e703780f4ee4416b8de0c5c505af81dbda430326700edcc8cc09e47fa98bc",
+    "after_sha256": "1b8a7d1e29745d4e38735bebcb645898e118c2466a6e41bbaac3ca317eb16f6d"
+  },
+  {
+    "path": "tests/test_artifact_io_lifecycle.py",
+    "before_sha256": "2fd6d1d8fd0bac15b66b04b3ab23457f935495e3d34e02fca22d9e93f817b4dc",
+    "after_sha256": "d7777827228505aeb1a08c9e69e72799542878ca0ebe7cbaf5c1c01abdc1c4e0"
+  },
+  {
+    "path": "tests/test_summary_io_lifecycle.py",
+    "before_sha256": "1ffc8bdb933ee73522fd934970b31478aa9858d1e3234c91a6413c2c5a0d0189",
+    "after_sha256": "5c7ce1ef1088a9b59b5a93ba475403867c6df5995440735e60a42e1c8c22edc7"
+  }
+]

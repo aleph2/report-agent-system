@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-18",
+  "directions": [
+    {
+      "text": "那计划什么时候全覆盖？",
+      "application": "Produce all 44 duty coverage gaps and staged plan; do not equate a few real probes with full coverage."
+    },
+    {
+      "text": "智能体开发也要有面向智能体的或者说agent centric 测试。面向智能体职责的测试",
+      "application": "Use responsibilities as test organization, interface/path/condition coverage as dimensions. Reuse existing test infrastructure."
+    },
+    {
+      "text": "具体什么测试？fake LLM还是Fake data invoke real LLM?覆盖所有的44项职责？",
+      "application": "Report test method, selected cases, mapped duties and untested scope together."
+    },
+    {
+      "text": "我是多么希望，发现没有通过的案例啊",
+      "application": "Separate confirmation regression from independent defect discovery; use duty-derived oracles and retained bad-behavior counterexamples. A harness failure is not automatically a product defect."
+    }
+  ]
+}

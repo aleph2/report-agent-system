@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-26T21:56:15.2528663Z",
+  "direct_user": "那就保留.analysis和第三至第六轮运行数据，删除其余历史运行目录及这52个隔离文件。Neo复核删除清单，确保代码、提示词、配置、fixtures和独立财务记录不受影响。完成后告诉我实际释放了多少空间，先不启动新一轮。",
+  "preserve_entire_analysis": true,
+  "preserve_runs": [
+    "synthetic-native-20261026-03",
+    "synthetic-native-20261026-04",
+    "synthetic-native-20261026-05",
+    "synthetic-native-20261027-06"
+  ],
+  "permanent_delete_non_retained_run_directories": true,
+  "permanent_delete_exact_52_quarantined_files": true,
+  "neo_exact_review_required": true,
+  "automation_remains_paused": true,
+  "new_report_models_full_or_business_changes_authorized": false
+}

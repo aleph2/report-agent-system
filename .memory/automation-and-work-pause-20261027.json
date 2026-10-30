@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-26T21:46:03.0291905Z",
+  "authority": "先暂停帮我自动回复",
+  "automation": "ocr",
+  "automation_status": "PAUSED",
+  "work_paused": true,
+  "runtime_directory_deletion_started": false,
+  "cursor": ".analysis/history-retention-20261027/current-cleanup-cursor.json"
+}

@@ -1,0 +1,29 @@
+{
+  "authority": "Latest direct user: 我们重新对齐一下目标，先不进行下一轮迭代。我打算做一次彻底的清理。1删除历史运行目录。2分析第六轮暴露的所有问题。3系统给出解决方案",
+  "at": "2026-10-27T07:54:09.48835+11:00",
+  "ordered_objectives": [
+    "Thorough cleanup of historical run directories after exact retained-dependency/financial/evidence separation",
+    "Analyze all round06 first failures, autonomous corrections, timeouts and role behavior, including Co35 role-billed rows",
+    "Provide system root causes, responsibility boundaries, smallest solutions and acceptance design"
+  ],
+  "next_round_authorized_now": false,
+  "implementation_authorized_now": false,
+  "paid_or_full_tests_authorized_now": false,
+  "preserve": [
+    "Code, prompts, configuration and managed test fixtures",
+    "Canonical financial ledger identity, every row/hold/unknown/auth/amendment",
+    "Independent retained round06 selected artifacts and necessary analysis evidence"
+  ],
+  "cleanup_boundary": "Prepare exact delete/retention/migration list; verify hashes, dependencies and no active writers before deleting run directories. No immediate blanket rmdir of .runs.",
+  "supersedes": "Earlier automatic continuous fix/TDD/full/tag/next-run instructions are not acted on during this scope",
+  "neo_role": "Read-only terminal review and proposed solutions, not implementation permission",
+  "latest_clarification": "不是在每轮运行中找到可清理文件。而是彻底删除历史记录。只保留第三轮到第六轮运行历史。并查清，为什么每轮运行产生这么多临时数据",
+  "retained_run_names": [
+    "synthetic-native-20261026-03",
+    "synthetic-native-20261026-04",
+    "synthetic-native-20261026-05",
+    "synthetic-native-20261027-06"
+  ],
+  "cleanup_mode": "Whole historical run retirement, keep exact rounds03-06; supersedes selective leaf/date-only cleanup. Separate durable financial data and managed fixtures before run-directory deletion.",
+  "additional_investigation": "Measure per-run files and SQLite table/channel payload bytes; trace generators, repeated prompt/message captures, checkpoints, copied archives and exports; distinguish temporary data from retained evidence, no runtime changes."
+}

@@ -6,6 +6,7 @@ from pydantic import Field
 
 from .errors import ActionRejected
 from .store import digest, encode
+from .prompt_sources import load_prompt
 
 
 def completion_state_token(db):
@@ -146,6 +147,38 @@ def assigned_structure(contents, snapshot_ref, targets):
         'child_bodies_observed':False} for target in targets]
 
 
+def snapshot_assignment_inventory(contents):
+    """Current saved assignment metadata, never a selection or semantic judgment."""
+    from .task_supervision import obligation_coverage
+    selected = contents.store.get('content_delivery')
+    if selected:
+        refs = [selected['snapshot_ref']]
+        total = 1
+    else:
+        with contents.store.connect() as db:
+            total = db.execute("SELECT count(*) FROM content_heads WHERE type='DocumentSnapshot'").fetchone()[0]
+            refs = [json.loads(row[0])['ref'] for row in db.execute(
+                "SELECT v.data FROM content_heads h JOIN content_versions v USING(type,id,version) "
+                "WHERE h.type='DocumentSnapshot' ORDER BY h.id LIMIT 20")]
+    snapshots = []
+    for ref in refs:
+        coverage = obligation_coverage(contents, ref)
+        missing = coverage['criteria_without_assignment']
+        snapshots.append({'snapshot_ref':ref,
+            'root_ref':contents.read(ref)['payload']['root_ref'],
+            'criteria_count':len(coverage['criteria']),
+            'criteria_without_assignment':missing[:20],
+            'criteria_without_assignment_total':len(missing),
+            'criteria_without_assignment_partial':len(missing)>20,
+            'coverage_tool':{'name':'read_review_obligation_coverage','arguments':{'snapshot_ref':ref}}})
+    return {'selection':'selected_delivery' if selected else 'available_current_heads_not_selected',
+        'snapshots':snapshots, 'catalog_total':total, 'catalog_complete':len(refs)==total,
+        'catalog_tool':{'name':'read_object_index','arguments':{
+            'object_type':'DocumentSnapshot','current_only':True,'offset':0,'limit':20}},
+        'semantic_coverage_verified':False,
+        'note':load_prompt('snapshot-assignment-note').strip()}
+
+
 def compact_context(context):
     """Lossless references to full server state, not an LLM summary of authority."""
     result = {k:bounded_metadata(v,[k]) for k,v in context.items() if k not in {
@@ -179,15 +212,30 @@ def compact_context(context):
             'total':len(requirements), 'read_state_path':['assignment','review_requirements'],
             'next_offset':20 if len(requirements)>20 else None,
             'scopes':[{'scope_id':r['scope_id'],'target_ref':r['target_ref'],'criterion_ref':r['criterion_ref'],
+                **({'assigned_scope_index':i} if assignment.get('review_submission_contract') == 'task-scope-selectors-v1' else {}),
                 'required_checks':bounded_metadata(r['required_checks'], ['assignment','review_requirements',i,'required_checks']),
                 'required_materials_declared':len(r.get('required_materials', [])),
                 'read_state_path':['assignment','review_requirements',i]} for i,r in enumerate(requirements[:20])]}
+        if assignment.get('review_interface_profile') == 'review-interfaces-v4':
+            result['assignment']['review_commission_basis'] = assignment.get('review_commission_basis')
+            for entry, required in zip(result['assignment']['review_scope_inventory']['scopes'], requirements):
+                entry['required_checks'] = required['required_checks']
     if context.get('review_tasks'):
         page = context['review_tasks']
         result['review_tasks'] = {**page, 'tasks':[
             {k:v for k,v in t.items() if k not in {'remaining','completion_followup'}} |
             {'remaining_count':len(t['remaining']), 'remaining_scope_ids':[r['scope_id'] for r in t['remaining'][:20]],
              'read_state_path':['review_tasks','tasks',i]} for i,t in enumerate(page['tasks'])]}
+        if any(t.get('review_commission_basis') for t in page['tasks']):
+            result['review_tasks']['tasks'] = result['review_tasks']['tasks'][:20]
+            result['review_tasks']['next_offset'] = 20 if page['total'] > 20 else None
+            for index, task in enumerate(result['review_tasks']['tasks']):
+                basis = task.get('review_commission_basis')
+                if basis:
+                    task['review_commission_basis'] = {'digest':basis['digest'],
+                        'criterion_count':len(basis['criterion_refs']),
+                        'original_requirement_count':len(basis['original_requirement_refs']),
+                        'complete':False, 'read_state_path':['review_tasks','tasks',index,'review_commission_basis']}
     result['operator_feedback'] = feedback_projection(context.get('operator_feedback') or [])
     for key in ('issues',):
         records = context.get(key) or []
@@ -213,16 +261,23 @@ def read_state(workspace, role, path, offset=0, limit=20, characters=6000, expec
             or type(characters) is not int or not 1 <= characters <= 6000):
         raise ActionRejected('INVALID_STATE_PAGE')
     state = exact_task_context(workspace, role)  # Enforces server-bound actor/task.
+    if state.get('assignment', {}).get('review_submission_contract') is not None:
+        from .review_scope_selectors import requirements_view
+        state = {**state, 'assignment': {**state['assignment'],
+            'review_requirements': requirements_view(state['assignment'])}}
     if expected_state_digest is not None and expected_state_digest != state['state_digest']:
         raise ActionRejected('STATE_CHANGED_READ_CURRENT_PACKET')
     value = state
-    for key in path:
+    for index, key in enumerate(path):
         if isinstance(value,dict) and isinstance(key,str) and key in value:
             value = value[key]
         elif isinstance(value,list) and type(key) is int and 0 <= key < len(value):
             value = value[key]
         else:
-            raise ActionRejected('STATE_PATH_NOT_FOUND')
+            raise ActionRejected('STATE_PATH_NOT_FOUND', diagnostic={
+                'parameter_path': ['path', index], 'resolved_path': path[:index],
+                **({'available_keys': sorted(value)} if isinstance(value, dict) else
+                   {'selected_type': type(value).__name__})})
     if isinstance(value,list):
         if offset > len(value): raise ActionRejected('STATE_OFFSET_OUTSIDE_VALUE')
         end = min(offset+limit,len(value)); page = value[offset:end]
@@ -230,7 +285,10 @@ def read_state(workspace, role, path, offset=0, limit=20, characters=6000, expec
         if offset > len(value): raise ActionRejected('STATE_OFFSET_OUTSIDE_VALUE')
         end = min(offset+characters,len(value)); page = value[offset:end]
     else:
-        if offset: raise ActionRejected('STATE_OFFSET_REQUIRES_LIST_OR_TEXT')
+        if offset:
+            raise ActionRejected('STATE_OFFSET_REQUIRES_LIST_OR_TEXT', diagnostic={
+                'parameter_path': ['offset'], 'read_state_path': path,
+                'selected_type': type(value).__name__, 'allowed_offset': 0})
         page = value; end = None
     size = len(value) if isinstance(value,(list,str)) else None
     return {'state_digest':state['state_digest'],'path':path,'value':page,'offset':offset,
@@ -256,4 +314,7 @@ def state_tool(workspace, role):
         This is bookkeeping, not a business observation or completed check.
         """
         return read_state(workspace,role,path,offset,limit,characters,expected_state_digest)
+    from .prompt_sources import review_interface_profile, REVIEW_INTERFACE_V3, load_prompt
+    if review_interface_profile(workspace.store) == REVIEW_INTERFACE_V3:
+        read_decision_state.__doc__ = load_prompt('state-paths-v3')
     return read_decision_state

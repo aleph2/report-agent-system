@@ -1,0 +1,355 @@
+--- before/src/report_agent/artifact_review.py
++++ after/src/report_agent/artifact_review.py
+@@ -212,12 +212,20 @@
+                 saved = json.loads(row[0])
+                 if saved['request_hash'] != request_hash:
+                     raise ActionRejected('OPERATION_CONFLICT')
++                if saved.get('state') == 'not_dispatched':
++                    raise ActionRejected('ARTIFACT_TEXT_WORK_NOT_DISPATCHED: ' + encode({
++                        'provider_outcome': 'not_dispatched', 'raw_response_received': False,
++                        'usage': None, 'admission_proof': saved['admission_proof'],
++                        'refusal_context': saved.get('result'),
++                        'note': 'Known local refusal; no automatic retry or additional authorization.'}))
+                 if 'result' not in saved:
+                     raise ActionRejected('ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED: no automatic retry')
+                 return public_result(cs, actor, snapshot, saved['result'], True)
+-            db.execute('INSERT INTO state VALUES (?,?)', (key, encode({'request_hash': request_hash})))
++            db.execute('INSERT INTO state VALUES (?,?)', (key, encode({
++                'request_hash': request_hash, 'state': 'reserved'})))
+         raw = await analyze_evidence_packet(workspace, model, inputs, prompt,
+-                                            'assigned-artifact-text-work-v1', reserve_attempt=True)
++            'assigned-artifact-text-work-v1', reserve_attempt=True,
++            parent_reservation=(key, {'request_hash': request_hash}), allow_parent_readmission=False)
+         review = ReviewSubmission.model_validate_json(raw['analysis']).model_dump()
+         if review['snapshot_ref'] != snapshot or len(review['items']) != len(requirements):
+             raise ActionRejected('ARTIFACT_TEXT_WORK_CHANGED_SCOPE: raw response preserved')
+--- before/src/report_agent/evidence_analysis.py
++++ after/src/report_agent/evidence_analysis.py
+@@ -138,11 +138,13 @@
+ 
+ 
+ async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contract, *, reserve_attempt=False,
+-                                  parent_reservation=None):
++                                  parent_reservation=None, allow_parent_readmission=True):
+     """Shared one-shot execution/cache for selected observations and bound review.
+ 
+     The caller assembles and authorizes actual material before entering here.
+     No tool dispatch, source search, semantic retry or business acceptance loop.
++    A parent can receive admission facts without permitting a new caller ID to
++    readmit an earlier refused raw operation. Existing Writer policy is retained.
+     """
+     identity = model_identity(model)
+     operation = digest({"system": system_prompt, "input": inputs, "model": identity, "contract": contract})
+@@ -153,9 +155,18 @@
+     if reserve_attempt:
+         from .bounded_operations import reserve_once, record_outcome
+         prior = reserve_once(workspace.store, 'bounded_review_attempt:' + operation,
+-                             {'state':'reserved', 'operation':operation}, new_parent=parent_reservation)
++            {'state':'reserved', 'operation':operation},
++            new_parent=parent_reservation if allow_parent_readmission else None)
+         if prior is not None:
+             if prior['state'] == 'not_dispatched':
++                if parent_reservation is not None and not allow_parent_readmission:
++                    from .bounded_operations import record_not_dispatched
++                    # This parent was blocked by the original raw receipt. It
++                    # had no new provider attempt or admission-hook refusal.
++                    # Link only the new parent; never rewrite the original raw.
++                    record_not_dispatched(workspace.store, [parent_reservation], prior['admission_proof'],
++                        result={'proof_origin': 'prior_raw_receipt', 'raw_operation': operation,
++                                'new_provider_attempt': False})
+                 raise ActionRejected('EVIDENCE_ANALYSIS_NOT_DISPATCHED: original local admission refusal; no response or usage; inspect before choosing another operation')
+             raise ActionRejected("REVIEW_ANALYSIS_PREVIOUS_ATTEMPT_UNRESOLVED: inspect original response; no automatic retry")
+     input_record = {
+--- before/src/report_agent/working_summary.py
++++ after/src/report_agent/working_summary.py
+@@ -115,10 +115,13 @@
+     async def _acreate_summary(self,messages):
+         import time
+         failure_key=self._failure_key() if self.store else None
+-        if failure_key and self.store.get(failure_key):
++        previous=self.store.get(failure_key) if failure_key else None
++        if previous:
++            original_reason=previous.get('reason','UNKNOWN_HISTORICAL_FAILURE')
+             self.store.event('context_summary_retry_blocked',{'model_called':False,
+-                'original_history_retained':True,'reason':'SUMMARY_POLICY_REPAIR_REQUIRED'})
+-            raise SummaryRepairRequired('SUMMARY_POLICY_REPAIR_REQUIRED')
++                'original_history_retained':True,'reason':'SUMMARY_POLICY_REPAIR_REQUIRED',
++                'original_reason':original_reason})
++            raise SummaryRepairRequired('SUMMARY_POLICY_REPAIR_REQUIRED: original_reason='+original_reason)
+         started=time.perf_counter()
+         recovery=[]
+         if self.store and self.role:
+@@ -141,15 +144,23 @@
+             self.store.set(failure_key,{'reason':'SUMMARY_OUTCOME_PENDING',
+                 'input_digest':digest(formatted),'original_history_retained':True})
+             self.store.event('working_summary_intent',{'scope_key':failure_key,'input_digest':digest(formatted)})
++        from .request_budget import logical_request_admission, RequestBudgetExceeded
+         try:
+-            response=await self.model.ainvoke(self.summary_prompt.format(messages=formatted),
+-                config={'metadata':{'lc_source':'summarization'}})
++            with logical_request_admission() as admission:
++                response=await self.model.ainvoke(self.summary_prompt.format(messages=formatted),
++                    config={'metadata':{'lc_source':'summarization'}})
+         except BaseException as exc:
++            proof=admission.not_dispatched_proof(exc) if isinstance(exc,RequestBudgetExceeded) else None
+             if failure_key:
+-                self.store.set(failure_key,{'reason':'SUMMARY_OUTCOME_UNKNOWN',
+-                    'exception_type':type(exc).__name__,'original_history_retained':True})
+-                self.store.event('working_summary_outcome_unknown',{'scope_key':failure_key,
+-                    'exception_type':type(exc).__name__,'automatic_replay':False})
++                record={'reason':'SUMMARY_NOT_DISPATCHED' if proof else 'SUMMARY_OUTCOME_UNKNOWN',
++                    'exception_type':type(exc).__name__,'original_history_retained':True}
++                if proof:
++                    record.update(provider_outcome='not_dispatched', raw_response_received=False,
++                                  usage=None, admission_proof=proof)
++                self.store.set(failure_key,record)
++                self.store.event('working_summary_not_dispatched' if proof else 'working_summary_outcome_unknown',
++                    {'scope_key':failure_key, **record,
++                     'automatic_replay':False})
+             raise
+         text=response.text
+         reason=(response.response_metadata or {}).get('finish_reason')
+--- before/tests/test_artifact_io_lifecycle.py
++++ after/tests/test_artifact_io_lifecycle.py
+@@ -1,7 +1,6 @@
+ """Sibling lifecycle regressions through real SDK hooks, with no network.
+ 
+-The local-refusal case is intentionally red while NFR-05 remains unfixed.
+-It requires truthful classification, without prescribing a new recovery API.
++Retained NFR-05 reproduction and recovery/compatibility counterexamples.
+ """
+ import asyncio
+ import json
+@@ -17,6 +16,21 @@
+ from test_artifact_review import setup, visual
+ from test_bounded_deadline import offline_model, close_model
+ from test_task_supervision import ws
++
++
++@pytest.fixture(autouse=True)
++def record_artifact_trace(ws, request):
++    yield
++    with ws.store.connect() as db:
++        rows = db.execute("SELECT key, value FROM state WHERE key LIKE 'artifact_text_work:%' "
++                          "OR key LIKE 'bounded_review_attempt:%'").fetchall()
++    events = [event for event in ws.store.events() if event['kind'] in {
++        'bounded_operation_not_dispatched', 'evidence_analysis_unresolved',
++        'evidence_analysis_reused', 'evidence_analysis_rejected_response',
++        'evidence_analysis_completed'}]
++    request.node.user_properties.append(('artifact_lifecycle_trace', json.dumps({
++        'events': events, 'states': {key: json.loads(value) for key, value in rows}},
++        ensure_ascii=False)))
+ 
+ 
+ @pytest.mark.parametrize('refused_locally', [True, False], ids=['zero-dispatch', 'dispatched-timeout'])
+@@ -56,6 +70,9 @@
+                              if e['kind'] == 'bounded_operation_not_dispatched')
+                 assert proof['admitted_http_attempts'] == 0
+                 assert proof['reason_code'] == 'AUTHORIZED_TOKEN_BUDGET_REACHED'
++                assert parent['state'] == 'not_dispatched'
++                assert parent['admission_proof'] == raw['admission_proof'] == proof
++                assert len(raw['linked_reservation_keys']) == 2
+             with pytest.raises(ActionRejected) as replay:
+                 await tool('original', ['rule-comparison'], [receipt])
+             assert len(sent) == (0 if refused_locally else 1)
+@@ -66,5 +83,76 @@
+             assert expected in str(replay.value), json.dumps({
+                 'actual_error': str(replay.value), 'raw': raw, 'outer': parent,
+                 'dispatched': len(sent), 'budget': budget.snapshot()}, ensure_ascii=False)
++            if refused_locally:
++                detail = json.loads(str(replay.value).split(': ', 1)[1])
++                assert detail['raw_response_received'] is False and detail['usage'] is None
++                # Another ID must not enable this caller to rearm the same raw request.
++                with pytest.raises(ActionRejected, match='^EVIDENCE_ANALYSIS_NOT_DISPATCHED'):
++                    await tool('another-id', ['rule-comparison'], [receipt])
++                with pytest.raises(ActionRejected, match='^ARTIFACT_TEXT_WORK_NOT_DISPATCHED'):
++                    await tool('another-id', ['rule-comparison'], [receipt])
++                blocked = ws.store.get('artifact_text_work:' + reviewer.id + ':another-id')
++                assert blocked['result'] == {'proof_origin': 'prior_raw_receipt',
++                    'raw_operation': event['operation'], 'new_provider_attempt': False}
++                assert ws.store.get('bounded_review_attempt:' + event['operation']) == raw
++                assert ws.store.get('artifact_text_work:' + reviewer.id + ':original') == parent
++                assert not sent
+     finally:
+         await close_model(model)
++
++
++@pytest.mark.parametrize('legacy', [False, True])
++async def test_artifact_unproven_budget_exception_is_not_promoted_to_unsent(ws, legacy):
++    from test_bounded_review import Model
++    cs, refs, snap, export, render, source, requested = setup(ws, pages=1)
++    model = Model(RequestBudgetExceeded('AUTHORIZED_TOKEN_BUDGET_REACHED'))
++    with delegated_task(ws, 'coordinator', requested) as (_, reviewer):
++        receipt = visual(cs, reviewer, render, export, source, 1)
++        tool = bounded_artifact_review_tool(ws, model)
++        with pytest.raises(RequestBudgetExceeded):
++            await tool('unproven', ['rule-comparison'], [receipt])
++        key = 'artifact_text_work:' + reviewer.id + ':unproven'
++        prior = ws.store.get(key)
++        if legacy:
++            prior = {'request_hash': prior['request_hash']}
++            ws.store.set(key, prior)
++        with pytest.raises(ActionRejected, match='^ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED'):
++            await tool('unproven', ['rule-comparison'], [receipt])
++        with pytest.raises(ActionRejected, match='^OPERATION_CONFLICT'):
++            await tool('unproven', ['rule-comparison'], [receipt, receipt])
++        assert len(model.calls) == 1 and ws.store.get(key) == prior
++        assert not cs.list_objects('ReviewRecord')
++        assert not any(e['kind'] == 'bounded_operation_not_dispatched' for e in ws.store.events())
++
++
++async def test_artifact_cancelled_dispatch_is_preserved_without_replay(ws, monkeypatch, tmp_path):
++    cs, refs, snap, export, render, source, requested = setup(ws, pages=1)
++    model = offline_model(ws, monkeypatch)
++    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
++    sent = []
++    dispatched = asyncio.Event()
++
++    async def transport(request):
++        sent.append(request)
++        dispatched.set()
++        await asyncio.Event().wait()
++
++    model.http_async_client._transport = httpx.MockTransport(transport)
++    budget = TokenBudget(tmp_path / 'budget.db', 20000, {'glm-5.3': 10000})
++    try:
++        with delegated_task(ws, 'coordinator', requested) as (_, reviewer):
++            receipt = visual(cs, reviewer, render, export, source, 1)
++            tool = bounded_artifact_review_tool(ws, model)
++            with token_budget(budget):
++                work = asyncio.create_task(tool('cancelled', ['rule-comparison'], [receipt]))
++                await dispatched.wait()
++                work.cancel()
++                with pytest.raises(asyncio.CancelledError):
++                    await work
++            with pytest.raises(ActionRejected, match='^ARTIFACT_TEXT_WORK_OUTCOME_UNRESOLVED'):
++                await tool('cancelled', ['rule-comparison'], [receipt])
++            assert len(sent) == 1 and not cs.list_objects('ReviewRecord')
++            assert budget.snapshot()['reserved_or_unknown_upper_bounds'] == 10000
++            assert not any(e['kind'] == 'bounded_operation_not_dispatched' for e in ws.store.events())
++    finally:
++        await close_model(model)
+--- before/tests/test_summary_io_lifecycle.py
++++ after/tests/test_summary_io_lifecycle.py
+@@ -1,8 +1,10 @@
+ """Real summary entry and SDK admission; synthetic history, offline transport.
+ 
+-The outer admission trace is a test observer, not a claimed product integration.
++Admission proof now comes from the production summary boundary. MockTransport
++and ledger assertions independently verify actual sends and preserved reserves.
+ """
+ import asyncio
++import json
+ from copy import deepcopy
+ 
+ import httpx
+@@ -10,12 +12,24 @@
+ from langchain_core.messages import HumanMessage, AIMessage
+ 
+ from report_agent.errors import ModelRequestDeadlineExceeded
+-from report_agent.request_budget import RequestBudgetExceeded, logical_request_admission
++from report_agent.request_budget import RequestBudgetExceeded, RequestBudget, request_budget
+ from report_agent.token_budget import TokenBudget, token_budget
+ from report_agent.working_summary import working_summary, SummaryRepairRequired
+ from test_bounded_deadline import offline_model, close_model
+ from test_hierarchical_content import seed
+ from test_task_supervision import ws
++
++
++@pytest.fixture(autouse=True)
++def record_summary_trace(ws, request):
++    yield
++    with ws.store.connect() as db:
++        rows = db.execute("SELECT key, value FROM state WHERE key LIKE 'summary_policy_failure:%'").fetchall()
++    events = [event for event in ws.store.events()
++              if event['kind'].startswith(('working_summary_', 'context_summary_'))]
++    request.node.user_properties.append(('summary_lifecycle_trace', json.dumps({
++        'events': events, 'states': {key: json.loads(value) for key, value in rows}},
++        ensure_ascii=False)))
+ 
+ 
+ @pytest.mark.parametrize('local_refusal', [True, False], ids=['zero-dispatch', 'dispatched-timeout'])
+@@ -37,25 +51,78 @@
+     before = deepcopy(history)
+     tokens = TokenBudget(tmp_path / 'budget.db', 1 if local_refusal else 20000, {'glm-5.3': 10000})
+     try:
+-        with token_budget(tokens), logical_request_admission() as admission:
++        with token_budget(tokens):
+             with pytest.raises(RequestBudgetExceeded if local_refusal else ModelRequestDeadlineExceeded) as caught:
+                 await summary._acreate_summary(history)
+             if local_refusal:
+                 assert str(caught.value) == 'AUTHORIZED_TOKEN_BUDGET_REACHED'
+-                proof = admission.not_dispatched_proof(caught.value)
+-                assert proof['admitted_http_attempts'] == 0 and proof['provider_outcome'] == 'not_dispatched'
+         saved = ws.store.get(summary._failure_key())
++        if local_refusal:
++            proof = saved['admission_proof']
++            assert proof['origin'] == 'logical_request_admission_hook'
++            assert proof['admitted_http_attempts'] == 0 and proof['provider_outcome'] == 'not_dispatched'
++            assert proof['reason_code'] == 'AUTHORIZED_TOKEN_BUDGET_REACHED'
++            assert saved['raw_response_received'] is False and saved['usage'] is None
+         assert history == before and len(sent) == (0 if local_refusal else 1)
+         assert not any(e['kind'] == 'working_summary_returned' for e in ws.store.events())
+         assert tokens.snapshot()['reserved_or_unknown_upper_bounds'] == (0 if local_refusal else 10000)
+-        with pytest.raises(SummaryRepairRequired):
++        with pytest.raises(SummaryRepairRequired, match='original_reason='+saved['reason']):
+             await summary._acreate_summary(history)
+         assert history == before and len(sent) == (0 if local_refusal else 1)
+         assert ws.store.get(summary._failure_key()) == saved
+         if local_refusal:
+-            assert saved['reason'] != 'SUMMARY_OUTCOME_UNKNOWN', {
++            assert saved['reason'] == 'SUMMARY_NOT_DISPATCHED', {
+                 'failure_record': saved, 'proof': proof, 'dispatched': len(sent)}
+         else:
+             assert saved['reason'] == 'SUMMARY_OUTCOME_UNKNOWN'
+     finally:
+         await close_model(model)
++
++
++async def test_summary_unproven_budget_exception_stays_unknown(ws):
++    from langchain_core.runnables import RunnableLambda
++    from report_agent.working_summary import WorkingSummary
++    calls = []
++
++    async def model(messages):
++        calls.append(messages)
++        raise RequestBudgetExceeded('AUTHORIZED_TOKEN_BUDGET_REACHED')
++
++    summary = WorkingSummary(model=RunnableLambda(model), store=ws.store, role='coordinator',
++                             trigger=('messages', 2), keep=('messages', 1),
++                             token_counter=lambda messages: len(messages))
++    history = [HumanMessage('Keep original request.')]
++    with pytest.raises(RequestBudgetExceeded):
++        await summary._acreate_summary(history)
++    before = ws.store.get(summary._failure_key())
++    assert before['reason'] == 'SUMMARY_OUTCOME_UNKNOWN' and 'admission_proof' not in before
++    with pytest.raises(SummaryRepairRequired, match='original_reason=SUMMARY_OUTCOME_UNKNOWN'):
++        await summary._acreate_summary(history)
++    assert len(calls) == 1 and ws.store.get(summary._failure_key()) == before
++
++
++async def test_summary_budget_refusal_after_first_send_remains_unknown(ws, monkeypatch, tmp_path):
++    model = offline_model(ws, monkeypatch)
++    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
++    sent = []
++
++    async def transport(request):
++        sent.append(request)
++        return httpx.Response(500, json={'error': {'message': 'synthetic transport failure'}})
++
++    model.http_async_client._transport = httpx.MockTransport(transport)
++    tokens = TokenBudget(tmp_path / 'budget.db', 20000, {'glm-5.3': 10000})
++    summary = working_summary(model, ws.store, role='coordinator')
++    history = [HumanMessage('Original requirement.')]
++    try:
++        with token_budget(tokens), request_budget(RequestBudget(1)), pytest.raises(RequestBudgetExceeded):
++            await summary._acreate_summary(history)
++        saved = ws.store.get(summary._failure_key())
++        assert saved['reason'] == 'SUMMARY_OUTCOME_UNKNOWN' and 'admission_proof' not in saved
++        with pytest.raises(SummaryRepairRequired):
++            await summary._acreate_summary(history)
++        assert len(sent) == 1
++        assert tokens.snapshot()['reserved_or_unknown_upper_bounds'] == 10000
++        assert tokens.snapshot()['recorded_tokens'] == 0
++    finally:
++        await close_model(model)

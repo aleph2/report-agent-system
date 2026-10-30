@@ -1,0 +1,102 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><title>Neo final review</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:1320px;margin:40px auto;padding:0 30px;color:#172332;background:#f7f9fb}h1,h2,h3{line-height:1.25}table{border-collapse:collapse;width:100%;background:white;margin:20px 0;font-size:14px}th,td{border:1px solid #ccd5df;padding:10px;text-align:left;vertical-align:top}th{background:#e6edf5}code{overflow-wrap:anywhere;background:#eaf0f6;padding:2px 4px}a{color:#155c9a}nav{padding:12px;background:#e6edf5}pre{white-space:pre-wrap}p{max-width:1100px}li{overflow-wrap:anywhere}</style><body><nav><a href="index.html">Repair evidence</a> · <a href="responsibility-coverage.html">44 responsibilities</a></nav><h1>Neo 独立签结：NFR-05 / NFR-10 分类修复</h1>
+<p><strong>结论：本批明确边界内通过，可结束本批。</strong> 两个已知零派发分类缺陷已在真实程序入口的离线反例中红→绿；相关未知、权限、历史记录和原 Writer readmission 保护未见本轮回退。该结论不等于 44 项职责通过、所有代码无缺陷、全部恢复策略完成或报告业务验收。</p>
+<p>Neo 审查源码、测试 oracle、原始结果及保存状态；Codex Main 实施并运行。Neo 未改应用或测试，未执行模型/测试任务，只写本审核文档及 responsibility-coverage.md，并只读核对账本。原 batch1 C1/任务上下文重构仍暂停。</p>
+<h2>已实施的精确边界</h2>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>本批处理</th>
+<th>Neo 判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>artifact_review.py:212–228</td>
+<td>新 outer 记录 reserved；提供 parent reservation；已证明未派发的重复请求公开 NOT_DISPATCHED/proof/无response/usage</td>
+<td>与 raw 分类一致；成功结果原缓存继续复用；旧 request_hash-only 且无结果的记录仍保守 unresolved，不从缺字段推断未发送</td>
+</tr>
+<tr>
+<td>evidence_analysis.py:141、155–170、198–200</td>
+<td>新 allow_parent_readmission 默认 True；artifact 显式 False；拒绝后 parent/raw CAS 同步，但不新增 artifact readmission 权限</td>
+<td>复用既有生命周期函数，不另造框架。新 ID 命中原 raw 拒绝时只记录新 parent，proof_origin=prior_raw_receipt、new_provider_attempt=False；原 raw/proof/linked keys/原 parent 不改</td>
+</tr>
+<tr>
+<td>working_summary.py:118–124、147–163</td>
+<td>在真实调用内收 admission proof；只在有证明时保存 SUMMARY_NOT_DISPATCHED；重放保留并暴露 original_reason</td>
+<td>仅有预算同名异常不够；已发送后拒绝、超时、无证明失败仍保守 unknown。历史、scope、prompt、模型参数和所有重放阻挡保持</td>
+</tr>
+</tbody>
+</table>
+<p>这不是“任何异常都可安全重试”的修复。NFR-05 原 P2 的本地拒绝误分类已修；NFR-10 原 P2 的分类/可诊断性部分已修。用户明确选择本次<strong>不新增恢复入口、不自动 rearm、同 scope 仍阻挡</strong>，所以拒绝后摘要可继续的完整能力不能宣称已实现；未来若要改变，另说清边界及验证。历史 full-code-review 的证据保留，本文件是该范围的后续处置，不静默改写旧 finding。</p>
+<h2>证据和独立核对</h2>
+<ul>
+<li>focused-first：41/43，两处新增 fixture/注入场景失败保留；不是把它们当产品修复。focused-final：43/43。</li>
+<li>regression-final：149 个唯一 nodeid，149 通过、0 失败，498.55 秒。Neo 从原始结果独立求并集：旧 123 全部在内，增加 26，没有漏掉原红例。</li>
+<li>lifecycle-trace-final：9/9，都是上述 149 中的重复，<strong>不累计为 158</strong>。测试收尾只读记录器从较宽 event 集收窄为关键 state/event 后重跑；没有修改断言或产品逻辑。</li>
+<li>大回归应用源码前后不变，与最后 9 例同一应用版本；当前应用 hash 与最后回执相同。最终两份测试 hash 为过滤后版本，其 9 个用例已经补测；其他测试不因重复复跑增加覆盖分母。</li>
+<li>所选 run 均无记录到网络尝试被拒，模型使用 fake/MockTransport；不是对未执行测试/子进程/整个机器网络的断言。本修复批 <strong>0 新付费调用</strong>，没有重复此前四次实模。</li>
+<li>Neo 通过 WSL sqlite mode=ro + query_only 再次逐行比较原 ledger-before 与实际原账本：1032 个 attempt 行及 authorization 完全相同，170m 未变。没有修改旧报告库、账本、OCR、prompt 或历史数据。</li>
+</ul>
+<h3>真正保存的状态，非只看 pytest 颜色</h3>
+<p>Neo 从最后九例 JUnit 属性读取实际 state/events，并核对 lifecycle-state-trace.json：</p>
+<ol>
+<li>artifact 零派发：原 outer 和 raw 均 not_dispatched，hook proof 的 admitted=0。另一个 ID 的 parent 仍未派发，明确引用 prior_raw_receipt；原 raw 和原 parent 逐字段不变，没有增加发送。</li>
+<li>artifact 超时：实际发送一次；raw unknown、outer 保守 reserved/unresolved；预算上界保留。取消后同样保守保留，不转为未发送。</li>
+<li>artifact 伪预算异常及 legacy placeholder：没有真实 hook proof，因此不晋升为 not_dispatched；重放拒绝；变参拒绝；不保存 ReviewRecord。</li>
+<li>summary 零派发：生产边界保存 SUMMARY_NOT_DISPATCHED、真实 proof、无 response/usage，原 history 不变；重放错误和 retry-block event 暴露原 reason。</li>
+<li>summary 真超时、无 hook 的预算同名异常、先发一次再遇准入拒绝：均 SUMMARY_OUTCOME_UNKNOWN，无伪造未发送 proof；没有自动重放，已发送请求的上界不释放。</li>
+<li>原 Writer 显式新 parent readmission 的 native 回归仍在选择集中通过；没有用 artifact 的禁重开策略改变 Writer 已有行为。</li>
+</ol>
+<p>首次用 PowerShell .value 读取 XML 属性取到空值，Neo 随后改用 GetAttribute('value') 读取真实属性；这只是复核 reader 的取值错误，未据其空值判断产品缺陷，未改测试或数据。</p>
+<h2>保留的失败与限制</h2>
+<ul>
+<li>原 NFR05/NFR10 红例、首次修复定向测试两个失败、对应前后代码/结果全部保留，不能只交付绿灯摘要。</li>
+<li>RunnableLambda 新 fixture 漏显式 token_counter：按既有 fixture 模式修正，未改应用行为。</li>
+<li>MockTransport 内部主动抛 CancelledError，在安装的 langchain-core 1.6.5 agenerate 异常处理分支被包装成 AttributeError：该注入行为已证，真实 provider 可达性和生产影响未证。保留 internal-cancellation-candidate.json、原 trace 与框架源码，<strong>没有修框架，也没有把该分支算通过</strong>。本批通过的是“等待实际 dispatch 后取消外层任务”的既定宿主取消情景。</li>
+<li>这是一轮已知问题修复确认及相邻保护回归，不是独立的全系统缺陷发现；没有本轮 44 职责、完整接口分母、全部协议路径或关键条件 MC/DC 的完成证明。</li>
+<li>没有新增真实模型行为、视觉或报告质量证据；此前四个真实合成调用只覆盖 Writer/Reviewer 首步和两个文字输出，不能补成完整职责验收。官方 DeepSeek strict 配置等不在本次结果中关闭。</li>
+</ul>
+<h2>最终指纹</h2>
+<table>
+<thead>
+<tr>
+<th>最终文件</th>
+<th>SHA256</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>src/report_agent/artifact_review.py</td>
+<td>64ac225cd2b45f6b8f924439ff082530603190c57a9b4927676b43474a81fd24</td>
+</tr>
+<tr>
+<td>src/report_agent/evidence_analysis.py</td>
+<td>e19b318683f9add503f3ed76b4d5e15fd6cb782a5194023b2336ae218fab3816</td>
+</tr>
+<tr>
+<td>src/report_agent/working_summary.py</td>
+<td>1b8a7d1e29745d4e38735bebcb645898e118c2466a6e41bbaac3ca317eb16f6d</td>
+</tr>
+<tr>
+<td>tests/test_artifact_io_lifecycle.py</td>
+<td>d7777827228505aeb1a08c9e69e72799542878ca0ebe7cbaf5c1c01abdc1c4e0</td>
+</tr>
+<tr>
+<td>tests/test_summary_io_lifecycle.py</td>
+<td>5c7ce1ef1088a9b59b5a93ba475403867c6df5995440735e60a42e1c8c22edc7</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>regression-final/result.json：d00bd954d40acf6f143b43466cc41a9b0f031982150af1413be31504b3d2e51f</li>
+<li>lifecycle-trace-final/result.json：d58d0cdc5f66c7756bdb1e92cf283ce94f9abd43438527a5e186bd63c0626d55</li>
+<li>lifecycle-state-trace.json：31a3cfd81d40d3a76bb1f4eba57fa07d07ae91091a10f3a49ab0b716756afcea</li>
+<li>verification.json 已审、尚未回填本文件引用的版本：fbd3ff47f1be0dc800404d6b3c9bb2c3a109b226caf3baefec0545a42a316699。Main 后续只回填 neo_review 引用/结论时该汇总文件 hash 会改变，原始 run 指纹不因此改变。</li>
+</ul>
+<p>原始路径均位于 .analysis/agent-io-fixes-20261018；verification.json 包含逐 nodeid、前后指纹和证据索引。</p>
+<h2>下一步（建议，非自动实施/付费）</h2>
+<p>按 <a href="responsibility-coverage.html">44项责任覆盖矩阵</a> 补尚缺的 F/R/A 证据，再决定原 batch1。以职责组织、接口/协议路径/独立条件为维度，测试不固定合法的业务策略；复用现有 pytest/native/Driver，不创建新平台。下一轮发现性样本从用户要求和职责约定独立定 oracle，加入缺料/冲突/部分完成/旧结果不适用的组合，并用少量隔离反事实检验测试敏感性；这些建议尚未执行。</p>
+<p>没有要求“必须发现几个红”；要求的是绿色有准确范围，红例不被 Agent 补偿或宽放断言掩盖，未知继续明示。普通确定性修复继续优先零付费回归，真实模型/报告最终验收的范围与预算另行说明。</p>
+<p>非逻辑检查补充：Main 的普通 diff --check 将 evidence_analysis.py 新增 CRLF 行标为 trailing whitespace；该文件 index/worktree 均为 CRLF，按既有行尾执行 git -c core.whitespace=cr-at-eol diff --check 为 0。未改仓库配置、未格式化文件；不把该检查称全仓 lint 通过。verification 后续记录该原始检查与适用处置时，可与 neo_review 回填一并更新汇总指纹，以上 fbd3... 仍指审阅时快照。</p>
+</body></html>

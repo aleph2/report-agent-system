@@ -1,0 +1,524 @@
+diff --git a/docs/reviews/round0-coverage-20261018/inventory.py b/docs/reviews/round0-coverage-20261018/inventory.py
+new file mode 100644
+--- /dev/null
++++ b/docs/reviews/round0-coverage-20261018/inventory.py
+@@ -0,0 +1,122 @@
++"""Inventory real compiled graphs and final fake-model bindings in temporary stores."""
++import asyncio
++import json
++import sys
++import tempfile
++from contextlib import nullcontext
++from pathlib import Path
++
++from measure import ROOT, Observe, save
++
++sys.path[:0] = [str(ROOT / "tests"), str(ROOT / "src")]
++
++
++async def inventory():
++    import deepagents.graph as graph_module
++    import deepagents.middleware.subagents as subagent_module
++    from langgraph.checkpoint.memory import InMemorySaver
++    from langchain_core.messages import AIMessage
++    from langchain_core.utils.function_calling import convert_to_openai_tool
++    from report_agent.deep_runtime import build_agent
++    from report_agent.learning_runtime import build_optimizer
++    from report_agent.knowledge import Knowledge
++    from test_task_supervision import ws as fixture
++    from test_bounded_review import review_call
++    from test_hierarchical_content import seed
++    from report_agent.content_tasks import delegated_task
++    from test_decision_data import activate
++    from test_deep_runtime import Driver, ScriptedChat
++
++    out = ROOT / ".analysis/round0-coverage-20261018"
++    out.mkdir(parents=True, exist_ok=True)
++    guard = Observe(out)
++    guard.guard_network()
++    records, graphs, errors = [], [], []
++    originals = []
++    profile = None
++    class BindingCaptured(BaseException):
++        """Normal probe stop: schemas captured before any model generation."""
++    original_bind = ScriptedChat.bind_tools
++    def capture_bind(model, tools, **kwargs):
++        original_bind(model, tools, **kwargs)
++        raise BindingCaptured()
++    ScriptedChat.bind_tools = capture_bind
++    for module in (graph_module, subagent_module):
++        original = module.create_agent
++        originals.append((module, original))
++        def capture(*args, _original=original, **kwargs):
++            agent = _original(*args, **kwargs)
++            model = args[0] if args else kwargs["model"]
++            role = getattr(model, "role", kwargs.get("name", "unknown"))
++            node = agent.get_graph().nodes.get("tools")
++            tools = getattr(node.data, "tools_by_name", {}) if node else {}
++            records.append({"profile": profile, "role": role,
++                "registration_stage": "compiled_native_toolnode",
++                "tools": [convert_to_openai_tool(t)["function"] for t in tools.values()]})
++            graphs.append((role, agent))
++            return agent
++        module.create_agent = capture
++    try:
++        for managed in (False, True):
++            for knowledge in (False, True):
++                profile = f"report:managed={managed}:knowledge={knowledge}"
++                with tempfile.TemporaryDirectory(prefix="round0-inventory-") as tmp:
++                    ws = fixture.__wrapped__(Path(tmp))
++                    ws.store.set("knowledge_enabled", knowledge)
++                    if managed:
++                        activate(ws)
++                    _, _, refs, snapshot, _ = seed(ws)
++                    driver = Driver(**{r: [AIMessage(content="Synthetic binding inspection only.")]
++                                       for r in ("coordinator", "writer", "reviewer", "layout", "text_tool")})
++                    graphs.clear()
++                    build_agent(ws, driver, InMemorySaver(),
++                                knowledge=Knowledge("round0", embedding=False) if knowledge else None)
++                    seen = set()
++                    for role, agent in list(graphs):
++                        if (role, id(agent)) in seen:
++                            continue
++                        seen.add((role, id(agent)))
++                        try:
++                            call = {"id": "inventory-" + role, "args": {"subagent_type": role, "description": "Synthetic schema inspection"}}
++                            if role == "layout":
++                                call["args"]["layout_snapshot_ref"] = snapshot
++                            if role == "reviewer":
++                                call = review_call(snapshot, refs, id="inventory-reviewer")
++                            context = delegated_task(ws, "coordinator", call) if role in {"writer", "reviewer", "layout"} else nullcontext()
++                            with context:
++                                await agent.ainvoke({"messages": [{"role": "user", "content": "Observe available interfaces; no tool calls."}]},
++                                                    config={"configurable": {"thread_id": role}, "recursion_limit": 5})
++                        except BindingCaptured:
++                            pass
++                        except Exception as exc:
++                            errors.append({"profile": profile, "role": role, "error": type(exc).__name__, "detail": str(exc)[:500]})
++                    for role, batches in driver.bindings.items():
++                        records.append({"profile": profile, "role": role,
++                            "registration_stage": "final_scripted_model_bind_tools", "tools": batches[-1]})
++        for experiment in (False, True):
++            profile = f"optimizer:experiment={experiment}"
++            with tempfile.TemporaryDirectory(prefix="round0-learning-inventory-") as tmp:
++                ws = fixture.__wrapped__(Path(tmp) / "project")
++                ws.store.set("learning_config", {"library_path": str(Path(tmp) / "library"), "customer_id": "synthetic"})
++                driver = Driver(optimizer=[AIMessage(content="Synthetic binding inspection only.")])
++                agent = build_optimizer(ws, driver("optimizer"), experiment_runner=(lambda *a: None) if experiment else None,
++                                        text_model=driver("text_tool"))
++                try:
++                    await agent.ainvoke({"messages": [{"role": "user", "content": "Observe available interfaces; no tool calls."}]})
++                except BindingCaptured:
++                    pass
++                records.append({"profile": profile, "role": "optimizer",
++                    "registration_stage": "final_scripted_model_bind_tools", "tools": driver.bindings["optimizer"][-1]})
++    finally:
++        ScriptedChat.bind_tools = original_bind
++        for module, original in originals:
++            module.create_agent = original
++        guard.finish()
++    save(out / "interface-inventory.json", {"scope": "Four declared report configurations and two optimizer capability configurations; no claim of all possible configurations or host API coverage.",
++        "profiles": records, "errors": errors, "denied_connections": guard.denied_connections,
++        "actual_provider_calls": 0, "business_tool_calls": 0})
++    print(json.dumps({"records": len(records), "errors": errors, "path": str(out / "interface-inventory.json")}))
++
++
++if __name__ == "__main__":
++    asyncio.run(inventory())
+diff --git a/docs/reviews/round0-coverage-20261018/measure.py b/docs/reviews/round0-coverage-20261018/measure.py
+new file mode 100644
+--- /dev/null
++++ b/docs/reviews/round0-coverage-20261018/measure.py
+@@ -0,0 +1,247 @@
++"""Round 0 measurement only: existing tests, coverage.py, native tool observations.
++
++Run with the project WSL Python. coverage.py may be provided through --tools-dir.
++No application/test source is changed. In-process TCP/UDP connections are denied. This
++records invocation evidence, NOT semantic correctness or MC/DC coverage.
++"""
++from __future__ import annotations
++
++import argparse
++import contextvars
++import functools
++import hashlib
++import inspect
++import json
++import os
++from pathlib import Path
++import socket
++import subprocess
++import sys
++import tempfile
++import time
++
++
++ROOT = Path(__file__).resolve().parents[3]
++ROLE = contextvars.ContextVar("round0_observed_role", default="unattributed")
++CONFIG = contextvars.ContextVar("round0_observed_config", default=None)
++
++
++def save(path, value):
++    path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
++
++
++def source_hashes():
++    files = [*ROOT.joinpath("src").rglob("*.py"), *ROOT.joinpath("src").rglob("*.md"),
++             *ROOT.joinpath("tests").rglob("*.py"), *ROOT.joinpath("tests").rglob("*.json"),
++             *Path(__file__).parent.glob("*.py"), ROOT / "pyproject.toml"]
++    return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
++            for p in sorted(files)}
++
++
++class Observe:
++    def __init__(self, out):
++        self.out, self.nodeid = out, "<collection>"
++        self.calls, self.reports, self.collection, self.errors = [], [], [], []
++        self.schemas, self.denied_connections = {}, []
++        self.restore = []
++
++    def patch(self, obj, name, replacement):
++        self.restore.append((obj, name, getattr(obj, name)))
++        setattr(obj, name, replacement)
++
++    def guard_network(self):
++        for name in ("connect", "connect_ex", "sendto"):
++            original = getattr(socket.socket, name)
++            def deny(sock, *args, _original=original, **kwargs):
++                if sock.family in (socket.AF_INET, socket.AF_INET6):
++                    self.denied_connections.append({"test": self.nodeid, "method": _original.__name__})
++                    raise OSError("ROUND0_OFFLINE_NETWORK_DENIED")
++                return _original(sock, *args, **kwargs)
++            self.patch(socket.socket, name, deny)
++        os.environ.update(LANGSMITH_TRACING="false", LANGCHAIN_TRACING_V2="false")
++        # Optional live-service tests must not inherit a user's service target.
++        os.environ.pop("REPORT_GRAPH_TEST_URI", None)
++
++    def schema(self, role, tool, origin):
++        name = getattr(tool, "name", getattr(tool, "__name__", type(tool).__name__))
++        try:
++            from langchain_core.utils.function_calling import convert_to_openai_tool
++            value = convert_to_openai_tool(tool)["function"]
++            key = hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
++            row = self.schemas.setdefault((role, name, key), {"role": role, "name": name,
++                "schema_sha256": key, "schema": value, "origins": set(), "observed_at": set()})
++            row["origins"].add(origin)
++            row["observed_at"].add(json.dumps({"test": self.nodeid, "origin": origin,
++                "config": CONFIG.get()}, sort_keys=True))
++        except Exception as exc:
++            self.errors.append({"stage": "schema", "role": role, "tool": name,
++                                "error": type(exc).__name__})
++
++    def install(self):
++        from report_agent import deep_runtime
++        from langchain_core.tools import BaseTool
++        from test_deep_runtime import ScriptedChat
++        original_model = deep_runtime.BusinessBoundary.awrap_model_call
++        async def model(boundary, request, handler):
++            async def observe_next(effective):
++                for tool in effective.tools:
++                    self.schema(boundary.role, tool, "business_boundary_next_handler")
++                return await handler(effective)
++            manifest = boundary.workspace.store.manifest
++            token = CONFIG.set({key: manifest.get(key) for key in
++                ("content_contract", "context_policy", "review_entrypoint", "review_execution_mode", "decision_data_policy")})
++            try:
++                return await original_model(boundary, request, observe_next)
++            finally:
++                CONFIG.reset(token)
++        self.patch(deep_runtime.BusinessBoundary, "awrap_model_call", model)
++        original_tool = deep_runtime.BusinessBoundary.awrap_tool_call
++        async def boundary_call(boundary, request, handler):
++            token = ROLE.set(boundary.role)
++            row = {"test": self.nodeid, "role": boundary.role,
++                   "name": request.tool_call["name"], "boundary": "business_middleware"}
++            self.calls.append(row)
++            try:
++                result = await original_tool(boundary, request, handler)
++                row.update(returned=True, result_type=type(result).__name__,
++                           status=getattr(result, "status", None))
++                return result
++            except BaseException as exc:
++                row.update(returned=False, exception=type(exc).__name__)
++                raise
++            finally:
++                ROLE.reset(token)
++        self.patch(deep_runtime.BusinessBoundary, "awrap_tool_call", boundary_call)
++        original_bind = ScriptedChat.bind_tools
++        def bind(model, tools, **kwargs):
++            for tool in tools:
++                self.schema(model.role, tool, "actual_scripted_model_bind_tools")
++            return original_bind(model, tools, **kwargs)
++        self.patch(ScriptedChat, "bind_tools", bind)
++        for method in ("run", "arun"):
++            original = getattr(BaseTool, method)
++            if method == "arun":
++                async def async_call(tool, *args, _original=original, **kwargs):
++                    row = {"test": self.nodeid, "role": ROLE.get(), "name": tool.name,
++                           "boundary": "native_base_tool"}
++                    self.calls.append(row)
++                    try:
++                        result = await _original(tool, *args, **kwargs)
++                        row.update(returned=True, result_type=type(result).__name__, status=getattr(result, "status", None))
++                        return result
++                    except BaseException as exc:
++                        row.update(returned=False, exception=type(exc).__name__)
++                        raise
++                self.patch(BaseTool, method, async_call)
++            else:
++                def sync_call(tool, *args, _original=original, **kwargs):
++                    row = {"test": self.nodeid, "role": ROLE.get(), "name": tool.name,
++                           "boundary": "native_base_tool_sync"}
++                    self.calls.append(row)
++                    try:
++                        result = _original(tool, *args, **kwargs)
++                        row.update(returned=True, result_type=type(result).__name__, status=getattr(result, "status", None))
++                        return result
++                    except BaseException as exc:
++                        row.update(returned=False, exception=type(exc).__name__)
++                        raise
++                self.patch(BaseTool, method, sync_call)
++
++    def pytest_collection_finish(self, session):
++        self.collection = [item.nodeid for item in session.items]
++        save(self.out / "collected.json", self.collection)
++
++    def pytest_runtest_setup(self, item):
++        self.nodeid = item.nodeid
++        save(self.out / "progress.json", {"current_test": self.nodeid,
++             "completed_phases": len(self.reports), "updated_at_epoch": time.time()})
++
++    def pytest_runtest_logreport(self, report):
++        self.reports.append({"test": report.nodeid, "phase": report.when,
++            "outcome": report.outcome, "duration": report.duration,
++            "detail": str(report.longrepr) if report.failed or report.skipped else None})
++        if report.when == "teardown":
++            self.nodeid = "<between-tests>"
++
++    def pytest_collectreport(self, report):
++        if report.failed:
++            self.errors.append({"stage": "collection", "nodeid": report.nodeid,
++                                "detail": str(report.longrepr)})
++
++    def finish(self):
++        try:
++            schemas = [{**row, "origins": sorted(row["origins"]),
++                "observed_at": [json.loads(v) for v in sorted(row["observed_at"])]} for row in self.schemas.values()]
++            save(self.out / "observations.json", {"schemas": schemas, "calls": self.calls,
++                "reports": self.reports, "errors": self.errors,
++                "denied_connections": self.denied_connections})
++        finally:
++            for obj, name, original in reversed(self.restore):
++                setattr(obj, name, original)
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--out", type=Path, required=True)
++    parser.add_argument("--tools-dir", type=Path)
++    parser.add_argument("--collect-only", action="store_true")
++    parser.add_argument("--observe", action="store_true")
++    parser.add_argument("tests", nargs="*", default=["tests"])
++    args = parser.parse_args()
++    if args.tools_dir:
++        sys.path.insert(0, str(args.tools_dir))
++    sys.path.insert(0, str(ROOT / "tests"))
++    sys.path.insert(0, str(ROOT / "src"))
++    os.chdir(ROOT)
++    args.out.mkdir(parents=True, exist_ok=True)
++    import coverage
++    import pytest
++    before = source_hashes()
++    save(args.out / "source-before.json", before)
++    save(args.out / "environment.json", {"python": sys.version, "coverage": coverage.__version__,
++        "pytest": pytest.__version__, "source_root": str(ROOT), "observe": args.observe,
++        "head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()})
++    plugin = Observe(args.out)
++    plugin.guard_network()
++    cov = coverage.Coverage(branch=True, source=[str(ROOT / "src" / "report_agent")],
++                            data_file=str(args.out / ".coverage"), config_file=False)
++    start = time.monotonic()
++    code = None
++    try:
++        cov.start()
++        if args.observe:
++            plugin.install()
++        with tempfile.TemporaryDirectory(prefix="report-round0-") as tmp:
++            options = [*args.tests, "-q", "--continue-on-collection-errors", "-p", "no:cacheprovider",
++                       "--basetemp=" + tmp + "/pytest", "--junitxml=" + str(args.out / "junit.xml")]
++            if args.collect_only:
++                options.append("--collect-only")
++            code = pytest.main(options, plugins=[plugin])
++    finally:
++        cleanup_errors, changed = [], None
++        for label, action in [("coverage_stop", cov.stop), ("coverage_save", cov.save),
++                ("coverage_json", lambda: cov.json_report(outfile=str(args.out / "coverage.json"), pretty_print=True))]:
++            try:
++                action()
++            except Exception as exc:
++                cleanup_errors.append({"stage": label, "error": repr(exc)})
++        try:
++            after = source_hashes()
++            save(args.out / "source-after.json", after)
++            changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
++        except Exception as exc:
++            cleanup_errors.append({"stage": "source_after", "error": repr(exc)})
++        try:
++            plugin.finish()
++        except Exception as exc:
++            cleanup_errors.append({"stage": "observer_finish", "error": repr(exc)})
++        save(args.out / "result.json", {"pytest_exit_code": int(code) if code is not None else None,
++            "elapsed_seconds": time.monotonic() - start, "source_changes": changed,
++            "network_connections_denied": len(plugin.denied_connections),
++            "provider_calls_allowed": False, "network_guard_scope": "This Python process only; not a provider audit or subprocess firewall.",
++            "cleanup_errors": cleanup_errors, "conditions_measured_by_coverage_py": False})
++    return int(code or 0)
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/docs/reviews/round0-coverage-20261018/summarize.py b/docs/reviews/round0-coverage-20261018/summarize.py
+new file mode 100644
+--- /dev/null
++++ b/docs/reviews/round0-coverage-20261018/summarize.py
+@@ -0,0 +1,140 @@
++"""Aggregate saved Round 0 evidence. Run from the project root; no test execution."""
++import collections
++import ast
++import csv
++import xml.etree.ElementTree as ET
++import json
++from pathlib import Path
++
++ROOT = Path.cwd()
++RAW = ROOT / '.analysis/round0-coverage-20261018'
++DOC = ROOT / 'docs/reviews/round0-coverage-20261018'
++
++def read(path):
++    return json.loads(path.read_text(encoding='utf-8'))
++
++def save(path, value):
++    path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
++
++def outcomes(observations):
++    result = {}
++    for row in observations['reports']:
++        node = result.setdefault(row['test'], {'outcome': 'not_completed', 'phases': []})
++        node['phases'].append(row)
++        if row['outcome'] == 'failed':
++            node['outcome'] = 'failed' if row['phase'] == 'call' else 'error'
++        elif node['outcome'] not in {'failed', 'error'}:
++            if row['outcome'] == 'skipped':
++                node['outcome'] = 'skipped'
++            elif row['phase'] == 'call':
++                node['outcome'] = 'passed'
++    return result
++
++def ratios(summary):
++    return {'statements': summary['num_statements'], 'covered_statements': summary['covered_lines'],
++            'line_percent': 100 * summary['covered_lines'] / summary['num_statements'] if summary['num_statements'] else None,
++            'branches': summary['num_branches'], 'covered_branches': summary['covered_branches'],
++            'branch_percent': 100 * summary['covered_branches'] / summary['num_branches'] if summary['num_branches'] else None}
++
++base = read(RAW / 'baseline/observations.json')
++observed = read(RAW / 'observed/observations.json')
++results = outcomes(base)
++other = outcomes(observed)
++collected = read(RAW / 'baseline/collected.json')
++unrun = sorted(set(collected) - set(results))
++collection_errors = [row for row in base['errors'] if row.get('stage') == 'collection']
++collection_skips = [{'name': case.attrib['name'], 'detail': case.find('skipped').text}
++    for case in ET.parse(RAW / 'baseline/junit.xml').iter('testcase')
++    if case.find('skipped') is not None and case.find('skipped').get('message') == 'collection skipped']
++cov = read(RAW / 'baseline/coverage.json')
++scope = read(DOC / 'neo-scope-review.json')
++inventory = read(RAW / 'interface-inventory.json')
++comparison = [{'test': node, 'baseline': results.get(node, {}).get('outcome'),
++               'observed': other.get(node, {}).get('outcome')}
++              for node in sorted(results.keys() | other.keys())
++              if results.get(node, {}).get('outcome') != other.get(node, {}).get('outcome')]
++save(RAW / 'outcome-comparison.json', comparison)
++save(RAW / 'test-results.json', results)
++files = {name: {**ratios(value['summary']), 'missing_lines': value['missing_lines'],
++               'missing_branches': value.get('missing_branches', [])} for name, value in cov['files'].items()}
++save(DOC / 'file-coverage.json', files)
++with (DOC / 'file-coverage.csv').open('w', encoding='utf-8-sig', newline='') as output:
++    writer = csv.writer(output)
++    writer.writerow(['file', 'statements', 'covered_statements', 'line_percent', 'branches', 'covered_branches', 'branch_percent'])
++    for name, row in sorted(files.items()):
++        writer.writerow([name, *[row[key] for key in ['statements', 'covered_statements', 'line_percent', 'branches', 'covered_branches', 'branch_percent']]])
++host = {'kind': 'Source-declared inventory; not effective runtime/API contract coverage', 'http': [], 'cli': []}
++for relative in ['src/report_agent/webapp.py', 'src/report_agent/learning_api.py', 'src/report_agent/cli.py']:
++    tree = ast.parse((ROOT / relative).read_text(encoding='utf-8'))
++    for node in ast.walk(tree):
++        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
++            for deco in node.decorator_list:
++                if isinstance(deco, ast.Call) and isinstance(deco.func, ast.Attribute) and deco.func.attr in {'get', 'post', 'put', 'patch', 'delete'} and deco.args and isinstance(deco.args[0], ast.Constant):
++                    host['http'].append({'method': deco.func.attr.upper(), 'path': deco.args[0].value,
++                        'file': relative, 'line': node.lineno, 'function': node.name, 'contract_coverage': 'not_measured'})
++        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'add_argument' and node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value == 'command':
++            host['cli'] = next(ast.literal_eval(k.value) for k in node.keywords if k.arg == 'choices')
++save(DOC / 'host-interface-inventory.json', host)
++all_final = set()
++profiles = []
++for profile in dict.fromkeys(row['profile'] for row in inventory['profiles']):
++    for stage in ['compiled_native_toolnode', 'final_scripted_model_bind_tools']:
++        grouped = collections.defaultdict(set)
++        for row in inventory['profiles']:
++            if row['profile'] == profile and row['registration_stage'] == stage:
++                grouped[row['role']].update(tool['name'] for tool in row['tools'])
++        for role, names in grouped.items():
++            profiles.append({'profile': profile, 'role': role, 'stage': stage, 'names': sorted(names)})
++            if stage == 'final_scripted_model_bind_tools':
++                all_final.update((role, name) for name in names)
++
++# Role/name union is an attempt diagnostic, NOT configuration/schema/contract coverage.
++attempted = {(row['role'], row['name']) for row in observed['calls']
++             if row['boundary'] == 'business_middleware'}
++interface_rows = [{'role': role, 'name': name, 'middleware_attempt_seen': (role, name) in attempted,
++                   'configuration_and_contract_assertion_coverage': 'not_measured'}
++                  for role, name in sorted(all_final)]
++save(DOC / 'interface-matrix.json', {'profiles': profiles, 'union_attempt_diagnostic': interface_rows,
++     'probe_errors': inventory['errors'], 'limits': 'No percentage for full interface obligations. Attempts can reject before handler. Optimizer is not observed by BusinessBoundary.'})
++paths = []
++for path in scope['protocol_paths']:
++    matches = {node: data['outcome'] for node, data in results.items()
++               if any(node == candidate or node.startswith(candidate + '[') for candidate in path['candidate_tests'])}
++    definition = {key: value for key, value in path.items() if key != 'runtime_evidence'}
++    paths.append({**definition, 'runtime_evidence': {'baseline': '.analysis/round0-coverage-20261018/baseline/observations.json',
++                  'comparison': '.analysis/round0-coverage-20261018/outcome-comparison.json',
++                  'method': 'Exact collected nodeid and call outcome; not full state-transition coverage'},
++                  'runtime_tests': matches, 'outcomes': dict(collections.Counter(matches.values())),
++                  'path_assertion_coverage': 'partial_evidence_not_all_states'})
++save(DOC / 'path-matrix.json', paths)
++conditions = scope.get('independent_condition_audits', [])
++failure_rows = []
++for node, data in results.items():
++    if data['outcome'] in {'failed', 'error', 'skipped'}:
++        failure_rows.append({'test': node, 'outcome': data['outcome'],
++                             'detail': '\n'.join(row['detail'] or '' for row in data['phases'] if row['outcome'] != 'passed')})
++save(RAW / 'failures-and-skips.json', failure_rows)
++lines = ['# 本轮全部失败、错误与跳过', '', '这是逐项原始结果索引，失败项数不等于独立产品缺陷数；尚未定位的原因保持未定。', '']
++for row in collection_errors:
++    lines += [f"## collection error: {row.get('nodeid')}", '', '```text', row['detail'], '```', '']
++for row in collection_skips:
++    lines += [f"## collection skipped: {row['name']}", '', '```text', row['detail'], '```', '']
++if unrun:
++    lines += ['## 已收集但没有执行终态', '', *['- ' + node for node in unrun], '']
++for row in failure_rows:
++    lines += [f"## {row['outcome']}: {row['test']}", '', '```text', row['detail'], '```', '']
++(DOC / 'failures-and-skips.md').write_text('\n'.join(lines), encoding='utf-8')
++metrics = {'head': read(RAW / 'baseline/environment.json')['head'],
++    'collected': len(collected), 'collection_errors': collection_errors, 'collection_skips': collection_skips, 'unrun': unrun,
++    'outcomes': dict(collections.Counter(row['outcome'] for row in results.values())),
++    'observed_outcomes': dict(collections.Counter(row['outcome'] for row in other.values())),
++    'outcome_differences': comparison, 'coverage': ratios(cov['totals']),
++    'source_files': len(files), 'interface_union_role_name_count': len(all_final),
++    'middleware_attempted_union_role_name_count': len(all_final & attempted),
++    'unattributed_tool_entries': sum(row['role'] == 'unattributed' for row in observed['calls']),
++    'protocol_families': len(paths), 'condition_groups': len(scope['critical_conditions']),
++    'mcdc_total_percent': None,
++    'baseline_result': read(RAW / 'baseline/result.json'),
++    'observed_result': read(RAW / 'observed/result.json')}
++save(DOC / 'metrics.json', metrics)
++print(json.dumps(metrics, ensure_ascii=False, indent=2))

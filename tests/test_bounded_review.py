@@ -73,6 +73,12 @@ async def test_new_operation_reuses_exact_judgment_but_changed_service_does_not(
         repeat = await perform_review(ws, reviewer, model, 'new-operation', ['rule-comparison'])
         assert repeat['reused'] and repeat['review_ref'] == first['review_ref']
         assert len(model.calls) == 1 and len(cs.list_objects('ReviewRecord')) == 1
+        from report_agent.operation_receipts import operation_receipt
+        receipt = operation_receipt(cs, reviewer, 'new-operation')
+        assert receipt['state'] == 'known_model_attempt'
+        assert receipt['model_attempts'][0]['cache_reuse'] is True
+        assert receipt['model_attempts'][0]['new_http_attempt'] is False
+        assert receipt['model_attempts'][0]['raw_operation'] == first['analysis_operation']
         model.openai_api_base = 'https://second.invalid/v1'
         with pytest.raises(ActionRejected, match='OPERATION_CONFLICT'):
             await perform_review(ws, reviewer, model, 'first', ['rule-comparison'])
@@ -303,20 +309,21 @@ async def test_unresolved_or_undeclared_material_contract_stops_before_model(ws,
     assert not model.calls and not cs.list_objects("ReviewRecord")
 
 
-async def test_large_whole_source_binding_never_enters_model_request(ws):
+async def test_large_whole_source_binding_delivers_full_material_without_size_gate(ws):
     manifest = ws.store.manifest
-    ws.store.set("manifest", {**manifest, "sources": [{**manifest["sources"][0],
-        "content": "Class B permits 75 to 100. " * 1000}]})
+    whole = 'Class B permits 75 to 100. ' * 1000
+    ws.store.set('manifest', {**manifest, 'sources': [{**manifest['sources'][0], 'content': whole}]})
     cs, _, refs, snapshot, _ = seed(ws)
-    source = next(r for r in cs.read(snapshot)["payload"]["refs"] if r["type"] == "SourceArtifact")
-    model = Model()
-    with delegated_task(ws, "coordinator", review_call(snapshot, refs, reads=[source])) as (_, reviewer):
-        result = await perform_review(ws, reviewer, model, "large-source", ["rule-comparison"])
-        assert result["code"] == "REVIEW_SOURCE_RANGE_REQUIRED"
-        assert result["model_called"] is False and not result["review_ref"]
-        assert result["oversized_source_bindings"][0]["ref"] == source
-        assert reconcile(cs, reviewer.task_id)["remaining"]
-    assert not model.calls and not cs.list_objects("ReviewRecord")
+    source = next(r for r in cs.read(snapshot)['payload']['refs'] if r['type'] == 'SourceArtifact')
+    from test_explicit_original_requirement_selection import partial_model
+    model = partial_model()
+    with delegated_task(ws, 'coordinator', review_call(snapshot, refs, reads=[source])) as (_, reviewer):
+        result = await perform_review(ws, reviewer, model, 'large-source', ['rule-comparison'])
+        assert result['items'][0]['execution_state'] == 'blocked'
+    packet = json.loads(model.calls[0][1][1])
+    sources = [e['object'] for e in packet['evidence'] if e.get('object', {}).get('ref') == source]
+    assert len(sources) == 1 and sources[0]['payload']['content'] == whole
+
 
 
 async def test_located_evidence_does_not_automatically_include_its_whole_source(ws):

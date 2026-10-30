@@ -139,15 +139,17 @@ async def test_same_candidate_identity_preserves_unknown_association_without_sav
         assert not attempt.calls
 
 
-async def test_candidate_counts_toward_bound_and_old_receipt_stays_usable(ws,monkeypatch):
+async def test_candidate_material_and_old_receipt_stay_exact_without_size_gate(ws,monkeypatch):
     _,_,refs,_,_=seed(ws)
     with delegated_task(ws,'coordinator',writer_call()) as (_,actor):
         first=await draft(ws,refs,actor)
-        monkeypatch.setattr('report_agent.prepared_material.MAX_EVIDENCE_CHARACTERS',20)
         attempt=Model(json.dumps(content()))
-        with pytest.raises(ActionRejected,match='SELECT_SMALLER_LOCATED_EVIDENCE'):
-            await text_work.produce(ws,actor,attempt,'too-large','Revise','ContentNode',candidate_selections=[select(first)])
-        assert not attempt.calls and ws.store.get('text_work_receipt:'+first['text_work_id'])['state']=='completed'
+        await text_work.produce(ws,actor,attempt,'revision','Revise','ContentNode',candidate_selections=[select(first)])
+        assert len(attempt.calls)==1
+        packet=json.loads(attempt.calls[0][1][1])
+        assert any(e['kind']=='text_work_candidate' for e in packet['evidence'])
+        assert ws.store.get('text_work_receipt:'+first['text_work_id'])['state']=='completed'
+
 
 
 async def test_native_graph_final_schema_and_actual_revision_input(ws):

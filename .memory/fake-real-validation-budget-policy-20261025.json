@@ -1,0 +1,20 @@
+{
+  "authority": "Latest direct human: 好的，针对这类验证以后每次1000万token 预算",
+  "scope": "Future fake-data + real-LLM validation experiments of this class",
+  "per_run_used_plus_held_ceiling": 10000000,
+  "accounting": "Actual usage; run-induced reserved/unknown bounds count toward its cap and remain preserved globally. Ceiling is not a spending target.",
+  "applies_to_new_planned_run": true,
+  "old_experiments_rewritten": false,
+  "automatic_run_authorized": false,
+  "ledger_mutated_by_policy_record": false,
+  "global_ledger_maximum_at_readonly_check": 206030710,
+  "global_remaining_at_readonly_check": 1952877,
+  "global_authorization_treatment": "Not amended during this plan-only turn. Reconcile exact authority and budget admission before any future execution; no implicit old held release/reset.",
+  "neo_authority_disposition": "Per-run10m cap is confirmed for this and future experiments; no repeat confirmation of that cap. It is not unconditional +10m to global ceiling and does not authorize starting now.",
+  "arithmetic_link_at_current_snapshot": {
+    "target_maximum_for_full_10m_room": 214077833,
+    "difference_from_current_maximum": 8047123,
+    "applied": false,
+    "condition": "For accounting illustration only. Recompute at execution and record applicable cumulative authority, exact CAS and old-row preservation. No release/reset of old held.10m includes new reservations; not12m."
+  }
+}

@@ -38,7 +38,7 @@ async def test_artifact_replay_preserves_actual_dispatch_classification(ws, monk
     cs, refs, snap, export, render, source, requested = setup(ws, pages=1)
     model = offline_model(ws, monkeypatch)
     if refused_locally:
-        monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
+        monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
     sent = []
 
     async def transport(request):
@@ -128,7 +128,7 @@ async def test_artifact_unproven_budget_exception_is_not_promoted_to_unsent(ws, 
 async def test_artifact_cancelled_dispatch_is_preserved_without_replay(ws, monkeypatch, tmp_path):
     cs, refs, snap, export, render, source, requested = setup(ws, pages=1)
     model = offline_model(ws, monkeypatch)
-    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
     sent = []
     dispatched = asyncio.Event()
 

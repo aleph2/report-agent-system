@@ -1,6 +1,10 @@
 class ActionRejected(ValueError):
     """An explicit domain request rejection that an agent can correct."""
 
+    def __init__(self, *args, diagnostic=None):
+        super().__init__(*args)
+        self.diagnostic = diagnostic
+
 
 class ActionForbidden(PermissionError):
     """A rejected domain action; the tool never relaxes the caller's authority."""

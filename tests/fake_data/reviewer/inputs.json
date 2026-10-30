@@ -1,0 +1,856 @@
+[
+  {
+    "case_id": "F_INV-correct",
+    "family": "F_INV",
+    "variant": "correct",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%.",
+        "乙": "3 devices, 1 available, 33.3%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing."
+  },
+  {
+    "case_id": "F_INV-wrong_but_arithmetic_consistent",
+    "family": "F_INV",
+    "variant": "wrong_but_arithmetic_consistent",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%.",
+        "乙": "3 devices, 1 available, 33.3%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing."
+  },
+  {
+    "case_id": "F_INV-uncertain",
+    "family": "F_INV",
+    "variant": "uncertain",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      },
+      {
+        "id": "source-b",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%.",
+        "乙": "3 devices, 1 available, 33.3%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing."
+  },
+  {
+    "case_id": "F_TRAIN-correct",
+    "family": "F_TRAIN",
+    "variant": "correct",
+    "criteria": [
+      "T1:每人各科记录与授权成绩表一致；本任务null明确表示缺考/无成绩，不得编造分数。",
+      "T2:仅两科均不低于60且均有成绩者计为完成。",
+      "T3:完成人数和比例准确，比例保留1位小数。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "P01",
+            "A": 80,
+            "B": 75
+          },
+          {
+            "id": "P02",
+            "A": 90,
+            "B": null
+          },
+          {
+            "id": "P03",
+            "A": 61,
+            "B": 60
+          },
+          {
+            "id": "P04",
+            "A": 59,
+            "B": 95
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "P01",
+          "A": 80,
+          "B": 75,
+          "completed": true
+        },
+        {
+          "id": "P02",
+          "A": 90,
+          "B": null,
+          "completed": false
+        },
+        {
+          "id": "P03",
+          "A": 61,
+          "B": 60,
+          "completed": true
+        },
+        {
+          "id": "P04",
+          "A": 59,
+          "B": 95,
+          "completed": false
+        }
+      ],
+      "total": 4,
+      "completed": 2,
+      "rate": "50.0%"
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing."
+  },
+  {
+    "case_id": "F_TRAIN-wrong_but_arithmetic_consistent",
+    "family": "F_TRAIN",
+    "variant": "wrong_but_arithmetic_consistent",
+    "criteria": [
+      "T1:每人各科记录与授权成绩表一致；本任务null明确表示缺考/无成绩，不得编造分数。",
+      "T2:仅两科均不低于60且均有成绩者计为完成。",
+      "T3:完成人数和比例准确，比例保留1位小数。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "P01",
+            "A": 80,
+            "B": 75
+          },
+          {
+            "id": "P02",
+            "A": 90,
+            "B": null
+          },
+          {
+            "id": "P03",
+            "A": 61,
+            "B": 60
+          },
+          {
+            "id": "P04",
+            "A": 59,
+            "B": 95
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "P01",
+          "A": 80,
+          "B": 75,
+          "completed": true
+        },
+        {
+          "id": "P02",
+          "A": 90,
+          "B": null,
+          "completed": true
+        },
+        {
+          "id": "P03",
+          "A": 61,
+          "B": 60,
+          "completed": false
+        },
+        {
+          "id": "P04",
+          "A": 59,
+          "B": 95,
+          "completed": false
+        }
+      ],
+      "total": 4,
+      "completed": 2,
+      "rate": "50.0%"
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing."
+  },
+  {
+    "case_id": "F_TRAIN-uncertain",
+    "family": "F_TRAIN",
+    "variant": "uncertain",
+    "criteria": [
+      "T1:每人各科记录与授权成绩表一致；本任务null明确表示缺考/无成绩，不得编造分数。",
+      "T2:仅两科均不低于60且均有成绩者计为完成。",
+      "T3:完成人数和比例准确，比例保留1位小数。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "P01",
+            "A": 80,
+            "B": 75
+          },
+          {
+            "id": "P02",
+            "A": 90,
+            "B": null
+          },
+          {
+            "id": "P03",
+            "A": 61,
+            "B": 60
+          },
+          {
+            "id": "P04",
+            "A": 59,
+            "B": 95
+          }
+        ]
+      },
+      {
+        "id": "source-b",
+        "rows": [
+          {
+            "id": "P01",
+            "A": 80,
+            "B": 75
+          },
+          {
+            "id": "P02",
+            "A": 90,
+            "B": null
+          },
+          {
+            "id": "P03",
+            "A": 59,
+            "B": 60
+          },
+          {
+            "id": "P04",
+            "A": 59,
+            "B": 95
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "P01",
+          "A": 80,
+          "B": 75,
+          "completed": true
+        },
+        {
+          "id": "P02",
+          "A": 90,
+          "B": null,
+          "completed": false
+        },
+        {
+          "id": "P03",
+          "A": 61,
+          "B": 60,
+          "completed": true
+        },
+        {
+          "id": "P04",
+          "A": 59,
+          "B": 95,
+          "completed": false
+        }
+      ],
+      "total": 4,
+      "completed": 2,
+      "rate": "50.0%"
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing."
+  },
+  {
+    "case_id": "F_INV-omitted",
+    "family": "F_INV",
+    "variant": "omitted",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing.",
+    "visibility_note": "交付确缺乙正文：固定snapshot完整inventory只有乙标题；完整读取其绑定body及子节点均无乙内容；I3要求仍有效。不是只因初始packet缺页推断缺稿。",
+    "initial_selection": [
+      "total",
+      "甲"
+    ],
+    "readable_sections": [
+      "total",
+      "甲",
+      "乙"
+    ]
+  },
+  {
+    "case_id": "F_INV-packet_gap",
+    "family": "F_INV",
+    "variant": "packet_gap",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%.",
+        "乙": "3 devices, 1 available, 33.3%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing.",
+    "visibility_note": "Writer选材未含D03原始行，但Reviewer授权材料池内有完整台账。",
+    "initial_selection": [
+      "total",
+      "甲",
+      "乙"
+    ],
+    "readable_sections": [
+      "total",
+      "甲",
+      "乙"
+    ]
+  },
+  {
+    "case_id": "F_INV-body_exists_not_selected",
+    "family": "F_INV",
+    "variant": "body_exists_not_selected",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%.",
+        "乙": "3 devices, 1 available, 33.3%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing.",
+    "visibility_note": "同一I3；乙正文实际存在于固定snapshot并已授权，但未进入初始selection。通过实际读取可取得；不得把选材缺口判成真实缺稿。",
+    "initial_selection": [
+      "total",
+      "甲"
+    ],
+    "readable_sections": [
+      "total",
+      "甲",
+      "乙"
+    ]
+  },
+  {
+    "case_id": "F_INV-body_exists_unreadable",
+    "family": "F_INV",
+    "variant": "body_exists_unreadable",
+    "criteria": [
+      "I1:所有设备标识、分组和可用状态必须与授权台账一致。",
+      "I2:总数、可用数及可用率准确；可用率=可用数/总数，显示1位小数。",
+      "I3:甲乙分组均须有实际正文并与总表一致。"
+    ],
+    "authorized_sources": [
+      {
+        "id": "source-a",
+        "rows": [
+          {
+            "id": "D01",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D02",
+            "group": "甲",
+            "available": true
+          },
+          {
+            "id": "D03",
+            "group": "乙",
+            "available": false
+          },
+          {
+            "id": "D04",
+            "group": "乙",
+            "available": true
+          },
+          {
+            "id": "D05",
+            "group": "乙",
+            "available": false
+          }
+        ]
+      }
+    ],
+    "deliverable": {
+      "rows": [
+        {
+          "id": "D01",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D02",
+          "group": "甲",
+          "available": true
+        },
+        {
+          "id": "D03",
+          "group": "乙",
+          "available": false
+        },
+        {
+          "id": "D04",
+          "group": "乙",
+          "available": true
+        },
+        {
+          "id": "D05",
+          "group": "乙",
+          "available": false
+        }
+      ],
+      "total": 5,
+      "available": 3,
+      "rate": "60.0%",
+      "sections": {
+        "甲": "2 devices, 2 available, 100.0%.",
+        "乙": "3 devices, 1 available, 33.3%."
+      }
+    },
+    "authority": "All sources same rank and no precedence unless explicitly stated. Missing values remain missing.",
+    "visibility_note": "乙正文实际存在但当前任务无合法可用读取路径；明确当前证据/权限不足，不能据此宣称交付缺稿或已通过。",
+    "initial_selection": [
+      "total",
+      "甲"
+    ],
+    "readable_sections": [
+      "total",
+      "甲"
+    ]
+  }
+]

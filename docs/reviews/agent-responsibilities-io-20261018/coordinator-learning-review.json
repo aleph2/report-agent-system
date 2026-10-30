@@ -1,0 +1,877 @@
+{
+  "title": "Coordinator余项与学习职责设计评估",
+  "status": "proposed_not_implemented",
+  "date": "2026-10-18",
+  "owner": "Neo",
+  "project_root": "C:/Users/dongy/Documents/ChatGPT/report-agent-system",
+  "authorization": "用户要求一次梳理剩余职责并评估改动规模；本文件为设计讨论材料，不修改应用、测试、业务数据，不运行模型或测试。",
+  "basis": {
+    "inventory": "docs/reviews/agent-responsibilities-io-20261018/inventory.json",
+    "confirmed": [
+      "C1五组业务字段方案仅记录待实现：current_assignment、expected_result、scope、basis、open_questions；权限不由Agent批准。",
+      "C2复用Criterion六字段；对照原要求完整性、可判断性及准则维护，不随稿件降低。",
+      "C3按成果组织选材与工作，保留责任方自主调查；复用原资料、任务和待办，不新增计划库。"
+    ],
+    "distinction": "C1–C3获用户确认的是方案，不代表应用已实现。其余41项均未获逐项设计批准。本文件仅处理C4–C8、E1–E8并提出整体收敛判断。",
+    "evidence_level": "本轮读取当前源码及现有测试/报告入口，不构造新effective request，不以当前prompt存在声称Agent已执行。"
+  },
+  "duties": [
+    {
+      "id": "C4",
+      "responsibility": "将工作目标变成有责任方、可消费的实际委派，并恢复原生产者",
+      "inputs": [
+        "C1当前委托、预期成果、范围、原始依据及未决约束。",
+        "C2本工作适用的Criterion精确版本和解析后的有效内容。",
+        "C3工作目标、材料位置/版本/已知限制、所需角色及上下游关系。",
+        "原内容任务身份；审核快照及ReviewRequirement、Layout快照grant；当前授权。"
+      ],
+      "outputs": [
+        "原生task调用及持久化DelegatedTask；服务端绑定的actor/task_id。",
+        "供本次调用消费的目标、成果要求、适用准则和材料交接；建议使用共同结构而非仅靠自由description。",
+        "子任务结果交接：保存成果引用、结果说明、未完成/限制及相关操作身份；不是复制全部子对话。"
+      ],
+      "consumers": [
+        "Writer、Reviewer、Layout；其独立LLM工具；返回Coordinator。"
+      ],
+      "upstream": [
+        "C1解释确定这次能做什么；C2确定应满足什么；C3确定要组织什么工作；C4只落实本次派发，不再重写目标。"
+      ],
+      "assessment": "职责合理；原生task循环、持久owner、resume、审核/排版绑定应保留。当前普通Writer委派主要靠description；文字工具commission不自动带DelegatedTask.goal或全部适用Criterion；当前子任务回传默认为最后非空AI文本。",
+      "gaps": [
+        "只把标准写进Agent描述不保证执行工具收到原标准。",
+        "任务所有权持续与本次修订上下文更新是两件事：不能为改变写作目标每次换新owner，也不能静默改历史审核契约。",
+        "自由文字返回可能遗漏保存结果或限制；有保存数据不等于父Agent已收到。"
+      ],
+      "proposal": [
+        "复用DelegatedTask、原生task参数及现有delegate operation receipt，增加最小可追溯委派上下文：C1解释标识/修订摘要、适用Criterion refs、任务成果要求、材料refs/现有selection及限制。C1标识不是现有ContentStore.Ref，不凭空创建C1业务实体。",
+        "使用同一组装/解析责任把适用准则有效内容送至Agent与其独立文字/审核工具；只解析已绑定且相关内容，不能仅送ID，也不灌入全部项目资料。",
+        "稳定DelegatedTask继续负责owner和已固定契约；Writer恢复时本次上下文可随新delegate operation保存，不能篡改旧任务/旧receipt。改变Reviewer固定要求或Layout grant沿现有规则新建任务，并明确旧未完成项的处置，不自动清零。",
+        "优先复用已安装DeepAgents的subagent response_format/structured_response做一个共同的最小结果交接形状（成果refs、结果说明、未决/限制、需查询的操作身份）；不建立第二套执行器或结果数据库。该配置尚未实现，需适配器/恢复测试验证。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/content_tasks.py",
+          "entry": "task_tool / delegated_task / bound_actor",
+          "line": 42
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "build_agent / BusinessBoundary.awrap_tool_call",
+          "line": 766
+        },
+        {
+          "path": "src/report_agent/task_context.py",
+          "entry": "exact_task_context / TaskContext.awrap_model_call",
+          "line": 38
+        },
+        {
+          "path": "src/report_agent/text_work.py",
+          "entry": "authority / produce / adopt",
+          "line": 147
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "perform_review输入组装",
+          "line": 281
+        },
+        {
+          "path": "src/report_agent/artifact_review.py",
+          "entry": "bounded_artifact_review_tool",
+          "line": 139
+        }
+      ],
+      "change_size": {
+        "level": "中，跨公共边界",
+        "reason": "不是新增Agent或循环；需改任务输入、共享commission、正常返回/恢复以及历史request身份兼容，风险高于只改prompt。"
+      },
+      "verification": [
+        "Fake native Coordinator→真实task/owner→Writer→真实独立工具边界：断言本次目标、完整适用Criterion和所选材料实际到达，不用fake直接构造工具packet跳过派发。",
+        "新建/恢复Writer保留owner；审核契约改变拒绝或明确新任务，旧receipt/hash/unknown不重放。",
+        "原生结构化返回到父模型的最终序列化，含partial/blocked/空成果及原始错误；平台offload和checkpoint恢复后身份、限制不丢。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "C5",
+      "responsibility": "把适用准则落实为具体审核范围、必查问题及真实证据范围",
+      "inputs": [
+        "C1当前验收/局部检查目的及保留的全委托范围。",
+        "C2 Criterion原文和原始Requirement/适用标准。",
+        "C3可用资料、现有成果及已知缺口；C4任务上下文；精确snapshot、target及export/render refs。"
+      ],
+      "outputs": [
+        "持久化review_snapshot_ref、ReviewRequirement：稳定scope_id、target/criterion、非空具体required_checks。",
+        "逐check所需材料/正文extent、artifact_check_scopes和参考页对应；必要时显式未决。",
+        "可选监督plugin选择，不默认增加审核层。"
+      ],
+      "consumers": [
+        "Reviewer organizer；独立content/artifact checker；readiness、保存及reconcile。"
+      ],
+      "upstream": [
+        "C2定义什么算符合，C5把当前需要验证的结果分配到精确对象/检查范围；不重写C2，不把当前方便材料当全部委托。"
+      ],
+      "assessment": "结构、版本、材料extent和共享readiness已有较多实现；应保留，不另造一套检查系统。尚不能因每条Criterion有一个scope就宣布原要求全部覆盖。",
+      "gaps": [
+        "材料补充与目标/权限扩展需区分；当前已保存review assignment不可直接在resume时改。",
+        "旧未完成任务被新纠正任务接替时，不能靠新task通过让旧遗漏无声消失。",
+        "64k是当前某些工具材料准入，不是用户委托范围上限。"
+      ],
+      "proposal": [
+        "复用现有ReviewRequirement、source_spans、content/artifact extents及obligation_coverage；要求能沿C1/C2说明每项为何检查、哪些成果仍未分配。保留Agent决定检查粒度。",
+        "材料修正优先沿不可变任务规则建立有明确关联的纠正任务；旧记录不改写，未解决范围保持可见。具体关联存储先核现有HandlingRecord/任务记录能否充分表达，不能先建设替代任务框架。",
+        "超容量时报告actualsize/受影响范围，由Coordinator决定保持问题含义的批次或任务调整；程序不删料、缩范围或把多个check默认独立后合并成整体验收。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/task_supervision.py",
+          "entry": "ReviewRequirement / validate_requirements / review_readiness / obligation_coverage",
+          "line": 1
+        },
+        {
+          "path": "src/report_agent/content_tasks.py",
+          "entry": "delegated_task",
+          "line": 62
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "perform_review",
+          "line": 153
+        },
+        {
+          "path": "src/report_agent/artifact_review.py",
+          "entry": "artifact_gaps",
+          "line": 16
+        }
+      ],
+      "change_size": {
+        "level": "小至中",
+        "reason": "主体能力已有；任务关联与全委托/实际分配对账需精确设计，不能把全部语义覆盖程序化。"
+      },
+      "verification": [
+        "现有create→readiness→checker→save→reconcile真实路径，非仅Schema单测。",
+        "漏声明、明确refs/spans空未决、范围/版本不符、重复scope、真实超容量，均验证无付费派发及诊断完整。",
+        "原检查被分批处理或新任务纠正后：遗漏仍可见，不能由局部pass合成全报告pass。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "C6",
+      "responsibility": "依据真实返回判断补证、修订、呈现或复核的后续工作",
+      "inputs": [
+        "C4结构化返回及saved refs；C5真实ReviewRecord/执行缺项。",
+        "C1授权、C2准则、C3材料状态；当前能力、修改限制与unknown收据。"
+      ],
+      "outputs": [
+        "有依据的后续行动：调查、恢复原Writer、委派呈现、复核或交人处理。",
+        "给下一个责任方的具体问题、受影响精确版本、依据和限制。"
+      ],
+      "consumers": [
+        "Coordinator自身、原Writer、Layout、Reviewer及用户。"
+      ],
+      "upstream": [
+        "用C1判断是否获准，用C2判断要求是否仍未满足，用实际返回而非任务completed或摘要决定下一步。"
+      ],
+      "assessment": "职责合理；现有owner/resume和review→dependent layout下一模型轮次规则保留。不得把规则简化成必须每份报告依次走四阶段。",
+      "gaps": [
+        "部分结果/执行失败/不满足/未决是不同输入；能力请求也不代表已实现。",
+        "新任务结果可能与历史发现关联不清；Coordinator不能自行改verdict抹去问题。"
+      ],
+      "proposal": [
+        "复用C4共同结果交接和现有ReviewRecord/HandlingRecord，不新增修复审批Agent或独立缺陷管理库。",
+        "把实际问题和所需成果传给原责任方；自由选择合理行动，但不得将程序错误重述成资料缺失或仅凭重导出宣布修好。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/rules/content-coordinator.md",
+          "entry": "结果、内容稳定与呈现决策",
+          "line": 53
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "BusinessBoundary.awrap_tool_call",
+          "line": 224
+        },
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "record_handoff / assess_change_impact",
+          "line": 316
+        }
+      ],
+      "change_size": {
+        "level": "主要明确；随C4作小幅交接修改",
+        "reason": "不需新增执行环；是否改善决策须后续真实单步样本证明。"
+      },
+      "verification": [
+        "Fake明确partial、known not_dispatched、unknown、not_satisfied返回；最终Coordinator有效输入完整且保留原原因。",
+        "依赖review的layout不能同轮预排；普通独立工作不被此规则误阻。",
+        "原Writer修订仍同owner；旧verdict保留并按确切新版本判断适用性。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "C7",
+      "responsibility": "固定并选择实际交付版本及文件，而非以导出代替完成目标",
+      "inputs": [
+        "C1预期交付物和范围；C2适用准则；已保存producer内容、关系、明确workbook范围。",
+        "精确snapshot/Word/XLSX、实际artifact观察、适用审核结果与剩余事项。"
+      ],
+      "outputs": [
+        "现有DocumentSnapshot、ExportArtifact/MappingArtifact/RenderArtifact；content_delivery选择。",
+        "向用户说明所选实际文件及其版本、适用审核和未完成范围。"
+      ],
+      "consumers": [
+        "导出工具、审核任务、下载界面和用户。"
+      ],
+      "upstream": [
+        "C1确定交付物用途；C2确定要求；C3/C4生成和收集材料成果；C7只选择实际版本，不创造验收结论。"
+      ],
+      "assessment": "版本固定、原子receipt、pairing及byte digest有价值。Word/XLSX同快照约束可能放大无关重导出，但不能据此直接移除一致性规则；也不是首次格式错误的根因。",
+      "gaps": [
+        "完整交付依据不能仅是snapshot/export pairing；首次生成应消费已知格式/表样要求。",
+        "两文件绑定同快照不自动证明问题清单与Word一致；范围不同需明确。"
+      ],
+      "proposal": [
+        "继续用现有对象，不加交付管理平台。通过C4/共享生成上下文让首次Writer/Layout导出获取适用标准和实际布局方案。",
+        "本轮先保留same-snapshot pairing；若为减少Word无关重导出另作优化，需证明Word依赖闭包/内容语义不变，再独立讨论最小变更，不与职责梳理捆绑。",
+        "content_delivery只是selection；结合现有review适用性和C1预期成果生成交付说明，不另造平行验收状态。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "freeze_snapshot / derive_snapshot / select_content_delivery",
+          "line": 210
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "export_snapshot / read_export",
+          "line": 40
+        },
+        {
+          "path": "src/report_agent/content_workbook.py",
+          "entry": "export_workbook",
+          "line": 1
+        },
+        {
+          "path": "src/report_agent/content_delivery.py",
+          "entry": "current_delivery",
+          "line": 1
+        }
+      ],
+      "change_size": {
+        "level": "主体保留；小至中交接修改",
+        "reason": "先复用export/layout；未来解耦pairing为独立待选优化，不计入必做改动。"
+      },
+      "verification": [
+        "原生synthetic完整路径导出真实DOCX+XLSX：精确数据、范围、关系、文件pair/digest及版本。",
+        "已知格式标准→真实选择参数→实际OOXML、目录、表格、图文保真；不只验证参数写入或与旧稿相等。",
+        "新版本产生后旧review适用性正确，无全报告自动pass。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "C8",
+      "responsibility": "依据目标、真实证据和授权决定继续/等待/交接/停止并准确汇报",
+      "inputs": [
+        "C1当前成果预期和边界；C2仍未满足或未决准则；真实版本和review evidence。",
+        "C4返回、C5剩余范围、HandlingRecords、可行行动、实际资源和授权。"
+      ],
+      "outputs": [
+        "现有record_execution_decision：决定、理由、证据、未决项及assigned-check完成声明。",
+        "实际最终说明：交付文件、已做/未做、限制、停止理由与后续需要；不是独立判定记录。"
+      ],
+      "consumers": [
+        "用户、宿主状态展示及下一次恢复工作的Coordinator。"
+      ],
+      "upstream": [
+        "C1本次结束和项目全目标完成须分开；C2未满足不能由C8文字改为满足。"
+      ],
+      "assessment": "现有执行状态/业务判定分离是正确边界。record_execution_decision只保存策略，不直接触发停止；native图completed也非业务接受。",
+      "gaps": [
+        "停止说明可与数据库实际产物/范围不一致。",
+        "未知写入结果不能重放；已知零派发或已知失败不应一概称未知。"
+      ],
+      "proposal": [
+        "复用execution_evidence/current_delivery/task reconciliation输出，交付说明中的可核身份和完成范围直接据保存记录组成；模型负责解释与行动判断。",
+        "保留不同失败阶段与资源原始事实；不新增失败LLM归类者或要求每个问题停止全run。",
+        "C1解释仅在新委托/依据改变/发现误解时更新，不把C8进度写回C1制造重复状态。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "record_execution_decision",
+          "line": 472
+        },
+        {
+          "path": "src/report_agent/decision_state.py",
+          "entry": "execution_evidence / completion_state_token",
+          "line": 11
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "run_report结束、失败及返回状态",
+          "line": 940
+        }
+      ],
+      "change_size": {
+        "level": "小；依赖C4结果边界",
+        "reason": "主要复用保存记录/明确声明范围；新状态机无必要。"
+      },
+      "verification": [
+        "Fake图自然结束、partial handoff、操作unknown及本地拒绝，声明范围与实际对象差分相符。",
+        "claims_assigned_checks_complete不覆盖全委托未分配项；record decision本身不启动/停止模型。",
+        "恢复时实际权限/预算不可由summary/final文字覆盖。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E1",
+      "responsibility": "识别本次学习委托与需要处理的反馈",
+      "inputs": [
+        "宿主明确授权的学习任务/资源；若从队列启动则learning_active_feedback的claim及feedback_ids。",
+        "源反馈correction/before/evidence及精确snapshot/target；当前作用域和现有经验索引。"
+      ],
+      "outputs": [
+        "本次调查目标及行动选择；当前分派反馈与历史背景的区分。",
+        "尚需读取或无法解释的反馈，后续进入E6处置。"
+      ],
+      "consumers": [
+        "学习Agent、读取/分析工具及宿主完成检查。"
+      ],
+      "upstream": [
+        "与报告C1保持类别/授权一致，但不能拿报告C1替代独立learning assignment；用户反馈原文仍权威，Agent解释不是新指令来源。"
+      ],
+      "assessment": "分派、分页和队列已有；无需新增学习Coordinator。手动run_optimizer可无队列assignment，不能宣称每次必有claim。",
+      "gaps": [
+        "首次反馈索引400字是明确preview而非完整反馈，误用风险需在实际输入检验。",
+        "本次任务、跨报告适用条件与历史反馈不能混成自动全局改规则。"
+      ],
+      "proposal": [
+        "保留原反馈及队列，只让本次学习任务明确预期产物为候选/无改变/证据不足，而非自动修改报告。",
+        "重要反馈可按ID读取原文；不强迫所有反馈先全文塞上下文，不将历史规则自动提升为当前授权。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "read_learning_feedback / _run_optimizer_locked",
+          "line": 33
+        },
+        {
+          "path": "src/report_agent/learning_worker.py",
+          "entry": "consume_pending",
+          "line": 10
+        },
+        {
+          "path": "src/report_agent/learning.py",
+          "entry": "claim_feedback / feedback_items",
+          "line": 77
+        }
+      ],
+      "change_size": {
+        "level": "已有为主，少量契约/测试明确",
+        "reason": "不改队列架构。"
+      },
+      "verification": [
+        "Fake当前claim与历史反馈混排、长correction分页、manual无claim，保证不丢分派项也不要求制造候选。",
+        "空队列不构造模型；失败不自动claim重试或发布。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E2",
+      "responsibility": "调查反馈依据、来源和已有经验",
+      "inputs": [
+        "反馈精确字段、before与evidence refs、历史候选和适用客户/项目。",
+        "必要的原报告版本与源对象、冲突信息。"
+      ],
+      "outputs": [
+        "完整可恢复的原字段/对象观察、选择的材料及其范围和限制。",
+        "可复用/需纠正/未能判定的依据判断，供E3/E4使用。"
+      ],
+      "consumers": [
+        "学习Agent、独立learning analysis及后续策略/事实候选。"
+      ],
+      "upstream": [
+        "承接E1问题，不以客户纠错文字单独当技术事实；复用当前对象和源反馈，非复制新镜像。"
+      ],
+      "assessment": "专用分页读取已实现；项目路径作为scope而非宿主任意文件读权限应保留。",
+      "gaps": [
+        "字符截取可能切在JSON/表格中间；可恢复不等于已提供足够上下文。",
+        "来源可读性与真实性、事实是否当前仍需分开。"
+      ],
+      "proposal": [
+        "用现有exactRef与字段分页，向独立工具明确选择范围/total/digest；任务相关表格/上下文是否完整由Agent决定并可扩读。",
+        "若需更好结构读取，优先复用已有对象/selection语义；不建立学习专属资料副本或搜索Agent。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "read_learning_evidence / read_experience_candidates",
+          "line": 60
+        },
+        {
+          "path": "src/report_agent/learning_text_work.py",
+          "entry": "FeedbackSelection / LearningObjectSelection",
+          "line": 14
+        }
+      ],
+      "change_size": {
+        "level": "已有为主；必要时小幅共用selection",
+        "reason": "本轮不预设必须改读取形状。"
+      },
+      "verification": [
+        "跨客户/项目越权、旧版本/缺失对象、分页末尾和明确部分材料；原文与digest在下一工具输入一致。",
+        "完整表格/字段fixture可恢复，缺片段不被默记为来源不存在。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E3",
+      "responsibility": "按需使用独立工具提取/比较事实并形成可追溯的项目事实候选",
+      "inputs": [
+        "E1问题；E2所选反馈字段/源对象范围及原始digest。",
+        "宿主绑定的text_model与当前job/scope；不提供额外工具/搜索权限。"
+      ],
+      "outputs": [
+        "已有LearningAnalysis的findings、可选project_fact字段及analysis_id。",
+        "对事实候选精确采纳或不采纳的决定；保留事实限定。"
+      ],
+      "consumers": [
+        "学习Agent、E4类别判断、E5候选保存。"
+      ],
+      "upstream": [
+        "E3做有界事实处理；不能把从一次反馈学到的事实或某工程结论变成跨项目策略。"
+      ],
+      "assessment": "当前独立工具/精确事实采纳设计可复用。analysis_id绑定当前job/scope和事实字段，但分析本身不是事实真确性证明。",
+      "gaps": [
+        "candidate现有记录保留feedback_ids；propose_experience调用adopt_project_fact验analysis_id后未将其直接写入library.propose候选字段，追溯关联可更直接。",
+        "原分析材料仅选择片段，不能以工具返回project_fact声称全部来源核验。"
+      ],
+      "proposal": [
+        "延用现有LearningAnalysis与exact adoption；建议项目事实候选保留对应analysis_id/原分析操作身份及材料来源关联，复用原档案，不复制分析正文/源文。",
+        "知识证据与策略决策在类型/含义上分开，暂不拆库或新增知识Agent；是否需要普通Evidence对象另作需求判断，不能自动塞入报告。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning_text_work.py",
+          "entry": "learning_analysis_tool / adopt_project_fact",
+          "line": 38
+        },
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "propose_experience",
+          "line": 121
+        },
+        {
+          "path": "src/report_agent/learning.py",
+          "entry": "LearningLibrary.propose",
+          "line": 117
+        }
+      ],
+      "change_size": {
+        "level": "小至中",
+        "reason": "补事实候选来源关联并验证历史兼容，不改变事实字段来源或自动发布。"
+      },
+      "verification": [
+        "Fake实际analysis→parse→精确采纳→candidate；job/customer/project/analysis_id错配、改事实字段和片段不足反例。",
+        "候选可追到原分析与精确选择；返回合法JSON不能被记为facts_verified。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E4",
+      "responsibility": "区分项目知识、客户偏好和通用方法，形成适用条件明确的改进建议",
+      "inputs": [
+        "E1任务；E2依据/经验历史；E3分析及不确定性。",
+        "用户已确认约束、报告类别及实际反馈问题。"
+      ],
+      "outputs": [
+        "已有kind选择：project_fact / customer_preference / general_skill。",
+        "title、strategy、conditions、verification，或明确不提候选的理由。"
+      ],
+      "consumers": [
+        "E5保存候选；宿主/用户后续发布评估；报告Agent使用者。"
+      ],
+      "upstream": [
+        "用户反馈类别不能被学习Agent扩大为所有客户/所有工程；知识结论也不能伪装指令。"
+      ],
+      "assessment": "由学习Agent判断策略合理；不是所有文字理解都交独立工具。现有kind能承载最小区分，不能因统一字段名strategy就把三者当相同权威。",
+      "gaps": [
+        "project_fact当前按project限定；非事实候选在当前实现可供同customer其他项目读取，conditions文本仍需Agent判断，非机器已保证报告类别正确。",
+        "偏好、方法和直接用户要求冲突时，不能凭新候选自动覆盖原要求或缩scope。"
+      ],
+      "proposal": [
+        "复用已有kind和conditions，明确知识=有来源且有适用范围的事实主张，策略=可选择的方法，偏好=另行发布的用户相关要求；不新建三套引擎。",
+        "验证计划至少说验证什么改善与什么回退；不把一个高边坡成功转成桥隧路坡涵全适用。",
+        "若发现需要机器可筛选的报告类别，先核与现有instruction/report_category字段复用，另行说明最小字段变更；本轮不自动新增分类体系。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/rules/experience-optimizer.md",
+          "entry": "学习职责及类别边界",
+          "line": 1
+        },
+        {
+          "path": "src/report_agent/learning.py",
+          "entry": "LearningLibrary.propose / guidance_context",
+          "line": 117
+        },
+        {
+          "path": "src/report_agent/prompt_instructions.py",
+          "entry": "instruction_context",
+          "line": 173
+        }
+      ],
+      "change_size": {
+        "level": "主要明确；可能小幅候选适用范围补充",
+        "reason": "无需重写学习库或引入自动策略生成流水线。"
+      },
+      "verification": [
+        "Fake三类反馈、来源冲突、类别外样本及新直接要求冲突；原模型决策与程序可机械检验范围分别记录。",
+        "验证只证明分类字段/范围传递；真实策略是否有用留独立小样本，不靠自述通过。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E5",
+      "responsibility": "保存与修订可追溯、未发布的经验候选",
+      "inputs": [
+        "E4候选字段、源feedback_ids、已有id/expected_version；项目事实还需E3精确analysis依据。"
+      ],
+      "outputs": [
+        "现有learning_versions中的id/version、kind、customer/project、strategy/conditions/verification及源反馈关联。",
+        "候选创建/修订audit；原发布版本保持其原状态。"
+      ],
+      "consumers": [
+        "候选库、E6处置及另行授权的release操作。"
+      ],
+      "upstream": [
+        "保存的是提案而非权威用户原话替代；C1/C2不因候选出现自动改变。"
+      ],
+      "assessment": "现有CAS、scope固定、inactive candidate及host-only release应保留。",
+      "gaps": [
+        "候选保存不代表事实正确、策略验证或用户已同意。",
+        "E3分析关联和显式验证证据仍应与候选对应，而不是仅verification自由文字。"
+      ],
+      "proposal": [
+        "沿用现有learning_versions和release表，仅补确有用途的原分析/外部评估引用；不保存第二份source/analysis镜像。",
+        "修订新版本不自动替换active版；发布权限继续不向Agent开放。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning.py",
+          "entry": "LearningLibrary.propose / release / list_versions",
+          "line": 117
+        },
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "propose_experience",
+          "line": 121
+        }
+      ],
+      "change_size": {
+        "level": "小；与E3同一处修改",
+        "reason": "不按职责重复计算schema/迁移工作。"
+      },
+      "verification": [
+        "Fake重复/越权feedback、错误expected_version、跨kind或scope改变、新候选inactive、修订不自动发布。",
+        "新可选provenance字段历史读取兼容，不改旧候选原文与历史release。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E6",
+      "responsibility": "对每条本次分派反馈作有依据的处置记账",
+      "inputs": [
+        "当前claim/job；feedback_id；E5候选id/version或不改变/证据不足理由。"
+      ],
+      "outputs": [
+        "已有candidate / no_change / insufficient_evidence处置与rationale、claim_id、quality_verified=false。"
+      ],
+      "consumers": [
+        "宿主学习作业检查、用户/开发审阅及后续恢复。"
+      ],
+      "upstream": [
+        "C1/C2要求不得由“已记处置”标为已经落实；若反馈涉及报告，报告修订仍回原报告责任方。"
+      ],
+      "assessment": "已有工具检查当前分派及候选关联，合适；无须要求每条反馈必须产经验。",
+      "gaps": [
+        "处置不能等同报告已纠正；任务completed不等同理解正确。",
+        "失败claim重试是显式operator恢复，而不是Agent自动重开学习或重复派发。"
+      ],
+      "proposal": [
+        "保留现有记录，仅把报告待修/开发问题和学习处置清楚分开回报，复用已有反馈/HandlingRecord入口，不加第二队列。",
+        "未能给出候选时完整保留理由和影响；不为作业绿灯编造候选。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "record_feedback_disposition / _run_optimizer_locked",
+          "line": 85
+        },
+        {
+          "path": "src/report_agent/learning.py",
+          "entry": "finish_claim / retry_feedback",
+          "line": 91
+        },
+        {
+          "path": "src/report_agent/learning_worker.py",
+          "entry": "consume_pending",
+          "line": 10
+        }
+      ],
+      "change_size": {
+        "level": "主要明确/测试",
+        "reason": "现有实现已承载基本状态。"
+      },
+      "verification": [
+        "Fake所有assigned反馈恰当记账、漏项、非本claim、候选未关联和并发合并。",
+        "failed/unknown不自动重试；operator重排保留历史而非擦掉原失败。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E7",
+      "responsibility": "在宿主授权和能力实际存在时选择有限评估，而非自行批准实验",
+      "inputs": [
+        "E5保存的候选版本；host-bound experiment_runner、固定评估材料/指标、明确资源和调用权限。"
+      ],
+      "outputs": [
+        "现有guidance_experiment结果及未用原因；比较结果和回退情况，不自动release。"
+      ],
+      "consumers": [
+        "学习Agent、宿主和发布决定者。"
+      ],
+      "upstream": [
+        "验证目标来自用户需求与独立样本，学习Agent不能通过改oracle或缩样本证明自己改善。"
+      ],
+      "assessment": "可选能力合理；未绑定runner时不可调用。GEPA/DSPy是实验能力，不能按名称声称实现了学习效果。",
+      "gaps": [
+        "单个metric改善可能掩盖范围/内容回退；使用次数也不是效果。",
+        "缺少明确样本/模型/预算时不能用自由实验填补证据。"
+      ],
+      "proposal": [
+        "复用evaluate_strategy_pair及已有runner，按已确认要求比较旧/新行为并列回退；不新增评估Agent或默认每候选付费循环。",
+        "本轮职责梳理只设计fake程序验证；未来真实效果评估另核授权，agent不能自动扩大预算、范围或发布。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "optimize_saved_guidance / evaluate_strategy_pair / optimize_with_gepa",
+          "line": 136
+        },
+        {
+          "path": "src/report_agent/learning_worker.py",
+          "entry": "_optimize_saved_candidate_locked",
+          "line": 44
+        }
+      ],
+      "change_size": {
+        "level": "已有可选能力；本轮不扩展实验实现",
+        "reason": "效果验证范围尚待实际学习需求确认，不能现在估为必须大改。"
+      },
+      "verification": [
+        "Fake runner调用/不调用、固定case与metric、失败无自动重试、版本冲突及无host授权拒绝。",
+        "记录候选/基线/用例/评估器身份，发现regression不被平均分隐藏；不把fake结果算真实改进。"
+      ],
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "E8",
+      "responsibility": "交回学习结果、未决与可采用边界，并与发布/使用/效果分开",
+      "inputs": [
+        "E5候选、E6处置、E7实验或未用原因；当前不确定性与工具问题证据。"
+      ],
+      "outputs": [
+        "当前learning_job candidates、summary、gepa_disposition及false质量标记；建议共同结构化结果里也保留这些已有身份。",
+        "必要的开发问题和报告需修事项交回对应责任方；不是直接修改。"
+      ],
+      "consumers": [
+        "用户/宿主、开发者、另行授权的release；报告Agent在发布后决定适用和采用。"
+      ],
+      "upstream": [
+        "报告C1/C2只消费真正适用且已发布的偏好/建议；使用记录也不能回写为准则已满足。"
+      ],
+      "assessment": "现有completed与quality_verified=false分离正确。发布、提供给模型、声明use和真实效果仍是不同事实。",
+      "gaps": [
+        "final自由文字与候选/处置记录可能不一致；必须以保存身份为准。",
+        "use当前是声明；若未检查真实行为/产物，不能称形成有效学习。"
+      ],
+      "proposal": [
+        "与C4子任务返回复用最小结果语义，不给学习Agent加报告权限；从已有learning_job/候选及处置记录组装可核的结果身份。",
+        "继续使用host-only release、guidance_context/search_experience、record_experience_use；补充有效输入/产物验证，而不是再建学习状态平台。",
+        "明确链条：候选→另行发布→按范围提供→Agent声明采用→有独立证据才谈效果。无须为每次使用强制新review或付费。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "entry": "_run_optimizer_locked结果保存",
+          "line": 246
+        },
+        {
+          "path": "src/report_agent/learning.py",
+          "entry": "release / guidance_context / report_tools",
+          "line": 154
+        },
+        {
+          "path": "src/report_agent/rules/experience-optimizer.md",
+          "entry": "返回及权限",
+          "line": 22
+        }
+      ],
+      "change_size": {
+        "level": "小至中；共享结果边界及E3来源关联",
+        "reason": "现有发布/使用机制保留，效果证明不是单纯代码字段增加能完成。"
+      },
+      "verification": [
+        "Fake候选不发布不进入report上下文；停用/版本/客户作用域正确；新直接指令优先，旧事实不当source truth。",
+        "实际最终model input可见适用发布偏好；use声明不能直接使quality_verified变true或业务Criterion通过。"
+      ],
+      "status": "proposed_not_implemented"
+    }
+  ],
+  "overall": {
+    "final_cross_review": {
+      "reviewer": "Neo",
+      "state": "reviewed_as_design_proposal_for_user_review",
+      "read_documents": [
+        {"path": "docs/reviews/agent-responsibilities-io-20261018/inventory.json", "scope": "当前职责及C1–C3用户确认状态；该文件由Main继续整理，不绑定其后续排版/更新SHA。"},
+        {"path": "docs/reviews/agent-responsibilities-io-20261018/writer-review.json", "sha256_at_content_review": "b20876a174a78976467d60bddeb578bee3ebd0772c90aaf2ac7621b15170935d", "final_sha256": "ca868e6acb3182c386d890ac59e9d97ab32c9609626baa276fef6bfc4ea0d02c", "scope": "W01–W12全部输入/输出/消费方/上游、判断、建议、代码边界及验证已读；作者两处澄清已逐字复核并核最终SHA。"},
+        {"path": "docs/reviews/agent-responsibilities-io-20261018/reviewer-layout-review.json", "sha256": "a8f632d9ba505c7cc8fe8c1539ae6cf940d1da28fb0b75556144118ef5eb72da", "scope": "R1–R9、L1–L7全部同口径职责。"},
+        {"path": "docs/reviews/agent-responsibilities-io-20261018/coordinator-learning-review.json", "scope": "Neo自身C4–C8、E1–E8及共享设计判断，不做自引用SHA。"}
+      ],
+      "counts": {"confirmed_schemes_not_implemented": 3, "proposed_remaining_duties": 41, "coordinator_remaining": 5, "writer": 12, "reviewer": 9, "layout": 7, "experience_optimizer": 8, "total": 44, "duplicate_proposal_ids": 0, "proposal_records_missing_required_sections": 0},
+      "conclusion": "足以作为完整44项的用户审核设计材料；C1–C3方案确认，余41项仍待用户确认。没有把职责梳理变成实现授权、固定工作流或全系统验收。",
+      "consistency_decisions": [
+        "C4/W01/W05/R1/L1共用任务上下文与准则解析；不是各角色重建需求真相。",
+        "C4/W12/R9/L7/E8共用最小结果语义和现有保存对象；不是五套结果账本。学习本身独立运行，不为复用返回格式把它塞入报告task循环。",
+        "原Writer任务owner持续；每次修订的动态上下文可随新delegate operation保存。固定Reviewer契约及Layout grant变化沿现有新任务规则，不静默改旧receipt或销掉旧义务。",
+        "C3提供材料起点，不替Writer/Reviewer完成所有专业选材；明确程序访问授权、任务材料绑定、本次实际供给及语义充分性有别。",
+        "首次出稿/导出须使用已知标准；Layout可选，Reviewer不承担主要将粗稿加工正确的责任。新export_config关联如需实现须另明确真实用途，不默认多存一份配置。",
+        "W06取消无条件body隐藏是待用户审核的新取舍；保留平台offload、控制信息、owner/SHA和精确恢复，不能借此把所有正文回灌或强制逐字阅读。",
+        "W07term到依据的机械绑定尚未完成反例核验，只列验证计划，不预先批准新mapping或声称现有计算错误。",
+        "学习kind/conditions保留，事实来源、候选、发布、提供给模型、声明use与真实效果不混同。",
+        "Excel视觉、旧审核正式纠错、来源索引及Word/XLSX解耦为独立待确认能力，不绑入本轮必改。"
+      ],
+      "required_editorial_alignment": [
+        {"location": "writer-review.json W01/W05", "requirement": "明确稳定DelegatedTask身份与本次调用上下文分开；恢复不篡改历史task/receipt，也不必为目标更新更换Writer owner。", "state": "作者已补W01，Neo只读复核通过；无待办"},
+        {"location": "writer-review.json W12", "requirement": "统一为本机原生response_format/structured_response能力已核；当前应用接入、模型adapter和历史恢复兼容尚未验证。不是平台是否支持仍未知。", "state": "作者已改W12及共享边界，Neo只读复核通过；无待办"}
+      ],
+      "not_verified": [
+        "没有本轮模型调用、应用测试或新的原生有效请求；未验证实际Agent会按新职责选择正确行动。",
+        "没有实现C1持久化、C4结构交接、共享commission或新结构化子任务返回。",
+        "没有证明全部报告准则/全合同范围/评分/Word与Excel内容及视觉符合。",
+        "框架能力存在不代表实际adapter支持所有新schema；旧hash/replay/unknown与恢复兼容须实施前fake检验。",
+        "已有代码review未闭合项和round0非退役失败不因本职责设计被视为解决；不在本轮静默扩修。"
+      ],
+      "changes_this_round": "只新增设计评估文档；未改src/tests/业务状态、未运行报告或付费。"
+    },
+    "verdict": "现有系统具备多数职责所需的工具和业务对象。需要的是少数组装/交接公共边界的中等重构与针对性补证，不是44项分别开发，也无证据需要推倒Agent体系。",
+    "qualifications": [
+      "未确认41项建议不能标为已批准。",
+      "没有本轮新测试或模型行为证据；当前职责文字正确不等于运行正确。",
+      "完整报告质量与覆盖仍需实际产物和独立检查，不由此文档或fake接口测试担保。"
+    ],
+    "retain": [
+      "DeepAgents原生循环、task、checkpoint与平台支持的结构化返回。",
+      "已有Requirement/Criterion/SourceArtifact/Evidence/ContentNode/ReviewRecord与精确版本、owner/CAS/操作receipt。",
+      "source selection/observation原档案与完整性/权限；unknown保留及预算授权边界。",
+      "学习三类kind、inactive candidate、host-only release及use与effect分离。"
+    ],
+    "remove_or_merge_proposals": [
+      "不要为C1/C3/C4分别新建需求、计划、任务、结果四套平行真相。",
+      "task的自由description继续说明意图，但适用准则/材料和结果交接采用同一公共解析责任，避免角色各自复制解释。",
+      "已批准的通用240递归裁剪已被删除，不把它再次列成待修现状；候选body无条件隐藏是另一条仍需用户审核的具体投影取舍。",
+      "不把本轮职责表变成固定执行顺序、专职索引Agent、每节点审核或新审批平台。"
+    ],
+    "shared_change_buckets": [
+      {
+        "name": "委托与准则交接",
+        "scope": "C1持久化解释；C4现有任务/operation携带本次上下文；TaskContext及text_work/bounded/artifact实际输入共享解析。",
+        "size": "中，主要优先项",
+        "risk": "权限不能从模型字段获得；旧request/hash/unknown不能因新上下文形状自动重放。"
+      },
+      {
+        "name": "候选/任务结果交接",
+        "scope": "原生结构化task返回；控制信息和实际候选的可见性；parent下一有效输入；复用现有archive/offload。",
+        "size": "中",
+        "risk": "删候选body专用投影为待审新建议，须防止平台offload被后层全量回灌；不能要求所有原文全读或每次再审。"
+      },
+      {
+        "name": "学习来源与适用性",
+        "scope": "现有kind/conditions、事实analysis身份关联、候选/发布/使用/效果的证据表达。",
+        "size": "小至中，后续按实际需要",
+        "risk": "不自动跨客户/类别推广；不将已发布经验当工程来源或用户新授权。"
+      },
+      {
+        "name": "原稿质量与真实文件",
+        "scope": "原适用标准到首次导出参数/实际Word、指南表样、原文图表与问题Excel语义关系。",
+        "size": "已有能力上补交接与验收；具体缺口按fake反例决定",
+        "risk": "参数生效/复制等价并不证明正确；Excel视觉能力是否需要扩充待当前委托确认。"
+      }
+    ],
+    "sequence": [
+      "先由用户审阅完整职责/交接与本批具体设计，记录C1–C3已确认及余项待确认；本轮不自动实施。",
+      "首个实现增量优先C1→C2/C3→C4→Writer/独立工具→保存→结构化返回父Agent，使用一个有完整表样、标准和资料限制的synthetic真实程序路径作为oracle。",
+      "同一交接责任覆盖Reviewer/Layout并保留当前readiness/source extent/owner规则；不另写角色专属上下文真相。",
+      "学习仅补这条共用边界所必需的部分；独立评估/检索索引/同快照解耦等未确认功能不捆绑。",
+      "程序路径fake/replay充分后，真实Agent单步/文字工具单调用及实际完整报告验收分别决定，不用结构合法冒充内容正确。"
+    ],
+    "size_estimate": {
+      "nature": "设计级粗估，不是实施承诺；待另外两份职责审查及用户选择后才能锁定。",
+      "overall": "中等、分批改动；影响公共接口，回归面大于代码行数所显示，但不需重写所有模块。",
+      "code_regions": [
+        "content_tasks.py / task_context.py / decision_state.py / deep_runtime.py",
+        "text_work.py及bounded_review.py / artifact_review.py的commission与返回边界",
+        "learning_runtime.py / learning_text_work.py / learning.py的必要关联",
+        "既有内容导出/布局与测试路径，是否改生产实现由红例决定"
+      ],
+      "deduplication": "C4/W01/W05/R1/L1等多条职责共用同一任务上下文改动；C4/W12/R9/L7/E8共用结果语义；E3/E5同一来源关联修改。不能逐职责累计时间。",
+      "implementation_dependencies": "先确认C4最小交接及动态Writer恢复/固定审核契约的区别；用已安装原生response_format完成当前适配器的零provider可行性检验；明确候选公开body与平台offload的取舍。未完成这些前提，不给承诺工期、行数或全部必改文件数。",
+      "module_scope": {
+        "core_design_impact": {
+          "count": 7,
+          "files": ["content_tasks.py", "task_context.py", "decision_state.py", "deep_runtime.py", "text_work.py", "bounded_review.py", "artifact_review.py"],
+          "meaning": "首要任务输入、C1上下文及原生任务返回的公共设计影响面；预计在其中作有限修改，并非已经确认7文件全部必改。"
+        },
+        "candidate_output_option": {
+          "count": 1,
+          "files": ["decision_data.py"],
+          "meaning": "若用户采纳取消候选body无条件隐藏，单独处理该投影；复用既有offload/控制恢复，不重写这一层。"
+        },
+        "learning_followup": {
+          "count": 3,
+          "files": ["learning_runtime.py", "learning_text_work.py", "learning.py"],
+          "meaning": "事实来源关联/结果交接及适用性需要时的小增量；不把全部学习重写列为本轮必做。"
+        },
+        "reuse_and_regression_only_unless_counterexample": ["store.py", "content_store.py", "content_models.py中的Criterion", "task_supervision.py既有材料/范围机制", "content_export.py", "content_layout.py", "content_workbook.py"],
+        "prompt_alignment": "确认职责后同步相关现有角色prompt/tool docstring，按共享边界修改；不是按44条职责各加一段强制流程。",
+        "tests": "复用boundary/native delivery/scoped review/source material/DOCX及learning测试；具体受影响nodeid在实施方案确定后列，不把目录存在当已覆盖。"
+      },
+      "paid_tokens": "本轮0；离线改动验证不需要报告模型tokens。未来真实模型小样与全报告另行规划，不在本估算自动授权。"
+    },
+    "verification_basis": {
+      "reuse": [
+        "已有round0-coverage-20261018基线和原始失败记录。",
+        "tests/test_boundary_refactor.py真实native/fake/trace及实际DOCX骨架。",
+        "Main报告当前test_agent_result_delivery.py最终模型输入/adapter wire/offload骨架；本轮未运行，不声称已纳入既有基线。"
+      ],
+      "baseline_limits": "1868历史基线为1726pass/112call fail/21setup error/9setup skip；87.07%行、80.23%分支不代表接口/条件覆盖。113失败阶段为退役入口拒绝；其他20非退役失败不能全称过时。不得为修绿恢复旧裁剪/权限。",
+      "minimum_oracles": [
+        "适用委托/准则原文到实际工具输入及最终父模型输入；同一路径正/负/恢复/offload。",
+        "权限、exact version、owner、known-not-dispatched/unknown/received-invalid等机械状态不被模型文字覆盖。",
+        "synthetic来源正文、表样与格式要求到实际Word/XLSX；独立assert数据和布局，不以Agent自述代替。",
+        "引用、保存、完整执行、语义符合、发布、采用、效果分别判断。"
+      ]
+    }
+  },
+  "framework_evidence": {
+    "installed_subagents": "/home/dysun/.venvs/report-agent-system/lib/python3.12/site-packages/deepagents/middleware/subagents.py",
+    "verified_capability": "本机源码说明subagent response_format可产生structured_response，返回父ToolMessage优先序列化它；否则取最后非空AI文本。当前项目build_agent未配置这一共同格式。",
+    "lines": [
+      161,
+      717,
+      772
+    ],
+    "limit": "能力存在不代表项目已经集成或所有模型适配器兼容；本轮未新调用平台API或运行测试。"
+  }
+}

@@ -1,0 +1,959 @@
+{
+  "status": "proposed_not_implemented",
+  "date": "2026-10-18",
+  "scope": "Reviewer R1-R9 与 Layout L1-L7 的逐项职责设计审查。基于当前 native hierarchical 路径及已确认 C1/C2 方案；C3-C5及本文件建议仍待统一审核。",
+  "project_root": "C:/Users/dongy/Documents/ChatGPT/report-agent-system",
+  "author": "Reviewer/Layout 只读调查助手；Neo牵头判断，Codex Main合成。",
+  "evidence_limits": [
+    "只读复用现有 inventory.json 和上一轮源码核查；本轮最小复核 content_tasks.py 的任务恢复限制。未运行测试、模型、导出或写业务数据。",
+    "改动等级针对建议而非已确认缺陷数量；共享改动只计一次。无需改代码不等于该职责已通过行为验证。",
+    "C1结构化解释与C2衔接已确认但未实施；此文件不把拟议输入当作当前已经自动注入。",
+    "fake LLM可验证输入透传、动作派发、校验、状态和结果交接，不能证明真实模型语义正确。真实模型小样本仅证明所测样本，不证明全场景覆盖。",
+    "Neo已确认以下设计方向可供讨论，并要求保留原任务范围及历史、明确新纠正任务关联，不增加自动豁免链；Excel视觉是否需要由当前委托成果/标准决定。不是用户对本文件的逐项批准。"
+  ],
+  "duties": [
+    {
+      "id": "R1",
+      "responsibility": "理解本次独立审核要回答哪些问题，识别所评对象、版本、准则、材料条件及未决事项。",
+      "inputs": [
+        "C4/C5保存的审核任务：review_snapshot_ref、scope_id、target_ref、criterion_ref、required_checks、required_materials、内容/产物范围及参考页绑定。",
+        "拟议C1当前委托解释及可解析的原要求依据、C2适用Criterion精确版本；C1/C2中的未决含义不能由Reviewer自行放宽。",
+        "程序返回的readiness和源材料选择映射；它们说明绑定与可访问状况，不说明内容已符合要求。"
+      ],
+      "outputs": [
+        "选择本次需要调查的对象、材料与审核工具调用；不是第二份自行改写的验收标准。",
+        "要求/对象/材料不一致时的精确缺口：所涉scope/check、原要求、缺失或冲突的引用与影响。"
+      ],
+      "consumers": [
+        "Reviewer后续调查",
+        "独立审核工具",
+        "Coordinator C5处理任务定义缺口"
+      ],
+      "upstream": [
+        "C1提供当前委托与有效原文依据，避免把局部审核误认为总体任务。",
+        "C2提供评判准则。",
+        "C3提供资料位置与已知缺口。",
+        "C4绑定责任方/任务。",
+        "C5把准则变成具体检查任务。"
+      ],
+      "assessment": "职责及归属合理，现有任务读取和精确范围可复用；当前没有C1结构化结果的显式关联，不能只靠委派文字或摘要保持上下文。",
+      "gaps": [
+        "C1结构化解释尚未实现；当前Reviewer固定prompt是ORGANIZER_PROMPT，不能假定content-reviewer.md全部内容已进入有效System。"
+      ],
+      "proposal": [
+        "复用C4任务输入，绑定本次C1修订身份、适用C2 refs及有效要求原文的读取入口，不另维护一份Reviewer需求解释。",
+        "任务材料未绑定与标准含义未清晰分别回报；程序只做引用/版本/形状检查，语义上的充分性由Agent结合原要求判断。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "read_task_assignment:98"
+        },
+        {
+          "path": "src/report_agent/content_tasks.py",
+          "entry": "task_tool:42; delegated_task:62"
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "ORGANIZER_PROMPT:109"
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "有效Reviewer System装配:795-805"
+        }
+      ],
+      "change_size": "中（共享S1）：任务交接接入已确认C1/C2；R1现有读取能力无需重做。",
+      "verification": [
+        "fake LLM/trace：给定同一目标但两份不同版本要求，检查模型实际输入出现正确C1/C2/原文依据和task身份；缺失引用应返回明确缺口，不能自动换成最新版本或删除该检查。",
+        "条件覆盖：新任务/恢复任务、完整/未决要求、可解析/错误版本、当前/历史任务；记录最终middleware后的实际请求。",
+        "真实模型小样本：合成委托含局部与总体目标、冲突要求，检查Reviewer能区分本次检查范围与整体目标，能提出正确缺口；不能据此宣称专业审查质量已通过。"
+      ]
+    },
+    {
+      "id": "R2",
+      "responsibility": "为指派问题选择足够的正文、层级关系和原始材料，识别是否还需要独立调查。",
+      "inputs": [
+        "C5指派问题、required/material refs及合法源文范围；C3资料目录和可用定位。",
+        "实际读取的正文、contains关系、原文/图表观察，及C1/C2要求的相关完整程度。",
+        "检索未命中、截取不完整、源文冲突和工具限制。"
+      ],
+      "outputs": [
+        "选中的精确正文/来源范围和真实观察收据，供独立审核工具比较。",
+        "不足以回答问题时的材料缺口或补充调查决定，保留未完成检查范围。"
+      ],
+      "consumers": [
+        "perform_assigned_review",
+        "Coordinator C3/C5"
+      ],
+      "upstream": [
+        "C1界定相关范围与结果。",
+        "C2规定需证明的性质。",
+        "C3提供资料组织和已知缺口。",
+        "C4赋予本次任务。",
+        "C5界定具体问题、必需材料与选材范围。"
+      ],
+      "assessment": "材料选择属于Agent判断，读取/分页/版本校验属于程序，分工合理。需区分项目授权、任务选材声明、模型本次实际收到材料三件事。",
+      "gaps": [
+        "已授权新证据可以被发现/保存，但不会自动加入bounded checker材料池。",
+        "目前缺口可能只返回局部错误码或自然语言；缺口要保留scope/check及所需资料身份，供C5修正。"
+      ],
+      "proposal": [
+        "保留现有精确选材接口；选区完整性和是否需要上下文由Reviewer决定，程序不按字符数悄悄改写或截断材料。",
+        "复用结构化缺口结果，区分访问不授权、材料已授权但未绑定、实际未找到、源版本变化、选区不足；不把这些都改称缺资料。",
+        "补材料按共享S3交回C5处理；不为每个节点强制生成独立任务。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "read_context:118; read_content_index:140; read_content_selection:150; observe_evidence:286"
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "材料池/源范围检查:196-229; 缺正文返回:255-262"
+        },
+        {
+          "path": "src/report_agent/review_input.py",
+          "entry": "review_material_context"
+        }
+      ],
+      "change_size": "小至中（共享S1/S3）：读取能力已有，需统一补材料交接；不能据本清单直接断言现有读取算法需重写。",
+      "verification": [
+        "fake LLM/trace：父节点只有标题但子正文存在、关键词未命中但文件存在、正文范围不完整、新证据在池内/池外、无权访问、版本变化；核对完整观察和真实缺口透传。",
+        "验证Agent选择范围与最终checker请求一致；不得把未选正文自动标成报告不存在，也不得把已授权池外材料默默丢弃。",
+        "真实模型小样本：设计否定句、限定段、跨页表头和同义表达，观察是否选取足够材料、是否合理补查；这只验证样本中的选材判断。"
+      ]
+    },
+    {
+      "id": "R3",
+      "responsibility": "固定审核独立采用的来源版本，让判断可追溯且不改作者原成果。",
+      "inputs": [
+        "R2发现的已授权source IDs和捕获operation ID；来源实际内容、版本及digest由程序读取。",
+        "C3来源组织及C5拟采用的材料范围；与C1/C2的关联是审核目的，不是来源真实性证明。"
+      ],
+      "outputs": [
+        "SourceArtifact精确版本引用与捕获收据。",
+        "需要用于审核的来源引用交给R4/C5；捕获本身不产生支持结论。"
+      ],
+      "consumers": [
+        "Reviewer后续审核",
+        "C5任务材料绑定",
+        "ReviewRecord依赖追溯"
+      ],
+      "upstream": [
+        "C3提供来源定位。",
+        "C5确定如何作为本次材料使用。",
+        "C1/C2提供为何相关的业务目的。",
+        "C4绑定操作者和任务。"
+      ],
+      "assessment": "现有职责单一清楚，来源捕获与内容判断应保持分开；不需另外新增证据管理Agent。",
+      "gaps": [
+        "捕获成功不等于材料池已扩展；若界面/返回遗漏这一点，容易误以为下一步可直接使用。"
+      ],
+      "proposal": [
+        "保留capture_review_sources和现有版本存储；把其输出直接作为S3补材料请求的引用，不重复上传或拷贝源文件。",
+        "仅明确捕获/绑定/使用三种状态；不自动推断支持关系，也不自动改变作者snapshot。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "capture_review_sources:168"
+        },
+        {
+          "path": "src/report_agent/content_store.py",
+          "entry": "capture_sources"
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "材料pool处理:196-229"
+        }
+      ],
+      "change_size": "无需独立代码改动；仅明确语义并接入共享S3。若S3结果需补字段，属小改。",
+      "verification": [
+        "fake LLM/trace：重复同操作、同ID不同请求、来源更新、无权限、捕获后未绑定；断言版本/digest正确，作者内容与snapshot未变化。",
+        "真模型小样本可检查是否把捕获结果误称为证实，但固定版本本身是确定性行为，不需要付费模型证明。"
+      ]
+    },
+    {
+      "id": "R4",
+      "responsibility": "把已指派的内容问题和充分材料交给独立判读工具，使用实际结果继续调查并忠实返回判断。",
+      "inputs": [
+        "Reviewer选择的assigned scope IDs、operation ID及额外source/content selections。",
+        "程序从C5保存任务读取精确目标、C2 Criterion、必需材料、正文范围；从C1/commission读取本次目的及有效限制。",
+        "实际选中原文和内容，不以Reviewer自写结论替代证据。"
+      ],
+      "outputs": [
+        "独立工具生成并保存的ReviewRecord引用、逐检查项execution_state/verdict/observations/check_results/coverage/findings及真实限制。",
+        "预调用材料缺口、模型输出契约错误或未知调用结果等执行事实，供Reviewer和Coordinator选择下一动作。"
+      ],
+      "consumers": [
+        "Reviewer",
+        "Coordinator C6",
+        "read_review_status及后续修订任务"
+      ],
+      "upstream": [
+        "C1提供委托及未决语义背景。",
+        "C2是评判依据。",
+        "C3组织来源。",
+        "C4绑定任务责任。",
+        "C5定义检查范围和材料条件。"
+      ],
+      "assessment": "Organizer与一次性内容判读工具分离可保留；工具应对保存任务负责，不接受Organizer改写标准或带答案。但程序校验通过不能代表模型判断正确。",
+      "gaps": [
+        "C1的新结构化解释尚未进入该工具输入；目前输入commission只有goal/scope_instruction。",
+        "工具已有结构化判断，跨Agent最终返回却可能退化为自由文字，需S2衔接。",
+        "当前大输入会返回明确限制；改变问题范围以适应限制不能自动算原任务完成。"
+      ],
+      "proposal": [
+        "复用现有Assessment/ReviewItem，不另建判断schema；只补C1/C2有效依据的可核查关联与必要输入。",
+        "保留独立工具生成实质判断、Agent组织调查的边界；Reviewer可对输入不足或判断异常请求有依据的新调查，不能手工篡改verdict。",
+        "使用S2把保存结论和缺口按精确ref回传；语义判断、执行状态、完整性继续分别表达。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "Assessment:44; perform_review:153; 工具输入:282-286; 输出校验与保存:310-401; review_tool:404"
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "Reviewer最终工具过滤与注册:747-753"
+        }
+      ],
+      "change_size": "中（共享S1/S2）；有界工具核心、版本和观察校验优先保留，不另造审核循环。",
+      "verification": [
+        "fake LLM/trace：输入的准则/目标/原文与保存任务逐字段一致；模型返回合法pass/fail/undetermined/partial、漏check、越界ref、错误证据索引、空观察、坏JSON；检查保存/拒绝路径及原响应留存。",
+        "fake LLM：已知失败、未知结果、重复operation、相同请求缓存复用；不得制造新判断、重复调用或把完成状态改成通过。",
+        "真实模型小样本：同一合成内容分别含明确违反、证据冲突、缺材料及全部符合，核查是否给出正确且有定位依据的判断；不代替真实指南/工程资料验证。"
+      ]
+    },
+    {
+      "id": "R5",
+      "responsibility": "取得待审核Word/Excel实际文件内容和结构，避免只检查内存对象或导出声明。",
+      "inputs": [
+        "C5指定的精确ExportArtifact及其snapshot/伴随文件身份。",
+        "C2关于文本、表格数据、notes、版式参数及版本一致性的检查目的。"
+      ],
+      "outputs": [
+        "实际文件字节digest、读取的OOXML文本/结构及观察receipt，保留文件身份和读取限制。",
+        "文件缺失、digest不符或格式不可读时的执行错误。"
+      ],
+      "consumers": [
+        "Reviewer",
+        "R7产物比较工具"
+      ],
+      "upstream": [
+        "C1/C2决定预期成果与符合条件。",
+        "C4/C5绑定本次文件版本。",
+        "C3不替代实际文件读取。"
+      ],
+      "assessment": "这项职责已有清晰确定性入口，无需增加Agent。文件读取可复用；结构结果能否完整暴露当前准则需按准则列测试，不能假定支持全部Word设置。",
+      "gaps": [
+        "OOXML读取不覆盖渲染后溢出、替代字体和视觉布局；这是证据边界，不是该工具必须吸收的职责。"
+      ],
+      "proposal": [
+        "保留read_content_export及字节校验；按C2需要核对当前structure实际覆盖的属性，发现缺字段时只补最小提取字段。",
+        "其结果携带精确export identity进入R7，不能被概括为文件已符合要求。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "read_content_export:420"
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "read_export:297-310"
+        },
+        {
+          "path": "src/report_agent/report_preview.py",
+          "entry": "_structure"
+        },
+        {
+          "path": "src/report_agent/content_workbook.py",
+          "entry": "read_workbook"
+        }
+      ],
+      "change_size": "无需默认改动；若准则所需结构字段实测缺失则小改，当前尚未据此认定缺陷。",
+      "verification": [
+        "确定性fixture+fake LLM：Word/Excel实际文件与内存节点故意不一致、digest错、notes缺失、同名不同版本、文件不可读；确保输出反映实际字节且不声称视觉通过。",
+        "真实模型小样本只验证R7能解释这些结构证据；XML读取正确性由确定性fixture证明，无需真实模型。"
+      ]
+    },
+    {
+      "id": "R6",
+      "responsibility": "为指派的Word页面质量问题组织渲染与独立视觉观察，保留实际检查范围。",
+      "inputs": [
+        "C5绑定的export/render、物理页范围、检查问题、参考SourceArtifact及参考物理页对应。",
+        "C2格式准则及必要C1成果目的；局部问题可选crop。"
+      ],
+      "outputs": [
+        "实际RenderArtifact/PDF/PNG及版本/digest；视觉模型的观察、观察状态、页/crop/参考来源、局限和receipt。",
+        "未渲染、未观察、参考对应错误及未覆盖页的明确记录。"
+      ],
+      "consumers": [
+        "Reviewer",
+        "R7产物比较工具",
+        "Coordinator处理渲染或任务范围问题"
+      ],
+      "upstream": [
+        "C1/C2决定需要验证的格式/呈现。",
+        "C3提供客户参考材料。",
+        "C4绑定任务。",
+        "C5确定具体页/参考对应和检查范围。"
+      ],
+      "assessment": "渲染、观察、判定分开合理；不应要求每次机械执行固定页数。当前Word-only视觉实现是明确能力边界，不能把Excel读取当视觉验收。",
+      "gaps": [
+        "Excel视觉实现缺口是否需要补取决于本次授权成果与标准，不能把历史排除泛化为后续委托限制。",
+        "参考页绑定正确性仍需Agent判断，程序只核对所声明对应。"
+      ],
+      "proposal": [
+        "保留现有Word观察路径与覆盖表示；遇到不合适的参考对应，回报C5纠正而非程序自动换页。",
+        "Excel视觉列为待确认选项：若当前标准确实要求，应另明确输入页面/区域、观察输出和责任方后补工具；不自动新增全工作簿强制检查流程。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "render_content_export:415; inspect_rendered_page:425"
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "render_export:313; inspect_render:363; Excel视觉拒绝:372-373"
+        },
+        {
+          "path": "src/report_agent/artifact_review.py",
+          "entry": "artifact_gaps:16"
+        }
+      ],
+      "change_size": "Word现有路径无需结构重做；Excel视觉如经确认需要，属中改（工具输入/观察/覆盖适配），本轮不批准实施。",
+      "verification": [
+        "fake视觉模型+真实渲染fixture：正确/错误export digest、全页/crop、无参考/正确参考/错误物理页、渲染失败、缺页；断言实际图片与返回provenance一致。",
+        "断言仅渲染或仅结构读取不能形成视觉覆盖；Excel分支现阶段返回真实不支持，不伪装已检。",
+        "真实视觉模型小样本：明确溢出、截字、重复目录与合格页面，观察其可定位能力；不能证明未检查页合格或所有字体环境一致。"
+      ]
+    },
+    {
+      "id": "R7",
+      "responsibility": "按准则比较实际文件结构和视觉观察，形成所指派产物范围的独立判断。",
+      "inputs": [
+        "Reviewer选择的export/render scope IDs和本任务拥有的observation receipts。",
+        "C5精确检查任务、C2 Criterion、C1目的及限制、导出/参考/页范围身份。",
+        "R5真实结构、R6真实视觉观察；不能以Layout的自述替代这些证据。"
+      ],
+      "outputs": [
+        "保存的ReviewRecord及逐项判断、执行/覆盖状态、观察引用、findings和剩余原因。",
+        "契约/身份/覆盖不符的执行错误与原响应保留；不生成整体工程验收结论。"
+      ],
+      "consumers": [
+        "Coordinator C6/C7",
+        "Reviewer后续调查",
+        "交付状态查询"
+      ],
+      "upstream": [
+        "C1为当前成果目标。",
+        "C2为准则。",
+        "C3为参考来源。",
+        "C4/C5为本次指派及具体产物范围。"
+      ],
+      "assessment": "复用独立工具比较既有观察是合理分工；其结果本身已有结构。需要让C4返回和下游读取保留这个结构，不再靠自由总结决定是否合格。",
+      "gaps": [
+        "跨子任务结果没有统一结构化回传（共享S2）。",
+        "观察存在只能建立可追溯覆盖，不能由程序把它升级为语义正确。"
+      ],
+      "proposal": [
+        "保留ReviewSubmission和artifact coverage guards，不增加第二层模型代写审核。",
+        "直接回传精确保存review refs、已检查/未检查范围和执行问题；C6读取原判断，不能按摘要改写verdict。",
+        "若资料/页面不全，仍保留已有明确缺陷，不以某项blocked抹掉其他有效观察。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/artifact_review.py",
+          "entry": "bounded_artifact_review_tool:139; perform_assigned_artifact_review:159; public_result:145; validate_artifact_items:66"
+        },
+        {
+          "path": "src/report_agent/content_models.py",
+          "entry": "ReviewItem及ReviewSubmission"
+        }
+      ],
+      "change_size": "小（共享S2/S1）；比较工具已有schema/存储，不需独立重写。",
+      "verification": [
+        "fake LLM/trace：合法partial/fail/pass、借用别task receipt、旧export/错snapshot、只读XML却声称视觉完成、crop称全页、错参考页、已确认缺陷同时有未检查页；核对最终保存及回传。",
+        "真实模型小样本：给相同布局声明但不同真实观察，验证判断跟随实际证据；仅证明该比较任务，不代表整个报告已验收。"
+      ]
+    },
+    {
+      "id": "R8",
+      "responsibility": "根据新旧版本及依赖变化，选择需要复查的范围或确认旧局部判断继续适用。",
+      "inputs": [
+        "old/new snapshot、旧ReviewRecord及所评具体items、对象/准则/依赖变化。",
+        "C1/C2有效要求是否变化、C5新审核范围、实际修改影响及适用理由。"
+      ],
+      "outputs": [
+        "精确局部复用记录和理由，或新的审核调用/待查范围；保留旧判断历史。",
+        "旧结论不适用、判断本身可能错误或存在未完成检查时的明确反馈。"
+      ],
+      "consumers": [
+        "Coordinator C5/C6",
+        "review-status",
+        "后续Reviewer"
+      ],
+      "upstream": [
+        "C1/C2变化决定旧判断的业务适用性。",
+        "C3提供来源变化。",
+        "C4保留责任身份。",
+        "C5定义新的复查任务，不能自动只检查容易部分。"
+      ],
+      "assessment": "变化候选由程序提供、适用性由Agent判断的边界合理；不需要每次从头审整篇。不能只看目标正文未变就推断准则/依赖/上下文都未变。",
+      "gaps": [
+        "当前最终工具表移除correct_own_review；发现旧判断本身错误时，已有局部复用不能充当纠错流程。尚未据本轮证据认定必须立即新增纠错能力。"
+      ],
+      "proposal": [
+        "优先复用assess_change_impact和confirm_review_reuse；明确核对要求、依据和组合关系，不能自动继承全报告通过。",
+        "旧审核错误先作为有证据的新判断/反馈返回；若确需正式撤销或替代旧记录，另核对现有supersession能力并给独立判读后的精确替代引用，不重新开放Agent自由修改verdict。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "assess_change_impact:331; confirm_review_reuse:335; correct_own_review:344"
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "移除correct_own_review:749-750"
+        },
+        {
+          "path": "src/report_agent/content_store.py",
+          "entry": "confirm_reuse; supersede_review"
+        }
+      ],
+      "change_size": "无需默认重做；语义说明和输入衔接小改。若确认旧审核纠错必须暴露安全入口，另作中改评估，不算本轮已决定。",
+      "verification": [
+        "fake LLM/trace：正文不变但Criterion变化、来源版本变化、parent组合变化、仅格式变、局部item复用、整体判断跨snapshot、旧判断错误；验证程序按精确依赖限制复用且不自动推导pass。",
+        "真实模型小样本：让模型选择必要复查范围并解释依据，检查能否识别组合影响；不证明所有工程相关性均被捕获。"
+      ]
+    },
+    {
+      "id": "R9",
+      "responsibility": "把本任务的实际判断、覆盖、未完成工作及执行问题完整交给Coordinator。",
+      "inputs": [
+        "R4/R7保存的ReviewRecords、check_results、remaining、材料/页缺口、执行收据和工具错误。",
+        "C4任务身份及C5原检查清单；C1/C2用于说明这些结果对本次成果意味着什么。"
+      ],
+      "outputs": [
+        "拟议共用结构化子任务回报：task identity、saved result refs、已执行/未执行范围、尚未解决的问题、执行失败/未知状态、必要交接；具体字段与C4一处确定。",
+        "必要HandlingRecord；不复制一份可与ReviewRecord相矛盾的判定账本。"
+      ],
+      "consumers": [
+        "Coordinator C6/C8",
+        "后续恢复任务",
+        "用户可见进度"
+      ],
+      "upstream": [
+        "C4定义所有子任务共用交接形式。",
+        "C5提供原检查范围以核对遗漏。",
+        "C1/C2提供目标语境。",
+        "C3接收资料缺口反馈。"
+      ],
+      "assessment": "这是当前最需要统一的交接点之一：实质工具已有结构化结果，但子Agent结束通常只返回最后非空文本，容易丢失缺项或扩大结论。",
+      "gaps": [
+        "当前没有项目统一子任务结果schema；已存结果与自然语言总结可能脱节。"
+      ],
+      "proposal": [
+        "与C4共享一个轻量结果契约，优先让程序从已保存refs解析客观身份/执行记录；Agent表达实际解释与下一步需求，不猜填已完成。",
+        "检查返回引用与本任务相符；没有产物、partial、已知失败、未知结果都能合法返回，不强制用成功占位。",
+        "Coordinator消费保存的真实判断；子任务返回完成不触发自动修订或全项目通过。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "子Agent装配:803-805"
+        },
+        {
+          "path": "src/report_agent/content_tasks.py",
+          "entry": "任务装配/绑定:127-155"
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "entry": "ORGANIZER_PROMPT回报要求:114-145"
+        },
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "record_handoff:322; read_review_status:126"
+        }
+      ],
+      "change_size": "中（共享S2）：跨角色交接一次实现，R9不另设第二层结果汇总Agent。",
+      "verification": [
+        "fake LLM/trace：判读保存fail但最终文说通过、工具只完成部分但文字说全部完成、没有记录、错误ref、另task结果、未知调用；验证下游可见真实结构，不能仅按末句覆盖。",
+        "验证恢复任务能读到原范围和未完成事项，不把最近文本作为新授权。",
+        "真实模型小样本：给混合结果，检查能否忠实解释影响、要求合理后续动作；不以流畅总结证明结论正确。"
+      ]
+    },
+    {
+      "id": "L1",
+      "responsibility": "理解当前成果适用的格式标准、参考要求和展示边界，使首次产物就按已知要求生成。",
+      "inputs": [
+        "C1当前委托、成果用途/范围与有效原文依据；C2适用格式Criterion及《报告编制格式标准》/指南表样等来源。",
+        "C4赋予的exact layout snapshot、任务目标、材料refs；可有旧export与Reviewer反馈，但它们不是第一次工作必须存在的前提。",
+        "C3参考资料定位，实际内容结构；C5未来独立检查范围可用于理解交付证据，但不取代生成要求。"
+      ],
+      "outputs": [
+        "本次需要采用的格式要求与目标节点/呈现对象对应、未决标准含义及拟读取材料。",
+        "传给L3的参数选择依据；如果需要改事实/表格含义，明确交回原生产方。"
+      ],
+      "consumers": [
+        "Layout L3",
+        "Coordinator C4/C6",
+        "必要时Writer"
+      ],
+      "upstream": [
+        "C1决定本次成果。",
+        "C2标准从首次生成生效。",
+        "C3给出完整参考材料。",
+        "C4绑定任务与快照。",
+        "C5后审不替代生产要求。"
+      ],
+      "assessment": "应明确为生成质量责任，而非发现问题后的修补角色。Layout可以按需使用，不需要规定每个报告先经过Layout；Writer/Coordinator若直接首次导出，也必须消费同一适用标准。",
+      "gaps": [
+        "当前Layout依赖任务描述及可选TaskContext；没有注册read_task_assignment。",
+        "首次导出的适用标准选择与谁负责落实需要在C4/C7/W10共享明确，不能只写进Layout prompt。"
+      ],
+      "proposal": [
+        "用S1让Layout和其他首次导出责任方取得同一C1/C2有效依据；任务中明确适用格式准则与参考refs。",
+        "按S4明确首次导出者须选择合适配置并检查实际产物；不把Reviewer设为主要发现已知格式要求的责任方。",
+        "优先复用通用任务上下文读取；若需补Layout只读assignment入口，应共享C4能力，避免专门维护一份Layout任务。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/rules/content-layout.md",
+          "entry": "1-19"
+        },
+        {
+          "path": "src/report_agent/content_tasks.py",
+          "entry": "layout授予:121-131"
+        },
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "任务读取:98; Layout工具注册:530-531"
+        },
+        {
+          "path": "src/report_agent/task_context.py",
+          "entry": "exact_task_context:38"
+        }
+      ],
+      "change_size": "中（共享S1/S4）：首先补责任/输入衔接，不把Layout改为强制新阶段。",
+      "verification": [
+        "fake LLM/trace：首次导出没有旧review、已有旧布局与新格式冲突、只有参考ID无原文、TaskContext开/关；检查实际模型输入包含正确标准且可取得所需内容。",
+        "真实模型小样本：合成格式标准与样稿风格冲突，观察能否按明确标准选参数而不是复刻旧版；不能因此证明真实Word全部页面符合。"
+      ]
+    },
+    {
+      "id": "L2",
+      "responsibility": "了解当前工具能做哪些展示操作及依赖是否可用，用真实能力选择可行方案。",
+      "inputs": [
+        "本次L1目标、历史能力限制及当前任务/修改授权。"
+      ],
+      "outputs": [
+        "当前capability version、engine digest、LayoutOptions schema、目录刷新依赖、revision budget及限制。"
+      ],
+      "consumers": [
+        "Layout L3/L7",
+        "Coordinator评估后续安排"
+      ],
+      "upstream": [
+        "C1/C2给出需要实现的效果。",
+        "C3/C4给出任务信息。",
+        "能力查询本身不增减C5检查或改写准则。"
+      ],
+      "assessment": "已有单一能力查询入口，职责合理。目录只说明可用参数，不证明参数已采用，更不证明渲染效果。",
+      "gaps": [
+        "能力存在、依赖可用、参数被采用、产物达到标准是不同状态；文档与回报须区分。"
+      ],
+      "proposal": [
+        "保留当前能力目录和版本信息，不另建能力判断Agent；反馈旧限制时读当前目录再决定。",
+        "若目录与schema不一致，按共享契约测试修正具体不一致，不能由Agent猜可用参数。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "read_layout_capabilities:393"
+        },
+        {
+          "path": "src/report_agent/layout_capabilities.py",
+          "entry": "capabilities:14"
+        },
+        {
+          "path": "src/report_agent/content_layout.py",
+          "entry": "LayoutOptions:114"
+        }
+      ],
+      "change_size": "无需默认代码改动；仅明确状态与补接口一致性覆盖。",
+      "verification": [
+        "确定性/fake LLM：能力版本变化、依赖缺失、额度为零或仍有空间、schema新增字段；断言目录来源与真实参数schema一致、不把查询成功当已完成。",
+        "真实模型小样本可验证选用能力是否合理，但能力目录与schema同步由确定性测试证明。"
+      ]
+    },
+    {
+      "id": "L3",
+      "responsibility": "把适用格式要求落实成展示参数，保持内容事实与原文完整。",
+      "inputs": [
+        "L1提供的C1/C2要求及原文依据；L2当前能力；exact node refs及完整唯一原文行选择器。",
+        "页面边距、字体字号、行距、表格线/列宽、标题/目录、图片和限定语显示要求；实际内容结构与已观察问题。"
+      ],
+      "outputs": [
+        "明确LayoutOptions，或有依据选用的旧Word layout配置引用；供L4执行。",
+        "哪些准则由哪些控制项落实、仍缺什么能力/存在什么不确定性，供实际产物检查和交接。"
+      ],
+      "consumers": [
+        "export_content_snapshot",
+        "Layout L5/L6",
+        "Coordinator/Reviewer理解采用依据"
+      ],
+      "upstream": [
+        "C2规定符合条件；C1保留目标/限制。",
+        "C3给完整参考；C4给exact对象。",
+        "C5检查这些效果，不替L3作样式选择。"
+      ],
+      "assessment": "Agent理解标准并选参数、程序验证并执行的边界合理。结构性表样内容（指标、列义、注释）归Writer生产，Layout只改变展示。",
+      "gaps": [
+        "默认正文1.3、表格1.15并不满足所有客户标准；默认可用不能视作已选标准。",
+        "旧layout_from_export_ref虽然合法，是否适合新要求仍需语义判断；不能自动复用。"
+      ],
+      "proposal": [
+        "按S4在现有export_config中保留采用的适用标准/要求引用和配置身份；不复制另一套Layout计划/验收账本。",
+        "需要显式值时由Agent选取；程序不得静默用默认值覆盖已给值。对不支持操作明确回报。",
+        "表格实际内容不符时交Writer；不通过隐藏行列、改字或删除技术限定修正外观。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/content_layout.py",
+          "entry": "Typography:14; NodeLayout:83; LayoutOptions:114; validate_layout:146"
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "layout/layout_from_export_ref处理:54-96"
+        }
+      ],
+      "change_size": "小至中（共享S4）：参数能力已有，主要补采用依据与首次生成交接；具体缺参数须先复现，不本轮推断新增。",
+      "verification": [
+        "fake LLM+确定性导出fixture：明确1.5与默认值、四边不同边距、双线/单线、精确/倍数行距互斥、错版本node、重复原文行、旧布局冲突；确认参数不被静默降级、源正文不变。",
+        "真实模型小样本：给完整标准与表格样例，检验能否产生正确可调用参数及合理缺口；合法JSON不能代表要求落实。"
+      ]
+    },
+    {
+      "id": "L4",
+      "responsibility": "从授权的固定内容版本生成采用所选格式的Word文件，留下精确可审产物。",
+      "inputs": [
+        "operation_id、C4授予的exact snapshot、L3选择的layout或layout_from_export_ref；适用标准关联及目录刷新选项。",
+        "程序读取snapshot内容与所有权、修改额度、导出依赖。"
+      ],
+      "outputs": [
+        "新的ExportArtifact、MappingArtifact、file_ref/digest及实际export_config；失败或未知操作结果需如实留存。"
+      ],
+      "consumers": [
+        "Layout自查",
+        "Reviewer C5指定的产物审核",
+        "Coordinator C7选择交付"
+      ],
+      "upstream": [
+        "C1/C2要求由S4带入首次导出。",
+        "C3提供源图/参考。",
+        "C4授予此snapshot权限。",
+        "C5随后核对精确产物，不审批本次调用。"
+      ],
+      "assessment": "版本固定、导出为确定性操作合理。Layout不拥有改事实、导出任意别任务snapshot或选最终交付的权限。",
+      "gaps": [
+        "Layout无XLSX导出工具，Excel的生成/格式责任在Writer/Coordinator；不应因此默认把全部工作簿职责塞给Layout。"
+      ],
+      "proposal": [
+        "保留现有Word导出、mapping及可选目录刷新；按S4记录实际采用的配置依据。",
+        "初次直接导出的其他角色也通过同一导出接口和标准选择责任，不能依赖之后可选Layout来补齐。",
+        "Excel如需新增布局控制，先由C1/C2明确成果需求再划分最小工具能力，不新增业务Agent。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "export_content_snapshot:361; 角色注册:528-533"
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "export_snapshot:40; 保存产物:267-294"
+        },
+        {
+          "path": "src/report_agent/layout_capabilities.py",
+          "entry": "refresh_directory:45"
+        }
+      ],
+      "change_size": "小（共享S4）；已有导出核心无需重写。Excel新增能力另列待确认，不计作已决定实施。",
+      "verification": [
+        "fake LLM/确定性fixture：授权/错snapshot、重复operation/冲突请求、同时给layout和旧export、内容不变但样式变化、目录刷新失败、文件保存失败；核对实际字节/ref/mapping与状态。",
+        "真模型只验证能发出符合当前任务的调用；导出字节保真和授权由确定性测试检验。"
+      ]
+    },
+    {
+      "id": "L5",
+      "responsibility": "在产物生成后读取实际文件和渲染结果，获得后续自查依据。",
+      "inputs": [
+        "L4生成的exact export ref、render operation ID；C2需要核查的实际属性。"
+      ],
+      "outputs": [
+        "实际OOXML文本/结构receipt，RenderArtifact、PDF和各页PNG/digests，或明确渲染失败/不可用。"
+      ],
+      "consumers": [
+        "Layout L6",
+        "后续独立Reviewer"
+      ],
+      "upstream": [
+        "C1/C2规定需满足效果。",
+        "C4绑定本次产物。",
+        "C5独立审核有自己的观察，不能仅凭Layout已生成render算已审核。"
+      ],
+      "assessment": "职责合理且现有能力可复用；真实产物自查是首次生成责任的一部分，但不强制所有项目每次走同一渲染序列。",
+      "gaps": [
+        "仅导出/渲染成功不能说明实际参数、文本保留或页面效果合格；不同证据要用于不同结论。"
+      ],
+      "proposal": [
+        "复用R5/R6同一读取/渲染能力，避免Layout专用第二套实现。",
+        "S2回报保留实际文件和render身份及未观察范围，不使用笼统完成状态替代。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "read_export:297; render_export:313"
+        },
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "read_content_export:420; render_content_export:415"
+        }
+      ],
+      "change_size": "无需独立改动；共享S2结果交接小改。",
+      "verification": [
+        "确定性fixture/fake LLM：文件digest不符、导出错版本、渲染依赖失效、页数变化、文本/表格实际漏项；确认结果不被转换成成功。",
+        "真实模型小样本只测其能否选用与问题匹配的观察方法，不证明文件结构提取器正确。"
+      ]
+    },
+    {
+      "id": "L6",
+      "responsibility": "依据实际页面观察决定展示调整是否有效、还需怎样调整或交接。",
+      "inputs": [
+        "L5实际render/page、C2具体格式准则、需要时的C3客户参考页、既有观察/反馈及crop。",
+        "L3实际采用的参数与L4产物身份；不能只看设置声明判断有效。"
+      ],
+      "outputs": [
+        "独立视觉工具观察及其限制；Layout的有效性判断、具体剩余问题和下一次可行调整选择。"
+      ],
+      "consumers": [
+        "Layout后续调用",
+        "Coordinator C6",
+        "独立Reviewer接收精确产物和问题说明"
+      ],
+      "upstream": [
+        "C1/C2决定展示目的与标准。",
+        "C3给参考材料。",
+        "C4限定可修改snapshot。",
+        "C5另行独立检查，不由Layout自批通过。"
+      ],
+      "assessment": "工具给真实观察、Agent选择调整符合分工。不能把自查变成独立审核结论，也不能通过删改事实修复版面。",
+      "gaps": [
+        "视觉观察不确定、局部检查和全页检查范围不同；回报需保留未观察部分。"
+      ],
+      "proposal": [
+        "沿用Word视觉工具，Agent依准则选择必要问题与页面；不要预设固定全页循环或每次重新渲染所有已确认无变化部分。",
+        "若问题需要修改正文、表格含义或图源，明确交给Writer/Coordinator，不让Layout突破只读边界。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/content_export.py",
+          "entry": "inspect_render:363-429"
+        },
+        {
+          "path": "src/report_agent/rules/content-layout.md",
+          "entry": "页面自查及边界:9-18"
+        }
+      ],
+      "change_size": "无需默认改动；共享S2保留范围与局限即可，实际视觉提示词效果待小样本验证。",
+      "verification": [
+        "fake视觉模型+trace：观察明确有效/无效/不确定、crop和全页、参考错页、返回空/失败；确认Agent可见原观察，程序不改成合格。",
+        "fake LLM：指定调整后不得改内容，要求修改事实时只能回报给责任方。",
+        "真实视觉模型小样本：对已知重复目录、截断表头、字体替代及正常页观察准确性；只能证明样本，不能覆盖所有真实版式。"
+      ]
+    },
+    {
+      "id": "L7",
+      "responsibility": "完整交回排版成果、已处理与未处理的问题、缺失能力及需要其他责任方处理的事项。",
+      "inputs": [
+        "L4-L6实际产物/观察refs、参数和标准关联、已处理finding、未完成范围。",
+        "需要的具体操作、已尝试方法、真实证据、任务/snapshot身份；涉及内容修改时明确所需结果和责任方。"
+      ],
+      "outputs": [
+        "与C4/R9相同的结构化子任务结果：实际成果、执行状态、已知限制、未完成项及必要交接。",
+        "必要的request_layout_capability/HandlingRecord；不自动开发功能或批准新任务。"
+      ],
+      "consumers": [
+        "Coordinator C6/C7",
+        "Writer处理内容问题",
+        "Reviewer独立复核",
+        "开发人员评估具体工具能力"
+      ],
+      "upstream": [
+        "C4统一回报形式和任务身份。",
+        "C1/C2说明剩余问题影响哪些成果要求。",
+        "C3接收来源缺口。",
+        "C5由Coordinator安排独立复核，Layout不自行派发。"
+      ],
+      "assessment": "职责合理，但自由文字末尾回报不足以可靠承载产物版本、未完成范围；应与其他子任务共用一个结果契约。",
+      "gaps": [
+        "当前Layout没有直接派发Reviewer工具，prompt中的request independent recheck应通过Coordinator实现。",
+        "能力请求是保存交接，不等于开发已执行或能力已上线。"
+      ],
+      "proposal": [
+        "复用共享S2，不为Layout独建回报账本；优先引用已有产物/HandlingRecord。",
+        "明确区分缺工具能力、参数选择不当、源内容需改、实际效果仍不确定；让C6选择后续工作。",
+        "无需新审批角色或固定开发闭环；未完成也能如实合法返回。"
+      ],
+      "code": [
+        {
+          "path": "src/report_agent/rules/content-layout.md",
+          "entry": "回报与独立复核:11-27"
+        },
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "entry": "request_layout_capability:404; record_handoff:322"
+        },
+        {
+          "path": "src/report_agent/layout_capabilities.py",
+          "entry": "request_extension:75-91"
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "entry": "子Agent装配:803-805"
+        }
+      ],
+      "change_size": "中（共享S2）；能力请求现有实现可复用，不另造流程。",
+      "verification": [
+        "fake LLM/trace：导出成功但视觉未查、仍有严重格式问题、缺能力、实际内容需改、错误产物ref、没有产物；确认回传不把部分完成包装为全部通过。",
+        "验证能力请求保留操作/尝试/证据但不执行源码修改、不扩权限、不自动派发Reviewer。",
+        "真实模型小样本：合成混合问题，检验能否准确分派给Coordinator/Writer/开发并不夸大结果；不证明后续修复已完成。"
+      ]
+    }
+  ],
+  "shared_changes": [
+    {
+      "id": "S1",
+      "state": "proposed_not_implemented",
+      "title": "C1/C2到C4/C5及下游工具的明确输入交接",
+      "classification": "需改；已确认C1/C2方案的共享实施，不按每个职责重复计规模。",
+      "responsibility": "C4绑定当前委托修订、适用准则和可读取的原要求依据；C5把相同依据转换为具体检查要求，不能由下游重写目标。",
+      "minimal_scope": "优先复用DelegatedTask、Criterion、TaskContext及已有精确引用；不建立新需求/任务框架。角色固定prompt与工具输入都须核最终装配。",
+      "code": [
+        "src/report_agent/content_tasks.py::task_tool/delegated_task",
+        "src/report_agent/task_context.py::exact_task_context",
+        "src/report_agent/bounded_review.py::perform_review",
+        "src/report_agent/artifact_review.py::perform_assigned_artifact_review",
+        "src/report_agent/deep_runtime.py::build_agent/business_tools"
+      ],
+      "affected": [
+        "R1",
+        "R2",
+        "R4",
+        "R7",
+        "L1"
+      ],
+      "change_size": "中",
+      "boundaries": "引用和schema校验不判断意图正确；不增加权限；不自动令所有历史成果失效。"
+    },
+    {
+      "id": "S2",
+      "state": "proposed_not_implemented",
+      "title": "子任务共用结构化结果交接",
+      "classification": "需改；C4主导，一处实现供Writer/Reviewer/Layout复用。",
+      "responsibility": "保留精确task/result refs、实际执行与覆盖、未完成项/错误/未知结果及必要解释；客观信息来自现有存储，不另造判定账本。",
+      "minimal_scope": "先核所用DeepAgents子任务返回/response_format扩展接口，再选最小适配位置。当前不能把现有末条文字返回宣称为已结构化。",
+      "code": [
+        "src/report_agent/deep_runtime.py::build_agent",
+        "src/report_agent/content_tasks.py::delegated_task",
+        "src/report_agent/bounded_review.py::result",
+        "src/report_agent/artifact_review.py::public_result",
+        "src/report_agent/content_export.py::export_snapshot/render_export"
+      ],
+      "affected": [
+        "R4",
+        "R7",
+        "R9",
+        "L5",
+        "L7"
+      ],
+      "change_size": "中",
+      "boundaries": "不复制ReviewRecord语义结论，不自动决定全项目通过或重试，不新增结果总结Agent。"
+    },
+    {
+      "id": "S3",
+      "state": "proposed_not_implemented",
+      "title": "材料不足时的明确补充交接及原检查范围保留",
+      "classification": "需明确并做小至中接线；当前任务不可变约束已有，不默认扩权或重写。",
+      "responsibility": "Reviewer返回scope/check及具体材料缺口；C3/C5判断补充资料、修正错误绑定还是涉及真正范围变化。",
+      "minimal_scope": "保持现有不可变task时，C5建立有关联的纠正任务，并保留旧未完成范围和修正原因；新任务完成不自动取消旧义务。关联和后续状态需可核查，不强制逐项任务，也不造自动豁免链。",
+      "code": [
+        "src/report_agent/content_tasks.py::delegated_task（117-119变更审核assignment必须新task）",
+        "src/report_agent/bounded_review.py::perform_review",
+        "src/report_agent/task_supervision.py::assignment/reconcile/task_status",
+        "src/report_agent/hierarchical_tools.py::record_handoff"
+      ],
+      "affected": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R9"
+      ],
+      "change_size": "小至中；具体关联字段/复用状态实现由Neo确认后才定",
+      "boundaries": "项目权限与任务选材是不同概念；不自动加入未授权源，不静默缩范围或宣称旧任务完成，不自动继承其他任务receipt。"
+    },
+    {
+      "id": "S4",
+      "state": "proposed_not_implemented",
+      "title": "首次导出采用已知标准并检查真实产物",
+      "classification": "需明确共享责任并小至中接线；大部分布局参数/导出读取已存在。",
+      "responsibility": "C2标准同时指导首次生成与后审；首次导出者（可能Writer/Coordinator/Layout）选择适用配置和参考，保存采用依据并检查实际文件。",
+      "minimal_scope": "优先在现有任务输入/export_config记录标准/配置关联；不另建布局审批流程，不强制每份报告先走Layout。Reviewer独立判断不能替代生产阶段落实已知要求。",
+      "code": [
+        "src/report_agent/hierarchical_tools.py::export_content_snapshot",
+        "src/report_agent/content_export.py::export_snapshot/read_export",
+        "src/report_agent/content_layout.py::LayoutOptions/validate_layout",
+        "src/report_agent/rules/content-layout.md",
+        "src/report_agent/rules/content-writer.md",
+        "src/report_agent/rules/content-coordinator.md"
+      ],
+      "affected": [
+        "L1",
+        "L3",
+        "L4",
+        "R5",
+        "R7"
+      ],
+      "change_size": "小至中；不得把未实测的参数缺口算已确认开发项",
+      "boundaries": "布局只改呈现，指南表格的指标/列义/数值/注释归内容生产；旧布局配置合法不代表适用于新要求。"
+    },
+    {
+      "id": "S5",
+      "state": "requires_scope_confirmation",
+      "title": "Excel视觉能力与职责",
+      "classification": "当前Word-only视觉实现已确认；是否需改由当前委托成果/标准决定，不是所有任务必改。",
+      "responsibility": "若需要XLSX视觉质量，明确谁选择观察范围、程序如何生成对应图像、如何返回可追溯观察、谁独立判断；复用现有角色。",
+      "minimal_scope": "先明确需求后扩同一工具族，不增加新Agent，不自动要求全工作簿视觉审核。",
+      "code": [
+        "src/report_agent/content_export.py::inspect_render（372-373拒绝Excel视觉）",
+        "src/report_agent/artifact_review.py::artifact_gaps/validate_artifact_items",
+        "src/report_agent/content_workbook.py"
+      ],
+      "affected": [
+        "R6",
+        "R7",
+        "L4"
+      ],
+      "change_size": "如确认需要则中；本文件不作实施授权",
+      "boundaries": "历史排除不自动适用于新委托；数据/notes检查不等于视觉检查；渲染成功不等于视觉合格。"
+    }
+  ],
+  "reuse_and_clarify": [
+    "已有可复用：精确版本和所有权、来源捕获、bounded content/artifact checker、结构读取、Word渲染/视觉观察、ReviewRecord、局部复用、layout能力查询/参数/导出、HandlingRecord。",
+    "仅明确：Layout不改事实也不自批；Reviewer organizer不直接代写verdict；readiness/receipt/保存成功不是语义正确；独立审核范围不自动扩为全报告验收。",
+    "待证据再判断：旧审核纠错入口是否需要、现有结构读取是否覆盖全部采用准则、具体新增布局参数；不从职责清单直接扩成全仓重构。",
+    "不做本轮实施：应用源码、业务数据、模型调用、真实导出和测试均未修改/运行。"
+  ]
+}

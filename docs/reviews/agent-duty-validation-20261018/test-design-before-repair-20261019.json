@@ -1,0 +1,252 @@
+{
+  "date": "2026-10-19",
+  "status": "design_only_no_new_test_execution_or_application_repair",
+  "latest_user_direction": [
+    "我觉得先不做修复",
+    "先做测试用例设计，比如：实际真实数据运行的bug，先不修复，先设计测试用例，能够复现bug，再修复。这样就可以确保对修复的验证"
+  ],
+  "scope": "当前应用的历史缺陷复现与相邻路径测试设计；Neo牵头审查、Codex整理。候选修复方案暂不实施。",
+  "paid_calls_this_increment": 0,
+  "application_source_changed": false,
+  "source_baseline": "../../../.analysis/agent-duty-validation-20261018/test-design-20261019/source-before.json",
+  "cases": [
+    {
+      "id": "R01",
+      "title": "恢复任务：旧目标不能成为本次指令",
+      "duties": "C4 / W01 / L1",
+      "status": "已发现 D-RESUME-01；已有诊断，不等于修复回归已通过",
+      "priority": 1,
+      "source": ".analysis/agent-duty-validation-20261018/resume-and-sensitivity/junit.xml",
+      "fixture": "同一 Layout task/owner/snapshot 首次要求右边距15mm；下一次合法委派明确改为20mm，其他权限不变。Writer兄弟场景：原“生成段落”改为“先调查缺失的分级依据，暂不生成”。",
+      "trigger": "通过当前原生 task 工具先执行、再 resume；分别启用/关闭 managed context。不是直接手拼 application_state。",
+      "observe": "首次及恢复时的真实 Human、System、模型adapter序列化输入、任务版本/owner/grant和操作回执。",
+      "oracle": "本次完整委派送达；原委派与权限历史保留；不能同时把已替换的旧目标无条件标为当前权威。Neo依据实际输入判定歧义，不能仅因历史goal仍存在就判错；自动断言针对已确认的冲突组合，不硬要求新增current_invocation字段。",
+      "control": "无目标变更的合法resume；不同task/role隔离；同operation ID改指令仍拒绝；越权grant/review范围仍拒绝。",
+      "sensitivity": "现有诊断须先升级为能在冲突点失败的行为用例，保存失败前输入；删一句提示文字不能替代R02的恢复性检查。未跑新断言前不声称已红。",
+      "files": [
+        "tests/test_agent_duty_handoffs.py",
+        "tests/test_task_supervision.py",
+        "src/report_agent/content_tasks.py",
+        "src/report_agent/task_context.py",
+        "src/report_agent/decision_state.py",
+        "src/report_agent/deep_runtime.py"
+      ],
+      "limits": "Fake模型证明程序交付的状态；不能证明真实模型一定执行旧目标。"
+    },
+    {
+      "id": "R02",
+      "title": "摘要后仍能取得本次完整委派",
+      "duties": "C4 / W01 / L1",
+      "status": "待实现、待复现；是R01相邻路径假设，不是新增已确认bug",
+      "priority": 1,
+      "source": "tests/test_summary_context_provenance.py",
+      "fixture": "沿用R01，给本次委派加长但必要的限定，末尾明确15→20或“先调查不生成”。摘要fake故意只写旧目标。",
+      "trigger": "真正触发当前 WorkingSummary 消息归并，再继续原生 agent；同时记录摘要前后消息，确认当前指令确实离开普通保留窗口。另设原生checkpoint恢复及自动review followup变更指令场景。",
+      "observe": "摘要模型实际输入、压缩后消息、下一决策模型有效输入及授权的精确读取结果。",
+      "oracle": "即使摘要不可靠，完整本次指令及其限定仍在当前输入中，或输入提供确切本次调用引用和已注册可用工具路径，并实际调用读回全文/尾部且核对任务/调用身份；不能仅“库里有”或猜日志位置。原始委派仅作历史，取回的是本次handler文字而非首指令或新摘要。允许保留原生Human等不同实现，不指定新字段/状态库。",
+      "control": "未触发摘要时完整送达；本次指令不变；当前绑定、权限不得自动串入其他task；不禁止已有授权下读取历史DelegatedTask。异常/取消后隔离，原owner/grant不变。",
+      "sensitivity": "确认摘要真的发生且旧Human确被压缩，否则测试夹具无效；若当前实现已经保持完整委派，应记录通过，不能为了得到红例破坏业务前置条件。",
+      "files": [
+        "tests/test_summary_context_provenance.py",
+        "tests/test_task_context.py",
+        "tests/test_supervision_plugins.py",
+        "src/report_agent/working_summary.py",
+        "src/report_agent/task_context.py"
+      ],
+      "limits": "这是程序恢复性，不证明摘要模型总能写出正确摘要；label修改不能单独满足本用例。"
+    },
+    {
+      "id": "J01",
+      "title": "Writer收到工具的内容判断，而非只有生成成功",
+      "duties": "W05 / W06 / W08",
+      "status": "限定信息传递/保存已有证据；多项不同判断与消费决策仍有缺口",
+      "priority": 1,
+      "source": "tests/fixtures/boundary-trace-20261018.json#trace_sequence=1147",
+      "fixture": "两个有独立index的候选：A说明所给材料支持类别B；B说明原表“说明列”未提供、指标映射未核实，不能据此给确定分值。把关键限定放在长qualifiers末尾，generation_notes只放生成过程备注。",
+      "trigger": "fake独立文字工具经真实process_report_content返回，走native Writer下一输入；inline/offload、首次/缓存、旧投影重建及批量输出分别核。",
+      "observe": "原始公共响应→解析后的payload→receipt→决策投影→下一模型wire→明确采用后的保存对象。",
+      "oracle": "每个index的claim_kind、qualifiers、来源与未决条件完整且绑定正确；state=completed不被升级为内容已核验；正文被延后时有合法精确读取路径。只含过程备注不能代替技术限制。采用后原payload一致；不凭fake脚本宣称采纳判断正确。",
+      "control": "充分资料且无未决项的候选；空qualifiers是现有合法结构，不能单因为空判业务失败；两个输出的限制互换或只漏第二项应被识别。",
+      "sensitivity": "复用已执行的producer_limits_removed历史失真实验；新增尾部、跨index丢失实验只改测试内存，不改工作树程序。必须在实际下一输入的原断言失败，不能靠fixture报错算检出。",
+      "files": [
+        "tests/test_agent_result_delivery.py",
+        "tests/test_producer_observations.py",
+        "tests/test_agent_duty_handoffs.py",
+        "src/report_agent/text_work.py",
+        "src/report_agent/decision_data.py"
+      ],
+      "limits": "现有结构允许判断缺少业务信息；schema合法和全文保留不能证明判断充分。真实模型能否产出及消费判断另见J04。"
+    },
+    {
+      "id": "J02",
+      "title": "Reviewer的判断、依据与剩余工作分别传递",
+      "duties": "R3 / R4 / R8；R7产物审核另列兄弟缺口",
+      "status": "reason/verdict/state/coverage/check_results已有native证据；扩展观察限制与findings的独立对照",
+      "priority": 1,
+      "source": "tests/test_agent_result_delivery.py#test_reviewer_incomplete_judgment_reaches_next_model",
+      "fixture": "合法Assessment里分别放不同内容：verdict、reason、observations.limitations、coverage.unchecked、check_results.remaining、findings；关键项都能独立识别。对照completed/not_satisfied与blocked/null。",
+      "trigger": "perform_assigned_review→保存ReviewRecord→native Reviewer下一模型；inline/offload、缓存重用及返回Coordinator分别覆盖。",
+      "observe": "独立checker公共响应、保存版本、返回结构、真实消费者wire及父级接收的未完状态。",
+      "oracle": "上述判断与原始index/target/scope逐项一致；执行完成和satisfied不同；未完检查不得凭其他完成项闭合。F核父级收到真实partial/remaining、execution_complete未被程序改true；真实Agent如何总结/处置归J04。R7的perform_assigned_artifact_review不是本content路径，另需按实际产物判断结构设计兄弟用例，不能用此测试代称覆盖。",
+      "control": "完整且satisfied的合法样例；已完成但not_satisfied；blocked无verdict；故意漏一项/交换scope的反例。",
+      "sensitivity": "丢observations.limitations但保留reason、丢findings但保留verdict，各自须触发目标断言；不强迫其他类型工具使用Assessment。",
+      "files": [
+        "tests/test_agent_result_delivery.py",
+        "tests/test_bounded_review.py",
+        "tests/test_agent_duty_handoffs.py",
+        "src/report_agent/bounded_review.py",
+        "src/report_agent/decision_data.py"
+      ],
+      "limits": "人工构造的正确Assessment不证明真实checker判断正确；已有真实70对75–100样例只是一个小样本。"
+    },
+    {
+      "id": "J03",
+      "title": "通用分析工具的公开判断完整回到Agent",
+      "duties": "C3 / W03 / L2",
+      "status": "三角色×两工具全文传递已有证据；按判断含义区分的对照待补",
+      "priority": 1,
+      "source": "tests/test_agent_io_siblings.py#test_sibling_text_tools_receive_exact_selection_and_return_exact_findings",
+      "fixture": "简单资料：A条件有明确来源；B说法被同一来源反驳；Q未提供；只查第1页。fake公共analysis明确这四个不同信息，末尾声明第2页未读不能推断资料不存在。",
+      "trigger": "Coordinator/Writer/Layout当前可调用的analyze_text、analyze_evidence，保留真实选材与原生返回；不要向无此能力角色新增工具。",
+      "observe": "实际工具输入、analysis结果、选择范围与限制、下一Agent有效输入。",
+      "oracle": "当前契约analysis是字符串，须完整保存/送达其中的公开判断。区分源事实、推断、反驳、未知和所查范围；未强制分字段本身不自动算bug。若任务需要某判断但工具未给，登记业务信息缺口，不能以“JSON合法”掩盖，也不通过统一加verdict来代替设计判断。",
+      "control": "只改变Q为有明确来源，其他资料相同；完全支持/相互冲突/资料未读三种含义应能区分。",
+      "sensitivity": "保留fake模型原始analysis及独立fixture，在其之后的程序包装/传输位置仅删除末尾范围限制或把反驳项改为支持项，下一实际输入须与原始值比较而失败。改变fixture本身或让fake模型说反话属于另一种语义用例，不能算检出程序裁剪。",
+      "files": [
+        "tests/test_agent_io_siblings.py",
+        "src/report_agent/evidence_analysis.py",
+        "src/report_agent/decision_data.py"
+      ],
+      "limits": "Fake结果可证明不丢信息，不能证明真实分析总会包含必要判断；结构化不足是否需要改接口留给测试后的设计审查。"
+    },
+    {
+      "id": "J04",
+      "title": "判断是否足够，以及Agent会否合理使用",
+      "duties": "C6 / C8 / W06 / R4 / L2",
+      "status": "仅设计，当前不派发真实模型",
+      "priority": 2,
+      "source": ".analysis/agent-duty-validation-20261018/call-ledger.json",
+      "fixture": "复用J01–J03的小数据，成对只改变一个决定性条件：Q未知与Q有据；表样不完整与完整；审核仍有未查项与全部完成。",
+      "trigger": "先用fake检查完整真实输入；再按现有预算另登记小规模fake data→真实文字工具，以及固定工具公共结果→真实Agent下一步。两层分开观察，不执行未授权业务动作。",
+      "observe": "真实文字工具公开结果是否包含所需判断、Agent实际所见wire、公开动作参数/说明及usage/finish_reason。",
+      "oracle": "缺料可继续读、请求明确补证、保持条件性结果或报告未决，均可；不能宣称已核实、给无依据定值或结束为全通过。充足资料可合理继续，不要求唯一工具顺序。技术限制必须正确，不要求特定措辞；疑义由Neo依据固定材料审查。",
+      "control": "同一task/model/config、只变Q；schema不合法、判断错误、程序改写、Agent错误采用分别计，不能合并为一个“模型问题”。",
+      "sensitivity": "预先人工校准一份正确、一份明确错误公共结果；评价规则应识别二者。小样本通过不是稳定性或44项全覆盖。",
+      "files": [
+        "scripts/probe_agent_io.py",
+        "tests/test_agent_duty_handoffs.py",
+        "tests/test_agent_io_siblings.py"
+      ],
+      "limits": "本轮文档零付费调用；后续用原账本/phase准入，不自动补齐失败或重放unknown。"
+    },
+    {
+      "id": "A01",
+      "title": "根报告加三个子report仍只有一个目录",
+      "duties": "W10 / L3 / L4 / L5",
+      "status": "根+一个子report已有DOCX回归；三子节点+刷新+真实渲染组合待补",
+      "priority": 1,
+      "source": ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/neo-trace-review.md",
+      "fixture": "一个根report包含三个有不同正文标记的子report。控制组零个/一个子report；另测toc=False。保留子节点kind及所有原文，不能为过测试先删子report。",
+      "trigger": "native Layout获合法snapshot→export_content_snapshot(operation_id,snapshot_ref,layout={toc:true,refresh_toc:true})→真实Office刷新→render_content_export(operation_id,export_ref)。toc/refresh_toc属于layout，非顶层参数。fake仅替换Agent决策；导出器/Office/文件读取保持真实。",
+      "observe": "实际DOCX字段、全部正文与节点版本、Office更新记录、PDF/PNG产物及renderer身份。",
+      "oracle": "DOCX只一个TOC字段；各子正文保留；刷新/渲染不增加目录。目录跨多页合法，不能把目录页数当目录个数；页面形态与OOXML计数分别记录，视觉未查则不报视觉通过。",
+      "control": "toc=False为零字段；根+零/一/三个子report均在相应请求下仅一个目录；嵌套层级和子标题不得丢失。",
+      "sensitivity": "历史错误条件在测试内存中只恢复“每个report插目录”，原目录数量断言必须失败；当前已修版本应绿。不修改历史报告或回退工作树。",
+      "files": [
+        "tests/test_boundary_refactor.py",
+        "tests/test_agent_duty_visual.py",
+        "src/report_agent/content_export.py",
+        "src/report_agent/office_finalize.py"
+      ],
+      "limits": "用户观察三处目录；历史RCA发现四个TOC字段，两者不直接等同。小fixture不是重验原完整报告。"
+    },
+    {
+      "id": "I01",
+      "title": "读过完整指南不等于独立工具收到完整表样",
+      "duties": "C5 / W02 / W03 / W05",
+      "status": "显式refs全payload送达已有证据；从读到选择的策略及缺表样判断仍待验证",
+      "priority": 2,
+      "source": "tests/fixtures/boundary-trace-20261018.json#trace_sequence=1005,1147",
+      "fixture": "小指南表含指标、类别、分值、说明四列及一条适用条件；地勘明确类别B。完整选择、只传地勘、只传三列表片段是三个独立输入，不把缺说明偷偷补入fixture。",
+      "trigger": "Writer真实读取后调用独立文字工具，分别核显式refs/observation_refs/locators路径及错误引用；未选材料不假定跨模型自动继承。",
+      "observe": "Writer读取结果、实际调用参数、文字工具真实packet、返回限制与最终候选。",
+      "oracle": "显式选择必须完整到达且出处一致；未选表样的输入不得被测试说成“工具已收到”。F检验交接与拒绝；R检验Writer是否选择必要材料、工具是否在缺说明时报告未决；表格内容和注释按实际提供的完整原表核对。",
+      "control": "完整资料能工作；缺片段、错误版本/locator明确区分；不得把未读/未选升级成原资料不存在。",
+      "sensitivity": "保留已经选定的完整原始材料，在选材完成后的程序装配/传输位置只删除说明列或尾注，独立输入完整性oracle应失败。资料原本未选、fixture缺列或模型自行漏写属于不同策略/语义用例，不算程序裁剪。",
+      "files": [
+        "tests/test_agent_duty_handoffs.py",
+        "tests/test_evidence_interface.py",
+        "src/report_agent/text_work.py",
+        "src/report_agent/evidence_analysis.py"
+      ],
+      "limits": "不对全部指南表样格式作保证；不把固定选材脚本当真实Writer选材能力。"
+    },
+    {
+      "id": "A02",
+      "title": "格式要求到实际参数与Word产物",
+      "duties": "C2 / C6 / L1 / L3 / L4 / L6",
+      "status": "参数执行的部分产物测试已过；本客户完整规范到实际选择未通过验收",
+      "priority": 2,
+      "source": ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/format-standard-original-text.txt",
+      "fixture": "独立格式fixture取自已归档《报告编制格式标准》2.2、3.1/3.3、4.1、7.2、10.1：上/下/左25mm、右15mm、装订线0；一级/二级/三级标题宋体加粗18/15/14pt，正文宋体12pt，表内中文宋体10.5pt、数字英文Times New Roman10.5pt；目录标题宋体加粗16pt，各级目录宋体12pt（一级加粗）；标题/正文/表格/目录1.5倍。保留标准封面项目名称等单倍行距例外。旧布局对照：右25mm、正文1.3、表格1.15。值来自标准，不是由当前导出器反推。",
+      "trigger": "F：合法参数→实际Word，分别正文/表格/目录/局部覆盖；R：实际Layout收到规范与旧参数，自主选择，后续在隔离fixture执行合法结果。",
+      "observe": "Agent收到的规范、实际export参数、DOCX section/styles/paragraph/table属性及真实页面。",
+      "oracle": "依据独立fixture核最终实际段落/表格/目录的有效字体字号、继承/直接格式、边距行距及合法例外，保留原文；不能只查样式名，也不能用“旧版一致”代替符合。F只证工具执行参数，R+产物才支持规范落实；若当前接口不能表达条款，记录能力缺口而非伪造参数或跳过报绿。字体不可用/渲染替代另记，不以DOCX属性代称实际视觉符合。",
+      "control": "原本已合规参数无需强制改动；局部表格1.5应与全局和继承值一致；不覆盖明确的合法例外。",
+      "sensitivity": "恢复旧参数时符合性检查必须失败，即使新旧等价检查通过；字体/行距/边距分开诊断。",
+      "files": [
+        "tests/test_agent_duty_artifacts.py",
+        "tests/test_agent_duty_visual.py",
+        "tests/test_layout_table_controls.py",
+        "src/report_agent/content_export.py"
+      ],
+      "limits": "程序参数测试不能证明真实Agent会选择这些参数；渲染成功也不是视觉验收。",
+      "format_source": {
+        "path": ".analysis/implementation-resumed-20261014/layout-feedback-rca-20261016/format-standard-original-text.txt",
+        "sha256": "2b50a74db2bb3aa9566de5373d7765cb6b512f7771031b3f8667dd7673fe2443",
+        "sections": [
+          "2.2",
+          "3.1",
+          "3.3",
+          "4.1",
+          "5.2",
+          "7.2",
+          "10.1"
+        ],
+        "point_mapping": "小二18pt、小三15pt、四号14pt、小四12pt、五号10.5pt、三号16pt；测试实施前固定原文与映射，不由导出结果生成expected。"
+      }
+    }
+  ],
+  "execution_rules": [
+    "先固定来源trace、独立fixture、判据和正常对照；确认实际触发了目标路径。",
+    "当前未修缺陷：保存目标断言的真实失败，再调查根因。夹具或环境错误不是成功复现。",
+    "历史已修缺陷：保留历史失败/旧实现证据，当前版本同一行为断言应通过；有必要时在测试进程做受控历史失真，不修改工作树。",
+    "修复阶段仍暂停；将来先明确边界和代码，再以同一语义判据检查修复及兄弟路径。判据改变必须说明原判据为何错，保留修订前证据。",
+    "Fake LLM核程序；真实模型合成数据核输出和决策；两类覆盖分别报告。",
+    "不因一批绿而称44职责全覆盖；不把设计计入已执行测试。"
+  ],
+  "independent_review": {
+    "reviewer": "Neo",
+    "status": "design_review_passed_no_test_execution",
+    "corrections": [
+      "A01嵌套layout参数",
+      "R02授权历史读取与精确恢复",
+      "J02 content与artifact区分、父级F与语义区分",
+      "J03/I01失真注入点在程序传输层",
+      "A02独立标准的确切字体/字号及有效属性"
+    ],
+    "review_path": "neo-review.md",
+    "review_sha256": "4e1e21d4f2a0edd3f34cb55cbebf78efa1790daf65d764bb8c8b503936583c6b",
+    "reviewed_json_sha256_before_status_update": "ce266a6ca4b5b9cfea2d7ec7803244bd8f1359372d60fec8be469999fed1a8a5",
+    "reviewed_html_sha256_before_status_update": "50e394d161ecfef4ad162ddb3da5ac0c52f041d71dfd4059b2ace18f6facef6f",
+    "limits": "仅设计通过；九组未运行；D-RESUME未修；无新付费调用；不是44项全覆盖。"
+  },
+  "prior_evidence_reuse": [
+    "tests/test_agent_result_delivery.py",
+    "tests/test_producer_observations.py",
+    "tests/test_agent_io_siblings.py",
+    "tests/test_boundary_refactor.py",
+    "docs/reviews/agent-duty-validation-20261018/verification.json",
+    "docs/reviews/agent-io-fixes-20261018/verification.json"
+  ]
+}

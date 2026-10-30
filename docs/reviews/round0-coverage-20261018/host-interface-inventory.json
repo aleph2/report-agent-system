@@ -1,0 +1,154 @@
+{
+  "kind": "Source-declared inventory; not effective runtime/API contract coverage",
+  "http": [
+    {
+      "method": "GET",
+      "path": "/api/status",
+      "file": "src/report_agent/webapp.py",
+      "line": 87,
+      "function": "status",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/review-status",
+      "file": "src/report_agent/webapp.py",
+      "line": 119,
+      "function": "content_review_status",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/delivery",
+      "file": "src/report_agent/webapp.py",
+      "line": 133,
+      "function": "content_delivery_file",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/run",
+      "file": "src/report_agent/webapp.py",
+      "line": 168,
+      "function": "run",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/issues/{issue_id}/decision",
+      "file": "src/report_agent/webapp.py",
+      "line": 190,
+      "function": "decision",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sources",
+      "file": "src/report_agent/webapp.py",
+      "line": 197,
+      "function": "import_source",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sources/{source_id}",
+      "file": "src/report_agent/webapp.py",
+      "line": 211,
+      "function": "source_page",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/search",
+      "file": "src/report_agent/webapp.py",
+      "line": 218,
+      "function": "search",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/corrections",
+      "file": "src/report_agent/webapp.py",
+      "line": 225,
+      "function": "correction",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/export/{draft_id}",
+      "file": "src/report_agent/webapp.py",
+      "line": 233,
+      "function": "export",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "src/report_agent/webapp.py",
+      "line": 245,
+      "function": "index",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/learning",
+      "file": "src/report_agent/learning_api.py",
+      "line": 37,
+      "function": "learning_state",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/learning/reports",
+      "file": "src/report_agent/learning_api.py",
+      "line": 43,
+      "function": "reports",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/learning/evidence",
+      "file": "src/report_agent/learning_api.py",
+      "line": 65,
+      "function": "evidence",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/learning/feedback",
+      "file": "src/report_agent/learning_api.py",
+      "line": 80,
+      "function": "feedback",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/learning/experience/{identifier}/revision",
+      "file": "src/report_agent/learning_api.py",
+      "line": 89,
+      "function": "revise",
+      "contract_coverage": "not_measured"
+    },
+    {
+      "method": "POST",
+      "path": "/api/learning/experience/{identifier}/release",
+      "file": "src/report_agent/learning_api.py",
+      "line": 105,
+      "function": "release",
+      "contract_coverage": "not_measured"
+    }
+  ],
+  "cli": [
+    "init",
+    "run",
+    "status",
+    "events",
+    "feedback",
+    "report-run",
+    "report-status",
+    "serve",
+    "export",
+    "import",
+    "content-delivery"
+  ]
+}

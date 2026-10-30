@@ -1,0 +1,3164 @@
+{
+  "origin": "actual03 public synthetic object evidence; no request replay",
+  "source_sha256": "4415efab7d434bb89a37c9e2e50edd737c5fb4a88ed7ace9aaf2404feb908a80",
+  "task": {
+    "commission_origin": {
+      "goal": "为虚构的青禾资料站编制《标牌维护资料核对简报》，向资料管理员交付中文Word报告及与其同一成果版本对应的Excel数量费用表。只使用所给OCR后模拟资料；这不是现实工程、施工设计或正式验收。内容精简，以项目和依据、数量费用核对、差异及未决事项为主要内容，结构与工作安排自主决定。必须满足七项要求：1）项目对象、资料日期、用途与本次资料核对范围准确；2）逐项列出两类标牌的单位、数量及其来源；3）按给定含税单价核算各项金额、数量和费用合计，Word与Excel一致，不能自行增加项目或费用；4）比较原始清点表和汇总便笺，按本委托指定的依据优先级采用数量，同时如实说明差异；5）区分资料核对与实施/质量验收，清楚保留涂层厚度资料缺失对结论的限制，不虚构补测、审批、签名或完成实施；6）独立审核实际保存的成果及七项要求，保留可定位证据、实际校验结论和未完成事项，正确成果可以通过，资料本身缺失不能被说成质量已合格；7）交付实际可打开的Word和Excel，保留成果与审核所针对的版本关系，简报的文字/表格应可读，说明交付、审核和未决状态。可以提交诚实保留局限的简报，不需要为缺失原始记录等待人补齐才能写完，也不得据此声称标牌工程已验收。",
+      "scope_instruction": "这是从OCR后开始的一次独立模拟委托，不做OCR，不调用外网补证或现实项目材料。原始清点表为本次数量采用依据，内部汇总便笺仅作差异对照；单价单为本次费用估算依据。已有材料不足以做实体质量验收，不能把简报审核通过写成工程质量通过。"
+    },
+    "delegated_by": "content:coordinator",
+    "goal": "对已冻结并已导出的成果做独立审核。\n\n对象：冻结快照 {DocumentSnapshot, id:8d3e8bcc-0eef-4818-9b42-353da8b59fee, v1}（根节点为报告《青禾资料站标牌维护资料核对简报》，含报告树、工作簿专用节点、来源、证据与验收标准）。\n已导出的实际文件（与被审快照同版本）：\n- Word：{ExportArtifact, id:a54ac665-f874-4c0f-aaee-a31c5f7bf69c, v1}\n- Excel：{ExportArtifact, id:fe575c21-1c30-44cc-8fb2-79756a15bec8, v1}\n\n背景（仅供定位，不构成结论）：这是从OCR后开始的独立模拟委托，仅使用三份模拟资料——原始清点表 qh5-count（SourceArtifact 76a99fce-e90d-46eb-bf6b-9c4e98a847af）、含税费用单 qh5-price（306e184c-967d-43c4-b344-45afff872d06）、内部汇总便笺 qh5-memo（a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4）。委托指定依据优先级：原始清点表为数量采用依据，便笺仅作差异对照，单价单为费用估算依据。此非现实工程、施工设计或正式验收。\n\n请按你被分配的完整验收标准体系与范围独立开展验证：\n- 自行选择核验方法，实际读取被审内容与所给来源，独立复核数量、单价、乘积与费用合计，并核对 Word 与 Excel 是否同一成果版本、数值是否一致；\n- 对每一条分配到的标准给出有可定位证据支撑的判断，保留实际校验结论、未能核实项与未完成事项；\n- 正确成果可以通过；但资料本身缺失（如无涂层厚度检测、无补测、无实施完成记录、无验收意见）不得被判为质量已合格或已验收；审核结论不得写成工程质量通过；\n- 不要改写报告内容（如需修改请说明问题与影响，交由原 Writer 处理）。\n\n期望返回：针对每条标准的分项判断与依据、对实际文件的核验结论（含 Word/Excel 版本对应与一致性）、发现的问题/缺陷及其影响、未能完成或需人工决定的事项。",
+    "handoff_release_digest": "ae133777bfcfa0b4ddfa4c7bc54628f5c3a176b40ed5276b17fe97ea743734ea",
+    "review_commission_basis": {
+      "commission_origin": {
+        "goal": "为虚构的青禾资料站编制《标牌维护资料核对简报》，向资料管理员交付中文Word报告及与其同一成果版本对应的Excel数量费用表。只使用所给OCR后模拟资料；这不是现实工程、施工设计或正式验收。内容精简，以项目和依据、数量费用核对、差异及未决事项为主要内容，结构与工作安排自主决定。必须满足七项要求：1）项目对象、资料日期、用途与本次资料核对范围准确；2）逐项列出两类标牌的单位、数量及其来源；3）按给定含税单价核算各项金额、数量和费用合计，Word与Excel一致，不能自行增加项目或费用；4）比较原始清点表和汇总便笺，按本委托指定的依据优先级采用数量，同时如实说明差异；5）区分资料核对与实施/质量验收，清楚保留涂层厚度资料缺失对结论的限制，不虚构补测、审批、签名或完成实施；6）独立审核实际保存的成果及七项要求，保留可定位证据、实际校验结论和未完成事项，正确成果可以通过，资料本身缺失不能被说成质量已合格；7）交付实际可打开的Word和Excel，保留成果与审核所针对的版本关系，简报的文字/表格应可读，说明交付、审核和未决状态。可以提交诚实保留局限的简报，不需要为缺失原始记录等待人补齐才能写完，也不得据此声称标牌工程已验收。",
+        "scope_instruction": "这是从OCR后开始的一次独立模拟委托，不做OCR，不调用外网补证或现实项目材料。原始清点表为本次数量采用依据，内部汇总便笺仅作差异对照；单价单为本次费用估算依据。已有材料不足以做实体质量验收，不能把简报审核通过写成工程质量通过。"
+      },
+      "contract": "review-commission-basis-v1",
+      "criteria": [
+        {
+          "created_at": "2026-10-25T11:24:14.808612+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "无外部发放渠道要求；不要求额外渲染审批。",
+            "evidence_expectation": "实际保存的导出文件（DOCX、XLSX）与其所绑定快照版本，及交付说明。",
+            "expected_outcome": "交付同一成果版本的Word与Excel，可实际打开；报告文字与表格可读；交付说明包含审核与被审版本对应关系及未决状态说明。",
+            "purpose": "确认交付实际可打开的Word与Excel，保留成果与审核所针对的版本关系，文字/表格可读，并说明交付、审核与未决状态。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "交付的Word报告与同版本Excel数量费用表。"
+          },
+          "payload_digest": "6c75504066f8202189ea41d8334fee0099104c89d91ad0db80caced74e734878",
+          "previous_ref": null,
+          "ref": {
+            "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:24:14.803222+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "资料本身为虚构模拟数据；不要求现实工程信息、审批或签名。",
+            "evidence_expectation": "报告正文可定位文字；与三份来源资料的表头日期与内容一致。",
+            "expected_outcome": "明确写出对象为青禾资料站标牌维护资料核对、资料日期2026-10-20、用途为数量与费用资料核对、范围为所给三份OCR后模拟资料（原始清点表、含税费用单、内部汇总便笺），并说明仅为模拟资料核对。",
+            "purpose": "确认简报准确交代本次资料核对的项目对象、资料日期、用途与核对范围。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "报告正文中项目与依据部分。"
+          },
+          "payload_digest": "535c76f2d648b92868471cb44052f7f7e68b37d8da6dfcb139d2edefcee04cc0",
+          "previous_ref": null,
+          "ref": {
+            "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:24:14.808251+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "仅有清点表与便笺作为数量来源；不得引入未提供的新的标牌种类或数量来源。",
+            "evidence_expectation": "报告文字/表格与Excel工作表均含两类标牌的单位与数量及来源标注。",
+            "expected_outcome": "分方向标牌D与提示标牌T两项，各列单位（块）、采用数量及来源（原始清点表），来源可定位。",
+            "purpose": "确认逐项列出两类标牌的单位、数量及其来源。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "报告数量部分与Excel数量列。"
+          },
+          "payload_digest": "459257a107de70dc725fa61bf02cc9cf3c3ceec7073edac81628f051e366808b",
+          "previous_ref": null,
+          "ref": {
+            "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:24:14.808518+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "资料缺失即如实记为缺失与未决，不得写成质量已合格或已验收。",
+            "evidence_expectation": "报告可定位文字与该限制表述；无任何虚构的检测、补测、审批、签名或完成记录。",
+            "expected_outcome": "明确本次仅为资料核对，不构成施工、维护完成或实体质量验收；指出无涂层厚度检测、无现场补测、无实施完成记录、无验收意见；本次不委托补测，缺失不能判定厚度合格或不合格。",
+            "purpose": "确认区分资料核对与实施/质量验收，保留涂层厚度资料缺失对结论的限制，不虚构补测/审批/签名/完成实施。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              },
+              {
+                "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "报告未决事项与结论限制部分。"
+          },
+          "payload_digest": "68562529e1d022980926c453ce08ed3749e9a3353f7dda10696f23bb37d9ddd4",
+          "previous_ref": null,
+          "ref": {
+            "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:24:14.808566+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "审核不改变成果内容；资料本身缺失不得判为质量合格。",
+            "evidence_expectation": "版本绑定（快照、导出）与审核记录；可定位证据与校验结论。",
+            "expected_outcome": "审核针对保存版本开展，给出可比对证据、实际校验结论与未完成事项；正确内容可以通过，资料缺失不被写成质量已合格；审核结论与工程验收区分。",
+            "purpose": "确认对实际保存的成果及七项要求进行了独立审核，保留可定位证据、实际校验结论与未完成事项。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "独立审核所针对的冻结成果版本（Word与Excel）。"
+          },
+          "payload_digest": "649294fbf258d9d14ff90aea0705972d3d85311f232693634018cd71e1320c1a",
+          "previous_ref": null,
+          "ref": {
+            "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:24:14.808368+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "单价与税内含于所给费用单；不得添加费用项目，不得改写单价。",
+            "evidence_expectation": "可复核乘积与合计（9×120=1080；6×180=1080；合计2160），两成果版本对应且数值一致。",
+            "expected_outcome": "按D 120元/块、T 180元/块核算：D金额1080元、T金额1080元、费用合计2160元；Word与Excel数值一致，项目仅两类，未加税费/管理费/损耗等。",
+            "purpose": "确认按给定含税单价核算各项金额、数量与费用合计，Word与Excel一致，不自行增加项目或费用。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "报告费用部分与Excel金额列及合计。"
+          },
+          "payload_digest": "26cf58a8c8f95ee536a79a0fd82211a3ca884fb1b3cf9b962a47852494734590",
+          "previous_ref": null,
+          "ref": {
+            "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:24:14.808446+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "allowed_limits": "缺少差异原因的原始依据，只能如实记载差异与未决事项，不得虚构原因或变更记录。",
+            "evidence_expectation": "报告可定位文字同时呈现两来源数值、差异及采用理由；采用值与清点表一致。",
+            "expected_outcome": "以原始清点表为数量采用依据（D=9块、T=6块、合计15块）；说明便笺记为D=10块、合计16块，与清点表方向标牌数量相差1块且未说明原因、无后续变更记录；明确内部汇总不取代原始清点表。",
+            "purpose": "确认比较原始清点表与汇总便笺，按委托指定依据优先级采用数量，并如实说明差异。",
+            "requirement_refs": [
+              {
+                "id": "289a0018-6f49-4692-9717-811d3b635151",
+                "type": "Requirement",
+                "version": 1
+              },
+              {
+                "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+                "type": "Requirement",
+                "version": 1
+              }
+            ],
+            "scope": "报告差异说明部分。"
+          },
+          "payload_digest": "9a3da1312c7ffacd292ae304e2238b427ff7274325e88ecd5fb6737e1585d2e9",
+          "previous_ref": null,
+          "ref": {
+            "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+            "type": "Criterion",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        }
+      ],
+      "criterion_refs": [
+        {
+          "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+          "type": "Criterion",
+          "version": 1
+        },
+        {
+          "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+          "type": "Criterion",
+          "version": 1
+        },
+        {
+          "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+          "type": "Criterion",
+          "version": 1
+        },
+        {
+          "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+          "type": "Criterion",
+          "version": 1
+        },
+        {
+          "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+          "type": "Criterion",
+          "version": 1
+        },
+        {
+          "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+          "type": "Criterion",
+          "version": 1
+        },
+        {
+          "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+          "type": "Criterion",
+          "version": 1
+        }
+      ],
+      "digest": "e7218ff7e31afbe688118533b12a2ac39df3d57f9ef97dc08c4505f79ffbb466",
+      "original_requirement_refs": [
+        {
+          "id": "289a0018-6f49-4692-9717-811d3b635151",
+          "type": "Requirement",
+          "version": 1
+        },
+        {
+          "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+          "type": "Requirement",
+          "version": 1
+        }
+      ],
+      "original_requirements": [
+        {
+          "created_at": "2026-10-25T11:23:49.028722+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "origin": "project manifest goal",
+            "scope": "project commission",
+            "text": "为虚构的青禾资料站编制《标牌维护资料核对简报》，向资料管理员交付中文Word报告及与其同一成果版本对应的Excel数量费用表。只使用所给OCR后模拟资料；这不是现实工程、施工设计或正式验收。内容精简，以项目和依据、数量费用核对、差异及未决事项为主要内容，结构与工作安排自主决定。必须满足七项要求：1）项目对象、资料日期、用途与本次资料核对范围准确；2）逐项列出两类标牌的单位、数量及其来源；3）按给定含税单价核算各项金额、数量和费用合计，Word与Excel一致，不能自行增加项目或费用；4）比较原始清点表和汇总便笺，按本委托指定的依据优先级采用数量，同时如实说明差异；5）区分资料核对与实施/质量验收，清楚保留涂层厚度资料缺失对结论的限制，不虚构补测、审批、签名或完成实施；6）独立审核实际保存的成果及七项要求，保留可定位证据、实际校验结论和未完成事项，正确成果可以通过，资料本身缺失不能被说成质量已合格；7）交付实际可打开的Word和Excel，保留成果与审核所针对的版本关系，简报的文字/表格应可读，说明交付、审核和未决状态。可以提交诚实保留局限的简报，不需要为缺失原始记录等待人补齐才能写完，也不得据此声称标牌工程已验收。"
+          },
+          "payload_digest": "0c973d104eacf40ad03a0c10ac8c79759c04fe66d8f74544a34993ab85db3ddc",
+          "previous_ref": null,
+          "ref": {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        },
+        {
+          "created_at": "2026-10-25T11:23:49.032436+00:00",
+          "created_by": "content:coordinator",
+          "owner_id": "content:coordinator",
+          "payload": {
+            "origin": "project manifest scope_instruction",
+            "scope": "user scope instruction",
+            "text": "这是从OCR后开始的一次独立模拟委托，不做OCR，不调用外网补证或现实项目材料。原始清点表为本次数量采用依据，内部汇总便笺仅作差异对照；单价单为本次费用估算依据。已有材料不足以做实体质量验收，不能把简报审核通过写成工程质量通过。"
+          },
+          "payload_digest": "28e528154984102878358f906a50ad08c0af2bafbeba5c000d92d946344b1e8c",
+          "previous_ref": null,
+          "ref": {
+            "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+            "type": "Requirement",
+            "version": 1
+          },
+          "schema_version": "hierarchical-review-v1",
+          "task_id": "content-task:coordinator"
+        }
+      ],
+      "scoped_instructions": null
+    },
+    "review_interface_profile": "review-interfaces-v4",
+    "review_requirements": [
+      {
+        "artifact_check_scopes": [],
+        "artifact_refs": [],
+        "assessment_kind": "content",
+        "content_check_scopes": [
+          {
+            "kind": "subtree_bodies",
+            "node_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            },
+            "requirement_index": 0
+          }
+        ],
+        "criterion_ref": {
+          "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [
+          {
+            "id": "221168d1-0858-438a-82e0-db85ead5256b",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "4513c388-a180-459a-bc30-748880b19e09",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "明确写出对象为青禾资料站标牌维护资料核对、资料日期2026-10-20、用途为数量与费用资料核对、范围为所给三份OCR后模拟资料（原始清点表、含税费用单、内部汇总便笺），并说明仅为模拟资料核对。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:ab5fae5b7a22b5d4a6d3f6faf5bf55f421415488baf6cbe255eadec6c72982a8",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      {
+        "artifact_check_scopes": [],
+        "artifact_refs": [],
+        "assessment_kind": "content",
+        "content_check_scopes": [
+          {
+            "kind": "subtree_bodies",
+            "node_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            },
+            "requirement_index": 0
+          }
+        ],
+        "criterion_ref": {
+          "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [
+          {
+            "id": "221168d1-0858-438a-82e0-db85ead5256b",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "4513c388-a180-459a-bc30-748880b19e09",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "分方向标牌D与提示标牌T两项，各列单位（块）、采用数量及来源（原始清点表），来源可定位。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:88d8b6f26a0c3d54af0ebe81584a619b59c7a86917a3c4e91e80a0aeba80a6d1",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      {
+        "artifact_check_scopes": [],
+        "artifact_refs": [],
+        "assessment_kind": "content",
+        "content_check_scopes": [
+          {
+            "kind": "subtree_bodies",
+            "node_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            },
+            "requirement_index": 0
+          }
+        ],
+        "criterion_ref": {
+          "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [
+          {
+            "id": "221168d1-0858-438a-82e0-db85ead5256b",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "4513c388-a180-459a-bc30-748880b19e09",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "明确本次仅为资料核对，不构成施工、维护完成或实体质量验收；指出无涂层厚度检测、无现场补测、无实施完成记录、无验收意见；本次不委托补测，缺失不能判定厚度合格或不合格。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:259d11ea4618cbdd39d23f2a27ca48e98a0700cea8d67444c9a727ad3889966e",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      {
+        "artifact_check_scopes": [],
+        "artifact_refs": [],
+        "assessment_kind": "content",
+        "content_check_scopes": [
+          {
+            "kind": "subtree_bodies",
+            "node_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            },
+            "requirement_index": 0
+          }
+        ],
+        "criterion_ref": {
+          "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [
+          {
+            "id": "221168d1-0858-438a-82e0-db85ead5256b",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "4513c388-a180-459a-bc30-748880b19e09",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "审核针对保存版本开展，给出可比对证据、实际校验结论与未完成事项；正确内容可以通过，资料缺失不被写成质量已合格；审核结论与工程验收区分。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:5e12a1e233ac68b38e85b6b9f7cc4004955939b30109a4215114e309c42db4fd",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      {
+        "artifact_check_scopes": [],
+        "artifact_refs": [],
+        "assessment_kind": "content",
+        "content_check_scopes": [
+          {
+            "kind": "subtree_bodies",
+            "node_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            },
+            "requirement_index": 0
+          }
+        ],
+        "criterion_ref": {
+          "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [
+          {
+            "id": "221168d1-0858-438a-82e0-db85ead5256b",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "4513c388-a180-459a-bc30-748880b19e09",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "以原始清点表为数量采用依据（D=9块、T=6块、合计15块）；说明便笺记为D=10块、合计16块，与清点表方向标牌数量相差1块且未说明原因、无后续变更记录；明确内部汇总不取代原始清点表。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:bf539655910fa8ec82eb52d154e22791d59077b8b5443f25ac811c5720e66328",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      {
+        "artifact_check_scopes": [
+          {
+            "artifact_ref": {
+              "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+              "type": "ExportArtifact",
+              "version": 1
+            },
+            "kind": "export_structure",
+            "pages": [],
+            "requirement_index": 0
+          }
+        ],
+        "artifact_refs": [
+          {
+            "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+            "type": "ExportArtifact",
+            "version": 1
+          },
+          {
+            "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+            "type": "ExportArtifact",
+            "version": 1
+          }
+        ],
+        "assessment_kind": "export",
+        "content_check_scopes": [],
+        "criterion_ref": {
+          "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "交付同一成果版本的Word与Excel，可实际打开；报告文字与表格可读；交付说明包含审核与被审版本对应关系及未决状态说明。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:97f8902511732fc429816c61fd94cbd8f7a7b7de933d1cba9994430fbeac3352",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      {
+        "artifact_check_scopes": [
+          {
+            "artifact_ref": {
+              "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+              "type": "ExportArtifact",
+              "version": 1
+            },
+            "kind": "export_structure",
+            "pages": [],
+            "requirement_index": 0
+          }
+        ],
+        "artifact_refs": [
+          {
+            "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+            "type": "ExportArtifact",
+            "version": 1
+          },
+          {
+            "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+            "type": "ExportArtifact",
+            "version": 1
+          }
+        ],
+        "assessment_kind": "export",
+        "content_check_scopes": [],
+        "criterion_ref": {
+          "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+          "type": "Criterion",
+          "version": 1
+        },
+        "material_refs": [],
+        "presentation_reference_ref": null,
+        "reference_page_bindings": [],
+        "require_check_evidence": true,
+        "required_checks": [
+          "按D 120元/块、T 180元/块核算：D金额1080元、T金额1080元、费用合计2160元；Word与Excel数值一致，项目仅两类，未加税费/管理费/损耗等。"
+        ],
+        "required_materials": [],
+        "required_read_refs": [],
+        "scope_id": "v4:9e6236e713c9fa949c193404c49c3ee551d9008e70ee7b4fbc60e60fa9f1cff6",
+        "source_ranges": [],
+        "target_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      }
+    ],
+    "review_selection": {
+      "deliverable": {
+        "kind": "snapshot",
+        "snapshot_ref": {
+          "id": "8d3e8bcc-0eef-4818-9b42-353da8b59fee",
+          "type": "DocumentSnapshot",
+          "version": 1
+        }
+      },
+      "scope": {
+        "items": [
+          {
+            "artifact_refs": [],
+            "assessment_kind": "content",
+            "criterion_ref": {
+              "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": "subtree_bodies",
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          },
+          {
+            "artifact_refs": [],
+            "assessment_kind": "content",
+            "criterion_ref": {
+              "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": "subtree_bodies",
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          },
+          {
+            "artifact_refs": [],
+            "assessment_kind": "content",
+            "criterion_ref": {
+              "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": "subtree_bodies",
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          },
+          {
+            "artifact_refs": [],
+            "assessment_kind": "content",
+            "criterion_ref": {
+              "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": "subtree_bodies",
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          },
+          {
+            "artifact_refs": [],
+            "assessment_kind": "content",
+            "criterion_ref": {
+              "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": "subtree_bodies",
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          },
+          {
+            "artifact_refs": [
+              {
+                "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+                "type": "ExportArtifact",
+                "version": 1
+              },
+              {
+                "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+                "type": "ExportArtifact",
+                "version": 1
+              }
+            ],
+            "assessment_kind": "export",
+            "criterion_ref": {
+              "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": {
+              "artifact_ref": {
+                "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+                "type": "ExportArtifact",
+                "version": 1
+              },
+              "kind": "export_structure",
+              "pages": [],
+              "requirement_index": 0
+            },
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          },
+          {
+            "artifact_refs": [
+              {
+                "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+                "type": "ExportArtifact",
+                "version": 1
+              },
+              {
+                "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+                "type": "ExportArtifact",
+                "version": 1
+              }
+            ],
+            "assessment_kind": "export",
+            "criterion_ref": {
+              "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+              "type": "Criterion",
+              "version": 1
+            },
+            "extent": {
+              "artifact_ref": {
+                "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+                "type": "ExportArtifact",
+                "version": 1
+              },
+              "kind": "export_structure",
+              "pages": [],
+              "requirement_index": 0
+            },
+            "presentation_reference_ref": null,
+            "reference_page_bindings": [],
+            "target_ref": {
+              "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+              "type": "ContentNode",
+              "version": 1
+            }
+          }
+        ],
+        "kind": "mapped"
+      },
+      "standards": {
+        "criterion_refs": [
+          {
+            "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+            "type": "Criterion",
+            "version": 1
+          }
+        ],
+        "kind": "criteria"
+      }
+    },
+    "review_snapshot_ref": {
+      "id": "8d3e8bcc-0eef-4818-9b42-353da8b59fee",
+      "type": "DocumentSnapshot",
+      "version": 1
+    },
+    "role": "reviewer",
+    "scoped_instructions": null,
+    "supervision_plugin": null,
+    "write_scope": "Only artifacts produced by this task; read other project artifacts."
+  },
+  "objects": [
+    {
+      "created_at": "2026-10-25T11:23:49.028722+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "origin": "project manifest goal",
+        "scope": "project commission",
+        "text": "为虚构的青禾资料站编制《标牌维护资料核对简报》，向资料管理员交付中文Word报告及与其同一成果版本对应的Excel数量费用表。只使用所给OCR后模拟资料；这不是现实工程、施工设计或正式验收。内容精简，以项目和依据、数量费用核对、差异及未决事项为主要内容，结构与工作安排自主决定。必须满足七项要求：1）项目对象、资料日期、用途与本次资料核对范围准确；2）逐项列出两类标牌的单位、数量及其来源；3）按给定含税单价核算各项金额、数量和费用合计，Word与Excel一致，不能自行增加项目或费用；4）比较原始清点表和汇总便笺，按本委托指定的依据优先级采用数量，同时如实说明差异；5）区分资料核对与实施/质量验收，清楚保留涂层厚度资料缺失对结论的限制，不虚构补测、审批、签名或完成实施；6）独立审核实际保存的成果及七项要求，保留可定位证据、实际校验结论和未完成事项，正确成果可以通过，资料本身缺失不能被说成质量已合格；7）交付实际可打开的Word和Excel，保留成果与审核所针对的版本关系，简报的文字/表格应可读，说明交付、审核和未决状态。可以提交诚实保留局限的简报，不需要为缺失原始记录等待人补齐才能写完，也不得据此声称标牌工程已验收。"
+      },
+      "payload_digest": "0c973d104eacf40ad03a0c10ac8c79759c04fe66d8f74544a34993ab85db3ddc",
+      "previous_ref": null,
+      "ref": {
+        "id": "289a0018-6f49-4692-9717-811d3b635151",
+        "type": "Requirement",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:23:49.032436+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "origin": "project manifest scope_instruction",
+        "scope": "user scope instruction",
+        "text": "这是从OCR后开始的一次独立模拟委托，不做OCR，不调用外网补证或现实项目材料。原始清点表为本次数量采用依据，内部汇总便笺仅作差异对照；单价单为本次费用估算依据。已有材料不足以做实体质量验收，不能把简报审核通过写成工程质量通过。"
+      },
+      "payload_digest": "28e528154984102878358f906a50ad08c0af2bafbeba5c000d92d946344b1e8c",
+      "previous_ref": null,
+      "ref": {
+        "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+        "type": "Requirement",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:23:49.032514+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "content": "【清点表表头】青禾资料站标牌维护资料核对；记录日2026-10-20；数量单位：块。全部为虚构数据。\n【清点表行1】方向标牌，编码D，数量9块。\n【清点表行2】提示标牌，编码T，数量6块。\n【范围附注】这是台账清点，不证明已施工或维护完成；没有涂层厚度检测、现场补测、实施完成记录或实体质量验收意见。本次不委托补测，缺记录不能判定厚度合格或不合格；后续实体质量判断需另取得适用要求及真实记录。",
+        "coverage": "complete",
+        "file_digest": "a914fc24620cdb3297206001bc14331307bbf4e78e32e70a50fe38bb064999d9",
+        "source_id": "qh5-count",
+        "source_metadata": {
+          "coverage": "complete",
+          "current": true,
+          "document_id": "qh5-count",
+          "id": "qh5-count",
+          "limitations": [],
+          "replaces_id": "",
+          "text_digest": "a914fc24620cdb3297206001bc14331307bbf4e78e32e70a50fe38bb064999d9",
+          "title": "模拟资料01：原始清点表，OCR后全文"
+        }
+      },
+      "payload_digest": "6a4c4a4eee62bcf3928d32e11b3b74a07f17388534404f27baf2fc827cb185e8",
+      "previous_ref": null,
+      "ref": {
+        "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+        "type": "SourceArtifact",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:23:49.032994+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "content": "【费用单表头】人民币元；每块含税单价，仅作本次资料核对的费用估算。\n【费用单行1】方向标牌D：120元/块。\n【费用单行2】提示标牌T：180元/块。\n【费用单附注】不另加税费、管理费、损耗率或其他项目；不是支付凭证、合同或批准预算。",
+        "coverage": "complete",
+        "file_digest": "5566af64deb524d9496c525bf634af58efc9ce5854d968038dfb5900dd706153",
+        "source_id": "qh5-price",
+        "source_metadata": {
+          "coverage": "complete",
+          "current": true,
+          "document_id": "qh5-price",
+          "id": "qh5-price",
+          "limitations": [],
+          "replaces_id": "",
+          "text_digest": "5566af64deb524d9496c525bf634af58efc9ce5854d968038dfb5900dd706153",
+          "title": "模拟资料02：含税费用单，OCR后全文"
+        }
+      },
+      "payload_digest": "fc4249a6389e31fb3f8e21ac69dfabf852d490e8e46c951d4f5294d68f012956",
+      "previous_ref": null,
+      "ref": {
+        "id": "306e184c-967d-43c4-b344-45afff872d06",
+        "type": "SourceArtifact",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:23:49.033042+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "content": "【便笺第1段】2026-10-20内部初步汇总：方向标牌D为10块，提示标牌T为6块，合计16块。\n【便笺第2段】未说明方向标牌与原始清点表数量差异的原因，也无后续变更记录；内部汇总不取代原始清点表。",
+        "coverage": "complete",
+        "file_digest": "c8158ae4ae3d590c3c970d001eab0f813003fd07e2a64028ad780ff286bba240",
+        "source_id": "qh5-memo",
+        "source_metadata": {
+          "coverage": "complete",
+          "current": true,
+          "document_id": "qh5-memo",
+          "id": "qh5-memo",
+          "limitations": [],
+          "replaces_id": "",
+          "text_digest": "c8158ae4ae3d590c3c970d001eab0f813003fd07e2a64028ad780ff286bba240",
+          "title": "模拟资料03：内部汇总便笺，OCR后全文"
+        }
+      },
+      "payload_digest": "773600fc8d625ec912e5a55d3ed6f42765d86e4c1704660693de0f8319f0bd9e",
+      "previous_ref": null,
+      "ref": {
+        "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+        "type": "SourceArtifact",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.803222+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "资料本身为虚构模拟数据；不要求现实工程信息、审批或签名。",
+        "evidence_expectation": "报告正文可定位文字；与三份来源资料的表头日期与内容一致。",
+        "expected_outcome": "明确写出对象为青禾资料站标牌维护资料核对、资料日期2026-10-20、用途为数量与费用资料核对、范围为所给三份OCR后模拟资料（原始清点表、含税费用单、内部汇总便笺），并说明仅为模拟资料核对。",
+        "purpose": "确认简报准确交代本次资料核对的项目对象、资料日期、用途与核对范围。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "报告正文中项目与依据部分。"
+      },
+      "payload_digest": "535c76f2d648b92868471cb44052f7f7e68b37d8da6dfcb139d2edefcee04cc0",
+      "previous_ref": null,
+      "ref": {
+        "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.808251+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "仅有清点表与便笺作为数量来源；不得引入未提供的新的标牌种类或数量来源。",
+        "evidence_expectation": "报告文字/表格与Excel工作表均含两类标牌的单位与数量及来源标注。",
+        "expected_outcome": "分方向标牌D与提示标牌T两项，各列单位（块）、采用数量及来源（原始清点表），来源可定位。",
+        "purpose": "确认逐项列出两类标牌的单位、数量及其来源。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "报告数量部分与Excel数量列。"
+      },
+      "payload_digest": "459257a107de70dc725fa61bf02cc9cf3c3ceec7073edac81628f051e366808b",
+      "previous_ref": null,
+      "ref": {
+        "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.808368+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "单价与税内含于所给费用单；不得添加费用项目，不得改写单价。",
+        "evidence_expectation": "可复核乘积与合计（9×120=1080；6×180=1080；合计2160），两成果版本对应且数值一致。",
+        "expected_outcome": "按D 120元/块、T 180元/块核算：D金额1080元、T金额1080元、费用合计2160元；Word与Excel数值一致，项目仅两类，未加税费/管理费/损耗等。",
+        "purpose": "确认按给定含税单价核算各项金额、数量与费用合计，Word与Excel一致，不自行增加项目或费用。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "报告费用部分与Excel金额列及合计。"
+      },
+      "payload_digest": "26cf58a8c8f95ee536a79a0fd82211a3ca884fb1b3cf9b962a47852494734590",
+      "previous_ref": null,
+      "ref": {
+        "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.808446+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "缺少差异原因的原始依据，只能如实记载差异与未决事项，不得虚构原因或变更记录。",
+        "evidence_expectation": "报告可定位文字同时呈现两来源数值、差异及采用理由；采用值与清点表一致。",
+        "expected_outcome": "以原始清点表为数量采用依据（D=9块、T=6块、合计15块）；说明便笺记为D=10块、合计16块，与清点表方向标牌数量相差1块且未说明原因、无后续变更记录；明确内部汇总不取代原始清点表。",
+        "purpose": "确认比较原始清点表与汇总便笺，按委托指定依据优先级采用数量，并如实说明差异。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          },
+          {
+            "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "报告差异说明部分。"
+      },
+      "payload_digest": "9a3da1312c7ffacd292ae304e2238b427ff7274325e88ecd5fb6737e1585d2e9",
+      "previous_ref": null,
+      "ref": {
+        "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.808518+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "资料缺失即如实记为缺失与未决，不得写成质量已合格或已验收。",
+        "evidence_expectation": "报告可定位文字与该限制表述；无任何虚构的检测、补测、审批、签名或完成记录。",
+        "expected_outcome": "明确本次仅为资料核对，不构成施工、维护完成或实体质量验收；指出无涂层厚度检测、无现场补测、无实施完成记录、无验收意见；本次不委托补测，缺失不能判定厚度合格或不合格。",
+        "purpose": "确认区分资料核对与实施/质量验收，保留涂层厚度资料缺失对结论的限制，不虚构补测/审批/签名/完成实施。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          },
+          {
+            "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "报告未决事项与结论限制部分。"
+      },
+      "payload_digest": "68562529e1d022980926c453ce08ed3749e9a3353f7dda10696f23bb37d9ddd4",
+      "previous_ref": null,
+      "ref": {
+        "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.808566+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "审核不改变成果内容；资料本身缺失不得判为质量合格。",
+        "evidence_expectation": "版本绑定（快照、导出）与审核记录；可定位证据与校验结论。",
+        "expected_outcome": "审核针对保存版本开展，给出可比对证据、实际校验结论与未完成事项；正确内容可以通过，资料缺失不被写成质量已合格；审核结论与工程验收区分。",
+        "purpose": "确认对实际保存的成果及七项要求进行了独立审核，保留可定位证据、实际校验结论与未完成事项。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "独立审核所针对的冻结成果版本（Word与Excel）。"
+      },
+      "payload_digest": "649294fbf258d9d14ff90aea0705972d3d85311f232693634018cd71e1320c1a",
+      "previous_ref": null,
+      "ref": {
+        "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:24:14.808612+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "allowed_limits": "无外部发放渠道要求；不要求额外渲染审批。",
+        "evidence_expectation": "实际保存的导出文件（DOCX、XLSX）与其所绑定快照版本，及交付说明。",
+        "expected_outcome": "交付同一成果版本的Word与Excel，可实际打开；报告文字与表格可读；交付说明包含审核与被审版本对应关系及未决状态说明。",
+        "purpose": "确认交付实际可打开的Word与Excel，保留成果与审核所针对的版本关系，文字/表格可读，并说明交付、审核与未决状态。",
+        "requirement_refs": [
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          }
+        ],
+        "scope": "交付的Word报告与同版本Excel数量费用表。"
+      },
+      "payload_digest": "6c75504066f8202189ea41d8334fee0099104c89d91ad0db80caced74e734878",
+      "previous_ref": null,
+      "ref": {
+        "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+        "type": "Criterion",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.896801+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "青禾资料站标牌维护资料核对简报"
+        },
+        "claim_kind": "structure",
+        "kind": "report",
+        "qualifiers": {}
+      },
+      "payload_digest": "10cb540ec62a8b16f1cf1a1a3eba3f1d304fa72fdd3fcdcbe9c47803eb6fd3ba",
+      "previous_ref": null,
+      "ref": {
+        "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.901746+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "第1节 项目与依据\n核对对象：青禾资料站标牌维护资料核对。资料日期：2026-10-20。用途：数量与费用资料核对。范围：本次仅使用所给三份模拟资料，即原始清点表、含税费用单、内部汇总便笺。依据优先级：原始清点表为本次数量采用依据；内部汇总便笺仅作差异对照；含税费用单为本次费用估算依据。三份资料均为虚构模拟数据；本次核对不是现实工程的施工设计或正式验收。"
+        },
+        "claim_kind": "fact",
+        "kind": "block",
+        "qualifiers": {
+          "依据说明": "数量来源为原始清点表；费用来源为含税费用单；内部汇总便笺仅作差异对照。",
+          "范围限制": "仅使用上述三份模拟资料，未引入外部材料或现实项目材料。",
+          "资料性质": "三份资料均为虚构模拟数据；本次核对不是现实工程的施工设计或正式验收。",
+          "资料来源": "原始清点表（qh5-count，manifest text; chars 1-196）；含税费用单（qh5-price，manifest text; chars 1-117）；内部汇总便笺（qh5-memo，manifest text; chars 1-100）。"
+        }
+      },
+      "payload_digest": "bd54c2be55fb78acf1280c2a56ec0d90d7d998688c5fcaaf473fcec218c34f81",
+      "previous_ref": null,
+      "ref": {
+        "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.901846+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "第2节 数量与费用核算采用说明\n本次按给定含税单价对采用数量进行估算：方向标牌D采用9块，含税单价120元/块，金额1080元；提示标牌T采用6块，含税单价180元/块，金额1080元。数量合计15块，费用合计2160元。除按给定含税单价核算外，不增加税费、管理费、损耗率或其他项目或费用。"
+        },
+        "claim_kind": "calculation",
+        "kind": "block",
+        "qualifiers": {
+          "来源说明": "采用数量来源为原始清点表（qh5-count）；含税单价来源为含税费用单（qh5-price）。",
+          "核算关系": "方向标牌D：9块×120元/块=1080元；提示标牌T：6块×180元/块=1080元；数量合计=9+6=15块；费用合计=1080+1080=2160元。",
+          "费用性质": "所列金额为按含税费用单单价作出的费用估算，仅用于本次资料核对，不代表支付凭证、合同或批准预算。"
+        }
+      },
+      "payload_digest": "0c95c46f7dc1a043c6b328fe7b985909692f6ec9ad1850947990558eb7f368ad",
+      "previous_ref": null,
+      "ref": {
+        "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.901912+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "caption": "表1 数量费用核对表（Word简报与Excel工作簿同一成果版本）",
+          "columns": [
+            "标牌类别",
+            "编码",
+            "单位",
+            "采用数量",
+            "来源",
+            "含税单价(元/块)",
+            "金额(元)"
+          ],
+          "note": "注：采用数量按原始清点表；单价为含税费用单的估算单价；合计行单价不适用，以“—”表示；除按给定含税单价核算外，不另加税费、管理费、损耗率或其他项目。",
+          "rows": [
+            [
+              "方向标牌",
+              "D",
+              "块",
+              9,
+              "原始清点表",
+              120,
+              1080
+            ],
+            [
+              "提示标牌",
+              "T",
+              "块",
+              6,
+              "原始清点表",
+              180,
+              1080
+            ],
+            [
+              "合计",
+              "—",
+              "块",
+              15,
+              "原始清点表",
+              "—",
+              2160
+            ]
+          ]
+        },
+        "claim_kind": "calculation",
+        "kind": "table",
+        "qualifiers": {
+          "合计说明": "合计行数量为15块、金额为2160元；合计行单价不适用。",
+          "差异对照": "内部汇总便笺（qh5-memo）仅作差异对照，未用于本次数量采用。",
+          "数量来源": "原始清点表（qh5-count，manifest text; chars 1-196）：方向标牌D为9块、提示标牌T为6块。",
+          "版本一致性": "本表数值与Excel工作簿专用数量费用表一致。",
+          "费用来源": "含税费用单（qh5-price，manifest text; chars 1-117）：方向标牌D为120元/块、提示标牌T为180元/块；不另加税费、管理费、损耗率或其他项目。"
+        }
+      },
+      "payload_digest": "af580db7d9e4bacb8080191cbcf1aefc49f713bebb6c7e19bc65eb32d15d21b5",
+      "previous_ref": null,
+      "ref": {
+        "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.901965+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "第3节 清点表与便笺差异说明\n方向标牌D：内部汇总便笺记为10块，原始清点表记为9块，相差1块；提示标牌T两者均为6块。便笺合计16块，本次按依据优先级采用原始清点表，数量合计15块。按照委托指定的依据优先级，本次数量采用原始清点表；内部汇总便笺仅作差异对照，不取代原始清点表。便笺未说明方向标牌D数量差异的原因，也无后续变更记录；该差异原因待内部确认，本简报不虚构原因。"
+        },
+        "claim_kind": "fact",
+        "kind": "block",
+        "qualifiers": {
+          "差异明细": "方向标牌D：便笺10块，清点表9块，相差1块；提示标牌T：便笺6块，清点表6块；便笺合计16块，采用后合计15块。",
+          "未决事项": "便笺未说明方向标牌D数量差异原因，亦无后续变更记录；差异原因待内部确认。",
+          "采用依据": "数量采用原始清点表（qh5-count）；内部汇总便笺（qh5-memo）仅作差异对照。"
+        }
+      },
+      "payload_digest": "65c2967a64524a93f1c1eea535b2f0dd7b16da510442840939901f1da24d04d7",
+      "previous_ref": null,
+      "ref": {
+        "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.901999+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "第4节 未决事项与结论限制\n本次仅为资料核对，不构成施工或维护完成，也不构成实体质量验收。涂层厚度检测资料缺失；本次不委托补测。该缺失不能判定涂层厚度合格或不合格。后续实体质量判断需另行取得适用要求及真实记录。上述结论限制如实保留。"
+        },
+        "claim_kind": "inference",
+        "kind": "block",
+        "qualifiers": {
+          "未决事项": "涂层厚度合格与否暂不能判定；需另行取得适用要求及真实记录后方可进行实体质量判断。",
+          "结论限制": "资料核对结论不得替代施工或维护完成确认，也不得替代实体质量验收。",
+          "缺失资料": "未提供涂层厚度检测记录、现场补测记录、实施完成记录或实体质量验收意见；本次不委托补测。"
+        }
+      },
+      "payload_digest": "23a677851239b21ea5c23d129cf5f1ca064efa4d14e68b956b419e20e2bdbbcc",
+      "previous_ref": null,
+      "ref": {
+        "id": "221168d1-0858-438a-82e0-db85ead5256b",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902032+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "第5节 交付与状态说明\n本次交付同一成果版本的Word简报与Excel数量费用表，二者数值一致；审核针对该同一保存版本进行。审核状态：待独立审核，本简报不由编制者自审通过。未决事项：涂层厚度资料缺失；方向标牌D在原始清点表与内部汇总便笺之间的数量差异原因未记载。本简报不表明质量已合格或已验收。"
+        },
+        "claim_kind": "fact",
+        "kind": "block",
+        "qualifiers": {
+          "交付版本": "Word简报与Excel数量费用表为同一成果版本，数量与费用数值一致。",
+          "审核对象": "同一保存版本的Word简报和Excel数量费用表。",
+          "审核状态": "待独立审核；本简报不由编制者自审通过。",
+          "未决事项": "涂层厚度资料缺失；方向标牌D数量差异原因未记载。",
+          "状态限制": "本简报不构成实体质量合格、施工或维护完成或验收结论。"
+        }
+      },
+      "payload_digest": "60b0f12414954aa1d8781223f66ff9f97c681be99bf3279f090072c94b23d08a",
+      "previous_ref": null,
+      "ref": {
+        "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902076+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "caption": "Excel工作簿专用数量费用表（与Word简报同一成果版本）",
+          "columns": [
+            "标牌类别",
+            "编码",
+            "单位",
+            "采用数量",
+            "来源",
+            "含税单价(元/块)",
+            "金额(元)"
+          ],
+          "note": "注：本表为Excel工作簿专用表，数值与Word简报内数量费用表一致；采用数量按原始清点表，单价按含税费用单估算，不另加税费、管理费、损耗率或其他项目；合计行单价不适用。",
+          "rows": [
+            [
+              "方向标牌",
+              "D",
+              "块",
+              9,
+              "原始清点表",
+              120,
+              1080
+            ],
+            [
+              "提示标牌",
+              "T",
+              "块",
+              6,
+              "原始清点表",
+              180,
+              1080
+            ],
+            [
+              "合计",
+              "—",
+              "块",
+              15,
+              "原始清点表",
+              "—",
+              2160
+            ]
+          ]
+        },
+        "claim_kind": "calculation",
+        "kind": "table",
+        "qualifiers": {
+          "合计说明": "合计行数量为15块、金额为2160元；合计行单价不适用。",
+          "差异对照": "内部汇总便笺（qh5-memo）仅作差异对照，未用于本次数量采用。",
+          "数量来源": "原始清点表（qh5-count，manifest text; chars 1-196）：方向标牌D为9块、提示标牌T为6块。",
+          "版本一致性": "本表数值与Word简报内数量费用表一致。",
+          "费用来源": "含税费用单（qh5-price，manifest text; chars 1-117）：方向标牌D为120元/块、提示标牌T为180元/块；不另加税费、管理费、损耗率或其他项目。"
+        }
+      },
+      "payload_digest": "0aa1a8deda56e8db4bb4439e7add963cd859ed72abd01a4d6d344900ad9cb418",
+      "previous_ref": null,
+      "ref": {
+        "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902118+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "body": {
+          "text": "备注：依据与限制说明\n数量来源为原始清点表：方向标牌D为9块，提示标牌T为6块。单价来源为含税费用单：方向标牌D为120元/块，提示标牌T为180元/块；所列金额为含税估算，不另加税费、管理费、损耗率或其他费用。内部汇总便笺仅作差异对照（其中方向标牌D为10块），未用于本次数量采用。本表与同一成果版本的Word简报数值一致。本次为资料核对，不构成实体质量验收；涂层厚度资料缺失，不能判定涂层厚度合格与否。"
+        },
+        "claim_kind": "fact",
+        "kind": "block",
+        "qualifiers": {
+          "依据与限制": "数量来源为原始清点表；单价来源为含税费用单；内部汇总便笺仅作差异对照。",
+          "版本一致性": "本表与同一成果版本Word简报数值一致。",
+          "质量限制": "本次为资料核对，不构成施工或维护完成或实体质量验收；涂层厚度资料缺失，不判定合格或不合格。",
+          "费用限制": "金额为含税估算，不另加税费、管理费、损耗率或其他项目；不代表支付凭证、合同或批准预算。"
+        }
+      },
+      "payload_digest": "08d5184a83ed9ab620cb258a6f203f1534c159182e91ce45c4242034e3d5afbb",
+      "previous_ref": null,
+      "ref": {
+        "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+        "type": "ContentNode",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902504+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "excerpt": "【清点表表头】青禾资料站标牌维护资料核对；记录日2026-10-20；数量单位：块。全部为虚构数据。【清点表行1】方向标牌，编码D，数量9块。【清点表行2】提示标牌，编码T，数量6块。【范围附注】这是台账清点，不证明已施工或维护完成；没有涂层厚度检测、现场补测、实施完成记录或实体质量验收意见。本次不委托补测，缺记录不能判定厚度合格或不合格；后续实体质量判断需另取得适用要求及真实记录。",
+        "extraction_ref": null,
+        "input_refs": [],
+        "locator": "qh5-count，manifest text; chars 1-196",
+        "method": "observe_evidence（source, qh5-count, chars 0-196）",
+        "result": "清点表记录日2026-10-20；方向标牌D 9块、提示标牌T 6块；附注明确台账清点不证明施工/维护完成，无涂层厚度检测等记录。",
+        "source_refs": [
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "tool_receipt": ""
+      },
+      "payload_digest": "77f8a003c922890b7e8dd120a163bd91f74243bb8b5bfc08b458071d2d315ae4",
+      "previous_ref": null,
+      "ref": {
+        "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+        "type": "Evidence",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902619+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "excerpt": "【费用单表头】人民币元；每块含税单价，仅作本次资料核对的费用估算。【费用单行1】方向标牌D：120元/块。【费用单行2】提示标牌T：180元/块。【费用单附注】不另加税费、管理费、损耗率或其他项目；不是支付凭证、合同或批准预算。",
+        "extraction_ref": null,
+        "input_refs": [],
+        "locator": "qh5-price，manifest text; chars 1-117",
+        "method": "observe_evidence（source, qh5-price, chars 0-117）",
+        "result": "含税单价：D 120元/块、T 180元/块；不另加其他费用。",
+        "source_refs": [
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "tool_receipt": ""
+      },
+      "payload_digest": "de735162f03bc0e205616a99706489e05f33b62956f5e88dc0b2f732b8bcf71e",
+      "previous_ref": null,
+      "ref": {
+        "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+        "type": "Evidence",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902684+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "excerpt": "【便笺第1段】2026-10-20内部初步汇总：方向标牌D为10块，提示标牌T为6块，合计16块。【便笺第2段】未说明方向标牌与原始清点表数量差异的原因，也无后续变更记录；内部汇总不取代原始清点表。",
+        "extraction_ref": null,
+        "input_refs": [],
+        "locator": "qh5-memo，manifest text; chars 1-100",
+        "method": "observe_evidence（source, qh5-memo, chars 0-100）",
+        "result": "便笺：D 10块、T 6块、合计16块；未说明D差异原因，内部汇总不取代原始清点表。",
+        "source_refs": [
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "tool_receipt": ""
+      },
+      "payload_digest": "b2ca48c581434cb5b87f0ab6c0add2e757508cd781974eefa9f6ea1ce15b75fe",
+      "previous_ref": null,
+      "ref": {
+        "id": "4513c388-a180-459a-bc30-748880b19e09",
+        "type": "Evidence",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902760+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "excerpt": "方向标牌D：9块×120元/块=1080元；提示标牌T：6块×180元/块=1080元；数量合计15块，费用合计2160元。",
+        "extraction_ref": null,
+        "input_refs": [],
+        "locator": "sum_products：9×120 与 6×180",
+        "method": "observe_evidence（calculation, sum_products, terms=[9×120, 6×180]）",
+        "result": "products=1080、1080；total=2160；数量合计=9+6=15块。",
+        "source_refs": [
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "tool_receipt": ""
+      },
+      "payload_digest": "4385068a565d3e6bb4e91691b32cb2f34aa124d7926641b7d15b6effa982219a",
+      "previous_ref": null,
+      "ref": {
+        "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+        "type": "Evidence",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.902871+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "position": 0,
+        "predicate": "contains",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "6c8578f3879605cc9be5a82167a2a60f65ce21f2fa1d054a13769aede89df3a7",
+      "previous_ref": null,
+      "ref": {
+        "id": "8a09a0b0-2b58-4640-b3e7-01bd70499c03",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905303+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "position": 1,
+        "predicate": "contains",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "01bb7ced5ba1a7f05f11bb3719d6985deed1ffeec89c7097f6ede50e3d770ab2",
+      "previous_ref": null,
+      "ref": {
+        "id": "05e69a82-bd28-4722-9b99-7672e1a2da7e",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905418+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "position": 2,
+        "predicate": "contains",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "d2bb43ce767345df264e303f7f24ab7a77dd162c633b1cde5d19223b8d98db31",
+      "previous_ref": null,
+      "ref": {
+        "id": "2fb3625f-8175-49bd-9bd5-e724bd265ec2",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905470+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "position": 3,
+        "predicate": "contains",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "a470a643df41a030e5cf8f66b217ab8882433ca807eb16fad11cb4af5098c715",
+      "previous_ref": null,
+      "ref": {
+        "id": "a2c7bcf8-3f77-41a3-b185-afe611c7dd09",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905515+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "221168d1-0858-438a-82e0-db85ead5256b",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "position": 4,
+        "predicate": "contains",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "d5a28112f2593ef45449f773018d87fca59f442dfc6703eda6c8607414869c14",
+      "previous_ref": null,
+      "ref": {
+        "id": "8683bb83-7e77-4a05-8550-5227f977499d",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905554+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "position": 5,
+        "predicate": "contains",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "b3856912facded1055a3e2dfb2d13d6f56f052db5f9365942941f3f3dfba1984",
+      "previous_ref": null,
+      "ref": {
+        "id": "aa257496-289f-41cb-866f-9299127c5e85",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905593+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "63dbd46d160537938bee248882b623dfc711e47e1e31cacda275fce68faf6321",
+      "previous_ref": null,
+      "ref": {
+        "id": "568d462f-c57d-4ff8-9a1b-aa168a9be0d6",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905629+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "08f40f04a04d8a8abcea58224143f028a036fc0e08bc35f184ac973b37beaa10",
+      "previous_ref": null,
+      "ref": {
+        "id": "4ed65a50-b178-460a-bc7b-c95bbfb9763b",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905664+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "4513c388-a180-459a-bc30-748880b19e09",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "2b4296a84df0a69895bb315dd355cba98ab6064ee656a92430f27d25ab11259f",
+      "previous_ref": null,
+      "ref": {
+        "id": "8b1212f3-afc8-4a67-bb97-d97bcb585575",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905697+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "50c099323f3ccf294fca073b32c5a8a0b1c415beb395d64128cd45bbc3840450",
+      "previous_ref": null,
+      "ref": {
+        "id": "d83afe85-ef3e-4c57-9429-65970b7f2aca",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905730+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "c29b58e3b5eb50de56fd75add74e77da4d9005ddd1720e9d3e525c9f32607e04",
+      "previous_ref": null,
+      "ref": {
+        "id": "d7ba2b9d-b558-4261-a829-7c2d001486ca",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905761+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "72e85b8f4d4f454682d47a0ef362b31e31e8c851c896d2162a3cde8b890a846c",
+      "previous_ref": null,
+      "ref": {
+        "id": "6b5ed8ef-0228-4d48-b8e9-89f6572544c7",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905794+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "99358fd1195c23c0cebf585183b3b0e0adf1dc846a3edc3830b0ca2a46ad3bca",
+      "previous_ref": null,
+      "ref": {
+        "id": "37585950-d906-4827-ba16-bddeb7a06cc9",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905824+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "06e43b5fb2e0d40af6d60dae5cc479a027957b163a833e91d3ddb4b7d6ff6220",
+      "previous_ref": null,
+      "ref": {
+        "id": "ff9a77e4-280a-4110-acfd-de758e6ec1af",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905854+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "4513c388-a180-459a-bc30-748880b19e09",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "abf1e2d07fbcc48d0c635f7d2c3f1549e88a22d005f3734d87c5c50c7455c88d",
+      "previous_ref": null,
+      "ref": {
+        "id": "e8281b8d-2c77-47a8-beaa-674a3eced580",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905884+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "221168d1-0858-438a-82e0-db85ead5256b",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "ecab93211c650cefd03bffcfec9820f28224964685fa53d5e7455fd650d626e0",
+      "previous_ref": null,
+      "ref": {
+        "id": "33da9702-953d-41e0-996b-f3032f2e1cd8",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905917+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "4f8aea9ff5c8757b7d2482f26bbdcb268896367b7771855c312137ed3ccada36",
+      "previous_ref": null,
+      "ref": {
+        "id": "1b0bf544-b253-45ef-a7ae-131aa56d8641",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905948+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "ae7d7f7ab0797032b4c06d1227740c7d3731a8477611a8743306627bd4a4af32",
+      "previous_ref": null,
+      "ref": {
+        "id": "51f08708-5731-4912-a103-5e4796c9b44f",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:32:07.905977+00:00",
+      "created_by": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "owner_id": "content:writer:e233b92a-4d07-4216-bcc4-5b6ac42ee9b0",
+      "payload": {
+        "basis_refs": [],
+        "object_ref": {
+          "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+          "type": "Evidence",
+          "version": 1
+        },
+        "position": null,
+        "predicate": "supported_by",
+        "provenance_kind": "adopted_during_generation",
+        "qualifiers": {},
+        "subject_ref": {
+          "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+          "type": "ContentNode",
+          "version": 1
+        }
+      },
+      "payload_digest": "7245b5e867b78986b410b190e609d74ae33c1f9ec0f4c2f16fada25be2bc4f91",
+      "previous_ref": null,
+      "ref": {
+        "id": "ac1234bc-82f5-4893-8a3a-bbd2025953a7",
+        "type": "Relation",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "e233b92a-4d07-4216-bcc4-5b6ac42ee9b0"
+    },
+    {
+      "created_at": "2026-10-25T11:33:00.205200+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "coverage_contract": "object-coverage-v1",
+        "criteria_refs": [
+          {
+            "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+            "type": "Criterion",
+            "version": 1
+          }
+        ],
+        "manifest_digest": "a5fce011572c4e94af1529c00464fdeecfde54aeb8ad871ceeda5e8f2bbb4cfd",
+        "refs": [
+          {
+            "id": "221168d1-0858-438a-82e0-db85ead5256b",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "545a074a-d1f2-4103-9907-a618c6d9c213",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "7b67e9f6-34e4-4161-825f-39a1aa98708a",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "7c8865f9-2146-4727-b6f2-39090f6cce3e",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "83449c61-3163-4a4c-9c45-cf0e547dd370",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "9422cf07-f7cf-4c41-a0a9-b15c47ad81e3",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "de8e5379-adce-45fa-90ed-9fe5efcd0781",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "e165e2b7-aba0-4085-b5b6-1472525ba48f",
+            "type": "Criterion",
+            "version": 1
+          },
+          {
+            "id": "31d1255f-64d0-4673-898b-9a73c0e7b9e5",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "3eacaff0-0459-44a7-a3b2-bd928ba42d7c",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "4513c388-a180-459a-bc30-748880b19e09",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "8c5641e6-c032-4632-b113-cc98369d39ff",
+            "type": "Evidence",
+            "version": 1
+          },
+          {
+            "id": "05e69a82-bd28-4722-9b99-7672e1a2da7e",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "1b0bf544-b253-45ef-a7ae-131aa56d8641",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "2fb3625f-8175-49bd-9bd5-e724bd265ec2",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "33da9702-953d-41e0-996b-f3032f2e1cd8",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "37585950-d906-4827-ba16-bddeb7a06cc9",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "4ed65a50-b178-460a-bc7b-c95bbfb9763b",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "51f08708-5731-4912-a103-5e4796c9b44f",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "568d462f-c57d-4ff8-9a1b-aa168a9be0d6",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "6b5ed8ef-0228-4d48-b8e9-89f6572544c7",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "8683bb83-7e77-4a05-8550-5227f977499d",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "8a09a0b0-2b58-4640-b3e7-01bd70499c03",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "8b1212f3-afc8-4a67-bb97-d97bcb585575",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "a2c7bcf8-3f77-41a3-b185-afe611c7dd09",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "aa257496-289f-41cb-866f-9299127c5e85",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "ac1234bc-82f5-4893-8a3a-bbd2025953a7",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "d7ba2b9d-b558-4261-a829-7c2d001486ca",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "d83afe85-ef3e-4c57-9429-65970b7f2aca",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "e8281b8d-2c77-47a8-beaa-674a3eced580",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "ff9a77e4-280a-4110-acfd-de758e6ec1af",
+            "type": "Relation",
+            "version": 1
+          },
+          {
+            "id": "289a0018-6f49-4692-9717-811d3b635151",
+            "type": "Requirement",
+            "version": 1
+          },
+          {
+            "id": "608d17d7-b4fb-4dfb-807b-451a2504632b",
+            "type": "Requirement",
+            "version": 1
+          },
+          {
+            "id": "306e184c-967d-43c4-b344-45afff872d06",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "76a99fce-e90d-46eb-bf6b-9c4e98a847af",
+            "type": "SourceArtifact",
+            "version": 1
+          },
+          {
+            "id": "a6779ed8-0d31-43fb-a1c3-1d0a2abe7fd4",
+            "type": "SourceArtifact",
+            "version": 1
+          }
+        ],
+        "root_ref": {
+          "id": "4de67792-00d5-4fef-9c85-d358689527ad",
+          "type": "ContentNode",
+          "version": 1
+        },
+        "workbook_refs": [
+          {
+            "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+            "type": "ContentNode",
+            "version": 1
+          },
+          {
+            "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+            "type": "ContentNode",
+            "version": 1
+          }
+        ]
+      },
+      "payload_digest": "89a05cbdbd42636f589e221dac7d370963baed654579fd83d8e1f3c07c039253",
+      "previous_ref": null,
+      "ref": {
+        "id": "8d3e8bcc-0eef-4818-9b42-353da8b59fee",
+        "type": "DocumentSnapshot",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:33:08.268925+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "export_config": {
+          "exporter_digest": "68d4681f96e896faa0736215fa1841aaf32f7251fcb8e161639ffb642f28a5fb",
+          "finalization": null,
+          "layout": {
+            "bottom_margin_mm": null,
+            "cover_vertical_alignment": null,
+            "font_size": 12.0,
+            "header": null,
+            "header_parts": [],
+            "hide_first_page_header_footer": false,
+            "left_margin_mm": null,
+            "line_spacing": 1.3,
+            "margin_mm": 25.0,
+            "nodes": [
+              {
+                "allow_row_split": false,
+                "column_weights": [],
+                "figure_width_mm": null,
+                "heading_level": 1,
+                "keep_table_together": false,
+                "landscape": false,
+                "node_ref": {
+                  "id": "7adbb8bf-bc96-4e93-8bfd-c6b99cc5ea11",
+                  "type": "ContentNode",
+                  "version": 1
+                },
+                "outer_border_style": null,
+                "outer_border_width_pt": null,
+                "page_break_before": false,
+                "paragraphs": [],
+                "qualifier_font_size": 10.0,
+                "qualifier_placement": "adjacent",
+                "table_alignment": null,
+                "table_cell_alignment": null,
+                "table_cell_first_line_indent_mm": null,
+                "table_font_size": 10.0,
+                "table_line_spacing": null
+              },
+              {
+                "allow_row_split": false,
+                "column_weights": [],
+                "figure_width_mm": null,
+                "heading_level": 1,
+                "keep_table_together": false,
+                "landscape": false,
+                "node_ref": {
+                  "id": "8f6594e6-1c13-4681-89af-c3e34fbea4a2",
+                  "type": "ContentNode",
+                  "version": 1
+                },
+                "outer_border_style": null,
+                "outer_border_width_pt": null,
+                "page_break_before": false,
+                "paragraphs": [],
+                "qualifier_font_size": 10.0,
+                "qualifier_placement": "adjacent",
+                "table_alignment": null,
+                "table_cell_alignment": null,
+                "table_cell_first_line_indent_mm": null,
+                "table_font_size": 10.0,
+                "table_line_spacing": null
+              },
+              {
+                "allow_row_split": false,
+                "column_weights": [
+                  1.3,
+                  0.8,
+                  0.7,
+                  1.0,
+                  1.6,
+                  1.2,
+                  1.1
+                ],
+                "figure_width_mm": null,
+                "heading_level": null,
+                "keep_table_together": true,
+                "landscape": false,
+                "node_ref": {
+                  "id": "c1a1930a-7e2a-4674-8b9b-d53a5ef63b0d",
+                  "type": "ContentNode",
+                  "version": 1
+                },
+                "outer_border_style": null,
+                "outer_border_width_pt": null,
+                "page_break_before": false,
+                "paragraphs": [],
+                "qualifier_font_size": 10.0,
+                "qualifier_placement": "adjacent",
+                "table_alignment": null,
+                "table_cell_alignment": null,
+                "table_cell_first_line_indent_mm": null,
+                "table_font_size": 10.0,
+                "table_line_spacing": null
+              },
+              {
+                "allow_row_split": false,
+                "column_weights": [],
+                "figure_width_mm": null,
+                "heading_level": 1,
+                "keep_table_together": false,
+                "landscape": false,
+                "node_ref": {
+                  "id": "b251b017-6d5e-4ebb-976d-1db0932da4d2",
+                  "type": "ContentNode",
+                  "version": 1
+                },
+                "outer_border_style": null,
+                "outer_border_width_pt": null,
+                "page_break_before": false,
+                "paragraphs": [],
+                "qualifier_font_size": 10.0,
+                "qualifier_placement": "adjacent",
+                "table_alignment": null,
+                "table_cell_alignment": null,
+                "table_cell_first_line_indent_mm": null,
+                "table_font_size": 10.0,
+                "table_line_spacing": null
+              },
+              {
+                "allow_row_split": false,
+                "column_weights": [],
+                "figure_width_mm": null,
+                "heading_level": 1,
+                "keep_table_together": false,
+                "landscape": false,
+                "node_ref": {
+                  "id": "221168d1-0858-438a-82e0-db85ead5256b",
+                  "type": "ContentNode",
+                  "version": 1
+                },
+                "outer_border_style": null,
+                "outer_border_width_pt": null,
+                "page_break_before": false,
+                "paragraphs": [],
+                "qualifier_font_size": 10.0,
+                "qualifier_placement": "adjacent",
+                "table_alignment": null,
+                "table_cell_alignment": null,
+                "table_cell_first_line_indent_mm": null,
+                "table_font_size": 10.0,
+                "table_line_spacing": null
+              },
+              {
+                "allow_row_split": false,
+                "column_weights": [],
+                "figure_width_mm": null,
+                "heading_level": 1,
+                "keep_table_together": false,
+                "landscape": false,
+                "node_ref": {
+                  "id": "fd4b8531-367e-4c74-9e6c-8059e09bd2c6",
+                  "type": "ContentNode",
+                  "version": 1
+                },
+                "outer_border_style": null,
+                "outer_border_width_pt": null,
+                "page_break_before": false,
+                "paragraphs": [],
+                "qualifier_font_size": 10.0,
+                "qualifier_placement": "adjacent",
+                "table_alignment": null,
+                "table_cell_alignment": null,
+                "table_cell_first_line_indent_mm": null,
+                "table_font_size": 10.0,
+                "table_line_spacing": null
+              }
+            ],
+            "outer_border_style": null,
+            "outer_border_width_pt": null,
+            "page_numbers": true,
+            "paper": "A4",
+            "paragraph_space_after_pt": 6.0,
+            "refresh_toc": false,
+            "right_margin_mm": null,
+            "styles": [],
+            "table_alignment": null,
+            "table_cell_alignment": "left",
+            "table_cell_first_line_indent_mm": null,
+            "table_line_spacing": 1.15,
+            "toc": true,
+            "toc_depth": 2,
+            "top_margin_mm": null
+          },
+          "layout_engine_digest": "6184a2919a686d6dbad5c2b3b73b9bb1eb019397346e5aba05c1e2389de8ccf1",
+          "layout_revision": {
+            "fingerprint": "1104b194741aba1fdf8eb00ee413fdcfd6b155b7e12a206c2d2a76f41ba485a2",
+            "initial_export_ref": null,
+            "latest_export_ref": null,
+            "latest_fingerprint": null,
+            "layout_changed": false,
+            "max_revisions": 1,
+            "revisions_used": 0,
+            "scope": "commissioned report in this project; cumulative across tasks and snapshots"
+          }
+        },
+        "file_digest": "38cb9bb785703625dd24e75e7d0e6397a160d99d886ea26fc0f1f096ee82ef61",
+        "file_ref": "content-assets/38cb9bb785703625dd24e75e7d0e6397a160d99d886ea26fc0f1f096ee82ef61.docx",
+        "snapshot_ref": {
+          "id": "8d3e8bcc-0eef-4818-9b42-353da8b59fee",
+          "type": "DocumentSnapshot",
+          "version": 1
+        },
+        "template_ref": "snapshot-layout-v7"
+      },
+      "payload_digest": "e32b2187b50e9fcf30d91c446c8a0e7eb467eba3a6f968b4ac615531e0cd477a",
+      "previous_ref": null,
+      "ref": {
+        "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+        "type": "ExportArtifact",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    },
+    {
+      "created_at": "2026-10-25T11:33:14.194691+00:00",
+      "created_by": "content:coordinator",
+      "owner_id": "content:coordinator",
+      "payload": {
+        "export_config": {
+          "exporter_digest": "4857739044f103bf626434f78f3456c66e0d6411de7fc9938d39a962cc110db0",
+          "format": "xlsx",
+          "layout_engine_digest": "6184a2919a686d6dbad5c2b3b73b9bb1eb019397346e5aba05c1e2389de8ccf1",
+          "limitation": "Version link is provenance, not a claim of Word/Excel consistency or review.",
+          "report_export_ref": {
+            "id": "a54ac665-f874-4c0f-aaee-a31c5f7bf69c",
+            "type": "ExportArtifact",
+            "version": 1
+          },
+          "sheets": [
+            {
+              "name": "数量费用表",
+              "note_refs": [
+                {
+                  "id": "f966ba3f-d0ac-4bcd-b2d6-d676e890b8a6",
+                  "type": "ContentNode",
+                  "version": 1
+                }
+              ],
+              "table_ref": {
+                "id": "df7c820e-9825-49d2-b49a-1c6d97ddcec3",
+                "type": "ContentNode",
+                "version": 1
+              }
+            }
+          ]
+        },
+        "file_digest": "baefb8856d48d3689d96b4484d48561903e2d9915de7cf6c7b81ae1a7fad6ebf",
+        "file_ref": "content-assets/baefb8856d48d3689d96b4484d48561903e2d9915de7cf6c7b81ae1a7fad6ebf.xlsx",
+        "snapshot_ref": {
+          "id": "8d3e8bcc-0eef-4818-9b42-353da8b59fee",
+          "type": "DocumentSnapshot",
+          "version": 1
+        },
+        "template_ref": "frozen-tables-notes-xlsx-v2"
+      },
+      "payload_digest": "c44faedb8f1defecabffe6cee904bf8e2720364b7cd155b764caa725eb9de8f0",
+      "previous_ref": null,
+      "ref": {
+        "id": "fe575c21-1c30-44cc-8fb2-79756a15bec8",
+        "type": "ExportArtifact",
+        "version": 1
+      },
+      "schema_version": "hierarchical-review-v1",
+      "task_id": "content-task:coordinator"
+    }
+  ]
+}

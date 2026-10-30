@@ -72,18 +72,21 @@ async def test_configured_vision_transport_failure_is_not_automatically_retried(
     from report_agent import model_config, deep_models
     requests = []
     async def fail(request):
+        import json
+        assert json.loads(request.content)['model'] == model_config.role_service('vision')[0].removeprefix('openai/')
         requests.append(request)
         return httpx.Response(503, json={'error': {'message': 'offline transient failure', 'type': 'server_error'}})
-    client_type = httpx.AsyncClient
+    from report_agent import transport_observation
+    client_type = transport_observation.ObservedAsyncClient
     monkeypatch.setattr(model_config, 'role_service', lambda role: ('deepseek-v4.1-flash', 'https://offline.invalid/v1', 'synthetic'))
     class OfflineClient(client_type):
         def __init__(self, **kwargs):
             super().__init__(transport=httpx.MockTransport(fail), **kwargs)
-    monkeypatch.setattr(deep_models.httpx, 'AsyncClient', OfflineClient)
+    monkeypatch.setattr(transport_observation, 'ObservedAsyncClient', OfflineClient)
     client = configured_vision_client()
     try:
         with pytest.raises(openai.InternalServerError):
-            await client.chat.completions.create(model='offline', messages=[{'role': 'user', 'content': 'offline'}])
+            await client.chat.completions.create(model=model_config.role_service('vision')[0].removeprefix('openai/'), messages=[{'role': 'user', 'content': 'offline'}])
         assert len(requests) == 1
     finally:
         await client.close()
@@ -98,12 +101,13 @@ async def test_configured_chat_sdk_failure_is_not_retried(tmp_path, monkeypatch,
     async def fail(request):
         requests.append(request)
         return httpx.Response(503, json={'error': {'message': 'offline transient failure', 'type': 'server_error'}})
-    client_type = httpx.AsyncClient
+    from report_agent import transport_observation
+    client_type = transport_observation.ObservedAsyncClient
     class OfflineClient(client_type):
         def __init__(self, **kwargs):
             super().__init__(transport=httpx.MockTransport(fail), **kwargs)
     monkeypatch.setattr(model_config, 'role_service', lambda role: (model_name, 'https://offline.invalid/v1', 'synthetic'))
-    monkeypatch.setattr(deep_models.httpx, 'AsyncClient', OfflineClient)
+    monkeypatch.setattr(transport_observation, 'ObservedAsyncClient', OfflineClient)
     model = configured_model(Store(tmp_path), 'coordinator')
     try:
         assert model.root_async_client.max_retries == model.root_client.max_retries == 0

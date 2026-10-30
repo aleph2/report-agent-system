@@ -164,7 +164,9 @@ async def test_native_checkpoint_resume_without_grader(ws):
     driver=Driver(coordinator=[invoke("content_status"),AIMessage(content="Preserve incomplete work")])
     driver.fail_once=("coordinator",1)
     first=await deep_runtime.run_report(ws,driver)
-    assert first["status"]=="failed"
+    assert first["status"]=="needs_attention"
+    assert first["last_error"]["failure_kind"]=="model_request_timeout"
+    assert first["last_error"]["automatic_resume"] is False
     second=await deep_runtime.run_report(ws,driver)
     assert second["last_error"] is None, second
     assert "rubric_grader" not in driver.created

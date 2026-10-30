@@ -1,0 +1,1 @@
+Current native Reviewer plan, from this child checkpoint. These todos are intentions, not evidence, executed checks or acceptance. Use the server-bound assignment and exact versions; update the plan when observations change. Work units can overlap or change without deleting task obligations.

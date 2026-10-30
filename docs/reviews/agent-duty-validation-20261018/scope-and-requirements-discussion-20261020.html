@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>范围遗漏与既有需求：Neo / Gemini设计讨论</title>
+<style>body{font:16px/1.7 system-ui,"Microsoft YaHei",sans-serif;max-width:1100px;margin:35px auto;padding:0 22px;color:#203448}h2{margin-top:30px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ced9e4;padding:12px;vertical-align:top;text-align:left}th{background:#edf3f8}.status{padding:18px;background:#fff3d6;border-left:5px solid #ad7717}a{color:#16579a}li{margin:8px 0}code{overflow-wrap:anywhere}img{max-width:100%;border:1px solid #ddd}</style>
+<h1>范围遗漏与既有需求：设计讨论纪要</h1>
+<p>2026年10月20日，Australia/Sydney。Neo核查源码和历史证据，Codex通过已登录Gemini页面进行了三轮讨论；Gemini意见是设计参考，不是验收证据。</p>
+<p class="status"><strong>用户已同意本轮设计方向；根因尚未标记修复。</strong> 当前可支持明确受限的草稿与分项审核证据，尚不能认定已满足全合同段完整报告目标。本轮没有修改程序或测试，没有启动真实报告验证，邮件仍暂停。</p>
+<h2>已经查实的断点</h2>
+<p>原始要求是逐一评估全部应纳入对象。历史审核委派却对一部分对象只检查“不定量理由是否披露”；Reviewer据此接受了对象已列出。报告确实披露K1320+380～760待人工，但未形成该问题对应的实际人工请求。这不是“对象从整份报告文本消失”，也没有证明是当前导出程序删除内容。</p>
+<p>当前checker可收到完整Criterion；现有机制区分分配检查完成与整体语义满足，原生交付也不自动把分项通过汇总为整报告通过。这是防止错误升级的保护，不是全范围目标已完成的证明。原始Requirement被引用，也不等于其正文已经实际送达审核工具。</p>
+<h2>之前需求继续作为判断依据</h2>
+<table><thead><tr><th>需求</th><th>此次判断边界</th></tr></thead><tbody>
+<tr><td>按《报告编写范围说明》覆盖第一合同段，按《提取大纲》组织内容；反馈适用于施工安全风险评估报告类别。</td><td>不能把全范围目标替换成若干已选对象、单坡成功或补齐Excel；实际对象发现与纳排依据尚待真实验证。</td></tr>
+<tr><td>按指南文字、地勘与对应设计先判类型/档位，再选分值；考虑风化、重要抗滑结构；冲突时核对适用指南经验表。</td><td>摘要缺高度不能自动等于不适用。不能为控制结果而强压到三级；四级应有真实依据及说明。具体工程规则仍须结合实际指南核验。</td></tr>
+<tr><td>指南表格内容、结构、单位和注释完整；尺寸与分页可调整。</td><td>表格存在不等于遵循指南；必须核实际输入表样、输出内容和产物。</td></tr>
+<tr><td>保留完整相关原文段落/图表，可用清晰截图，保留来源、位置和版本。</td><td>找到资料、选中资料、完整传给工具、产物正确使用是不同证据。当前字符串检索局限仍在，未实现RAG。</td></tr>
+<tr><td>首稿应接近交付；Word字体字号、页边距、行距、目录及issues-only Excel符合要求。</td><td>页边距上/下/左2.5cm、右1.5cm、装订线0cm，相关行距1.5倍及单一逻辑目录仍须按标准与真实产物核对。本轮讨论不能替代视觉/内容验收。</td></tr>
+<tr><td>Agent选择材料和策略，程序无损交付、校验并保存；统一I/O、复用框架、保持简洁。</td><td>程序不从自然语言自动作工程适用性裁决，不扫描“待人工”字样自动生成任务；不新建万能judge或固定Agent流程。</td></tr>
+</tbody></table>
+<h2>Neo与Codex采纳的边界</h2>
+<ol>
+<li>独立原需求保持可读、可追溯。Agent判断原要求与委派范围是否实质对应；程序传递并保存该判断及其依据。</li>
+<li>局部复查可以完成，但不能冒充整报告通过。“已披露”“已登记”“已分派”“已解决”“已验收”应按实际证据分别说明。</li>
+<li>确需人工输入时由Coordinator显式使用现有<code>ask_human</code>；非阻塞登记可继续其他工作，真正需要等待时复用原生中断。缺资料先可继续检索，不自动推给人工。</li>
+<li>先复用Requirement、Criterion、义务清单、ReviewItem和现有问题记录。没有具体表示缺口前，不增加并行账本或新判断器。</li>
+<li>fake LLM验证程序对指定输入输出的处理；真实模型验证语义判断能力；真实报告及产物审核验证最终目标。三者不能相互替代。</li>
+</ol>
+<h2>未采纳的Gemini建议</h2>
+<p>首轮提出的“确定性语义匹配器”“扫描待人工后一律建任务并阻断交付”“改False/None实现通过”均未采纳。后两轮已追问纠正。Gemini最后的细项10→2、提示截断例子仅为假设反例，不是本案已证实的程序截断原因；其对<code>assignment_present</code>和<code>ask_human</code>的简写仍以Neo源码核查为准。</p>
+<h2>后续验证候选，尚未执行</h2>
+<p>Neo建议下一增量先限定为<code>bounded_review.py::perform_review</code>及当前有效checker/organizer输入：按已选Criterion的<code>requirement_refs</code>读取同版本原Requirement，核查其完整正文实际进入比较输入，以及已声明缺口如何回报。先测已有容量路径，不能用截断冒充完整交付。Coordinator规则仅在确认有效指令缺失时考虑最小调整。</p>
+<p>第一组保留测试建议为：原文送达及脚本指定的范围缺口原样回报；合法局部复查完成但不自动提升整体；显式非阻塞人工登记与草稿继续。此范围不包含检索重构、产物渲染重构或新人工数据结构，也不以fake响应证明真实语义发现能力。仍为具体实现候选，未修改源码或测试。</p>
+<ul>
+<li>fake LLM：独立原需求及已选材料实际送达；不可只以引用ID或预览代替完整输入。</li>
+<li>fake LLM：指定返回“范围不匹配/适用性未定”时，程序保存与回传不丢失、不改成全范围通过。</li>
+<li>fake LLM正反控制：合法局部复查正常完成；真实人工登记与普通正文披露可区分；受限草稿可导出而不被表述为全范围验收。</li>
+<li>真实模型：简单合成材料中，原需求与被缩窄任务并存时，实际Agent是否识别冲突、继续补证或明确报告缺口。</li>
+<li>真实资料：盲测对象发现与纳排依据，再核对内容、指南表样、Word和Excel实际产物。此前集成验证方案仍未启动。</li>
+</ul>
+<h2>成熟框架复用的范围</h2>
+<p><a href="https://docs.langchain.com/oss/python/langgraph/interrupts">LangGraph interrupt与持久化恢复</a>提供等待外部输入的能力；<a href="https://docs.langchain.com/oss/python/langchain/middleware/custom">LangChain中间件</a>提供统一拦截模型/工具调用的扩展点。它们不能代替工程适用性或完整需求覆盖的判断；是否修改当前实现仍须具体边界与失败用例。</p>
+<h2>原始记录</h2>
+<ul>
+<li><a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/neo-k1320-historical-human-handoff-review-20261020.json">Neo历史报告、委派及人工处理证据</a></li>
+<li><a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/neo-k1320-current-implementation-acceptability-pre-gemini-20261020.json">Neo当前源码与七组需求矩阵</a></li>
+<li><a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/gemini-scope-acceptability-20261020/neo-final-acceptability-review.json">Neo三轮讨论后的最终审查</a> · <a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/gemini-scope-acceptability-20261020/next-increment-proposal.json">下一增量的代码边界与fake验证候选</a></li>
+<li><a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/gemini-scope-acceptability-20261020/round1-visible-dom.txt">Gemini第一轮</a> · <a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/gemini-scope-acceptability-20261020/round2-visible-dom.txt">第二轮</a> · <a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/gemini-scope-acceptability-20261020/round3-visible-dom.txt">第三轮</a></li>
+<li><a href="../../../.analysis/agent-duty-validation-20261018/completion-execution-20261019/gemini-scope-acceptability-20261020/user-agreement.json">用户同意记录及解释边界</a></li>
+<li><a href="real-data-integration-proposal-20261020.html">尚未执行的真实数据集成验证方案</a></li>
+</ul>
+</html>

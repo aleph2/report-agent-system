@@ -12,14 +12,18 @@ def inventory(snapshot):
 def validate_accounting(snapshot, review):
     allowed = {Ref.model_validate(r).key() for r in inventory(snapshot)}
     seen = set()
-    for entry in review.get("coverage_accounting", []):
+    members = {Ref.model_validate(r).key() for r in snapshot["payload"]["refs"]}
+    for entry_index, entry in enumerate(review.get("coverage_accounting", [])):
         indexes = entry["item_indexes"]
         if any(type(i) is not int or i < 0 or i >= len(review["items"]) for i in indexes):
             raise ActionRejected("COVERAGE_ITEM_INDEX_INVALID")
-        for ref in entry["target_refs"]:
+        for ref_index, ref in enumerate(entry["target_refs"]):
             key = Ref.model_validate(ref).key()
             if key not in allowed:
-                raise ActionRejected("COVERAGE_OBJECT_OUTSIDE_SNAPSHOT")
+                raise ActionRejected("COVERAGE_OBJECT_OUTSIDE_SNAPSHOT", diagnostic={
+                    "reason": "unsupported_coverage_object_type" if key in members else "object_not_in_snapshot",
+                    "allowed_object_types": ["ContentNode", "Requirement"],
+                    "parameter_path": ["review", "coverage_accounting", entry_index, "target_refs", ref_index]})
             if key in seen:
                 raise ActionRejected("DUPLICATE_COVERAGE_OBJECT")
             seen.add(key)

@@ -1,0 +1,28 @@
+{
+  "authority": [
+    "User: 为了干净的环境，我可以舍弃OCR，以及之前的Trace",
+    "User: 但是，你要确保，我们的代码和提示词还有配置是完整的，干净的"
+  ],
+  "supersedes": "Earlier blanket retention of historical OCR and full Trace for this cleanup scope",
+  "scope": "Historical OCR and Trace may be soft-deleted after necessary regression fixtures are independently retained and first full regression passes",
+  "preserve": [
+    "complete current code, prompt sources/tool+parameter help and configuration/entry points/dependencies",
+    "managed regression fixtures and required minimal diagnostic evidence",
+    "all financial ledger rows, unknown states, authorizations and mail receipts"
+  ],
+  "sequence": [
+    "fix and targeted tests then first full regression",
+    "soft delete with restore manifest",
+    "same-source second full regression without old paths or quarantine fallback",
+    "fresh fake-data real-LLM behavior validation"
+  ],
+  "permanent_delete_started": false,
+  "clarification_from_latest_dialogue": {
+    "five_days_is_not_sufficient_alone": true,
+    "no_soft_delete_has_occurred": true,
+    "first_full_purpose": "Fix regression baseline; source-only copy already exposes missing relative history, but does not prove all absolute original paths are inaccessible.",
+    "second_full_purpose": "After precise soft-delete, verify same frozen product/tests/fixtures with old original paths and quarantine unavailable; disclose added harness audit separately.",
+    "cannot_claim_dependency_closure_from_first_pass_alone": true,
+    "latest_human_alignment": "User: 好，思路对齐了，你继续吧"
+  }
+}

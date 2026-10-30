@@ -23,11 +23,11 @@ def body(model='deepseek-v4.1-flash', usage=None):
             'usage': usage if usage is not None else {'prompt_tokens': 6, 'completion_tokens': 4, 'total_tokens': 10}}
 
 
-def setup_model(tmp_path, monkeypatch, role='text_tool'):
+def setup_model(tmp_path, monkeypatch, role='text_tool', endpoint='https://offline.invalid/v1'):
     monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
     monkeypatch.setenv('REPORT_REASONING_EFFORT', 'max')
-    for suffix, value in [('MODEL', 'deepseek-v4.1-flash'), ('BASE_URL', 'https://offline.invalid/v1'), ('API_KEY', 'test-secret')]:
+    for suffix, value in [('MODEL', 'deepseek-v4.1-flash'), ('BASE_URL', endpoint), ('API_KEY', 'test-secret')]:
         monkeypatch.setenv('REPORT_' + role.upper() + '_' + suffix, value)
     store = Store(tmp_path / role)
     return store, configured_model(store, role)
@@ -111,7 +111,7 @@ def test_observation_boundary_propagates_cancellation():
 @pytest.mark.parametrize('headers_arrive', [False, True])
 @pytest.mark.parametrize('cancel_external', [False, True])
 async def test_actual_adapter_stall_phase_and_reservation(tmp_path, monkeypatch, headers_arrive, cancel_external):
-    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 0.25)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 0.25)
     store, model = setup_model(tmp_path, monkeypatch)
     entered = asyncio.Event()
     requests = []

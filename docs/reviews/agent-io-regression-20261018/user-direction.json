@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-18",
+  "source": "direct user messages in this conversation",
+  "decisions": [
+    {
+      "text": "通过fake LLM，来验证一下程序没有干扰agent。再用fake data调用实际的大模型，验证一下I/O没问题。去验证我们之前暴露的bug，有没有出现在系统的其他地方。保留这套测试，后面发现任何的问题，都用这个方式来测试",
+      "scope": "Retained tests first; original batch1 product refactor paused."
+    },
+    {
+      "text": "好的，你继续吧，通过测试验证之前发现的bug确实被修复了，且没有出现在其他地方（其他智能体，以及同一个智能体的其他调用",
+      "scope": "Regression and sibling-call verification; absence claims limited to tested paths."
+    },
+    {
+      "text": "如果能在其他地方复现，这个是我们做这个的目的。非常好",
+      "scope": "A reproduced sibling failure is useful evidence; keep failing cases and investigate common cause rather than optimize for green counts."
+    }
+  ],
+  "roles": {
+    "Neo": "Judge findings and source/trace evidence; propose scoped decisions.",
+    "Codex": "Implement retained tests and execute; no application fix in this increment."
+  }
+}

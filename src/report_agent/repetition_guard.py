@@ -3,6 +3,7 @@
 This is an invocation-local middleware helper, not a semantic progress judge,
 retry loop, call quota, or persistent authorization record.
 """
+from .prompt_sources import load_prompt
 import json
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -14,14 +15,7 @@ from .store import digest
 
 
 SUPPORTED = frozenset({"commit_objects", "save_text_node"})
-NOTICE = (
-    "Local write-replay boundary: the last three identical successful observations "
-    "are backed by the same owned durable write receipt and unchanged business state "
-    "in this invocation. Choosing that exact write again without a relevant change "
-    "will stop with REPEATED_ACTION_WITHOUT_STATE_PROGRESS before executing it. "
-    "Choose further work from the goal and actual evidence; this does not judge "
-    "semantic correctness, forbid repeated reading or calculation, or approve a report."
-)
+NOTICE = load_prompt('repetition-notice')
 
 
 class KnownWriteRepetition:
@@ -66,6 +60,8 @@ class KnownWriteRepetition:
     def trusted(self, actor, call):
         if call["name"] not in SUPPORTED:
             return None
+        from .operation_identity import effective_call, profile, NATIVE
+        call = effective_call(self.workspace.store, call, actor.id)
         operation = call.get("args", {}).get("operation_id")
         if not isinstance(operation, str) or not operation:
             return None
@@ -80,8 +76,11 @@ class KnownWriteRepetition:
         if not refs:
             return None
         # The receipt is real and owned. No response wording creates a receipt.
+        response = receipt['response']
+        if profile(self.workspace.store) == NATIVE:
+            response = {**response, 'operation_id': operation}
         return {"tool": call["name"], "args": call["args"], "operation_id": operation,
-                "request_digest": receipt["request_digest"], "response": receipt["response"]}
+                "request_digest": receipt["request_digest"], "response": response}
 
     def observe(self, call, result, messages):
         scoped = self.scope(messages)
@@ -143,6 +142,8 @@ class KnownWriteRepetition:
         if len(message.tool_calls) != 1 or message.invalid_tool_calls:
             return
         call, proof = message.tool_calls[0], prepared["proof"]
+        from .operation_identity import effective_call
+        call = effective_call(self.workspace.store, call, prepared['key'][0])
         if call["name"] == proof["tool"] and call["args"] == proof["args"]:
             self.armed[prepared["key"]] = {**prepared, "ai_id": message.id, "call_id": call["id"]}
 

@@ -1,0 +1,10 @@
+{
+  "authority": "最新直接用户:再做一次全量回归,今后执行目录互不依赖",
+  "full_regression_authorized": true,
+  "new_report_real_model_authorized": false,
+  "analysis": ".analysis/post-permanent-cleanup-full-20261027",
+  "future_boundary": "Own writable inputs/state/checkpoints/outputs; explicitly independent durable shared services/fixtures allowed; no foreign run temp dependency",
+  "automation_remains_paused": true,
+  "latest_scope": "用户最新:先做全量回归，之后等我的安排。仅一次full+Neo终审，然后停下；不修复、不第二次full、不新报告/付费、不恢复自动化。",
+  "full_host_session": 83672
+}

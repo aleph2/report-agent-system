@@ -49,7 +49,7 @@ def test_one_diagnostic_contains_all_independent_static_gaps(ws):
         validate_requirements(cs, snapshot, requirements)
     result = json.loads(str(caught.value).split(': ', 1)[1])
     kinds = {i['kind'] for i in result['issues']}
-    assert kinds == {'structural', 'undeclared', 'unresolved', 'oversized_source'}
+    assert kinds == {'structural', 'undeclared', 'unresolved'}
     assert all(i['scope_id'] == 'rule-comparison' and i['path'].startswith('/review_requirements/0/') for i in result['issues'])
     extent = next(i for i in result['issues'] if i['code'] == 'CONTENT_CHECK_SCOPE_OUTSIDE_ASSIGNMENT')
     assert extent['ref'] == refs['root'] and extent['requirement_index'] == 1
@@ -72,7 +72,7 @@ def test_exact_ref_resolved_once_per_analysis_without_cross_call_cache(ws, monke
     monkeypatch.setattr(cs, 'read', read)
     first = review_readiness(cs, snapshot, requirements)
     assert calls[encode(source)] == 1
-    assert len([i for i in first['issues'] if i['kind'] == 'oversized_source']) == 3
+    assert len([i for i in first['issues'] if i['kind'] == 'oversized_source']) == 0
     assert review_readiness(cs, snapshot, requirements) == first
     assert calls[encode(source)] == 2
 
@@ -98,28 +98,27 @@ async def test_native_create_rejects_missing_declaration_without_entering_review
 
 
 @pytest.mark.parametrize('managed_context', [False, True])
-async def test_native_create_rejects_impossible_whole_source_even_with_ranges(ws, managed_context):
+async def test_native_create_preserves_whole_source_even_with_ranges(ws, managed_context):
     cs, refs, snapshot, source = large_seed(ws)
     bounded(ws)
     if managed_context:
         ws.store.set('context_policy', 'stateful-tools-v1')
     call = review_call(snapshot, refs, reads=[source])
-    req = call['args']['review_requirements'][0]
-    req['source_ranges'] = [{'source_ref': source, 'offset': 0, 'limit': 1}]
+    call['args']['review_requirements'][0]['source_ranges'] = [{'source_ref': source, 'offset': 0, 'limit': 1}]
+    original_source = cs.read(source)
     observed = []
-    def see_error(messages):
+    def see_assignment(messages):
         observed.append(messages[-1].content)
-        return AIMessage(content='New task rejected before Reviewer; whole-source requirement remains impossible.')
-    driver = Driver(coordinator=[AIMessage(content='', tool_calls=[call]), see_error])
+        assert source['id'] in messages[-1].content
+        assert 'oversized_source' not in messages[-1].content
+        return AIMessage(content='Assignment received; no semantic review performed in this fixture.')
+    driver = Driver(coordinator=[AIMessage(content='', tool_calls=[call]), AIMessage(content='Assignment retained.')],
+                    reviewer=[invoke('read_task_assignment'), see_assignment])
     result = await deep_runtime.run_report(ws, driver)
     assert result['last_error'] is None, result
-    assert len(observed) == 1
-    assert json.loads(observed[0])['code'] == 'REVIEW_SOURCE_RANGE_REQUIRED', observed[0]
-    assert 'oversized_source' in observed[0], observed[0]
-    assert source['id'] in observed[0], observed[0]
-    assert '/review_requirements/0/required_read_refs/0' in observed[0], observed[0]
-    assert not cs.list_objects('DelegatedTask') and not cs.list_objects('ReviewRecord')
-    assert {r for r, _, _ in driver.calls} == {'coordinator'}
+    assert observed and cs.read(source) == original_source
+    assert len(cs.list_objects('DelegatedTask')) == 1 and not cs.list_objects('ReviewRecord')
+    assert 'reviewer' in {r for r, _, _ in driver.calls}
 
 
 @pytest.mark.parametrize('managed_context', [False, True])
@@ -261,9 +260,9 @@ async def test_oversized_mandatory_source_and_unresolved_are_shown_together(ws):
     model = Model()
     with delegated_task(ws, 'coordinator', resumed) as (_, actor):
         seen = assignment_tool(ws)()
-        assert {i['kind'] for i in seen['readiness']['issues']} == {'unresolved', 'oversized_source'}
+        assert {i['kind'] for i in seen['readiness']['issues']} == {'unresolved'}
         result = await perform_review(ws, actor, model, 'both', ['rule-comparison'])
-        assert {i['kind'] for i in result['readiness_issues']} == {'unresolved', 'oversized_source'}
+        assert {i['kind'] for i in result['readiness_issues']} == {'unresolved'}
     assert not model.calls
     assert cs.list_objects('DelegatedTask') == before
     assert cs.receipt(actor_for('coordinator'), 'delegate:' + call['id']) == receipt
@@ -366,11 +365,10 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
         block = next(b['text'] for b in system.content_blocks if b.get('text', '').startswith(prefix))
         control = json.loads(block[len(prefix):])['review_input_readiness']
         assert not control['execution_ready'] and control['issues']['complete']
-        assert {i['kind'] for i in control['issues']['entries']} == {'undeclared', 'unresolved', 'oversized_source'}
+        assert {i['kind'] for i in control['issues']['entries']} == {'undeclared', 'unresolved'}
         assert {i['scope_id'] for i in control['issues']['entries']} == {'rule-comparison', 'other-scope'}
         assert all(i['path'].startswith('/review_requirements/') for i in control['issues']['entries'])
         assert all(i['reason'] and 'reason_complete' in i for i in control['issues']['entries'])
-        assert all(i['characters'] > 16000 for i in control['issues']['entries'] if i['kind'] == 'oversized_source')
         assert control['automatically_loaded_refs']['complete']
         controls.append(control)
         return invoke('read_task_assignment')

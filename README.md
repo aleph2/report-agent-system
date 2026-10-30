@@ -1,6 +1,41 @@
 # Report Agent System
 
-## Current work entry points (2026-10-15)
+## Current model request timeout (2026-10-24)
+
+The native async model-call deadline is 600 seconds, including SDK work and parsing.
+Constructed chat and vision clients use HTTP connect/read/write/pool timeouts of
+15/600/60/60 seconds. Existing recovery and retry policies are unchanged; separate
+attempts and a whole report run retain their own resource limits. Sync compatibility
+clients have the HTTP phase timeout, not the async overall deadline. Newly built
+processes/clients take this policy; saved historical requests and unknown outcomes
+are preserved and must not be replayed to apply it. Dated settings below describe
+their historical runs rather than the current timeout.
+
+## Current runtime boundary (2026-10-27)
+
+Fresh implicit native `init` uses the complete V4 contract bundle: separate task
+descriptions, program-owned operation identity, concise prompts, reader expression,
+stateful context with complete review materials, executable review work units and
+task-local submission selectors. Explicit historical profiles stay explicit; reading
+or reinitializing an existing case does not silently upgrade its contracts. Model and
+effort settings remain separately configured; this does not select a new model.
+
+The four report roles share the DeepAgents runtime and ownership/trace/recovery
+mechanisms. Their task histories, permissions, tools and applicable business contracts
+differ. Summary activity belongs to the actor whose history is summarized even when
+it uses the coordinator model service. Default per-run model clients are cached and
+closed by their creating host; an injected factory retains client ownership.
+
+Each fresh execution owns its writable inputs, state, checkpoints and outputs. Managed
+fixtures and independent durable source/financial stores may be reused; another run's
+temporary directory must not be a live dependency. Only rounds03–06 were retained in
+`.runs` after authorized cleanup. Older paths below are historical descriptions, not
+current dependencies, available recovery backups or instructions to restore retired runs.
+
+Current review evidence is in `.analysis/round06-reviewer-rootcause-20261027` and
+`.analysis/unified-r06-implementation-20261027`. No new report execution is implied.
+
+## Historical work entry points (2026-10-15)
 
 - [Current status and next action](.memory/full-chain-validation-live-handoff-20261014.json): the single maintained handoff; older run notes are historical evidence.
 - [Latest terminal run: continuation18](.runs/full-chain-report-validation-20261014/continuation18/result.json): stopped at the authorized token admission boundary; not running and not automatically restartable.
@@ -203,9 +238,13 @@ and `REPORT_API_KEY` in the process environment, then run
 `report-agent report-run --project .runs/example`. Do not commit secrets. The application
 does not read the legacy application's config or code. All example documents are synthetic.
 
-`report-run` resumes pending native checkpoints after failure, or returns an already
-reviewed current delivery without a model call. Human interrupts require an explicit
-issue decision before resuming. The earlier `run` command is a historical materials
+Recovery has separate boundaries: opt-in bounded physical model-request recovery,
+supported direct-child checkpoint recovery, and root `report-run` reentry. A pending
+native delegation reservation can block root reentry; direct-child recovery tests do
+not prove transparent whole-report resume. Preserve unknown outcomes and their holds;
+do not replay them to obtain a fresh result. An already reviewed current delivery may
+return without a model call. Human interrupts require an explicit issue decision before
+resuming. The earlier `run` command is a historical materials
 prototype, not the current report path. `events` prints local protocol evidence, which may contain input text;
 do not publish it as ordinary user progress. `.runs/` is ignored by Git.
 
@@ -278,3 +317,25 @@ formatting and production Word layout require further validation. DOCX export
 currently uses basic paragraphs and headings. A committed correction does not prove
 semantic accuracy, and unresolved source issues must remain explicit. Model review,
 synthetic success and a rendered export do not constitute engineering acceptance.
+
+
+### Complete bound Reviewer materials (fresh projects)
+
+For a new native V4 case, select `context_policy: stateful-tools-v2` and
+`context_projection: review-materials-v1` in its manifest. The existing immutable
+projection binding rejects switching an executed case. Other roles retain their
+current views. Reviewer receives the exact saved Snapshot closure, complete
+standards/original requirements and scope links, with one payload per object version.
+Original data and ranged recovery tools remain available; ordinary history may be
+compacted. Artifact files/images still need the existing inspection tools. Supplied
+data creates no read/check/review receipt and never implies acceptance.
+
+This simple mode sends the complete bound business packet on each Reviewer decision;
+it does not guarantee arbitrarily large material fits. Existing whole-request capacity
+admission applies, with no silent trimming. Use a fresh, separately authorized validation
+to assess real model behavior, latency and token cost.
+
+Optional `REPORT_REVIEWER_REASONING_EFFORT=high` selects Reviewer alone for a fresh
+compatible DeepSeek service. It uses the existing immutable generation binding;
+unset preserves the previous behavior and other roles retain their own settings.
+It does not change an old case, authorize a retry, or establish equivalence with max.

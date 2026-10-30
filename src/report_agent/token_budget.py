@@ -15,6 +15,12 @@ from .request_budget import RequestBudgetExceeded
 _active=ContextVar('report_token_budget',default=None)
 
 
+def current_model_token_bound(model):
+    """Read the active authoritative reservation bound; never estimate tokens."""
+    budget = _active.get()
+    return budget.model_bounds.get(model) if budget is not None else None
+
+
 class TokenBudget:
     @staticmethod
     def increase_authorization(path, *, previous_maximum, new_maximum,
@@ -144,6 +150,8 @@ def current_token_observation():
 
 
 def reserve_request(request):
+    from .model_recovery import admit_recovery_request
+    admit_recovery_request(request)
     budget=_active.get()
     if budget is None:return None
     body=json.loads(request.content)
@@ -160,7 +168,10 @@ async def account_response(response):
     if not reservation and not has_http_observer(response.request):return
     await response.aread()
     observe_http_phase(response.request, 'body_read_completed')
-    if not reservation:return
+    from .model_recovery import capture_response
+    if not reservation:
+        capture_response(response)
+        return
     budget,identity=reservation
     try:body=response.json()
     except (ValueError,UnicodeError):body={}
@@ -171,6 +182,7 @@ async def account_response(response):
         raise RequestBudgetExceeded('TOKEN_LEDGER_SETTLEMENT_FAILED') from exc
     observe_http_phase(response.request, 'usage_accounted',
                        accounting_state=result['state'], recorded_tokens=result['used'])
+    capture_response(response)
 
 
 def account_response_sync(response):

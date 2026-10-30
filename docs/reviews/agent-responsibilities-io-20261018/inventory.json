@@ -1,0 +1,1761 @@
+{
+  "title": "当前系统智能体职责与输入输出",
+  "date": "2026-10-18",
+  "status": "C1、C2、C3方案已确认；其余职责统一梳理为待审建议。未实施应用代码变更，未通过业务验收。",
+  "project_root": "C:/Users/dongy/Documents/ChatGPT/report-agent-system",
+  "scope": "当前 native hierarchical 内容路径及独立学习路径的代码现状。不是旧系统专家名册，也不是对历史所有运行或部署进程的验证。",
+  "request": "Neo牵头，先把当前系统每个智能体的职责，以及每项职责的输入输出列出来，我们逐项审核，先不改代码。",
+  "method": "Neo牵头审查；Codex汇总；两名只读代码调查助手分别核查Writer、Reviewer/Layout。本轮只读代码与文档，不运行报告、模型或测试，不写业务数据。仅产出本审核文档。",
+  "evidence_limits": [
+    "“当前职责”来自最终角色装配、工具注册、prompt与相关实现；未以新一次模型调用证明这些职责已正确执行。",
+    "五类角色不表示固定五阶段：Coordinator按目标派发Writer、Reviewer、Layout；Experience Optimizer独立运行。",
+    "表中的程序边界记录现有实现，不代表用户已认可其设计，也不把合法schema、保存成功或图完成等同于语义正确。",
+    "每条职责的输入包括它应使用／可读取的信息，并非这些信息都在第一次模型输入中完整自动出现；实际交接方式见下表。",
+    "职责是否充分、是否重复、哪种边界应调整，留待本轮逐项审核；未列出的能力不自行视为已实现。"
+  ],
+  "roles": [
+    {
+      "id": "coordinator",
+      "name": "Coordinator · 报告协调智能体",
+      "purpose": "对当前授权委托的目标、任务安排和版本交付负责。",
+      "activation": "报告主智能体；不是固定执行所有可用步骤。",
+      "prompt": "content-common.md + content-coordinator.md；另有框架指令与按配置注入的当前应用状态。",
+      "evidence": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 766
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 826
+        }
+      ],
+      "duties": [
+        {
+          "id": "C1",
+          "title": "理解委托及当前任务范围",
+          "input": "用户目标 goal、scope_instruction、Requirement／SourceArtifact 引用、当前已发布指令、反馈、已有成果与呈现参考。",
+          "output": "当前要完成的工作、范围解释与下一步行动；主要体现在行动选择和委派描述，并无单独统一的“需求理解”输出对象。",
+          "consumer": "Coordinator 自己；随后被委派的智能体。",
+          "boundary": "区分当前任务与项目最终目标；呈现参考不授权移植其他项目事实。程序提供状态和授权，业务理解由 Agent 作出。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-coordinator.md",
+              "line": 1
+            },
+            {
+              "path": "src/report_agent/task_context.py",
+              "line": 38
+            }
+          ],
+          "status": "方案已确认；尚未实现",
+          "agreed_design": {
+            "decision_date": "2026-10-18",
+            "confirmed_by": "用户",
+            "design_lead": "Neo",
+            "recorded_by": "Codex",
+            "user_confirmation": "好，C1先按这个方案记录，暂不改代码。继续C2，Neo解释一下它的职责、输入输出，以及如何使用C1的结果，看看是否合理、有没有遗漏。",
+            "implementation_status": "not_implemented",
+            "responsibility": "结合用户委托、适用要求和当前状态，明确本次工作的目标、范围、预期结果、约束及未决事项，并在后续决策和交接中保持这些信息一致。",
+            "output": "结构化保存当前委托的明确解释，供后续职责使用；不复制一套需求、计划和进度。",
+            "business_fields": [
+              {
+                "name": "current_assignment",
+                "label": "当前委托",
+                "meaning": "本次要做什么，以及它与项目最终目标的关系；继续必须明确继续哪项工作。"
+              },
+              {
+                "name": "expected_result",
+                "label": "预期成果",
+                "meaning": "本次应交出什么、用于什么；具体验收标准由C2维护。"
+              },
+              {
+                "name": "scope",
+                "label": "范围",
+                "meaning": "必须包含的对象和内容、明确排除的事项；未找到资料不能自动变为范围排除。"
+              },
+              {
+                "name": "basis",
+                "label": "理解依据",
+                "meaning": "用户请求、Requirement、适用指令及反馈的精确引用，以及对本次工作的关键约束；下游须可取得适用的有效原文，概括不能替代或削弱原要求。"
+              },
+              {
+                "name": "open_questions",
+                "label": "未决事项",
+                "meaning": "尚未澄清的含义、冲突及其影响；没有则为空，不复制执行进度。"
+              }
+            ],
+            "reuse_and_boundaries": [
+              "项目最终目标继续使用现有goal；详细验收标准归C2，计划、委派和进度保留在各自现有状态中，不由C1重复维护。",
+              "后续读取C1时须能够解析依据引用并读取适用要求的有效内容，不能只交付ID或用概括替代原要求。",
+              "C1是委托解释，不是授权；不能通过写入或修订解释批准付费、发布、扩大范围或修改他人成果。",
+              "优先复用现有持久化状态机制；具体写入入口和字段类型在实施前明确，不先增加实体管理框架或固定工作流。",
+              "结构化完整不证明意图理解正确；仍需核对用户目标是否保留及下游能否据此工作。"
+            ],
+            "program_managed_metadata": [
+              "所属项目及任务",
+              "理解依据的版本或摘要",
+              "解释的修订标识",
+              "记录时间"
+            ],
+            "update_rules": [
+              "新委托、要求变化或发现误解时更新；普通检索、正文生成和进度变化不必更新。",
+              "恢复时核对当前委托及有效依据，不能只因最近保存而沿用；只重新评估受变化影响的理解和成果，不自动令全部成果失效。"
+            ],
+            "scope_of_this_decision": "仅记录C1设计方案；不修改应用代码、不运行模型，C2及后续职责仍待逐项审核。"
+          }
+        },
+        {
+          "id": "C2",
+          "title": "定义和维护验收准则",
+          "input": "独立用户要求及其 Requirement 精确版本、适用标准、预期成果、证据要求和允许限制。",
+          "output": "Criterion 版本：requirement_refs、purpose、scope、expected_outcome、evidence_expectation、allowed_limits；经保存取得 ref。",
+          "consumer": "Writer、Reviewer；任务定义及后续验收判断。",
+          "boundary": "Coordinator 维护准则；不能按生成结果降低要求。当前走 commit_objects，不能把旧 save_acceptance_criteria 兼容路径当运行入口。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-coordinator.md",
+              "line": 10
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 175
+            },
+            {
+              "path": "src/report_agent/content_models.py",
+              "line": 41
+            }
+          ],
+          "status": "方案已确认；现有Criterion可复用，衔接待实现",
+          "agreed_design": {
+            "decision_date": "2026-10-18",
+            "confirmed_by": "用户",
+            "design_lead": "Neo",
+            "recorded_by": "Codex",
+            "user_confirmation": "好，C2先按这个方案记录，暂不改代码。继续C3，Neo解释一下职责、输入输出，以及如何使用C1和C2的结果，看看是否合理、有没有遗漏。",
+            "implementation_status": "existing_criterion_reused_design_handoff_not_implemented",
+            "responsibility": "把要交付什么转成怎样的成果才符合要求；准则同时指导首次生成和后续审核。维护准则，不承担实际审核，也不安排C5的具体检查任务。",
+            "input": "C1的委托解释及其引用的用户原要求、Requirement精确版本、适用标准原文、有效反馈和指令；维护时还读取原准则及其依据。C1概括不能代替原要求。",
+            "output": "已保存且可追溯的Criterion版本及精确引用；复用当前对象，不另建一套验收准则。",
+            "business_fields": [
+              {
+                "name": "requirement_refs",
+                "label": "要求依据",
+                "meaning": "依据哪些用户要求，绑定精确版本。"
+              },
+              {
+                "name": "purpose",
+                "label": "目的",
+                "meaning": "为什么需要这条准则。"
+              },
+              {
+                "name": "scope",
+                "label": "适用范围",
+                "meaning": "对什么成果、对象或范围适用。"
+              },
+              {
+                "name": "expected_outcome",
+                "label": "预期性质",
+                "meaning": "成果应具有什么可判断的性质，不能仅写格式正确或内容完整。"
+              },
+              {
+                "name": "evidence_expectation",
+                "label": "证据要求",
+                "meaning": "需要什么证据才能判断是否符合。"
+              },
+              {
+                "name": "allowed_limits",
+                "label": "允许限制",
+                "meaning": "原要求允许的限制或不确定性，不能自行放宽。"
+              }
+            ],
+            "c1_usage": [
+              {
+                "field": "current_assignment",
+                "use": "确定本次需要制定或维护哪些准则，避免局部任务替代整体目标。"
+              },
+              {
+                "field": "expected_result",
+                "use": "明确报告、Excel或其他成果应满足的性质。"
+              },
+              {
+                "field": "scope",
+                "use": "确定准则适用于哪些对象、内容和交付物。"
+              },
+              {
+                "field": "basis",
+                "use": "读取用户原要求、标准原文和有效反馈，不仅根据C1概括制定准则。"
+              },
+              {
+                "field": "open_questions",
+                "use": "识别暂不能确定的标准含义，保留冲突及影响，不选择容易满足的解释；无关工作可以继续。"
+              }
+            ],
+            "consumers": "Writer等生产方、Reviewer及Coordinator；准则保存成功不证明已经传入后续每次工具调用，交接须明确采用的准则。",
+            "confirmed_clarifications": [
+              "覆盖完整性：每条准则可追溯还不够，要反向核对是否有原要求没有对应准则。",
+              "可判断性：明确符合条件、违反情形及无法判断所缺的证据；字段非空不代表准则有效，具体审核任务由C5组织。",
+              "维护规则：要求或适用依据变化时修订并保留版本及原因；不能因现有成果未满足而降低准则，也不能把局部完成当成整体满足。"
+            ],
+            "program_boundary": "程序负责结构、引用、权限和版本校验；Coordinator负责准则是否忠实、完整、适用的实质判断，保存通过不能替代该判断。",
+            "example": "针对指定页面格式，准则明确上、下、左边距25毫米，右边距15毫米，装订线0；依据指定格式标准，以实际Word文件页面设置核对。该示例定义符合条件，不安排谁检查，也不声明已经通过。",
+            "scope_of_this_decision": "仅记录C2设计方案；Criterion字段已有，C1结构化交接待实现；不修改应用代码，C3及后续职责仍待逐项审核。"
+          }
+        },
+        {
+          "id": "C3",
+          "title": "组织资料获取与工作划分",
+          "input": "目标、准则、源资料目录／读取结果、现有内容及关系、缺口、可用工具和经验。",
+          "output": "检索或独立分析请求、选定材料引用、工作目标和分工；必要时转交人处理的来源矛盾／范围问题。",
+          "consumer": "资料工具、有界分析工具、被委派智能体或用户。",
+          "boundary": "根据观察选择行动，不固定逐节点流水线；不能把检索失败当成原始资料缺失。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-coordinator.md",
+              "line": 20
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 353
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 496
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 589
+            }
+          ],
+          "status": "方案已确认；交接保存方式待与C4收敛",
+          "agreed_design": {
+            "decision_date": "2026-10-18",
+            "confirmed_by": "用户",
+            "design_lead": "Neo",
+            "recorded_by": "Codex",
+            "user_confirmation": "好，C3先按这个方案记录，暂不改代码。继续C4，Neo解释一下职责、输入输出，以及如何承接C1、C2和C3的结果，看看是否合理、有没有遗漏。你也别一个一个的搞了，按照这个讨论把所有的都搞了。再评估一下改动大不大",
+            "implementation_status": "existing_capabilities_handoff_design_pending",
+            "responsibility": "决定为了完成目标需要哪些资料、还需哪些工作及如何组织；不要求Coordinator先读完全部资料，也不是固定前置阶段。C3明确工作目标和分工意向，C4负责实际委派及责任绑定。",
+            "inputs": [
+              "C1当前委托、预期成果、范围、理解依据及未决事项。",
+              "C2适用Criterion及原始依据。",
+              "资料目录、检索与读取结果。",
+              "已有成果及任务状态、缺口、可用能力与适用经验。"
+            ],
+            "outputs": [
+              "资料读取、检索或独立LLM分析请求，交相应工具执行。",
+              "选定材料的精确引用、版本、位置、用途和已知限制，供后续责任方使用。",
+              "需完成的工作及划分，交C4明确每项解决的问题、采用准则、预期成果及必要依赖。",
+              "缺口、矛盾和需人决定的问题，供Coordinator安排后续行动，必要时向用户澄清。"
+            ],
+            "upstream_usage": [
+              "C1委托和预期成果用于决定组织哪些工作，不能把完善报告缩成重新导出已有文件。",
+              "C1范围和依据用于保留应覆盖对象及内容；未决事项只影响相关工作，不自动停止全部工作。",
+              "C2准则用于判断材料和成果缺口，影响首次生产，不能只供后续Reviewer使用。"
+            ],
+            "confirmed_clarifications": [
+              "Coordinator组织而不包办专业判断；Writer判断章节与资料关系，Reviewer独立调查。初步选材不能代替其判断；绑定审核材料不足时反馈调整，不默默缩小审核问题。",
+              "区分可访问、已读片段与足以支持工作；区分检索无结果、读取失败和资料确实不存在。",
+              "工作划分面向成果和衔接，不把检索次数或读取文件数量当成完成。"
+            ],
+            "program_boundary": "程序负责确定性的检索、读取、引用和权限处理；Agent判断资料相关性、充分性及工作组织，实质提取和比较可交独立LLM工具。",
+            "persistence": "不另建C3计划库；资料复用已有版本及观察引用，实际委派复用C4任务，关键选材决定、用途和限制须保存并交接，具体位置与C4一起收敛。",
+            "example": "指南表样要求需要原表表头、层级、分级行及相关说明，不只有评分数值；Coordinator可定位或由Writer继续调查，再通过C4交接目标、准则和材料位置。",
+            "scope_of_this_decision": "只记录C3方案；其余41项职责统一梳理及改动规模评估为待审建议，不授权实施代码变更。"
+          }
+        },
+        {
+          "id": "C4",
+          "title": "委派任务并恢复原责任方",
+          "input": "任务 description、subagent_type；修订时原 resume_content_task_id；附该角色需要的目标、材料和约束。",
+          "output": "task 调用；程序保存 DelegatedTask 并绑定 task_id／actor。子图收到任务描述及允许的状态；返回通常是子 Agent 最后非空文字。",
+          "consumer": "Writer、Reviewer 或 Layout；返回结果由 Coordinator 消费。",
+          "boundary": "任务身份由服务端绑定；恢复身份不等于自动继承全部历史上下文。当前没有项目统一的结构化子任务总结 schema。",
+          "evidence": [
+            {
+              "path": "src/report_agent/content_tasks.py",
+              "line": 42
+            },
+            {
+              "path": "src/report_agent/content_tasks.py",
+              "line": 62
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 803
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "C4"
+          }
+        },
+        {
+          "id": "C5",
+          "title": "定义具体审核范围与证据要求",
+          "input": "精确快照、目标及 Criterion；独立委托要求；可用内容／源材料／导出件／渲染件及对应关系。",
+          "output": "review_snapshot_ref、review_requirements：scope_id、required_checks、目标及标准引用；按需要声明材料、内容范围、artifact_check_scopes、reference_page_bindings及可选监督策略。",
+          "consumer": "Reviewer；程序的任务绑定、材料准入与完成记账。",
+          "boundary": "不能以方便获得的证据缩窄委托；定义任务不是已审核。可选监督策略不改变准则或权限。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-coordinator.md",
+              "line": 34
+            },
+            {
+              "path": "src/report_agent/content_tasks.py",
+              "line": 49
+            },
+            {
+              "path": "src/report_agent/content_tasks.py",
+              "line": 86
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "C5"
+          }
+        },
+        {
+          "id": "C6",
+          "title": "消费结果并安排修订、补证或排版",
+          "input": "子任务实际返回、保存的内容／ReviewRecord／缺项、可用排版能力、修改授权及已有有效成果。",
+          "output": "继续调查、恢复原 Writer 修订、委派 Layout、请求复核或向人交接的决定及调用。",
+          "consumer": "原作者、Layout、Reviewer、用户。",
+          "boundary": "Coordinator 不改其他责任方的内容或审核结论。依赖审核结果的 Layout 任务须在读到审核返回后的模型轮次决定；不能预排后仅串行执行。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-coordinator.md",
+              "line": 63
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 231
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "C6"
+          }
+        },
+        {
+          "id": "C7",
+          "title": "冻结、导出并选择交付版本",
+          "input": "已保存的生产者内容引用、结构关系、明确的工作簿节点；快照、Word／Excel导出引用、适用审核和未完成项。",
+          "output": "DocumentSnapshot；按任务需要生成的 ExportArtifact；select_content_delivery 保存所选快照和文件引用。",
+          "consumer": "导出工具、Reviewer、交付界面及用户。",
+          "boundary": "冻结不转移内容所有权；选择版本不表示验收。Word 与问题 Excel 的内容范围和版本关联须明确。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 210
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 378
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 439
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "C7"
+          }
+        },
+        {
+          "id": "C8",
+          "title": "决定继续、等待、交接或结束并如实说明",
+          "input": "当前目标、未完成项、真实结果、资源及授权、可行后续行动、选定版本和审核状态。",
+          "output": "record_execution_decision 的 continue／wait／handoff／terminate、理由与相关证据；最终对外说明版本、缺口、限制及停止理由。",
+          "consumer": "宿主程序、用户以及后续恢复任务。",
+          "boundary": "结束执行不等于报告通过；record_execution_decision只记录决定，不直接终止宿主运行。结果未确定的写操作须先查看收据再判断是否可重放；已知失败与未知结果应分开处理。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-coordinator.md",
+              "line": 96
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 472
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 944
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "C8"
+          }
+        }
+      ]
+    },
+    {
+      "id": "writer",
+      "name": "Writer · 报告编写智能体",
+      "purpose": "决定写作目标、结构、材料和采纳方式，负责自己任务的内容版本与修订。",
+      "activation": "由Coordinator按目标委派；同一角色可有多个具有不同所有权的任务。",
+      "prompt": "content-common.md + content-writer.md + context_guidance；启用TaskContext时另注入应用状态和适用指令。",
+      "evidence": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 795
+        },
+        {
+          "path": "src/report_agent/rules/content-writer.md",
+          "line": 1
+        }
+      ],
+      "duties": [
+        {
+          "id": "W01",
+          "title": "理解写作委托并决定策略",
+          "input": "委派 description／保存任务 goal；项目 goal、scope_instruction；适用指令、已发布偏好、已有内容、反馈与修改限制。",
+          "output": "需要完成的内容、选材、结构与下一步工具调用；并无统一的“写作策略”持久化对象。",
+          "consumer": "Writer自己；后续工具；最终向Coordinator回报。",
+          "boundary": "程序绑定task／actor并恢复状态；模型不能自行换角色或取得别人的内容所有权。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-writer.md",
+              "line": 1
+            },
+            {
+              "path": "src/report_agent/task_context.py",
+              "line": 38
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 799
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W01"
+          }
+        },
+        {
+          "id": "W02",
+          "title": "选择并获取有关资料和内容上下文",
+          "input": "资料目录、检索词、source_id、offset／limit、物理页、精确对象版本及已有观察引用。",
+          "output": "定位文本、表格或图像观察、原始对象及覆盖／未读范围；所选材料引用。",
+          "consumer": "Writer决策；独立分析或文字生成工具。",
+          "boundary": "分页与读取由程序完成；检索无结果不等于原资料不存在，目录元数据不等于已读正文。",
+          "evidence": [
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 353
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 378
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 118
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W02"
+          }
+        },
+        {
+          "id": "W03",
+          "title": "按需委托提取、比较和解释",
+          "input": "问题／purpose；所选源文、旧结果片段、快照和内容选择；必要时图像页码及crop。",
+          "output": "analyze_text／analyze_evidence／视觉工具的分析、观察收据与局限；后续行动决定。",
+          "consumer": "Writer；后续生成任务。",
+          "boundary": "实质分析交独立有界工具；它没有搜索、委派、业务内容写入或验收权限。选父节点不自动展开全部子正文。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-writer.md",
+              "line": 3
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 430
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 489
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W03"
+          }
+        },
+        {
+          "id": "W04",
+          "title": "决定章节结构、粒度、顺序和对象关系",
+          "input": "委托、共享Criterion、已读取材料、现有ContentNode／Evidence及选用决定。",
+          "output": "结构标题与节点；有序contains关系；支持、反证、依赖和引用关系。",
+          "consumer": "快照、导出及Reviewer。",
+          "boundary": "Agent可直接提交单行report／chapter结构标题，受1–240字符、空qualifiers等结构例外约束；实质正文仍经文字工具。关系是作者主张，不能当正确性证明。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-writer.md",
+              "line": 8
+            },
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 518
+            },
+            {
+              "path": "src/report_agent/content_models.py",
+              "line": 125
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W04"
+          }
+        },
+        {
+          "id": "W05",
+          "title": "委托正文、表格、图注及证据的生成或重写",
+          "input": "operation_id、objective、object_type、output_count；input_refs、source_selections、observation_refs、候选选择、源版本和可选修订范围；程序补入commission。",
+          "output": "候选ContentNode／TextEvidence payloads；text_work_id、输出index、generation_notes、用量、状态和局限；此时还不是已保存业务节点。",
+          "consumer": "Writer判断采纳；随后由保存接口接收。",
+          "boundary": "独立文字工具只处理实际供给材料。完整evidence JSON上限64,000字符，超限拒绝而非截断；不自动继承全部Writer对话、子任务goal或所有Criterion。",
+          "evidence": [
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 147
+            },
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 380
+            },
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 531
+            },
+            {
+              "path": "src/report_agent/prepared_material.py",
+              "line": 29
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W05"
+          }
+        },
+        {
+          "id": "W06",
+          "title": "判断采纳并保存工具的原始内容",
+          "input": "当前任务完成态text_work_id、输出index；可选previous_ref；候选结果、局限及需要时恢复读取的正文。",
+          "output": "新的ContentNode／Evidence版本、Ref和写入收据。",
+          "consumer": "关系、快照、Reviewer与Coordinator。",
+          "boundary": "精确采纳payload，不能由Agent先改写再保存；程序检查task、输入／授权摘要、所有权和版本。reference-data模式可能延后body，不能假定Writer自动读完全文。",
+          "evidence": [
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 495
+            },
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 578
+            },
+            {
+              "path": "src/report_agent/decision_data.py",
+              "line": 46
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W06"
+          }
+        },
+        {
+          "id": "W07",
+          "title": "保留来源、计算依据与推理关系",
+          "input": "精确SourceArtifact／Evidence／ContentNode引用；locator、原文excerpt；选定的计算输入、单位、方法及采用依据。",
+          "output": "Evidence、计算收据、supported_by／contradicted_by／depends_on等Relation及provenance_kind。",
+          "consumer": "正文使用、快照保存及独立审核。",
+          "boundary": "算术工具实现十进制乘积求和，不替Agent选择指南类型或评分档位。不经文字工具的字面Evidence直接提交路径校验excerpt子串；确定性计算Evidence检查本人实际sum_products收据及一致结果。文字工具生成Evidence走其独立生成、引用及精确采纳校验；不能泛称全部Evidence经过相同字面校验，也不因此证明专业判断成立。",
+          "evidence": [
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 404
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 286
+            },
+            {
+              "path": "src/report_agent/text_work.py",
+              "line": 613
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W07"
+          }
+        },
+        {
+          "id": "W08",
+          "title": "调查反馈并修订自己负责的内容",
+          "input": "具体版本的审核发现／HandlingRecord、旧内容、原始证据、反证、受影响关系和修订授权。",
+          "output": "新内容版本、保留的技术限定、受影响依赖，或对不成立发现的反证／交接。",
+          "consumer": "Coordinator安排后续工作；Reviewer复核。",
+          "boundary": "实质修改重新走文字工具；qualifiers-only路径只替换限定说明并保持正文。不能自行宣布修订已通过，也不能改标准及其他owner成果。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-writer.md",
+              "line": 25
+            },
+            {
+              "path": "src/report_agent/text_work_revision.py",
+              "line": 17
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 316
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W08"
+          }
+        },
+        {
+          "id": "W09",
+          "title": "选择版本并形成报告／工作簿快照",
+          "input": "本人report root、显式refs及依赖闭包；可选workbook_refs；或旧快照和显式版本替换。",
+          "output": "不可变DocumentSnapshot，明确Word树内内容与独立工作簿表格／说明范围。",
+          "consumer": "Word／XLSX导出及Reviewer。",
+          "boundary": "程序检查版本、引用闭包、树和所有权；derive不自动选择最新版本；快照固定内容不证明内容正确。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 210
+            },
+            {
+              "path": "src/report_agent/content_store.py",
+              "line": 291
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W09"
+          }
+        },
+        {
+          "id": "W10",
+          "title": "导出文件并检查内容传递",
+          "input": "精确snapshot；LayoutOptions或旧Word导出布局引用；工作簿sheet／table／note选择及配对Word引用。",
+          "output": "ExportArtifact、内容映射、文件引用与digest；实际文本／结构或页面观察；发现的内容丢失及版式问题。",
+          "consumer": "Coordinator、Layout、Reviewer。",
+          "boundary": "按快照输出；工作簿显式通道须与声明节点一致，配对文件绑定同一快照。生成文件、读取OOXML和视觉观察是不同证据。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 361
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 378
+            },
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 40
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W10"
+          }
+        },
+        {
+          "id": "W11",
+          "title": "判断已发布经验是否适用并记录采用",
+          "input": "已发布且客户／项目范围匹配的偏好、可选方法及项目经验；当前任务与真实来源；经验ID／version和保存目标。",
+          "output": "行为上的采用／不采用；record_experience_use记录精确经验版本、target_ref和理由。",
+          "consumer": "后续学习及审计；Writer继续工作。",
+          "boundary": "仅配置学习库时提供工具；经验不是来源事实，use记录不是效果证明；具体适用性仍由Agent判断。此能力亦向其他报告角色开放。",
+          "evidence": [
+            {
+              "path": "src/report_agent/learning.py",
+              "line": 232
+            },
+            {
+              "path": "src/report_agent/learning.py",
+              "line": 253
+            },
+            {
+              "path": "src/report_agent/task_context.py",
+              "line": 83
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W11"
+          }
+        },
+        {
+          "id": "W12",
+          "title": "回报成果、限制和需要转交的问题",
+          "input": "实际保存的对象／快照／导出引用；工具结果、未知操作收据、未解决问题及限制。",
+          "output": "向Coordinator返回成果IDs和limitations；必要时HandlingRecord的target、problem、evidence、impact。",
+          "consumer": "Coordinator及后续恢复任务。",
+          "boundary": "scratch不算业务成果；最终返回当前是文字而非统一typed成果schema。Writer没有ask_human工具，需通过Coordinator转交人处理。",
+          "evidence": [
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 799
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 322
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 352
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "writer-review.json",
+            "duty_id": "W12"
+          }
+        }
+      ]
+    },
+    {
+      "id": "reviewer",
+      "name": "Reviewer · 审核组织智能体",
+      "purpose": "组织已指派范围的调查和独立判读，忠实返回保存的审核结论与缺项。",
+      "activation": "由Coordinator委派；实质判定由两个独立LLM工具完成。",
+      "prompt": "实际使用 bounded_review.ORGANIZER_PROMPT + reviewer context_guidance；content-reviewer.md在此路径被替换，不是该角色的实际固定System。",
+      "evidence": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 795
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "line": 109
+        }
+      ],
+      "duties": [
+        {
+          "id": "R1",
+          "title": "识别审核对象、准则和必查项",
+          "input": "服务端绑定DelegatedTask；精确snapshot、target／criterion refs、scope_id、required_checks、材料与正文范围、产物范围及参考页绑定。",
+          "output": "任务和材料readiness观察；要调查的范围及调用选择。",
+          "consumer": "Reviewer及后续内容／产物审核工具。",
+          "boundary": "任务由程序绑定；readiness表示材料可用性与绑定状态，不是审核通过。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 98
+            },
+            {
+              "path": "src/report_agent/bounded_review.py",
+              "line": 109
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R1"
+          }
+        },
+        {
+          "id": "R2",
+          "title": "选择正文、关系和原始材料进行调查",
+          "input": "指派问题、对象／内容索引、精确Ref、源文定位、正文选区及已声明材料池。",
+          "output": "真实读取结果、actor-bound观察收据、进一步材料选择和发现的范围缺口。",
+          "consumer": "独立审核工具或Coordinator。",
+          "boundary": "Agent选择材料，程序按选择和权限取回。容器不等于子正文；未选入不等于报告不存在。审核工具的材料池不足须反馈，不能自行扩大已绑定范围。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 118
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 150
+            },
+            {
+              "path": "src/report_agent/bounded_review.py",
+              "line": 146
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R2"
+          }
+        },
+        {
+          "id": "R3",
+          "title": "固定独立调查使用的来源版本",
+          "input": "已授权source_ids及operation_id。",
+          "output": "capture_review_sources保存的SourceArtifact版本引用。",
+          "consumer": "审核依赖、审核工具和ReviewRecord。",
+          "boundary": "不改作者正文、准则或快照；新来源保存不自动进入受限审核工具的材料池，也不证明它支持结论。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 168
+            },
+            {
+              "path": "src/report_agent/bounded_review.py",
+              "line": 196
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R3"
+          }
+        },
+        {
+          "id": "R4",
+          "title": "组织实质内容审核",
+          "input": "operation_id、assigned scope_ids、可选source_selections／content_selections；工具直接装入已保存目标、准则、材料和commission。",
+          "output": "独立工具产生并保存的review_ref、逐项items、analysis operation及缺项／局限；Reviewer决定后续调查并原样回报结论。",
+          "consumer": "Coordinator、review-status查询及后续修订任务。",
+          "boundary": "Agent不能自写或覆盖verdict；工具做有界比较，程序校验版本、材料、scope和观察链接。不完整输入可在调用模型前返回缺口。",
+          "evidence": [
+            {
+              "path": "src/report_agent/bounded_review.py",
+              "line": 153
+            },
+            {
+              "path": "src/report_agent/bounded_review.py",
+              "line": 404
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 747
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R4"
+          }
+        },
+        {
+          "id": "R5",
+          "title": "获取实际文件的内容和结构观察",
+          "input": "精确Word／XLSX ExportArtifact引用。",
+          "output": "实际文件SHA、OOXML文本／结构及读取收据。",
+          "consumer": "Reviewer；独立产物审核工具。",
+          "boundary": "程序核对文件digest并读取真实文件；结构读取不等于视觉检查。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 420
+            },
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 297
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R5"
+          }
+        },
+        {
+          "id": "R6",
+          "title": "组织Word页面视觉调查",
+          "input": "精确export、render和物理页；观察问题；按任务绑定的客户参考页，必要时crop。",
+          "output": "RenderArtifact及页面资产；独立视觉工具返回的观察、页码／裁剪／参考图出处及收据。",
+          "consumer": "Reviewer；产物比较工具。",
+          "boundary": "渲染不等于已看图；裁剪只覆盖局部。当前inspect_render拒绝Excel视觉检查，不能把XLSX数据读取当视觉验收。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 415
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 425
+            },
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 363
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R6"
+          }
+        },
+        {
+          "id": "R7",
+          "title": "组织文件／页面的实质比较",
+          "input": "assigned export／render scope_ids；本Reviewer任务自己的observation_receipts；可选delivery export ref；工具自动装入requirements、criteria及commission。",
+          "output": "保存的ReviewRecord：精确目标／准则／scope、execution_state、verdict、observations、check_results、coverage、findings。",
+          "consumer": "Coordinator、状态查询及交付评估。",
+          "boundary": "独立产物工具比较已有观察，不重新看图或搜索；程序检查receipt所有权、版本、页覆盖及参考配对；观察存在仍不证明判断正确。",
+          "evidence": [
+            {
+              "path": "src/report_agent/artifact_review.py",
+              "line": 139
+            },
+            {
+              "path": "src/report_agent/artifact_review.py",
+              "line": 159
+            },
+            {
+              "path": "src/report_agent/content_models.py",
+              "line": 191
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R7"
+          }
+        },
+        {
+          "id": "R8",
+          "title": "选择新版本复查或确认旧局部判断适用",
+          "input": "旧／新snapshot、旧ReviewRecord、对象／准则／依赖变化、待复用item indexes及理由。",
+          "output": "变化观察、合法的局部复用记录，或新的审核调用及剩余缺口。",
+          "consumer": "Coordinator和review-status。",
+          "boundary": "差异工具不判断语义重要性；不自动把全报告判断迁移到新快照。当前保留confirm_review_reuse，但最终移除了直接correct_own_review。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 331
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 335
+            },
+            {
+              "path": "src/report_agent/deep_runtime.py",
+              "line": 749
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R8"
+          }
+        },
+        {
+          "id": "R9",
+          "title": "回报已完成检查、未完成范围及执行问题",
+          "input": "保存的审核记录、逐项check_results、覆盖范围、剩余页、材料缺口和工具错误。",
+          "output": "真实判断IDs、partial／blocked／未执行说明；必要时HandlingRecord。",
+          "consumer": "Coordinator决定补证、修改、复核或交接。",
+          "boundary": "不能改正文或替Coordinator决定全项目停止；任务返回／handoff不启动作者修订，不将未执行检查编成语义判定。",
+          "evidence": [
+            {
+              "path": "src/report_agent/bounded_review.py",
+              "line": 114
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 322
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "R9"
+          }
+        }
+      ]
+    },
+    {
+      "id": "layout",
+      "name": "Layout · 排版智能体",
+      "purpose": "把格式要求转为展示参数，并根据真实产物改善所授予快照的呈现。",
+      "activation": "可选子任务；只可导出被授予的精确不可变快照，不是必经阶段。",
+      "prompt": "content-common.md + content-layout.md + context_guidance；按配置附加当前应用状态。",
+      "evidence": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 795
+        },
+        {
+          "path": "src/report_agent/rules/content-layout.md",
+          "line": 1
+        }
+      ],
+      "duties": [
+        {
+          "id": "L1",
+          "title": "理解排版目标、参考和内容边界",
+          "input": "委派描述、被授予的layout snapshot、原有导出、审核发现、格式要求、客户参考和当前上下文。",
+          "output": "要解决的展示问题、需要读取的资料和拟调整的控制项。",
+          "consumer": "Layout后续行动。",
+          "boundary": "正文、数字、评分、结论、来源、准则只读。Layout未注册read_task_assignment；输入来自委派描述、TaskContext（启用时）和其他内容读取入口。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-layout.md",
+              "line": 1
+            },
+            {
+              "path": "src/report_agent/content_tasks.py",
+              "line": 121
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 530
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L1"
+          }
+        },
+        {
+          "id": "L2",
+          "title": "核查当前可用排版能力",
+          "input": "当前任务、实际反馈与历史能力限制。",
+          "output": "capability version、engine digest、LayoutOptions schema、目录刷新依赖和修改额度等观察。",
+          "consumer": "Layout选择可行调整；Coordinator评估缺失能力。",
+          "boundary": "能力目录由程序提供，不决定应采用的样式；旧“不支持”说法不自动代表当前能力。",
+          "evidence": [
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 393
+            },
+            {
+              "path": "src/report_agent/layout_capabilities.py",
+              "line": 14
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L2"
+          }
+        },
+        {
+          "id": "L3",
+          "title": "将格式要求转为排版参数",
+          "input": "参考格式、实际内容结构、精确node refs／原文行、页面／字体／行距／表格／目录要求及已有观察。",
+          "output": "Agent选择的LayoutOptions，或选定旧Word export的布局引用。",
+          "consumer": "export_content_snapshot执行。",
+          "boundary": "程序验证参数和精确选择器，不替Agent理解客户标准。参数能设置边距、字体、1.5倍行距、表格线等，不代表默认值已满足标准；不能借选择器改文。",
+          "evidence": [
+            {
+              "path": "src/report_agent/content_layout.py",
+              "line": 14
+            },
+            {
+              "path": "src/report_agent/content_layout.py",
+              "line": 114
+            },
+            {
+              "path": "src/report_agent/content_layout.py",
+              "line": 146
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L3"
+          }
+        },
+        {
+          "id": "L4",
+          "title": "生成应用参数后的Word文件",
+          "input": "operation_id、授予的精确snapshot；layout或layout_from_export_ref二选一及相应目录刷新选项。",
+          "output": "新的ExportArtifact、MappingArtifact、file_ref和SHA。",
+          "consumer": "Layout自查、Reviewer复核、Coordinator选择交付。",
+          "boundary": "程序校验任务与快照授权、修改限制及内容版本；不自动选最新内容。Layout没有XLSX导出或最终交付选择工具。",
+          "evidence": [
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 40
+            },
+            {
+              "path": "src/report_agent/layout_capabilities.py",
+              "line": 45
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 530
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L4"
+          }
+        },
+        {
+          "id": "L5",
+          "title": "取得实际文件结构和渲染产物",
+          "input": "新export ref；render operation_id。",
+          "output": "实际OOXML文本结构收据、RenderArtifact、PDF／PNG页资产和digest，或明确渲染失败／受阻状态。",
+          "consumer": "Layout自查及后续审核。",
+          "boundary": "真实读取和渲染由工具执行；渲染成功不等于页面已检查或效果合格。",
+          "evidence": [
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 297
+            },
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 313
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L5"
+          }
+        },
+        {
+          "id": "L6",
+          "title": "依据页面观察决定调整是否有效",
+          "input": "render／page、具体视觉问题、客户参考页或crop、先前反馈。",
+          "output": "独立视觉工具的有限观察；Layout据此识别未解决问题并选择下一次调整。",
+          "consumer": "Layout后续调用；Coordinator了解实际效果。",
+          "boundary": "不能靠隐藏技术不确定性改善外观；局部观察不等于全页覆盖；自查不能替代独立Reviewer复核。",
+          "evidence": [
+            {
+              "path": "src/report_agent/content_export.py",
+              "line": 363
+            },
+            {
+              "path": "src/report_agent/rules/content-layout.md",
+              "line": 9
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L6"
+          }
+        },
+        {
+          "id": "L7",
+          "title": "回报排版成果、能力缺口和内容修改需求",
+          "input": "导出／渲染引用、已处理的发现、剩余问题；具体缺失操作、实际尝试与观察、任务／快照版本。",
+          "output": "结果及限制；request_layout_capability或HandlingRecord；请求独立复核或原作者处理内容问题。",
+          "consumer": "Coordinator安排Reviewer或Writer；开发人员评估能力请求。",
+          "boundary": "Layout不改工具源码、不派发Reviewer、不批准交付；需要改文、拆内容、新图或来源裁决时交责任方。请求工具不等于工具已实现。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/content-layout.md",
+              "line": 11
+            },
+            {
+              "path": "src/report_agent/hierarchical_tools.py",
+              "line": 404
+            },
+            {
+              "path": "src/report_agent/layout_capabilities.py",
+              "line": 75
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "reviewer-layout-review.json",
+            "duty_id": "L7"
+          }
+        }
+      ]
+    },
+    {
+      "id": "experience_optimizer",
+      "name": "Experience Optimizer · 学习智能体",
+      "purpose": "根据已保存反馈改善后续报告策略，减少重复纠正。",
+      "activation": "独立显式调用或宿主已配置的反馈消费者；不是报告生成必经阶段。",
+      "prompt": "rules/experience-optimizer.md + 宿主生成的本次学习任务、当前反馈批次及已配置的执行限制。未使用报告角色的 TaskContext 中间件。",
+      "evidence": [
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "line": 149
+        },
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "line": 190
+        }
+      ],
+      "duties": [
+        {
+          "id": "E1",
+          "title": "理解当前学习任务并识别需处理反馈",
+          "input": "宿主任务；learning_active_feedback 中的 feedback_ids；反馈索引和 correction／before／evidence 原字段；本次资源限制。",
+          "output": "要调查的问题与行动选择；本批反馈与历史上下文的区分。",
+          "consumer": "学习智能体自己和后续读取／分析调用。",
+          "boundary": "索引每页六项、correction_preview不是完整反馈；应按 next_offset 获取需要的内容。宿主完成检查关注已分派反馈是否有处置，不能证明理解正确。",
+          "evidence": [
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 33
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 201
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E1"
+          }
+        },
+        {
+          "id": "E2",
+          "title": "调查反馈依据与既有经验",
+          "input": "反馈原文、精确报告／来源对象 Ref、既有候选 ID／version、适用客户与项目范围。",
+          "output": "进一步读取请求、选择的证据范围、已有经验可复用或应修订的判断及未取得证据的限制。",
+          "consumer": "学习智能体；独立学习材料分析工具。",
+          "boundary": "读取通过专门学习工具；项目路径是scope标识，模型没有宿主文件浏览能力。反馈本身不自动证明事实成立。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/experience-optimizer.md",
+              "line": 10
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 60
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 67
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E2"
+          }
+        },
+        {
+          "id": "E3",
+          "title": "按需委托实质材料分析并采纳项目事实",
+          "input": "question；feedback_selections（反馈ID、field、offset、characters）；object_selections（Ref、offset、characters）。",
+          "output": "analyze_learning_material 返回 analysis_id、findings、可选 project_fact 的 title／strategy／conditions、操作及用量信息；学习 Agent 选择是否采纳。",
+          "consumer": "学习智能体；拟保存 project_fact 的 propose_experience。",
+          "boundary": "独立文字工具做事实提取／比较，不选择通用策略。项目事实必须带当前作业、范围匹配的 analysis_id，事实字段精确采纳；分析不等于事实已核实。",
+          "evidence": [
+            {
+              "path": "src/report_agent/learning_text_work.py",
+              "line": 40
+            },
+            {
+              "path": "src/report_agent/learning_text_work.py",
+              "line": 106
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 127
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E3"
+          }
+        },
+        {
+          "id": "E4",
+          "title": "形成经验策略及适用条件",
+          "input": "已核查反馈与证据、分析结果、经验历史、当前目标及已知不确定性。",
+          "output": "选择 project_fact／customer_preference／general_skill；形成 title、strategy、conditions、verification，或决定不产生候选。",
+          "consumer": "候选保存工具及将来的人工／宿主评估。",
+          "boundary": "偏好和方法由学习 Agent 决定表述；不能借策略改写报告、制造事实或把项目争议学成普遍真理。当前非事实候选限定在来源客户，适用条件仍须判断。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/experience-optimizer.md",
+              "line": 1
+            },
+            {
+              "path": "src/report_agent/rules/experience-optimizer.md",
+              "line": 17
+            },
+            {
+              "path": "src/report_agent/learning.py",
+              "line": 117
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E4"
+          }
+        },
+        {
+          "id": "E5",
+          "title": "保存或修订未发布候选",
+          "input": "feedback_ids、kind、title、strategy、conditions、verification；修订时 experience_id、expected_version；项目事实另需 analysis_id。",
+          "output": "新候选精确 ID／version，源反馈关联及适用范围。",
+          "consumer": "学习库、后续评估和另行授权的发布动作。",
+          "boundary": "仅保存候选；不提供学习 Agent 自动发布权限。程序校验反馈范围、类型、非空字段、版本冲突及身份范围。",
+          "evidence": [
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 121
+            },
+            {
+              "path": "src/report_agent/learning.py",
+              "line": 117
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E5"
+          }
+        },
+        {
+          "id": "E6",
+          "title": "对每条分派反馈记录处置",
+          "input": "feedback_id；候选引用或不修改／证据不足的理由。",
+          "output": "record_feedback_disposition：candidate／no_change／insufficient_evidence、rationale；candidate 对应精确经验版本；quality_verified=False。",
+          "consumer": "宿主学习作业完成检查及后续审阅者。",
+          "boundary": "只对当前运行作业分派的反馈记账；没有候选也可以是有效结果，记录完成不等于策略有效。",
+          "evidence": [
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 85
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 237
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E6"
+          }
+        },
+        {
+          "id": "E7",
+          "title": "按需选择宿主已授权的GEPA评估",
+          "input": "保存的候选 ID／version；仅在宿主绑定 experiment_runner 时才可见的 optimize_saved_guidance 能力。",
+          "output": "一次已绑定的实验调用及保存的 guidance_experiment 结果；或在最终回复解释未使用。",
+          "consumer": "学习智能体、宿主及后续发布评估。",
+          "boundary": "数据集、指标、运行时和请求边界由宿主绑定；工具不扩大权限、不自动重试或发布。没有绑定时此职责的执行分支不可用。",
+          "evidence": [
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 136
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 205
+            },
+            {
+              "path": "src/report_agent/learning_worker.py",
+              "line": 44
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E7"
+          }
+        },
+        {
+          "id": "E8",
+          "title": "返回学习结果、限制与开发问题",
+          "input": "已保存候选、反馈处置、实验结果或未使用原因、尚不确定事项及发现的工具问题。",
+          "output": "最终文字中的候选身份和不确定性；宿主保存 learning_job 的 candidates、summary、gepa_disposition；必要时提出含复现依据的开发反馈。",
+          "consumer": "用户／宿主／开发人员；后续授权的经验发布流程。",
+          "boundary": "不直接修报告、标准、权限或代码。作业 completed 和 quality_verified=False 分别记录执行状态与未证实质量，不得混为已发布改进。",
+          "evidence": [
+            {
+              "path": "src/report_agent/rules/experience-optimizer.md",
+              "line": 22
+            },
+            {
+              "path": "src/report_agent/learning_runtime.py",
+              "line": 246
+            }
+          ],
+          "status": "完整设计建议已梳理；待用户确认，未实施",
+          "design_proposal_source": {
+            "file": "coordinator-learning-review.json",
+            "duty_id": "E8"
+          }
+        }
+      ]
+    }
+  ],
+  "assembly": [
+    {
+      "title": "固定角色与角色特例",
+      "detail": "Coordinator、Writer、Layout从common+role模板装配；Reviewer改用ORGANIZER_PROMPT。Experience Optimizer使用自己的独立prompt，不能套用报告角色的共同输入。",
+      "evidence": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "line": 24
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 795
+        },
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "line": 176
+        }
+      ]
+    },
+    {
+      "title": "本次委托与原生子任务",
+      "detail": "Coordinator通过task description派发；Reviewer另附保存的审核任务。当前非fork子任务默认不继承完整父对话。返回通常取最后非空AI文字，不自动返回全部工具历史；代码未设置统一的子任务response_format。",
+      "evidence": [
+        {
+          "path": "src/report_agent/content_tasks.py",
+          "line": 150
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 803
+        }
+      ]
+    },
+    {
+      "title": "按配置注入的当前应用状态",
+      "detail": "启用TaskContext时，模型调用前组装goal、scope、绑定任务、反馈、当前版本、审核进度、资源及适用的发布指令／经验；部分信息是预览或索引，完整内容另读read_decision_state等。",
+      "evidence": [
+        {
+          "path": "src/report_agent/task_context.py",
+          "line": 38
+        },
+        {
+          "path": "src/report_agent/task_context.py",
+          "line": 279
+        },
+        {
+          "path": "src/report_agent/decision_state.py",
+          "line": 149
+        }
+      ]
+    },
+    {
+      "title": "工具请求与返回",
+      "detail": "模型发出行动和参数；程序做绑定、校验、执行与持久化。有的返回带ToolMessage artifact或可恢复observation_ref，有的直接是对象；本稿没有假定所有接口已统一信封。archive存在不表示Agent已读过全文。",
+      "evidence": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 126
+        },
+        {
+          "path": "src/report_agent/task_context.py",
+          "line": 303
+        },
+        {
+          "path": "src/report_agent/decision_data.py",
+          "line": 46
+        }
+      ]
+    },
+    {
+      "title": "工作摘要和框架能力",
+      "detail": "框架的scratch、待办、历史及可选working summary辅助决策；摘要不是新的用户指令，scratch文件不是已保存报告成果。general-purpose子智能体被关闭。",
+      "evidence": [
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 779
+        },
+        {
+          "path": "src/report_agent/deep_runtime.py",
+          "line": 785
+        },
+        {
+          "path": "src/report_agent/working_summary.py",
+          "line": 101
+        }
+      ]
+    }
+  ],
+  "handoffs": [
+    {
+      "from": "Coordinator → Writer",
+      "input": "目标、需要满足的准则和材料位置、本任务范围、修改边界。",
+      "actual": "task description及保存任务；TaskContext可另带状态。委派不会自动复制父Agent全部阅读历史。",
+      "review": "C4的任务描述是否足以让W01知道当前要完成什么？"
+    },
+    {
+      "from": "Writer → 独立文字工具",
+      "input": "objective、所需Criterion／材料Ref、源文选择和观察Ref、输出schema。",
+      "actual": "工具自动带项目goal／scope／指令／经验；不自动装入完整DelegatedTask.goal或所有Criterion。具体材料依赖Writer显式传递。",
+      "review": "W05的输入是否覆盖本次写作要求和完整相关原文／指南表样？"
+    },
+    {
+      "from": "文字工具 → Writer → 内容存储",
+      "input": "候选payloads、输出index、text_work_id、限定与generation_notes。",
+      "actual": "reference-data模式可能延后正文body，全文仍可恢复读取；保存按ID/index精确采纳。",
+      "review": "W06决定采纳时需要看到哪些内容？当前返回是否足够支持该判断？"
+    },
+    {
+      "from": "Coordinator → Reviewer → 判读工具",
+      "input": "snapshot、target、criterion、scope_id、required_checks及材料／页面范围。",
+      "actual": "内容判读工具从保存任务加载要求；Agent选择的正文和来源须在已绑定材料范围。独立找到的新证据不会自动扩大这个范围。",
+      "review": "任务或材料池不足时，R2/R4能否清楚回报并由C5修正，避免缩窄问题？"
+    },
+    {
+      "from": "Coordinator → Layout → Reviewer",
+      "input": "精确layout_snapshot_ref、格式标准、参考页、实际审核发现。",
+      "actual": "Layout生成Word导出并返回引用；Coordinator再派发复核。Layout没有直接派发审核或导出XLSX的工具。",
+      "review": "谁负责完整交付的Word与Excel格式质量？现有职责分配是否足够？"
+    },
+    {
+      "from": "用户反馈 → Experience Optimizer → 经验使用者",
+      "input": "源反馈、绑定报告／来源版本、适用范围；候选经验及其验证计划。",
+      "actual": "学习Agent只保存候选，发布是宿主／人工独立动作；发布后偏好进入上下文，其他经验可检索。记录使用不证明改变了行为或改善质量。",
+      "review": "E4的适用条件是否能表达“施工安全评估报告这一类”，发布与实际采用是否分清？"
+    }
+  ],
+  "objects": [
+    {
+      "name": "Ref",
+      "meaning": "精确对象身份；不是文件名或最新版本的别名。",
+      "fields": "type、id、version",
+      "evidence": [
+        {
+          "path": "src/report_agent/content_models.py",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "name": "Criterion",
+      "meaning": "可追溯到用户要求的评判准则。",
+      "fields": "requirement_refs、purpose、scope、expected_outcome、evidence_expectation、allowed_limits",
+      "evidence": [
+        {
+          "path": "src/report_agent/content_models.py",
+          "line": 41
+        }
+      ]
+    },
+    {
+      "name": "ContentNode",
+      "meaning": "被保存的内容或结构节点。",
+      "fields": "kind、body、qualifiers、claim_kind；body的实际字段依类型而异。",
+      "evidence": [
+        {
+          "path": "src/report_agent/content_models.py",
+          "line": 50
+        }
+      ]
+    },
+    {
+      "name": "Evidence／Relation",
+      "meaning": "证据及其与内容、来源的关系；关系存在本身不是支持成立。",
+      "fields": "source_refs、locator、excerpt、input_refs、method、tool_receipt、result；subject_ref、predicate、object_ref、provenance_kind。",
+      "evidence": [
+        {
+          "path": "src/report_agent/content_models.py",
+          "line": 100
+        },
+        {
+          "path": "src/report_agent/content_models.py",
+          "line": 125
+        }
+      ]
+    },
+    {
+      "name": "文字工具候选",
+      "meaning": "供Writer决定采纳的未提交内容。",
+      "fields": "payloads、text_work_id、index、generation_notes、状态／用量／局限；精确采纳后另取得业务Ref。",
+      "evidence": [
+        {
+          "path": "src/report_agent/text_work.py",
+          "line": 380
+        },
+        {
+          "path": "src/report_agent/text_work.py",
+          "line": 495
+        }
+      ]
+    },
+    {
+      "name": "审核项／ReviewRecord",
+      "meaning": "特定范围的判断，与执行进度、发现及覆盖分开。",
+      "fields": "target_ref、criterion_ref、scope_id、execution_state、verdict、observations、check_results、coverage、findings、review_ref。",
+      "evidence": [
+        {
+          "path": "src/report_agent/content_models.py",
+          "line": 191
+        },
+        {
+          "path": "src/report_agent/bounded_review.py",
+          "line": 310
+        }
+      ]
+    },
+    {
+      "name": "快照／导出／渲染",
+      "meaning": "固定业务版本、导出文件和页面资产是不同对象。",
+      "fields": "snapshot refs；ExportArtifact file_ref／digest／mapping；RenderArtifact及页码／页面引用。",
+      "evidence": [
+        {
+          "path": "src/report_agent/hierarchical_tools.py",
+          "line": 210
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "line": 277
+        },
+        {
+          "path": "src/report_agent/content_export.py",
+          "line": 313
+        }
+      ]
+    },
+    {
+      "name": "学习候选及处置",
+      "meaning": "未发布策略版本与针对反馈的处理声明。",
+      "fields": "id、version、kind、strategy、conditions、verification、feedback_ids；disposition、rationale、quality_verified=False。",
+      "evidence": [
+        {
+          "path": "src/report_agent/learning.py",
+          "line": 117
+        },
+        {
+          "path": "src/report_agent/learning_runtime.py",
+          "line": 85
+        }
+      ]
+    }
+  ],
+  "not_agents": [
+    {
+      "name": "process_report_content／analyze_learning_material",
+      "reason": "按给定目标和所选材料做一次有界文字处理，不独立承担总体任务、搜索或委派。"
+    },
+    {
+      "name": "perform_assigned_review／perform_assigned_artifact_review",
+      "reason": "按已保存范围和材料进行独立判读、校验和保存；不是另一个持续自治Reviewer。"
+    },
+    {
+      "name": "视觉模型、工作摘要模型",
+      "reason": "分别产出页面观察或历史工作笔记，不能仅因调用LLM就算新增业务智能体。"
+    },
+    {
+      "name": "GEPA／DSPy实验适配器",
+      "reason": "可选优化与评估能力，数据集和边界由宿主绑定；不是报告固定阶段。"
+    },
+    {
+      "name": "OCR、检索、计算、导出、存储、中间件及监督插件",
+      "reason": "程序或服务能力；其校验、数据转换和副作用要单独查契约，不冠以Agent名称。"
+    },
+    {
+      "name": "Neo、Codex与本轮调查助手",
+      "reason": "开发协作角色，负责设计判断、源码调查和文档整理，不是应用内报告智能体。"
+    },
+    {
+      "name": "旧knowledge／native-rubric／rubric_grader分支",
+      "reason": "代码中仍有历史实现，但当前build_agent入口明确拒绝历史执行配置，不计入当前可启动角色名册。"
+    }
+  ],
+  "requirements_note": "以下六组只是本轮审核用的需求映射摘录，不是完整用户需求清单，也不是完整需求覆盖证明；44项是职责整理数量，不是已满足需求数量。",
+  "requirements": [
+    {
+      "requirement": "报告范围：依据《报告编写范围说明》覆盖应评估对象，不能只处理容易生成的部分。",
+      "responsibilities": "C1–C5；W01、W02、W04；R1、R2、R4",
+      "question": "范围如何成为可消费的任务输入和独立审核项？当前职责分配是否遗漏覆盖责任？"
+    },
+    {
+      "requirement": "正文内容按《提取大纲》，保留完整相关原文段落／图表及出处。",
+      "responsibilities": "C2–C4；W02–W07；R2–R4",
+      "question": "要求和完整所需材料如何传到文字工具？选择片段的职责与完整性判断归谁？"
+    },
+    {
+      "requirement": "风险分类／分档／分值按指南文字与实际地勘、一坡一图判断；适用时采用已澄清的指南经验表。",
+      "responsibilities": "C2；W03、W05、W07；R4",
+      "question": "算术工具只计算数值，谁判断指南适用性、资料对应和评分档位？哪些输出应保留依据？"
+    },
+    {
+      "requirement": "字体、字号、边距、1.5倍行距、目录及表格样式按指定标准；指南表格内容不变，可调整尺寸与分页。",
+      "responsibilities": "C2、C6；W05、W10；L1–L7；R5–R7",
+      "question": "首次出稿如何落实已知标准？布局参数采用与实际产物检查的输入输出是否衔接？"
+    },
+    {
+      "requirement": "Excel表达已识别问题；Word与工作簿内容分工、版本和引用要一致。",
+      "responsibilities": "W05、W09、W10；C7；R5、R7",
+      "question": "谁决定问题行含义，谁生成工作簿，谁查内容及呈现？Excel视觉能力的现有空白如何处置？"
+    },
+    {
+      "requirement": "反馈适用于施工安全评估报告类别，可能涉及桥、隧、路、坡、涵；不自动泛化为所有报告或硬编码单个边坡。",
+      "responsibilities": "C1、C2；E1–E8；W11及其他报告角色可用的经验接口",
+      "question": "规则适用范围是程序作用域还是策略中的conditions？哪些需要用户确认？"
+    }
+  ],
+  "open_points": [
+    "有效角色prompt与文件名称并非一一对应：Reviewer当前是审核组织者；应审这个实际分工，而不是把旧模板当现状。",
+    "子任务回报是自由文字，原生返回不带全部工具历史；保存对象、真实状态和任务回报之间应逐项确认交接责任。",
+    "Writer→文字工具的要求与材料选择需要显式传递；原文可恢复和工具可引用，不等于已经读取或已经传入。",
+    "当前Reviewer材料池和检查范围由保存任务约束；新增证据的接纳和材料不足的反馈如何衔接，应作为职责审核题。",
+    "Layout可调整Word参数但不能改源码或直接导出XLSX；Excel数据检查与Excel视觉检查的能力边界不同。",
+    "Writer公开commit结构可列Criterion，但后端不允许Writer保存Criterion；这是接口/权限差异，留待Neo与用户判断是否需处理。",
+    "Writer／Layout的补充prompt说Ask humans，但ask_human只向Coordinator开放；实际交接应经Coordinator，不应假设角色可直接询问。",
+    "经验候选、发布、被提供给模型、被实际采用及改善结果是五件不同的事；当前本轮未验证其中任何运行效果。"
+  ],
+  "review_method": "逐条只讨论：①这项职责是否需要且归属合适；②输入是否足够、来自谁；③输出是否明确且有消费者；④程序允许处理的边界是否合理。先确认职责，再进入详细函数和fake验证；本轮不提前修改实现。",
+  "neo_review": {
+    "state": "已核对，可用于用户逐项审核",
+    "meaning": "Neo核对了五类名册、44项职责和交接表；提出三处限定修正，Codex已采纳。此结论仅指忠实现状、便于审核，不代表职责设计充分或业务行为通过。",
+    "corrections": [
+      {
+        "id": "C8",
+        "issue": "未知写操作与已知失败不能混同；记录决定不直接驱动终止。",
+        "disposition": "已修正文案。"
+      },
+      {
+        "id": "W07",
+        "issue": "字面引文与计算收据校验应限定提交路径。",
+        "disposition": "已区分直接字面／计算提交和文字工具生成路径。"
+      },
+      {
+        "id": "requirements",
+        "issue": "需求映射摘录不能当完整需求覆盖。",
+        "disposition": "已增加明确限定。"
+      }
+    ]
+  },
+  "comprehensive_design_review": {
+    "state": "completed_for_user_review_not_implemented",
+    "date": "2026-10-18",
+    "design_lead": "Neo",
+    "compiled_by": "Codex",
+    "page": "design-review.html",
+    "confirmed_duties": [
+      "C1",
+      "C2",
+      "C3"
+    ],
+    "proposal_count": 41,
+    "total_duties": 44,
+    "sources": [
+      "coordinator-learning-review.json",
+      "reviewer-layout-review.json",
+      "writer-review.json"
+    ],
+    "decision_source": "用户要求按讨论方式统一梳理全部职责，并评估改动大小；暂不改代码。",
+    "limits": "C1–C3确认不等于已实现；其余41项建议待确认。文档梳理不证明接口或业务行为通过，也不是全部用户需求覆盖证明。"
+  }
+}

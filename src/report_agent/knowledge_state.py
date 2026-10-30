@@ -48,6 +48,9 @@ def delivery_state(workspace, draft_id, review_id="", knowledge=None):
 
 def project_state(workspace, knowledge=None):
     state = workspace.status()
+    if hasattr(workspace, 'store'):
+        from .model_invocation import model_wait_status
+        state['model_calls'] = model_wait_status(workspace.store)
     from .hierarchical_tools import enabled as content_enabled
     if content_enabled(workspace):
         from .content_delivery import current_delivery

@@ -4,6 +4,7 @@ No agent loop, semantic contradiction judge, learner or permission grant lives h
 System scope describes product applicability inside this isolated store; it does
 not publish to every customer/project or rewrite the provider's instruction roles.
 """
+from .prompt_sources import load_prompt
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Literal
@@ -170,10 +171,11 @@ def configure_report(store, report_id, *, report_category=None):
     return value
 
 
-def instruction_context(store, role, *, task_id=None):
+def instruction_context(store, role, *, task_id=None, db=None):
     """One coherent current snapshot; conflict isolation is per named topic."""
     import json
-    with store.connect() as db:
+    from contextlib import nullcontext
+    with (store.connect() if db is None else nullcontext(db)) as db:
         row = db.execute("SELECT value FROM state WHERE key='prompt_instruction_config'").fetchone()
         if not row:
             return None
@@ -217,6 +219,20 @@ def instruction_context(store, role, *, task_id=None):
               'note': 'Only active, applicable versions are instructions. Resolve conflicting named topics with the coordinator/operator before dependent output; continue unrelated work. No automatic later-text wins. This checks declared topics/overrides, not arbitrary semantic contradictions with role prompts, learned guidance or prose. These instructions never grant tools, ownership or source truth.'}
     packet['digest'] = digest(packet)
     return packet
+
+
+def review_commission(store, actor, prompt):
+    """Use the same host instruction channel in both independent review tools.
+
+    No configuration preserves the historical packet and system prompt exactly.
+    The actual bound actor determines applicability, never caller parameters.
+    """
+    commission = {k: store.manifest.get(k) for k in ('goal', 'scope_instruction')}
+    context = instruction_context(store, actor.role, task_id=actor.task_id)
+    if context is not None:
+        commission['scoped_instructions'] = context
+        prompt += load_prompt('scoped-review-channel')
+    return commission, prompt
 
 
 def offered_context(store, packet, system_blocks):

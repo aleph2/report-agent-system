@@ -716,7 +716,10 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
     if failed_role == "coordinator":
         driver.fail_once = (failed_role, failed_step)
     failed = await run(ws, driver)
-    assert failed["status"] == "failed", (failed, failure_stacks)
+    assert failed["status"] == ("needs_attention" if failed_role == "coordinator" else "failed"), (failed, failure_stacks)
+    if failed_role == "coordinator":
+        assert failed["last_error"]["failure_kind"] == "model_request_timeout"
+        assert failed["last_error"]["automatic_resume"] is False
     assert failed["last_error"]["type"] == ("ReadTimeout" if failed_role == "coordinator" else "RuntimeError")
     assert driver.failed if failed_role == "coordinator" else injected == [True]
     saved = deepcopy(cs.list_objects("ContentNode"))

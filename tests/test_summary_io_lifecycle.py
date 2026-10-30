@@ -37,7 +37,7 @@ async def test_summary_preserves_history_and_actual_outcome_classification(ws, m
     seed(ws)
     model = offline_model(ws, monkeypatch)
     if local_refusal:
-        monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
+        monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
     sent = []
 
     async def transport(request):
@@ -103,7 +103,7 @@ async def test_summary_unproven_budget_exception_stays_unknown(ws):
 
 async def test_summary_budget_refusal_after_first_send_remains_unknown(ws, monkeypatch, tmp_path):
     model = offline_model(ws, monkeypatch)
-    monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
+    monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
     sent = []
 
     async def transport(request):

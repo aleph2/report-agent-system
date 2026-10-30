@@ -1,0 +1,267 @@
+{
+  "format": "co-duty-trace-fixtures-v1",
+  "role_contract": {
+    "actor": "coordinator",
+    "forbidden": [
+      "personally_inspect_report_pages",
+      "personally_perform_independent_report_review"
+    ],
+    "allowed": [
+      "delegate_review",
+      "track_saved_review_status",
+      "read_management_versions",
+      "supply_valid_tool_arguments"
+    ],
+    "open_decisions": [
+      "artifact_export_owner"
+    ],
+    "basis": "Direct user: 检查不是Co的职责; no new mandatory pipeline or step-count limit."
+  },
+  "observations": [
+    {
+      "id": "actual-export-help-1",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "tool_description",
+        "name": "export_content_workbook",
+        "text": "Create XLSX from selected table ContentNodes in your own immutable snapshot. Each sheet has name, table_ref and optional note_refs. Selected text notes, including corrections and qualifiers, are copied verbatim after that table. Optional report_export_ref links the exact companion Word version, not its correctness. A linked Word and XLSX must use the same snapshot; a cross-snapshot link is rejected. For a snapshot with declared workbook_refs, sheets must select all and only those workbook-only table/note nodes, leaving report prose separate. You choose table contents and sheet organization. Read/render/review the saved export using the same export tools; an exported workbook is not an accepted deliverable."
+      },
+      "expected": {
+        "decision": "conflict",
+        "findings": [
+          {
+            "duty": "personally_perform_independent_report_review",
+            "quote": "Read/render/review the saved export using the same export tools;"
+          }
+        ]
+      },
+      "provenance": "Actual public SDK tool description; assessed against latest user-confirmed Co responsibility, not retroactive authorization."
+    },
+    {
+      "id": "delegate-review",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "task_description",
+        "name": "task",
+        "text": "Co arranges an independent review by Reviewer and routes its findings back to Writer."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Synthetic calibration counterexample, not an observed production event; expected oracle derived from confirmed responsibility."
+    },
+    {
+      "id": "explicit-negation",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "role_instruction",
+        "name": "coordinator",
+        "text": "Co must not inspect rendered pages or perform independent report review. Delegate those checks to Reviewer."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Synthetic calibration counterexample, not an observed production event; expected oracle derived from confirmed responsibility."
+    },
+    {
+      "id": "review-status",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "tool_description",
+        "name": "read_review_status",
+        "text": "Read saved review status and outstanding task identities. Reading status is not report acceptance."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Synthetic calibration counterexample, not an observed production event; expected oracle derived from confirmed responsibility."
+    },
+    {
+      "id": "valid-reference",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "tool_description",
+        "name": "export_content_workbook",
+        "text": "Requires an exact authorized snapshot reference. Returns an XLSX reference; exporting does not establish acceptance."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Synthetic calibration counterexample, not an observed production event; expected oracle derived from confirmed responsibility."
+    },
+    {
+      "id": "conditional-self-check",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "role_instruction",
+        "name": "coordinator",
+        "text": "When the report is simple, Co must personally inspect its rendered pages before asking Reviewer."
+      },
+      "expected": {
+        "decision": "conflict",
+        "findings": [
+          {
+            "duty": "personally_inspect_report_pages",
+            "quote": "When the report is simple, Co must personally inspect its rendered pages before asking Reviewer."
+          }
+        ]
+      },
+      "provenance": "Synthetic calibration counterexample, not an observed production event; expected oracle derived from confirmed responsibility."
+    },
+    {
+      "id": "quoted-material",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "source_material",
+        "name": "export_content_workbook",
+        "text": "Create XLSX from selected table ContentNodes in your own immutable snapshot. Each sheet has name, table_ref and optional note_refs. Selected text notes, including corrections and qualifiers, are copied verbatim after that table. Optional report_export_ref links the exact companion Word version, not its correctness. A linked Word and XLSX must use the same snapshot; a cross-snapshot link is rejected. For a snapshot with declared workbook_refs, sheets must select all and only those workbook-only table/note nodes, leaving report prose separate. You choose table contents and sheet organization. Read/render/review the saved export using the same export tools; an exported workbook is not an accepted deliverable."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Synthetic calibration counterexample, not an observed production event; expected oracle derived from confirmed responsibility."
+    },
+    {
+      "id": "reviewed-v4-export-help-20261025",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "tool_description",
+        "name": "export_content_workbook",
+        "text": "Export an authorized exact snapshot or saved deliverable to XLSX and save an ExportArtifact. Provide exactly one of snapshot_ref or deliverable. Exporting does not change snapshot ownership. Each sheet has name, table_ref selecting a table ContentNode, and optional note_refs selecting text-note ContentNodes. Selected text notes, including corrections and qualifiers, are copied verbatim after that table. The sheet and table references define workbook contents and organization. Optional report_export_ref links an exact companion Word version, not its correctness. A linked Word and XLSX must use the same snapshot; a cross-snapshot link is rejected. For a snapshot with declared workbook_refs, sheets must select all and only those workbook-only table/note nodes, leaving report prose separate. An export record establishes file creation, not independent review or acceptance."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Current V4 registered-tool static source, not a live SDK trace. DeepSeek actual formal review recommendations and Neo final-source semantic disposition; see .analysis/co-duty-fix-20261025/deepseek-final-review.md and neo-review.md. Exact source SHA256 642b68ff852d98225f81e9c3a0e4149a0a1389a6d870b63589c92065dff60b7c"
+    },
+    {
+      "id": "reviewed-v4-export-help-owner-clarification-20261026",
+      "observation": {
+        "actor": "coordinator",
+        "channel": "tool_description",
+        "name": "export_content_workbook",
+        "text": "Export an authorized exact snapshot or saved deliverable to XLSX and save an ExportArtifact.\nProvide exactly one of snapshot_ref or deliverable. Existing snapshots keep their ownership. First resolving saved_work may create a new snapshot\nowned by this caller under the existing rules.\nEach sheet has name, table_ref selecting a table ContentNode, and optional note_refs\nselecting text-note ContentNodes. Selected text notes,\nincluding corrections and qualifiers, are copied verbatim after that table.\nThe sheet and table references define workbook contents and organization.\nOptional report_export_ref links an exact companion Word version, not its correctness.\nA linked Word and XLSX must use the same snapshot; a cross-snapshot link is rejected.\nFor a snapshot with declared workbook_refs, sheets must select all and\nonly those workbook-only table/note nodes, leaving report prose separate.\nAn export record establishes file creation, not independent review or acceptance."
+      },
+      "expected": {
+        "decision": "clear",
+        "findings": []
+      },
+      "provenance": "Exact current registered-tool static source, independently semantically reviewed by Neo after first-full needs_review. Instructions concern export inputs/version/ownership, not caller page inspection or independent review. Retains original labels and unknown-wording fail-closed control. Source SHA256 104206362af006561d5897b708dec59e9534cccbd3bd97d1e4414a890a0667c2. Review evidence: .analysis/reviewer-complete-materials-20261026/full01-ready/neo-full-review.md; actual DeepSeek additional review retained separately."
+    }
+  ],
+  "traces": [
+    {
+      "id": "synthetic-native-20261024-03",
+      "instruction_id": "actual-export-help-1",
+      "source": {
+        "file": ".analysis/synthetic-native-20261024-03/actual-final-inputs-public.json",
+        "sha256": "db22b3f4c85de574625ebbe46a6886e7cb1e28ced8663236db723939c340598a",
+        "capture_sequence": 8,
+        "body_sha256": "a5cf38a318f08c465ca3c12b0debd32c97907e170765c920d3723b8bc95dcece"
+      },
+      "dynamic_writer_handoff_excerpt": "任务：为虚构项目“青禾资料站”编写中文简报《标牌维护资料核对简报》的版本化报告内容（ContentNode），并保存供后续冻结快照使用。你负责内容创作；不要冻结快照、不要导出文件、不要做独立审核。\n【授权来源（已冻结版本，请以精确 SourceArtifact ref 绑定）】\n- 通过你的文本工作与提交机制真实保存所有节点（含根节点、各章节节点、正文/说明节点、唯一表格节点，如创建则含 Evidence 与 Relation），不要冻结快照、不要导出。",
+      "recorded_actions": [],
+      "normalization": {
+        "derived": true,
+        "opaque_id_count": 0,
+        "method": "Opaque UUID/call IDs replaced consistently within this minimal trace window; no private reasoning copied."
+      },
+      "observed_result": {
+        "review_record_count": 0,
+        "run_used": 2027610,
+        "status": "incomplete_requires_assessment_or_diagnosis"
+      }
+    },
+    {
+      "id": "synthetic-native-20261025-01",
+      "instruction_id": "actual-export-help-1",
+      "source": {
+        "file": ".analysis/synthetic-native-20261025-01/actual-final-inputs-public.json",
+        "sha256": "d90da1b204017539539588783934e6a847c03eb2ceb3d5a017311bc41db5cef2",
+        "capture_sequence": 8,
+        "body_sha256": "55300c653956f489bc4f85a78a6ffd8fef340d796dc881c27e131e42166b4955"
+      },
+      "dynamic_writer_handoff_excerpt": "任务：为虚构的“青禾资料站”编制中文《标牌维护资料核对简报》的版本化内容（Word 正文 + 供同一成果版本导出的数量费用表）。这是资料核对简报，不是现实工程、施工设计或正式验收。内容精简。",
+      "recorded_actions": [],
+      "normalization": {
+        "derived": true,
+        "opaque_id_count": 0,
+        "method": "Opaque UUID/call IDs replaced consistently within this minimal trace window; no private reasoning copied."
+      },
+      "observed_result": {
+        "review_record_count": 0,
+        "run_used": 3056388,
+        "status": "incomplete_requires_assessment_or_diagnosis"
+      }
+    },
+    {
+      "id": "synthetic-native-20261025-02",
+      "instruction_id": "actual-export-help-1",
+      "source": {
+        "file": ".analysis/synthetic-native-20261025-02/actual-final-inputs-public.json",
+        "sha256": "c22bcc067b81d76dd8eab076b6d2f619ff6d0ee89fbb052c942d3336b26ed547",
+        "capture_sequence": 8,
+        "body_sha256": "e3302685763d3532c219beb7450dd5b206b3746f16450bbf048e8e81997ab795"
+      },
+      "dynamic_writer_handoff_excerpt": "任务：为虚构的“青禾资料站”编制《标牌维护资料核对简报》的正文内容（中文、精简），供最终交付为 Word 报告，并配一份与报告同一成果版本的 Excel 数量费用表。你负责正文内容与结构，我（协调者）负责冻结快照与导出交付。\n期望保存结果：已提交的 ContentNode（报告根、章节/段落、表格）与 contains 关系，以及：报告根 ref、表格节点 ref、其他关键节点 ref；你的限制与剩余未完成事项说明。不要替我做冻结快照、导出、独立审核或交付选择。",
+      "recorded_actions": [
+        {
+          "sequence": 577,
+          "call": {
+            "args": {
+              "page": 1,
+              "question": "这是中文Word报告的第1页。请观察并报告：1) 中文字符是否正常显示（有无方框/乱码/缺字）；2) 页面上的表格是否完整显示，各列是否被截断或严重挤压，表头与数字是否可读；3) 是否出现文字重叠、内容溢出页面或明显排版问题。请只描述实际看到的内容。",
+              "render_ref": {
+                "id": "fake-id-1",
+                "type": "RenderArtifact",
+                "version": 1
+              }
+            },
+            "id": "fake-id-2",
+            "name": "inspect_rendered_page",
+            "type": "tool_call"
+          }
+        },
+        {
+          "sequence": 598,
+          "call": {
+            "args": {
+              "page": 2,
+              "question": "这是中文Word报告的第2页。请只描述实际看到的内容：1) 中文字符是否正常显示（有无方框/乱码）；2) 是否存在文字重叠、内容超出页面边距、标题与正文粘连或截断；3) 页脚是否有页码。另外请说明本页包含哪些章节标题。",
+              "render_ref": {
+                "id": "fake-id-1",
+                "type": "RenderArtifact",
+                "version": 1
+              }
+            },
+            "id": "fake-id-3",
+            "name": "inspect_rendered_page",
+            "type": "tool_call"
+          }
+        }
+      ],
+      "normalization": {
+        "derived": true,
+        "opaque_id_count": 3,
+        "method": "Opaque UUID/call IDs replaced consistently within this minimal trace window; no private reasoning copied."
+      },
+      "observed_result": {
+        "review_record_count": 0,
+        "run_used": 3047123,
+        "status": "incomplete_requires_assessment_or_diagnosis"
+      }
+    }
+  ],
+  "limits": [
+    "Recorded fake judgments are test data, not a semantic model or calibrated judge.",
+    "Unknown wording returns needs_review; no silent clean result.",
+    "Only latest confirmed Co inspection boundary is fixed; export ownership remains an explicit design question.",
+    "Historical traces evaluated against latest contract; no role/permission or old-run state modified."
+  ]
+}

@@ -30,11 +30,13 @@ def optimizer_tools(workspace, experiment_runner=None, text_model=None):
     from .content_store import ContentStore
     library, scope = binding(workspace)
 
-    def read_learning_feedback(feedback_id: str = "", field: Literal["correction", "before", "evidence"] = "correction",
+    def read_learning_feedback(feedback_id: str = "", field: Literal["correction", "before", "evidence", "observation"] = "correction",
                                offset: int = 0, limit: int = 6000) -> dict:
         """Without id: bounded feedback index (offset in records, six per page), current assignment first.
         With exact id: read original field text (offset/limit in characters), with digest and
         next_offset. All evidence remains accessible; index previews are not the complete feedback.
+        Runtime observations are typed execution facts, not report corrections or proven learning.
+        For their facts use field=observation (the legacy default also selects it).
         """
         if offset < 0 or not 1 <= limit <= 8000:
             raise ActionRejected("INVALID_LEARNING_PAGE")
@@ -44,12 +46,21 @@ def optimizer_tools(workspace, experiment_runner=None, text_model=None):
             item = next((x for x in items if x["id"] == feedback_id), None)
             if item is None:
                 raise ActionRejected("FEEDBACK_OUTSIDE_PROJECT")
+            if item.get('kind')=='runtime_observation':
+                actual='observation' if field=='correction' else field
+                if actual not in {'observation','before','evidence'}:raise ActionRejected('INVALID_LEARNING_FIELD')
+                return {'feedback_id':feedback_id,'kind':'runtime_observation','field':actual,
+                    **_page(item[actual],offset,limit),'semantic_progress_verified':False}
             if field not in {"correction", "before", "evidence"}:
                 raise ActionRejected("INVALID_LEARNING_FIELD")
             return {"feedback_id": feedback_id, "field": field, **_page(item[field], offset, limit)}
         assigned = set((assignment or {}).get("feedback_ids", []))
         items.sort(key=lambda x: x["id"] not in assigned)
         return {"pending_assignment": _assignment_page(assignment, offset), "feedback": [
+            {'id':x['id'],'assigned':x['id'] in assigned,'kind':'runtime_observation',
+             'observation_preview':encode(x['observation'])[:400],
+             'fields':{k:{'total_chars':len(encode(x[k])),'digest':digest(x[k])} for k in ('observation','before','evidence')},
+             'semantic_progress_verified':False} if x.get('kind')=='runtime_observation' else
             {"id": x["id"], "assigned": x["id"] in assigned,
              "correction_preview": x["correction"][:400],
              "fields": {k: {"total_chars": len(x[k] if isinstance(x[k], str) else encode(x[k])),
@@ -173,10 +184,15 @@ def build_optimizer(workspace, model, experiment_runner=None, *, text_model=None
 
     register_harness_profile("openai", HarnessProfile(
         general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False)))
-    prompt = (Path(__file__).parent / "rules" / "experience-optimizer.md").read_text(encoding="utf-8")
+    from .prompt_sources import load_prompt, record_runtime_version
+    runtime_version_ref = record_runtime_version(workspace.store)
+    from .prompt_provenance import AgentPromptBoundary
+    prompt = load_prompt('experience-optimizer')
     return create_deep_agent(model=model, tools=registered_tools, system_prompt=prompt,
-                             subagents=[], backend=StateBackend(), middleware=[CandidateBoundary()],
-                             name="experience_optimizer")
+                             subagents=[], backend=StateBackend(), middleware=[CandidateBoundary(),
+                                AgentPromptBoundary(workspace,'experience_optimizer',source='experience-optimizer')],
+                             name="experience_optimizer").with_config(
+                                metadata={'report_runtime_version_ref':runtime_version_ref})
 
 
 async def run_optimizer(workspace, model, *, max_steps=40):

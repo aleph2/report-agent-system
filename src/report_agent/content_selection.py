@@ -33,10 +33,13 @@ def selected_content(workspace, snapshot_ref, selections):
     contents = ContentStore(workspace.store)
     snapshot, members = snapshot_members(contents, snapshot_ref)
     result = []
-    for raw in selections:
+    for index, raw in enumerate(selections):
         selection = ContentSelection.model_validate(raw)
         if selection.ref.type != "ContentNode" or selection.ref.key() not in members:
-            raise ActionRejected("CONTENT_SELECTION_OUTSIDE_SNAPSHOT")
+            raise ActionRejected("CONTENT_SELECTION_OUTSIDE_SNAPSHOT", diagnostic={
+                'reason': 'unsupported_selection_object_type' if selection.ref.type != 'ContentNode'
+                    else 'object_not_in_snapshot', 'allowed_object_types': ['ContentNode'],
+                'parameter_path': ['selections', index, 'ref'], 'snapshot_ref': snapshot_ref})
         record = contents.read(selection.ref.model_dump())
         payload, start = record["payload"], selection.offset
         body = payload["body"]

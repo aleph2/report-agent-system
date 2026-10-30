@@ -1,0 +1,369 @@
+{
+  "title": "第一批提案：C1解释到Writer实际文字工具输入",
+  "status": "awaiting_user_confirmation",
+  "date": "2026-10-18",
+  "decision_owner": "Neo",
+  "implementer_after_confirmation": "Codex Main",
+  "project_root": "C:/Users/dongy/Documents/ChatGPT/report-agent-system",
+  "authorization": "用户只要求先列边界、代码和fake LLM验证方案，确认后实施。本文件不是实施批准。",
+  "changes_this_round": "仅新增本提案文档；未修改应用、测试、依赖、数据库、报告或运行控制；未运行测试、模型或付费任务。",
+  "user_result": {
+    "goal": "在一条真实报告程序链路中，本次委托、适用准则及明确选择的材料，能够从Coordinator交给Writer，再实际进入独立文字工具，而非依赖Writer每次凭记忆重述。",
+    "concrete_example": "合成委托要求输出一张表，保留指定表头/行及末尾条件，并遵守合成的右边距15mm要求。首批验证这些要求和原表选区确实传入文字工具；不声称本批会自动实现Word边距或模型会正确理解工程规则。",
+    "delivery": "C1可持久化并恢复；本次Writer调用的上下文可追溯；真实独立工具输入可核；原owner/精确采纳/旧receipt/unknown保护不回退。",
+    "bounded_claim": "先证明程序传递与绑定，不证明真实Agent选材、理解标准或生成整份报告正确。"
+  },
+  "scope": {
+    "include": [
+      "C1已确认五字段的最小schema、保存及现有状态读取。",
+      "C4仅Writer调用的最小上下文绑定；新任务和恢复原Writer两条路径。",
+      "C2复用已保存Criterion及关联Requirement的有效文本，不修改Criterion六字段。",
+      "C3复用精确材料Ref/现有SourceSelection/owned observation，不另存计划或原文镜像。",
+      "共享解析结果到Writer有效输入、process_report_content实际commission及adoption一致性校验。",
+      "旧模式不带新字段时的身份/归档packet兼容；Reviewer/Layout原契约不改。"
+    ],
+    "exclude": [
+      "所有子任务统一response_format或结构化最终回报；本批父Agent仍按当前原生返回机制接收文字。",
+      "Reviewer/artifact checker的commission改造；Layout新标准关联或新导出功能。",
+      "候选body无条件延后这一投影取舍；decision_data.py本批不因该建议默认修改。",
+      "学习、发布、索引/RAG、Excel视觉、Word/XLSX同快照解耦、计算term绑定新字段。",
+      "新Agent、新循环、新任务数据库、固定语义流程、逐项人工审批。",
+      "旧真实case迁移、C25、未知重放、预算/模型/provider/OCR/邮件/发布授权变化。",
+      "修复全部历史review发现、现有strict allOf或正常入口预算等其他待办；若妨碍本批fake入口，先报依赖，不顺手扩修。"
+    ]
+  },
+  "implementation_gate": "所有新API、字段名和规则以下均为具体提案，未实现、未获本批实施批准；用户确认后再按此边界开始。",
+  "C1": {
+    "proposed_api": "save_commission_understanding(operation_id, expected_revision, understanding)",
+    "registered_role": "仅Coordinator的现有content_tools；actor来自服务器，不接收caller_role/owner/permission/budget授权参数。",
+    "fields": {
+      "current_assignment": "非空文字：本次获准做什么，不复制项目最终goal。",
+      "expected_result": "非空文字：本次应交的成果及用途，不展开C2详细准则或C4行动计划。",
+      "scope": {
+        "include": "非空事项列表；描述这次应涵盖范围。",
+        "exclude": "明确排除事项列表，允许为空；检索未找到不能自动填成排除。"
+      },
+      "basis": "非空依据条目列表，引用现有身份并说明对本次工作的关键约束；程序解析身份，Agent负责解释。下面列允许的来源形状。",
+      "open_questions": "可空数组，每条仅question及affects；表达含义/冲突和受影响事项，不复制全部任务进度，不自动触发暂停。"
+    },
+    "basis_sources": "依据只引用现有manifest goal/scope、Requirement Ref、适用已发布InstructionRef、已有feedback id及SourceArtifact Ref，并说明application。程序解析真实身份；来源正文不是权限或新指令。不存在、类型错、作用域不符时明确拒绝。",
+    "metadata_server_owned": [
+      "policy=commission-handoff-v1",
+      "revision（服务器递增，expected_revision仅作CAS）",
+      "understanding_digest（五字段规范化内容）",
+      "basis_snapshot_digest（实际相关来源版本/内容及作用域绑定摘要）",
+      "record_operation_id、actor_id、记录时间；不计入语义内容摘要的时间/资源观察不得导致内容失效。"
+    ],
+    "persistence": {
+      "head": "复用现有state，仅一个commission_understanding当前头。它是解释，不替代manifest/Requirement/发布指令。",
+      "history": "复用ContentStore.operation的既有content_operations响应，保存每次成功返回的规范C1记录。旧版本由保存操作身份查回，不新建解释版本表/任务表，不复制源资料或完整库。",
+      "pointer": "{operation_id,revision,understanding_digest}；是C1专用身份，不伪装ContentStore.Ref或创建TaskUnderstanding节点。",
+      "atomicity": "在ContentStore.operation既有事务/savepoint中核依据与expected_revision并更新头；同operation同request返回原收据、不同request冲突，失败不写半条当前头。",
+      "read": "复用content_status显示当前解释/身份；managed模式纳入exact_task_context/read_decision_state，已存在get_operation_receipt供Coordinator查原保存操作。不开一个新的解释管理界面。"
+    },
+    "authority": "保存的current_assignment、scope或open_questions不能修改原授权、扩工具、转移owner、放宽预算。任意解释错误仍可能存在；schema不能证明理解正确。"
+  },
+  "writer_context": {
+    "proposed_task_argument": "writer_context（仅Writer的新契约；在现有task_tool公开schema上增加，进入原生executor前由delegated_task取出处理）",
+    "shape": {
+      "understanding": "C1专用pointer，必须能解析到本项目的Coordinator成功保存记录。",
+      "criterion_refs": "非空Criterion精确Ref列表；解析完整Criterion payload及其Requirement文本。是否语义充分/适用仍由Coordinator负责。",
+      "material_refs": "初始相关材料的完整Ref列表，可空；只作定位和用途交接的起点，不自动加载全部正文、不扩权限，也不是Reviewer式不可变材料白名单。"
+    },
+    "existing_fields": "本次工作goal继续用原生description；恢复继续用resume_content_task_id；不再复制一份task goal/计划/进度。",
+    "selection_ownership": "Coordinator交接初始来源/准则，Writer仍选择本次objective和真实input_refs/source_selections/owned observation_refs。程序忠实解析实际选择，不替Writer选工程结论。",
+    "material_delivery": "material_refs表示可定位起点，不等于正文已供给。原指南/表样的实际文本仍沿现有prepare_material/SourceSelection进入evidence；合成oracle必须核实际选区原文。Coordinator自己的observation不能直接变成Writer-owned observation，跨任务共享应复用source/version/selection合法重读。",
+    "server_binding": {
+      "registration": "沿用现有delegate:<native tool_call_id>的ContentStore.operation。在其成功结果中增加已解析writer_context身份/摘要，与同一个task_ref关联；不新增第二套任务状态。",
+      "actor": "现有_binding继续由服务器持有Actor；可扩展同一绑定携带本次上下文指针，其他bound_actor使用方式不被改变。不得依赖Agent在objective中声明task_id。",
+      "immutable_refs": "上下文按保存的C1/criteria精确版本解析，不默认取最新Criterion，不靠标题/字符串前缀找对象。",
+      "legacy_identity": "writer_context缺省/None在旧模式下从request完全省略；不向旧packet加入null/空对象，不改旧delegate/text-work request hash。",
+      "replay": "已存在的delegate操作收据优先保持其原绑定；不能因后来新建C1而给旧调用偷偷补新上下文。",
+      "reconstruction": "正常native task恢复时，从原delegate操作收据重建本次binding；不读取一个“该task最近上下文”可变指针来覆盖历史调用。具体checkpoint挂点需fake反例确认。"
+    },
+    "enrollment_rules": [
+      "没有commission_understanding头且未传writer_context：保持当前legacy Writer行为；不自动迁移原case。",
+      "新保存C1后，对没有既有delegate收据的新Writer调用，须显式传writer_context；缺失时在调用子图前返回有定位的契约错误。该依赖是输入契约，不规定额外资料/审核/排版步骤。",
+      "已有旧delegate收据的重放保持旧绑定，不因新C1改变旧输入。",
+      "旧checkpoint中尚无delegate收据的Writer调用若遇新契约，不自动升级或猜参数：明确拒绝并保留原记录；这类跨模式迁移不是本批自动恢复能力。",
+      "本批writer_context传给Reviewer/Layout时明确拒绝；它不覆盖原review_requirements/layout_snapshot_ref规则。未传时两角色维持原行为。"
+    ],
+    "writer_resume": "resume_content_task_id保持旧Writer task/owner；新调用可绑定新C1/准则上下文，随新的delegate operation保存。不直接改DelegatedTask@1或旧receipt，不因普通目标更新更换owner。旧审核契约仍不可变，本批不改。",
+    "effective_input": "使用一个resolve_writer_commission helper生成同一语义结构。managed模式由TaskContext注入并提供现有精确读取路径；unmanaged模式在原生description附同一结构。两种表示均由同一解析结果生成，不能各自重写一套委托。材料正文仍走原证据路径。",
+    "representation": "本批新委托字段不走通用递归裁短而丢失结尾约束；C1/已选Criterion是明确控制结果。若实际无法传递，应返回明确不完整/容量错误，不截断、不删准则或自动缩范围。不会把全部SourceArtifact.content作为控制字段回灌。"
+  },
+  "producer_commission": {
+    "new_path": "text_work.authority在服务器bound Writer新契约存在时，加入本次任务goal、C1完整五字段/身份、适用Criterion完整payload及关联Requirement正文。现有goal/scope/instructions/guidance保持原权威含义。",
+    "old_path": "没有新binding时authority返回原来相同结构；不因全局C1头出现而修改历史text-work packet。",
+    "source_text": "C1 source依据和material_refs只提供源版本/定位信息；原标准/表样正文由Writer明确选入input_refs/source_selections等，不能把完整来源仅凭存在就算供给，也不自动灌全部文件。",
+    "parse_and_save": "produce/receipt/adopt使用同一authority解析；既有parse、output_count、schema、精确payload/index/CAS规则不变。",
+    "change_detection": "新调用检查C1解释/相关依据是否仍与绑定的语义摘要一致；发生实质变化时对新的生成/采纳明确报stale，让Agent重新对齐。时间、预算计数、无关对象变化不应触发失效；旧业务成果不自动删除或作废。",
+    "head_change_during_call": "若生成完成后C1相关含义/已发布依据改变，不自动把旧候选作为新要求下成果采纳；保留原响应/receipt，禁止据此自动再发模型。",
+    "limits": "不改现有材料64k准入、模型容量或provider限制，也不把这些限制解释为业务范围上限。新commission增加的实际上下文成本须如实可见，本批不作性能收益承诺。"
+  },
+  "code_scope": {
+    "required_existing": [
+      {
+        "path": "src/report_agent/hierarchical_tools.py",
+        "entry": "content_tools；Coordinator工具列表；content_status",
+        "line": 35,
+        "reason": "注册C1保存工具，复用已有状态读取。其他角色不获得保存权限；原工具列表只作这项最小增加。"
+      },
+      {
+        "path": "src/report_agent/content_tasks.py",
+        "entry": "task_tool / delegated_task / bound_actor及绑定上下文读取",
+        "line": 33,
+        "reason": "增加Writer专用上下文；同delegate operation绑定/恢复；保持旧请求省略行为与owner。"
+      },
+      {
+        "path": "src/report_agent/task_context.py",
+        "entry": "exact_task_context / TaskContext.awrap_model_call",
+        "line": 38,
+        "reason": "当前解释/本次Writer绑定进入模型有效输入和现有恢复入口；原Reviewer/Layout不做新commission改造。"
+      },
+      {
+        "path": "src/report_agent/decision_state.py",
+        "entry": "compact_context / read_state",
+        "line": 149,
+        "reason": "明确保留本批C1/Writer委托字段或精确可恢复表示，不让默认预览无声吞掉约束；不得改成对所有对象全文回灌。"
+      },
+      {
+        "path": "src/report_agent/text_work.py",
+        "entry": "authority / produce / adopt",
+        "line": 147,
+        "reason": "同一已绑定委托解析到独立工具和adoption身份校验；无新binding时保持原packet。"
+      }
+    ],
+    "required_new": [
+      {
+        "path": "src/report_agent/commission_context.py",
+        "entry": "C1类型/保存/解析；resolve_writer_commission（名称为提案）",
+        "line": null,
+        "reason": "单一小型领域模块集中schema和解析责任，避免在task/context/producer三处复制规则。只用原state和operation，没有注册平台、存储框架或Agent循环。"
+      }
+    ],
+    "minimal_prompt_alignment": [
+      {
+        "path": "src/report_agent/rules/content-coordinator.md",
+        "entry": "C1保存和Writer新契约使用的说明",
+        "line": 1,
+        "reason": "只说明新接口、原要求权威和准确绑定；不复制完整字段手册或固定行动顺序。"
+      },
+      {
+        "path": "src/report_agent/rules/content-writer.md",
+        "entry": "识别本次委托和适用准则的来源",
+        "line": 1,
+        "reason": "说明服务器绑定输入与原资料选择；不要求Writer重写/复述准则、逐字读全库或新增审核。"
+      }
+    ],
+    "reuse_no_change_planned": [
+      "store.py的state/事务",
+      "content_store.py的operation/receipt/owner/CAS",
+      "content_models.py / content_inputs.py的Criterion与Ref",
+      "prepared_material.py / source_materials.py原选材与完整性",
+      "deep_runtime.py现有BusinessBoundary调用task_tool/delegated_task和原生build_agent",
+      "decision_data.py既有归档/offload控制恢复与候选body策略",
+      "bounded_review.py / artifact_review.py / task_supervision.py审核范围",
+      "content_export.py / content_layout.py / content_workbook.py导出",
+      "learning*全部实现"
+    ],
+    "conditional_only": [
+      "若fake证明现有原生恢复入口无法重建delegate本次binding，只能提出deep_runtime.py中具体最小挂点再告知用户；不先复制新executor。",
+      "若新控制结果实际被现有offload/清理路径吞掉，先用反例定位责任；本批不据此顺手改候选body默认或泛化所有工具投影。"
+    ],
+    "estimate": "5个现有Python模块＋1个小领域模块，另2份现有角色说明最小同步；其余主要复用/回归。候选挂点不计已批准必改。代码行数与工期尚不能可靠给出。"
+  },
+  "fake_validation": {
+    "strategy": "用真实run_report/build_agent/TaskContext/BusinessBoundary/task/ToolNode/ContentStore/prepare_material/produce/adopt，模型是ScriptedChat/Fake或本地MockTransport；不是手工拼一个正确commission再绕过交接。",
+    "data": "全部tmp_path隔离Workspace/SQLite；合成Requirement、Criterion、SourceArtifact、原表/末尾限定和假报告。不复制真实case、源文件、OCR或付费trace。",
+    "independent_oracles": [
+      "预先写定的fixture原要求、表头/行及尾部限制，不以实现自己生成的projection或Agent最后自述作为expected。",
+      "预先固定精确Criterion/Requirement版本与文本；同时放入一条不适用Criterion/大段无关source，断言既不漏选定条目也不全量注入。",
+      "每段边界同时比对存储原记录、真实子Agent输入、独立工具packet和最终adapter JSON；缺字段时在Agent后续补救前立即失败。",
+      "预先写定的节点payload和owner；精确采纳后实际保存值必须相同，不能借更改oracle把旧行为包装成通过。"
+    ],
+    "matrix": [
+      {
+        "id": "P01",
+        "path": "run_report→Coordinator保存C1→task新Writer→process_report_content→exact save→父Agent",
+        "oracle": "C1五字段、选定Criterion全部字段/Requirement原文、真实所选表样均进入正确工具输入；无不适用准则/全库正文；保存节点等于fixture且owner为绑定Writer。"
+      },
+      {
+        "id": "P02",
+        "path": "同一新链路，managed=false",
+        "oracle": "委派description上的同一委托结构及producer packet与managed版本语义相等；不依赖TaskContext存在才获得关键要求。"
+      },
+      {
+        "id": "P03",
+        "path": "长C1/准则＋真实平台低阈值offload＋下一模型输入/精确恢复",
+        "oracle": "末尾约束不被静默省略，完整Criterion到producer；offload的大源文不以控制恢复全量回灌；原owner/SHA/局限保持。"
+      },
+      {
+        "id": "P04",
+        "path": "C1保存的初始/更新/CAS与operation重放",
+        "oracle": "同操作同输入返回原成功；同ID不同输入冲突；错误expected_revision不改变head；新成功版本不改旧操作响应。"
+      },
+      {
+        "id": "P05",
+        "path": "C1 basis解析反例",
+        "oracle": "不存在/错误类型/非当前适用指令/伪造反馈ID拒绝，无半条head；SourceArtifact文字不能改变角色、权限或用户原goal。"
+      },
+      {
+        "id": "P06",
+        "path": "角色权限与新task参数公开/执行边界",
+        "oracle": "只有Coordinator可保存C1；Writer/Reviewer/Layout尝试隐藏调用也被服务端拒绝；writer_context用于错误角色拒绝。"
+      },
+      {
+        "id": "P07",
+        "path": "新Writer上下文绑定拒绝",
+        "oracle": "无效C1 pointer、错误digest、错误Criterion类型/不存在版本、无效材料Ref均在进入Writer/文字工具前明确拒绝；无调用补救掩盖。"
+      },
+      {
+        "id": "P08",
+        "path": "模式及遗漏新输入的关键分支",
+        "oracle": "旧模式无C1/no context保持原行为；新C1下新Writer缺context被拒绝；已有旧delegate收据保留旧绑定，不被当前头覆盖。"
+      },
+      {
+        "id": "P09",
+        "path": "恢复原Writer＋新委托版本/准则",
+        "oracle": "task_ref/actor/owner不变；新delegate operation精确指向新上下文；实际producer收到新要求，旧DelegatedTask/旧收据仍相同。"
+      },
+      {
+        "id": "P10",
+        "path": "生成后相关C1变化，再尝试adopt",
+        "oracle": "候选响应仍保留；新要求下不能无声采用旧authority；拒绝不自动再调用模型；已保存旧节点不删除。"
+      },
+      {
+        "id": "P11",
+        "path": "原生checkpoint在子图内中断并恢复同次调用",
+        "oracle": "从原delegate收据恢复本次上下文/owner；不能从task的最新上下文覆盖旧调用。对已完成text receipt复用不再执行独立文字服务；不宣称task注册收据能缓存整个子Agent执行。"
+      },
+      {
+        "id": "P12",
+        "path": "新代码读取无新字段的历史native task/text-work fixtures",
+        "oracle": "旧request/packet/hash与绑定形状保持原样；缺省字段不被加成null；旧模式不会因新schema自动改写业务输入。"
+      },
+      {
+        "id": "P13",
+        "path": "独立工具抛synthetic timeout/取消，随后尝试恢复",
+        "oracle": "保存unknown及原输入；不得因C1/上下文新字段或operation ID变更自动重发，具体仍沿现有unknown/material guards。"
+      },
+      {
+        "id": "P14",
+        "path": "收到畸形JSON/错误输出数量/改payload",
+        "oracle": "保留已收到原结果并拒绝采用；不把结构失败标unknown、成功或自动重试；输出契约仍为原schema。"
+      },
+      {
+        "id": "P15",
+        "path": "跨任务观察与内容所有权负例",
+        "oracle": "Coordinator-owned observation不自动成为Writer-owned；其他Writer不能采用该receipt；context字段不转移内容ownership或扩大可写scope。"
+      },
+      {
+        "id": "P16",
+        "path": "有/无C1时现有Reviewer/Layout注册及保存契约",
+        "oracle": "不带writer_context的正常审核/排版行为与旧packet不变；原scope/ref/extent/readonly限制和旧任务不可变规则仍有效。"
+      },
+      {
+        "id": "P17",
+        "path": "原生成批量/qualifiers-only/Word-XLSX trunk回归",
+        "oracle": "新上下文不使正文/限定词隔离、exact adoption和同快照文件配对回退；不以该回归冒充新的内容/视觉验收。"
+      },
+      {
+        "id": "P18",
+        "path": "Scripted Coordinator/Writer＋configured_model的独立文字adapter＋本地MockTransport",
+        "oracle": "实际SDK request body中commission/evidence与独立oracle一致，usage/返回走原解析与receipt；MockTransport计数为预期1次，外部连接0。"
+      }
+    ],
+    "conditions": {
+      "target": "枚举本批新接口/协议分支的正、负、边界以及关键复合guard各条件独立影响；coverage.py分支报告不能单独称MC/DC。",
+      "groups": [
+        {
+          "id": "G1",
+          "decision": "是否要求新Writer上下文",
+          "conditions": [
+            "既有delegate收据是否已存在",
+            "C1新头是否存在",
+            "目标role是否Writer",
+            "writer_context是否提供"
+          ],
+          "pairs": "固定其余前提，各自改变一个条件，记录子图是否被调用和实际绑定；避免同一例同时改变多个条件。"
+        },
+        {
+          "id": "G2",
+          "decision": "C1更新能否提交",
+          "conditions": [
+            "服务器角色合法",
+            "expected_revision正确",
+            "依据身份/作用域有效"
+          ],
+          "pairs": "成功基准逐一置反；失败时state head与旧operation不可发生部分修改。复杂验证子条件分别列等价类，不假称一个异常码证明全部条件。"
+        },
+        {
+          "id": "G3",
+          "decision": "绑定上下文能否到producer/adopt",
+          "conditions": [
+            "指针/摘要一致",
+            "精确Criterion/材料可解析",
+            "相关语义依据仍适用"
+          ],
+          "pairs": "每条件有同前提正/负组；无关资源/时间变化为不应失效反例。"
+        }
+      ],
+      "measurement": "实施后把真实nodeid、参数组、预期分支/调用计数与结果对账；未能隔离的条件标unknown，不写100%总系统路径或条件覆盖。"
+    },
+    "zero_external_calls": {
+      "primary": "用tmp_path与合成配置；硬禁socket外连、禁网络遥测/ tracing与任何真实provider factory。Fake驱动主图，异常在程序边界断言，不允许Agent补救后才算通过。",
+      "adapter_exception": "P18不禁本地MockTransport的HTTPX/SDK方法本身，而是只允许被指定MockTransport承接，底层socket仍禁止。真实configured_model只读合成环境；原key不加载。替换测试HTTP client的边界须如现有test_deep_models明确记录，不能同时声称原全套transport hooks已验证。",
+      "subprocess": "本批不启动Office/PDF/OCR/浏览器/应用服务或迁移子进程；DOCX/XLSX回归仅本地Python库。若任何测试需要子进程，先单列并说明，不把进程内socket guard称全机器防火墙。",
+      "reporting": "分别记录Fake角色调用数、本地MockTransport请求数、外部连接尝试/拒绝数；socket denied=0与“真实provider未调用”的证据不能混为远端账单审计。"
+    },
+    "test_changes": {
+      "new": [
+        "tests/test_commission_handoff.py：新增本批C1保存、真实委派/绑定、最终prompt和producer packet、历史/失败/条件对照。"
+      ],
+      "amend": [
+        "tests/test_task_context.py：新上下文字段在compaction/read_decision_state/checkpoint恢复中的保真。",
+        "tests/test_text_work.py：新commission/adoption摘要和旧packet/receipt不变的定向样例。"
+      ],
+      "confirmed_reuse": [
+        "tests/test_deep_runtime.py:27/52 ScriptedChat/Driver；使用test_task_supervision.py:20当前hierarchical ws，不用旧legacy trunk夹具。",
+        "tests/test_agent_result_delivery.py:63 run_role、:39 wire_text、:89 inline/offload；当前未跟踪，实施前纳入可review基线。",
+        "tests/test_text_work.py:137真实native生成保存、:350配对导出、:77 owner、:93失败/unknown；本轮只读未重跑。",
+        "tests/test_task_context.py:335 checkpoint恢复；test_task_supervision.py:223/422审核契约/新材料回归。",
+        "tests/test_deep_models.py::test_sdk_shared_retry_and_actual_request_contract本地MockTransport模式；本批复用适配器，不测真实模型能力。",
+        "静态核实名称：tests/test_task_supervision.py::test_resuming_task_cannot_narrow_its_requirements（223行）；tests/test_text_work.py::test_known_incomplete_json_never_becomes_adoptable（213行）。"
+      ],
+      "note": "Main已用静态AST核对本提案引用的既有函数/helper和测试名称，未进行collect-only或运行测试；新增测试nodeid将在实施时明确。静态存在不代表本批已通过。"
+    }
+  },
+  "completion_criteria": [
+    "用户确认本批边界/API/兼容规则后才开始实施；实现前锁定基线与独立fixture oracle，所有变更在VSCode显示。",
+    "P01/P02/P03的真实程序链路成功，断言实际Writer和独立工具收到目标/准则/选定原料，不以档案存在或最终自述代替。",
+    "C1 CAS、Writer调用绑定、同owner恢复和旧request/receipt协议的正负反例成立；新Writer必填路径无法通过省略字段静默绕开。",
+    "unknown/received-invalid/known-not-dispatched原状态不被改写；原付费case、预算/hold、源码以外真实数据均未触碰。",
+    "Reviewer/Layout原任务权限和范围、原source选择、限定词局部修订、exact adoption、已有Word/XLSX配对回归不回退。",
+    "条件表按真实nodeid说明哪些独立条件已证明、哪些unknown；记录最终代码hash与实际结果。复用旧失败证据，不能删旧测试换oracle修绿。",
+    "没有外部模型、付费调用、任务启动、依赖安装或数据镜像。仅临时测试数据清理由后续测试runner在既定tmp_path范围处理。"
+  ],
+  "proof_limits": [
+    "可证明确定性程序I/O、版本/绑定/权限/CAS、实际序列化与原料传递；Fake不能证明真实模型会选择这些动作或正确理解准则。",
+    "不能证明C1理解本身正确、C2没有漏要求、所选原料语义充分、评分专业正确、Word真实版式或全合同成果满足。",
+    "本批不把原生task结束或工具输出合法改为semanticpass，不新增自动验收。"
+  ],
+  "unresolved_and_scale": {
+    "known": "现有task/ContextVar/operation/ref/adopt与Driver/MockTransport骨架可复用；Criterion和材料载体已存在，非从零开发。",
+    "must_verify_before_completion": [
+      "同次native子图pending恢复对binding的重入行为，不是仅direct delegated_task测试。",
+      "managed/unmanaged与长结果offload后，最终模型输入中的新上下文是否完整/可恢复且不回灌全部大源文。",
+      "实际adapter新tool schema与payload序列化；若已知strict配置自身不支持现有allOf，需如实报告受阻配置，不扩成本批schema大修。"
+    ],
+    "scope_change_rule": "若这两个共同边界需要修改deep_runtime/decision_data等未列必改区域，先给出失败反例、具体文件/理由和验证变化，再请用户对齐本批边界；不以测试绿为由自动扩展。",
+    "size": "小至中等的单链路公共边界改动；5个现有Python模块+1个小领域模块，2份角色说明；新增1个测试文件并定向补2处现有测试。不是完整44项实现，也不意味着完整报告可交付。",
+    "estimate_limits": "当前不报承诺天数、代码行数或付费tokens。能否按上述文件范围收束取决于两项原生恢复/可见性反例；先列可审提案，不为给估计扩大调查。"
+  },
+  "framework_reuse": {
+    "used": "DeepAgents现有native task、ToolRuntime/ToolNode、middleware、checkpoint；LangChain/Pydantic公开输入schema；现有应用ContextVar和ContentStore.operation。",
+    "not_used": "本机response_format/structured_response能力虽已核，但结构化子任务最终回报不在首批；不捆绑新输出schema或额外LLM轮次。",
+    "model_output": "独立文字工具继续当前output_contract/parse/receipt；本批仅补输入委托，不改变候选payload或工具语义流程。"
+  }
+}

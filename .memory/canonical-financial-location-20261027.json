@@ -1,0 +1,10 @@
+{
+  "canonical_ledger": "C:\\Users\\dongy\\Documents\\ChatGPT\\report-agent-system\\.financial-records\\token-budget.db",
+  "relocation_receipt": ".analysis/history-retention-20261027/financial-relocation-execution-receipt.json",
+  "mapping_manifest": ".analysis/history-retention-20261027/independent-finance-relocation-plan.draft.json",
+  "authority": "Latest direct user whole historical run retirement; Neo exact relocation approval",
+  "ledger_identity_preserved": true,
+  "all_rows_preserved": true,
+  "old_receipts_unchanged": true,
+  "no_runtime_implementation_or_new_host_authorized": true
+}

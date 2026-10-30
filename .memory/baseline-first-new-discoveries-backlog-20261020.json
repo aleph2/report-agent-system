@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-20",
+  "source": "Direct user decision in current conversation",
+  "baseline_exists": false,
+  "user_instruction": "backlog，就先不实现。我们先要做一个稳定的基线版本。在基线版本的基础上再修改所有的新发现的问题",
+  "explicitly_deferred_item": "POSTBASE-REVIEW-REVISION-RECHECK",
+  "backlog_file": ".analysis/integration-baseline-20261020/system-baseline-plan/post-baseline-backlog.json",
+  "scope_rule": "Newly discovered problems are recorded with evidence for post-baseline iteration; do not automatically expand the current baseline-repair scope. Do not reinterpret this as waiving unresolved items already assigned to the baseline repair plan.",
+  "preserve": "No source/test/result/history reverted or modified by this recording. Existing unaccepted R7l test candidate is not silently admitted to a baseline."
+}

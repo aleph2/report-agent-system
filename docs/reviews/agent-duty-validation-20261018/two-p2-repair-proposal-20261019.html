@@ -1,0 +1,76 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>两个P2修复方案 · 待确认</title><style>
+body{margin:0;background:#f3f5f7;color:#182a3b;font:16px/1.65 system-ui,"Microsoft YaHei",sans-serif}main{max-width:1320px;margin:auto;padding:28px}h1{font-size:28px}.box{background:white;border:1px solid #d6dfe7;border-radius:10px;padding:20px;margin:18px 0}.notice{border-left:6px solid #b46b16}.grid{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #d6dfe7;padding:10px;vertical-align:top;text-align:left}th{background:#e9f0f6}a{color:#075b98}code{overflow-wrap:anywhere}pre{white-space:pre-wrap;font:15px/1.7 system-ui,"Microsoft YaHei",sans-serif}small{color:#4e6070}summary{cursor:pointer;font-weight:650}
+</style></head><body><main><h1>两个P2修复方案 · 待用户确认</h1><p>2026-10-19 · Neo负责设计与审核；Codex确认后实施</p>
+<div class="box notice"><b>本轮只整理方案，未修改程序或测试，未运行测试或调用付费模型。</b><p>保留此前61个不同用例：7个失败、54个通过。7个失败对应2个问题；修复时沿用同一套判据，不以改断言、跳过或xfail求通过。</p></div>
+<p><a href="nine-case-results-20261019.html">此前九组测试及实际trace</a> · <a href="../../../.analysis/agent-duty-validation-20261018/nine-cases-20261019/repair-proposal-neo.md">Neo完整方案</a> · <a href="../../../.analysis/agent-duty-validation-20261018/nine-cases-20261019/repair-proposal-neo.json">机器可读方案与源码基线</a></p>
+<section class="box"><h2>1. 恢复任务：原始契约与本次指令分开表达</h2><p><b>已证根因：</b>新指令已传入，但程序仍把原goal作为当前权威；摘要移出新Human后，当前状态读取也不能还原本次完整指令。这是同一机制的4个失败，尚未证明真实模型一定会照旧执行。</p><p><b>方案：</b>保留原任务及所有权，在现有调用绑定中保留本次经过校验的完整指令；每次实际调用均更新绑定，退出后复原。当前状态、摘要上下文和任务读取共用这一来源，清楚区分初始契约和当次行动指令。</p><p><b>边界：</b>覆盖恢复、摘要和同一任务后续调用。新指令不能扩大权限或改写已保存审核范围；不新增“最新任务”库，不覆写原goal，不修改摘要模型、角色prompt或独立文字工具的内容策略。</p></section>
+<section class="box"><h2>2. 成功缓存：同一收据可由不同操作安全复用</h2><p><b>已证根因：</b>新operation复用了已有分析，程序却再次INSERT同一收据主键，事务失败。inline、offload、legacy的3个失败属于同一机制；原始模型调用仅1次。</p><p><b>方案：</b>保留现有operation、分析缓存和receipt三种身份。在同一事务内核对父操作仍是本次保留的状态，再检查收据：不存在则插入，完整记录一致则复用，不一致则明确报告冲突；最后原子完成新操作。</p><p><b>边界：</b>只调整成功结果落账，旧receipt和ID不变。不使用覆盖/忽略冲突的SQL，不为复用再调模型，不自动放行历史reserved或unknown，不修改模型、预算或重试规则。</p></section>
+<section class="box"><h2>拟改代码：6个现有产品文件</h2><div class="grid"><table><thead><tr><th>文件</th><th>入口</th><th>改动</th></tr></thead><tbody><tr><td><a href="../../../src/report_agent/content_tasks.py">content_tasks.py</a></td><td><code>delegated_task / _binding</code></td><td>沿用现有任务绑定，携带经过校验的本次指令；退出时复原。</td></tr><tr><td><a href="../../../src/report_agent/deep_runtime.py">deep_runtime.py</a></td><td><code>BusinessBoundary.invoke_native</code></td><td>每次实际调用绑定当次 description，包括同一任务的 completion follow-up。</td></tr><tr><td><a href="../../../src/report_agent/task_context.py">task_context.py</a></td><td><code>exact_task_context</code></td><td>明确区分初始任务契约与本次指令，保留原身份、权限和历史。</td></tr><tr><td><a href="../../../src/report_agent/decision_state.py">decision_state.py</a></td><td><code>compact_context / read_state</code></td><td>本次指令保留全文；状态读取与摘要共用同一来源。</td></tr><tr><td><a href="../../../src/report_agent/hierarchical_tools.py">hierarchical_tools.py</a></td><td><code>read_task_assignment</code></td><td>保留原 assignment/readiness，同时明确本次指令；不扩大工具开放范围。</td></tr><tr><td><a href="../../../src/report_agent/text_work.py">text_work.py</a></td><td><code>produce 完成事务</code></td><td>验证父操作和收据身份；相同收据复用，不同收据明确拒绝，事务原子完成。</td></tr></tbody></table></div><p><code>working_summary.py</code>、<code>task_supervision.py</code>、<code>evidence_analysis.py</code>是复用及回归检查范围，目前不列为必改。0个新产品模块、0个新表/状态库；无依赖升级或广泛重构。</p></section>
+<section class="box"><h2>验证与验收</h2><ol><li>存档当前源码、原测试、7个失败node ID与trace。原7例的函数、参数和判据保持；新增相邻测试另行追加，不替换原例。</li><li>先做恢复问题的小修，复跑原4个红例，补摘要、真实native checkpoint重入、Reviewer follow-up、状态读取一致性、并发/异常/取消隔离与权限拒绝。</li><li>再做缓存问题的小修，复跑原3个红例，补不一致收据、父记录被改、成功缓存并发复用等控制。检查原收据未变、父操作正确完成、独立文字调用次数仍为1。</li><li>复跑原61个用例及相关候选、revision、schema replay、summary和unknown回归；Neo审核源码、有效模型输入输出、SQLite状态及实际trace。</li></ol><p>全部使用fake LLM与实际程序链、临时SQLite和现有适配器。本次两处确定性修复无需付费模型或完整报告重跑。通过只能证明所列程序机制及路径，不代表全部44项职责、真实模型语义或报告视觉质量均已验收。</p><p>若新增控制发现必须扩大改动边界，先呈现证据和调整方案，不放宽原判据。</p></section>
+<section class="box"><h2>保留的7个失败用例</h2><div class="grid"><table><thead><tr><th>组</th><th>原node ID</th><th>验修目标</th></tr></thead><tbody><tr><td>R01</td><td><code>tests/test_agent_duty_repro_resume.py::test_r01_resumed_instruction_has_no_unqualified_old_current_authority[new-request-True-writer]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr><tr><td>R01</td><td><code>tests/test_agent_duty_repro_resume.py::test_r01_resumed_instruction_has_no_unqualified_old_current_authority[new-request-True-layout]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr><tr><td>R02</td><td><code>tests/test_agent_duty_repro_resume.py::test_r02_current_commission_survives_real_native_compaction[resumed-current-writer]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr><tr><td>R02</td><td><code>tests/test_agent_duty_repro_resume.py::test_r02_current_commission_survives_real_native_compaction[resumed-current-layout]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr><tr><td>J01</td><td><code>tests/test_agent_duty_repro_judgments.py::test_j01_new_operation_reuses_identical_analysis_without_receipt_collision[inline]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr><tr><td>J01</td><td><code>tests/test_agent_duty_repro_judgments.py::test_j01_new_operation_reuses_identical_analysis_without_receipt_collision[offload]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr><tr><td>J01</td><td><code>tests/test_agent_duty_repro_judgments.py::test_j01_new_operation_reuses_identical_analysis_without_receipt_collision[legacy]</code></td><td>失败 → 修复后必须通过，原断言保留</td></tr></tbody></table></div></section>
+<section class="box"><details><summary>展开Neo完整设计、替代方案与恢复/并发约束</summary><pre># 两项P2最小修复提案（Neo，待用户确认）
+
+**本轮只做设计，没有改应用/测试、没有运行测试或调用付费模型。**保留现有7个失败用例及原判据、54个通过控制。目标是消除两处已复现机制，不恢复C1/batch1重构，不重跑客户报告。完整字段、7个nodeid与源码基线SHA见同名JSON。
+
+## 一、D-RESUME-01：原任务不动，可靠表达本次实际委托
+
+问题不是原goal应当删除，而是程序把它当“当前全部权威”，本次改委托仅存在易被摘要移出的Human中。建议保留DelegatedTask@1、owner、review范围、layout grant、历史；在**已有绑定**里携带本次实际native description，所有当前状态读取使用同一来源。
+
+最小内部表示（均为拟议，不是现有API）：`delegate_operation_id`、完整`description`、`description_sha256`。已有actor绑定继续负责身份/权限，不增模型可设置参数。原`assignment`保持原样，并明确它是初始契约；新`current_invocation`明确本次行动指令，不能扩大原权限或改变已保存审核范围。
+
+具体代码：
+
+|拟改文件/入口|改什么|
+|---|---|
+|content_tasks.py / delegated_task、现有_binding|在原委派operation验证成功后绑定本次文字与call身份，提供检查workspace/actor/task的只读取值；退出reset。|
+|deep_runtime.py / BusinessBoundary.invoke_native（约253–274行）|每次真正handler调用均绑定实际next_call文字，finally复原；不能只绑定最初description。|
+|task_context.py / exact_task_context|区分原assignment与本次invocation；去掉“旧goal可无条件压倒本次委托”的整体表述。|
+|decision_state.py / compact_context|当前指令全文与来源不经通用preview裁剪，read_decision_state沿同一exact上下文读取。|
+|hierarchical_tools.py / read_task_assignment|仍返回原assignment/readiness，同时明确本次指令；不向Writer/Layout新增该工具。|
+
+**关键相邻路径：**task_supervision约745行会用同一个call.id发起不同description的completion follow-up。因此要在每次invoke_native重新绑定，description SHA区分实际文字，不改task identity。这里仅重绑现有server supervisor产生的有效文字，不拿修改后的description重新登记同一delegate operation（那应当触发冲突）；原始委派校验保持。WorkingSummary约137行本已读取compact_context(exact_task_context)，可直接复用，不需再造摘要恢复库或要求summary模型逐字记住任务。
+
+**平台核查：**本机DeepAgents0.7.19、LangChain1.4.2/core1.6.5、LangGraph1.2.12。已读安装的subagents.py约770–865行：isolated task把description放入HumanMessage再调用原subagent；本次文字不是框架自动维护的独立业务状态。既有ContextVar、middleware、原生checkpoint与状态reader足以作为首选修复挂点，不新建Agent循环。
+
+**恢复约定：**本次文字来自已经校验的真实native call；parent/tool checkpoint重入必须先重放该call的权限/operation校验，再重建绑定。ContentStore.operation只有request_digest/response，**没有保存description全文**，不能拿它假充恢复来源。不按时间查“最新任务”、不从summary或普通Human猜权威。无合法绑定的直接child入口仍FORBIDDEN。真实child checkpoint重入须新增fake控制确认，当前仅设计，未验证。
+
+**并发与权限：**嵌套ContextVar token按协程隔离，正常、异常、async取消均reset。原task、grant、review scope、followup次数与unknown不重放不变；新文字不取得新权利。只改变Agent/summary的当前任务表达，不顺带改独立文字工具commission/authority digest，不使旧候选收据失效。
+
+不采用：只改System标签（R02仍会丢全文）；覆写原goal/每次新owner（破坏历史及所有权）；最新invocation表或新工作流（平行真相与竞态）；新增自定义Agent状态通道（现有机制尚未被证明不足）。本次全文不另设固定字符上限，仍受真实模型容量准入；不把全部资料塞入上下文。
+
+## 二、D-TEXT-CACHE-01：相同内容收据复用，外操作各自原子完成
+
+三个身份保持区分：外operation由actor+operation_id识别；原始分析由输入/prompt/model/contract识别；owned receipt继续使用现有actor/request/payloads/notes digest。**不改receipt_digest，不把operation_id加进原始请求，不重复模型调用。**
+
+只拟改`text_work.py / produce`约413–492行的完成事务：
+
+1. 保留原始reserved父记录作为CAS期望。完成时在现有`BEGIN IMMEDIATE`内重读；必须与该保留值、actor/request身份一致，禁止盲目覆盖其他状态。
+2. receipt不存在才INSERT；已存在且是**完整相同的completed stored记录**才复用，原行一字不改。核身份、请求、输出、authority/evidence、refs/selections、revision、notes，不以相同body或“语义差不多”作为依据。比较解析后的完整记录，不比较JSON键顺序；原cache保留的model/usage/duration等来源也须一致。缺少历史字段不自动补齐或覆盖以求一致；不同记录保留并明确拒绝。
+3. 收据不一致就明确本地receipt identity冲突，保留旧收据、不完成新父，不用OR REPLACE或盲IGNORE掩盖。沿现有诊断/events保留local integrity阶段与已收raw response事实，不称provider unknown，也不赋予自动重试权。
+4. 原子完成匹配的父记录与收据insert/已验证复用。事务失败则回滚；同operation成功重放、原schema-only replay保持原逻辑。新operation的外层reused标记不强行指定；usage是原始调用来源，不重复计费。
+
+**并发：**已有成功raw cache时，不同外operation的完成由SQLite串行，可共享同一完全相同receipt；不在DB事务中调用模型。不新增“等待/重试正在飞的raw请求”，现有reserve_once/unknown规则保持。父记录已被改变则CAS拒绝，不覆盖。receipt冲突时父保留reserved供检查，错误明确是本地完整性失败而非远端结果未知；不新增自动rearm。
+
+**历史：**旧receipt ID、原行、raw input/response、owner、来源和预算未知保留。已经搁置的reserved父不会自动迁移或放行；是否恢复必须另有确切已收结果证据。此次修复不能宣称替所有历史中断状态解锁。
+
+不采用：OR REPLACE（可能覆盖旧证据）、盲OR IGNORE（掩盖不同数据）、改digest加入operation（破坏候选/历史重放或制造重复调用）、捕获IntegrityError后直接算成功（未证身份与父操作完成）。不改共享evidence_analysis准入、未知处置或旧预算。
+
+## 三、同一用例验修与必要相邻控制
+
+实施前由Main保存7个既有RED的原nodeid/oracle及哈希，**不改它们、不xfail**。先后两次独立小修，避免一次混成大重构：
+
+- 恢复修复：原R01两红和R02两红应通过；原任务/owner/grant不变；补真实native child checkpoint重入、Reviewer completion follow-up不同文字、read_task_assignment与状态/summary一致、并发隔离/取消reset；scope/plugin/grant改动仍拒绝。
+- 缓存修复：原J01 inline/offload/legacy三红应通过；仅1次独立文字调用、原receipt不变、两个输出精确采用。补相同key不同收据拒绝、父reserved被改时CAS拒绝、已有raw cache的两个新外operation安全完成；其他owner/输入/authority不能混成同一身份。
+- 保留54正常控制，再运行现有nine-group61节点及相关candidate/scoped-revision/schema-replay/summary/unknown回归。新增控制放现有repro测试模块，不新建测试平台；原实验、网络拒绝、有效wire/状态/诊断均归档。
+
+验收看真实程序链：有效System/Human/tool wire、摘要前后与实际reader返回、native call重入身份、父/收据事务状态和模型调用次数。应用/原测试/预算前后哈希对账，源代码与trace由Neo复核。现有假模型、真实tmp SQLite、adapter序列化及Office骨架复用；**本次确定性修复无需付费调用才验得清**。
+
+若新的checkpoint测试显示框架不能重建合法call，或完整收据比较发现合法表示差异，只暂停受影响修复，带证据重新说明边界；不得悄悄增最新状态库或放宽比较求绿。
+
+## 四、规模、保留缺口
+
+拟改**6个现有产品文件、0新产品模块、0新表/状态库**：恢复5文件，缓存1文件。working_summary、task_supervision、evidence_analysis等为已核依赖/回归面，当前不列必改；无需修改角色prompt Markdown、依赖或模型配置。测试增加仍需经用户确认后实施，本轮只写提案。
+
+通过后能证明这两项程序故障及所列兄弟路径消除；不能证明真实Agent遵从、全部44职责/路径/MC-DC、报告语义与视觉质量、所有历史中断可恢复、所有并发raw请求均去重。本提案没有启动任何修复或下一波实模。
+</pre></details></section>
+<p><small>此页为待确认方案。原失败记录保持原样，后续修复结果另存；当前没有完成修复的声明。</small></p></main></body></html>

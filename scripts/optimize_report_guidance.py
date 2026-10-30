@@ -14,6 +14,7 @@ from report_agent.store import Store, encode
 
 
 async def model_call(root, request, purpose, messages):
+    from report_agent.model_invocation import MODEL_REQUEST_DEADLINE_SECONDS
     from langchain_core.messages import SystemMessage, HumanMessage
     from report_agent.model_config import bind_role_services
     from report_agent.deep_models import configured_model, LocalAudit, strict_wire_audit, error_data
@@ -26,7 +27,7 @@ async def model_call(root, request, purpose, messages):
     model.callbacks = [*(model.callbacks or []), LocalAudit(store, purpose)]
     model.http_async_client.event_hooks["request"].append(strict_wire_audit(store, purpose))
     budget = RequestBudget(6)
-    save_json(root / "started.json", {"purpose": purpose, "pid": os.getpid(), "logical_deadline_seconds": 600,
+    save_json(root / "started.json", {"purpose": purpose, "pid": os.getpid(), "logical_deadline_seconds": MODEL_REQUEST_DEADLINE_SECONDS,
         "max_http_attempts": 6, "sdk_retries": 5, "httpx_retries": 0, "automatic_retry": False})
     try:
         with request_budget(budget):

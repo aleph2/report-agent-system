@@ -1,0 +1,56 @@
+{
+  "scope": "Current duty-validation increment only; no application source changes",
+  "files": [
+    {
+      "path": "scripts/probe_agent_io.py",
+      "change": "modified test runner",
+      "before_sha256": "760b2cffd8367bca71bd3121c607ed7fbcfcea36250b76e2a2ee211fb1b8a585",
+      "after_sha256": "ccc524e483653d5b18a26f0d16c404474086d9d301f752f9a32f64f52c65f861"
+    },
+    {
+      "path": "tests/test_agent_duty_handoffs.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "373fa6d90480f7146a5464589a3ac29641da42f6d5230a7faffa1113568f1e63"
+    },
+    {
+      "path": "tests/test_agent_duty_learning.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "2892e7398abb80a2c89a332e9abf3b9984e95a958616d96c023ecc24ad51ac69"
+    },
+    {
+      "path": "tests/test_agent_duty_artifacts.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "4342b7c5ef8f2790d778a7cde530869a8a718438b1630ce584bcb2c733dd33e3"
+    },
+    {
+      "path": "tests/test_probe_phase_budget.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "8d8f7d60400787caf150bff19625cdc0a2bc86139a5fb59b2facc8faf1f8a527"
+    },
+    {
+      "path": "tests/test_agent_duty_trace_cases.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "318c5f1478cff41c8b6ec6bd509121a9e3308dd57e08712c9ef4594ea27d25dd"
+    },
+    {
+      "path": "tests/test_agent_duty_visual.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "2f0e767805e125a54be9cea90e001b32ccba4b99ebff552091019af5633c683a"
+    },
+    {
+      "path": "tests/test_probe_output_limit.py",
+      "change": "new retained test file",
+      "before_sha256": null,
+      "after_sha256": "f5195fbb4e0aa43162832ae7fbb181124463801d5959f4934fd4e9ac7936d156"
+    }
+  ],
+  "product_files_compared": 102,
+  "product_changes": [],
+  "baseline": "../../../.analysis/agent-duty-validation-20261018/baseline.json"
+}

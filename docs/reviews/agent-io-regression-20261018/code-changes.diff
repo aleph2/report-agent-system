@@ -1,0 +1,677 @@
+--- /dev/null
++++ b/scripts/verify_agent_io.py
+@@ -0,0 +1,119 @@
++"""Run retained pytest regressions offline and archive actual fake-model traces.
++
++This is a test runner, not a product runtime or a model quality evaluator.
++Only the supplied tests run. TCP/UDP are denied; local HTTP MockTransport works.
++"""
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import socket
++import sys
++
++
++ROOT = Path(__file__).resolve().parents[1]
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('--out', type=Path, required=True)
++    parser.add_argument('tests', nargs='+')
++    args = parser.parse_args()
++    out = args.out.resolve()
++    out.mkdir(parents=True, exist_ok=False)
++    os.chdir(ROOT)
++    sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests')]
++    os.environ.update(LANGSMITH_TRACING='false', LANGCHAIN_TRACING_V2='false')
++    os.environ.pop('REPORT_GRAPH_TEST_URI', None)
++    import pytest
++    from langchain_core.messages import messages_to_dict
++    from test_deep_runtime import Driver, ScriptedChat
++    from test_bounded_review import Model
++
++    class Record:
++        nodeid = '<collection>'
++
++        def __init__(self):
++            self.results, self.denied = [], []
++
++        def pytest_runtest_setup(self, item):
++            self.nodeid = item.nodeid
++
++        def pytest_runtest_logreport(self, report):
++            self.results.append({'nodeid': report.nodeid, 'when': report.when,
++                                 'outcome': report.outcome, 'duration': report.duration,
++                                 'error': str(report.longrepr) if report.failed else None})
++
++        def trace(self, value):
++            with (out / 'model-trace.jsonl').open('a', encoding='utf-8') as f:
++                f.write(json.dumps({'nodeid': self.nodeid, **value}, ensure_ascii=False, default=str) + '\n')
++
++    record = Record()
++    patches = []
++
++    def patch(obj, name, value):
++        patches.append((obj, name, getattr(obj, name)))
++        setattr(obj, name, value)
++
++    for name in ('connect', 'connect_ex', 'sendto'):
++        original = getattr(socket.socket, name)
++
++        def deny(sock, *a, _original=original, **kw):
++            if sock.family in (socket.AF_INET, socket.AF_INET6):
++                record.denied.append({'nodeid': record.nodeid, 'method': _original.__name__})
++                raise OSError('AGENT_IO_TEST_NETWORK_DENIED')
++            return _original(sock, *a, **kw)
++
++        patch(socket.socket, name, deny)
++    original_respond = Driver.respond
++
++    async def respond(driver, role, messages):
++        record.trace({'boundary': 'fake_model_input', 'role': role, 'messages': messages_to_dict(messages)})
++        result = await original_respond(driver, role, messages)
++        record.trace({'boundary': 'fake_model_output', 'role': role,
++                      'messages': messages_to_dict([g.message for g in result.generations])})
++        return result
++
++    patch(Driver, 'respond', respond)
++    original_bind = ScriptedChat.bind_tools
++
++    def bind(model, tools, **kw):
++        result = original_bind(model, tools, **kw)
++        record.trace({'boundary': 'final_fake_model_tools', 'role': model.role,
++                      'schemas': model.driver.bindings[model.role][-1]})
++        return result
++
++    patch(ScriptedChat, 'bind_tools', bind)
++    original_invoke = Model.ainvoke
++
++    async def invoke(model, messages):
++        record.trace({'boundary': 'independent_text_tool_input', 'messages': messages})
++        result = await original_invoke(model, messages)
++        record.trace({'boundary': 'independent_text_tool_output',
++                      'messages': messages_to_dict([result])})
++        return result
++
++    patch(Model, 'ainvoke', invoke)
++    hashes = lambda: {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
++                      for p in sorted((ROOT / 'src').rglob('*')) if p.suffix in ('.py', '.md')}
++    before = hashes()
++    test_hashes = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
++                   for p in [Path(__file__), *sorted((ROOT / 'tests').glob('*.py'))]}
++    code = 2
++    try:
++        code = int(pytest.main(['-q', '--tb=short', f'--junitxml={out / "junit.xml"}', *args.tests], plugins=[record]))
++    finally:
++        for obj, name, value in reversed(patches):
++            setattr(obj, name, value)
++        (out / 'result.json').write_text(json.dumps({'exit_code': code, 'tests': args.tests,
++            'results': record.results, 'denied_network': record.denied,
++            'source_before': before, 'source_after': hashes(),
++            'test_code_sha256': test_hashes,
++            'limits': 'Scripted model observations and selected tests only. No model semantics, no subprocess network guarantee.'},
++            ensure_ascii=False, indent=2), encoding='utf-8')
++    return code
++
++
++if __name__ == '__main__':
++    raise SystemExit(main())
+--- /dev/null
++++ b/scripts/probe_agent_io.py
+@@ -0,0 +1,239 @@
++"""Four bounded synthetic I/O probes; no generated tool call is executed.
++
++Default is offline MockTransport. --live requires the existing authorized ledger
++and provider file. No fallback, automatic semantic repair, or new report run.
++"""
++import argparse
++import asyncio
++import hashlib
++import json
++import os
++from pathlib import Path
++import sqlite3
++import socket
++import sys
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests')]
++
++import httpx
++from jsonschema import Draft202012Validator
++from langchain_core.messages import AIMessage, messages_to_dict
++from report_agent.content_tasks import delegated_task
++from report_agent.deep_models import configured_model
++from report_agent.deep_runtime import run_report
++from report_agent.model_config import load_mixed_services
++from report_agent.request_budget import RequestBudget, request_budget
++from report_agent.store import Store
++from report_agent.token_budget import TokenBudget, token_budget
++from report_agent.workspace import Workspace
++from test_bounded_deadline import close_model
++from test_bounded_review import review_call
++from test_decision_data import activate
++from test_deep_runtime import Driver, invoke
++from test_hierarchical_content import seed
++from test_text_work import tools, writer_call
++
++
++def save(path, value):
++    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
++
++
++def code_hashes():
++    paths = [Path(__file__), *sorted((ROOT / 'tests').glob('*.py')),
++             *[p for p in (ROOT / 'src').rglob('*') if p.suffix in ('.py', '.md')]]
++    return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
++
++
++def ledger_rows(path):
++    with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as db:
++        return {'authorization': db.execute('SELECT * FROM authorization ORDER BY id').fetchall(),
++                'attempts': {row[0]: row for row in db.execute('SELECT * FROM attempts ORDER BY id')}}
++
++
++def workspace(path, missing=False):
++    store = Store(path)
++    store.initialize({'goal': 'Describe synthetic class B, preserving uncertainty.',
++        'content_contract': 'hierarchical-review-v1', 'review_entrypoint': 'delegated-reviewer-v1',
++        'sources': [{'id': 's', 'title': 'Synthetic rule', 'coverage': 'partial' if missing else 'complete',
++                     'content': 'The class-B value table is absent from the supplied material.' if missing
++                     else 'Class B permits 75 to 100.'}]})
++    ws = Workspace(store)
++    activate(ws)
++    return ws
++
++
++async def capture_role(ws, role):
++    _, _, refs, snapshot, _ = seed(ws)
++    args = ({'subagent_type': 'writer', 'description':
++             'Prepare a paragraph about class B using source s. First inspect the actual source; do not invent the permitted range.'}
++            if role == 'writer' else dict(review_call(snapshot, refs)['args']))
++    args.pop('supervision_plugin', None)
++    driver = Driver(coordinator=[invoke('task', **args), AIMessage(content='Synthetic capture ended.')],
++                    **{role: [AIMessage(content='Synthetic capture only.')]})
++    result = await run_report(ws, driver)
++    assert result['last_error'] is None, result
++    selected = [messages for name, _, messages in driver.calls if name == role]
++    assert len(selected) == 1
++    return selected[0], [{'type': 'function', 'function': t} for t in driver.bindings[role][-1]]
++
++
++def fixture(case):
++    if case in ('writer', 'reviewer'):
++        name, args = ('read_source_page', {'source_id': 's'}) if case == 'writer' else ('read_task_assignment', {})
++        return {'role': 'assistant', 'content': None, 'tool_calls': [
++            {'id': 'synthetic-call', 'type': 'function',
++             'function': {'name': name, 'arguments': json.dumps(args)}}]}
++    missing = case == 'text-missing'
++    return {'role': 'assistant', 'content': json.dumps({
++        'kind': 'block', 'body': {'text': 'The class-B value table was not supplied.' if missing else
++                                 'Class B permits values from 75 to 100.'},
++        'qualifiers': {'limitations': 'Missing table; no value selected.'} if missing else {},
++        'claim_kind': 'fact'})}
++
++
++async def probe(case, out, live):
++    folder = out / case
++    folder.mkdir()
++    ws = workspace(folder / 'workspace', case == 'text-missing')
++    role = case if case in ('writer', 'reviewer') else 'text_tool'
++    model = configured_model(ws.store, role)
++    wire_requests, responses = [], []
++
++    async def request_hook(request):
++        # Exact JSON only; never record HTTP headers, URL query or credentials.
++        wire_requests.append(json.loads(request.content))
++        save(folder / 'wire-requests.json', wire_requests)
++
++    async def response_hook(response):
++        await response.aread()
++        responses.append({'http_status': response.status_code, 'body': response.text})
++        save(folder / 'wire-responses.json', responses)
++
++    model.http_async_client.event_hooks['request'].append(request_hook)
++    model.http_async_client.event_hooks['response'].append(response_hook)
++    if not live:
++        async def transport(request):
++            return httpx.Response(200, json={'id': 'offline-' + case, 'object': 'chat.completion',
++                'created': 1, 'model': model.model_name,
++                'choices': [{'index': 0, 'finish_reason': 'tool_calls' if role != 'text_tool' else 'stop',
++                             'message': fixture(case)}],
++                'usage': {'prompt_tokens': 19, 'completion_tokens': 1, 'total_tokens': 20}})
++        await model.http_async_client._transport.aclose()
++        model.http_async_client._transport = httpx.MockTransport(transport)
++        model.http_async_client._mounts = {}
++    result = {'case': case, 'mode': 'live' if live else 'offline', 'model': model.model_name,
++              'output_limit': 8192, 'generated_actions_executed': False}
++    save(folder / 'intent.json', result)
++    try:
++        if role != 'text_tool':
++            messages, schemas = await capture_role(ws, role)
++            save(folder / 'native-input.json', {'messages': messages_to_dict(messages), 'tools': schemas})
++            bound = model.bind_tools(schemas)
++            reply = await bound.ainvoke(messages, max_tokens=8192)
++            save(folder / 'model-output.json', reply.model_dump())
++            assert reply.response_metadata.get('finish_reason') in ('stop', 'tool_calls'), 'INCOMPLETE_RESPONSE'
++            assert not reply.invalid_tool_calls, 'INVALID_TOOL_CALL_JSON'
++            assert reply.tool_calls, 'NO_STRUCTURED_ACTION_RETURNED'
++            by_name = {s['function']['name']: s['function']['parameters'] for s in schemas}
++            for call in reply.tool_calls:
++                assert call['name'] in by_name, 'UNREGISTERED_TOOL'
++                Draft202012Validator(by_name[call['name']]).validate(call['args'])
++            result['returned_actions'] = reply.tool_calls
++            result['interpretation'] = 'Arguments validated; action suitability requires trace review. No tool executed.'
++        else:
++            class Observed:
++                max_tokens = 8192
++
++                def __getattr__(self, name):
++                    return getattr(model, name)
++
++                async def ainvoke(self, messages):
++                    save(folder / 'text-tool-input.json', messages)
++                    reply = await model.ainvoke(messages, max_tokens=8192)
++                    save(folder / 'model-output.json', reply.model_dump())
++                    return reply
++
++            with delegated_task(ws, 'coordinator', writer_call()) as (_, actor):
++                tool = tools(ws, 'writer', Observed())['process_report_content']
++                result['tool_result'] = await tool('synthetic-' + case,
++                    'Write one block describing class B using only the supplied material. If the value table is missing, '
++                    'state that limitation; do not invent a range or select a score.',
++                    'ContentNode', source_selections=[{'source_id': 's'}])
++            result['interpretation'] = 'Actual parser accepted candidate; no adoption or semantic acceptance.'
++        result['status'] = 'passed_structure'
++    except Exception as exc:
++        result.update(status='blocked_before_http' if not wire_requests else 'failed',
++                      error_type=type(exc).__name__, error=str(exc))
++    finally:
++        result['observed_http_requests'] = len(wire_requests)
++        result['observed_http_responses'] = len(responses)
++        save(folder / 'events.json', ws.store.events())
++        save(folder / 'result.json', result)
++        await close_model(model)
++    return result
++
++
++async def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('--out', required=True, type=Path)
++    parser.add_argument('--live', action='store_true')
++    parser.add_argument('--env-file', type=Path)
++    parser.add_argument('--ledger', type=Path)
++    args = parser.parse_args()
++    out = args.out.resolve()
++    out.mkdir(parents=True, exist_ok=False)  # Never replay an existing attempt directory.
++    os.environ.update(LANGSMITH_TRACING='false', LANGCHAIN_TRACING_V2='false',
++                      REPORT_SDK_RETRIES='5', REPORT_CONNECT_RETRIES='0')
++    os.environ.pop('REPORT_GRAPH_TEST_URI', None)
++    if args.live:
++        if not args.env_file or not args.ledger or not args.ledger.is_file():
++            raise ValueError('EXISTING_PROVIDER_FILE_AND_LEDGER_REQUIRED')
++        assert args.ledger.resolve() == (ROOT / '.runs/full-chain-budget-20261014/token-budget.db').resolve()
++        services = load_mixed_services(args.env_file)
++        with sqlite3.connect(args.ledger.resolve().as_uri() + '?mode=ro', uri=True) as db:
++            maximum, bounds = db.execute('SELECT maximum,bounds FROM authorization WHERE id=1').fetchone()
++        assert maximum == 170000000, 'AUTHORIZATION_CHANGED_REVIEW_REQUIRED'
++        budget = TokenBudget(args.ledger, maximum, json.loads(bounds))
++    else:
++        original_connect = socket.socket.connect
++
++        def deny(sock, *a, **kw):
++            if sock.family in (socket.AF_INET, socket.AF_INET6):
++                raise OSError('PROBE_OFFLINE_NETWORK_DENIED')
++            return original_connect(sock, *a, **kw)
++
++        socket.socket.connect = deny
++        for role in ('', 'COORDINATOR_', 'WRITER_', 'REVIEWER_', 'TEXT_TOOL_', 'LAYOUT_'):
++            for key, value in {'MODEL': 'glm-5.3', 'BASE_URL': 'https://offline.invalid/v1', 'API_KEY': 'offline'}.items():
++                os.environ['REPORT_' + role + key] = value
++        os.environ['REPORT_DEEPSEEK_STRICT'] = '0'
++        services = {'mode': 'offline fake service; production strict compatibility not established'}
++        budget = TokenBudget(out / 'offline-budget.db', 10000000, {'glm-5.3': 2000000})
++    cap = RequestBudget(4)
++    hashes = code_hashes()
++    old_rows = ledger_rows(budget.path)
++    save(out / 'ledger-before.json', old_rows)
++    summary = {'services': services, 'max_http_attempts_including_retries': 4,
++               'budget_before': budget.snapshot(), 'source_sha256': hashes,
++               'ledger_path': str(budget.path.resolve()),
++               'ledger_before_sha256': hashlib.sha256((out / 'ledger-before.json').read_bytes()).hexdigest(),
++               'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'cases': []}
++    save(out / 'registration.json', summary)
++    with token_budget(budget), request_budget(cap):
++        for case in ('writer', 'reviewer', 'text-normal', 'text-missing'):
++            result = await probe(case, out, args.live)
++            summary['cases'].append(result)
++            summary['http_budget'] = cap.snapshot()
++            summary['budget_after'] = budget.snapshot()
++            now_rows = ledger_rows(budget.path)
++            summary['previous_ledger_rows_unchanged'] = (now_rows['authorization'] == old_rows['authorization'] and
++                all(now_rows['attempts'].get(k) == row for k, row in old_rows['attempts'].items()))
++            summary['code_unchanged_during_probes'] = code_hashes() == hashes
++            save(out / 'result.json', summary)
++            print(json.dumps({k: result.get(k) for k in ('case', 'status', 'observed_http_requests', 'error_type')}, ensure_ascii=False), flush=True)
++    return 0 if all(c['status'] == 'passed_structure' for c in summary['cases']) else 1
++
++
++if __name__ == '__main__':
++    raise SystemExit(asyncio.run(main()))
+--- /dev/null
++++ b/tests/test_agent_io_siblings.py
+@@ -0,0 +1,143 @@
++"""Historical I/O failure mechanisms at sibling native entry points.
++
++Fixtures are independent synthetic requirements, never current projections used
++as expected answers. Models are scripted; this does not prove model judgment.
++"""
++import json
++
++import pytest
++from langchain_core.messages import AIMessage
++
++from test_agent_result_delivery import packet, reply, run_role, wire_text
++from test_bounded_review import Model
++from test_decision_data import activate
++from test_deep_runtime import invoke
++from test_hierarchical_content import seed
++from test_task_supervision import ws, offline
++
++
++TAIL = 'TAIL: missing guide table means unresolved; it does not permit acceptance.'
++TEXT = 'Synthetic selected paragraph. ' * 110 + TAIL
++NOTE = 'Source qualification. ' * 70 + 'FINAL: no engineering sign-off.'
++
++
++def material(ws):
++    cs, owner, refs, snapshot, members = seed(ws)
++    added = cs.commit(owner, 'sibling-material', [
++        {'client_key': 'body', 'type': 'ContentNode', 'payload': {
++            'kind': 'block', 'body': {'text': TEXT}, 'claim_kind': 'structure',
++            'qualifiers': {'limitations': NOTE}}},
++        {'client_key': 'edge2', 'type': 'Relation', 'payload': {
++            'subject_ref': refs['root'], 'object_ref': {'client_key': 'body'},
++            'predicate': 'contains', 'position': 1,
++            'provenance_kind': 'adopted_during_generation'}}])['result']['refs']
++    snapshot = cs.freeze(owner, 'sibling-snapshot', refs['root'],
++                         [*members, *added.values()])['result']['snapshot_ref']
++    return cs, refs, snapshot, added['body']
++
++
++def set_source(ws):
++    ws.store.set('manifest', {**ws.store.manifest, 'sources': [
++        {'id': 's', 'title': 'Synthetic source', 'content': TEXT, 'coverage': 'partial'}]})
++    with ws.store.connect() as db:
++        db.execute('delete from source_blocks')
++        db.execute('insert into source_blocks values (?,?,?,?)',
++                   ('s', 0, json.dumps({'page': 1}), TEXT))
++
++
++@pytest.mark.parametrize('role', ['coordinator', 'writer', 'reviewer', 'layout'])
++@pytest.mark.parametrize('tool', ['read_context', 'read_content_selection', 'search_sources'])
++@pytest.mark.parametrize('managed', [False, True], ids=['native', 'managed'])
++async def test_other_read_entries_keep_selected_tail_and_qualifications(ws, role, tool, managed):
++    cs, refs, snapshot, body = material(ws)
++    if managed:
++        activate(ws)
++    if tool == 'read_context':
++        args = {'target_ref': body}
++    elif tool == 'read_content_selection':
++        args = {'snapshot_ref': snapshot, 'selections': [
++            {'ref': body, 'unit': 'text', 'offset': 0, 'limit': len(TEXT)}]}
++    else:
++        set_source(ws)
++        args = {'query': 'TAIL', 'offset': 0, 'limit': 1}
++    before = cs.read(body)
++    inspected = []
++
++    def inspect(messages):
++        message = reply(messages, tool)
++        # Assert at the next actual model boundary, before any scripted repair.
++        wire = wire_text(message)
++        assert TEXT in wire
++        if tool != 'search_sources':
++            assert NOTE in wire
++        assert cs.read(body) == before
++        inspected.append(tool)
++        return AIMessage(content='Exact selected data observed, no quality claim.')
++
++    await run_role(ws, role, [invoke(tool, **args), inspect], refs, snapshot)
++    assert inspected == [tool]
++
++
++@pytest.mark.parametrize('role', ['coordinator', 'writer', 'layout'])
++@pytest.mark.parametrize('tool', ['analyze_text', 'analyze_evidence'])
++async def test_sibling_text_tools_receive_exact_selection_and_return_exact_findings(ws, role, tool):
++    _, refs, snapshot, _ = material(ws)
++    activate(ws)
++    set_source(ws)
++    question = 'Compare only the selected synthetic paragraph and keep its restrictions.'
++    finding = 'Synthetic observation. ' * 100 + TAIL
++    model = Model(finding)
++    args = ({'source_id': 's', 'purpose': question, 'offset': 0, 'limit': 1}
++            if tool == 'analyze_text' else
++            {'question': question, 'source_selections': [{'source_id': 's', 'offset': 0, 'limit': 1}],
++             'result_selections': []})
++
++    def inspect(messages):
++        message = reply(messages, tool)
++        assert finding in wire_text(message)
++        assert len(model.calls) == 1
++        actual = json.loads(model.calls[0][1][1])
++        assert actual['question'] == question
++        assert len(actual['evidence']) == 1
++        selected = actual['evidence'][0]
++        assert selected['observation']['blocks'][0]['text'] == TEXT
++        assert selected['selection'] == {'source_id': 's', 'offset': 0, 'limit': 1}
++        return AIMessage(content='Exact input and output checked; no semantic acceptance.')
++
++    await run_role(ws, role, [invoke(tool, **args), inspect], refs, snapshot, model)
++
++
++@pytest.mark.parametrize('role', ['coordinator', 'writer', 'reviewer', 'layout'])
++@pytest.mark.parametrize('tool', ['read_context', 'read_content_selection'])
++async def test_sibling_read_failures_reach_agent_without_success_or_side_effect(ws, role, tool):
++    cs, refs, snapshot, body = material(ws)
++    activate(ws)
++    missing = {**body, 'version': body['version'] + 17}
++    args = ({'target_ref': missing} if tool == 'read_context' else
++            {'snapshot_ref': snapshot, 'selections': [{'ref': missing}]})
++    before = []
++    observed = []
++
++    def request(messages):
++        # Native delegation is legitimate; measure immediately before the read.
++        before.extend(cs.list_objects())
++        return invoke(tool, **args)
++
++    def inspect(messages):
++        # Business errors may use success ToolMessage transport; inspect the
++        # business envelope instead of equating transport status with success.
++        from langchain_core.messages import ToolMessage
++        message = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == tool)
++        wrapped = packet(message)
++        assert wrapped['status'] == 'error'
++        value = wrapped['metadata']
++        assert value.get('ok') is False, value
++        assert value['code'] == ('NOT_FOUND' if tool == 'read_context'
++                                 else 'CONTENT_SELECTION_OUTSIDE_SNAPSHOT')
++        assert cs.list_objects() == before
++        assert value['code'] in wire_text(message)
++        observed.append(value['code'])
++        return AIMessage(content='Read rejected, no supplied material or acceptance.')
++
++    await run_role(ws, role, [request, inspect], refs, snapshot)
++    assert len(observed) == 1
+--- /dev/null
++++ b/tests/test_agent_io_identity.py
+@@ -0,0 +1,27 @@
++"""Single-condition regressions at the final result-delivery boundary."""
++import json
++
++import pytest
++from langchain_core.messages import ToolMessage
++
++from report_agent.decision_data import deliver_controls
++from report_agent.errors import ActionRejected
++from report_agent.task_context import TaskContext
++from test_decision_data import activate
++from test_hierarchical_content import seed
++from test_task_supervision import ws, offline
++
++
++@pytest.mark.parametrize('mutation', ['tool', 'status'])
++def test_final_result_cannot_change_tool_or_promote_transport_status(ws, mutation):
++    seed(ws)
++    activate(ws)
++    message = TaskContext(ws, 'coordinator').bound_result(ToolMessage(
++        content=json.dumps({'ok': False, 'code': 'SYNTHETIC_REJECTED', 'retryable': False}),
++        name='analyze_source_image', tool_call_id='original', status='error'))
++    # One variable changes; owner, digest, call ID and saved data remain fixed.
++    changed = message.model_copy(update={'name': 'analyze_evidence'} if mutation == 'tool'
++                                 else {'status': 'success'})
++    with pytest.raises(ActionRejected, match='PUBLIC_DELIVERY_OWNER_OR_CALL_MISMATCH'):
++        deliver_controls(ws, 'coordinator', changed)
++    assert deliver_controls(ws, 'coordinator', message).status == 'error'
+--- /dev/null
++++ b/tests/test_artifact_io_lifecycle.py
+@@ -0,0 +1,70 @@
++"""Sibling lifecycle regressions through real SDK hooks, with no network.
++
++The local-refusal case is intentionally red while NFR-05 remains unfixed.
++It requires truthful classification, without prescribing a new recovery API.
++"""
++import asyncio
++import json
++
++import httpx
++import pytest
++
++from report_agent.artifact_review import bounded_artifact_review_tool
++from report_agent.content_tasks import delegated_task
++from report_agent.errors import ActionRejected
++from report_agent.request_budget import RequestBudgetExceeded
++from report_agent.token_budget import TokenBudget, token_budget
++from test_artifact_review import setup, visual
++from test_bounded_deadline import offline_model, close_model
++from test_task_supervision import ws
++
++
++@pytest.mark.parametrize('refused_locally', [True, False], ids=['zero-dispatch', 'dispatched-timeout'])
++async def test_artifact_replay_preserves_actual_dispatch_classification(ws, monkeypatch, tmp_path, refused_locally):
++    cs, refs, snap, export, render, source, requested = setup(ws, pages=1)
++    model = offline_model(ws, monkeypatch)
++    if refused_locally:
++        monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
++    sent = []
++
++    async def transport(request):
++        sent.append(request)
++        await asyncio.Event().wait()
++
++    model.http_async_client._transport = httpx.MockTransport(transport)
++    budget = TokenBudget(tmp_path / 'budget.db', 1 if refused_locally else 20000,
++                         {'glm-5.3': 10000})
++    try:
++        with delegated_task(ws, 'coordinator', requested) as (_, reviewer):
++            receipt = visual(cs, reviewer, render, export, source, 1)
++            tool = bounded_artifact_review_tool(ws, model)
++            with token_budget(budget):
++                with pytest.raises(RequestBudgetExceeded if refused_locally else ActionRejected) as first:
++                    await tool('original', ['rule-comparison'], [receipt])
++            event = next(e['data'] for e in ws.store.events() if e['kind'] == 'evidence_analysis_input')
++            raw = ws.store.get('bounded_review_attempt:' + event['operation'])
++            parent = ws.store.get('artifact_text_work:' + reviewer.id + ':original')
++            assert len(sent) == (0 if refused_locally else 1)
++            assert raw['state'] == ('not_dispatched' if refused_locally else 'unknown')
++            assert raw['raw_response_received'] is False
++            assert budget.snapshot()['reserved_or_unknown_upper_bounds'] == (0 if refused_locally else 10000)
++            if not refused_locally:
++                assert str(first.value).startswith('EVIDENCE_ANALYSIS_OUTCOME_UNRESOLVED')
++                assert raw['result']['usage'] is None
++            if refused_locally:
++                proof = next(e['data']['proof'] for e in ws.store.events()
++                             if e['kind'] == 'bounded_operation_not_dispatched')
++                assert proof['admitted_http_attempts'] == 0
++                assert proof['reason_code'] == 'AUTHORIZED_TOKEN_BUDGET_REACHED'
++            with pytest.raises(ActionRejected) as replay:
++                await tool('original', ['rule-comparison'], [receipt])
++            assert len(sent) == (0 if refused_locally else 1)
++            assert not cs.list_objects('ReviewRecord')
++            assert ws.store.get('artifact_text_work:' + reviewer.id + ':original') == parent
++            # Known refusal must never be labelled an unknown provider outcome.
++            expected = 'NOT_DISPATCHED' if refused_locally else 'OUTCOME_UNRESOLVED'
++            assert expected in str(replay.value), json.dumps({
++                'actual_error': str(replay.value), 'raw': raw, 'outer': parent,
++                'dispatched': len(sent), 'budget': budget.snapshot()}, ensure_ascii=False)
++    finally:
++        await close_model(model)
+--- /dev/null
++++ b/tests/test_summary_io_lifecycle.py
+@@ -0,0 +1,61 @@
++"""Real summary entry and SDK admission; synthetic history, offline transport.
++
++The outer admission trace is a test observer, not a claimed product integration.
++"""
++import asyncio
++from copy import deepcopy
++
++import httpx
++import pytest
++from langchain_core.messages import HumanMessage, AIMessage
++
++from report_agent.errors import ModelRequestDeadlineExceeded
++from report_agent.request_budget import RequestBudgetExceeded, logical_request_admission
++from report_agent.token_budget import TokenBudget, token_budget
++from report_agent.working_summary import working_summary, SummaryRepairRequired
++from test_bounded_deadline import offline_model, close_model
++from test_hierarchical_content import seed
++from test_task_supervision import ws
++
++
++@pytest.mark.parametrize('local_refusal', [True, False], ids=['zero-dispatch', 'dispatched-timeout'])
++async def test_summary_preserves_history_and_actual_outcome_classification(ws, monkeypatch, tmp_path, local_refusal):
++    seed(ws)
++    model = offline_model(ws, monkeypatch)
++    if local_refusal:
++        monkeypatch.setattr('report_agent.deep_models.MODEL_REQUEST_DEADLINE_SECONDS', 600)
++    sent = []
++
++    async def transport(request):
++        sent.append(request)
++        await asyncio.Event().wait()
++
++    model.http_async_client._transport = httpx.MockTransport(transport)
++    summary = working_summary(model, ws.store, role='coordinator')
++    history = [HumanMessage('Original requirement.'), AIMessage('Unverified hypothesis.'),
++               HumanMessage('Retain uncertainty.')]
++    before = deepcopy(history)
++    tokens = TokenBudget(tmp_path / 'budget.db', 1 if local_refusal else 20000, {'glm-5.3': 10000})
++    try:
++        with token_budget(tokens), logical_request_admission() as admission:
++            with pytest.raises(RequestBudgetExceeded if local_refusal else ModelRequestDeadlineExceeded) as caught:
++                await summary._acreate_summary(history)
++            if local_refusal:
++                assert str(caught.value) == 'AUTHORIZED_TOKEN_BUDGET_REACHED'
++                proof = admission.not_dispatched_proof(caught.value)
++                assert proof['admitted_http_attempts'] == 0 and proof['provider_outcome'] == 'not_dispatched'
++        saved = ws.store.get(summary._failure_key())
++        assert history == before and len(sent) == (0 if local_refusal else 1)
++        assert not any(e['kind'] == 'working_summary_returned' for e in ws.store.events())
++        assert tokens.snapshot()['reserved_or_unknown_upper_bounds'] == (0 if local_refusal else 10000)
++        with pytest.raises(SummaryRepairRequired):
++            await summary._acreate_summary(history)
++        assert history == before and len(sent) == (0 if local_refusal else 1)
++        assert ws.store.get(summary._failure_key()) == saved
++        if local_refusal:
++            assert saved['reason'] != 'SUMMARY_OUTCOME_UNKNOWN', {
++                'failure_record': saved, 'proof': proof, 'dispatched': len(sent)}
++        else:
++            assert saved['reason'] == 'SUMMARY_OUTCOME_UNKNOWN'
++    finally:
++        await close_model(model)

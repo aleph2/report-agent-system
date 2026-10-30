@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-26T22:06:08.5562615Z",
+  "authority": ".memory/history-permanent-delete-authority-20261027.json",
+  "status": "deleted_and_main_verified_pending_neo",
+  "receipt": ".analysis/history-retention-20261027/permanent-history-delete-execution-receipt.json",
+  "deleted_run_directories": 133,
+  "deleted_old_quarantine_files": 52,
+  "preserve_entire_analysis": true,
+  "remaining_runs": [
+    "synthetic-native-20261026-03",
+    "synthetic-native-20261026-04",
+    "synthetic-native-20261026-05",
+    "synthetic-native-20261027-06"
+  ],
+  "independent_finance_location": ".financial-records/token-budget.db",
+  "protected_files_verified": 1331,
+  "logical_bytes_deleted": 93259600538.0,
+  "observed_volume_free_increase": 82579185664,
+  "not_deleted_root_files": [
+    "shared-model-validation.lock",
+    "task003-tests.xml"
+  ],
+  "new_report_started": false,
+  "automation_resumed": false
+}
