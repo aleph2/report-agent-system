@@ -34,9 +34,10 @@ def only_mock_transport(monkeypatch):
 ])
 def test_current_role_uses_reviewed_prose_without_changing_legacy_sources(role, marker):
     optimized = role_prompt(role, expression_profile='reader-expression-v2', interface_profile='review-interfaces-v4', prompt_profile='concise-v1')
-    assert marker in optimized
+    expected = '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-' + role)] if t.strip())
+    assert optimized == expected
     legacy = role_prompt(role, expression_profile='report-expression-v1', interface_profile='review-interfaces-v1')
-    assert legacy == load_prompt('content-common') + '\n\n' + load_prompt('content-'+role)
+    assert legacy == expected
 
 
 async def test_final_current_sdk_tools_and_parameter_sources_are_optimized(case):

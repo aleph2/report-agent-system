@@ -1,0 +1,13 @@
+{
+  "purpose": "Evaluator-only synthetic oracle; do not import into agent inputs",
+  "sites": {
+    "S1": {"height_m": 24, "H": 1, "G": 1, "E": 1, "R": 3, "risk": "低"},
+    "S2": {"height_m": 36, "H": 2, "G": 2, "E": 2, "R": 6, "risk": "中"},
+    "S3": {"height_m": 42, "H": 3, "G": 2, "E": 3, "R": 8, "risk": "高"},
+    "S4": {"height_m": 28, "H": 1, "G": 1, "E": 2, "R": 4, "risk": "低"},
+    "S5": {"height_m": 39, "H": 2, "G": [1, 3], "E": 3, "R": [6, 8], "risk": ["中", "高"]}
+  },
+  "checks": ["All five design sites retained", "Design height overrides old field height", "Centre cut depth never substitutes for slope height", "S5 uncertainty preserved and upper-bound control distinguished from fact", "Same-version Word and Excel scores", "Readable tables and rendered layout", "Trace evidence of independent Reviewer verification", "Co delegates bounded work and responds to actual results"],
+  "measurement": ["settled tokens and calls per role/helper", "reserved or unknown separately", "model attempts versus tool calls", "errors and retries", "task rounds", "model time versus wall time", "repeated reads, redundant work and correction loops"],
+  "limit": "One synthetic case pair; not proof of general prompt superiority or engineering acceptance"
+}

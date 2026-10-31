@@ -12,7 +12,6 @@ from langchain.agents.middleware import AgentMiddleware
 from .content_store import Actor, ContentStore
 from .errors import ActionRejected, ActionForbidden
 from .store import digest, encode
-from .prompt_sources import load_prompt
 
 KIND = 'execution_progress_attention'
 PREFIX = 'execution_progress:'
@@ -174,8 +173,6 @@ def _eligible(workspace, scope, row):
 class ExecutionProgress(AgentMiddleware):
     def __init__(self,workspace,role):
         self.workspace,self.role,self.policy=workspace,role,validate_policy(workspace)
-        self.notices={name:load_prompt(name).strip() for name in (
-            'execution-progress-bound-notice','execution-progress-unbound-notice')}
 
     def control(self):
         scope=_scope(self.workspace,self.role); key=PREFIX+digest([scope['actor_id'],scope['task_id']])
@@ -293,8 +290,7 @@ class ExecutionProgress(AgentMiddleware):
             from .prompt_provenance import append_declared_system
             source='execution-progress-bound-notice' if episode['binding'] else 'execution-progress-unbound-notice'
             family=episode['family'][:8]
-            notice_text=self.notices[source]
-            notice_id=digest([episode['episode_id'],family,digest(notice_text)])
+            notice_id=digest([episode['episode_id'],family,source])
             binding=episode['binding']
             compact_binding=({**{k:binding[k] for k in ('scope_kind','snapshot_ref','root_ref','instruction_digest','source_use_ref')},
                 'criterion_refs_preview':binding['criterion_refs'][:3],
@@ -318,8 +314,7 @@ class ExecutionProgress(AgentMiddleware):
                 packet['binding']={'scope_kind':compact_binding['scope_kind'],
                     'binding_digest':episode['binding_digest'],'partial':True,
                     **({'snapshot_ref':binding['snapshot_ref']} if binding else {})}
-            text=notice_text+'\n'+encode(packet)
-            request=append_declared_system(request,text,'execution_progress/repetition',files=[source],
+            request=append_declared_system(request,encode(packet),'execution_progress/repetition',
                 references={'episode_id':episode['episode_id'],'notice_id':notice_id,'family':family})
         if episode and episode['state']=='recovery_observe':
             from .prompt_provenance import append_declared_system

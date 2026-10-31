@@ -563,3 +563,49 @@ R06计划Neo补充（同一计划，未实施）：P2正式managed synthetic fix
 - guard专项复验17P/49F；继续修复/迁移后原失败与真实入口联合90P（single-contract-failed-after-migration02.json）。旧Co实验清理后的76项相关验证全通过（single-contract-retired-co-related02.json），含字典篡改在HTTP前专用异常拒绝且零保存。
 - 当前进入全新55项共享状态串行例外加5片并行全量02；01失败证据保留，不能把局部复验替代全量。之后按已授权单次1亿、唯一新case完成扫描OCR+真实LLM，Reviewer实际参与，Neo核最终同版Word/Excel、事实/日期/视觉、用量及清理。真实资料尚未启动。
 - 技能实际动作：Main读取using-agent-skills/Ponytail/debugging/TDD/code-review；先核原失败、定位作用域与异常传播，再修原用例并保负控。graphify复用production-entry-graph-query01.txt，仅为旧551节点导航，新增模块以当前源码核验，不称图已更新。Neo只读确认范围、约束与异常传播并审测试语义；模型/邮件不代替最终验收。没有新分支、源码副本、highway修改或计量系统开发。
+
+
+## 2026-10-31 600秒有限重试与新轮真实报告（用户已批准执行）
+
+### 2026-10-31 用户要求迁回根目录 .env（已完成）
+
+- Main 原样移动旧项目 `.env` 至本项目根目录：完整内容哈希一致，旧路径已不存在，新文件仍被 Git 忽略且未跟踪；没有输出或提交凭据。
+- 四个 `scripts` 中的硬编码旧环境文件路径改为仓库根目录；工作副本 `.analysis/restart-600-20261031/host.py` 改读 `HOME_ROOT/.env`；README 说明显式加载和历史启动边界。没有更改模型参数、提示词、数据库或 WSL 冻结源码。
+- 验证：WSL native Python 禁网络加载配置及六角色服务成功，五个改动脚本 AST 解析通过，冻结 host 仍匹配原审批哈希、原 PID 不存在；`PYTHONPATH=src python -B -m pytest -q -p no:cacheprovider tests/test_deepseek_env_configuration.py tests/test_restart600_host.py` 为 10 passed。首次测试遗漏 PYTHONPATH 导致两项收集错误，补正命令后通过；未安装依赖或运行付费模型。
+- 技能：复用 using-agent-skills 选迁移阶段，实际读取 Ponytail、git-workflow-and-versioning、deprecation-and-migration；只改路径、保留历史与其他工作区修改。Neo 对实际 diff 和冻结 host 只读独核，无 P0/P1；保留 P2：精确 host 测试依赖 ignored `.analysis`，干净 checkout 尚不能完整复现；历史运行宿主保留旧路径，不能当作迁移后的重启入口。Neo 未写文件，以上由 Main 记录。
+
+- [x] 原文与实际值核对：600秒/每次，首次+2次，独立200m used+held；不设额外4次/8m子额度，旧未决保全；邮件保持停止。
+- [x] 产品RED02 19F；修复后关联组159P；精确生产host SDK/Mock四场景4P，含普通视觉耗尽后Co可继续与direct/wrapped fatal拒发。
+- [x] 独立alignment核实际diff、测试与193sourcepins；原P1关闭，wrapped边界P2由此精确host隔离。
+- [x] 唯一零模型stage：run03独立input/source/case/finance；旧canonical4114+旧shared500全表与文件摘要不变。
+- [ ] 零模型prepare完成、Neo精确host/prepared/source/预算审核、唯一detached启动与真实进程核验。
+- [ ] 最终独立Reviewer、来源事实/计算、同版WordExcel、可视排版、全量用量/未决与清理实核。
+
+Main仅改model_invocation deadline回600、model_recovery已有策略参数化、deep_models同步active拒发、deep_runtime子任务超时观察；保留现有source binding修改，不改提示词/角色模型/effort，不开branch/commit/tag/push，不恢复邮件。首次RED及host01/02的测试夹具错误均单列保全，未宣称通过。完整计划与技能实做/版本、命令、测试、限制和Neo处置见`.analysis/restart-600-20261031/plan.md`、`verification-record.json`及该目录下stage/prepared记录。
+
+
+## 2026-11-01 两文件提示词回归与后续真实模型对比
+
+- 用户顺序：先回归代码，再以同一合成输入比较 DeepSeek 与 Codex 提示词；真实工程 run03 保持停止，邮件保持停止。五份实际角色文件当前均为空，作者两套原稿未修改，未进行本轮付费调用。
+- Main 在既有两文件加载改动上更新旧测试解析：运行态 `current_task`/`current_review_plan`/repetition JSON；角色来源固定共同文件与自身文件，历史接口仍决定工具合同。保留权限、原样采纳、版本、回执、独立评审保存、未知保护、隐私与工具调用次数断言。
+- 冻结全量首轮：3878节点，3780通过、89失败、9图服务集成跳过；另2个可选GEPA/DSPy模块在收集阶段跳过。五片完整无遗漏、输入未变，非通过。证据 `.analysis/deepseek-agent-prompts-20261031/empty-role-full-20261031-audit.json`。
+- 实际修复：P2 原生 ToolNode 丢失根级验证诊断，复用 typed schema 纯结构校验，仅根字段错误补结构诊断，普通字段原生文本保持；参数副本、不执行handler、不重试。P2 首段委派描述和可选 write_todos 说明来源审计遗漏，复用 source_manifest/已注册工具清单补精确关联，不恢复额外角色系统提示。
+- RED/GREEN：首段来源负例1失败→1通过；普通字段兼容负例1失败→原断言复验通过；初次局部82通过5失败，89旧失败复测86通过3失败；补齐测试参数和工具来源后局部88通过1失败，最终33通过（58.09秒）。保留全部失败记录，不以局部通过替代全量。
+- Neo 独立复核：实际 ToolNode 根级过滤、公开视觉返回 envelope、首段匹配及工具来源；认可最小修复，要求全量通过及精确部署审查后才进入付费。Neo意见由Main记录。官方对应源码：https://github.com/langchain-ai/langgraph/blob/main/libs/prebuilt/langgraph/prebuilt/tool_node.py 。
+- 技能实做：using-agent-skills 选择调试/测试阶段；Ponytail 复用原解析、错误诊断与审计机制；test-driven-development 保留原失败并做负例；debugging-and-error-recovery 根据真实phase记录与原生复现区分测试合同/产品缺陷；code-review-and-quality 核现有权限和错误边界。技能路径为全局agent-skills 0.6.13及ponytail 5.3.3，沿用本任务前述同版本指引；未声称新Langfuse接入或新图谱。
+- 下一步：冻结全部代码/测试/配置，重新串行55例+五分片全量；全量未通过前不stage付费运行、不填回待测提示词。通过后DeepSeek先、Codex后，每轮50m used+held独立新状态，不重放历史unknown；比较质量与真实成本，不凭exit0判内容成功。
+
+- 第二候选全量中止记录：`empty-role-full-20261101`部分完成1941通过/1失败/9跳过；新增SDK测试替身未转发真实system消息，使新增source_ref断言失败。Neo建议中止已知失败候选后修整模块；Main对精确runner PID270300发SIGINT，经原finally终止5worker，六个PID退出实核。保留全部部分结果/pins与interruption.json，不宣称完整、不拼入下轮。
+- 最小修正仅SDK mock按原序转换真实system和tool消息；没有构造任务状态或读宿主替代。完整 `tests/test_duty_writer_adoption.py` 7通过/29.91秒，全部原保存/所有权/原样内容/调用次数oracle保留。冻结后重新完整串行55+五片，前缀 `empty-role-regression-20261101`。
+
+
+### 2026-11-01 完整空提示词回归终态与 DeepSeek 验证准备
+
+- 当前完整候选 `empty-role-regression-20261101`：3879 个唯一节点，3870 passed / 0 failed / 9 skipped；55 个串行节点及五分片 765/765/765/765/764 全部 exit 0；missing/incomplete/errors 均为空，1204 项文件 pins 不变。五个实际 agent Markdown 文件在本轮均为 0 字节。前两轮失败/中止结果保留，不拼接为本轮通过。
+- 限制：9 项真实图/本地 embedding opt-in 测试未启用；GEPA/DSPy 两个可选模块因缺依赖于收集阶段跳过。不能声称这些集成已验证。
+- Main 记录 Neo 独立结论：实际大小写敏感节点 Counter、phase JSON/JSONL、JUnit 完整一致，当前文件全集及逐文件 SHA 与 pins 相同；权限、原样采纳、来源重读、调用次数、源字节、unknown 与隐私断言保留。代码门槛允许继续既有授权的假数据加真实模型验证；不是精确运行的 launch 批准。
+- Main 原样复制 DeepSeek 最终五份稿件至唯一 `src/report_agent/rules/agent-*.md`，与既有 comparison-verification.json 的五个 SHA 完全匹配；未改写候选。证据 `deepseek-candidate-activation-20261101.json`。随后进行已填稿的来源/native SDK/委派与 Git 恢复定向离线验证，真实模型尚未启动。
+- 阶段技能：复用同版 TDD、debugging、Ponytail 的最小修复和保护业务断言验证；重读 using-agent-skills、git-workflow-and-versioning 0.6.13、Langfuse SKILL 与 prompt-engineering/create-dataset references，分别用于阶段识别、限定文件提交、输入/预期分离与对比条件固定。仅应用本地评估方法，未连接或上传 Langfuse、未优化或重写候选。部署复用既有 Git archive/stage/prepare/launch；不创建新分支、运行框架或计量机制。
+- Git diff --check 的默认 CRLF 报告经命令局部 `cr-at-eol` 识别后无空白错误；未修改全局 Git 配置或批量格式化。
+
+- DeepSeek 填稿后定向离线检查终态：90 passed，0 failed/skip，256.23 秒；实际 two-file/native SDK、委派提示词分离、来源捕获与 Git archive 恢复均通过。JUnit: `.analysis/deepseek-agent-prompts-20261031/deepseek-filled-source-check-20261101.xml`。这是加载/代码行为证据，不是模型质量证据。

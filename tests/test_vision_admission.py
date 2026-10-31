@@ -169,7 +169,12 @@ async def test_malformed_sdk_response_keeps_private_extras_out_of_native_observa
     ws.store.set('context_policy','stateful-tools-v1')
     def inspect(messages):
         from test_deep_runtime import observation
-        public=observation(messages,'analyze_source_image')
+        envelope=observation(messages,'analyze_source_image')
+        assert envelope['representation'] == 'exact-public-result-v2'
+        assert envelope['status'] == 'success' and envelope['complete_original_in_decision'] is True
+        saved = ws.store.get('tool_observation:' + envelope['observation_ref'])
+        public=envelope['metadata']
+        assert json.loads(saved['text']) == public
         assert public['status']=='failed' and public['provider_outcome']=='response_received'
         assert public['raw_response_received'] is True
         assert public['response_id']=='malformed-synthetic' and public['finish_reason']=='stop'

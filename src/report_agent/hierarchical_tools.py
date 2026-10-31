@@ -27,8 +27,9 @@ def enabled(workspace):
 def role_prompt(role, *, expression_profile=None, interface_profile=None, prompt_profile='legacy-v1',
                 review_submission_contract=None):
     from .prompt_sources import load_prompt, role_sources, REPORT_EXPRESSION_V1
-    return '\n\n'.join(load_prompt(s) for s in role_sources(role,
-        expression_profile or REPORT_EXPRESSION_V1, interface_profile, prompt_profile, review_submission_contract))
+    return '\n\n'.join(text for source in role_sources(role,
+        expression_profile or REPORT_EXPRESSION_V1, interface_profile, prompt_profile, review_submission_contract)
+        if (text := load_prompt(source)).strip())
 
 
 def actor_for(role):

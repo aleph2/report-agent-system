@@ -266,7 +266,7 @@ async def test_later_message_cleanup_cannot_remove_the_current_exact_recovery_po
         final.append(value)
         return AIMessage('Synthetic output.')
     await middleware.awrap_model_call(request, later_handler)
-    state = json.loads(final[0].system_message.content[-1]['text'].split('\n', 1)[1])
+    state = json.loads(final[0].system_message.content[-1]['text'])['current_task']
     pointer = state['received_returns']['recent'][0]
     assert pointer['observation_ref'] == original['observation_ref']
     assert pointer['sha256'] == original['sha256']
@@ -383,10 +383,10 @@ async def test_native_compaction_reopen_and_late_cleanup_keep_exact_pointer_on_f
             for m in final_checkpoint.values['messages'])
         visible = encode(wires[-1]['messages'])
         assert 'Late fixture cleanup removed' in visible and 'Exact qualifier' not in visible
-        marker = 'Current task bindings and navigation previews. Incomplete fields expose read_decision_state paths; previews do not establish complete instruction or evidence coverage:\n'
+        marker = '{"current_task":'
         blocks = [m['content'] for m in wires[-1]['messages'] if m['role'] == 'system']
         text = '\n'.join(b if isinstance(b, str) else '\n'.join(x.get('text', '') for x in b) for b in blocks)
-        context, _ = json.JSONDecoder().raw_decode(text.split(marker, 1)[1])
+        context, _ = json.JSONDecoder().raw_decode(text.split(marker, 1)[1].lstrip())
         assert context['received_returns']['projection'] == 'focused-v1'
         pointer = next(r for r in context['received_returns']['recent'] if r['tool'] == 'read_file')
         for field in ('call_id', 'observation_ref', 'sha256', 'receiving_actor', 'receiving_task', 'status', 'selection'):

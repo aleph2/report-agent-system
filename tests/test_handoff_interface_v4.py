@@ -60,12 +60,13 @@ def test_v4_role_sources_remove_co_preparation_without_replacing_writer_body_rul
     from report_agent.prompt_sources import load_prompt
     co = role_prompt('coordinator', interface_profile='review-interfaces-v4')
     assert 'For a reviewer task provide review_snapshot_ref and review_requirements' not in co
-    assert 'snapshot_scope' in co and 'commission_criterion_scopes' in co and 'review_scope' in co
+    assert co == '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-coordinator')] if t.strip())
     for expression in ['report-expression-v1', 'reader-expression-v2']:
         original = role_prompt('writer', expression_profile=expression)
         v4 = role_prompt('writer', expression_profile=expression, interface_profile='review-interfaces-v4')
-        assert v4.startswith(original+'\n\n')
-        assert load_prompt('deliverable-declaration-v4') in v4
+        assert v4 == original == '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-writer')] if t.strip())
+        assert load_prompt('deliverable-declaration-v4') not in v4
+
 
 
 async def test_registered_v4_graph_final_sdk_input_and_source_provenance(case):
@@ -106,7 +107,7 @@ async def test_registered_v4_graph_final_sdk_input_and_source_provenance(case):
         captures = [cs.store.get(e['data']['capture_key']) for e in cs.store.events() if e['kind']=='prompt_final_http_input']
         assert captures and all(c['status']=='exact' for c in captures)
         sources = {f['name'] for c in captures for f in c['source_manifest']['files']}
-        assert {'content-coordinator-v4','native-review-handoff-v4'} <= sources
+        assert {'agent-common','agent-coordinator','native-review-handoff-v4'} <= sources
         declaration_sources = [f for c in captures for f in c['source_manifest']['files'] if f['name']=='deliverable-save-tool-v4']
         assert declaration_sources and all(f['offered_match'] != 'not_observed' for f in declaration_sources)
         destination = case[0].store.root / 'effective-input-v4.json'

@@ -54,7 +54,7 @@ async def presented(mw, messages):
         seen.append(value)
         return AIMessage('Synthetic observation, no acceptance.')
     await mw.awrap_model_call(request, handler)
-    return json.loads(seen[0].system_message.content[-1]['text'].split('\n', 1)[1])
+    return json.loads(seen[0].system_message.content[-1]['text'])['current_task']
 
 
 def test_v2_reuses_context_policy_without_migrating_v1(ws):

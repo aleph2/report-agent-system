@@ -95,7 +95,7 @@ def prepare():
  if len(scope_names)!=1 or len(references)!=1:raise RuntimeError("COMMISSION_OR_REFERENCE_AMBIGUOUS")
  scope=(INPUT/scope_names[0]).read_text(encoding="utf-8-sig")
  goal=("格式参考文件："+Path(references[0]).name+"。根据以下委托范围和所提供资料，编制总体施工安全风险评估报告及风险评估表，完成独立审核，交付Word和Excel。成果报告PDF仅供结构和格式参考，事实与评估依据使用前置资料和适用指南；对无法确认的事实和评分规则明确说明，不得自行编造。\n\n"+scope)
- manifest={"synthetic":False,"goal":goal,"scope_instruction":"成果报告仅供结构和格式参考，事实和评估依据为前置资料及适用规范。设计与地勘不一致时按委托说明处理并明确记录差异。","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
+ manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":"成果报告仅供结构和格式参考，事实和评估依据为前置资料及适用规范。设计与地勘不一致时按委托说明处理并明确记录差异。","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
    **CONFIG["manifest_profiles"]}
  budget=TokenBudget(LEDGER,LIMIT,bounds)
  if budget.snapshot()["recorded_tokens"] or budget.snapshot()["reserved_or_unknown_upper_bounds"]:raise RuntimeError("LEDGER_NOT_FRESH")
@@ -123,7 +123,7 @@ def prepare():
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
     "source_ids":ids,"source_files":inputs,"format_reference":references[0],"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
-    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":False,"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
+    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
     "authority":load(HERE/"authorization.json")["authority"],
     "financial_authority_path":str(LEDGER),"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",

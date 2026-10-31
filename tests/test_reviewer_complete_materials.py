@@ -156,8 +156,8 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
         for wire in wires:
             system = next(m['content'] for m in wire['messages'] if m['role'] == 'system')
             blocks = system if isinstance(system, list) else [system]
-            frame = next(json.loads(b['text'].split('\n', 1)[1]) for b in blocks
-                         if isinstance(b, dict) and b.get('text', '').startswith('Current task bindings'))
+            frame = next(json.loads(b['text'])['current_task'] for b in blocks
+                         if isinstance(b, dict) and b.get('text', '').startswith('{"current_task":'))
             records = frame['review_materials']['objects']
             body = next(r for r in records if r['ref']['type'] == 'ContentNode'
                         and r['payload']['body'].get('text') == text)
@@ -276,8 +276,8 @@ async def test_native_summary_and_checkpoint_reopen_restore_full_materials(case,
             for wire in wires:
                 system = next(m['content'] for m in wire['messages'] if m['role'] == 'system')
                 blocks = system if isinstance(system, list) else [system]
-                frame = next(json.loads(b['text'].split('\n', 1)[1]) for b in blocks
-                    if isinstance(b, dict) and b.get('text', '').startswith('Current task bindings'))
+                frame = next(json.loads(b['text'])['current_task'] for b in blocks
+                    if isinstance(b, dict) and b.get('text', '').startswith('{"current_task":'))
                 records = {json.dumps(o['ref'], sort_keys=True): o for o in frame['review_materials']['objects']}
                 assert frame['review_materials']['contract'] == 'review-materials-v1'
                 for criterion in criteria:

@@ -167,6 +167,7 @@ def source_manifest(store, sources, offered):
             yield from parameter_descriptions(schema.get(key), path + '/' + key)
     # Inspect the already offered public input; never reassemble or alter it.
     locations = []
+    task_descriptions = set()
     if isinstance(offered, dict):
         for index, message in enumerate(offered.get('messages', [])):
             role = message.get('role', message.get('type', 'unknown'))
@@ -174,6 +175,8 @@ def source_manifest(store, sources, offered):
                 locations.append((path, role, text))
         for index, tool in enumerate(offered.get('tools', [])):
             function = tool.get('function', {})
+            if function.get('name') == 'task':
+                task_descriptions.add('tools/' + str(index) + '/function/description')
             locations.append(('tools/' + str(index) + '/function/description', 'tool_definition',
                               function.get('description', '')))
             locations.extend((path, 'tool_definition', text) for path, text in parameter_descriptions(
@@ -205,15 +208,24 @@ def source_manifest(store, sources, offered):
             store.set(key, snapshot)
         matches, match = [], 'not_observed'
         for location, role, value in locations:
+            fragment = {}
             observed = ('literal' if text and text in value else
                         'trimmed_literal' if text.strip() and text.strip() in value else None)
+            if (observed is None and name in {'agent-writer', 'agent-reviewer', 'agent-layout'}
+                    and location in task_descriptions):
+                first = text.split('\n\n', 1)[0]
+                if first.strip() and first in value:
+                    observed = 'first_paragraph_literal'
+                    fragment = {'selector': 'first_paragraph',
+                                'text_sha256': hashlib.sha256(first.encode()).hexdigest(),
+                                'characters': len(first)}
             # Only the known summary envelope is formatted into a Human message.
             if observed is None and name in {'working-summary', 'working-summary-concise'} and text.count('{messages}') == 1:
                 prefix, suffix = text.split('{messages}')
                 if value.startswith(prefix) and value.endswith(suffix):
                     observed = 'summary_template_envelope'
             if observed:
-                matches.append({'path':location, 'role':role, 'match':observed})
+                matches.append({'path':location, 'role':role, 'match':observed, **fragment})
                 if role in {'system', 'tool_definition', 'output_schema'} or (name in {'working-summary', 'working-summary-concise'} and observed == 'summary_template_envelope'):
                     match = observed
         if match == 'not_observed':
@@ -337,33 +349,10 @@ def review_handoff_source(interface_profile, prompt_profile=LEGACY_PROMPTS):
 
 def role_sources(role, expression_profile, interface_profile, prompt_profile=LEGACY_PROMPTS,
                  review_submission_contract=None):
-    source = expression_source('content-'+role, expression_profile)
-    current = validate_report_prompt_profile({'report_prompt_profile':prompt_profile,
-        'review_interface_profile':interface_profile, 'report_expression_profile':expression_profile}) == CONCISE_PROMPTS
-    if interface_profile == REVIEW_INTERFACE_V4 and role == 'coordinator':
-        source = report_rule_source('content-coordinator-v4', prompt_profile)
-    elif current:
-        source = 'content-' + role + '-v4'
-    if review_submission_contract is not None:
-        from .review_scope_selectors import CONTRACT
-        if review_submission_contract != CONTRACT:
-            from .errors import ActionRejected
-            raise ActionRejected('UNKNOWN_REVIEW_SUBMISSION_CONTRACT')
-        if interface_profile != REVIEW_INTERFACE_V4:
-            from .errors import ActionRejected
-            raise ActionRejected('REVIEW_SUBMISSION_SELECTORS_REQUIRE_NATIVE_V4')
-        if role == 'reviewer':
-            source = 'content-reviewer-v4'
-    sources = ['content-common-v4' if current else 'content-common', source]
-    if interface_profile == REVIEW_INTERFACE_V4 and role in {'writer','reviewer'}:
-        sources.append(report_rule_source('deliverable-declaration-v4' if role == 'writer' else 'review-basis-v4', prompt_profile))
-    return sources
-
-
-def context_source(role, interface_profile, prompt_profile=LEGACY_PROMPTS):
-    if role == 'reviewer':
-        return 'agent-context-reviewer'
-    return 'agent-context-general-v4' if prompt_profile == CONCISE_PROMPTS else 'agent-context-general'
+    # Historical interface profiles still select tool contracts, never role prose.
+    if role not in {'coordinator', 'writer', 'reviewer', 'layout'}:
+        raise ValueError('UNKNOWN_AGENT_ROLE')
+    return ['agent-common', 'agent-' + role.replace('_', '-')]
 
 
 def describe_content_schema(schema):

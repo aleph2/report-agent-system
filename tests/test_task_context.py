@@ -163,7 +163,7 @@ async def test_current_state_and_revision_counts_ignore_stale_summary(ws):
     request=SimpleNamespace(messages=[stale],system_message=SystemMessage(content='Role guidance'))
     request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
     await TaskContext(ws,'coordinator').awrap_model_call(request,handler)
-    context=json.loads(seen[0].system_message.content[-1]['text'].split('\n',1)[1])
+    context=json.loads(seen[0].system_message.content[-1]['text'])['current_task']
     head=next(r for r in context['current_owned_heads'] if r['ref']==new)
     assert head['content_corrections_used']==1 and context['content_revision_limit']==1
     assert context['operator_feedback'][0]['message'].startswith('Current instruction')
@@ -210,7 +210,7 @@ async def test_released_preferences_reach_actual_model_input_and_follow_release(
     request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
     async def packet():
         await TaskContext(ws,'coordinator').awrap_model_call(request,handler)
-        return json.loads(seen[-1].system_message.content[-1]['text'].split('\n',1)[1])
+        return json.loads(seen[-1].system_message.content[-1]['text'])['current_task']
     first=await packet();g=first['learned_guidance']
     assert g['customer_preferences']==[{k:pref[k] for k in ('id','version','kind','title','conditions','customer','project','strategy')}]
     assert g['customer_preferences'][0]['strategy'].endswith('UNIQUE-TAIL')
@@ -219,7 +219,7 @@ async def test_released_preferences_reach_actual_model_input_and_follow_release(
     assert inactive['id'] not in json.dumps(g) and foreign['id'] not in json.dumps(g) and other_fact['id'] not in json.dumps(g)
     with delegated_task(ws,'coordinator',{'id':'offline-writer-delegation','args':{'subagent_type':'writer','description':'Write the commissioned paragraph'}}):
         await TaskContext(ws,'writer').awrap_model_call(request,handler)
-        writer_context=json.loads(seen[-1].system_message.content[-1]['text'].split('\n',1)[1])
+        writer_context=json.loads(seen[-1].system_message.content[-1]['text'])['current_task']
         assert writer_context['learned_guidance']==g
         assert writer_context['assignment']['goal']=='Write the commissioned paragraph'
     assert read_state(ws,'coordinator',['learned_guidance','customer_preferences',0,'strategy'])['value']==pref['strategy']

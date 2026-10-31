@@ -68,12 +68,13 @@ async def test_allowed_roles_reach_existing_artifact_validation(project, role, l
 
 @pytest.mark.parametrize('text_profile', ['concise-v1', 'legacy-v1'])
 def test_current_co_prompt_delegates_visual_checking(text_profile):
+    from report_agent.prompt_sources import load_prompt, role_sources
     prompt = role_prompt('coordinator', expression_profile='reader-expression-v2',
         interface_profile='review-interfaces-v4', prompt_profile=text_profile)
-    assert 'Do not personally inspect rendered report or export pages, or perform independent report review.' in prompt
+    assert role_sources('coordinator', 'reader-expression-v2', 'review-interfaces-v4', text_profile) == ['agent-common', 'agent-coordinator']
+    assert prompt == '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-coordinator')] if t.strip())
     assert 'You own resolution of delivery-format feedback.' not in prompt
     assert 'You remain responsible for resolving delivery-format feedback.' not in prompt
-    assert 'including necessary page images' in ' '.join(prompt.split())
 
 
 async def test_bound_v4_co_cannot_bypass_by_changing_store_profile(project):

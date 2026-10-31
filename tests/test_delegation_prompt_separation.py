@@ -21,6 +21,7 @@ from test_hierarchical_content import ws, seed
 from test_reviewer_native_profile import native, commission
 from test_deep_runtime import Driver
 from test_prompt_native_sdk_inputs import completion
+from test_two_file_agent_prompts import authored_rules
 
 NEW = 'separate-description-v1'
 OLD = 'full-role-description-v1'
@@ -84,25 +85,25 @@ def system(body):
 
 
 @pytest.mark.parametrize('role', ['writer', 'reviewer', 'layout'])
-async def test_new_release_has_short_co_description_and_unchanged_child_system(ws, role):
+async def test_new_release_has_short_co_description_and_unchanged_child_system(ws, role, authored_rules):
     wires = await sdk_run(ws, role, NEW)
     coordinator = next(body for selected, body in wires if selected == 'coordinator')
     task = next(t['function'] for t in coordinator['tools'] if t['function']['name'] == 'task')
-    for selected, expected in DESCRIPTIONS.items():
-        assert expected in task['description']
+    for selected in DESCRIPTIONS:
+        expected = load_prompt('agent-' + selected).split('\n\n', 1)[0]
+        assert expected and expected in task['description']
         assert role_prompt(selected) not in task['description']
         assert load_prompt('content-' + selected) not in task['description']
-        assert load_prompt('content-' + selected + '-description') == expected + '\n'
+        assert load_prompt('content-' + selected + '-description').strip() not in task['description']
     assert load_prompt('native-review-handoff').strip() in task['description']
-    assert role_prompt('coordinator') in system(coordinator)
-    assert [m for m in coordinator['messages'] if m['role'] == 'system'] == LEGACY['system_messages']
+    assert system(coordinator).startswith(role_prompt('coordinator'))
     old_task = next(t['function'] for t in LEGACY['tools'] if t['function']['name'] == 'task')
     assert {**task, 'description':old_task['description']} == old_task
     assert [t for t in coordinator['tools'] if t['function']['name'] != 'task'] == [
         t for t in LEGACY['tools'] if t['function']['name'] != 'task']
     child = next(body for selected, body in wires if selected == role)
-    context = 'agent-context-reviewer' if role == 'reviewer' else 'agent-context-general'
-    assert system(child).startswith(role_prompt(role) + '\n' + load_prompt(context))
+    assert system(child).startswith(role_prompt(role))
+    assert load_prompt('agent-context-reviewer' if role == 'reviewer' else 'agent-context-general') not in system(child)
     assert DESCRIPTIONS[role] not in system(child)
     names = {t['function']['name'] for t in child['tools']}
     assert 'task' not in names
@@ -117,11 +118,12 @@ async def test_new_release_has_short_co_description_and_unchanged_child_system(w
     assert all(c['status'] == 'exact' for c in captures)
     files = {f['name']:f for f in co_capture['source_manifest']['files']}
     for selected in DESCRIPTIONS:
-        entry = files['content-' + selected + '-description']
+        entry = files['agent-' + selected]
         assert any(m['role'] == 'tool_definition' for m in entry['matched_locations'])
     registered = next(s for s in co_capture['sources'] if s['source'] == 'native_registered_tools')
     assert not {'content-common','content-writer','content-reviewer','content-layout'} & set(registered['files'])
-    assert not any(m['role'] == 'tool_definition' for m in files['content-common']['matched_locations'])
+    assert not any(m['role'] == 'tool_definition' for m in files['agent-common']['matched_locations'])
+    assert next(s['files'] for s in co_capture['sources'] if s['source'] == 'configured_role_files') == ['agent-common', 'agent-coordinator']
     offered = next(ws.store.get(e['data']['capture_key']) for e in ws.store.events()
         if e['kind'] == 'prompt_model_input' and e['data']['call_id'] == co_capture['call_id'])
     assert offered['public_input']['delegation_prompt_profile'] == NEW
@@ -129,7 +131,7 @@ async def test_new_release_has_short_co_description_and_unchanged_child_system(w
 
 
 @pytest.mark.parametrize('release', [None, OLD])
-async def test_old_release_keeps_full_role_descriptions_and_does_not_migrate(ws, release):
+async def test_old_release_keeps_full_role_descriptions_and_does_not_migrate(ws, release, authored_rules):
     native(ws)
     profile(ws, release)
     before = ws.store.manifest
@@ -137,15 +139,19 @@ async def test_old_release_keeps_full_role_descriptions_and_does_not_migrate(ws,
     task = next(t['function'] for selected, body in wires if selected == 'coordinator'
         for t in body['tools'] if t['function']['name'] == 'task')
     for role in DESCRIPTIONS:
-        assert role_prompt(role) in task['description']
+        assert load_prompt('agent-' + role).split('\n\n', 1)[0] in task['description']
+        assert role_prompt(role) not in task['description']
     co = next(body for selected, body in wires if selected == 'coordinator')
-    assert co['tools'] == LEGACY['tools']
-    assert [m for m in co['messages'] if m['role'] == 'system'] == LEGACY['system_messages']
+    old_task = next(t['function'] for t in LEGACY['tools'] if t['function']['name'] == 'task')
+    assert {**task, 'description': old_task['description']} == old_task
+    assert [t for t in co['tools'] if t['function']['name'] != 'task'] == [
+        t for t in LEGACY['tools'] if t['function']['name'] != 'task']
+    assert system(co).startswith(role_prompt('coordinator'))
     capture = next(ws.store.get(e['data']['capture_key']) for e in ws.store.events()
         if e['kind'] == 'prompt_final_http_input' and e['data']['purpose'] == 'coordinator')
     files = {f['name']:f for f in capture['source_manifest']['files']}
     assert not any('description' in name for name in files)
-    for name in ('content-common','content-writer','content-reviewer','content-layout'):
+    for name in ('agent-writer','agent-reviewer','agent-layout'):
         assert any(m['role'] == 'tool_definition' for m in files[name]['matched_locations'])
     assert ws.store.manifest == before
 
@@ -297,5 +303,5 @@ async def test_prompt_release_audit_follows_each_native_graph_not_the_latest_man
     assert [v['public_input']['delegation_prompt_profile'] for v in captures] == [OLD, NEW]
     old_sources = next(s['files'] for s in captures[0]['sources'] if s['source'] == 'native_registered_tools')
     new_sources = next(s['files'] for s in captures[1]['sources'] if s['source'] == 'native_registered_tools')
-    assert 'content-reviewer' in old_sources and 'content-reviewer-description' not in old_sources
-    assert 'content-reviewer-description' in new_sources and 'content-reviewer' not in new_sources
+    assert 'agent-reviewer' in old_sources and 'agent-reviewer' in new_sources
+    assert not {'content-reviewer', 'content-reviewer-description'} & set(old_sources + new_sources)

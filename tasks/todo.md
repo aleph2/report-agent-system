@@ -291,3 +291,45 @@ R06验收补充（未执行）：P2独立fixtures+827时序；P3落源前审具�
 证据：`.analysis/all-agent-data-dictionary-plan-20261030/fake02-latency-analysis01.md`、`fake02-latency-public-evidence01.json`、`fake02-terminal-review01.json`；新指令原文/来源核验：`.analysis/task059-mail/received-1a18c2b7bf31a8ba.json`。只新增本节，原任务与证据保留。
 
 09:53 UTC用户补充：恢复须从失败点开始；不确定时可“修为可确定 / 重新起一轮”。现有27P只证Co可接收原Writer不能恢复的反馈，不证原Writer失败点续跑。本项仍待修复验证，Main停止Co级continuation候选，按用户新轮方案准备独立03，复用已过全量产品与原宿主机制；原02现场/未决保留。见`fake03-authorization-preparation01.md`，未声明旧case恢复成功。
+
+
+## 2026-10-31 LLM与传统信息系统的数据边界（用户确认，后续设计）
+
+- [ ] **P2 — BL-20261031-DATA-BOUNDARY：统一消息与读取接口的封装原则。** 用户确认：扁平key-value和读取方式问题，都是传统信息系统与LLM驱动Agent系统之间的数据边界问题。LLM负责业务语义、内容选择和判断；程序负责依据服务端scope/记忆补齐身份版本、组装持久结构、解析存储类型、编码、分页、权限与完整性。内部数据库结构、JSON物理路径及空路径/字符串根值的实现分支不应成为模型完成业务的前提。字段具有清晰业务含义，不强加庞大通用格式；不要求每个key重复Agent前缀。
+- [ ] **实际失败样例纳入后续验证：** 本轮Writer调用read_tool_observation时field_path=[]，目标analyze_source_image结果根值是object，触发OBSERVATION_FIELD_NOT_STRING；省略field_path后原始JSON文本读取成功。既有schema明确字符串路径，但错误只给码；既有拒绝测试不等于封装易用性完成。应先核真实调用用途，再提出业务引用/内容选择的最小合同，复用已有存储与校验，不自动把[]改为省略或猜测字段，保持各视图offset语义与原文身份。
+- 当前影响：一次读取纠错及交互开销，未证数据损坏；不阻断当前报告。当前仅记录，不改在途代码/提示词，不新建通用数据框架；具体方案、实际LLM输入与schema变动先经Neo审核，按用户要求再实施。
+
+证据：`.analysis/tag-rollback-real-20261031/observation-empty-path-rootcause.json`；Neo已只读复核直接触发与错误反馈边界。与此前全Agent数据字典方向合并考虑，不重做已验证的消息实验。
+
+
+## 2026-10-31 600秒有限重试与新轮真实报告（用户已批准执行）
+
+- [x] 原文与实际值核对：600秒/每次，首次+2次，独立200m used+held；不设额外4次/8m子额度，旧未决保全；邮件保持停止。
+- [x] 产品RED02 19F；修复后关联组159P；精确生产host SDK/Mock四场景4P，含普通视觉耗尽后Co可继续与direct/wrapped fatal拒发。
+- [x] 独立alignment核实际diff、测试与193sourcepins；原P1关闭，wrapped边界P2由此精确host隔离。
+- [x] 唯一零模型stage：run03独立input/source/case/finance；旧canonical4114+旧shared500全表与文件摘要不变。
+- [ ] 零模型prepare完成、Neo精确host/prepared/source/预算审核、唯一detached启动与真实进程核验。
+- [ ] 最终独立Reviewer、来源事实/计算、同版WordExcel、可视排版、全量用量/未决与清理实核。
+
+Main仅改model_invocation deadline回600、model_recovery已有策略参数化、deep_models同步active拒发、deep_runtime子任务超时观察；保留现有source binding修改，不改提示词/角色模型/effort，不开branch/commit/tag/push，不恢复邮件。首次RED及host01/02的测试夹具错误均单列保全，未宣称通过。完整计划与技能实做/版本、命令、测试、限制和Neo处置见`.analysis/restart-600-20261031/plan.md`、`verification-record.json`及该目录下stage/prepared记录。
+
+
+## 2026-11-01 两文件提示词代码回归
+- [x] 清空实际五个角色文件并验证空文件/非空canary/原生harness的唯一来源；作者原稿保留。
+- [x] 首轮完整五分片终态核验；更新旧消息格式测试，保留业务校验。
+- [x] 修复根级错误反馈与来源审计遗漏，局部回归33通过。
+- [ ] 冻结新全量通过，核完整节点、输入未变和跳过范围，Neo复核。
+- [ ] 同合成数据的DeepSeek提示词真实LLM轮及Word/Excel内容/排版验证。
+- [ ] Codex提示词独立真实LLM轮、同口径质量/成本比较与限制说明。
+
+
+### 2026-11-01 完整空提示词回归终态与 DeepSeek 验证准备
+
+- 当前完整候选 `empty-role-regression-20261101`：3879 个唯一节点，3870 passed / 0 failed / 9 skipped；55 个串行节点及五分片 765/765/765/765/764 全部 exit 0；missing/incomplete/errors 均为空，1204 项文件 pins 不变。五个实际 agent Markdown 文件在本轮均为 0 字节。前两轮失败/中止结果保留，不拼接为本轮通过。
+- 限制：9 项真实图/本地 embedding opt-in 测试未启用；GEPA/DSPy 两个可选模块因缺依赖于收集阶段跳过。不能声称这些集成已验证。
+- Main 记录 Neo 独立结论：实际大小写敏感节点 Counter、phase JSON/JSONL、JUnit 完整一致，当前文件全集及逐文件 SHA 与 pins 相同；权限、原样采纳、来源重读、调用次数、源字节、unknown 与隐私断言保留。代码门槛允许继续既有授权的假数据加真实模型验证；不是精确运行的 launch 批准。
+- Main 原样复制 DeepSeek 最终五份稿件至唯一 `src/report_agent/rules/agent-*.md`，与既有 comparison-verification.json 的五个 SHA 完全匹配；未改写候选。证据 `deepseek-candidate-activation-20261101.json`。随后进行已填稿的来源/native SDK/委派与 Git 恢复定向离线验证，真实模型尚未启动。
+- 阶段技能：复用同版 TDD、debugging、Ponytail 的最小修复和保护业务断言验证；重读 using-agent-skills、git-workflow-and-versioning 0.6.13、Langfuse SKILL 与 prompt-engineering/create-dataset references，分别用于阶段识别、限定文件提交、输入/预期分离与对比条件固定。仅应用本地评估方法，未连接或上传 Langfuse、未优化或重写候选。部署复用既有 Git archive/stage/prepare/launch；不创建新分支、运行框架或计量机制。
+- Git diff --check 的默认 CRLF 报告经命令局部 `cr-at-eol` 识别后无空白错误；未修改全局 Git 配置或批量格式化。
+
+- DeepSeek 填稿后定向离线检查终态：90 passed，0 failed/skip，256.23 秒；实际 two-file/native SDK、委派提示词分离、来源捕获与 Git archive 恢复均通过。JUnit: `.analysis/deepseek-agent-prompts-20261031/deepseek-filled-source-check-20261101.xml`。这是加载/代码行为证据，不是模型质量证据。

@@ -33,7 +33,13 @@ def _current_scoped_review_protocol(tmp_path):
         assert [ReviewRequirement.model_validate(r).model_dump() for r in actual["assignment"]["review_requirements"]] == [
             ReviewRequirement.model_validate(r).model_dump() for r in assigned["args"]["review_requirements"]]
         system = "\n".join(m.text for m in messages if isinstance(m, SystemMessage))
-        assert ORGANIZER_PROMPT in system and GRADER_SYSTEM_PROMPT not in system
+        from report_agent.hierarchical_tools import role_prompt
+        from report_agent.prompt_sources import role_sources
+        assert role_sources('reviewer', 'report-expression-v1', 'review-interfaces-v1') == ['agent-common', 'agent-reviewer']
+        expected = role_prompt('reviewer')
+        if expected:
+            assert system.startswith(expected)
+        assert ORGANIZER_PROMPT not in system and GRADER_SYSTEM_PROMPT not in system
         observed["organizer"] = system
         return invoke("perform_assigned_review", operation_id="effective-prompt-check", scope_ids=["rule-comparison"],
             source_selections=[], content_selections=[])
@@ -69,7 +75,9 @@ async def test_effective_native_prompt_and_single_review_entry(tmp_path):
     originals = cs.list_objects("ContentNode"), cs.list_objects("Criterion")
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
-    assert observed["organizer"] and observed["checker_system"]
+    from report_agent.hierarchical_tools import role_prompt
+    assert observed['organizer'] == role_prompt('reviewer')
+    assert observed['checker_system'] == TOOL_PROMPT
     assert not any(role == "rubric_grader" for role, _, _ in driver.calls)
     assert sum(role == "text_tool" for role, _, _ in driver.calls) == 1
     reviewer_tools = {s["name"] for s in driver.bindings["reviewer"][-1]}

@@ -150,8 +150,10 @@ async def test_built_v2_and_v3_graphs_keep_distinct_actual_sdk_schemas_sources_a
         captures=[ws.store.get(e['data']['capture_key']) for e in ws.store.events() if e['kind']=='prompt_final_http_input']
         assert all(c['status']=='exact' for c in captures)
         files=[{f['name'] for f in c['source_manifest']['files']} for c in captures]
-        assert 'saved-reference-handoff' in files[0] and 'saved-reference-handoff' not in files[1]
-        assert load_prompt('saved-reference-handoff') in json.dumps(co[0],ensure_ascii=False).replace('\\n','\n')
+        assert all('saved-reference-handoff' not in names for names in files)
+        assert all(next(s['files'] for s in c['sources'] if s['source'] == 'configured_role_files') ==
+                   ['agent-common', 'agent-coordinator'] for c in captures)
+        assert load_prompt('saved-reference-handoff') not in json.dumps(co[0],ensure_ascii=False).replace('\\n','\n')
     finally:
         for model in models.values():
             await model.root_async_client.close(); model.root_client.close()

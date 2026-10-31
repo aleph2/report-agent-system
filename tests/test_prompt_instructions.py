@@ -53,7 +53,7 @@ async def receive(ws, role='coordinator', history=None, failure=False):
                               system_message=SystemMessage(content='Existing role responsibilities'))
     request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
     await TaskContext(ws, role).awrap_model_call(request, handler)
-    context = json.loads(seen[0].system_message.content[-1]['text'].split('\n', 1)[1])
+    context = json.loads(seen[0].system_message.content[-1]['text'])['current_task']
     return context, seen[0]
 
 

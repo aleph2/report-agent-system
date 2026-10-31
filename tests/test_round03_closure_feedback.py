@@ -36,6 +36,7 @@ def test_wrong_wrapper_names_root_keys_without_repair_or_echo(ws, schema):
         "allowed_keys": ["delivery_export_ref", "review"],
         "missing_required_keys": ["review"], "unexpected_keys": ["arguments"]}
     assert value["execution_state"] == "not_established"
+    assert value['diagnostic'] == 'review: Field required'
     assert supplied == before and "private_long_body" not in result.content
     assert result.tool_call_id == native.tool_call_id and result.status == "error"
 
