@@ -402,10 +402,15 @@ class BusinessBoundary(InvalidToolFeedback):
             except Exception as exc:
                 from .hierarchical_tools import enabled as content_enabled
                 from .input_capacity import capacity_failure, capacity_handling
+                from .model_recovery import load_recovery_policy, transient
                 capacity = capacity_failure(exc)
-                if capacity is None and not isinstance(exc, (httpx.HTTPError, openai.APIError)):
+                technical = is_model_timeout(exc) or transient(exc)
+                if isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)):
                     raise
-                if call["name"] != "task" or not content_enabled(self.workspace):
+                if capacity is None and not (technical or isinstance(exc, (httpx.HTTPError, openai.APIError))):
+                    raise
+                if call["name"] != "task" or not (content_enabled(self.workspace)
+                        or (technical and load_recovery_policy(store))):
                     raise
                 error = {"ok": False, "code": "DELEGATED_CAPACITY_BLOCKED" if capacity else "DELEGATED_EXECUTION_FAILED", "error": error_data(exc),
                          "message": "Delegated execution failed. Saved work and operation receipts remain available; decide the next action from actual state."}

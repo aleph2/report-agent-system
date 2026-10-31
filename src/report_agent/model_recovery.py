@@ -90,7 +90,9 @@ def canonical_input(payload):
     return value
 
 
-def activate_recovery(store, *, authorization, blocked_calls=(), blocked_wire_hashes=()):
+def activate_recovery(store, *, authorization, blocked_calls=(), blocked_wire_hashes=(),
+                      extra_per_call=1, extra_per_case=4, extra_token_ceiling=8_000_000,
+                      backoff_seconds=2):
     """Explicit host activation; never reset counters, old receipts or token holds.
 
     blocked_calls are canonical identities certified by historical boundary
@@ -98,9 +100,13 @@ def activate_recovery(store, *, authorization, blocked_calls=(), blocked_wire_ha
     """
     if not authorization:
         raise ValueError('RECOVERY_AUTHORIZATION_REQUIRED')
-    policy = {'version': 1, 'authorization': authorization, 'extra_per_call': 1,
-              'extra_per_case': 4, 'cooldown_seconds': 120, 'exhaustions_to_open': 2,
-              'backoff_seconds': 2, 'extra_token_ceiling': 8_000_000,
+    if (any(type(v) is not int or v < 0 for v in (extra_per_call, backoff_seconds))
+            or any(v is not None and (type(v) is not int or v < 0)
+                   for v in (extra_per_case, extra_token_ceiling))):
+        raise ValueError('INVALID_RECOVERY_LIMITS')
+    policy = {'version': 1, 'authorization': authorization, 'extra_per_call': extra_per_call,
+              'extra_per_case': extra_per_case, 'cooldown_seconds': 120, 'exhaustions_to_open': 2,
+              'backoff_seconds': backoff_seconds, 'extra_token_ceiling': extra_token_ceiling,
               'blocked_calls': sorted(set(blocked_calls)),
               'blocked_wire_hashes': sorted(set(blocked_wire_hashes))}
     with store.connect() as db:
@@ -136,8 +142,10 @@ def load_recovery_policy(store):
         if (not isinstance(policy, dict) or policy.get('version') != 1
                 or not policy.get('authorization')
                 or any(type(policy.get(k)) is not int or policy[k] < 0 for k in (
-                    'extra_per_call', 'extra_per_case', 'cooldown_seconds',
-                    'exhaustions_to_open', 'backoff_seconds', 'extra_token_ceiling'))
+                    'extra_per_call', 'cooldown_seconds', 'exhaustions_to_open', 'backoff_seconds'))
+                or any(k not in policy or (policy[k] is not None
+                    and (type(policy[k]) is not int or policy[k] < 0))
+                    for k in ('extra_per_case', 'extra_token_ceiling'))
                 or any(not isinstance(policy.get(k), list) or any(
                     not isinstance(v, str) or len(v) != 64
                     or any(c not in '0123456789abcdef' for c in v) for v in policy[k])
@@ -262,8 +270,9 @@ def _transition(store, key, owner, policy, *, retry=False, success=False, error=
             call['active'] = False
         elif (retry and extra_bound is not None
               and call['extra_calls'] < policy['extra_per_call']
-              and usage['extra_calls'] < policy['extra_per_case']
-              and usage['extra_token_bounds'] + extra_bound <= policy['extra_token_ceiling']):
+              and (policy['extra_per_case'] is None or usage['extra_calls'] < policy['extra_per_case'])
+              and (policy['extra_token_ceiling'] is None
+                   or usage['extra_token_bounds'] + extra_bound <= policy['extra_token_ceiling'])):
             # Reserve permission atomically before platform retry/dispatch. A crash
             # consumes this permission conservatively; it never releases money.
             usage['extra_calls'] += 1
@@ -306,7 +315,7 @@ def _transition(store, key, owner, policy, *, retry=False, success=False, error=
 
 async def recover_model_call(*, store, role, profile, payload, invoke, parse_raw, safe=True,
                              owner=None, on_reuse=None):
-    """At most one extra inference; no new deadline, model selection or graph loop.
+    """Policy-bounded extra inference; no new model selection or graph loop.
 
     `invoke` owns one existing model_invocation and one physical SDK call. Raw
     protocol reconstruction runs locally and still passes original validators.

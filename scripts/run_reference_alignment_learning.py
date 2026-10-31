@@ -76,7 +76,7 @@ async def main():
         library.release(scope,candidate['id'],candidate['version'],'User-authorized isolated application test only; no production endorsement')
     with store.connect() as db:
         start_sequence = db.execute('SELECT COALESCE(MAX(sequence),0) FROM events').fetchone()[0]
-    load_mixed_services(Path('/mnt/c/Users/dongy/Documents/ChatGPT/湖南高速智能体项目/.env'))
+    load_mixed_services(Path(__file__).resolve().parents[1]/'.env')
     os.environ['REPORT_DEEPSEEK_STRICT']='0'
     os.environ['REPORT_REASONING_EFFORT']='low'
     for role in ('WRITER','REVIEWER','COORDINATOR','TEXT_TOOL','RUBRIC_GRADER','LAYOUT'):

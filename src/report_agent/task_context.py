@@ -564,9 +564,15 @@ class TaskContext(AgentMiddleware):
             except Exception as error:
                 projection_gap(self.workspace, self.role, error)
                 return result
-        from .decision_data import enabled as reference_data, TOOLS, packet, attach_delivery
-        if (reference_data(self.workspace) and isinstance(result,ToolMessage)
-                and (result.name in TOOLS or result.status == 'error') and isinstance(result.content,str)):
+        from .decision_data import enabled as reference_data, TOOLS, packet, attach_delivery, deliver_controls
+        source_return = (isinstance(result, ToolMessage) and result.status == 'success'
+            and isinstance(result.artifact, dict) and 'source_material' in result.artifact)
+        # Source receipts need the original binding even when native offload is the only projection.
+        if (isinstance(result, ToolMessage) and isinstance(result.content, str)
+                and (source_return or (reference_data(self.workspace)
+                    and (result.name in TOOLS or result.status == 'error')))):
+            if source_return and result.artifact.get('report_public_delivery') is not None:
+                return deliver_controls(self.workspace, self.role, result)
             presented=packet(self.workspace,self.role,result,tool_args)
             return attach_delivery(self.workspace, self.role, result, presented)
         if (not isinstance(result,ToolMessage) or result.status!='success'
