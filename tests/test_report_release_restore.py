@@ -11,7 +11,8 @@ import pytest
 from test_ingestion import pdf_bytes
 
 
-def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_path, monkeypatch):
+@pytest.mark.parametrize('synthetic,limit,input_count', [(False, 200_000_000, 11), (True, 50_000_000, 6)])
+def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_path, monkeypatch, synthetic, limit, input_count):
     project = Path(__file__).resolve().parents[1]
     repo = tmp_path / 'checkout'
     repo.mkdir()
@@ -25,6 +26,10 @@ def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_p
             shutil.copytree(origin, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         else:
             shutil.copy2(origin, target)
+    config_path = repo / 'config/current.json'
+    config = json.loads(config_path.read_text())
+    config.update(synthetic=synthetic, round_token_limit=limit, input_file_count=input_count)
+    config_path.write_text(json.dumps(config))
     def git(*args):
         return subprocess.check_output(['git', '-C', str(repo), *args])
     git('init', '-q')
@@ -45,7 +50,7 @@ def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_p
     (inputs / '成果报告').mkdir(parents=True)
     (inputs / '报告编写范围说明.md').write_text('Synthetic offline report scope.', encoding='utf-8')
     (inputs / '成果报告/format.pdf').write_bytes(pdf_bytes(('Synthetic format reference.',)))
-    for number in range(9):
+    for number in range(input_count - 2):
         (inputs / f'source-{number}.md').write_text('Synthetic independent input.')
     run = tmp_path / 'runtime'
     ledger = tmp_path / 'finance/token-budget.db'
@@ -74,7 +79,8 @@ def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_p
     assert result['canonical_baseline'] is None
     assert result['timeout_seconds'] == 600
     assert result['maximum_attempts_per_call'] == 3
-    assert result['scope_limit'] == 200_000_000
+    assert result['scope_limit'] == limit
+    assert result['synthetic'] is synthetic
     assert result['recovery_policy']['extra_per_call'] == 2
     assert result['recovery_policy']['extra_per_case'] is None
     assert result['recovery_policy']['extra_token_ceiling'] is None

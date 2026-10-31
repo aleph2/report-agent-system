@@ -93,11 +93,15 @@ async def test_actual_native_co_role_is_preserved_and_task_uses_configured_hando
         "\n".join(b.get("text", "") for b in m["content"]) for m in coordinator["messages"] if m["role"] == "system")
     task = next(t["function"] for t in coordinator["tools"] if t["function"]["name"] == "task")
     configured = load_prompt("native-review-handoff").strip()
-    assert load_prompt("content-coordinator") in system
+    expected = '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-coordinator')] if t.strip())
+    if expected:
+        assert system.startswith(expected)
     assert configured in task["description"]
     captures = [ws.store.get(e["data"]["capture_key"]) for e in ws.store.events()
                 if e["kind"] == "prompt_final_http_input"]
     assert captures and all(c["status"] == "exact" for c in captures)
+    assert all(next(s['files'] for s in c['sources'] if s['source'] == 'configured_role_files') ==
+               ['agent-common', 'agent-' + c['purpose']] for c in captures)
     assert all(not c["limitation"] or isinstance(c["limitation"], str) for c in captures)
 
 

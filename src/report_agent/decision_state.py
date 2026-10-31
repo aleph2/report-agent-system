@@ -6,7 +6,6 @@ from pydantic import Field
 
 from .errors import ActionRejected
 from .store import digest, encode
-from .prompt_sources import load_prompt
 
 
 def completion_state_token(db):
@@ -175,8 +174,7 @@ def snapshot_assignment_inventory(contents):
         'snapshots':snapshots, 'catalog_total':total, 'catalog_complete':len(refs)==total,
         'catalog_tool':{'name':'read_object_index','arguments':{
             'object_type':'DocumentSnapshot','current_only':True,'offset':0,'limit':20}},
-        'semantic_coverage_verified':False,
-        'note':load_prompt('snapshot-assignment-note').strip()}
+        'semantic_coverage_verified':False}
 
 
 def compact_context(context):

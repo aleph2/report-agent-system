@@ -34,7 +34,11 @@ async def test_current_child_plan_updates_without_becoming_a_save_or_new_task(ws
     def read(messages):
         system=messages[0].text
         assert second[0]['content'] in system and first[0]['content'] not in system
-        assert 'working intentions only' in system
+        import json
+        current, = [json.loads(b['text'])['current_review_plan'] for m in messages if m.type == 'system'
+                    for b in m.content_blocks if b.get('text', '').startswith('{"current_review_plan":')]
+        assert current['todos'] == second and current['authority'] == 'working_intentions'
+        assert current['actor_id']
         assert not cs.list_objects('ReviewRecord')
         return invoke('read_context',target_ref=refs['claim'])
     def submit(messages):

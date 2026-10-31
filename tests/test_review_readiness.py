@@ -361,9 +361,9 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
     controls = []
     def see_first_system(messages):
         system = next(m for m in messages if m.type == 'system')
-        prefix = 'Current task bindings and navigation previews. Incomplete fields expose read_decision_state paths; previews do not establish complete instruction or evidence coverage:\n'
+        prefix = '{"current_task":'
         block = next(b['text'] for b in system.content_blocks if b.get('text', '').startswith(prefix))
-        control = json.loads(block[len(prefix):])['review_input_readiness']
+        control = json.loads(block)['current_task']['review_input_readiness']
         assert not control['execution_ready'] and control['issues']['complete']
         assert {i['kind'] for i in control['issues']['entries']} == {'undeclared', 'unresolved'}
         assert {i['scope_id'] for i in control['issues']['entries']} == {'rule-comparison', 'other-scope'}

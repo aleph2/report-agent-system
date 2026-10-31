@@ -140,7 +140,7 @@ def test_native_effective_tools_cannot_read_host_development_file(tmp_path, role
     for called_role, _, messages in driver.calls:
         assert "HOST_DEVELOPMENT_SECRET" not in str(messages)
         assert "OLD_OUTCOME" not in str(messages)
-        assert "Sources" in str(messages) or "source" in str(messages)
+        assert any(m.type == 'system' for m in messages)
         names = {tool["name"] for binding in driver.bindings[called_role] for tool in binding}
         assert {"ls", "read_file", "write_file", "edit_file", "glob", "grep"} <= names
         assert not names & {"execute", "shell", "python", "import_file"}

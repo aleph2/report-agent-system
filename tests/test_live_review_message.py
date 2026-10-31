@@ -321,7 +321,7 @@ async def test_final_prompt_boundary_preserves_the_offered_flat_schema(case, pro
     from report_agent import live_messages
     from report_agent.deep_models import GLMChatOpenAI
     from report_agent.hierarchical_tools import role_prompt
-    from report_agent.prompt_sources import load_prompt, context_source
+    from report_agent.prompt_sources import load_prompt
     from report_agent.prompt_provenance import AgentPromptBoundary
     from report_agent.review_scope_selectors import CONTRACT as SELECTORS
     cs, output, criteria = setup(case)
@@ -331,7 +331,7 @@ async def test_final_prompt_boundary_preserves_the_offered_flat_schema(case, pro
         tools = live_tools(ws)
         text = role_prompt('reviewer', interface_profile='review-interfaces-v4',
             expression_profile='reader-expression-v2', prompt_profile=profile,
-            review_submission_contract=SELECTORS) + '\n' + load_prompt(context_source('reviewer', 'review-interfaces-v4', profile))
+            review_submission_contract=SELECTORS)
         model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta', deepseek_strict=strict)
         try:
             request = ModelRequest(model=model, tools=tools, state={'messages': []},

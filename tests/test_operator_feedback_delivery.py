@@ -32,7 +32,7 @@ async def test_actual_model_middleware_delivers_whole_moderate_feedback_after_st
         seen.append(value)
         return AIMessage(content='Input capture only, not semantic acceptance.')
     await TaskContext(ws, 'coordinator').awrap_model_call(request, handler)
-    packet = json.loads(seen[0].system_message.content[-1]['text'].split('\n',1)[1])
+    packet = json.loads(seen[0].system_message.content[-1]['text'])['current_task']
     assert packet['operator_feedback'][0] == item
     assert seen[0].messages == [stale]
     assert ws.store.get('feedback') == [item]

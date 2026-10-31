@@ -20,9 +20,7 @@ from test_reviewer_complete_materials import configure
 
 
 def state_packet(body):
-    marker = ('Current task bindings and navigation previews. Incomplete fields expose '
-              'read_decision_state paths; previews do not establish complete instruction '
-              'or evidence coverage:\n')
+    marker = '{"current_task":'
     for message in body['messages']:
         if message['role'] != 'system':
             continue
@@ -30,7 +28,7 @@ def state_packet(body):
         parts = [content] if isinstance(content, str) else [p.get('text', '') for p in content]
         for text in parts:
             if marker in text:
-                return json.JSONDecoder().raw_decode(text.split(marker, 1)[1])[0]
+                return json.JSONDecoder().raw_decode(text.split(marker, 1)[1].lstrip())[0]
     raise AssertionError('Actual SDK request lacks native state packet')
 
 

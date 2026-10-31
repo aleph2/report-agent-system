@@ -1,5 +1,6 @@
 """Add parser diagnostics to native invalid-call error feedback, without retries."""
 import json
+from copy import deepcopy
 
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from langchain.agents.middleware import AgentMiddleware, hook_config
@@ -37,6 +38,15 @@ def compact_native_tool_error(message, store, *, args=None, schema=None):
             'allowed_keys': sorted(allowed),
             'missing_required_keys': sorted(required - received),
             'unexpected_keys': sorted(received - allowed)}}
+        if not isinstance(schema, dict):
+            from .errors import ActionRejected
+            from .message_fields import validate_message
+            try:
+                validate_message(schema, deepcopy(args))
+            except ActionRejected as error:
+                # ToolNode filters root-level validator errors out of its text.
+                if any(field['field'] == [] for field in error.diagnostic['fields']):
+                    diagnostic = error.diagnostic
     return message.model_copy(update={'content': encode({
         'ok': False, 'code': 'NATIVE_TOOL_VALIDATION_ERROR',
         'execution_state': 'not_established', 'tool': message.name,

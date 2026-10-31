@@ -48,4 +48,4 @@ def test_artifact_declaration_distinct_from_check_extent(name):
 @pytest.mark.parametrize("role", ["coordinator", "writer", "reviewer"])
 def test_old_role_interfaces_remain_exact(role):
     legacy = role_prompt(role, expression_profile="report-expression-v1", interface_profile="review-interfaces-v1")
-    assert legacy == load_prompt("content-common") + "\n\n" + load_prompt("content-" + role)
+    assert legacy == '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-' + role)] if t.strip())

@@ -57,7 +57,7 @@ async def test_sdk_reviewer_plan_schema_prompt_and_declared_sources(case, enable
             assert offered['description'].startswith("Replace this task's native todo list with the complete plan;")
             assert offered['description'] == load_prompt('review-work-units-tool').strip()
             system = '\n'.join(m['content'] if isinstance(m['content'],str) else '\n'.join(b.get('text','') for b in m['content']) for m in first['messages'] if m['role'] == 'system')
-            assert load_prompt('review-work-units').strip() in system
+            assert load_prompt('review-work-units').strip() not in system
             assert todo['review_unit']['method'] in json.dumps(bodies['reviewer'][1], ensure_ascii=False)
         else:
             from langchain.agents.middleware.todo import WRITE_TODOS_TOOL_DESCRIPTION
@@ -71,7 +71,9 @@ async def test_sdk_reviewer_plan_schema_prompt_and_declared_sources(case, enable
             assert capture['expected_wire_available']
             assert capture['status'] != 'unexplained', capture['sources']
             names = {f['name']:f for f in capture['source_manifest']['files']}
-            for name in ('review-work-units', 'review-work-units-tool'):
+            assert 'review-work-units' not in names
+            assert next(s['files'] for s in capture['sources'] if s['source'] == 'configured_role_files') == ['agent-common', 'agent-reviewer']
+            for name in ('review-work-units-tool',):
                 assert (name in names) is enabled
                 if enabled:
                     assert names[name]['offered_match'] != 'not_observed'

@@ -305,9 +305,10 @@ async def test_repeat_feedback_reaches_agent_after_native_failure_recovery(tmp_p
         return await original(self, request, handler)
 
     def react(messages):
-        system = "\n".join(b["text"] for m in messages if m.type == "system"
-                           for b in m.content_blocks if b["type"] == "text")
-        assert "last three successful calls to calculate" in system
+        notice, = [json.loads(b['text'])['execution_observation'] for m in messages if m.type == 'system'
+                   for b in m.content_blocks if b.get('text', '').startswith('{"execution_observation":')]
+        assert notice == {'tool': 'calculate', 'identical_successful_exchanges': 3,
+                          'semantic_progress_assessed': False}
         assert observation(messages, "calculate")["total"] == "1"
         return AIMessage(content="", tool_calls=[call("task", {"subagent_type": "writer",
             "description": "Save one synthetic structural node after observing repeated arithmetic"}, "progress-after-repetition")])

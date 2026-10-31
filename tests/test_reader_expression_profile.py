@@ -32,6 +32,7 @@ def expression_rule_tree(tmp_path_factory):
     original = {name: (prompt_sources.RULES / (name + '.md')).read_bytes() for name in SOURCES}
     rules = tmp_path_factory.mktemp('expression-source') / 'expression-rules'
     shutil.copytree(prompt_sources.RULES, rules)
+    (rules / 'agent-writer.md').write_text('Fixture Writer definition independent of expression profiles.', encoding='utf-8')
     for name in SOURCES:
         (rules / (name + '-v2.md')).write_bytes(original[name] +
             b'\nReader expression release fixture: preserve real limits and exact provenance.\n')
@@ -139,7 +140,7 @@ async def test_writer_graph_expression_source_is_frozen_and_not_role_pollution(w
             models[role], client = sdk_model(ws, role, transport)
             clients.append(client)
         return models[role]
-    source = 'content-writer' + ('-v2' if profile == READER else '')
+    source = 'agent-writer'
     try:
         async with deep_runtime.project_agent(ws, factory) as graph:
             if mutate:
@@ -155,7 +156,8 @@ async def test_writer_graph_expression_source_is_frozen_and_not_role_pollution(w
         assert capture['public_input'] == writer
         files = {f['name']: f for f in capture['source_manifest']['files']}
         assert source in files
-        assert ('content-writer' if profile == READER else 'content-writer-v2') not in files
+        assert not {'content-writer', 'content-writer-v2'} & files.keys()
+        assert next(s['files'] for s in capture['sources'] if s['source'] == 'configured_role_files') == ['agent-common', 'agent-writer']
         assert files[source]['offered_match'] in {'literal', 'trimmed_literal'}
         assert source not in capture['source_manifest']['unresolved_sources']
         assert not final_captures(ws, 'reviewer')

@@ -58,7 +58,7 @@ class ReviewPlanning(TodoListMiddleware):
     """Keep the installed native handlers, state channel and Command protocol."""
     def __init__(self, workspace):
         from .prompt_sources import load_prompt
-        super().__init__(system_prompt=load_prompt('review-work-units').strip(),
+        super().__init__(system_prompt='',
                          tool_description=load_prompt('review-work-units-tool').strip())
         self.workspace = workspace
         tool = self.tools[0]
@@ -67,10 +67,7 @@ class ReviewPlanning(TodoListMiddleware):
         self.tools = [tool.model_copy(update={'args_schema': schema})]
 
     def _request(self, request):
-        from .prompt_provenance import append_declared_system
-        return append_declared_system(request, self.system_prompt,
-            'review_work_units/native_todos_contract',
-            files=['review-work-units', 'review-work-units-tool'])
+        return request
 
     def wrap_model_call(self, request, handler):
         return handler(self._request(request))

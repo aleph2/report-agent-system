@@ -6,7 +6,6 @@ from langchain_core.messages import AIMessage, ToolMessage
 from .errors import ActionRejected
 from .observation_refs import ObservationRefPrefix, validate_prefix
 from .store import encode
-from .prompt_sources import load_prompt
 from .task_context import actor_id, read_observation, save_observation
 
 def key(workspace, role):
@@ -179,8 +178,7 @@ def current_returns(workspace, role, *, focused=False):
     result = {'receiving_actor':actor_id(workspace,role),'total':len(records),
         'distinct_returns':len(distinct),
         'recent':[], 'projection_complete':False,
-        'all_entries_tool':'read_summary_observations','exact_text_tool':'read_tool_observation',
-        'note':load_prompt('progress-returns-note').strip()}
+        'all_entries_tool':'read_summary_observations','exact_text_tool':'read_tool_observation'}
     partial = len(recent) < len(distinct)
     if focused:
         result['projection'] = 'focused-v1'

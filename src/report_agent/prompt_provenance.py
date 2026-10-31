@@ -244,15 +244,25 @@ def classify_agent_system(system, expected):
     from langchain.agents.middleware.todo import WRITE_TODOS_SYSTEM_PROMPT
     blocks = system.content_blocks if system else []
     sources = [{'source':'configured_role_files', 'sha256':hashlib.sha256(expected.encode()).hexdigest()}]
-    if not blocks or blocks[0].get('type') != 'text' or not blocks[0].get('text','').startswith(expected):
-        return 'static_mismatch', sources
-    exact = blocks[0]['text'] == expected
     declared = (system.additional_kwargs if system else {}).get('report_system_contributions', [])
+    native_todo = {WRITE_TODOS_SYSTEM_PROMPT, '\n\n'+WRITE_TODOS_SYSTEM_PROMPT}
+    if expected:
+        if not blocks or blocks[0] != {'type':'text', 'text':expected}:
+            return 'static_mismatch', sources
+        exact = blocks[0]['text'] == expected
+        remainder = blocks[1:]
+    else:
+        if (blocks and blocks[0] != {'type':'text','text':''}
+                and not (blocks[0].get('type') == 'text' and blocks[0].get('text') in native_todo)
+                and not (declared and blocks[0] == {'type':'text','text':declared[0]['text']})):
+            return 'static_mismatch', sources
+        exact = True
+        remainder = blocks[1:] if blocks and blocks[0] == {'type':'text','text':''} else blocks
     # Declared appends are ordered, not a set of allowed substrings.
     remaining = list(declared)
-    for block in blocks[1:]:
+    for block in remainder:
         text = block.get('text')
-        if block.get('type') == 'text' and text in {WRITE_TODOS_SYSTEM_PROMPT, '\n\n'+WRITE_TODOS_SYSTEM_PROMPT}:
+        if block.get('type') == 'text' and text in native_todo:
             sources.append({'source':'langchain/TodoListMiddleware', 'sha256':digest(text)})
         elif remaining and block == {'type':'text','text':remaining[0]['text']}:
             part = remaining.pop(0)
@@ -277,11 +287,10 @@ class CurrentReviewPlan(AgentMiddleware):
         todos = request.state.get('todos')
         if todos:
             from .task_context import actor_id
-            text = load_prompt('current-review-plan') + '\n' + encode({
+            text = encode({'current_review_plan': {
                 'actor_id':actor_id(self.workspace, 'reviewer'), 'todos':todos,
-                'authority':'working intentions only; assignment and saved checks remain independent'})
-            request = append_declared_system(request, text, 'native_todos/current_child_state',
-                files=['current-review-plan'])
+                'authority':'working_intentions'}})
+            request = append_declared_system(request, text, 'native_todos/current_child_state')
         return await handler(request)
 
 
@@ -299,41 +308,25 @@ class AgentPromptBoundary(AgentMiddleware):
         expression_profile = (REPORT_EXPRESSION_V1 if independent_optimizer else
                               self.expression_profile if self.expression_profile is not None
                               else report_expression_profile(self.workspace.store))
-        role_source = expression_source('content-' + self.role, expression_profile)
-        expected = (load_prompt(self.source) if self.source else load_prompt('legacy-review-organizer') if self.role == 'reviewer'
-                    and not native_reviewer(self.workspace.store) else
-                    load_prompt('content-common') + '\n\n' + load_prompt(role_source))
-        from .prompt_sources import (REVIEW_INTERFACE_V3, role_sources, context_source, describe_current_tools,
-            report_prompt_profile, report_rule_source, LEGACY_PROMPTS, CONCISE_PROMPTS)
-        text_profile = (LEGACY_PROMPTS if self.source is not None else self.prompt_profile
-            if self.prompt_profile is not None else report_prompt_profile(self.workspace.store))
-        interface = ('not_applicable' if self.source is not None else self.interface_profile
-                     if self.interface_profile is not None else review_interface_profile(self.workspace.store))
+        from .prompt_sources import (role_sources, describe_current_tools,
+            report_prompt_profile, report_rule_source, LEGACY_PROMPTS, CONCISE_PROMPTS,
+            REVIEW_INTERFACE_V3, submit_review_source, validate_review_submission_contract)
         from .handoff_release import manifest as bound_manifest
-        from .prompt_sources import validate_review_submission_contract, submit_review_source
-        submission_contract = (None if self.source is not None else self.review_submission_contract
+        text_profile = (LEGACY_PROMPTS if independent_optimizer else self.prompt_profile
+            if self.prompt_profile is not None else report_prompt_profile(self.workspace.store))
+        interface = ('not_applicable' if independent_optimizer else self.interface_profile
+            if self.interface_profile is not None else review_interface_profile(self.workspace.store))
+        submission_contract = (None if independent_optimizer else self.review_submission_contract
             if self.review_submission_contract is not None else
             validate_review_submission_contract(bound_manifest(self.workspace.store)))
-        if interface == 'review-interfaces-v4' and self.source is None:
-            expected = '\n\n'.join(load_prompt(s) for s in role_sources(
-                self.role, expression_profile, interface, text_profile, submission_contract))
-        saved_handoff = interface == REVIEW_INTERFACE_V3 and self.role in {'coordinator', 'writer'}
-        if saved_handoff:
-            expected += '\n\n' + load_prompt('saved-reference-handoff')
-        if self.role in {'writer','reviewer','layout'}:
-            expected += '\n' + load_prompt(context_source(self.role, interface, text_profile))
+        files = [self.source] if independent_optimizer else role_sources(self.role, expression_profile, interface)
+        # Read the allowed files independently of the renderer being checked.
+        expected = (load_prompt(self.source) if independent_optimizer else
+                    '\n\n'.join(text for name in files if (text := load_prompt(name)).strip()))
         blocks = request.system_message.content_blocks if request.system_message else []
         status, sources = classify_agent_system(request.system_message, expected)
         if status == 'static_mismatch':
             raise PromptCompositionError('PROMPT_STATIC_ROLE_REPLACED')
-        files = ([self.source] if self.source else ['legacy-review-organizer'] if self.role == 'reviewer'
-            and not native_reviewer(self.workspace.store) else ['content-common', role_source])
-        if interface == 'review-interfaces-v4' and self.source is None:
-            files = role_sources(self.role, expression_profile, interface, text_profile, submission_contract)
-        if saved_handoff:
-            files.append('saved-reference-handoff')
-        if self.role in {'writer','reviewer','layout'}:
-            files.append(context_source(self.role, interface, text_profile))
         sources[0]['files'] = files
         from langchain_core.utils.function_calling import convert_to_openai_tool
         tools = [convert_to_openai_tool(t) for t in request.tools]
@@ -354,12 +347,12 @@ class AgentPromptBoundary(AgentMiddleware):
         tool_files = [('native-content-index-tool-v4' if text_profile == CONCISE_PROMPTS else 'native-content-index-tool')] if any(
             t.get('function', {}).get('name') == 'read_content_index' for t in tools) and native_reviewer(self.workspace.store) else []
         tool_files += description_files
+        if any(t.get('function', {}).get('name') == 'write_todos'
+               and t['function'].get('description') == load_prompt('review-work-units-tool').strip()
+               for t in tools):
+            tool_files.append('review-work-units-tool')
         if any(t.get('function', {}).get('name') == 'task' for t in tools):
-            if profile == SEPARATE_DESCRIPTION:
-                tool_files += ['content-writer-description', 'content-layout-description', 'content-reviewer-description']
-            else:
-                tool_files += ['content-common', expression_source('content-writer', expression_profile), 'content-layout',
-                    'content-reviewer' if native_reviewer(self.workspace.store) else 'legacy-review-organizer']
+            tool_files += ['agent-writer', 'agent-layout', 'agent-reviewer']
             if native_reviewer(self.workspace.store):
                 tool_files.append(review_handoff_source(interface, text_profile))
                 if interface == 'review-interfaces-v4':

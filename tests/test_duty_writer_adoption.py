@@ -5,7 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 
 from report_agent.deep_models import configured_model
 from report_agent.store import digest
@@ -37,10 +37,11 @@ def consumer_scripts(case, held):
             content = message.content
             for block in content if isinstance(content, list) else [{'text': content}]:
                 text = block.get('text', '')
-                prefix = 'Current task bindings and navigation previews. Incomplete fields expose read_decision_state paths; previews do not establish complete instruction or evidence coverage:\n'
+                prefix = '{"current_task":'
                 if text.startswith(prefix):
-                    state = json.loads(text[len(prefix):])
+                    state = json.loads(text)['current_task']
                     held['source_ref'] = next(i['ref'] for i in state['input_refs'] if i['source_id'] == 's')
+        assert 'source_ref' in held
         if case == 'missing-incomplete':
             return AIMessage(content='Candidate requires inspection; no action or adoption has been completed.')
         held.update(stage='reading', pages=[], read_id='read-candidate-0')
@@ -165,8 +166,9 @@ async def test_native_writer_adoption_uses_configured_sdk_binding_without_networ
         # Provider-shaped scripted consumer, not a live model or alternate loop.
         # This is decoding the actual SDK request solely to select a mock
         # provider answer, never constructing input for the application model.
-        messages = [ToolMessage(content=m['content'], tool_call_id=m['tool_call_id'],
-                    name=m.get('name', '')) for m in wire['messages'] if m['role'] == 'tool']
+        messages = [SystemMessage(content=m['content']) if m['role'] == 'system' else
+                    ToolMessage(content=m['content'], tool_call_id=m['tool_call_id'], name=m.get('name', ''))
+                    for m in wire['messages'] if m['role'] in {'system', 'tool'}]
         response = scripts[len(wires)](messages)
         message = {'role': 'assistant', 'content': response.content}
         if response.tool_calls:

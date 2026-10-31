@@ -173,7 +173,7 @@ async def test_native_state_injection_keeps_stale_history_and_bounded_checks_unc
         mw=TaskContext(ws,'reviewer')
         assert 'read_decision_state' in {t.__name__ for t in mw.tools}
         await mw.awrap_model_call(request,handler)
-    packet=json.loads(seen[0].system_message.content[-1]['text'].split('\n',1)[1])
+    packet=json.loads(seen[0].system_message.content[-1]['text'])['current_task']
     assert packet['review_progress']['execution_complete'] is False
     assert packet['assigned_targets'][0]['current_version']==1
     assert seen[0].messages==[stale]

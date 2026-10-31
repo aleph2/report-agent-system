@@ -63,7 +63,9 @@ async def test_actual_native_reviewer_wire_contains_configured_role_schema_and_s
         reviewer=next(body for role,body in wires if role=='reviewer')
         system='\n'.join(m['content'] if isinstance(m['content'],str) else '\n'.join(b.get('text','') for b in m['content'])
             for m in reviewer['messages'] if m['role']=='system')
-        assert load_prompt('content-reviewer') in system
+        expected = '\n\n'.join(t for t in [load_prompt('agent-common'), load_prompt('agent-reviewer')] if t.strip())
+        if expected:
+            assert system.startswith(expected)
         tools={t['function']['name']:t['function'] for t in reviewer['tools']}
         assert {'submit_review','write_todos','analyze_evidence'}<=tools.keys()
         assert not {'perform_assigned_review','commit_objects','task'}&tools.keys()
@@ -85,7 +87,10 @@ async def test_actual_native_reviewer_wire_contains_configured_role_schema_and_s
             assert runtime['source_files']['deep_runtime.py']
             assert runtime['import_root'].endswith('/src/report_agent')
             names = {f['name'] for f in manifest['files']}
-            assert {'content-common', 'content-' + capture['purpose']} <= names
+            assert {'agent-common', 'agent-' + capture['purpose']} <= names
+            authored = next(s for s in capture['sources'] if s.get('files') == ['agent-common', 'agent-' + capture['purpose']])
+            import hashlib
+            assert authored['sha256'] == hashlib.sha256('\n\n'.join(t for t in [load_prompt(n) for n in authored['files']] if t.strip()).encode()).hexdigest()
             offered = next(ws.store.get(e['data']['capture_key']) for e in ws.store.events()
                 if e['kind'] == 'prompt_model_input' and e['data']['call_id'] == capture['call_id'])
             assert offered['source_manifest'] == manifest

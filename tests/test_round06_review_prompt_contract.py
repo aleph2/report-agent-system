@@ -9,10 +9,12 @@ from report_agent.deep_runtime import run_report
 from test_deliverable_declaration_v4 import case
 from test_prompt_native_sdk_inputs import completion
 from test_review_work_units import configured
+from test_two_file_agent_prompts import authored_rules
+from report_agent.prompt_sources import load_prompt
 
 
 @pytest.mark.parametrize('checked_role', ['coordinator', 'reviewer'])
-async def test_final_sdk_keeps_original_outcomes_and_evidence_contract(case, checked_role):
+async def test_final_sdk_keeps_original_outcomes_and_evidence_contract(case, checked_role, authored_rules):
     cs, _, ws, request = configured(case)
     cs.store.set('manifest', {**cs.store.manifest, 'report_prompt_profile':'concise-v1',
         'report_expression_profile':'reader-expression-v2', 'operation_identity_profile':'native-tool-runtime-v1'})
@@ -39,12 +41,13 @@ async def test_final_sdk_keeps_original_outcomes_and_evidence_contract(case, che
         text = '\n'.join(m['content'] if isinstance(m['content'], str) else
             '\n'.join(block.get('text', '') for block in m['content'])
             for m in bodies[checked_role][0]['messages'] if m['role'] == 'system')
-        expected = ('original outcomes still unproved', 'including concision when commissioned') if checked_role == 'coordinator' else (
-            'what the evidence establishes and what remains unproved',
-            'argument/index correction changes representation',
-            'missing/invalid', 'does not itself supply the missing evidence')
-        for fragment in expected:
-            assert fragment in text
+        assert text.startswith(load_prompt('agent-common') + '\n\n' + load_prompt('agent-' + checked_role))
+        captures = [cs.store.get(e['data']['capture_key']) for e in cs.store.events()
+                    if e['kind'] == 'prompt_final_http_input' and e['data']['purpose'] == checked_role]
+        assert captures and all(c['status'] == 'exact' for c in captures)
+        assert all(next(s['files'] for s in c['sources'] if s['source'] == 'configured_role_files') ==
+                   ['agent-common', 'agent-' + checked_role] for c in captures)
+        assert not cs.list_objects('ReviewRecord')
     finally:
         for model in models.values():
             await model.root_async_client.close()

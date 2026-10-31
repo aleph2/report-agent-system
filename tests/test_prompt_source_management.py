@@ -26,6 +26,31 @@ def captures(store, kind):
             if event['kind'] == kind]
 
 
+def test_role_first_paragraph_is_linked_only_at_task_description(tmp_path, monkeypatch):
+    from report_agent import prompt_sources
+    first, rest = 'Writer fixture responsibility.', 'Private-to-role detailed fixture.'
+    text = first + '\n\n' + rest
+    for name in ('agent-writer', 'agent-common'):
+        (tmp_path / (name + '.md')).write_text(text, encoding='utf-8')
+    monkeypatch.setattr(prompt_sources, 'RULES', tmp_path)
+    offered = {'messages': [{'role': 'user', 'content': first}], 'tools': [
+        {'function': {'name': 'task', 'description': first,
+                      'parameters': {'properties': {'description': {'description': first}}}}},
+        {'function': {'name': 'other_tool', 'description': first}}]}
+    before = json.dumps(offered)
+    manifest = prompt_sources.source_manifest(None, ['agent-writer', 'agent-common'], offered)
+    writer, common = manifest['files']
+    match, = writer['matched_locations']
+    assert match == {'path': 'tools/0/function/description', 'role': 'tool_definition',
+                     'match': 'first_paragraph_literal', 'selector': 'first_paragraph',
+                     'text_sha256': hashlib.sha256(first.encode()).hexdigest(), 'characters': len(first)}
+    assert writer['file_sha256'] == hashlib.sha256(text.encode()).hexdigest()
+    assert writer['offered_match'] == 'first_paragraph_literal'
+    assert not common['matched_locations'] and common['offered_match'] == 'not_observed'
+    assert manifest['unresolved_sources'] == ['agent-common']
+    assert json.dumps(offered) == before
+
+
 @pytest.mark.parametrize('purpose,source', [
     ('text-work', 'text-work'), ('qualifier-work', 'qualifier-work'),
     ('evidence-analysis', 'evidence-analysis'), ('artifact-analysis', 'artifact-analysis'),
@@ -63,11 +88,7 @@ def test_actual_call_links_source_version_and_same_final_public_input(ws, purpos
 async def test_native_role_capture_names_exact_sources_without_changing_system(ws, role):
     native(ws)
     expected = role_prompt(role)
-    names = ['content-common', 'content-' + role]
-    if role != 'coordinator':
-        context = 'agent-context-reviewer' if role == 'reviewer' else 'agent-context-general'
-        expected += '\n' + load_prompt(context)
-        names.append(context)
+    names = ['agent-common', 'agent-' + role]
     request = SimpleNamespace(system_message=SystemMessage(expected), messages=[], tools=[])
     request.override = lambda **changes: SimpleNamespace(**{**request.__dict__, **changes})
     seen = []
@@ -126,7 +147,7 @@ async def test_declared_dynamic_version_refs_are_audit_metadata_not_wire_instruc
     async def handler(actual):
         seen.append(actual.system_message.content_blocks)
     await AgentPromptBoundary(ws, 'coordinator').awrap_model_call(current, handler)
-    assert seen == [[{'type': 'text', 'text': original},
+    assert seen == [[*([{'type': 'text', 'text': original}] if original else []),
                      {'type': 'text', 'text': 'Current fixture authority.'}]]
     value, = captures(ws.store, 'prompt_model_input')
     declared = next(s for s in value['sources'] if s['source'] == 'task_context/current_server_bound_state')

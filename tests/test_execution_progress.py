@@ -109,9 +109,9 @@ async def test_actual_notice_and_two_distinct_completed_decisions_pause_native_g
         assert episode['state']=='degraded' and len(episode['notice_deliveries'])>=2
         assert episode['scope']['role']==('reviewer' if child else 'coordinator')
         assert case['steps'][episode['scope']['role']]==5
-        delivered=[body for role,body in case['wires'] if 'Execution feedback:' in encode(body['messages'])]
+        delivered=[body for role,body in case['wires'] if 'notice_id' in encode(body['messages'])]
         assert len(delivered)==2
-        assert all(encode(body['messages']).count('Execution feedback:')==1 for body in delivered)
+        assert all(encode(body['messages']).count('notice_id')==1 for body in delivered)
         assert all('Execution observation: the last three' not in encode(body['messages']) for body in delivered)
         count=len(case['wires'])
         await deep_runtime.run_report(ws,case['factory'])
@@ -127,7 +127,7 @@ async def test_unproven_or_single_decision_repetition_does_not_hard_pause(ws,mon
         assert ws.store.get('report_status')!='needs_attention'
         assert not any(e['state']=='degraded' for e in episodes(ws))
         if kind in {'off','siblings'}:
-            assert not any('Execution feedback:' in encode(body['messages']) for _,body in case['wires'])
+            assert not any('notice_id' in encode(body['messages']) for _,body in case['wires'])
 
 
 async def test_alternating_warned_pages_survive_summary_and_checkpoint(ws,monkeypatch):
@@ -455,7 +455,8 @@ async def test_notice_preview_keeps_real_recovery_navigation_and_exact_warned_su
     native(ws);cs,owner,refs,snapshot,_=seed(ws)
     manifest=ws.store.manifest;manifest.update(context_policy='stateful-tools-v2',execution_progress_policy=CONFIG);ws.store.set('manifest',manifest)
     middleware=ExecutionProgress(ws,'coordinator');key,control=middleware.control()
-    monkeypatch.setattr('report_agent.execution_progress.load_prompt',lambda name:'MUTATED NOTICE AFTER GRAPH CONSTRUCTION')
+    monkeypatch.setattr('report_agent.prompt_sources.load_prompt',
+        lambda name: pytest.fail('Runtime observations must not load additional prompt files'))
     family=[str(i).zfill(64) for i in range(20)]
     binding={'scope_kind':'requested_snapshot_scope','snapshot_ref':snapshot,'root_ref':refs['root'],
         'instruction_digest':None,'source_use_ref':None,'criterion_refs':[refs['k']]*100}
@@ -468,8 +469,9 @@ async def test_notice_preview_keeps_real_recovery_navigation_and_exact_warned_su
     async def handler(actual):seen.append(actual);return SimpleNamespace(result=[])
     await middleware.awrap_model_call(request,handler)
     contribution=seen[0].system_message.additional_kwargs['report_system_contributions'][-1]
-    assert contribution['text'].startswith('Execution feedback:')
-    packet=json.loads(contribution['text'].split('\n')[-1])
+    packet=json.loads(contribution['text'])
+    assert 'notice_id' in packet
+    assert 'files' not in contribution
     assert len(encode(packet))<=4096 and packet['family']==family[:8]
     assert contribution['references']['family']==packet['family']
     assert packet['binding']['partial'] and packet['binding']['criterion_count']==100

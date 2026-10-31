@@ -19,8 +19,18 @@ async def known_write_repetition_case(tmp_path, *, managed=False, progress=False
             "body": {"text": "Synthetic saved structural plan"}, "qualifiers": {}, "claim_kind": "structure"}}]}
     seen = {}
     def after_notice(messages):
-        system = "\n".join(m.text for m in messages if m.type == "system")
-        assert "last three successful calls to commit_objects" in system
+        import json
+        blocks = [b['text'] for m in messages if m.type == 'system'
+                  for b in m.content_blocks if b.get('type') == 'text']
+        notice, = [json.loads(b)['execution_observation'] for b in blocks
+                   if b.startswith('{"execution_observation":')]
+        assert notice == {'tool': 'commit_objects', 'identical_successful_exchanges': 3,
+                          'semantic_progress_assessed': False}
+        proof, = [json.loads(b)['known_write_repetition'] for b in blocks
+                  if b.startswith('{"known_write_repetition":')]
+        assert proof['operation_id'] == args['operation_id'] and proof['receipt_state'] == 'known_success'
+        assert proof['observed_call_ids'] and set(proof['observed_call_ids']) <= {
+            m.tool_call_id for m in messages if m.type == 'tool' and m.status == 'success'}
         seen["advisory_observed"] = True
         if mixed_invalid:
             return AIMessage(content="", tool_calls=[call("commit_objects", args, "valid-sibling-replay")],
