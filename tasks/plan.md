@@ -609,3 +609,10 @@ Main仅改model_invocation deadline回600、model_recovery已有策略参数化�
 - Git diff --check 的默认 CRLF 报告经命令局部 `cr-at-eol` 识别后无空白错误；未修改全局 Git 配置或批量格式化。
 
 - DeepSeek 填稿后定向离线检查终态：90 passed，0 failed/skip，256.23 秒；实际 two-file/native SDK、委派提示词分离、来源捕获与 Git archive 恢复均通过。JUnit: `.analysis/deepseek-agent-prompts-20261031/deepseek-filled-source-check-20261101.xml`。这是加载/代码行为证据，不是模型质量证据。
+
+### 2026-11-01 Codex 提示词对照轮
+
+- 用户直接授权“现在换Codex写的提示词，做一轮试试”。Main将既有Codex五份原稿原样换入唯一rules目录，SHA与comparison-verification.json相符；仅提示词改变，业务源码、工具、模型、current配置和六输入保持DeepSeek轮条件。
+- 复用32216f9前完整3870 passed回归证据（仅五提示词改变）；本次四模块定向90 passed / 0 failed，74.64秒，涵盖真实native两文件/空值来源、委派说明、SDK输入和Git部署恢复。JUnit: .analysis/deepseek-agent-prompts-20261031/codex-filled-source-check-20261101.xml。首次命令缺PYTHONPATH=src造成4项collection error，无测试执行；保留单独失败JUnit，纠正命令后完整重跑。
+- Main为五提示词及Git唯一写入者；Neo只读独立复核。Neo已确认候选及同条件最小验证计划无实质阻碍；精确部署/host/prepared另核后才启动。每轮50m used+held，新case/ledger/library，不导入DS成果/expected答案，不更改旧账或重放unknown。
+- 技能实做：using-agent-skills识别测试/发布阶段；Ponytail复用既有stage/prepare/launch，无新运行框架；git-workflow-and-versioning限定提交；agent-prompt-design和Langfuse本地评估方法固定输入、模型及工具，只比较候选，未上传/连接平台或重写提示词。17次Co错误不在两轮之间修复。邮件继续停止。
