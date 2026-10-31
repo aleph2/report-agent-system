@@ -175,6 +175,85 @@ exports remain readable. Historical descriptions below do not authorize replay.
 
 ## Run (WSL/Linux, Python 3.12)
 
+### Restore and stage the current report system
+
+Use a clean checkout of the saved commit in WSL/Linux with Python 3.12:
+
+```bash
+python3.12 -m venv /path/to/report-venv
+/path/to/report-venv/bin/python -m pip install -c requirements.lock '.[test]'
+. /path/to/report-venv/bin/activate
+```
+
+`config/current.json` is the single maintained configuration for the report host:
+the existing role models and report interfaces, 600 seconds per attempt, at most
+three attempts, SDK/connect retries disabled, and a separate 200,000,000-token
+round limit including used and unresolved reservations. `requirements.lock` pins
+the installed runtime dependency versions used for offline restoration checks.
+No new agent prompts or two-file prompt loader changes are part of this release.
+
+Supply the private original documents independently and place provider credentials
+in this checkout's `.env`. Neither credentials nor real documents, old checkpoints,
+old financial databases or former `.analysis` directories are needed from Git.
+The file must contain the existing `HIGHWAY_MODEL_DEEPSEEK_NAME/BASE_URL/API_KEY`
+and `HIGHWAY_MODEL_NAME/BASE_URL/API_KEY` bundles; names must match current.json.
+It may retain the existing role generation settings; the host verifies effective
+settings before sending. Missing credentials are an error, not a fallback to legacy.
+
+For this report, the input directory contains the same eleven original documents,
+including `报告编写范围说明.md` and exactly one format-reference PDF under `成果报告/`.
+Input hashes and PDF limits are measured from these originals during staging;
+they are not borrowed from an older run. Use new independent runtime and ledger
+paths, outside the checkout and input directory. Existing paths are not overwritten.
+
+```bash
+python scripts/stage_report.py --revision COMMIT_ID --inputs /path/to/originals \
+  --run /path/to/new-run --ledger /path/to/new-finance/token-budget.db \
+  --authority 'reference to the actual user authorization for this run'
+python scripts/prepare_report.py --run /path/to/new-run
+```
+
+These two commands deny Python network connections and do not invoke models.
+Stage uses `git archive` of the explicit commit, including its original prompts;
+uncommitted or untracked prompt changes in the working directory cannot enter it.
+The run's source and configuration are immutable execution snapshots, not another
+maintained configuration. `deployment.json` records paths and commit identity only.
+
+Before any paid launch, independent review must create `neo-approval.json` in the
+new run with `approved: true`, the exact `host_sha256` and `prepared_sha256`.
+Neither staging nor preparation fabricates that approval. Check without starting:
+
+```bash
+python scripts/launch_report.py --run /path/to/new-run --check
+```
+
+Only a separately authorized launch omits `--check`. This preservation work did
+not launch the report. A prior launch intent, start, checkpoint or terminal record
+blocks repeat launch; these scripts do not resume historical checkpoints or replay
+unknown requests. A pre-existing canonical ledger is checked for preservation;
+its absence does not prevent a fresh independently budgeted case.
+
+Offline restoration verification (synthetic inputs, SDK mocks, no paid calls):
+
+```bash
+PYTHONPATH=src python -B -m pytest -q -p no:cacheprovider \
+  tests/test_authorized_three_attempt_recovery.py \
+  tests/test_large_search_public_return.py tests/test_restart600_host.py \
+  tests/test_report_release_restore.py
+```
+
+This verifies startup mechanics and the two repairs. It does not establish actual
+provider availability, report quality or safe resumption of an interrupted old run.
+
+Provider credentials live only in this repository's root `.env` (Git-ignored),
+moved from the retired legacy project's configuration location on 2026-10-31.
+Hosts using `load_mixed_services` read this file explicitly; tools accepting
+`--env-file` must receive this path. The CLI still consumes process environment
+variables; it does not automatically load `.env`.
+Historical frozen run directories retain their original hosts and configuration
+paths as execution evidence. They are not restart entry points after this move;
+do not rewrite their approval hashes or replay their pending requests.
+
 Use a separate virtual environment; install with `python -m pip install -e '.[test]'`.
 The historical ADK test fixtures additionally require `.[historical-tests]`; they
 are retained as prior evidence, not the new report execution architecture.

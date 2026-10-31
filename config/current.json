@@ -1,0 +1,40 @@
+{
+  "timeout_seconds": 600,
+  "maximum_attempts_per_call": 3,
+  "sdk_retries": 0,
+  "connect_retries": 0,
+  "reasoning_effort": "high",
+  "round_token_limit": 200000000,
+  "reserved_tokens_per_attempt": 2000000,
+  "retry_backoff_seconds": 2,
+  "text_output_tokens": 65536,
+  "vision_output_tokens": 32768,
+  "input_file_count": 11,
+  "input_max_bytes": 268435456,
+  "prepare_memory_bytes": 8589934592,
+  "models": {
+    "coordinator": "deepseek-v4.1-flash-1017",
+    "reviewer": "deepseek-v4.1-flash-1017",
+    "rubric_grader": "deepseek-v4.1-flash-1017",
+    "text_tool": "deepseek-v4.1-flash-1017",
+    "vision": "deepseek-v4.1-flash-1017",
+    "writer": "glm-5.3",
+    "layout": "glm-5.3"
+  },
+  "manifest_profiles": {
+    "tool_discovery_profile": "agent-search-v2",
+    "content_contract": "hierarchical-review-v1",
+    "coverage_contract": "object-coverage-v1",
+    "review_entrypoint": "delegated-reviewer-v1",
+    "review_execution_mode": "native-reviewer-v2",
+    "delegation_prompt_profile": "separate-description-v1",
+    "context_policy": "stateful-tools-v2",
+    "review_interface_profile": "review-interfaces-v4",
+    "operation_identity_profile": "native-tool-runtime-v1",
+    "content_input_profile": "relation-endpoints-v2",
+    "report_expression_profile": "reader-expression-v2",
+    "context_projection": "review-materials-v1",
+    "history_projection_profile": "exact-history-v1",
+    "review_submission_contract": "task-scope-selectors-v1"
+  }
+}

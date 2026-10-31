@@ -61,7 +61,7 @@ async def main():
     with store.connect() as db:
         db.execute('DELETE FROM source_blocks WHERE source_id=?',(reference['id'],))
         Catalog._blocks(db,reference['id'],[b for b in inputs['report_blocks'] if b['source_id']==reference['id']])
-    load_mixed_services(Path('/mnt/c/Users/dongy/Documents/ChatGPT/湖南高速智能体项目/.env'))
+    load_mixed_services(Path(__file__).resolve().parents[1]/'.env')
     os.environ['REPORT_DEEPSEEK_STRICT']='0'
     os.environ['REPORT_REASONING_EFFORT']='low'
     for role in ('WRITER','REVIEWER','COORDINATOR','TEXT_TOOL','RUBRIC_GRADER','LAYOUT'):

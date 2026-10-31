@@ -177,6 +177,9 @@ class GLMChatOpenAI(ChatOpenAI):
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         client = self.http_client
+        from .model_recovery import load_recovery_policy, RecoveryBlocked
+        if load_recovery_policy(getattr(client, 'observation_store', None)):
+            raise RecoveryBlocked('RECOVERY_ASYNC_ENTRYPOINT_REQUIRED')
         with observation_scope(getattr(client, 'observation_store', None),
                                getattr(client, 'observation_role', None)):
             result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)

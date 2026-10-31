@@ -27,7 +27,7 @@ async def main():
     store.set('manifest', manifest)
     store.event('operator_followup', {'message':'排版还需要跟参考的报告对齐。',
                                     'previous_goal':previous,'current_goal':manifest['goal']})
-    load_mixed_services(Path('/mnt/c/Users/dongy/Documents/ChatGPT/湖南高速智能体项目/.env'))
+    load_mixed_services(Path(__file__).resolve().parents[1]/'.env')
     os.environ['REPORT_DEEPSEEK_STRICT']='0'
     os.environ['REPORT_REASONING_EFFORT']='low'
     for role in ('WRITER','REVIEWER','COORDINATOR','TEXT_TOOL','RUBRIC_GRADER','LAYOUT'):
