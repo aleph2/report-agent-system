@@ -72,6 +72,7 @@ def assert_current_page_identity(pair, observations):
 
 @pytest.mark.parametrize('wrong_current', [False, True], ids=['current-pair', 'wrong-current-legal-old'])
 async def test_layout_comparison_preserves_actual_page_identity_and_cache(ws, request, monkeypatch, wrong_current):
+    ws.store.set('layout_revision_limit', 1)
     label = 'wrong-current' if wrong_current else 'normal'
     folder = Path(os.environ.get('REPORT_LAYOUT_COMPARISON_OUT', str(ws.store.root / 'captures'))) / label
     held, clients = {}, []

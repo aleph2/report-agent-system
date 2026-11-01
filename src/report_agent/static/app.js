@@ -2,7 +2,8 @@
 
 const $ = (id) => document.getElementById(id);
 const labels = {
-  ready: "就绪", running: "执行中", completed: "已完成", failed: "执行失败",
+  ready: "就绪", running: "执行中", completed: "执行结束", failed: "执行失败",
+  not_assessed: "报告尚未评估", review_evidence_available: "已有审核记录，尚非整体验收",
   error: "执行错误", paused: "已暂停", interrupted: "执行中断", needs_attention: "需要处理",
   waiting: "等待中", waiting_for_human: "等待人工处理", pending: "待执行",
   draft: "报告草稿", draft_ready: "草稿已保存", unreviewed_draft: "草稿未审核",

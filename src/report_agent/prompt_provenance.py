@@ -185,6 +185,39 @@ def observe_prompt_request(request, store=None, role=None):
         'prompt_final_http_input', final_capture)
 
 
+def observe_provider_usage(response, store=None, role=None):
+    """Public provider counters only; settlement remains in token_budget."""
+    from .transport_observation import observe_safely, observe_event
+    def capture():
+        try:
+            body = response.json()
+        except (ValueError, UnicodeError):
+            body = None
+        raw = body.get('usage') if isinstance(body, dict) else None
+        usage, cached, source = None, None, None
+        def count(value):
+            return type(value) is int and value >= 0
+        if isinstance(raw, dict):
+            usage = {k: raw[k] for k in ('prompt_tokens', 'completion_tokens', 'total_tokens',
+                'input_tokens', 'output_tokens') if count(raw.get(k))}
+            details = raw.get('prompt_tokens_details')
+            if isinstance(details, dict) and count(details.get('cached_tokens')):
+                cached, source = details['cached_tokens'], 'prompt_tokens_details.cached_tokens'
+                usage['prompt_tokens_details'] = {'cached_tokens': cached}
+            elif count(raw.get('prompt_cache_hit_tokens')):
+                cached, source = raw['prompt_cache_hit_tokens'], 'prompt_cache_hit_tokens'
+                usage['prompt_cache_hit_tokens'] = cached
+            if count(raw.get('prompt_cache_miss_tokens')):
+                usage['prompt_cache_miss_tokens'] = raw['prompt_cache_miss_tokens']
+        call = _CALL.get()
+        observe_event(store, 'prompt_provider_usage', {'role': role,
+            'purpose': call['purpose'] if call else 'unattributed:' + str(role),
+            'call_id': call['call_id'] if call else None,
+            'attempt_id': (response.request.extensions.get('report_token_budget') or (None, None))[1],
+            'usage': usage, 'cached_tokens': cached, 'cached_tokens_source': source})
+    observe_safely(capture)
+
+
 def append_declared_system(request, text, source, *, references=None, files=()):
     """Keep exact app contribution bytes with the SystemMessage, outside wire text."""
     old = request.system_message

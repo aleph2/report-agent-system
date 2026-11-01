@@ -143,6 +143,10 @@ class BusinessBoundary(InvalidToolFeedback):
         return response
 
     async def awrap_tool_call(self, request, handler):
+        from .tool_selection import reject_unoffered
+        rejected = reject_unoffered(self.workspace, self.role, request)
+        if rejected is not None:
+            return rejected
         from .live_messages import tool_binding
         try:
             with tool_binding(self.workspace, self.role, request) as bound_request:
@@ -901,6 +905,8 @@ def require_native_runtime(workspace):
 def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
     manifest = workspace.store.manifest
+    from .tool_selection import selection_mode, NativeToolSelection
+    tool_selection_mode = selection_mode(manifest)
     from .operation_identity import validate_profile as operation_profile
     identity_profile = operation_profile(manifest)
     from .prompt_sources import validate_content_input_profile, validate_report_expression_profile, REPORT_EXPRESSION_V1
@@ -955,6 +961,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 # Writer GLM-5.3 has forced thinking; its authored calls remain unchanged.
                 *([working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
                 BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions),
+                *([NativeToolSelection(workspace, role)] if tool_selection_mode == 'on' else []),
                 AgentPromptBoundary(workspace, role, expression_profile=expression_profile,
                                     interface_profile=interface_profile, prompt_profile=text_profile,
                                     review_submission_contract=submission_contract)]
@@ -965,7 +972,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     roles = {role: configured_prompt(role) for role in ("writer", "reviewer", "layout")}
     from .prompt_sources import native_reviewer
     subagents = [{"name": role,
-                  "description": load_prompt('agent-' + role).split('\n\n', 1)[0],
+                  "description": load_prompt('agent-' + role),
                   "system_prompt": prompt,
                   "model": model_factory(role), "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
                   "middleware": middleware(role)} for role, prompt in roles.items()

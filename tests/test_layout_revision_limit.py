@@ -9,7 +9,8 @@ from report_agent.errors import ActionRejected
 from report_agent.layout_revision import status
 
 
-def test_default_once_limit_survives_tasks_snapshots_roots_and_store_reopen(ws):
+def test_explicit_once_limit_survives_tasks_snapshots_roots_and_store_reopen(ws):
+    ws.store.set('layout_revision_limit', 1)
     cs, actor, refs, snap, all_refs = seed(ws)
     export_snapshot(cs, actor, 'initial', snap)
     with delegated_task(ws, 'coordinator', {'id': 'layout-one', 'args': {

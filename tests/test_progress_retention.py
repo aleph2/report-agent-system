@@ -8,6 +8,7 @@ from collections import Counter
 
 import httpx
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph.message import add_messages
@@ -48,13 +49,14 @@ def exchange(mw, ident, text=None, name='read_file', args=None, status='success'
 
 async def presented(mw, messages):
     request = SimpleNamespace(messages=messages, system_message=SystemMessage('Role remains authoritative.'))
+    request.state = {'messages': request.messages}
     request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
     seen = []
     async def handler(value):
         seen.append(value)
         return AIMessage('Synthetic observation, no acceptance.')
     await mw.awrap_model_call(request, handler)
-    return json.loads(seen[0].system_message.content[-1]['text'])['current_task']
+    return current_task(seen[0])
 
 
 def test_v2_reuses_context_policy_without_migrating_v1(ws):

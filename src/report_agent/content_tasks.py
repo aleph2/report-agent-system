@@ -241,7 +241,11 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
         return MessageTool.from_function(tool.func, coroutine=tool.coroutine, name=tool.name,
             args_schema=schema, message_model=schema,
             description='Delegate the actual goal to an available role using this request resource-scope dictionary. '
-                        'The program binds exact resources and stores the assignment; use only the current flat fields.\n\n'+descriptions)
+                        'The program binds exact resources and stores the assignment; use only the current flat fields. '
+                        'Content tasks have persistent owners. For revision, use the saved object owner_task_scope '
+                        'as resume_task_scope to continue its original producer with unchanged permissions and assignment. '
+                        'A new task, even of the same role, cannot overwrite that work. '
+                        'Continuation restores business identity, not the entire earlier conversation.\n\n'+descriptions)
     if review_profile not in {BOUNDED_REVIEW, NATIVE_REVIEW}:
         raise ActionRejected("UNKNOWN_REVIEW_EXECUTION_PROFILE")
     from .prompt_sources import REVIEW_INTERFACE_V1, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, review_handoff_source

@@ -1,5 +1,6 @@
 """Small, exact decision-state projections; no model, scheduler or semantic judge."""
 import json
+from copy import deepcopy
 from typing import Annotated
 
 from pydantic import Field
@@ -89,35 +90,8 @@ def preview(value, path, limit=800):
 
 
 def feedback_projection(records):
-    """Deliver recent ordinary feedback whole, keeping large history recoverable.
-
-    The former uniform 600-character preview hid substantive corrections even
-    for one ordinary-sized feedback message. Prefer whole messages, newest
-    first, with a bounded serialized expansion over the existing previews.
-    This changes delivery only: origin, original text and state paths survive;
-    it neither interprets feedback nor claims the agent applied it.
-    """
-    start = max(0, len(records)-20)
-    items = [{k:preview(v,['operator_feedback',i,k],600) for k,v in r.items()}
-        if isinstance(r,dict) else preview(r,['operator_feedback',i],600)
-        for i,r in enumerate(records[start:],start)]
-    remaining = 12000
-    for j in range(len(items)-1,-1,-1):
-        original = records[start+j]
-        value = original.get('message') if isinstance(original,dict) else original
-        shown = items[j].get('message') if isinstance(original,dict) else items[j]
-        if not isinstance(value,str) or len(value)>6000 or not isinstance(shown,dict):
-            continue
-        expansion = max(0,len(encode(value))-len(encode(shown)))
-        if expansion > remaining:
-            continue
-        if isinstance(original,dict):
-            items[j]['message'] = value
-        else:
-            items[j] = value
-        remaining -= expansion
-    return items if start == 0 else {'items':items,'total':len(records),
-        'offset':start,'complete':False,'read_state_path':['operator_feedback']}
+    """Instructions remain exact; native state delivery removes unchanged repeats."""
+    return deepcopy(records)
 
 
 def bounded_metadata(value, path):
@@ -197,14 +171,12 @@ def compact_context(context):
             **guidance,
             'available_experience': bounded_metadata(guidance['available_experience'],
                                                      ['learned_guidance','available_experience'])}
-    result['goal'] = preview(context['goal'], ['goal'], 1200)
+    result['goal'] = context['goal']
     scope = context.get('scope_instruction')
-    result['scope_instruction'] = ({**scope, 'text':preview(scope['text'], ['scope_instruction','text'])}
-        if isinstance(scope, dict) and isinstance(scope.get('text'), str) else preview(scope, ['scope_instruction']))
+    result['scope_instruction'] = deepcopy(scope)
     if context.get('assignment'):
         assignment = context['assignment']
-        result['assignment'] = {k:bounded_metadata(v, ['assignment',k]) for k,v in assignment.items()
-            if k not in {'review_requirements'}}
+        result['assignment'] = deepcopy(assignment)
         requirements = assignment.get('review_requirements') or []
         result['assignment']['review_scope_inventory'] = {
             'total':len(requirements), 'read_state_path':['assignment','review_requirements'],

@@ -34,7 +34,7 @@ class CoTaskMessage(BaseModel):
     artifact_pages: list[Annotated[int, Field(ge=1)]] = Field(default_factory=list,
         description='Optional distinct one-based physical pages of ONE selected RenderArtifact for targeted page review. Return only the actual pages requested, not PDF block indexes. Omission selects no extra page-specific extent; it does not claim all pages checked. Export structure and content questions omit this field.')
     supervision_plugin: str | None = Field(default=None, description='Optional registered Reviewer supervision plugin name; omit for no selection. It does not create access or semantic approval.')
-    resume_task_scope: str | None = Field(default=None, description='Optional existing DelegatedTask scope from THIS dictionary to continue with unchanged role and permissions. Return description/subagent_type plus this scope; do not combine it with a new snapshot, standards, scope, artifacts or supervision selection.')
+    resume_task_scope: str | None = Field(default=None, description='Optional existing DelegatedTask scope from THIS dictionary to continue its persistent owner with unchanged role, permissions and assignment. Use an owned object owner_task_scope for its original producer, not a UUID or a new same-role task. Return description/subagent_type plus this scope; do not combine it with a new snapshot, standards, scope, artifacts or supervision selection. This restores business identity, not all earlier chat messages.')
 
     @model_validator(mode='after')
     def actual_business_selection(self):

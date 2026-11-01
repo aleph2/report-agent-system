@@ -56,7 +56,10 @@ def test_multiple_node_records_are_visible_without_final_or_render_requirements(
     assert "obligations" not in context and "delivery_check_kinds" not in context
     ws.store.set("report_status", "completed")
     state = project_state(ws)
-    assert state["status"] == state["execution_status"] == "completed"
+    assert state["execution_status"] == "completed"
+    assert state["status"] == "review_evidence_available"
+    assert state["report_review_required"] is True
+    assert state["whole_report_acceptance"] is None
     assert state["content_current_review"]["overall_verdict"] is None
 
 

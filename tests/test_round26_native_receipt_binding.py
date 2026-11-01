@@ -7,6 +7,7 @@ from collections import Counter
 
 import httpx
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import HumanMessage
 
 from report_agent.content_store import Actor
@@ -20,16 +21,7 @@ from test_reviewer_complete_materials import configure
 
 
 def state_packet(body):
-    marker = '{"current_task":'
-    for message in body['messages']:
-        if message['role'] != 'system':
-            continue
-        content = message['content']
-        parts = [content] if isinstance(content, str) else [p.get('text', '') for p in content]
-        for text in parts:
-            if marker in text:
-                return json.JSONDecoder().raw_decode(text.split(marker, 1)[1].lstrip())[0]
-    raise AssertionError('Actual SDK request lacks native state packet')
+    return current_task(body['messages'])
 
 
 @pytest.mark.parametrize('change_mutable_manifest', [False, True])

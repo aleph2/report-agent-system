@@ -335,7 +335,10 @@ def model_async_client(store=None, role=None, extra_hooks=(), *, capacity_profil
     # Configured adapter hooks precede the guard and financial reservation.
     hooks = [admit_capacity, *extra_hooks, admit_prompt, account_request, observe_start, observe_prompt]
     from .token_budget import account_response
-    responses = [observe_headers, account_response]
+    from .prompt_provenance import observe_provider_usage
+    async def observe_usage(response):
+        observe_provider_usage(response, store, role)
+    responses = [observe_headers, account_response, observe_usage]
     if sdk_retries:
         async def observe_attempt(request):
             if store is not None:
@@ -391,13 +394,15 @@ def model_sync_client(store=None, role=None, *, capacity_profile=None):
         if 400 <= response.status_code < 500 and response.status_code not in {408,409,429}:
             response.headers['x-should-retry'] = 'false'
     from .input_capacity import capacity_request_hook
-    from .prompt_provenance import admit_prompt_request, observe_prompt_request
+    from .prompt_provenance import admit_prompt_request, observe_prompt_request, observe_provider_usage
     return ObservedClient(observation_store=store, observation_role=role,
         transport=httpx.HTTPTransport(retries=retries),
         event_hooks={'request':[capacity_request_hook(capacity_profile, store), admit_prompt_request,
                                account_request_sync, observe_start,
                                lambda request: observe_prompt_request(request,store,role)],
-                    'response':[observe_http_headers, account_response_sync, *([permanent_error] if sdk_retries else [])]})
+                    'response':[observe_http_headers, account_response_sync,
+                                lambda response: observe_provider_usage(response, store, role),
+                                *([permanent_error] if sdk_retries else [])]})
 
 
 _CLIENT_OWNER = ContextVar('report_model_client_owner', default=None)

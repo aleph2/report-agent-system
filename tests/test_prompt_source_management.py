@@ -51,6 +51,28 @@ def test_role_first_paragraph_is_linked_only_at_task_description(tmp_path, monke
     assert json.dumps(offered) == before
 
 
+def test_complete_role_definition_has_full_file_provenance_at_task_description(tmp_path, monkeypatch):
+    from report_agent import prompt_sources
+    text = '# Writer\n\nComplete responsibility.\n\nKeep the final constraint.'
+    (tmp_path / 'agent-writer.md').write_text(text, encoding='utf-8')
+    (tmp_path / 'agent-common.md').write_text('Distinct shared principles.', encoding='utf-8')
+    monkeypatch.setattr(prompt_sources, 'RULES', tmp_path)
+    offered = {'messages': [{'role': 'user', 'content': '# Writer'}], 'tools': [
+        {'function': {'name': 'task', 'description': text,
+                      'parameters': {'properties': {'description': {'description': '# Writer'}}}}},
+        {'function': {'name': 'other_tool', 'description': '# Writer'}}]}
+    before = json.dumps(offered)
+    manifest = prompt_sources.source_manifest(None, ['agent-writer', 'agent-common'], offered)
+    writer, common = manifest['files']
+    assert writer['matched_locations'] == [{'path': 'tools/0/function/description',
+        'role': 'tool_definition', 'match': 'literal'}]
+    assert writer['offered_match'] == 'literal'
+    assert writer['file_sha256'] == hashlib.sha256(text.encode()).hexdigest()
+    assert not common['matched_locations'] and common['offered_match'] == 'not_observed'
+    assert manifest['unresolved_sources'] == ['agent-common']
+    assert json.dumps(offered) == before
+
+
 @pytest.mark.parametrize('purpose,source', [
     ('text-work', 'text-work'), ('qualifier-work', 'qualifier-work'),
     ('evidence-analysis', 'evidence-analysis'), ('artifact-analysis', 'artifact-analysis'),

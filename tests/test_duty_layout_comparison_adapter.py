@@ -36,6 +36,7 @@ from test_task_supervision import ws
 
 @pytest.mark.parametrize('cap', [6, 5], ids=['normal-wire', 'current-saved-before-local-refusal'])
 async def test_layout_comparison_actual_sdk_handoffs_files_and_shared_budget(ws, request, monkeypatch, cap):
+    ws.store.set('layout_revision_limit', 1)
     roles = {'coordinator': 'deepseek-v4.1-flash', 'writer': 'glm-5.3',
              'reviewer': 'deepseek-v4.1-flash', 'layout': 'glm-5.3',
              'text_tool': 'deepseek-v4.1-flash', 'vision': 'deepseek-v4.1-flash'}

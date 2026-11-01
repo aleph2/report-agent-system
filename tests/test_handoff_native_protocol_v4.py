@@ -1,6 +1,6 @@
 """Actual native task/tool channels with scripted decisions; no autonomy claim."""
 import json
-import re
+from support.task_state_contract import current_task
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -20,20 +20,7 @@ async def test_native_review_feedback_correction_save_return_and_explicit_adopti
     assigned = {}
     saved = []
     def public_state(messages):
-        for message in messages:
-            if message.type != 'system':
-                continue
-            blocks = message.content if isinstance(message.content, list) else [message.content]
-            for block in blocks:
-                text = block.get('text','') if isinstance(block,dict) else block
-                for marker in re.finditer(r'\{', text):
-                    try:
-                        value, _ = json.JSONDecoder().raw_decode(text[marker.start():])
-                    except ValueError:
-                        continue
-                    if isinstance(value,dict) and value.get('origin') == 'server_bound_application_state':
-                        return value
-        raise AssertionError('No actual public task-state frame was supplied')
+        return current_task(messages)
     def read_body(messages):
         assigned.update(public_state(messages)['assignment'])
         assigned['review_requirements'] = assigned['review_scope_inventory']['scopes']

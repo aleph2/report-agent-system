@@ -3,6 +3,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
@@ -51,9 +52,10 @@ async def receive(ws, role='coordinator', history=None, failure=False):
         return AIMessage(content='Offline response only')
     request = SimpleNamespace(messages=history or [HumanMessage(content='Ordinary goal')],
                               system_message=SystemMessage(content='Existing role responsibilities'))
+    request.state = {'messages': request.messages}
     request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
     await TaskContext(ws, role).awrap_model_call(request, handler)
-    context = json.loads(seen[0].system_message.content[-1]['text'])['current_task']
+    context = current_task(seen[0])
     return context, seen[0]
 
 
