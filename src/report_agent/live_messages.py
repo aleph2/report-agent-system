@@ -115,7 +115,7 @@ def _receipt_label(contents, value, resources=None, *, actor=None):
         metadata = next((s for s in contents.store.source_catalog() if s['id'] == source_id), {})
         name = next((metadata[k] for k in ('name', 'title', 'file_name', 'path')
                      if isinstance(metadata.get(k), str) and metadata[k]), 'Source material')
-        source_label['source_name'] = name.replace('\\', '/').rsplit('/', 1)[-1][:160]
+        source_label['source_name'] = name.replace('\\', '/').rsplit('/', 1)[-1]
         if resources is not None:
             identity = digest(['source', source_id, value.get('source_digest') or source.get('source_sha256')])
             source_label['material_scope'] = resources.setdefault(identity, 'm' + str(len(resources)))
@@ -217,12 +217,17 @@ def _co_request(ws, request):
             item['snapshot_scope'] = refs.get(digest(payload['snapshot_ref']))
         if record['ref']['type'] == 'DelegatedTask':
             item.update(role=payload['role'], goal=payload.get('goal', ''))
+        elif record.get('task_id'):
+            owner_scope = refs.get(digest({'type': 'DelegatedTask', 'id': record['task_id'], 'version': 1}))
+            if owner_scope is not None:
+                item['owner_task_scope'] = owner_scope
         public_resources.append(item)
     packet = {'tool': 'task',
         'field_dictionary': 'Types, requirements and conditional business choices are in the task schema.',
         'resource_scopes': public_resources,
         'meaning': 'Short scopes bind exact saved versions in THIS request. Availability grants no extra '
-                   'ownership or access. Select the actual task and full commission basis; '
+                   'ownership or access. To revise owned work, select its owner_task_scope as resume_task_scope; '
+                   'a new task of the same role is a different owner. Select the actual task and full commission basis; '
                    'the program assembles and stores that selection without guessing a review result.'}
     function = convert_to_openai_tool(tool)['function']
     from .prompt_provenance import append_declared_system

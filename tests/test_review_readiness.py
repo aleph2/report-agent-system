@@ -4,6 +4,7 @@ from collections import Counter
 from copy import deepcopy
 
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import AIMessage
 
 from report_agent import deep_runtime
@@ -361,9 +362,7 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
     controls = []
     def see_first_system(messages):
         system = next(m for m in messages if m.type == 'system')
-        prefix = '{"current_task":'
-        block = next(b['text'] for b in system.content_blocks if b.get('text', '').startswith(prefix))
-        control = json.loads(block)['current_task']['review_input_readiness']
+        control = current_task(system)['review_input_readiness']
         assert not control['execution_ready'] and control['issues']['complete']
         assert {i['kind'] for i in control['issues']['entries']} == {'undeclared', 'unresolved'}
         assert {i['scope_id'] for i in control['issues']['entries']} == {'rule-comparison', 'other-scope'}

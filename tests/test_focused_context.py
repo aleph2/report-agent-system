@@ -4,6 +4,7 @@ from copy import deepcopy
 from collections import Counter
 
 import pytest
+from support.task_state_contract import current_task
 import httpx
 from langchain_core.messages import AIMessage, ToolMessage
 from report_agent.task_context import TaskContext, read_observation
@@ -258,6 +259,7 @@ async def test_later_message_cleanup_cannot_remove_the_current_exact_recovery_po
     messages = pair(ToolMessage('Exact original data', name='read_object_index', tool_call_id='later'))
     original = capture(ws, 'coordinator', messages)[0]
     request = SimpleNamespace(messages=messages, system_message=SystemMessage('Role authority.'))
+    request.state = {'messages': request.messages}
     request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
     final = []
     async def later_handler(value):
@@ -266,7 +268,7 @@ async def test_later_message_cleanup_cannot_remove_the_current_exact_recovery_po
         final.append(value)
         return AIMessage('Synthetic output.')
     await middleware.awrap_model_call(request, later_handler)
-    state = json.loads(final[0].system_message.content[-1]['text'])['current_task']
+    state = current_task(final[0])
     pointer = state['received_returns']['recent'][0]
     assert pointer['observation_ref'] == original['observation_ref']
     assert pointer['sha256'] == original['sha256']
@@ -314,6 +316,7 @@ async def test_native_compaction_reopen_and_late_cleanup_keep_exact_pointer_on_f
     ws.store.add_feedback('Independent review remains pending; no acceptance has been established.')
     summary_inputs, cleaned, wires, models = [], [], [], {}
     original_workspace = ws
+    summary_phase = {'reopened': False}
 
     async def summarize(prompt):
         summary_inputs.append(str(prompt))
@@ -334,7 +337,10 @@ async def test_native_compaction_reopen_and_late_cleanup_keep_exact_pointer_on_f
 
     monkeypatch.setattr('report_agent.working_summary.working_summary', lambda model, store, role:
         LateCleanupSummary(model=RunnableLambda(summarize), store=store, role=role,
-            trigger=('messages', 7), keep=('messages', 1), token_counter=lambda messages: len(messages),
+            # Force real native compaction after reopening, independently of
+            # how many authenticated state-change frames the first turns add.
+            trigger=('messages', 1 if summary_phase['reopened'] else 1000),
+            keep=('messages', 1), token_counter=lambda messages: len(messages),
             trim_tokens_to_summarize=None))
 
     def factory(role):
@@ -372,6 +378,7 @@ async def test_native_compaction_reopen_and_late_cleanup_keep_exact_pointer_on_f
         before = next(r for r in recovery_tool(ws, 'coordinator')()['observations'] if r['tool'] == 'read_file')
         original = ws.store.get('tool_observation:'+before['observation_ref'])
         reopened = Workspace(Store(ws.store.root))
+        summary_phase['reopened'] = True
         async with deep_runtime.project_agent(reopened, factory) as agent:
             resumed = await agent.aget_state(config)
             assert resumed.values['messages'] == checkpoint.values['messages']
@@ -383,10 +390,7 @@ async def test_native_compaction_reopen_and_late_cleanup_keep_exact_pointer_on_f
             for m in final_checkpoint.values['messages'])
         visible = encode(wires[-1]['messages'])
         assert 'Late fixture cleanup removed' in visible and 'Exact qualifier' not in visible
-        marker = '{"current_task":'
-        blocks = [m['content'] for m in wires[-1]['messages'] if m['role'] == 'system']
-        text = '\n'.join(b if isinstance(b, str) else '\n'.join(x.get('text', '') for x in b) for b in blocks)
-        context, _ = json.JSONDecoder().raw_decode(text.split(marker, 1)[1].lstrip())
+        context = current_task(wires[-1]['messages'])
         assert context['received_returns']['projection'] == 'focused-v1'
         pointer = next(r for r in context['received_returns']['recent'] if r['tool'] == 'read_file')
         for field in ('call_id', 'observation_ref', 'sha256', 'receiving_actor', 'receiving_task', 'status', 'selection'):

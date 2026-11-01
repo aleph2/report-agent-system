@@ -95,7 +95,8 @@ async def test_native_checkpoint_patches_bad_json_without_executing_or_repairing
     with monkeypatch.context() as patch:
         patch.setattr(InvalidToolFeedback, 'aafter_model', historical_end)
         stopped = await deep_runtime.run_report(ws, first)
-    assert stopped['status'] == 'completed'  # Native turn ended; no review acceptance.
+    assert stopped['execution_status'] == 'completed'  # Native turn ended; no review acceptance.
+    assert stopped['status'] == 'not_assessed' and stopped['report_review_required'] is True
     assert not cs.list_objects('ReviewRecord')
     assert len(cs.list_objects()) == before
 
@@ -169,7 +170,8 @@ async def test_valid_sibling_executes_once_and_agent_may_decline_invalid_action(
     driver = Driver(coordinator=[mixed, decline])
     result = await deep_runtime.run_report(ws, driver)
     assert result['last_error'] is None, result
-    assert result['status'] == 'completed'  # Declining a tool call may end the turn.
+    assert result['execution_status'] == 'completed'  # Declining a tool call may end the turn.
+    assert result['status'] == 'not_assessed' and result['report_review_required'] is True
     assert not cs.list_objects('ReviewRecord')
     assert len(driver.calls) == 2
     assert len(cs.list_objects()) == before + 1

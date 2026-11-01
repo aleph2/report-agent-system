@@ -441,17 +441,19 @@ def test_cli_exit_code(native_ws, monkeypatch, capsys, status, error, expected):
     from report_agent import cli
 
     calls = []
+    public_status = 'not_assessed' if status == 'completed' else status
+    result = {'status': public_status, 'execution_status': status, 'last_error': error,
+              'report_review_required': True, 'whole_report_acceptance': None}
     async def stub(*args, **kwargs):
         calls.append((args, kwargs))
-        return {"status": status, "execution_status": status, "last_error": error}
+        return dict(result)
 
     from report_agent import deep_runtime
     monkeypatch.setattr(deep_runtime, "run_report", stub)
     monkeypatch.setattr("sys.argv", ["report-agent", "report-run", "--project", str(native_ws.store.root)])
     assert cli.main() == expected
     assert len(calls) == 1 and calls[0][1] == {"decision_only": False}
-    assert json.loads(capsys.readouterr().out) == {
-        "status": status, "execution_status": status, "last_error": error}
+    assert json.loads(capsys.readouterr().out) == result
 
 
 def test_retired_cli_run_cannot_execute_or_change_saved_history(tmp_path, monkeypatch, capsys):

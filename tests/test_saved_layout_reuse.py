@@ -134,6 +134,7 @@ def test_owner_and_layout_delegation_permissions_preserved(ws):
 
 
 def test_reuse_cannot_reset_revision_limit_or_change_receipt_intent(ws):
+    ws.store.set('layout_revision_limit', 1)
     cs,actor,_,snap,_ = seed(ws)
     first = export_snapshot(cs,actor,'first',snap)['result']['export_ref']
     second = export_snapshot(cs,actor,'second',snap,{'toc':False})['result']['export_ref']

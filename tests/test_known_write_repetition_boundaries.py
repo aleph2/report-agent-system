@@ -19,7 +19,8 @@ from test_task_supervision import ws, offline
 
 @pytest.mark.parametrize("change", ["unchanged", "new_source", "operator_input", "new_head",
     "unknown_receipt", "unresolved_receipt", "failed_receipt", "new_human", "new_delegate", "new_actor",
-    "changed_instruction", "restored_guard", "changed_arguments", "new_operation", "no_ai_id", "parallel_calls", "invalid_sibling"])
+    "changed_instruction", "restored_guard", "changed_arguments", "new_operation", "no_ai_id", "parallel_calls", "invalid_sibling",
+    "authenticated_host_frame", "unverified_frame_marker"])
 def test_only_exact_current_known_write_proof_can_stop(ws, change):
     catalog, cs = Catalog(ws.store), ContentStore(ws.store)
     delegated = call("task", {"subagent_type": "writer", "description": "Save one structural plan"}, "first-invocation")
@@ -67,6 +68,18 @@ def test_only_exact_current_known_write_proof_can_stop(ws, change):
                     db.execute("UPDATE content_operations SET response=? WHERE operation_id=?", (encode(response), args["operation_id"]))
         elif change == "new_human":
             messages.insert(-1, HumanMessage(content="A new human invocation", id="human-two"))
+        elif change in {"authenticated_host_frame", "unverified_frame_marker"}:
+            from report_agent.task_state_delivery import prepare_delivery, persist_frame, verified_frame
+            # Host control provenance is not evidence that a business write succeeded.
+            _, _, frame = prepare_delivery(ws.store, [], {'actor_id': actor.id,
+                'origin': 'server_bound_application_state', 'goal': 'Synthetic saved task metadata.'})
+            assert frame is not None
+            if change == "authenticated_host_frame":
+                persist_frame(ws.store, actor.id, frame)
+                assert verified_frame(ws.store, frame) is not None
+            else:
+                assert verified_frame(ws.store, frame) is None
+            messages.insert(-1, frame)
         elif change in {"new_delegate", "new_actor"}:
             other = {"subagent_type": "writer", "description": "A separate actual invocation"}
             if change == "new_delegate":
@@ -84,13 +97,13 @@ def test_only_exact_current_known_write_proof_can_stop(ws, change):
         elif change == "new_operation":
             next_call["args"] = {**args, "operation_id": "different-intended-write"}
         with alternative:
-            if change == "unchanged":
+            if change in {"unchanged", "authenticated_host_frame"}:
                 with pytest.raises(RuntimeError, match="^REPEATED_ACTION_WITHOUT_STATE_PROGRESS$"):
                     guard.intercept(next_call, messages)
             else:
                 guard.intercept(next_call, messages)
         stopped = [e for e in ws.store.events() if e["kind"] == "known_write_repetition_stopped"]
-        assert len(stopped) == (1 if change == "unchanged" else 0)
+        assert len(stopped) == (1 if change in {"unchanged", "authenticated_host_frame"} else 0)
         if stopped:
             actual_receipt = cs.receipt(actor, args["operation_id"])
             assert actual_receipt["state"] == "known_success"

@@ -101,7 +101,7 @@ def test_old_profiles_retain_native_parameter_help(profile):
     assert original.args_schema.model_json_schema() == before
 
 
-async def test_final_native_sdk_prompt_and_short_description_keep_complete_binding(case, authored_rules):
+async def test_final_native_sdk_prompt_and_complete_role_description_keep_binding(case, authored_rules):
     from report_agent.deep_runtime import build_agent
     from report_agent.deep_models import GLMChatOpenAI, model_async_client
     from report_agent.workspace import Workspace
@@ -137,8 +137,7 @@ async def test_final_native_sdk_prompt_and_short_description_keep_complete_bindi
         assert 'Include all necessary context' not in task['parameters']['properties']['description']['description']
         assert CoTaskMessage.model_fields['description'].description == task['parameters']['properties']['description']['description']
         for role in ('writer', 'reviewer', 'layout'):
-            assert load_prompt('agent-' + role).split('\n\n', 1)[0] in task['description']
-            assert load_prompt('agent-' + role) not in task['description']
+            assert load_prompt('agent-' + role) in task['description']
         assert 'review' not in task['parameters']['properties']
         assert 'snapshot_scope' in task['parameters']['properties']
         assert not {'review_requirements', 'review_snapshot_ref'} & task['parameters']['properties'].keys()

@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from report_agent.decision_state import compact_context, read_state
@@ -26,50 +27,43 @@ async def test_actual_model_middleware_delivers_whole_moderate_feedback_after_st
     ws.store.set('feedback', [item])
     stale = HumanMessage(content='Old summary says no feedback and task already complete.')
     request = SimpleNamespace(messages=[stale], system_message=SystemMessage(content='Existing role.'))
+    request.state = {'messages': request.messages}
     request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
     seen=[]
     async def handler(value):
         seen.append(value)
         return AIMessage(content='Input capture only, not semantic acceptance.')
     await TaskContext(ws, 'coordinator').awrap_model_call(request, handler)
-    packet = json.loads(seen[0].system_message.content[-1]['text'])['current_task']
+    packet = current_task(seen[0])
     assert packet['operator_feedback'][0] == item
     assert seen[0].messages == [stale]
     assert ws.store.get('feedback') == [item]
 
 
-def test_newest_feedback_is_exact_with_bounded_total_expansion_and_old_paths():
+def test_all_operator_feedback_remains_exact_without_rewriting_origin_or_old_paths():
     body = feedback_body()
     records = [{'id':str(i), 'origin':'operator', 'message':body+str(i)} for i in range(25)]
     original = {'goal':'goal', 'operator_feedback':records}
     before = copy.deepcopy(original)
     packet = compact_context(original)['operator_feedback']
-    assert packet['offset'] == 5 and len(packet['items']) == 20
-    assert packet['items'][-1] == records[-1]
-    assert len(encode(packet)) < 30000
-    omitted = [i for i,r in enumerate(packet['items'],5) if isinstance(r['message'],dict)]
-    assert omitted
-    for i in omitted:
-        value = packet['items'][i-5]['message']
-        assert value['complete'] is False
-        assert value['read_state_path'] == ['operator_feedback',i,'message']
-        assert value['sha256'] == digest(records[i]['message'])
+    assert packet == records
+    assert len(packet) == 25
+    assert packet[-1]['message'] == records[-1]['message']
     assert original == before
 
 
-def test_oversized_feedback_remains_explicitly_partial_and_exactly_recoverable(ws):
+def test_long_operator_instruction_is_whole_and_structured_read_still_recovers_exact_text(ws):
     seed(ws)
     huge = feedback_body()*30
     small = feedback_body()
     ws.store.set('feedback',[{'id':'large','message':huge}, {'id':'recent','message':small}])
     from report_agent.task_context import exact_task_context
     packet = compact_context(exact_task_context(ws,'coordinator'))['operator_feedback']
-    partial = packet[0]['message']
-    assert partial['complete'] is False and partial['characters'] == len(huge)
+    assert packet[0] == {'id': 'large', 'message': huge}
     assert packet[1]['message'] == small
     pieces=[]; offset=0
     while True:
-        page=read_state(ws,'coordinator',partial['read_state_path'],offset,characters=6000)
+        page=read_state(ws,'coordinator',['operator_feedback',0,'message'],offset,characters=6000)
         pieces.append(page['value'])
         if page['next_offset'] is None: break
         offset=page['next_offset']

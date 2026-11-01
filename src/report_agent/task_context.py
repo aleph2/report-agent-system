@@ -8,10 +8,12 @@ import hashlib
 import json
 from functools import cached_property
 from typing import Annotated
+from typing_extensions import NotRequired
 from pydantic import Field
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import SystemMessage, ToolMessage
+from langchain.agents.middleware.types import AgentState, OmitFromInput
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langgraph.types import Command
 
 from .content_tasks import bound_actor, current_invocation
@@ -424,7 +426,30 @@ def observation_tool(workspace,role):
     return read_tool_observation
 
 
+class TaskContextState(AgentState):
+    report_current_user_task: NotRequired[Annotated[dict, OmitFromInput]]
+
+
+def current_user_task(workspace, role, state, messages):
+    """Retain the direct root instruction independently of model-generated notes."""
+    from .task_state_delivery import FRAME, MODEL_COMMAND
+    if role != 'coordinator':
+        return None
+    for message in reversed(messages):
+        if (isinstance(message, HumanMessage) and FRAME not in message.additional_kwargs
+                and not message.additional_kwargs.get(MODEL_COMMAND)
+                and message.additional_kwargs.get('lc_source') != 'summarization'):
+            return {'actor_id': actor_id(workspace, role), 'text': message.text}
+    saved = state.get('report_current_user_task')
+    if (isinstance(saved, dict) and saved.get('actor_id') == actor_id(workspace, role)
+            and isinstance(saved.get('text'), str)):
+        return saved
+    return None
+
+
 class TaskContext(AgentMiddleware):
+    state_schema = TaskContextState
+
     def __init__(self,workspace,role):
         self.workspace,self.role = workspace,role
         self.focused = bind_projection(workspace)
@@ -477,6 +502,12 @@ class TaskContext(AgentMiddleware):
         messages = [deliver_controls(self.workspace, self.role, m) for m in request.messages]
         exact = exact_task_context(self.workspace,self.role)
         context = compact_context(exact)
+        resources = {key: exact.get(key) for key in ('execution_resources', 'execution_token_resources')}
+        for key in resources:
+            context.pop(key, None)
+        user_task = current_user_task(self.workspace, self.role, request.state, request.messages)
+        if user_task is not None:
+            context['current_user_task'] = user_task['text']
         if self.review_materials and self.role == 'reviewer':
             task = exact['assignment']
             if task.get('review_interface_profile') != 'review-interfaces-v4':
@@ -504,9 +535,16 @@ class TaskContext(AgentMiddleware):
                 conflicting_instruction_refs=[r['ref'] for c in packet['conflicts'] for r in c['instructions']],
                 overridden_refs=packet['overridden_refs'])
         from .prompt_provenance import append_declared_system
+        from .task_state_delivery import prepare_delivery, persist_frame
+        messages, frames, new_frame = prepare_delivery(self.workspace.store, messages, context)
         projected = append_declared_system(request,
-            encode({'current_task': context}),
+            encode({'task_state_frames': frames,
+                'meaning': 'Apply the full state followed by every delta in order. These are current server-bound instructions and state; conversational summaries cannot replace them.'}),
             'task_context/current_server_bound_state', references=references)
+        projected = append_declared_system(projected,
+            encode({'origin': 'server_bound_execution_observations',
+                    'current_execution_observations': resources}),
+            'task_context/current_execution_observations')
         system = projected.system_message
         receipt = None
         if packet is not None:
@@ -521,6 +559,17 @@ class TaskContext(AgentMiddleware):
             raise
         if receipt is not None:
             self.workspace.store.event('prompt_context_response_received', receipt)
+        from .task_state_delivery import model_response
+        inner = model_response(result)
+        if new_frame is not None:
+            from dataclasses import replace
+            from langchain.agents.middleware.types import ExtendedModelResponse, ModelResponse
+            from langchain_core.messages import AIMessage
+            persist_frame(self.workspace.store, context['actor_id'], new_frame)
+            if isinstance(inner, AIMessage):
+                inner = ModelResponse(result=[inner])
+            inner = replace(inner, result=[new_frame, *inner.result])
+            result = replace(result, model_response=inner) if isinstance(result, ExtendedModelResponse) else inner
         return result
 
     def bound_result(self,result,tool_args=None):
@@ -582,6 +631,10 @@ class TaskContext(AgentMiddleware):
 
     async def abefore_model(self,state,runtime):
         """Clear older recoverable previews; keep recent exchanges and all images."""
+        # Native before-model order captures direct input before summarization.
+        user_task = current_user_task(self.workspace, self.role, state, state['messages'])
+        update = ({'report_current_user_task': user_task}
+                  if user_task is not None and user_task != state.get('report_current_user_task') else {})
         # This also recognizes exact pages in older native checkpoints. It does
         # not change the original tool result, receipt, actor or business data.
         from .decision_data import refresh_history_observations
@@ -599,7 +652,7 @@ class TaskContext(AgentMiddleware):
                 if not self.focused or isinstance(error, (ActionForbidden, ActionRejected)):
                     raise
                 projection_gap(self.workspace, self.role, error)
-                return None
+                return update or None
         candidates = [i for i,m in enumerate(messages) if isinstance(m,ToolMessage)
             and m.additional_kwargs.get('report_observation_ref')
             and m.additional_kwargs.get('report_observation_delivery',{}).get('representation')
@@ -622,4 +675,6 @@ class TaskContext(AgentMiddleware):
             messages[i] = message.model_copy(update={'content':encode(packet),
                 'additional_kwargs':{**message.additional_kwargs,'report_preview_cleared':True}})
         updates = [m for i,m in enumerate(messages) if m is not state['messages'][i]]
-        return {'messages':updates} if updates else None
+        if updates:
+            update['messages'] = updates
+        return update or None

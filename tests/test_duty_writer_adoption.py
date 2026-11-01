@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 
 from report_agent.deep_models import configured_model
@@ -33,14 +34,8 @@ def consumer_scripts(case, held):
         assert entry['qualifiers'] == payload['qualifiers']
         assert entry['payload_digest'] == digest(payload) and entry['body_deferred']
         assert 'body' not in entry
-        for message in messages:
-            content = message.content
-            for block in content if isinstance(content, list) else [{'text': content}]:
-                text = block.get('text', '')
-                prefix = '{"current_task":'
-                if text.startswith(prefix):
-                    state = json.loads(text)['current_task']
-                    held['source_ref'] = next(i['ref'] for i in state['input_refs'] if i['source_id'] == 's')
+        state = current_task(messages)
+        held['source_ref'] = next(i['ref'] for i in state['input_refs'] if i['source_id'] == 's')
         assert 'source_ref' in held
         if case == 'missing-incomplete':
             return AIMessage(content='Candidate requires inspection; no action or adoption has been completed.')

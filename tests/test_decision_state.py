@@ -3,6 +3,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from support.task_state_contract import current_task
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
 from pydantic import ValidationError
@@ -26,13 +27,12 @@ def test_large_authority_is_recoverable_and_latest_feedback_visible(ws):
     ws.store.set('feedback',[{'message':text+str(i)} for i in range(25)])
     original = exact_task_context(ws,'coordinator')
     compact = compact_context(original)
-    assert len(encode(compact)) < len(encode(original))/10
     assert compact['state_digest']==original['state_digest']
-    assert compact['operator_feedback']['offset']==5
-    last = compact['operator_feedback']['items'][-1]['message']
-    assert last['read_state_path']==['operator_feedback',24,'message']
+    assert compact['goal'] == text
+    assert compact['scope_instruction'] == original['scope_instruction']
+    assert compact['operator_feedback'] == original['operator_feedback']
     for path, expected in [(['goal'],text),(['scope_instruction','text'],text),
-            (last['read_state_path'],text+'24')]:
+            (['operator_feedback',24,'message'],text+'24')]:
         offset=0; pieces=[]
         while True:
             page=read_state(ws,'coordinator',path,offset,characters=4000)
@@ -167,13 +167,14 @@ async def test_native_state_injection_keeps_stale_history_and_bounded_checks_unc
     seen=[]
     stale=HumanMessage(content='Summary says the report lacks its child and all checks passed.')
     request=SimpleNamespace(messages=[stale],system_message=SystemMessage(content='Role guidance'))
+    request.state = {'messages': request.messages}
     request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
     async def handler(value): seen.append(value); return AIMessage(content='read current state')
     with delegated_task(ws,'coordinator',review_call(snapshot,refs)):
         mw=TaskContext(ws,'reviewer')
         assert 'read_decision_state' in {t.__name__ for t in mw.tools}
         await mw.awrap_model_call(request,handler)
-    packet=json.loads(seen[0].system_message.content[-1]['text'])['current_task']
+    packet=current_task(seen[0])
     assert packet['review_progress']['execution_complete'] is False
     assert packet['assigned_targets'][0]['current_version']==1
     assert seen[0].messages==[stale]

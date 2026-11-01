@@ -74,17 +74,26 @@ def canonical_input(payload):
         blocks = content if isinstance(content, list) else [{'type': 'text', 'text': content}]
         for block in blocks:
             text = block.get('text') if isinstance(block, dict) else None
-            if not isinstance(text, str) or not text.startswith(_TASK_PREFIX):
+            if not isinstance(text, str):
                 continue
+            prefix = _TASK_PREFIX if text.startswith(_TASK_PREFIX) else ''
             try:
-                context = json.loads(text[len(_TASK_PREFIX):])
+                context = json.loads(text[len(prefix):])
             except ValueError:
                 continue
-            if not isinstance(context, dict) or context.get('origin') != 'server_bound_application_state':
+            if not isinstance(context, dict):
                 continue
-            context.pop('execution_resources', None)
-            context.pop('execution_token_resources', None)
-            block['text'] = _TASK_PREFIX + encode(context)
+            if prefix and context.get('origin') == 'server_bound_application_state':
+                resources = context
+            elif not prefix and context.get('origin') == 'server_bound_execution_observations':
+                resources = context.get('current_execution_observations')
+                if not isinstance(resources, dict):
+                    continue
+            else:
+                continue
+            resources.pop('execution_resources', None)
+            resources.pop('execution_token_resources', None)
+            block['text'] = prefix + encode(context)
         if not isinstance(content, list):
             message['content'] = blocks[0]['text']
     return value

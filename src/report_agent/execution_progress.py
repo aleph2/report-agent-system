@@ -19,6 +19,39 @@ EPISODES = 'execution_progress_episode:'
 SUPPORTED = frozenset({'read_tool_observation','read_content_index'})
 
 
+def progress_signals(observations, *, window):
+    """Compare public call observations; these signals never stop or replay work."""
+    if type(window) is not int or window < 2:
+        raise ValueError('PROGRESS_WINDOW_MUST_BE_AT_LEAST_TWO')
+    fields = ('role', 'purpose', 'task_id', 'phase')
+    groups = {}
+    for row in observations:
+        if not all(isinstance(row.get(k), str) and row[k] for k in fields):
+            continue
+        key = tuple(row[k] for k in fields)
+        groups.setdefault(key, []).append(row)
+    signals = []
+    for key, records in groups.items():
+        recent = records[-window:]
+        if len(recent) != window:
+            continue
+        kinds = []
+        tokens = [r.get('tokens') for r in recent]
+        if (all(type(n) is int and n >= 0 for n in tokens)
+                and all(a < b for a, b in zip(tokens, tokens[1:]))):
+            kinds.append('increasing_tokens')
+        rejections = [r.get('rejection_signature') for r in recent]
+        if all(isinstance(s, str) and s and s == rejections[0] for s in rejections):
+            kinds.append('repeated_rejection')
+        saved = [r.get('saved_record_refs') for r in recent]
+        if all(isinstance(refs, list) for refs in saved):
+            seen = {digest(ref) for ref in saved[0]}
+            if all(digest(ref) in seen for refs in saved[1:] for ref in refs):
+                kinds.append('no_new_saved_records')
+        signals.extend({'kind': kind, **dict(zip(fields, key)), 'window': window} for kind in kinds)
+    return signals
+
+
 def validate_policy(workspace):
     value = workspace.store.manifest.get('execution_progress_policy')
     if value is None: return None

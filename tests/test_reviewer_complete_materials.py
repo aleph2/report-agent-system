@@ -3,6 +3,7 @@ import json
 from copy import deepcopy
 
 import pytest
+from support.task_state_contract import current_task
 
 from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionRejected
@@ -143,6 +144,7 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
                 request = SimpleNamespace(messages=[HumanMessage('Historical notes may be summarized.'),
                     ToolMessage('Old body', name='read_file', tool_call_id='old')],
                     system_message=SystemMessage('Role authority.'))
+                request.state = {'messages': request.messages}
                 request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
                 async def late_cleanup(projected):
                     # Later history offloading cannot alter the freshly rebuilt task materials.
@@ -155,9 +157,7 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
         assert len(wires) == 2
         for wire in wires:
             system = next(m['content'] for m in wire['messages'] if m['role'] == 'system')
-            blocks = system if isinstance(system, list) else [system]
-            frame = next(json.loads(b['text'])['current_task'] for b in blocks
-                         if isinstance(b, dict) and b.get('text', '').startswith('{"current_task":'))
+            frame = current_task(system)
             records = frame['review_materials']['objects']
             body = next(r for r in records if r['ref']['type'] == 'ContentNode'
                         and r['payload']['body'].get('text') == text)
@@ -275,9 +275,7 @@ async def test_native_summary_and_checkpoint_reopen_restore_full_materials(case,
             assert summaries and len(wires) == 2
             for wire in wires:
                 system = next(m['content'] for m in wire['messages'] if m['role'] == 'system')
-                blocks = system if isinstance(system, list) else [system]
-                frame = next(json.loads(b['text'])['current_task'] for b in blocks
-                    if isinstance(b, dict) and b.get('text', '').startswith('{"current_task":'))
+                frame = current_task(system)
                 records = {json.dumps(o['ref'], sort_keys=True): o for o in frame['review_materials']['objects']}
                 assert frame['review_materials']['contract'] == 'review-materials-v1'
                 for criterion in criteria:

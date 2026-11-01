@@ -177,7 +177,8 @@ async def test_native_writer_filesystem_respects_text_only_model(ws, monkeypatch
         dump(folder / 'source-hashes-after.json', source_hashes())
         request.node.user_properties.append(('image_routing_capture', str(folder)))
 
-    assert error is None and runtime['status'] == 'completed', (error, runtime)
+    assert error is None and runtime['execution_status'] == 'completed', (error, runtime)
+    assert runtime['status'] == 'not_assessed' and runtime['report_review_required'] is True
     assert source_hashes() == before and not unused.calls
     if layout_fixture:
         assert all(content_store.read(o['ref']) == o for o in layout_fixture['originals'])

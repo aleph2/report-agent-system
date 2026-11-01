@@ -52,7 +52,12 @@ async def test_non_target_history_avoids_manifest_reads_without_changing_message
         ])
     before = [m.model_dump() for m in messages]
     reads = count_manifest_reads(ws, monkeypatch)
-    assert await TaskContext(ws, 'coordinator').abefore_model({'messages': messages}, None) is None
+    update = await TaskContext(ws, 'coordinator').abefore_model({'messages': messages}, None)
+    assert update == {'report_current_user_task': {
+        'actor_id': 'content:coordinator', 'text': 'Use the actual source.'}}
+    assert reads == []
+    assert [m.model_dump() for m in messages] == before
+    assert await TaskContext(ws, 'coordinator').abefore_model({'messages': messages, **update}, None) is None
     assert reads == []
     assert [m.model_dump() for m in messages] == before
 
