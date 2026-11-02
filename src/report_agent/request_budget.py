@@ -174,9 +174,7 @@ def _host_limit_snapshot(value):
 
 def current_budget_observation():
     budgets = _active.get()
-    if not budgets:
-        return None
-    result = budgets[-1].snapshot()
+    result = budgets[-1].snapshot() if budgets else {}
     if len(budgets) > 1:
         result['enclosing_request_budgets'] = [budget.snapshot() for budget in budgets[:-1]]
     limits = []
@@ -189,7 +187,7 @@ def current_budget_observation():
                 limits.append({'status': 'unavailable'})
     if limits:
         result['host_run_limits'] = limits
-    return result
+    return result or None
 
 
 @contextmanager

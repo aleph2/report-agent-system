@@ -26,7 +26,7 @@ async def test_exact_host_allows_post_failure_work_and_protects_independent_budg
     ns=runpy.run_path(str(candidate),run_name='offline_host_proof')
     state=ns['run'].__globals__
     here=tmp_path/'run';here.mkdir();case=here/'case';inputs=here/'inputs';inputs.mkdir()
-    for i in range(state['CONFIG']['input_file_count']):(inputs/f'input-{i}.md').write_text('Synthetic source only',encoding='utf-8')
+    for i in range(6):(inputs/f'input-{i}.md').write_text('Synthetic source only',encoding='utf-8')
     for name,value in [('HERE',here),('CASE',case),('INPUT',inputs),('SOURCE',root),
                        ('LEDGER',tmp_path/'finance/new/token-budget.db'),('CANONICAL',tmp_path/'canonical/token-budget.db'),
                        ('LOCK',tmp_path/'shared.lock'),('ENV',here/'fixture.env')]:
@@ -46,7 +46,7 @@ async def test_exact_host_allows_post_failure_work_and_protects_independent_budg
     held=prior.reserve('glm-5.3')
     settled=prior.reserve('glm-5.3');prior.settle(settled,{'total_tokens':123})
     old=state['canonical_baseline']()
-    budget=TokenBudget(state['LEDGER'],state['LIMIT'],bounds)
+    budget=TokenBudget(state['LEDGER'],state['TOTAL_LIMIT'],bounds)
     store=Store(case);store.initialize({'goal':'Synthetic independent host recovery proof',
         'sources':[{'id':'s','title':'Synthetic source','content':'Offline test source only.','coverage':'complete'}]})
     LearningLibrary(case/'experience-library')
@@ -56,7 +56,8 @@ async def test_exact_host_allows_post_failure_work_and_protects_independent_budg
     prepared={'host_sha256':state['sha'](candidate),'source_pins':state['source_pins'](),
         'input_hashes':state['input_files'](),'state_sha256':state['sha'](store.path),
         'library_sha256':state['sha'](case/'experience-library/state.db'),
-        'canonical_baseline':old,'endpoint_pins':endpoints,'recovery_policy':policy}
+        'canonical_baseline':old,'endpoint_pins':endpoints,'recovery_policy':policy,
+        'ledger_baseline':state['finance']()}
     state['save'](here/'prepared.json',prepared)
     state['save'](here/'neo-approval.json',{'approved':True,'host_sha256':state['sha'](candidate),
         'prepared_sha256':state['sha'](here/'prepared.json'),'synthetic_only':True})

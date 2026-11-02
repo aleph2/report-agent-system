@@ -426,7 +426,7 @@ def _resources(episode,maximum):
     current=_ledger(); original=episode.get('ledger'); request=current_budget_observation()
     if (not original or not current or any(current[k]!=original[k] for k in ('path','maximum','bounds'))
             or current['observation']['remaining_for_new_reservations']<max(current['bounds'].values())
-            or not request or request['remaining_http_attempts']<1 or type(maximum) is not int or maximum<1):
+            or not request or request.get('remaining_http_attempts',0)<1 or type(maximum) is not int or maximum<1):
         raise ActionRejected('PROGRESS_RECOVERY_RESOURCES_OR_LEDGER_REQUIRED')
 
 
