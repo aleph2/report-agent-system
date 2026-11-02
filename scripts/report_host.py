@@ -17,6 +17,7 @@ LEDGER=Path(DEPLOYMENT["ledger"]) if DEPLOYMENT else None
 ENV=HOME_ROOT/".env"
 LOCK=HOME_ROOT/".runs/shared-model-validation.lock"
 LIMIT=CONFIG["round_token_limit"]
+TOTAL_LIMIT=CONFIG.get("m1_token_limit",LIMIT)
 ROLE_MODELS=CONFIG["models"]
 MODEL_BOUNDS={model:CONFIG["reserved_tokens_per_attempt"] for model in set(ROLE_MODELS.values())}
 sys.path.insert(0,str(SOURCE/"src"))
@@ -33,7 +34,6 @@ def source_pins():
 def input_files():
  root=INPUT.resolve(strict=True)
  files=sorted(p for p in root.rglob("*") if p.is_file() and not p.name.startswith("~$"))
- if len(files)!=CONFIG["input_file_count"]:raise RuntimeError("REAL_INPUT_SET_CHANGED")
  result={}
  for p in files:
   if p.is_symlink() or not p.resolve().is_relative_to(root) or p.suffix.lower() not in (".pdf",".md",".docx"):raise RuntimeError("INPUT_ESCAPE_OR_TYPE")
@@ -45,7 +45,7 @@ def read_finance(path):
  with closing(sqlite3.connect(path.resolve().as_uri()+"?mode=ro",uri=True,timeout=3)) as db:
   db.execute("PRAGMA query_only=ON");db.execute("BEGIN")
   auth=db.execute("select maximum,bounds from authorization where id=1").fetchone()
-  rows=list(db.execute("select id,model,reserved,used,state from attempts order by id"))
+  rows=list(db.execute("select id,model,reserved,used,state,response_id,reason,at from attempts order by id"))
   db.rollback()
  if auth is None:raise ValueError("AUTH_MISSING")
  return {"auth":list(auth),"rows":[list(x) for x in rows]}
@@ -57,6 +57,26 @@ def canonical_baseline():
  "held":sum(x[2] for x in rows if x[4] in ("reserved","unknown")),
  "bounds":json.loads(records["auth"][1])}
 def finance():return read_finance(LEDGER)
+
+def validate_budget_authority():
+ if not DEPLOYMENT or not DEPLOYMENT.get("budget_authority"):
+  if DEPLOYMENT and DEPLOYMENT.get("reuse_ledger"):raise RuntimeError("M1_BUDGET_AUTHORITY_REQUIRED")
+  return
+ path=Path(DEPLOYMENT["budget_authority"])
+ if sha(path)!=DEPLOYMENT["budget_authority_sha256"]:raise RuntimeError("M1_BUDGET_AUTHORITY_CHANGED")
+ authority=load(path)
+ if (Path(authority.get("ledger","")).resolve()!=LEDGER.resolve()
+     or authority.get("maximum_tokens")!=TOTAL_LIMIT or authority.get("model_bounds")!=MODEL_BOUNDS
+     or any(not isinstance(authority.get(k),str) or not authority[k].strip() for k in ("authorization_id","user_authority"))):
+  raise RuntimeError("M1_BUDGET_AUTHORITY_MISMATCH")
+
+def budget_scope_cost(before,now):
+ from report_agent.request_budget import RequestBudgetExceeded
+ old={x[0]:x for x in before["rows"]};rows={x[0]:x for x in now["rows"]}
+ if now["auth"]!=before["auth"] or any(rows.get(k)!=v for k,v in old.items()):
+  raise RequestBudgetExceeded("HOST_BASELINE_CHANGED")
+ diff=[x for k,x in rows.items() if k not in old]
+ return sum(x[3] or 0 for x in diff),sum(x[2] for x in diff if x[4] in ("reserved","unknown")),any(x[4]=="unknown" for x in diff)
 
 def endpoint_pins():
  from report_agent.model_config import load_mixed_services,role_service
@@ -82,7 +102,10 @@ def prepare():
  from report_agent.token_budget import TokenBudget
  import report_agent.ingestion as ingestion
  if LEDGER is None:raise RuntimeError("STAGED_DEPLOYMENT_REQUIRED")
- if CASE.exists() or LEDGER.exists() or (HERE/"prepared.json").exists():raise RuntimeError("CASE_EXISTS")
+ reuse=bool(DEPLOYMENT and DEPLOYMENT.get("reuse_ledger"))
+ if CASE.exists() or (LEDGER.exists() and not reuse) or (HERE/"prepared.json").exists():raise RuntimeError("CASE_EXISTS")
+ validate_budget_authority()
+ if reuse and (not LEDGER.is_file() or finance()!=load(HERE/"stage-receipt.json")["ledger_baseline"]):raise RuntimeError("M1_LEDGER_BASELINE_CHANGED")
  canonical=canonical_baseline();bounds=MODEL_BOUNDS
  if bounds!=MODEL_BOUNDS:raise RuntimeError("MODEL_BOUND_NOT_REGISTERED")
  settings=endpoint_pins();pins=input_files()
@@ -92,13 +115,16 @@ def prepare():
  if any(pins[n]!=v["sha256"] or (INPUT/n).stat().st_size!=v["input_bytes"] or v["pages"]>ingestion.MAX_PDF_PAGES for n,v in profiles.items()):raise RuntimeError("PDF_PROFILE_INPUT_MISMATCH")
  scope_names=[n for n in pins if Path(n).name=="报告编写范围说明.md"]
  references=[n for n in pins if Path(n).parts[0]=="成果报告" and n.lower().endswith(".pdf")]
- if len(scope_names)!=1 or len(references)!=1:raise RuntimeError("COMMISSION_OR_REFERENCE_AMBIGUOUS")
+ if len(scope_names)!=1:raise RuntimeError("COMMISSION_OR_REFERENCE_AMBIGUOUS")
  scope=(INPUT/scope_names[0]).read_text(encoding="utf-8-sig")
- goal=("格式参考文件："+Path(references[0]).name+"。根据以下委托范围和所提供资料，编制总体施工安全风险评估报告及风险评估表，完成独立审核，交付Word和Excel。成果报告PDF仅供结构和格式参考，事实与评估依据使用前置资料和适用指南；对无法确认的事实和评分规则明确说明，不得自行编造。\n\n"+scope)
- manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":"成果报告仅供结构和格式参考，事实和评估依据为前置资料及适用规范。设计与地勘不一致时按委托说明处理并明确记录差异。","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
+ instruction="根据委托要求编写报告，以所提供资料及适用规范为事实和评估依据。报告内容、结构、风格及交付形式由委托要求确定。明确说明无法确认的事项，不得编造。记录资料间的冲突，并按委托要求处理。"
+ if references:instruction+="以下成果报告仅供结构和格式（包括风格、版式）参考，不作为事实或结论依据："+"、".join(references)+"。"
+ goal=instruction+"\n\n"+scope
+ manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
    **CONFIG["manifest_profiles"]}
- budget=TokenBudget(LEDGER,LIMIT,bounds)
- if budget.snapshot()["recorded_tokens"] or budget.snapshot()["reserved_or_unknown_upper_bounds"]:raise RuntimeError("LEDGER_NOT_FRESH")
+ budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds)
+ ledger_baseline=finance()
+ if not reuse and ledger_baseline["rows"]:raise RuntimeError("LEDGER_NOT_FRESH")
  store=Store(CASE);store.initialize(manifest);ws=Workspace(store);ws.initialize();cat=Catalog(store)
  original_limits=(ingestion.MAX_UPLOAD_BYTES,ingestion.MAX_PDF_PAGE_CONTENT_BYTES,ingestion.MAX_PDF_TOTAL_CONTENT_BYTES)
  ids=[];inputs={}
@@ -114,7 +140,7 @@ def prepare():
    print(json.dumps({"imported":name,"bytes":len(data),"pages":profile["pages"] if profile else None},ensure_ascii=False),flush=True)
  finally:
   ingestion.MAX_UPLOAD_BYTES,ingestion.MAX_PDF_PAGE_CONTENT_BYTES,ingestion.MAX_PDF_TOTAL_CONTENT_BYTES=original_limits
- configure_source_use(store,["commission",*ids],"User-authorized fresh real project; example PDF format-only; engineering facts use original materials")
+ configure_source_use(store,["commission",*ids],"User-authorized requirements and source materials; supplied format references, if any, are structure and format only")
  store.set("knowledge_enabled",False);LearningLibrary(CASE/"experience-library")
  store.set("learning_config",{"library_path":str(CASE/"experience-library"),"customer_id":"real-project-isolated"})
  from report_agent.model_recovery import activate_recovery
@@ -122,10 +148,10 @@ def prepare():
  if ContentStore(store).list_objects() or (CASE/"checkpoints.db").exists():raise RuntimeError("CASE_HAS_SEEDED_RESULTS")
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
-    "source_ids":ids,"source_files":inputs,"format_reference":references[0],"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
+    "source_ids":ids,"source_files":inputs,"format_references":references,"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
     "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
     "authority":load(HERE/"authorization.json")["authority"],
-    "financial_authority_path":str(LEDGER),"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
+    "financial_authority_path":str(LEDGER),"m1_token_limit":TOTAL_LIMIT,"ledger_baseline":ledger_baseline,"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",
     "format_only_limitation":"Purpose expressed in commission and metadata, not hard server-side prohibition of fact citations. Final independent source audit required."})
  print("real case prepared; no model requests sent",flush=True)
@@ -149,10 +175,11 @@ async def run():
  if (HERE/"started.json").exists() or (CASE/"checkpoints.db").exists() or sha(CASE/"state.db")!=prep["state_sha256"] or sha(CASE/"experience-library/state.db")!=prep["library_sha256"]:raise RuntimeError("CASE_NOT_FRESH")
  with LOCK.open("a") as lock:
   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+  validate_budget_authority()
   if canonical_baseline()!=prep["canonical_baseline"]:raise RuntimeError("CANONICAL_BASELINE_CHANGED")
   before=finance()
   bounds=json.loads(before["auth"][1])
-  if before["auth"][0]!=LIMIT or before["rows"] or bounds!=MODEL_BOUNDS:raise RuntimeError("NEW_LEDGER_NOT_FRESH")
+  if before["auth"][0]!=TOTAL_LIMIT or before!=prep["ledger_baseline"] or bounds!=MODEL_BOUNDS:raise RuntimeError("M1_LEDGER_BASELINE_CHANGED")
   if bounds!=MODEL_BOUNDS:raise RuntimeError("MODEL_BOUND_NOT_REGISTERED")
   os.environ.update(REPORT_SDK_RETRIES=str(CONFIG["sdk_retries"]),REPORT_CONNECT_RETRIES=str(CONFIG["connect_retries"]),REPORT_REASONING_EFFORT=CONFIG["reasoning_effort"],REPORT_COORDINATOR_REASONING_EFFORT=CONFIG["reasoning_effort"],REPORT_REVIEWER_REASONING_EFFORT=CONFIG["reasoning_effort"])
   load_mixed_services(ENV)
@@ -165,14 +192,14 @@ async def run():
   policy=load_recovery_policy(store)
   if (policy!=prep["recovery_policy"] or policy["extra_per_call"]!=CONFIG["maximum_attempts_per_call"]-1 or policy["extra_per_case"] is not None or policy["extra_token_ceiling"] is not None):raise RuntimeError("RECOVERY_DRIFT")
   bind_role_services(store)
-  budget=TokenBudget(LEDGER,LIMIT,bounds);base={x[0]:x for x in before["rows"]};failed={"seen":False}
+  budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds);failed={"seen":False}
   def scope_cost():
-   now=finance()
-   if now["auth"]!=before["auth"]:raise rb.RequestBudgetExceeded("HOST_BASELINE_CHANGED")
-   rows={x[0]:x for x in now["rows"]}
-   if any(rows.get(k)!=v for k,v in base.items()):raise rb.RequestBudgetExceeded("HOST_BASELINE_CHANGED")
-   diff=[x for k,x in rows.items() if k not in base]
-   return sum(x[3] or 0 for x in diff),sum(x[2] for x in diff if x[4] in ("reserved","unknown")),any(x[4]=="unknown" for x in diff)
+   return budget_scope_cost(before,finance())
+  def observation():
+   used,held,_=scope_cost()
+   return {"scope_id":"report-run","maximum_tokens":LIMIT,"recorded_tokens":used,
+     "reserved_or_unknown_upper_bounds":held,"remaining_for_new_reservations":max(0,LIMIT-used-held),
+     "model_reservation_bounds":bounds,"includes_original_phases":True}
   def observer():
    used,held,unknown=scope_cost()
    # Unresolved attempts remain in held; the explicit policy owns new inference attempts.
@@ -234,7 +261,7 @@ async def run():
   runtime.configured_model=factory;vision.configured_vision_client=vision_factory;dm.configured_vision_client=vision_factory;Store.event=mirror
   save(HERE/"started.json",{"pid":os.getpid(),"host_sha256":sha(__file__),"canonical_baseline":prep["canonical_baseline"]})
   try:
-   with token_budget(budget),rb.request_reservation_observer(observer):result=await runtime.run_report(workspace)
+   with token_budget(budget),rb.request_reservation_observer(observer,observation=observation):result=await runtime.run_report(workspace)
    save(HERE/"result.json",{"status":"finished_pending_independent_review","report_status":store.get("report_status"),"scope_cost":scope_cost()})
   except BaseException as exc:
    failed["seen"]=True

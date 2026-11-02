@@ -36,8 +36,12 @@ def stage(args):
     ledger = args.ledger.resolve()
     if not args.authority.strip():
         raise ValueError('EXPLICIT_RUN_AUTHORITY_REQUIRED')
-    if run.exists() or ledger.exists():
+    reuse = getattr(args, 'reuse_ledger', False)
+    authority = getattr(args, 'budget_authority', None)
+    if run.exists() or ledger.exists() and not reuse:
         raise ValueError('RUN_OR_LEDGER_ALREADY_EXISTS')
+    if reuse and (not ledger.is_file() or authority is None):
+        raise ValueError('EXISTING_M1_LEDGER_AND_AUTHORITY_REQUIRED')
     if (run.is_relative_to(REPOSITORY) or ledger.is_relative_to(REPOSITORY) or run.is_relative_to(inputs)
             or inputs.is_relative_to(run) or ledger.is_relative_to(run)
             or ledger.is_relative_to(inputs) or run.is_relative_to(ledger)):
@@ -61,17 +65,25 @@ def stage(args):
                 raise ValueError('RELEASE_LINKS_FORBIDDEN')
             tar.extractall(source, filter='data')
         shutil.copy2(source / 'scripts/report_host.py', run / 'host.py')
-        save(run / 'deployment.json', {'repository': str(REPOSITORY),
-                                     'ledger': str(ledger), 'commit': commit})
+        deployment = {'repository': str(REPOSITORY), 'ledger': str(ledger),
+                      'commit': commit, 'reuse_ledger': reuse}
+        if authority is not None:
+            authority = authority.resolve(strict=True)
+            deployment.update(budget_authority=str(authority),
+                budget_authority_sha256=hashlib.sha256(authority.read_bytes()).hexdigest())
+        save(run / 'deployment.json', deployment)
         host = runpy.run_path(str(run / 'host.py'), run_name='stage_only')
         config = host['CONFIG']
+        host['validate_budget_authority']()
+        baseline = host['finance']() if reuse else None
+        if reuse and (baseline['auth'][0] != host['TOTAL_LIMIT']
+                or json.loads(baseline['auth'][1]) != host['MODEL_BOUNDS']):
+            raise ValueError('M1_LEDGER_AUTHORIZATION_MISMATCH')
         # PDF parsing uses the same bounded memory allowance as prepare.
         import resource
         resource.setrlimit(resource.RLIMIT_AS,
                            (config['prepare_memory_bytes'], config['prepare_memory_bytes']))
         files = sorted(p for p in inputs.rglob('*') if p.is_file() and not p.name.startswith('~$'))
-        if len(files) != config['input_file_count']:
-            raise ValueError('INPUT_COUNT_MISMATCH')
         destination = run / 'inputs'
         destination.mkdir()
         for path in files:
@@ -106,12 +118,14 @@ def stage(args):
         save(run / 'approved-endpoint-pins.json', host['endpoint_pins']())
         save(run / 'pdf-limits.json', profiles)
         save(run / 'authorization.json', {'authority': args.authority,
-                                        'round_token_limit': config['round_token_limit']})
+                                        'round_token_limit': config['round_token_limit'],
+                                        'm1_token_limit': host['TOTAL_LIMIT']})
         receipt = {'status': 'staged_no_model_calls', 'commit': commit, 'run': str(run),
                    'ledger': str(ledger), 'host_sha256': host['sha'](run / 'host.py'),
                    'source_pins': host['source_pins'](), 'input_hashes': pins,
                    'deployment_sha256': host['sha'](run / 'deployment.json'),
-                   'authorization_sha256': host['sha'](run / 'authorization.json')}
+                   'authorization_sha256': host['sha'](run / 'authorization.json'),
+                   'ledger_baseline': baseline}
         save(run / 'stage-receipt.json', receipt)
         print(json.dumps({'status': receipt['status'], 'commit': commit, 'run': str(run)}))
 
@@ -122,6 +136,8 @@ def main():
     parser.add_argument('--inputs', required=True, type=Path, help='Independent original input directory')
     parser.add_argument('--run', required=True, type=Path, help='New independent run directory')
     parser.add_argument('--ledger', required=True, type=Path, help='New independent token-budget.db')
+    parser.add_argument('--reuse-ledger', action='store_true', help='Explicitly reuse the same authorized M1 ledger')
+    parser.add_argument('--budget-authority', type=Path, help='Exact M1 authorization receipt binding the ledger identity')
     parser.add_argument('--authority', required=True, help='Actual user authorization, not an automatic grant')
     args = parser.parse_args()
     def denied(*args, **kwargs):
