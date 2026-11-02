@@ -53,7 +53,10 @@ async def test_cli_restart_normal_runtime_delivers_only_matching_category(tmp_pa
     snapshot=store.get('prompt_context_snapshot:'+contexts[0]['snapshot_id'])
     effective=snapshot['scoped_instructions']['effective']
     assert bool(effective)==(category==CATEGORY)
-    assert (TEXT in str(driver.calls[0][2][0].content))==(category==CATEGORY)
+    from support.task_state_contract import current_task
+    visible = current_task(driver.calls[0][2])['scoped_instructions']['effective']
+    assert visible == effective
+    assert any(TEXT in record['payload']['text'] for record in visible) == (category == CATEGORY)
     # Pack/category selects instruction scope, not a legacy runtime version.
     assert store.manifest['context_policy']=='stateful-tools-v2'
     with store.run_lock():sync_operator_instructions(Store(store.root))
@@ -70,7 +73,10 @@ async def test_explicit_legacy_context_keeps_category_instruction_routing(tmp_pa
     assert result['last_error'] is None
     assert store.manifest['context_policy'] == 'stateful-tools-v1'
     assert bool(instruction_context(store, 'coordinator')['effective']) == (category == CATEGORY)
-    assert (TEXT in str(driver.calls[0][2][0].content)) == (category == CATEGORY)
+    from support.task_state_contract import current_task
+    visible = current_task(driver.calls[0][2])['scoped_instructions']['effective']
+    assert visible == instruction_context(store, 'coordinator')['effective']
+    assert any(TEXT in record['payload']['text'] for record in visible) == (category == CATEGORY)
 
 
 def test_new_same_class_reports_use_original_version_including_version_history(tmp_path):

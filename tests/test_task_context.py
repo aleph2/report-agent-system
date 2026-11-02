@@ -153,6 +153,8 @@ async def test_large_history_pages_offload_with_exact_actor_scoped_recovery(ws):
 
 
 async def test_current_state_and_revision_counts_ignore_stale_summary(ws):
+    from langchain.agents.middleware.types import ModelRequest
+    from test_deep_runtime import Driver
     cs,owner,refs,_,_=seed(ws)
     ws.store.set('content_revision_limit',1)
     new=cs.commit(owner,'correction',[{'client_key':'claim','type':'ContentNode',
@@ -161,15 +163,14 @@ async def test_current_state_and_revision_counts_ignore_stale_summary(ws):
     seen=[]
     async def handler(request): seen.append(request); return AIMessage(content='observed')
     stale=HumanMessage(content='Summary claims zero corrections and all checks passed.')
-    request=SimpleNamespace(messages=[stale],system_message=SystemMessage(content='Role guidance'))
-    request.state = {'messages': request.messages}
-    request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
+    request=ModelRequest(model=Driver()('coordinator'), messages=[stale], tools=[],
+        state={'messages': [stale]}, system_message=SystemMessage(content='Role guidance'))
     await TaskContext(ws,'coordinator').awrap_model_call(request,handler)
     context=current_task(seen[0])
     head=next(r for r in context['current_owned_heads'] if r['ref']==new)
     assert head['content_corrections_used']==1 and context['content_revision_limit']==1
     assert context['operator_feedback'][0]['message'].startswith('Current instruction')
-    assert seen[0].messages==[stale]
+    assert [m for m in seen[0].messages if not m.text.startswith(('[host-state]', '[host-observations]'))] == [stale]
 
 
 def test_delegate_cannot_read_other_actor_output(ws):
@@ -208,9 +209,11 @@ async def test_released_preferences_reach_actual_model_input_and_follow_release(
     lib.release(LearningScope('customer-a','another-project'),other_fact['id'],1,'Other project')
     seen=[]
     async def handler(request):seen.append(request);return AIMessage(content='offline only')
-    request=SimpleNamespace(messages=[HumanMessage(content='ordinary goal')],system_message=SystemMessage(content='Role'))
-    request.state = {'messages': request.messages}
-    request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
+    from langchain.agents.middleware.types import ModelRequest
+    from test_deep_runtime import Driver
+    messages = [HumanMessage(content='ordinary goal')]
+    request=ModelRequest(model=Driver()('coordinator'), messages=messages, tools=[], state={'messages': messages},
+        system_message=SystemMessage(content='Role'))
     async def packet():
         await TaskContext(ws,'coordinator').awrap_model_call(request,handler)
         return current_task(seen[-1])
@@ -313,7 +316,7 @@ async def test_native_graph_registers_context_tools_and_injects_scoped_state(ws)
     assert result['last_error'] is None
     names={t['name'] for t in driver.bindings['coordinator'][0]}
     assert 'read_tool_observation' in names
-    assert 'server_bound_application_state' in str(driver.calls[0][2][0].content)
+    assert current_task(driver.calls[0][2])['origin'] == 'server_bound_application_state'
 
 
 async def test_repeated_compaction_cannot_change_exact_task_or_obligations(ws):
@@ -357,5 +360,5 @@ async def test_native_checkpoint_continuation_recovers_output_and_current_decisi
     ref=recovered['observation_ref']
     raw=ws.store.get('tool_observation:'+ref)['text']
     assert recovered['text']==raw[6000:12000] and original in raw
-    assert 'Preserve contradiction; do not resolve it.' in str(final[0].content)
+    assert current_task(final)['execution_decision']['instruction'] == 'Preserve contradiction; do not resolve it.'
     assert sum(m.name=='write_file' for m in final if isinstance(m,ToolMessage))==1

@@ -305,8 +305,9 @@ async def test_repeat_feedback_reaches_agent_after_native_failure_recovery(tmp_p
         return await original(self, request, handler)
 
     def react(messages):
-        notice, = [json.loads(b['text'])['execution_observation'] for m in messages if m.type == 'system'
-                   for b in m.content_blocks if b.get('text', '').startswith('{"execution_observation":')]
+        from support.task_state_contract import moved_blocks
+        notice, = [json.loads(part['text'])['execution_observation'] for part in moved_blocks(messages)
+                   if part['source'] == 'repetition/actual_observation']
         assert notice == {'tool': 'calculate', 'identical_successful_exchanges': 3,
                           'semantic_progress_assessed': False}
         assert observation(messages, "calculate")["total"] == "1"

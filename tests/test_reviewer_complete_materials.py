@@ -141,15 +141,20 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
             http_async_client=client, max_retries=0, disable_streaming=True)
         try:
             for current in [middleware, TaskContext(Workspace(Store(cs.store.root)), 'reviewer')]:
-                request = SimpleNamespace(messages=[HumanMessage('Historical notes may be summarized.'),
-                    ToolMessage('Old body', name='read_file', tool_call_id='old')],
-                    system_message=SystemMessage('Role authority.'))
-                request.state = {'messages': request.messages}
-                request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
+                from langchain.agents.middleware.types import ModelRequest
+                messages = [HumanMessage('Historical notes may be summarized.'),
+                            ToolMessage('Old body', name='read_file', tool_call_id='old')]
+                request = ModelRequest(model=model, messages=messages, state={'messages': messages}, tools=[],
+                                       system_message=SystemMessage('Role authority.'))
                 async def late_cleanup(projected):
-                    # Later history offloading cannot alter the freshly rebuilt task materials.
+                    # Compact business history, not this request's authenticated
+                    # authority/tail; arbitrary deletion of all controls is not
+                    # a native summarization contract.
+                    from report_agent.task_state_delivery import verified_frame, trusted_observation
+                    controls = [m for m in projected.messages if verified_frame(current.workspace.store, m)
+                                or trusted_observation(current.workspace.store, m)]
                     return await model.ainvoke([projected.system_message,
-                        HumanMessage('History compacted; preserve the real task.')])
+                        HumanMessage('History compacted; preserve the real task.'), *controls])
                 await current.awrap_model_call(request, late_cleanup)
         finally:
             await model.root_async_client.close()
@@ -157,7 +162,7 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
         assert len(wires) == 2
         for wire in wires:
             system = next(m['content'] for m in wire['messages'] if m['role'] == 'system')
-            frame = current_task(system)
+            frame = current_task(wire['messages'])
             records = frame['review_materials']['objects']
             body = next(r for r in records if r['ref']['type'] == 'ContentNode'
                         and r['payload']['body'].get('text') == text)
@@ -275,7 +280,7 @@ async def test_native_summary_and_checkpoint_reopen_restore_full_materials(case,
             assert summaries and len(wires) == 2
             for wire in wires:
                 system = next(m['content'] for m in wire['messages'] if m['role'] == 'system')
-                frame = current_task(system)
+                frame = current_task(wire['messages'])
                 records = {json.dumps(o['ref'], sort_keys=True): o for o in frame['review_materials']['objects']}
                 assert frame['review_materials']['contract'] == 'review-materials-v1'
                 for criterion in criteria:

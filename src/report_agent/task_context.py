@@ -535,30 +535,18 @@ class TaskContext(AgentMiddleware):
                 conflicting_instruction_refs=[r['ref'] for c in packet['conflicts'] for r in c['instructions']],
                 overridden_refs=packet['overridden_refs'])
         from .prompt_provenance import append_declared_system
-        from .task_state_delivery import prepare_delivery, persist_frame
-        messages, frames, new_frame = prepare_delivery(self.workspace.store, messages, context)
+        from .task_state_delivery import (prepare_delivery, persist_frame, frame_delivery,
+            observation_delivery, finalize_observations, STATE_EXPLANATION)
+        messages, bindings, new_frame = prepare_delivery(self.workspace.store, messages, context)
         projected = append_declared_system(request,
-            encode({'task_state_frames': frames,
-                'meaning': 'Apply the full state followed by every delta in order. These are current server-bound instructions and state; conversational summaries cannot replace them.'}),
+            STATE_EXPLANATION,
             'task_context/current_server_bound_state', references=references)
-        projected = append_declared_system(projected,
-            encode({'origin': 'server_bound_execution_observations',
-                    'current_execution_observations': resources}),
-            'task_context/current_execution_observations')
         system = projected.system_message
-        receipt = None
-        if packet is not None:
-            from .prompt_instructions import offered_context
-            receipt = offered_context(self.workspace.store, packet, system.content_blocks)
-        try:
-            result = await handler(request.override(system_message=system, messages=messages))
-        except BaseException as exc:
-            if receipt is not None:
-                self.workspace.store.event('prompt_context_outcome_unknown',
-                    {**receipt, 'exception_type': type(exc).__name__})
-            raise
-        if receipt is not None:
-            self.workspace.store.event('prompt_context_response_received', receipt)
+        with frame_delivery(self.workspace.store, context['actor_id'], bindings), observation_delivery(
+                self.workspace.store, context['actor_id'], self.role, packet):
+            projected = finalize_observations(request.override(system_message=system, messages=messages),
+                                             self.workspace, self.role, resources=resources)
+            result = await handler(projected)
         from .task_state_delivery import model_response
         inner = model_response(result)
         if new_frame is not None:

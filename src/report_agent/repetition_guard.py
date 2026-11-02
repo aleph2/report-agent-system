@@ -31,9 +31,9 @@ class KnownWriteRepetition:
             invocation = current_invocation(self.workspace, actor)
         except ActionForbidden:
             return None
-        from .task_state_delivery import verified_frame
-        human = next((m for m in reversed(messages) if isinstance(m, HumanMessage)
-                      and verified_frame(self.workspace.store, m) is None), None)
+        from .task_state_delivery import business_messages
+        human = next((m for m in reversed(business_messages(self.workspace.store, messages))
+                      if isinstance(m, HumanMessage)), None)
         if actor is None or human is None or not human.id:
             return None
         return actor, (actor.id, invocation["delegate_operation_id"], invocation["description_sha256"], human.id)

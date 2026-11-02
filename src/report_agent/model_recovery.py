@@ -62,7 +62,7 @@ def owner_identity(store, role):
     return None
 
 
-def canonical_input(payload):
+def canonical_input(payload, *, store=None, role=None):
     """Strip only identified server resource counters, never arbitrary user JSON."""
     value = copy.deepcopy(payload)
     for message in value.get('messages', []):
@@ -96,6 +96,8 @@ def canonical_input(payload):
             block['text'] = prefix + encode(context)
         if not isinstance(content, list):
             message['content'] = blocks[0]['text']
+    from .task_state_delivery import normalize_observations
+    normalize_observations(value, store=store, role=role)
     return value
 
 
@@ -249,7 +251,7 @@ def _raw_json(raw):
     return json.loads(base64.b64decode(raw['body_base64']))
 
 
-def _claim(store, key, service, policy, full_hash, *, role=None, invocation_owner=None):
+def _claim(store, key, service, policy, full_hash, *, role=None, invocation_owner=None, input_layout=None):
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         call = _get(db, key)
@@ -261,9 +263,27 @@ def _claim(store, key, service, policy, full_hash, *, role=None, invocation_owne
             raise RecoveryBlocked('RECOVERY_PRIOR_ATTEMPT_UNRESOLVED')
         if key[len(PREFIX):] in policy['blocked_calls']:
             raise RecoveryBlocked('RECOVERY_HISTORICAL_ATTEMPT_FENCED')
+        if input_layout is not None:
+            # Layout changes cannot prove equivalence to an old unresolved identity.
+            if policy['blocked_calls'] or policy['blocked_wire_hashes']:
+                raise RecoveryBlocked('RECOVERY_LAYOUT_MIGRATION_HISTORICAL_FENCE')
+            for row in db.execute('SELECT value FROM state WHERE key LIKE ?', (PREFIX + '%',)):
+                try:
+                    prior = json.loads(row[0])
+                    if not isinstance(prior, dict):
+                        raise ValueError('invalid historical call')
+                except (ValueError, TypeError):
+                    raise RecoveryBlocked('RECOVERY_LAYOUT_MIGRATION_STATE_INVALID') from None
+                same_scope = (prior.get('service') in (None, service) and prior.get('role') in (None, role)
+                    and (prior.get('invocation_owner') is None or prior['invocation_owner'] == invocation_owner))
+                unresolved = (prior.get('active') or (prior.get('raw') is None
+                    and prior.get('state') != 'returned' and prior.get('provider_outcome') not in {'not_dispatched', 'response_received'}))
+                if same_scope and prior.get('input_layout') != input_layout and unresolved:
+                    raise RecoveryBlocked('RECOVERY_LAYOUT_MIGRATION_UNRESOLVED')
         call = {'owner': str(uuid4()), 'service': service, 'state': 'inflight', 'active': True,
                 'ordinal': 0, 'full_input_sha256': full_hash, 'extra_calls': 0}
         if role is not None:call.update(role=role,invocation_owner=invocation_owner)
+        if input_layout is not None:call['input_layout'] = input_layout
         _put(db, key, call)
         return call, True
 
@@ -335,9 +355,11 @@ async def recover_model_call(*, store, role, profile, payload, invoke, parse_raw
         return await invoke()
     service = digest({'model': profile.get('model'), 'endpoint': str(profile.get('endpoint', '')).rstrip('/')})
     identity = digest({'service': service, 'role': role, 'owner': owner,
-                       'profile': profile, 'input': canonical_input(payload)})
+                       'profile': profile, 'input': canonical_input(payload, store=store, role=role)})
     key = PREFIX + identity
-    call, fresh = _claim(store, key, service, policy, digest(payload),role=role,invocation_owner=owner)
+    from .task_state_delivery import delivery_layout
+    call, fresh = _claim(store, key, service, policy, digest(payload), role=role, invocation_owner=owner,
+                         input_layout=delivery_layout(payload, store, role))
     if not fresh:
         if call['raw']['status'] != 200:
             raise RecoveryBlocked('RECOVERY_PRIOR_RESPONSE_NOT_SUCCESSFUL')

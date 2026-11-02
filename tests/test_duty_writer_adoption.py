@@ -161,9 +161,8 @@ async def test_native_writer_adoption_uses_configured_sdk_binding_without_networ
         # Provider-shaped scripted consumer, not a live model or alternate loop.
         # This is decoding the actual SDK request solely to select a mock
         # provider answer, never constructing input for the application model.
-        messages = [SystemMessage(content=m['content']) if m['role'] == 'system' else
-                    ToolMessage(content=m['content'], tool_call_id=m['tool_call_id'], name=m.get('name', ''))
-                    for m in wire['messages'] if m['role'] in {'system', 'tool'}]
+        from langchain_core.messages import convert_to_messages
+        messages = convert_to_messages(wire['messages'])
         response = scripts[len(wires)](messages)
         message = {'role': 'assistant', 'content': response.content}
         if response.tool_calls:

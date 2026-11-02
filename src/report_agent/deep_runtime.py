@@ -121,7 +121,9 @@ class BusinessBoundary(InvalidToolFeedback):
             else:
                 notice = "Acceptance standards are not yet saved. The coordinator must define them from the commission before report production."
             request = append_declared_system(request, notice, 'acceptance/current_criteria')
-        tool = repeated_observation(request.messages)
+        from .task_state_delivery import business_messages
+        business = business_messages(self.workspace.store, request.messages)
+        tool = repeated_observation(business)
         if tool and not (self.workspace.store.manifest.get('execution_progress_policy') is not None
                 and tool in {'read_tool_observation','read_content_index'}):
             notice = encode({"execution_observation": {
@@ -129,7 +131,7 @@ class BusinessBoundary(InvalidToolFeedback):
                 "semantic_progress_assessed": False}})
             self.workspace.store.event("deep_repetition_observed", {"role": self.role, "tool": tool})
             request = append_declared_system(request, notice, 'repetition/actual_observation')
-        prepared = self.write_repetition.prepare(request.messages, tool)
+        prepared = self.write_repetition.prepare(business, tool)
         if prepared is not None:
             request = append_declared_system(request, encode({'known_write_repetition': {'observed_call_ids': prepared['observed_call_ids'],
                     'operation_id': prepared['proof']['operation_id'], 'receipt_state': 'known_success'}}),
@@ -953,7 +955,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
         return [FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
                 *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
-                  [TodoListMiddleware()] if role == 'coordinator' and native_reviewer(workspace.store) else []),
+                  [TodoListMiddleware()] if role == 'coordinator' else []),
                 *([TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
                 *([ExecutionProgress(workspace,role)]
                     if workspace.store.manifest.get('execution_progress_policy') is not None else []),
@@ -1000,7 +1002,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                              tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool")) + trace_tools(checkpointer),
                              system_prompt=configured_prompt("coordinator"), subagents=subagents, backend=backend,
                              middleware=[*middleware("coordinator", tuple((s['name'], s['description']) for s in subagents)),
-                                         *([] if native_reviewer(workspace.store) else [TodoListMiddleware()]), *review_middleware],
+                                         *review_middleware],
                              checkpointer=checkpointer, name="report_coordinator")
     from .failure_diagnostics import FailureDiagnostics
     diagnostics = FailureDiagnostics(workspace.store)

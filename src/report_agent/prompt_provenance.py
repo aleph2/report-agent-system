@@ -219,15 +219,17 @@ def observe_provider_usage(response, store=None, role=None):
 
 
 def append_declared_system(request, text, source, *, references=None, files=()):
-    """Keep exact app contribution bytes with the SystemMessage, outside wire text."""
+    """Register ordered contributions; the final boundary renders dynamic ones."""
+    from .task_state_delivery import DYNAMIC_SOURCES
     old = request.system_message
     blocks = old.content_blocks if old else []
     declared = list((old.additional_kwargs if old else {}).get('report_system_contributions', []))
     declared.append({'source':source, 'text':text,
+        **({'placement':'tail'} if source in DYNAMIC_SOURCES else {}),
         **({'references':deepcopy(references)} if references is not None else {}),
         **({'files':list(files)} if files else {})})
-    system = SystemMessage(content=[*blocks, {'type':'text', 'text':text}],
-        additional_kwargs={'report_system_contributions':declared})
+    system = SystemMessage(content=blocks if source in DYNAMIC_SOURCES else [*blocks, {'type':'text', 'text':text}],
+        additional_kwargs={**(old.additional_kwargs if old else {}), 'report_system_contributions':declared})
     return request.override(system_message=system)
 
 
@@ -249,10 +251,20 @@ def progress_response_fact(store, call, response, contributions):
     for part in contributions:
         if part['source'] not in {'execution_progress/repetition','execution_progress/recovery_condition'}: continue
         for key,captured in captures:
+            from .task_state_delivery import OBSERVATIONS_MARKER
             system = [m.get('content') for m in captured['public_input']['messages'] if m.get('role')=='system']
             texts = [b.get('text') for c in system if isinstance(c,list) for b in c if isinstance(b,dict)]
             texts += [c for c in system if isinstance(c,str)]
-            if any(part['text']==text or part['text'] in text for text in texts if isinstance(text,str)):
+            tail = captured['public_input']['messages'][-1]
+            moved = []
+            if tail.get('role') == 'user' and isinstance(tail.get('content'), str) and tail['content'].startswith(OBSERVATIONS_MARKER):
+                try:
+                    moved = json.loads(tail['content'][len(OBSERVATIONS_MARKER):].lstrip()).get('moved_blocks', [])
+                except (ValueError, TypeError):
+                    pass
+            delivered = part in moved if part.get('placement') == 'tail' else any(
+                part['text']==text or part['text'] in text for text in texts if isinstance(text,str))
+            if delivered:
                 target=notices if part['source']=='execution_progress/repetition' else conditions
                 target.append({**part['references'], 'capture_ref':key,
                     'text_sha256':hashlib.sha256(part['text'].encode()).hexdigest()})
@@ -277,7 +289,8 @@ def classify_agent_system(system, expected):
     from langchain.agents.middleware.todo import WRITE_TODOS_SYSTEM_PROMPT
     blocks = system.content_blocks if system else []
     sources = [{'source':'configured_role_files', 'sha256':hashlib.sha256(expected.encode()).hexdigest()}]
-    declared = (system.additional_kwargs if system else {}).get('report_system_contributions', [])
+    parts = (system.additional_kwargs if system else {}).get('report_system_contributions', [])
+    declared = [p for p in parts if p.get('placement') != 'tail']
     native_todo = {WRITE_TODOS_SYSTEM_PROMPT, '\n\n'+WRITE_TODOS_SYSTEM_PROMPT}
     if expected:
         if not blocks or blocks[0] != {'type':'text', 'text':expected}:
@@ -306,6 +319,9 @@ def classify_agent_system(system, expected):
             sources.append({'source':'unexplained_residual', 'sha256':digest(block)})
     if remaining:
         exact = False
+    sources.extend({'source': part['source'], 'sha256': digest(part['text']), 'placement': 'tail',
+                    **{k: part[k] for k in ('references', 'files') if k in part}}
+                   for part in parts if part.get('placement') == 'tail')
     if not exact:
         sources.append({'source':'unexplained_composition', 'semantic_guarantee':'none'})
     return ('exact' if exact else 'unexplained'), sources
@@ -337,6 +353,20 @@ class AgentPromptBoundary(AgentMiddleware):
         self.review_submission_contract = review_submission_contract
 
     async def awrap_model_call(self, request, handler):
+        from .task_state_delivery import _OBSERVATIONS, observation_delivery, STATE_EXPLANATION
+        active = _OBSERVATIONS.get()
+        parts = (request.system_message.additional_kwargs if request.system_message else {}).get(
+            'report_system_contributions', [])
+        if (any(p.get('placement') == 'tail' for p in parts)
+                or (active and active['store'] == str(self.workspace.store.root) and active['role'] == self.role)):
+            from .task_context import actor_id
+            if not any(p['source'] == 'task_context/current_server_bound_state' for p in parts):
+                request = append_declared_system(request, STATE_EXPLANATION, 'task_context/current_server_bound_state')
+            with observation_delivery(self.workspace.store, actor_id(self.workspace, self.role), self.role):
+                return await self._awrap_model_call(request, handler)
+        return await self._awrap_model_call(request, handler)
+
+    async def _awrap_model_call(self, request, handler):
         independent_optimizer = self.source == 'experience-optimizer' and self.role == 'experience_optimizer'
         expression_profile = (REPORT_EXPRESSION_V1 if independent_optimizer else
                               self.expression_profile if self.expression_profile is not None
@@ -411,6 +441,11 @@ class AgentPromptBoundary(AgentMiddleware):
                 tool_files.append('export-content-snapshot-v4')
         if tool_files:
             sources.append({'source':'native_registered_tools', 'files':tool_files, 'sha256':digest(tool_text)})
+        from .task_state_delivery import _OBSERVATIONS, finalize_observations
+        delivery = _OBSERVATIONS.get()
+        delivery = delivery if delivery and delivery['store'] == str(self.workspace.store.root) and delivery['role'] == self.role else None
+        if delivery:
+            request = finalize_observations(request, self.workspace, self.role)
         offered = {'messages':[{'role':'system','content':blocks},
             *[m.model_dump(mode='json') for m in request.messages]], 'tools':tools,
             'delegation_prompt_profile':profile,
@@ -418,7 +453,22 @@ class AgentPromptBoundary(AgentMiddleware):
                 and self.role == 'experience_optimizer' else review_profile(self.workspace.store))}
         with prompt_call(self.workspace.store, self.role, sources=sources,
                          status=status, offered=offered) as call:
-            response = await handler(request)
+            from .live_messages import finalize_offer
+            finalize_offer(self.workspace.store, request, call)
+            receipt = None
+            if delivery and delivery['packet'] is not None:
+                from .prompt_instructions import offered_context
+                receipt = offered_context(self.workspace.store, delivery['packet'], blocks,
+                    messages=[m.model_dump(mode='json') for m in request.messages], call_id=call['call_id'])
+            try:
+                response = await handler(request)
+            except BaseException as exc:
+                if receipt is not None:
+                    self.workspace.store.event('prompt_context_outcome_unknown',
+                        {**receipt, 'exception_type': type(exc).__name__})
+                raise
+            if receipt is not None:
+                self.workspace.store.event('prompt_context_response_received', receipt)
             from .transport_observation import observe_safely
             observe_safely(lambda:progress_response_fact(self.workspace.store,call,response,
                 request.system_message.additional_kwargs.get('report_system_contributions',[]))

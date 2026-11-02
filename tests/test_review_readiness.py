@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import pytest
 from support.task_state_contract import current_task
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 from report_agent import deep_runtime
 from report_agent.bounded_review import perform_review
@@ -16,7 +16,7 @@ from report_agent.hierarchical_tools import content_tools, actor_for
 from report_agent.store import encode
 from report_agent.task_supervision import review_readiness, validate_requirements
 from test_bounded_review import Model, review_call
-from test_deep_runtime import Driver, invoke
+from test_deep_runtime import Driver, invoke, observation
 from test_hierarchical_content import seed
 from test_task_supervision import ws, offline
 
@@ -87,9 +87,10 @@ async def test_native_create_rejects_missing_declaration_without_entering_review
     call = review_call(snapshot, refs)
     call['args']['review_requirements'][0]['required_materials'] = []
     def see_error(messages):
-        raw = json.loads(messages[-1].content)
+        returned = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == 'task')
+        raw = observation(messages, 'task')
         assert raw['code'] == 'REQUIRED_REVIEW_MATERIAL_UNRESOLVED'
-        assert '/review_requirements/0/required_checks/0' in messages[-1].content
+        assert '/review_requirements/0/required_checks/0' in returned.content
         return AIMessage(content='Assignment not dispatched; missing declaration remains.')
     driver = Driver(coordinator=[AIMessage(content='', tool_calls=[call]), see_error])
     result = await deep_runtime.run_report(ws, driver)
@@ -109,9 +110,10 @@ async def test_native_create_preserves_whole_source_even_with_ranges(ws, managed
     original_source = cs.read(source)
     observed = []
     def see_assignment(messages):
-        observed.append(messages[-1].content)
-        assert source['id'] in messages[-1].content
-        assert 'oversized_source' not in messages[-1].content
+        returned = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.name == 'read_task_assignment')
+        observed.append(returned.content)
+        assert source['id'] in returned.content
+        assert 'oversized_source' not in returned.content
         return AIMessage(content='Assignment received; no semantic review performed in this fixture.')
     driver = Driver(coordinator=[AIMessage(content='', tool_calls=[call]), AIMessage(content='Assignment retained.')],
                     reviewer=[invoke('read_task_assignment'), see_assignment])
@@ -133,13 +135,13 @@ async def test_native_explicit_unresolved_is_readable_and_checker_stays_pre_call
     call['args']['supervision_plugin'] = None
     call['args']['review_requirements'][0]['required_materials'][0]['refs'] = []
     def see_readiness(messages):
-        result = json.loads(messages[-1].content)
+        result = observation(messages, 'read_task_assignment')
         assert result['readiness']['execution_ready'] is False
         assert result['readiness']['issues'][0]['kind'] == 'unresolved'
         return invoke('perform_assigned_review', operation_id='explicit-gap', scope_ids=['rule-comparison'],
                       source_selections=[], content_selections=[])
     def see_gap(messages):
-        result = json.loads(messages[-1].content)
+        result = observation(messages, 'perform_assigned_review')
         if managed_context:
             result = result['metadata']
         assert result['model_called'] is False and result['review_ref'] is None
@@ -166,7 +168,7 @@ async def test_native_valid_create_read_and_checker_keep_exact_contract(ws, mana
     if managed_context:
         call['args']['description'] += '\n' + ('Long preserved assignment context. ' * 2000)
     def see_readiness(messages):
-        result = json.loads(messages[-1].content)
+        result = observation(messages, 'read_task_assignment')
         if managed_context:
             control = result['decision_metadata']
             assert control['execution_ready'] and control['issues']['complete'] and not control['issues']['entries']
@@ -362,7 +364,7 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
     controls = []
     def see_first_system(messages):
         system = next(m for m in messages if m.type == 'system')
-        control = current_task(system)['review_input_readiness']
+        control = current_task(messages)['review_input_readiness']
         assert not control['execution_ready'] and control['issues']['complete']
         assert {i['kind'] for i in control['issues']['entries']} == {'undeclared', 'unresolved'}
         assert {i['scope_id'] for i in control['issues']['entries']} == {'rule-comparison', 'other-scope'}
@@ -372,7 +374,7 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
         controls.append(control)
         return invoke('read_task_assignment')
     def see_tool(messages):
-        result = json.loads(messages[-1].content)
+        result = observation(messages, 'read_task_assignment')
         assert result['decision_metadata'] == controls[0]
         assert len(encode(result['decision_metadata'])) <= 4800
         return AIMessage(content='Both immutable scope blockers are visible; no semantic verdict.')

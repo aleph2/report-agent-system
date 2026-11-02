@@ -1,4 +1,5 @@
 from support.flat_task_fixture import task_arguments
+from support.task_state_contract import moved_blocks
 import json
 from langchain_core.messages import AIMessage
 from langgraph.types import interrupt
@@ -16,7 +17,8 @@ async def test_v4_root_reentry_preserves_unresolved_reservation_without_replay(c
     issue = ws.issue('requirement', 'Synthetic recovery checkpoint', [])
     seen = []
     def checkpoint(messages):
-        text = messages[0].text
+        part, = [p for p in moved_blocks(messages) if p['source'] == 'native_todos/current_child_state']
+        text = part['text']
         assert todo['review_unit']['method'] in text
         assert '"_binding"' in text
         seen.append(text)
@@ -52,21 +54,24 @@ async def test_v4_root_reentry_preserves_unresolved_reservation_without_replay(c
 
 async def test_same_reviewer_child_checkpoint_keeps_units_without_parent_redispatch(case):
     from langchain.agents import create_agent
-    from langchain_core.messages import HumanMessage
+    from langchain_core.messages import HumanMessage, SystemMessage
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     from langgraph.types import Command
     from report_agent.deep_runtime import business_tools, BusinessBoundary
     from report_agent.review_work_units import ReviewPlanning, bind_contract
-    from report_agent.prompt_provenance import CurrentReviewPlan
+    from report_agent.prompt_provenance import CurrentReviewPlan, AgentPromptBoundary
+    from report_agent.hierarchical_tools import role_prompt
     from report_agent.content_tasks import delegated_task
     cs, output, ws, request = configured(case)
     bind_contract(ws, ws.store.manifest)
     todo = unit_todo(output['refs']['a-body'])
     seen, results = [], []
     def checkpoint(messages):
-        assert todo['review_unit']['method'] in messages[0].text
-        assert '"_binding"' in messages[0].text
-        seen.append(messages[0].text)
+        part, = [p for p in moved_blocks(messages) if p['source'] == 'native_todos/current_child_state']
+        text = part['text']
+        assert todo['review_unit']['method'] in text
+        assert '"_binding"' in text
+        seen.append(text)
         assert interrupt({'kind':'synthetic_child_checkpoint'}) == 'continue'
         return invoke('calculate',terms=[['9','120']])
     def finish(messages):
@@ -80,9 +85,12 @@ async def test_same_reviewer_child_checkpoint_keeps_units_without_parent_redispa
         driver=Driver(reviewer=[invoke('write_todos',todos=[todo]),checkpoint,finish])
         with delegated_task(current,'coordinator',request):
             async with AsyncSqliteSaver.from_conn_string(path) as saver:
-                graph=create_agent(driver('reviewer'),system_prompt='Synthetic bound Reviewer.',
+                graph=create_agent(driver('reviewer'),system_prompt=SystemMessage(content=[
+                    {'type':'text','text':role_prompt('reviewer')},
+                    {'type':'text','text':'Synthetic bound Reviewer.'}]),
                     tools=business_tools(current,'reviewer',None,None),
-                    middleware=[ReviewPlanning(current),CurrentReviewPlan(current),BusinessBoundary(current,'reviewer')],
+                    middleware=[ReviewPlanning(current),CurrentReviewPlan(current),BusinessBoundary(current,'reviewer'),
+                                AgentPromptBoundary(current,'reviewer')],
                     checkpointer=saver)
                 await graph.ainvoke(Command(resume='continue') if resumed else
                     {'messages':[HumanMessage('Synthetic direct child retention.')]},config)

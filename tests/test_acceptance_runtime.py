@@ -47,8 +47,11 @@ def save_standards(two=False):
 def save_draft(ws, body="Daytime access only [s].", replaces=""):
     def action(messages):
         active = active_criteria(ws)
-        assert active["id"] in str(messages[0].content)
-        assert "Use each criterion's id verbatim as its criterion name" not in str(messages[0].content)
+        from support.task_state_contract import moved_blocks
+        criterion_block, = [p for p in moved_blocks(messages)
+                            if p['source'] == 'acceptance/current_criteria']
+        assert active["id"] in criterion_block['text']
+        assert "Use each criterion's id verbatim as its criterion name" not in str([m.content for m in messages])
         return invoke("submit_result", title="Report", body=body, source_ids=["s"], input_ids=[],
                       criteria_id=active["id"], replaces_id=replaces() if callable(replaces) else replaces)
     return action
@@ -466,8 +469,9 @@ async def _historical_acceptance_behavior(ws, driver):
     """Real retained acceptance tools and native feedback, not a production wrapper."""
     from inspect import iscoroutinefunction
     from langchain.agents import create_agent
-    from langchain_core.messages import HumanMessage
+    from langchain_core.messages import HumanMessage, SystemMessage
     from langchain_core.tools import StructuredTool
+    from report_agent.prompt_provenance import AgentPromptBoundary
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     from report_agent.acceptance import MODE
     from report_agent.review import native_review, reconcile_review, reviewer_prompt
@@ -484,9 +488,12 @@ async def _historical_acceptance_behavior(ws, driver):
              for t in deep_runtime.business_tools(ws, "coordinator", None, None)]
     async with AsyncSqliteSaver.from_conn_string(path) as saver:
         graph = create_agent(model=driver("coordinator"), tools=tools,
-            system_prompt=deep_runtime.COORDINATOR + "\n" + deep_runtime.ACCEPTANCE_GUIDANCE,
+            system_prompt=SystemMessage(content=[
+                {'type':'text', 'text':deep_runtime.COORDINATOR},
+                {'type':'text', 'text':"\n" + deep_runtime.ACCEPTANCE_GUIDANCE}]),
             middleware=[deep_runtime.BusinessBoundary(ws, "coordinator"),
-                native_review(ws, driver("rubric_grader"), [], rules="")], checkpointer=saver)
+                native_review(ws, driver("rubric_grader"), [], rules=""),
+                AgentPromptBoundary(ws, "coordinator")], checkpointer=saver)
         prior = await graph.aget_state(config)
         prior_steps = sum(isinstance(m, AIMessage) for m in prior.values.get("messages", []))
         await graph.ainvoke({"messages": [HumanMessage(content="Carry out the commissioned acceptance work.")],

@@ -235,15 +235,17 @@ def review_commission(store, actor, prompt):
     return commission, prompt
 
 
-def offered_context(store, packet, system_blocks):
+def offered_context(store, packet, system_blocks, *, messages=None, call_id=None):
     """Persist exact assembled input before invoking the existing model handler.
 
     Offered is not proof of provider receipt or semantic application. Response
     outcome is recorded separately by the middleware; no model retry here.
     """
     snapshot = {'scoped_instructions': packet, 'system_blocks': system_blocks}
+    if messages is not None:
+        snapshot['messages'] = messages
     snapshot_id = digest(snapshot)
-    call_id = str(uuid4())
+    call_id = call_id or str(uuid4())
     with store.connect() as db:
         db.execute('INSERT OR IGNORE INTO state VALUES (?,?)',
                    ('prompt_context_snapshot:'+snapshot_id, encode(snapshot)))

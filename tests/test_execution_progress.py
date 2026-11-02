@@ -111,7 +111,15 @@ async def test_actual_notice_and_two_distinct_completed_decisions_pause_native_g
         assert case['steps'][episode['scope']['role']]==5
         delivered=[body for role,body in case['wires'] if 'notice_id' in encode(body['messages'])]
         assert len(delivered)==2
-        assert all(encode(body['messages']).count('notice_id')==1 for body in delivered)
+        from support.task_state_contract import moved_blocks
+        for body in delivered:
+            notice, = [part for part in moved_blocks(body['messages'])
+                       if part['source'] == 'execution_progress/repetition']
+            semantic = json.loads(notice['text'])
+            assert semantic['notice_id'] == notice['references']['notice_id']
+            assert semantic['episode_id'] == notice['references']['episode_id']
+            assert notice['placement'] == 'tail'
+            assert 'notice_id' not in encode(body['messages'][:-1])
         assert all('Execution observation: the last three' not in encode(body['messages']) for body in delivered)
         count=len(case['wires'])
         await deep_runtime.run_report(ws,case['factory'])

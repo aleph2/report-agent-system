@@ -8,7 +8,7 @@ import sqlite3
 import sys
 
 import httpx
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import pytest
 
 from report_agent import deep_runtime
@@ -260,7 +260,9 @@ async def test_completed_copy_receives_feedback_and_normal_new_run_revises_with_
     received, graded = [], []
 
     def inspect_new_call(messages):
-        newest = next(m for m in reversed(messages) if isinstance(m, HumanMessage))
+        from report_agent.task_state_delivery import business_messages
+        newest = next(m for m in reversed(business_messages(workspace.store, messages))
+                      if isinstance(m, HumanMessage))
         current = json.loads(newest.content)
         assert any(c["description"] == description and c["result_id"] == original["id"]
                    for c in current["corrections"])
@@ -426,15 +428,19 @@ async def _historical_completed_agent(workspace, model_factory, *, rules=""):
     from langchain_core.tools import StructuredTool
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     from report_agent.review import native_review
+    from report_agent.prompt_provenance import AgentPromptBoundary
 
     tools = [StructuredTool.from_function(coroutine=t) if iscoroutinefunction(t)
              else StructuredTool.from_function(t)
              for t in deep_runtime.business_tools(workspace, "coordinator", None, None)]
     async with AsyncSqliteSaver.from_conn_string(str(workspace.store.root / "checkpoints.db")) as saver:
         graph = create_agent(model=model_factory("coordinator"), tools=tools,
-            system_prompt=deep_runtime.COORDINATOR + "\n" + deep_runtime.ACCEPTANCE_GUIDANCE,
-            middleware=[deep_runtime.BusinessBoundary(workspace, "coordinator"), TodoListMiddleware(),
-                native_review(workspace, model_factory("rubric_grader"), [], rules=rules)],
+            system_prompt=SystemMessage(content=[
+                {'type':'text','text':deep_runtime.COORDINATOR},
+                {'type':'text','text':"\n" + deep_runtime.ACCEPTANCE_GUIDANCE}]),
+            middleware=[TodoListMiddleware(), deep_runtime.BusinessBoundary(workspace, "coordinator"),
+                native_review(workspace, model_factory("rubric_grader"), [], rules=rules),
+                AgentPromptBoundary(workspace, "coordinator")],
             checkpointer=saver, name="report_coordinator")
         yield graph
 

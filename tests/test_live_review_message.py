@@ -10,7 +10,8 @@ from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 
 from report_agent.deep_runtime import BusinessBoundary
-from report_agent.hierarchical_tools import content_tools
+from report_agent.hierarchical_tools import content_tools, role_prompt
+from report_agent.prompt_provenance import AgentPromptBoundary
 from report_agent.native_operation_tools import native_write_tools
 from test_deliverable_declaration_v4 import case
 from test_review_message_entry import setup, assignment, bound
@@ -22,32 +23,49 @@ from report_agent.deepseek_strict import StrictCodec
 from report_agent.store import encode
 
 
-async def sdk_request(request, value, strict, requests, tool_name='submit_review'):
-    function = next(convert_to_openai_tool(t)['function'] for t in request.tools
-                    if convert_to_openai_tool(t)['function']['name'] == tool_name)
-    values = value if isinstance(value, list) else [value]
-    calls = []
-    for index, item in enumerate(values):
-        args = StrictCodec(function).encode(item) if strict else item
-        calls.append({'id': 'live-save-'+str(index) if isinstance(value, list) else 'live-save', 'type': 'function',
-            'function': {'name': function['name'], 'arguments': json.dumps(args)}})
-    async def handle(wire):
-        requests.append(json.loads(wire.content))
-        return httpx.Response(200, json={'id': 'offline-live-save', 'object': 'chat.completion',
-            'created': 1, 'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
-            'message': {'role': 'assistant', 'content': '', 'tool_calls': calls}}],
-            'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15}})
-    async def admit(wire):
-        from report_agent.prompt_provenance import admit_prompt_request
-        admit_prompt_request(wire)
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handle), event_hooks={'request': [admit]}) as client:
-        async with AsyncOpenAI(api_key='offline', base_url='https://model.invalid/beta', http_client=client) as sdk:
-            request.model.async_client = sdk.chat.completions
-            from contextlib import nullcontext
-            from report_agent.prompt_provenance import prompt_call, _CALL
-            with (nullcontext() if _CALL.get() is not None else prompt_call(None, 'reviewer')):
-                return ModelResponse(result=[await request.model.bind_tools(request.tools).ainvoke(
-                    [request.system_message, *request.messages])])
+async def sdk_request(request, value, strict, requests, tool_name='submit_review', ws=None):
+    from report_agent.prompt_provenance import _CALL
+    async def send(request):
+        function = next(convert_to_openai_tool(t)['function'] for t in request.tools
+                        if convert_to_openai_tool(t)['function']['name'] == tool_name)
+        values = value if isinstance(value, list) else [value]
+        calls = []
+        for index, item in enumerate(values):
+            args = StrictCodec(function).encode(item) if strict else item
+            calls.append({'id': 'live-save-'+str(index) if isinstance(value, list) else 'live-save', 'type': 'function',
+                'function': {'name': function['name'], 'arguments': json.dumps(args)}})
+        async def handle(wire):
+            requests.append(json.loads(wire.content))
+            return httpx.Response(200, json={'id': 'offline-live-save', 'object': 'chat.completion',
+                'created': 1, 'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
+                'message': {'role': 'assistant', 'content': '', 'tool_calls': calls}}],
+                'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15}})
+        async def admit(wire):
+            from report_agent.prompt_provenance import admit_prompt_request
+            admit_prompt_request(wire)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle), event_hooks={'request': [admit]}) as client:
+            async with AsyncOpenAI(api_key='offline', base_url='https://model.invalid/beta', http_client=client) as sdk:
+                request.model.async_client = sdk.chat.completions
+                from contextlib import nullcontext
+                from report_agent.prompt_provenance import prompt_call, _CALL
+                with (nullcontext() if _CALL.get() is not None else prompt_call(None, 'reviewer')):
+                    return ModelResponse(result=[await request.model.bind_tools(request.tools).ainvoke(
+                        [request.system_message, *request.messages])])
+
+    if _CALL.get() is None:
+        assert ws is not None, 'Direct SDK fixture must use its real final boundary'
+        return await AgentPromptBoundary(ws, 'coordinator' if tool_name == 'task' else 'reviewer').awrap_model_call(request, send)
+    return await send(request)
+
+
+def request_packet(value):
+    messages = value.messages if hasattr(value, 'messages') else value['messages']
+    last = messages[-1]
+    text = last.text if hasattr(last, 'text') else last['content']
+    assert text.startswith('[host-observations]')
+    envelope = json.loads(text[len('[host-observations]'):].lstrip())
+    part = next(p for p in envelope['moved_blocks'] if p['source'] == 'field_dictionary/current_request')
+    return json.loads(part['text'])
 
 
 @pytest.mark.parametrize('strict', [False, True])
@@ -69,7 +87,7 @@ async def test_live_request_sdk_and_native_tool_save(case, monkeypatch, strict):
                              deepseek_strict=strict)
         try:
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
-                system_message=SystemMessage(content='Original role retained.'),
+                system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4')),
                 messages=[HumanMessage(content='Perform the assigned check.')])
             middleware = BusinessBoundary(ws, 'reviewer')
             requests = []
@@ -78,7 +96,7 @@ async def test_live_request_sdk_and_native_tool_save(case, monkeypatch, strict):
                                 if getattr(t, 'name', None) == live_messages.CHECK_TOOL)
                 assert 'review' not in function['parameters']['properties']
                 assert any(getattr(t, 'name', None) == 'submit_review' for t in changed.tools)
-                return await sdk_request(changed, message(), strict, requests)
+                return await sdk_request(changed, message(), strict, requests, ws=ws)
             response = await middleware.awrap_model_call(request, model_handler)
             answer, = response.result
             graph = StateGraph(MessagesState)
@@ -92,8 +110,7 @@ async def test_live_request_sdk_and_native_tool_save(case, monkeypatch, strict):
             assert True in checked
             assert live_messages.current_review_binding(ws, actor) is None
             assert len(requests) == 1
-            system = requests[0]['messages'][0]['content']
-            packet = json.loads(system[-1]['text'])
+            packet = request_packet(requests[0])
             assert receipt not in encode(packet) and actor.id not in encode(packet)
             assert packet['actual_read_receipts'][0]['read']['objects'][0]['object_type'] == 'ContentNode'
             assert 'review' not in answer.tool_calls[0]['args']
@@ -102,7 +119,7 @@ async def test_live_request_sdk_and_native_tool_save(case, monkeypatch, strict):
             await model.root_async_client.close()
 
 
-def test_offer_guard_rejects_changed_wire_before_dispatch(case):
+async def test_offer_guard_rejects_changed_wire_before_dispatch(case):
     from report_agent import live_messages
     cs, output, criteria = setup(case)
     with bound(cs, assignment(output, criteria)) as (ws, _, _):
@@ -112,15 +129,18 @@ def test_offer_guard_rejects_changed_wire_before_dispatch(case):
             def override(self, **values):
                 return Request(**{**vars(self), **values})
         changed, offer = live_messages.prepare_request(ws, 'reviewer', Request(tools=tools,
-            messages=[], system_message=SystemMessage(content='Original')))
-        wire = {'tools': [convert_to_openai_tool(t) for t in changed.tools],
-                'messages': [{'role': 'system', 'content': changed.system_message.content_blocks}]}
-        with live_messages.model_offer(offer):
+            messages=[], state={'messages': []}, system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4'))))
+        async def final(projected):
+            from langchain_openai.chat_models.base import _convert_message_to_dict
+            wire = {'tools': [convert_to_openai_tool(t) for t in projected.tools],
+                    'messages': [_convert_message_to_dict(m) for m in [projected.system_message, *projected.messages]]}
             live_messages.validate_wire(wire, strict=False)
             for field in ('messages', 'tools'):
                 corrupted = deepcopy(wire); corrupted[field] = []
                 with pytest.raises(Exception, match='MESSAGE_CONTRACT_WIRE_MISMATCH'):
                     live_messages.validate_wire(corrupted, strict=False)
+        with live_messages.model_offer(offer):
+            await AgentPromptBoundary(ws, 'reviewer').awrap_model_call(changed, final)
 
 
 def test_receipt_directory_is_metadata_not_duplicate_material(case):
@@ -175,12 +195,12 @@ async def test_co_flat_task_runs_real_sdk_and_original_delegation(case, strict):
                          deepseek_strict=strict)
     try:
         request = ModelRequest(model=model, tools=[tool], state={'messages': []},
-            system_message=SystemMessage(content='Original coordinator role.'),
+            system_message=SystemMessage(content=role_prompt('coordinator', interface_profile='review-interfaces-v4')),
             messages=[HumanMessage(content='Choose the needed comparison.')])
         boundary = BusinessBoundary(ws, 'coordinator')
         requests = []
-        async def handler(changed):
-            packet = json.loads(changed.system_message.content_blocks[-1]['text'])
+        async def assembled(changed):
+            packet = request_packet(changed)
             resources = packet['resource_scopes']
             exports = [r for r in resources if r['object_type'] == 'ExportArtifact']
             assert len(exports) == 2
@@ -192,7 +212,9 @@ async def test_co_flat_task_runs_real_sdk_and_original_delegation(case, strict):
                 'criterion_scopes': [standards[0]], 'review_scope': 'targeted',
                 'target_scope': snapshot_scope, 'assessment_kind': 'export',
                 'artifact_scopes': [r['scope'] for r in exports]}
-            return await sdk_request(changed, value, strict, requests, tool_name='task')
+            return await sdk_request(changed, value, strict, requests, tool_name='task', ws=ws)
+        async def handler(changed):
+            return await AgentPromptBoundary(ws, 'coordinator').awrap_model_call(changed, assembled)
         answer, = (await boundary.awrap_model_call(request, handler)).result
         node = ToolNode([tool], awrap_tool_call=boundary.awrap_tool_call)
         result = await native_node(node, {'messages': [HumanMessage('Delegate.'), answer]})
@@ -226,10 +248,10 @@ async def live_answer(ws, tools, assessment='Real synthetic assessment.'):
     model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta')
     try:
         request = ModelRequest(model=model, tools=tools, state={'messages': []},
-            system_message=SystemMessage(content='Original reviewer role.'), messages=[HumanMessage(content='Check.')])
+            system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4')), messages=[HumanMessage(content='Check.')])
         requests = []
         async def handler(changed):
-            return await sdk_request(changed, message(assessment=assessment), False, requests)
+            return await sdk_request(changed, message(assessment=assessment), False, requests, ws=ws)
         answer, = (await BusinessBoundary(ws, 'reviewer').awrap_model_call(request, handler)).result
         assert len(requests) == 1
         return answer
@@ -338,7 +360,7 @@ async def test_final_prompt_boundary_preserves_the_offered_flat_schema(case, pro
                 system_message=SystemMessage(content=text), messages=[HumanMessage(content='Check assigned material.')])
             requests = []
             async def final(changed):
-                return await sdk_request(changed, message(), strict, requests)
+                return await sdk_request(changed, message(), strict, requests, ws=ws)
             async def provenance(changed):
                 return await AgentPromptBoundary(ws, 'reviewer').awrap_model_call(changed, final)
             answer, = (await BusinessBoundary(ws, 'reviewer').awrap_model_call(request, provenance)).result
@@ -348,8 +370,11 @@ async def test_final_prompt_boundary_preserves_the_offered_flat_schema(case, pro
             system_text = encode(actual['messages'][0]['content'])
             assert 'submit_review_check' not in system_text
             assert 'CheckResult.remaining' not in system_text
+            complete_message_text = encode(actual['messages'])
+            assert 'submit_review_check' not in complete_message_text
+            assert 'CheckResult.remaining' not in complete_message_text
             assert 'finding_type' in next(t['function']['parameters']['properties'] for t in actual['tools'] if t['function']['name'] == 'submit_review')
-            assert 'scope' in system_text
+            assert request_packet(actual)['assigned_scopes']
             assert answer.tool_calls[0]['name'] == 'submit_review'
         finally:
             model.root_client.close()
@@ -421,10 +446,10 @@ async def test_native_source_receipts_keep_real_source_and_block_selection(case)
         try:
             tools = live_tools(ws)
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
-                system_message=SystemMessage(content='Original reviewer role.'), messages=[HumanMessage(content='Compare actual source selections.')])
+                system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4')), messages=[HumanMessage(content='Compare actual source selections.')])
             sent = []
-            async def handler(changed):
-                packet = json.loads(changed.system_message.content_blocks[-1]['text'])
+            async def assembled(changed):
+                packet = request_packet(changed)
                 directory = [x['read'] for x in packet['actual_read_receipts'][1:]]
                 assert all(x['read_kind'] == 'source_material' for x in directory)
                 first, second, third = [x['materials'][0] for x in directory]
@@ -436,7 +461,9 @@ async def test_native_source_receipts_keep_real_source_and_block_selection(case)
                 assert second['coverage']['next_offset'] is not None
                 assert 'second-private-key' not in encode(packet)
                 assert not any(receipt in encode(packet) for receipt in observations)
-                return await sdk_request(changed, message(evidence_indexes=[0, 1, 2, 3]), False, sent)
+                return await sdk_request(changed, message(evidence_indexes=[0, 1, 2, 3]), False, sent, ws=ws)
+            async def handler(changed):
+                return await AgentPromptBoundary(ws, 'reviewer').awrap_model_call(changed, assembled)
             answer, = (await BusinessBoundary(ws, 'reviewer').awrap_model_call(request, handler)).result
             result = await live_graph(ws, tools).ainvoke({'messages': [answer]})
             assert result['messages'][-1].status == 'success'
@@ -497,7 +524,7 @@ async def test_multiple_findings_in_one_response_keep_evidence_and_survive_later
         model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta', deepseek_strict=strict)
         try:
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
-                system_message=SystemMessage(content='Current reviewer role.'), messages=[HumanMessage(content='Save actual judgments.')])
+                system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4')), messages=[HumanMessage(content='Save actual judgments.')])
             actual = []
             common = dict(verdict='not_satisfied', finding_type='confirmed_defect', finding_locator_state='located',
                 finding_impact='Changes the stated risk.', finding_needed_outcome='Correct against actual source.')
@@ -505,7 +532,7 @@ async def test_multiple_findings_in_one_response_keep_evidence_and_survive_later
                       message(**common, finding_description='Second actual defect.', evidence_indexes=[0, 1]),
                       message(assessment='Later positive assessment does not withdraw prior defects.')]
             async def handler(changed):
-                return await sdk_request(changed, values, strict, actual)
+                return await sdk_request(changed, values, strict, actual, ws=ws)
             answer, = (await BusinessBoundary(ws, 'reviewer').awrap_model_call(request, handler)).result
             assert len(answer.tool_calls) == 3 and len(actual) == 1
             result = await live_graph(ws, tools).ainvoke({'messages': [answer]})

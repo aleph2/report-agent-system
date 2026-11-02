@@ -86,8 +86,11 @@ async def test_native_sdk_scope_identity_and_honest_partial_save(case,text_profi
         assert not IDENTITY & schema['properties'].keys()
         assert 'review' not in schema['properties'] and schema['additionalProperties'] is False
         assert 'operation_id' not in schema['properties']
-        system=json.dumps([m['content'] for m in first['messages'] if m['role']=='system'],ensure_ascii=False)
-        if enabled:assert re.search(r'assigned_scope_index\\?"\s*:\s*0',system),system[-1500:]
+        if enabled:
+            from support.task_state_contract import moved_blocks
+            dictionary, = [p for p in moved_blocks(first['messages'])
+                           if p['source'] == 'field_dictionary/current_request']
+            assert re.search(r'assigned_scope_index\\?"\s*:\s*0',dictionary['text']),dictionary['text'][-1500:]
         records=cs.list_objects('ReviewRecord');assert len(records)==1
         record=records[0];saved=record['payload']['items'][0]
         task=cs.read({'type':'DelegatedTask','id':record['task_id'],'version':1})['payload']

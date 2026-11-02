@@ -479,17 +479,21 @@ async def test_p12_public_judgment_loss_is_detected_by_original_oracle(ws, monke
 
 
 @pytest.mark.parametrize('case', ['layout-standard', 'layout-old-reference'])
-async def test_r3_layout_packet_capture_uses_native_read_results(ws, request, case):
+async def test_r3_layout_packet_capture_uses_native_read_results(ws, request, case, monkeypatch):
     import os
     from pathlib import Path
     from duty_probe_visual_packets import capture_layout, LAYOUT_STANDARD
+    from support.task_state_contract import observe_native_model_calls, assert_native_tool_then_host_suffix
+    observed_calls = observe_native_model_calls(monkeypatch)
     folder = Path(os.environ.get('REPORT_ARTIFACT_REPRO_OUT', str(ws.store.root))) / ('r3-' + case)
     result = await capture_layout(ws, case, folder)
     native = result['observations']['native_tool_results']
     names = [r['tool'] for r in native]
     assert 'read_layout_capabilities' in names and names.count('read_context') == (3 if case.endswith('reference') else 2)
     assert result['observations']['standard_original']['payload']['body']['text'] == LAYOUT_STANDARD
-    assert result['messages'][-1].type == 'tool'
+    actual_call = next(c for c in reversed(observed_calls) if c['role'] == result['role'])
+    assert_native_tool_then_host_suffix(ws.store, actual_call, result['messages'], result['tools'],
+                                       expected_tool='read_context')
     assert any(t['function']['name'] == 'export_content_snapshot' for t in result['tools'])
     assert result['observations']['old_reference'] is not None if case.endswith('reference') else result['observations']['old_reference'] is None
     request.node.user_properties.append(('r3_probe_preflight', json.dumps({'case': case, 'folder': str(folder), 'paid_calls': 0})))
