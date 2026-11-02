@@ -24,7 +24,7 @@ FRESH_NATIVE_DEFAULTS = {
 def main():
     parser = argparse.ArgumentParser(description="Independent report-agent prototype")
     parser.add_argument("command", choices=["init", "run", "status", "events", "feedback",
-                                            "report-run", "report-status", "serve", "export", "import", "content-delivery"])
+                                            "report-run", "report-status", "serve", "export", "import", "content-delivery", "commission-reply"])
     parser.add_argument("--project", required=True, type=Path, help="Isolated writable project directory")
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--report-category", help="Host-declared report category; no title inference")
@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--draft-id")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--file", type=Path)
+    parser.add_argument('--issue-id', help='Exact commission checkpoint issue from its saved request JSON')
     parser.add_argument("--replaces-id", default="")
     parser.add_argument("--decision-only", action="store_true", help="Isolated report-run: stop before substantive model-tool dispatch")
     parser.add_argument("--execution-record", action="store_true", help="export: include diagnostic execution appendices")
@@ -95,6 +96,11 @@ def main():
             store.initialize(manifest)
             Workspace(store).initialize()
         result = store.status()
+    elif args.command == 'commission-reply':
+        if not args.file or not args.issue_id:
+            parser.error('commission-reply requires --issue-id and --file')
+        from .commission_plan import reply
+        result = reply(Workspace(store), args.issue_id, json.loads(args.file.read_text(encoding='utf-8-sig')))
     elif args.command == "import":
         from .catalog import Catalog
         from .ingestion import MAX_UPLOAD_BYTES
@@ -153,6 +159,8 @@ def main():
         result = store.status()
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.command == "report-run":
+        if result.get('status') == 'incomplete':
+            return 2
         if args.decision_only and store.get("decision_observation"):
             return 0
         if result.get("execution_status") is not None and store.manifest.get("review_entrypoint") != "native-rubric-v1":

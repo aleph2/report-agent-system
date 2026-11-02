@@ -22,6 +22,7 @@ class CoTaskMessage(BaseModel):
     }
     description: str = Field(min_length=1, description='Required actual task objective, constraints, scope and expected return. State work to perform, not a result in advance. Text does not grant access.')
     subagent_type: Literal['writer', 'reviewer', 'layout'] = Field(description='Required responsible role. Choose from the actual task goal; no role sequence is prescribed.')
+    section_ids: list[str] = Field(default_factory=list, description='For a new writer assignment under an owner-confirmed commission plan, choose the saved section IDs. The host binds their exact source-linked plan rows. Omit for other roles and task continuation.')
     snapshot_scope: str | None = Field(default=None, description='Short DocumentSnapshot scope from THIS request dictionary. Required for a new Reviewer assignment or Layout grant. Do not return a UUID or resource object. Omit when continuing an existing task.')
     commission_criterion_scopes: list[str] = Field(default_factory=list, min_length=1, description='For a new Reviewer task, required non-empty distinct Criterion scopes defining the complete commissioned acceptance basis. Choose the full basis, including outcomes not checked in this task. This is not a verdict. Other roles omit this field.')
     criterion_scopes: list[str] = Field(default_factory=list, min_length=1, description='For targeted Reviewer work, optional distinct Criterion scopes selected from commission_criterion_scopes. Omit to select the complete basis. An explicit empty list or null is invalid. Every selected criterion uses this task same selected target and artifacts; use separate tasks for different mappings.')
@@ -40,6 +41,8 @@ class CoTaskMessage(BaseModel):
     def actual_business_selection(self):
         if not self.description.strip():
             raise ValueError('TASK_OBJECTIVE_REQUIRED')
+        if 'section_ids' in self.model_fields_set and (self.subagent_type != 'writer' or self.resume_task_scope is not None):
+            raise ValueError('COMMISSION_SECTIONS_REQUIRE_NEW_WRITER_TASK')
         new_fields = {'snapshot_scope', 'commission_criterion_scopes', 'criterion_scopes', 'review_scope',
                       'target_scope', 'assessment_kind', 'artifact_scopes', 'supervision_plugin', 'content_extent', 'artifact_pages'}
         if self.resume_task_scope is not None:

@@ -18,6 +18,7 @@ from .content_selection import ContentSelection, content_index, selected_content
 from .deliverables import DeliverableSelection, DeliverableHandle
 from .review_binding import ReuseMapping
 from .handoff_release import manifest as bound_manifest
+from .commission_plan import CommissionPlan
 
 
 def enabled(workspace):
@@ -692,10 +693,46 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             from .content_tasks import native_review_submission_schema
             submit_review.__annotations__['review'] = native_review_submission_schema(
                 v4=interface == 'review-interfaces-v4', scope_selectors=selector_mode)
+    def read_commission_plan() -> dict:
+        """Read the current source-linked proposal, inventory and conventions; this is not owner approval."""
+        actor()
+        from .commission_plan import read_plan
+        return read_plan(workspace.store) or {'status': 'not_recorded'}
+
+    def save_commission_plan(operation_id: str, plan: CommissionPlan) -> dict:
+        """Save a source-linked section plan and full object inventory before writing.
+
+        Preserve unknowns, conflicting values and every known object. Quote customer
+        conventions separately from interpretations. This proposes scope; only the
+        operator can approve it or reduce it through the commission checkpoint.
+        """
+        from .commission_plan import save_plan
+        return save_plan(contents, actor(), operation_id, plan.model_dump())
+
+    def record_assessment_outcome(operation_id: str, object_id: str, section_ref: Ref,
+            score_ref: Ref, level_ref: Ref, basis_refs: list[Ref], unresolved: list[str]) -> dict:
+        """Link an assigned object's saved section, score, level and evidence to the confirmed plan.
+
+        Retain unresolved required indicator bases. This records structural completion,
+        not numerical correctness or engineering approval. Only the owning writer may
+        declare its output; missing objects remain incomplete and reductions need owner action.
+        """
+        from .commission_plan import record_outcome
+        return record_outcome(contents, actor(), operation_id, object_id,
+            section_ref.model_dump(), score_ref.model_dump(), level_ref.model_dump(),
+            [r.model_dump() for r in basis_refs], unresolved)
+
     common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
               read_review_status, observe_evidence, read_feedback, record_handoff,
               assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,
               read_delivery_review_context, read_layout_capabilities]
+    from .commission_plan import enabled as commission_enabled
+    if commission_enabled(workspace.store):
+        common.append(read_commission_plan)
+        if role == 'coordinator':
+            common.append(save_commission_plan)
+        if role == 'writer':
+            common.append(record_assessment_outcome)
     if role == 'coordinator' and interface == 'review-interfaces-v4':
         common.remove(inspect_rendered_page)
     from .learning import report_tools

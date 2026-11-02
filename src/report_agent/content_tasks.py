@@ -256,6 +256,8 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
     from .content_models import Ref
     from .task_supervision import ReviewRequirement
     schema = create_model("ContentTaskToolSchema", __base__=tool.args_schema,
+        section_ids=(list[str], Field(default_factory=list,
+            description='Saved section IDs for a new writer under the confirmed commission plan; omit for other roles and continuation.')),
         review_snapshot_ref=(Ref | None, Field(default=None,
             description="Reviewer assignment's exact version-bound snapshot. Required with review_requirements. This is a version anchor; bounded content target_ref must be a ContentNode, not this DocumentSnapshot.")),
         review_requirements=(list[ReviewRequirement] | None, Field(default=None,
@@ -288,7 +290,10 @@ def delegated_task(workspace, caller_role, call):
             yield bound
         return
     args = dict(call["args"])
+    section_ids = args.pop('section_ids', [])
     resumed = args.pop("resume_content_task_id", None)
+    if section_ids and (args.get('subagent_type') != 'writer' or resumed):
+        raise ActionRejected('COMMISSION_SECTION_ASSIGNMENT_REQUIRES_NEW_WRITER')
     review_snapshot = args.pop("review_snapshot_ref", None)
     requirements = args.pop("review_requirements", None)
     selection_supplied = args.get("supervision_plugin") is not None
@@ -349,19 +354,23 @@ def delegated_task(workspace, caller_role, call):
             snapshot = cs._read(db, layout_snapshot)
             if snapshot["owner_id"] != coordinator.id:
                 raise ActionForbidden("FORBIDDEN: layout snapshot grant owner")
+        from .commission_plan import enabled as commission_enabled, writer_assignment
+        section_assignment = writer_assignment(cs, db, section_ids) if role == 'writer' and commission_enabled(workspace.store) else {}
         task_ref = cs._insert(db, coordinator, "DelegatedTask", {
             "role": role, "goal": args.get("description", ""),
             **({"review_snapshot_ref": review_snapshot, "review_requirements": requirements} if requirements else {}),
             **({"supervision_plugin": supervision_plugin} if role == "reviewer" else {}),
             **({"layout_snapshot_ref": layout_snapshot} if role == "layout" else {}),
             "write_scope": "Only artifacts produced by this task; read other project artifacts.",
-            "delegated_by": coordinator.id})
+            "delegated_by": coordinator.id, **section_assignment})
         if policy_ref:
             from .store import encode
             db.execute('INSERT INTO state VALUES (?,?)',
                 ('source_use_task_binding:' + task_ref['id'], encode(policy_ref)))
         return {"task_ref": task_ref}
     request = {"native_task": args, "resume": resumed}
+    if section_ids:
+        request['section_ids'] = section_ids
     if selection_supplied or not resumed:
         request["supervision_plugin"] = supervision_plugin
     if requirements is not None:
@@ -390,6 +399,13 @@ def delegated_task(workspace, caller_role, call):
     task_id = saved["result"]["task_ref"]["id"]
     actor = Actor("content:" + role + ":" + task_id, role, task_id)
     payload = cs.read(saved["result"]["task_ref"])["payload"]
+    if role == 'writer':
+        from .commission_plan import assert_writing_allowed
+        with workspace.store.connect() as db:
+            assert_writing_allowed(cs, db, actor)
+        if payload.get('section_plan'):
+            from .store import encode
+            args['description'] += '\nSaved confirmed section assignment:\n' + encode(payload['section_plan'])
     if payload.get("review_requirements"):
         from .store import encode
         args["description"] = args.get("description", "") + "\nSaved review assignment (account for these exact scopes; reading alone is not checking):\n" + encode({
@@ -414,8 +430,11 @@ def _v4_task(workspace, call):
     from .review_binding import bind, identity, canonical_selection
     from .source_use import report_binding
     args = deepcopy(call['args'])
+    section_ids = args.pop('section_ids', [])
     review = canonical_selection(args.pop('review', None))
     resumed = args.pop('resume_content_task_id', None)
+    if section_ids and (args.get('subagent_type') != 'writer' or resumed):
+        raise ActionRejected('COMMISSION_SECTION_ASSIGNMENT_REQUIRES_NEW_WRITER')
     layout = args.pop('layout_snapshot_ref', None)
     plugin = args.pop('supervision_plugin', None)
     from .supervision_plugins import resolve_plugin
@@ -449,6 +468,9 @@ def _v4_task(workspace, call):
         from .handoff_release import release
         payload['handoff_release_digest'] = release(manifest(workspace.store))['digest']
         payload['scoped_instructions'] = instruction_context(workspace.store, role, task_id=task_id, db=db)
+        from .commission_plan import enabled as commission_enabled, writer_assignment
+        if role == 'writer' and commission_enabled(workspace.store):
+            payload.update(writer_assignment(cs, db, section_ids))
         if role == 'reviewer':
             if manifest(workspace.store).get('review_submission_contract') is not None:
                 payload['review_submission_contract'] = manifest(workspace.store)['review_submission_contract']
@@ -479,10 +501,21 @@ def _v4_task(workspace, call):
         return {'task_ref': cs._insert(db, co, 'DelegatedTask', payload, id=task_id)}
     raw = {'native_task': args, 'resume': resumed, 'review': review,
            'layout_snapshot_ref': layout, 'supervision_plugin': plugin}
+    if section_ids:
+        raw['section_ids'] = section_ids
     saved = cs.operation(co, 'delegate:'+call['id'], raw, register,
         binding_identity=lambda db, result: identity(cs, db, co, result))
     task_ref = saved['result']['task_ref']
     actor = Actor('content:'+role+':'+task_ref['id'], role, task_ref['id'])
+    if role == 'writer':
+        from .commission_plan import assert_writing_allowed
+        with workspace.store.connect() as db:
+            assert_writing_allowed(cs, db, actor)
+        payload = cs.read(task_ref)['payload']
+        if payload.get('section_plan'):
+            from .store import encode
+            args['description'] += '\nSaved confirmed section assignment:\n' + encode({
+                'sections': payload['section_plan'], 'conventions': payload['customer_conventions']})
     native_call = {**call, 'args': args}
     token = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
     try:

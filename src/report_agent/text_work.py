@@ -390,6 +390,10 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
         raise ActionForbidden("FORBIDDEN: text production role")
     if object_type == "ContentNode" and actor.role != "writer":
         raise ActionForbidden("FORBIDDEN: report authorship belongs to writer")
+    if object_type == 'ContentNode':
+        from .commission_plan import assert_writing_allowed
+        with workspace.store.connect() as db:
+            assert_writing_allowed(ContentStore(workspace.store), db, actor)
     if object_type not in {"ContentNode", "Evidence"}:
         raise ActionRejected("TEXT_WORK_OUTPUT_TYPE_NOT_SUPPORTED")
     if not operation_id.strip() or not objective.strip():

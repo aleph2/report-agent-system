@@ -257,6 +257,8 @@ def _assemble_task(ws, actor, offer, call):
             raise ActionRejected('TASK_RESOURCE_SCOPES_MUST_BE_DISTINCT')
         return [selected(s, kinds) for s in scopes]
     args = {'description': value.description, 'subagent_type': value.subagent_type}
+    if 'section_ids' in value.model_fields_set:
+        args['section_ids'] = value.section_ids
     if value.resume_task_scope is not None:
         args['resume_content_task_id'] = selected(value.resume_task_scope, {'DelegatedTask'})['id']
     elif value.subagent_type == 'layout':

@@ -8,7 +8,7 @@ ATOMIC_WRITES = frozenset({
     'freeze_snapshot', 'derive_snapshot', 'submit_review', 'record_handoff',
     'confirm_review_reuse', 'correct_own_review', 'export_content_snapshot',
     'export_content_workbook', 'request_layout_capability', 'select_content_delivery',
-    'record_execution_decision'})
+    'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome'})
 NATIVE_WRITES = ATOMIC_WRITES | {'render_content_export'}
 
 

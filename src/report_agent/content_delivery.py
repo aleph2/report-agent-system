@@ -44,6 +44,20 @@ def _legacy_current_delivery(store):
 
 
 def current_delivery(store):
+    result = _current_delivery(store)
+    from .commission_plan import enabled
+    if enabled(store):
+        from .review_coverage import commission_completion
+        cs = ContentStore(store)
+        selected = store.get('content_delivery')
+        coverage = commission_completion(cs, cs.read(selected['snapshot_ref']) if selected else None)
+        result['commission_coverage'] = coverage
+        if not coverage['complete']:
+            result.update(status='incomplete', coverage_complete=False, overall_verdict=None)
+    return result
+
+
+def _current_delivery(store):
     """Expose evidence without inventing a snapshot acceptance task or verdict."""
     selected = store.get('content_delivery')
     if selected and selected.get('review_interface_profile') == 'review-interfaces-v4':

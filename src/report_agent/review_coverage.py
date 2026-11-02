@@ -60,3 +60,44 @@ def apply_coverage(summary, snapshot, review):
         if result["overall_verdict"] != "not_satisfied":
             result["overall_verdict"] = None
     return result
+
+
+def commission_completion(contents, snapshot):
+    """Structural scope accounting; G3 owns indicator and arithmetic correctness."""
+    from .commission_plan import enabled, _confirmed
+    if not enabled(contents.store):
+        return {'required': False, 'complete': None, 'missing_objects': [], 'reduced_objects': []}
+    with contents.store.connect() as db:
+        try:
+            plan, decision = _confirmed(contents, db)
+        except ActionRejected:
+            return {'required': True, 'complete': False, 'missing_objects': [
+                {'object_id': 'commission', 'label': 'Commission confirmation', 'reason': 'Current owner approval is missing'}], 'reduced_objects': []}
+        current = bool(snapshot and snapshot['payload'].get('commission_plan_ref') == plan['ref'])
+        members = {Ref.model_validate(r).key() for r in snapshot['payload']['refs']} if snapshot else set()
+        outcomes = {r['payload']['object_id']: r['payload'] for r in
+                    (contents._read(db, ref) for ref in snapshot['payload'].get('commission_outcome_refs', []))} if snapshot else {}
+        reductions = {r['object_id']: r['reason'] for r in decision['payload']['reductions']}
+        missing, reduced = [], []
+        for obj, object_ref in zip(plan['payload']['objects'], plan['payload']['inventory_refs']):
+            row = {'object_id': obj['object_id'], 'label': obj['label']}
+            if current and obj['object_id'] in reductions:
+                reduced.append({**row, 'reason': reductions[obj['object_id']], 'decision_ref': decision['ref']})
+                continue
+            reason = 'Current confirmed object has no complete saved assessment'
+            outcome = outcomes.get(obj['object_id'])
+            if current and outcome:
+                dependencies = [object_ref, outcome['section_ref'], outcome['score_ref'],
+                                outcome['level_ref'], *outcome['basis_refs']]
+                if (outcome['commission_plan_ref'] == plan['ref'] and outcome['object_ref'] == object_ref
+                        and not outcome['unresolved'] and outcome['basis_refs']
+                        and all(Ref.model_validate(r).key() in members for r in dependencies)):
+                    continue
+                reason = ('Unresolved required basis: ' + '; '.join(outcome['unresolved']) if outcome['unresolved']
+                          else 'Assessment references are outside the selected snapshot')
+            elif not current:
+                reason = 'Selected snapshot does not bind the current confirmed plan'
+            missing.append({**row, 'reason': reason})
+        return {'required': True, 'complete': not missing, 'plan_ref': plan['ref'],
+                'missing_objects': missing, 'reduced_objects': reduced,
+                'limitation': 'Saved scope and evidence membership only; no indicator, numerical or engineering approval.'}

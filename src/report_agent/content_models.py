@@ -42,10 +42,44 @@ class SnapshotReplacement(Contract):
         return self
 
 
+class SourceCitation(Contract):
+    source_ref: Ref
+    locator: str = Field(min_length=1)
+    quote: str = ''
+
+
+class InventoryValue(Contract):
+    value: str | None
+    source: SourceCitation | None
+    reason: str = Field(min_length=1)
+
+    @model_validator(mode='after')
+    def supported(self):
+        if self.value is not None and (not self.value.strip() or self.source is None):
+            raise ValueError('INVENTORY_VALUE_REQUIRES_SOURCE')
+        return self
+
+
+class InventoryAttribute(Contract):
+    name: str = Field(min_length=1)
+    values: list[InventoryValue] = Field(min_length=1)
+
+
+class InventoryObject(Contract):
+    object_id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    included: bool = Field(strict=True)
+    reason: str = Field(min_length=1)
+    origin: Literal['customer', 'interpretation']
+    attributes: list[InventoryAttribute] = Field(min_length=1)
+    sources: list[SourceCitation] = Field(min_length=1)
+
+
 class Requirement(Contract):
     text: str = Field(min_length=1)
     origin: str = Field(min_length=1)
     scope: str = Field(min_length=1)
+    inventory_object: InventoryObject | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Criterion(Contract):

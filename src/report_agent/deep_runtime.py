@@ -430,6 +430,11 @@ def result_view(result):
 def project_view(workspace):
     state = project_state(workspace)
     state["presentation_references"] = workspace.store.manifest.get("presentation_references", [])
+    if workspace.store.manifest.get('commission_checkpoint_required'):
+        state['commission_source_roles'] = workspace.store.get('commission_source_roles', {})
+        state['commission_checkpoint'] = {'plan_ref': workspace.store.get('commission_plan'),
+            'confirmation_ref': workspace.store.get('commission_confirmation'),
+            'writing_requires_current_owner_confirmation': True}
     # Submission bookkeeping is not an agent plan or a saved report.
     state.pop("tasks", None)
     state["impact"] = {key: value for key, value in state["impact"].items()
@@ -896,6 +901,19 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         tools = [t for t in tools if t.__name__ in allowed]
         from .text_work import guarded_tools
         tools += guarded_tools(workspace, role, text_model, content_tools(workspace, role, reviewer_handles=reviewer_handles))
+        from .commission_plan import enabled as commission_enabled
+        if role == 'coordinator' and commission_enabled(store):
+            def request_commission_confirmation() -> dict:
+                """Publish the current scope/section brief and wait for its owner's exact confirmation.
+
+                Use after saving the source-linked plan and inventory. No reply keeps
+                writing blocked. Corrections require a revised plan and new confirmation;
+                agent proposals and ordinary approval prose cannot authorize reductions.
+                """
+                from .commission_plan import request_checkpoint
+                checkpoint = request_checkpoint(workspace)
+                return ask_human('requirement', checkpoint['description'], checkpoint['source_ids'], pause=True)
+            tools.append(request_commission_confirmation)
         if role == "reviewer" and not native_reviewer(store):
             from .bounded_review import review_tool
             tools = [t for t in tools if t.__name__ not in {
@@ -1239,6 +1257,10 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                         store.set('report_error',{'failure_kind':'execution_progress_attention','automatic_resume':False})
                 elif store.get("report_status") == "running":
                     store.set("report_status", "needs_attention")
+                if not snapshot.interrupts and store.get('report_status') == 'completed':
+                    from .content_delivery import current_delivery
+                    if current_delivery(store).get('commission_coverage', {}).get('complete') is False:
+                        store.set('report_status', 'incomplete')
                 messages = result.get("messages", [])
                 if messages:
                     store.set("agent_summary", messages[-1].content)

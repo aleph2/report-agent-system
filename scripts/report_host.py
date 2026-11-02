@@ -118,9 +118,8 @@ def prepare():
  if len(scope_names)!=1:raise RuntimeError("COMMISSION_OR_REFERENCE_AMBIGUOUS")
  scope=(INPUT/scope_names[0]).read_text(encoding="utf-8-sig")
  instruction="根据委托要求编写报告，以所提供资料及适用规范为事实和评估依据。报告内容、结构、风格及交付形式由委托要求确定。明确说明无法确认的事项，不得编造。记录资料间的冲突，并按委托要求处理。"
- if references:instruction+="以下成果报告仅供结构和格式（包括风格、版式）参考，不作为事实或结论依据："+"、".join(references)+"。"
  goal=instruction+"\n\n"+scope
- manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
+ manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
    **CONFIG["manifest_profiles"]}
  budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds)
  ledger_baseline=finance()
@@ -136,11 +135,12 @@ def prepare():
    ingestion.MAX_PDF_PAGE_CONTENT_BYTES=max(original_limits[1],profile["largest_page_bytes"]) if profile else original_limits[1]
    ingestion.MAX_PDF_TOTAL_CONTENT_BYTES=max(original_limits[2],profile["total_decoded_bytes"]) if profile else original_limits[2]
    record=cat.import_file(path.name,data)["source"];ids.append(record["id"])
-   inputs[name]={"id":record["id"],"sha256":digest,"bytes":len(data),"pages":profile["pages"] if profile else None,"purpose":"structure_and_format_only" if name in references else "commission" if name in scope_names else "source_or_applicable_standard"}
+   inputs[name]={"id":record["id"],"sha256":digest,"bytes":len(data),"pages":profile["pages"] if profile else None,"purpose":"template" if name in references else "commission" if name in scope_names else "source_or_applicable_standard"}
    print(json.dumps({"imported":name,"bytes":len(data),"pages":profile["pages"] if profile else None},ensure_ascii=False),flush=True)
  finally:
   ingestion.MAX_UPLOAD_BYTES,ingestion.MAX_PDF_PAGE_CONTENT_BYTES,ingestion.MAX_PDF_TOTAL_CONTENT_BYTES=original_limits
- configure_source_use(store,["commission",*ids],"User-authorized requirements and source materials; supplied format references, if any, are structure and format only")
+ configure_source_use(store,["commission",*ids],"User-authorized requirements and source materials; template use follows the confirmed source-linked section plan and customer conventions")
+ store.set('commission_source_roles',inputs)
  store.set("knowledge_enabled",False);LearningLibrary(CASE/"experience-library")
  store.set("learning_config",{"library_path":str(CASE/"experience-library"),"customer_id":"real-project-isolated"})
  from report_agent.model_recovery import activate_recovery
@@ -155,8 +155,23 @@ def prepare():
     "authority":load(HERE/"authorization.json")["authority"],
     "financial_authority_path":str(LEDGER),"m1_token_limit":TOTAL_LIMIT,"ledger_baseline":ledger_baseline,"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",
-    "format_only_limitation":"Purpose expressed in commission and metadata, not hard server-side prohibition of fact citations. Final independent source audit required."})
+    "template_limitation":"Template is registered material; exact permitted reuse follows the owner-confirmed section plan. Source and export checks remain necessary."})
  print("real case prepared; no model requests sent",flush=True)
+
+async def run_with_owner_checkpoint(workspace, runner):
+ while True:
+  result=await runner(workspace)
+  if workspace.store.get('report_status')!='needs_human':return result
+  pending=workspace.store.get('native_interrupts',[])
+  if not pending or any(not item.get('value',{}).get('issue_id') for item in pending):
+   workspace.store.set('report_status','needs_attention')
+   return workspace.status()
+  ids={item['value']['issue_id'] for item in pending}
+  while True:
+   issues={item['id']:item for item in workspace.store.get('report_issues',[])}
+   if all(issues.get(key,{}).get('decision_origin')=='operator' for key in ids):break
+   await asyncio.sleep(1)
+
 
 async def run():
  import report_agent.deep_runtime as runtime
@@ -267,8 +282,8 @@ async def run():
   runtime.configured_model=factory;vision.configured_vision_client=vision_factory;dm.configured_vision_client=vision_factory;Store.event=mirror
   save(HERE/"started.json",{"pid":os.getpid(),"host_sha256":sha(__file__),"canonical_baseline":prep["canonical_baseline"]})
   try:
-   with token_budget(budget),rb.request_reservation_observer(observer,observation=observation):result=await runtime.run_report(workspace)
-   save(HERE/"result.json",{"status":"finished_pending_independent_review","report_status":store.get("report_status"),"scope_cost":scope_cost()})
+   with token_budget(budget),rb.request_reservation_observer(observer,observation=observation):result=await run_with_owner_checkpoint(workspace,runtime.run_report)
+   save(HERE/"result.json",{"status":"incomplete" if store.get("report_status")=="incomplete" else "finished_pending_independent_review","report_status":store.get("report_status"),"scope_cost":scope_cost()})
   except BaseException as exc:
    failed["seen"]=True
    save(HERE/"failure.json",{"status":"failed","exception_type":type(exc).__name__})

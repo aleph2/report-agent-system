@@ -62,6 +62,9 @@ def project_state(workspace, knowledge=None):
                      content_execution_decision=workspace.store.get("content_execution_decision"),
                      content_execution_limitation=workspace.store.get("content_execution_limitation"))
         state["execution_status"] = workspace.store.get("report_status", state["status"])
+        if (projection.get('commission_coverage', {}).get('complete') is False
+                and state['execution_status'] in {'completed', 'reviewed_draft', 'incomplete'}):
+            state['execution_status'] = 'incomplete'
         state.update(report_review_required=True, whole_report_acceptance=None)
         if workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1":
             if state["status"] not in {"running", "failed", "interrupted", "needs_human"}:

@@ -23,7 +23,6 @@
     "layout": "glm-5.3"
   },
   "manifest_profiles": {
-    "tool_discovery_profile": "agent-search-v2",
     "content_contract": "hierarchical-review-v1",
     "coverage_contract": "object-coverage-v1",
     "review_entrypoint": "delegated-reviewer-v1",
