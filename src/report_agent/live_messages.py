@@ -310,6 +310,28 @@ def semantic_messages(payload):
     return messages
 
 
+def wire_messages(messages, converted=None):
+    """Use the SDK projection and preserve the adapter's exact replay fields."""
+    if converted is None:
+        from langchain_openai.chat_models.base import (
+            _convert_from_v1_to_chat_completions, _convert_message_to_dict)
+        converted = [_convert_message_to_dict(
+                         _convert_from_v1_to_chat_completions(m) if isinstance(m, AIMessage) else m)
+                     for m in messages]
+    converted = deepcopy(converted)
+    for message, wire in zip(messages, converted, strict=True):
+        if isinstance(message, AIMessage) and 'strict_wire' in message.additional_kwargs:
+            wire['tool_calls'] = deepcopy(message.additional_kwargs['strict_wire']['tool_calls'])
+            if not wire['tool_calls']:
+                wire.pop('tool_calls')
+        if isinstance(message, AIMessage) and 'reasoning_content' in message.additional_kwargs:
+            reasoning = message.additional_kwargs['reasoning_content']
+            if not isinstance(reasoning, str):
+                raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
+            wire['reasoning_content'] = reasoning
+    return converted
+
+
 def finalize_offer(store, request, call):
     """Bind the assembled request once; local nonce never changes wire identity."""
     offer = _MODEL.get()
@@ -318,8 +340,7 @@ def finalize_offer(store, request, call):
     from .prompt_provenance import _refuse
     if 'prompt_call_id' in offer or offer['owner'][0] != str(store.root.resolve()):
         _refuse('MESSAGE_CONTRACT_OFFER_REUSED', 'final_request_boundary')
-    from langchain_openai.chat_models.base import _convert_message_to_dict
-    messages = [_convert_message_to_dict(m) for m in [request.system_message, *request.messages]]
+    messages = wire_messages([request.system_message, *request.messages])
     functions = [convert_to_openai_tool(t)['function'] for t in request.tools]
     selected = [f for f in functions if f['name'] == offer['function']['name']]
     if len(selected) != 1:

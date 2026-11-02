@@ -224,20 +224,9 @@ class GLMChatOpenAI(ChatOpenAI):
                                 for t in payload.get('tools', [])]
             if not payload['tools']:
                 payload.pop('tools')
-        for message, wire in zip(messages, payload['messages'], strict=True):
-            if isinstance(message, AIMessage) and 'strict_wire' in message.additional_kwargs:
-                # Replay exactly the model-generated wire calls, never the decoded
-                # business arguments. Old pre-strict checkpoint calls stay unchanged.
-                wire['tool_calls'] = message.additional_kwargs['strict_wire']['tool_calls']
-                if not wire['tool_calls']:
-                    wire.pop('tool_calls')
-            if isinstance(message, AIMessage) and 'reasoning_content' in message.additional_kwargs:
-                reasoning = message.additional_kwargs['reasoning_content']
-                if not isinstance(reasoning, str):
-                    raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
-                wire['reasoning_content'] = reasoning
+        from .live_messages import validate_wire, wire_messages
+        payload['messages'] = wire_messages(messages, payload['messages'])
         observe_model_boundary('payload_completed')
-        from .live_messages import validate_wire
         validate_wire(payload, strict=self.deepseek_strict)
         from .prompt_provenance import bind_wire_payload
         bind_wire_payload(payload)
