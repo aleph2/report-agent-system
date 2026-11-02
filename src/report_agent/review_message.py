@@ -56,39 +56,50 @@ class ReviewMessage(BaseModel):
         description='Required with non-empty coverage_object_indexes: actual accounting status for all selected objects. assessed is not satisfied; partial/unassessed stays unfinished. Non-applicability needs actual grounds and cannot cancel a commissioned Requirement. Otherwise omit or use null.')
     coverage_reason: str = Field(default='', description='Required non-blank grounds and limits with coverage_object_indexes/state. Otherwise omit. Coverage is not inferred from successful reading or saving.')
 
+    def consistency_errors(self, known_fields=None):
+        # Partial diagnostics inspect only independently schema-valid fields.
+        def known(*names):
+            return known_fields is None or set(names) <= known_fields
+        errors = []
+        if known('assessment') and not self.assessment.strip():
+            errors.append('ASSESSMENT_REQUIRED')
+        if known('execution_state', 'verdict') and self.execution_state == 'not_started' and self.verdict is not None:
+            errors.append('NOT_STARTED_VERDICT_MUST_BE_NULL')
+        if known('verdict', 'execution_state') and self.verdict == 'satisfied' and self.execution_state != 'completed':
+            errors.append('SATISFIED_REQUIRES_COMPLETED')
+        if known('execution_state', 'remaining_work') and self.execution_state != 'completed' and not self.remaining_work.strip():
+            errors.append('REMAINING_WORK_REQUIRED')
+        if known('execution_state', 'remaining_work') and self.execution_state == 'completed' and self.remaining_work:
+            errors.append('COMPLETED_REMAINING_WORK_CONFLICT')
+        if known('verdict', 'evidence_indexes') and self.verdict is not None and not self.evidence_indexes:
+            errors.append('JUDGMENT_EVIDENCE_REQUIRED')
+        if known('evidence_indexes') and (any(i < 0 for i in self.evidence_indexes) or len(set(self.evidence_indexes)) != len(self.evidence_indexes)):
+            errors.append('INVALID_EVIDENCE_SELECTION')
+        finding_names = ('finding_description', 'finding_impact', 'finding_needed_outcome')
+        finding = [getattr(self, name) for name in finding_names if known(name)]
+        if known('finding_type') and self.finding_type is not None:
+            if (known('finding_locator_state') and self.finding_locator_state is None) or not all(v.strip() for v in finding):
+                errors.append('FINDING_FIELDS_REQUIRED')
+        elif known('finding_type', 'finding_locator_state', 'finding_basis_kind', *finding_names) and (self.finding_locator_state is not None or any(finding) or self.finding_basis_kind is not None):
+            errors.append('FINDING_FIELDS_REQUIRED')
+        if known('finding_type', 'verdict') and self.finding_type == 'confirmed_defect' and self.verdict == 'satisfied':
+            errors.append('FINDING_CANNOT_PASS')
+        if known('finding_type', 'finding_basis_kind') and self.finding_type == 'confirmed_defect' and self.finding_basis_kind == 'input_gap':
+            errors.append('INPUT_GAP_NOT_CONFIRMED_DEFECT')
+        if known('coverage_object_indexes', 'coverage_state', 'coverage_reason') and self.coverage_object_indexes:
+            if self.coverage_state is None or not self.coverage_reason.strip():
+                errors.append('COVERAGE_FIELDS_REQUIRED')
+        elif known('coverage_object_indexes', 'coverage_state', 'coverage_reason') and (self.coverage_state is not None or self.coverage_reason):
+            errors.append('COVERAGE_FIELDS_REQUIRED')
+        if known('coverage_object_indexes') and len(set(self.coverage_object_indexes)) != len(self.coverage_object_indexes):
+            errors.append('INVALID_COVERAGE_SELECTION')
+        return errors
+
     @model_validator(mode='after')
     def consistent(self):
-        if not self.assessment.strip():
-            raise ValueError('ASSESSMENT_REQUIRED')
-        if self.execution_state == 'not_started' and self.verdict is not None:
-            raise ValueError('NOT_STARTED_VERDICT_MUST_BE_NULL')
-        if self.verdict == 'satisfied' and self.execution_state != 'completed':
-            raise ValueError('SATISFIED_REQUIRES_COMPLETED')
-        if self.execution_state != 'completed' and not self.remaining_work.strip():
-            raise ValueError('REMAINING_WORK_REQUIRED')
-        if self.execution_state == 'completed' and self.remaining_work:
-            raise ValueError('COMPLETED_REMAINING_WORK_CONFLICT')
-        if self.verdict is not None and not self.evidence_indexes:
-            raise ValueError('JUDGMENT_EVIDENCE_REQUIRED')
-        if any(i < 0 for i in self.evidence_indexes) or len(set(self.evidence_indexes)) != len(self.evidence_indexes):
-            raise ValueError('INVALID_EVIDENCE_SELECTION')
-        finding = [self.finding_description, self.finding_impact, self.finding_needed_outcome]
-        if self.finding_type is not None:
-            if self.finding_locator_state is None or not all(v.strip() for v in finding):
-                raise ValueError('FINDING_FIELDS_REQUIRED')
-        elif self.finding_locator_state is not None or any(finding) or self.finding_basis_kind is not None:
-            raise ValueError('FINDING_FIELDS_REQUIRED')
-        if self.finding_type == 'confirmed_defect' and self.verdict == 'satisfied':
-            raise ValueError('FINDING_CANNOT_PASS')
-        if self.finding_type == 'confirmed_defect' and self.finding_basis_kind == 'input_gap':
-            raise ValueError('INPUT_GAP_NOT_CONFIRMED_DEFECT')
-        if self.coverage_object_indexes:
-            if self.coverage_state is None or not self.coverage_reason.strip():
-                raise ValueError('COVERAGE_FIELDS_REQUIRED')
-        elif self.coverage_state is not None or self.coverage_reason:
-            raise ValueError('COVERAGE_FIELDS_REQUIRED')
-        if len(set(self.coverage_object_indexes)) != len(self.coverage_object_indexes):
-            raise ValueError('INVALID_COVERAGE_SELECTION')
+        errors = self.consistency_errors()
+        if errors:
+            raise ValueError(errors[0])
         return self
 
 
@@ -172,10 +183,12 @@ def validate_message_binding(contents, db, actor, binding):
         verified_source_observation(contents, actor, json.loads(row[1]))
 
 
-def assemble_review_message(contents, actor, binding, message):
+def assemble_check(contents, actor, binding, message, findings=None):
     """Assemble known structure without saving or inventing a material read."""
     from .message_fields import validate_message
     value = validate_message(ReviewMessage, message)
+    finding_values = ([validate_message(ReviewMessage, {**message, **finding}) for finding in findings]
+                      if findings is not None else [value] if value.finding_type is not None else [])
     task = _task(contents, actor)
     if (binding.get('actor_id') != actor.id or binding.get('task_id') != actor.task_id
             or binding.get('task_sha256') != digest(task)):
@@ -195,7 +208,9 @@ def assemble_review_message(contents, actor, binding, message):
     if len(requirement['required_checks']) != 1:
         raise ActionRejected('REVIEW_MESSAGE_REQUIRES_SINGLE_CHECK')
     observations = []
-    for evidence_index in value.evidence_indexes:
+    selected_indexes = list(dict.fromkeys([*value.evidence_indexes,
+        *(i for finding in finding_values for i in finding.evidence_indexes)]))
+    for evidence_index in selected_indexes:
         if evidence_index >= len(receipts):
             raise ActionRejected('UNKNOWN_EVIDENCE')
         receipt = receipts[evidence_index]['receipt_id']
@@ -205,12 +220,12 @@ def assemble_review_message(contents, actor, binding, message):
     completed = value.execution_state == 'completed'
     scope = requirement['required_checks'][0]
     item = {k: deepcopy(requirement[k]) for k in ('target_ref', 'criterion_ref', 'scope_id')}
-    findings = []
-    if value.finding_type is not None:
-        findings = [{'finding_type': value.finding_type, 'locator_state': value.finding_locator_state,
-            'description': value.finding_description, 'impact': value.finding_impact,
-            'needed_outcome': value.finding_needed_outcome, 'basis_kind': value.finding_basis_kind,
-            'requirement_index': 0, 'observation_indexes': list(range(len(observations))) or None}]
+    findings = [{'finding_type': finding.finding_type, 'locator_state': finding.finding_locator_state,
+        'description': finding.finding_description, 'impact': finding.finding_impact,
+        'needed_outcome': finding.finding_needed_outcome, 'basis_kind': finding.finding_basis_kind,
+        'requirement_index': 0,
+        'observation_indexes': [selected_indexes.index(i) for i in finding.evidence_indexes] or None}
+        for finding in finding_values]
     item.update(scope=scope, assessment_kind=requirement.get('assessment_kind', 'content'),
         artifact_refs=deepcopy(requirement.get('artifact_refs', [])),
         execution_state='running' if value.execution_state == 'partial' else value.execution_state,
@@ -218,7 +233,7 @@ def assemble_review_message(contents, actor, binding, message):
         outside_assignment_notes=value.outside_assignment_notes,
         checked_requirement_indexes=[0] if completed else [],
         check_results=[{'requirement_index': 0, 'execution_state': value.execution_state,
-            'result': value.assessment, 'observation_indexes': list(range(len(observations))),
+            'result': value.assessment, 'observation_indexes': [selected_indexes.index(i) for i in value.evidence_indexes],
             'remaining': value.remaining_work}],
         coverage={'checked': [scope] if completed else [],
             'unchecked': [scope] if value.execution_state in {'partial', 'not_started'} else [],
@@ -260,3 +275,8 @@ def save_review_message(contents, actor, operation_id, binding, message, *, runt
     submission = assemble_review_message(contents, actor, binding, message)
     return contents.submit_review(actor, operation_id, submission, runtime_identity or {},
                                   review_message_binding=binding)
+
+
+def assemble_review_message(contents, actor, binding, message):
+    """Compatibility entry point for the deployed single-finding interface."""
+    return assemble_check(contents, actor, binding, message)

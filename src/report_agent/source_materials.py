@@ -17,8 +17,11 @@ CONTRACT = 'source-material-v1'
 
 def issue(workspace, actor, tool, text, materials, *, review_observation_id=None):
     """Called only by a trusted source-reading boundary with its actual result."""
-    sha = hashlib.sha256(text.encode('utf-8')).hexdigest()
-    body_ref = digest({'owner':actor.id, 'tool':tool, 'sha256':sha})
+    return _issue(workspace, actor, tool, text, materials,
+                  review_observation_id=review_observation_id)[0]
+
+
+def _issue(workspace, actor, tool, text, materials, *, review_observation_id=None, reviewer_handles=False):
     parts = []
     for material in materials:
         source = workspace.store.sources([material['source_id']])[0]
@@ -33,13 +36,23 @@ def issue(workspace, actor, tool, text, materials, *, review_observation_id=None
             'file_digest':payload['file_digest'], 'text_digest':digest(source['content']),
             'parser_identity':source.get('parser', source.get('extraction_method')),
             'source_coverage':source['coverage'], 'source_limitations':source.get('limitations', [])})
-    value = {'contract':CONTRACT, 'actor':actor.__dict__, 'tool':tool,
-        'public_sha256':sha, 'body_ref':body_ref, 'materials':parts,
-        'note':'Exact returned selections/observations only; no semantic verification or whole-source reading claim.'}
-    if review_observation_id is not None:
-        value['review_observation_id'] = review_observation_id
-    receipt = digest(value)
     with workspace.store.connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        if review_observation_id is not None:
+            db.execute('INSERT INTO content_observations VALUES (?,?,?)',
+                       (review_observation_id, actor.id, '{}'))
+            from .review_handles import assign_evidence_handle
+            handle = assign_evidence_handle(db, actor.id, review_observation_id)
+            if reviewer_handles:
+                text = json.dumps({**json.loads(text), 'evidence_handle': handle}, ensure_ascii=False)
+        sha = hashlib.sha256(text.encode('utf-8')).hexdigest()
+        body_ref = digest({'owner':actor.id, 'tool':tool, 'sha256':sha})
+        value = {'contract':CONTRACT, 'actor':actor.__dict__, 'tool':tool,
+            'public_sha256':sha, 'body_ref':body_ref, 'materials':parts,
+            'note':'Exact returned selections/observations only; no semantic verification or whole-source reading claim.'}
+        if review_observation_id is not None:
+            value['review_observation_id'] = review_observation_id
+        receipt = digest(value)
         db.execute('INSERT OR IGNORE INTO state VALUES (?,?)',
             ('source_material:'+receipt, encode(value)))
         db.execute('INSERT OR IGNORE INTO state VALUES (?,?)',
@@ -51,12 +64,12 @@ def issue(workspace, actor, tool, text, materials, *, review_observation_id=None
             db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', (index_key,encode([*refs,receipt])))
         if review_observation_id is not None:
             public = json.loads(text)
-            db.execute('INSERT INTO content_observations VALUES (?,?,?)',
-                (review_observation_id, actor.id, encode({
+            db.execute('UPDATE content_observations SET data=? WHERE id=? AND actor_id=?',
+                (encode({
                     'native_source_material_receipt': receipt,
                     'ok': public.get('ok', True), 'status': public.get('status'),
-                    'execution_state': public.get('execution_state')})))
-    return public_metadata(value,receipt)
+                    'execution_state': public.get('execution_state')}), review_observation_id, actor.id))
+    return public_metadata(value,receipt), text
 
 
 def public_metadata(record,receipt):
@@ -68,14 +81,17 @@ def public_metadata(record,receipt):
         'source_version_refs':list(versions.values())}
 
 
-def returned(workspace, role, tool, value, materials, runtime):
-    if runtime is None:
+def returned(workspace, role, tool, value, materials, runtime, *, reviewer_handles=False):
+    if runtime is None and not reviewer_handles:
         return value  # Direct host calls preserve the existing return contract.
     from .text_work import actor_for_tool
     actor = actor_for_tool(workspace, role)
+    if reviewer_handles:
+        from .review_handles import _task
+        _task(ContentStore(workspace.store), actor)
     from .prompt_sources import native_reviewer
     observation_id = None
-    if role == 'reviewer' and native_reviewer(workspace.store):
+    if role == 'reviewer' and (native_reviewer(workspace.store) or reviewer_handles):
         # A server-bound native read has a real receipt usable by submit_review.
         # Allocate before hashing the final public return, avoiding a hash cycle.
         from uuid import uuid4
@@ -83,8 +99,10 @@ def returned(workspace, role, tool, value, materials, runtime):
         value = {**value, 'receipt_id': observation_id}
     # Match native LangChain dict serialization exactly; artifact is not content.
     text = json.dumps(value, ensure_ascii=False)
-    artifact = issue(workspace, actor, tool, text, materials,
-                     review_observation_id=observation_id)
+    artifact, text = _issue(workspace, actor, tool, text, materials,
+                           review_observation_id=observation_id, reviewer_handles=reviewer_handles)
+    if runtime is None:
+        return json.loads(text)
     return ToolMessage(text, name=tool, tool_call_id=runtime.tool_call_id,
                        artifact={'source_material':artifact})
 
