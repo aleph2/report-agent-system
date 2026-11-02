@@ -38,7 +38,9 @@ def actor_for(role):
     return Actor("content:" + role, role, "content-task:" + role)
 
 
-def content_tools(workspace, role, runtime_identity=None):
+def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=False):
+    if reviewer_handles and role != 'reviewer':
+        raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
     contents, fallback = ContentStore(workspace.store), actor_for(role)
     def actor():
         from .content_tasks import bound_actor
@@ -368,7 +370,7 @@ def content_tools(workspace, role, runtime_identity=None):
             'selected_value_digest':digest(result),
             'coverage':{'total_characters':len(text),'complete_frozen_text_selection':offset==0 and result['next_offset'] is None},
             'limitations':result['limitations']}] if result['text'] else []
-        return returned(workspace,role,'observe_evidence',value,materials,runtime)
+        return returned(workspace,role,'observe_evidence',value,materials,runtime, reviewer_handles=reviewer_handles)
 
     def read_feedback(offset: int = 0, limit: int = 20) -> dict:
         """Query project-local versioned findings and handling history. Handled is not repaired;
@@ -702,7 +704,11 @@ def content_tools(workspace, role, runtime_identity=None):
         if role == 'reviewer' and interface == 'review-interfaces-v4':
             from .live_messages import review_tool
             submit_review = review_tool(workspace, actor, contents, identity)
-        return common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
+        tools = common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
+        if reviewer_handles:
+            from .review_handles import read_tools
+            return read_tools(contents, actor, tools)
+        return tools
     if role in {"coordinator", "writer"}:
         common += [import_source_versions, commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
     if role == "layout":

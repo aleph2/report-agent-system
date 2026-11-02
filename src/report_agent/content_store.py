@@ -185,6 +185,9 @@ class ContentStore:
         receipt = str(uuid4())
         with self.store.connect() as db:
             db.execute("INSERT INTO content_observations VALUES (?,?,?)", (receipt, actor.id, encode(result)))
+            if actor.role == 'reviewer':
+                from .review_handles import assign_evidence_handle
+                assign_evidence_handle(db, actor.id, receipt)
         return {"ok": True, "result": result, "receipt_id": receipt}
 
     @staticmethod
@@ -569,7 +572,7 @@ class ContentStore:
             "unreturned_refs": refs[:offset] + refs[offset + limit:]})
 
     def submit_review(self, actor, operation_id, submission, runtime_identity, delivery_export_ref=None,
-                      *, review_message_binding=None):
+                      *, review_message_binding=None, review_step=None):
         from .prompt_sources import native_reviewer, review_profile
         from .handoff_release import manifest
         native = native_reviewer(self.store)
@@ -774,15 +777,21 @@ class ContentStore:
             from .review_coverage import validate_accounting
             validate_accounting(snap, data)
             review_ref = self._insert(db, actor, "ReviewRecord", data)
+            step_result = {}
+            if review_step is not None:
+                from .review_steps import finalize_mark
+                step_result = finalize_mark(self, db, actor, operation_id, review_ref, review_step)
             if delivery_export_ref is not None and entrypoint == "native-rubric-v1":
                 final = {"target": {"snapshot_ref": data["snapshot_ref"], "export_ref": delivery_export_ref},
                          "review_ref": review_ref, "runtime_identity": runtime_identity,
                          "entrypoint": "delegated-reviewer-v1"}
                 db.execute("INSERT OR REPLACE INTO state VALUES ('content_final_review', ?)", (encode(final),))
-            return {"review_ref": review_ref}
+            return {"review_ref": review_ref, **step_result}
         request = {"submit_review": submission, "runtime_identity": runtime_identity}
         if review_message_binding is not None:
             request['review_message_binding'] = digest(review_message_binding)
+        if review_step is not None:
+            request = review_step['request']
         if delivery_export_ref is not None:
             request["delivery_export_ref"] = delivery_export_ref
         return self.operation(actor, operation_id, request, save)
@@ -907,29 +916,32 @@ class ContentStore:
         summary["needs_recheck"] = needs_recheck
         return summary
 
+    def _supersede_review(self, db, actor, review_ref, replacement_ref, reason, item_indexes=None):
+        old, new = self._read(db, review_ref), self._read(db, replacement_ref)
+        if actor.role not in {"reviewer", "rubric_grader"} or old["owner_id"] != actor.id or new["owner_id"] != actor.id:
+            raise ActionForbidden("FORBIDDEN: review owner")
+        if (review_ref["type"] != "ReviewRecord" or replacement_ref["type"] != "ReviewRecord"
+                or old["payload"]["snapshot_ref"] != new["payload"]["snapshot_ref"]
+                or review_ref == replacement_ref or not reason.strip()):
+            raise ActionRejected("INVALID_REVIEW_SUPERSESSION")
+        selected = self.selected_review_items(old["payload"], item_indexes)
+        if not {self.review_item_key(i) for i in selected} <= {self.review_item_key(i) for i in new["payload"]["items"]} or not all(i["observations"] for i in new["payload"]["items"]):
+            raise ActionRejected("CORRECTED_REVIEW_REQUIRES_COVERAGE_AND_OBSERVATIONS")
+        def checks_by_key(record):
+            return {(c["kind"], tuple(sorted(encode(r) for r in c["artifact_refs"]))): c
+                    for c in record["payload"].get("delivery_checks", [])}
+        old_checks, new_checks = checks_by_key(old) if item_indexes is None else {}, checks_by_key(new)
+        if not old_checks.keys() <= new_checks.keys() or any(
+                (c["verdict"] is not None or c["observations"]) and not new_checks[key]["observations"]
+                for key, c in old_checks.items()):
+            raise ActionRejected("CORRECTED_REVIEW_REQUIRES_DELIVERY_COVERAGE")
+        return {"supersession_ref": self._insert(db, actor, "ReviewSupersession", {
+            "review_ref": review_ref, "replacement_ref": replacement_ref, "reason": reason, "item_indexes": item_indexes})}
+
     def supersede_review(self, actor, operation_id, review_ref, replacement_ref, reason, item_indexes=None):
         """A reviewer can correct their own finding, keeping the original evidence."""
         def save(db):
-            old, new = self._read(db, review_ref), self._read(db, replacement_ref)
-            if actor.role not in {"reviewer", "rubric_grader"} or old["owner_id"] != actor.id or new["owner_id"] != actor.id:
-                raise ActionForbidden("FORBIDDEN: review owner")
-            if (review_ref["type"] != "ReviewRecord" or replacement_ref["type"] != "ReviewRecord"
-                    or old["payload"]["snapshot_ref"] != new["payload"]["snapshot_ref"]
-                    or review_ref == replacement_ref or not reason.strip()):
-                raise ActionRejected("INVALID_REVIEW_SUPERSESSION")
-            selected = self.selected_review_items(old["payload"], item_indexes)
-            if not {self.review_item_key(i) for i in selected} <= {self.review_item_key(i) for i in new["payload"]["items"]} or not all(i["observations"] for i in new["payload"]["items"]):
-                raise ActionRejected("CORRECTED_REVIEW_REQUIRES_COVERAGE_AND_OBSERVATIONS")
-            def checks_by_key(record):
-                return {(c["kind"], tuple(sorted(encode(r) for r in c["artifact_refs"]))): c
-                        for c in record["payload"].get("delivery_checks", [])}
-            old_checks, new_checks = checks_by_key(old) if item_indexes is None else {}, checks_by_key(new)
-            if not old_checks.keys() <= new_checks.keys() or any(
-                    (c["verdict"] is not None or c["observations"]) and not new_checks[key]["observations"]
-                    for key, c in old_checks.items()):
-                raise ActionRejected("CORRECTED_REVIEW_REQUIRES_DELIVERY_COVERAGE")
-            return {"supersession_ref": self._insert(db, actor, "ReviewSupersession", {
-                "review_ref": review_ref, "replacement_ref": replacement_ref, "reason": reason, "item_indexes": item_indexes})}
+            return self._supersede_review(db, actor, review_ref, replacement_ref, reason, item_indexes)
         request = [review_ref, replacement_ref, reason] + ([] if item_indexes is None else [item_indexes])
         return self.operation(actor, operation_id, {"supersede_review": request}, save)
 

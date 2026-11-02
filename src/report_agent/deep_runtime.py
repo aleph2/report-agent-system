@@ -424,7 +424,9 @@ def project_view(workspace):
     return state
 
 
-def business_tools(workspace: Workspace, role: str, knowledge, text_model):
+def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, reviewer_handles=False):
+    if reviewer_handles and role != 'reviewer':
+        raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
     store, catalog = workspace.store, Catalog(workspace.store)
     allowed_kinds = {"purpose", "plan"} if role == "knowledge" else {"review"} if role == "reviewer" else {"draft"}
 
@@ -479,7 +481,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         from .source_tables import present_source_tables
         from .source_materials import returned, block_material
         value = present_source_tables(workspace, catalog.read(source_id, offset, limit), table_detail)
-        return returned(workspace,role,'read_source_page',value,block_material(value),runtime)
+        return returned(workspace,role,'read_source_page',value,block_material(value),runtime, reviewer_handles=reviewer_handles)
 
     def search_sources(query: str, offset: int = 0, limit: int = 10,
                        source_id: str | None = None,
@@ -505,7 +507,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
             'selected_value_digest':digest(m),'coverage':{'complete_source':False},
             'limitations':['Literal returned matches only; searched scope is not read coverage.']}
             for m in value['matches']]
-        return returned(workspace,role,'search_sources',value,materials,runtime)
+        return returned(workspace,role,'search_sources',value,materials,runtime, reviewer_handles=reviewer_handles)
 
     def calculate(terms: list[list[str]], runtime: ToolRuntime = None) -> dict:
         """Add the products of decimal factors: [["50","0.03"],["-0.2"]] gives 1.30.
@@ -538,7 +540,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
             'selection':{'units':'one-based physical PDF page','page':page},
             'selected_value_digest':digest(value), 'coverage':{'complete_source':False},
             'limitations':value['limitations']}] if has_text else []
-        return returned(workspace,role,'inspect_source_page',value,materials,runtime)
+        return returned(workspace,role,'inspect_source_page',value,materials,runtime, reviewer_handles=reviewer_handles)
 
     async def analyze_source_image(source_id: str, question: str, page: int = 1,
                                    crop: list[float] | None = None, runtime: ToolRuntime = None) -> dict:
@@ -561,7 +563,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
             'limitations':value.get('limitations',[])}]
         if value.get('status') not in {'observed','incomplete'} or not value.get('observation','').strip():
             materials=[]
-        return returned(workspace,role,'analyze_source_image',value,materials,runtime)
+        return returned(workspace,role,'analyze_source_image',value,materials,runtime, reviewer_handles=reviewer_handles)
 
     def preview_report(draft_id: str, offset: int = 0, limit: int = 30,
                        preview_version: str = "", runtime: ToolRuntime = None) -> dict:
@@ -650,7 +652,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         from .source_use import resolve_source_use_binding
         if resolve_source_use_binding(workspace, source_consumer_actor()):
             from .source_materials import returned, analysis_materials
-            return returned(workspace, role, 'analyze_evidence', result, analysis_materials(result), runtime)
+            return returned(workspace, role, 'analyze_evidence', result, analysis_materials(result), runtime, reviewer_handles=reviewer_handles)
         return result
 
     def submit_result(kind: Literal["purpose", "plan", "materials", "draft", "review"],
@@ -871,7 +873,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
             allowed.add("ask_human")
         tools = [t for t in tools if t.__name__ in allowed]
         from .text_work import guarded_tools
-        tools += guarded_tools(workspace, role, text_model, content_tools(workspace, role))
+        tools += guarded_tools(workspace, role, text_model, content_tools(workspace, role, reviewer_handles=reviewer_handles))
         if role == "reviewer" and not native_reviewer(store):
             from .bounded_review import review_tool
             tools = [t for t in tools if t.__name__ not in {
@@ -886,6 +888,11 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model):
         if review_interface_profile(store) == 'review-interfaces-v4' and not context_enabled(workspace):
             from .decision_state import state_tool
             tools.append(state_tool(workspace, role))
+    if reviewer_handles:
+        from .content_store import ContentStore
+        from .text_work import actor_for_tool
+        from .review_handles import read_tools
+        return read_tools(ContentStore(store), lambda: actor_for_tool(workspace, role), tools)
     return tools
 
 

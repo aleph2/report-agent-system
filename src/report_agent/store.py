@@ -134,13 +134,18 @@ class Store:
 
     def status(self) -> dict:
         manifest = self.manifest
-        return {
+        result = {
             "goal": manifest["goal"], "status": self.get("status"),
             "sources": [{k: s[k] for k in ("id", "title", "coverage")} for s in manifest["sources"]],
             "artifacts": self.artifacts(), "issues": self.get("issues", []),
             "last_error": self.get("last_error"), "selected_artifact": self.get("selected_artifact"),
             "feedback": self.get("feedback", []),
         }
+        from .review_steps import metrics
+        steps = metrics(self)
+        if steps['drafts']:
+            result['reviewer_steps'] = steps
+        return result
 
     def add_feedback(self, message: str):
         """Explicit operator input, not a tool available to the materials agent."""
