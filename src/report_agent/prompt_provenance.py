@@ -59,7 +59,18 @@ def _capture(store, kind, value):
         captured = value() if callable(value) else value
         key = 'prompt_capture:' + digest(captured)
         if store.get(key) is None:
-            store.set(key, captured)
+            if any(field in captured for field in ('public_input', 'expected', 'actual')):
+                from .blob_store import BlobStore
+                blobs = BlobStore(store.root)
+                # Keep the publication under the collector's lock; no in-flight
+                # capture can be mistaken for an orphan between file and row.
+                with blobs.locked():
+                    ref = blobs._put_locked(encode(captured).encode(), 'application/json')
+                    metadata = {k: v for k, v in captured.items()
+                                if k not in {'public_input', 'expected', 'actual', 'source_manifest'}}
+                    store.set(key, {**metadata, 'capture_blob': ref})
+            else:
+                store.set(key, captured)
         store.event(kind, {'capture_key':key, 'purpose':captured.get('purpose'),
                           'call_id':captured.get('call_id'), 'status':captured.get('status'),
                           'semantic_guarantee':'none'})

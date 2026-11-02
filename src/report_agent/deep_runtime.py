@@ -148,18 +148,33 @@ class BusinessBoundary(InvalidToolFeedback):
         from .tool_selection import reject_unoffered
         rejected = reject_unoffered(self.workspace, self.role, request)
         if rejected is not None:
-            return rejected
+            return self._record_tool_result(request, rejected)
         from .live_messages import tool_binding
         try:
             with tool_binding(self.workspace, self.role, request) as bound_request:
-                return await self._awrap_bound_tool_call(bound_request, handler)
+                result = await self._awrap_bound_tool_call(bound_request, handler)
+            return self._record_tool_result(request, result)
         except ActionRejected as exc:
+            from .errors import LocalStorageBusy
+            if isinstance(exc, LocalStorageBusy):
+                return self._record_tool_result(request, ToolMessage(encode({'ok': False, 'code': 'LOCAL_STORAGE_BUSY',
+                    'message': str(exc), 'retryable': bool((exc.diagnostic or {}).get('retryable')),
+                    'diagnostic': exc.diagnostic}), tool_call_id=request.tool_call['id'],
+                    name=request.tool_call['name'], status='error'))
             if self.workspace.store.get('decision_observation'):
                 raise
-            return ToolMessage(encode({'ok': False, 'code': str(exc).split(':')[0],
-                'message': str(exc), 'retryable': False,
+            return self._record_tool_result(request, ToolMessage(encode({'ok': False, 'code': str(exc).split(':')[0],
+                'message': str(exc), 'retryable': bool((exc.diagnostic or {}).get('retryable')),
                 **({'diagnostic': exc.diagnostic} if exc.diagnostic is not None else {})}), tool_call_id=request.tool_call['id'],
-                name=request.tool_call['name'], status='error')
+                name=request.tool_call['name'], status='error'))
+
+    def _record_tool_result(self, request, result):
+        from .runtime_metrics import emit
+        messages = result.update.get('messages', []) if isinstance(result, Command) and isinstance(result.update, dict) else [result]
+        if any(isinstance(message, ToolMessage) and message.status == 'error' for message in messages):
+            emit(self.workspace.store.root, 'tool_rejected', {'role': self.role,
+                'tool_call_id': request.tool_call['id']})
+        return result
 
     async def _awrap_bound_tool_call(self, request, handler):
         async with self.lock:
@@ -364,11 +379,18 @@ class BusinessBoundary(InvalidToolFeedback):
                     result = await handler(request)
                 result = retain_native_todos(result, review_todos)
             except (ActionRejected, ActionForbidden) as exc:
+                from .errors import LocalStorageBusy
+                if isinstance(exc, LocalStorageBusy):
+                    # Error delivery must not itself require another DB write.
+                    return ToolMessage(encode({'ok': False, 'code': 'LOCAL_STORAGE_BUSY',
+                        'message': str(exc), 'retryable': bool((exc.diagnostic or {}).get('retryable')),
+                        'diagnostic': exc.diagnostic, 'receipt_id': call['args'].get('operation_id')}),
+                        tool_call_id=call['id'], name=call['name'], status='error')
                 from .hierarchical_tools import enabled as content_enabled
                 error = {"accepted": False, "error": error_data(exc)}
                 if content_enabled(self.workspace):
                     error.update(ok=False, code="FORBIDDEN" if isinstance(exc, ActionForbidden) else str(exc).split(":")[0],
-                                 message=str(exc), retryable=False, receipt_id=call["args"].get("operation_id"))
+                                 message=str(exc), retryable=bool(getattr(exc, 'diagnostic', None) and exc.diagnostic.get('retryable')), receipt_id=call["args"].get("operation_id"))
                 if isinstance(exc, ActionRejected) and exc.diagnostic is not None:
                     error["diagnostic"] = exc.diagnostic
                 result = ToolMessage(encode(error),

@@ -366,3 +366,47 @@ def test_prepare_revalidates_reuse_authority_and_exact_staged_ledger(tmp_path, m
         context['prepare']()
     assert attempt_rows(budget) == original
     assert not (args.run / 'case').exists() and not (args.run / 'prepared.json').exists()
+
+
+def test_prepare_refuses_missing_imported_blob_before_publishing_receipt(tmp_path, monkeypatch):
+    from report_agent.catalog import Catalog
+    state = host_case(tmp_path, monkeypatch)
+    original = Catalog.import_file
+
+    def lose_original(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        (self.store.root / result['source']['original_blob']['path']).unlink()
+        return result
+
+    monkeypatch.setattr(Catalog, 'import_file', lose_original)
+    with pytest.raises((ActionRejected, RuntimeError, ValueError), match='(?i)(blob|integrity)'):
+        state['prepare']()
+    assert not (state['HERE'] / 'prepared.json').exists()
+    assert not (state['CASE'] / 'checkpoints.db').exists()
+
+
+def test_prepare_refuses_uncheckpointed_state_before_publishing_receipt(tmp_path, monkeypatch):
+    import sqlite3
+    from report_agent.content_store import ContentStore
+    state = host_case(tmp_path, monkeypatch)
+    original = ContentStore.list_objects
+    writers = []
+
+    def keep_committed_wal(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        writer = sqlite3.connect(self.store.path)
+        writers.append(writer)
+        writer.execute('PRAGMA wal_autocheckpoint=0')
+        writer.execute("INSERT INTO state VALUES ('post-prepare-drift', 'true')")
+        writer.commit()
+        return result
+
+    monkeypatch.setattr(ContentStore, 'list_objects', keep_committed_wal)
+    try:
+        with pytest.raises((ActionRejected, RuntimeError, ValueError), match='(?i)(wal|fresh|integrity)'):
+            state['prepare']()
+        assert not (state['HERE'] / 'prepared.json').exists()
+        assert (state['CASE'] / 'state.db-wal').stat().st_size > 0
+    finally:
+        for writer in writers:
+            writer.close()

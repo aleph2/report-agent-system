@@ -146,6 +146,8 @@ def prepare():
  from report_agent.model_recovery import activate_recovery
  recovery=activate_recovery(store,authorization=load(HERE/"authorization.json")["authority"],extra_per_call=CONFIG["maximum_attempts_per_call"]-1,extra_per_case=None,extra_token_ceiling=None,backoff_seconds=CONFIG["retry_backoff_seconds"])
  if ContentStore(store).list_objects() or (CASE/"checkpoints.db").exists():raise RuntimeError("CASE_HAS_SEEDED_RESULTS")
+ from report_agent.blob_store import verify_case_blobs
+ verify_case_blobs(CASE)
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
     "source_ids":ids,"source_files":inputs,"format_references":references,"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
@@ -173,6 +175,8 @@ async def run():
  if not approval.get("approved") or approval.get("host_sha256")!=sha(__file__) or approval.get("prepared_sha256")!=sha(HERE/"prepared.json"):raise RuntimeError("EXACT_REVIEW_REQUIRED")
  if prep["host_sha256"]!=sha(__file__) or prep["source_pins"]!=source_pins() or prep["input_hashes"]!=input_files():raise RuntimeError("PIN_DRIFT")
  if (HERE/"started.json").exists() or (CASE/"checkpoints.db").exists() or sha(CASE/"state.db")!=prep["state_sha256"] or sha(CASE/"experience-library/state.db")!=prep["library_sha256"]:raise RuntimeError("CASE_NOT_FRESH")
+ from report_agent.blob_store import verify_case_blobs
+ verify_case_blobs(CASE)
  with LOCK.open("a") as lock:
   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
   validate_budget_authority()
@@ -228,7 +232,9 @@ async def run():
    finally:os.close(fd)
   original=runtime.configured_model;original_vision=vision.configured_vision_client;original_deep_vision=dm.configured_vision_client
   original_event=Store.event
-  class Audit(dm.LocalAudit):
+  # Full public request captures already have immutable prompt_capture records;
+  # do not duplicate complete histories into the events table on every call.
+  class Audit(dm.RuntimeStatus):
    def on_llm_error(self,error,*,run_id,**kwargs):
     code=dm.error_data(error).get("message")
     if code in {"MODEL_AUTHENTICATION_FAILED","MODEL_PERMISSION_DENIED","TOKEN_LEDGER_SETTLEMENT_FAILED","TOKEN_BOUND_VIOLATION_REQUIRES_DIAGNOSIS","HOST_BASELINE_CHANGED"}:failed["seen"]=True

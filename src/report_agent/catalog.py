@@ -4,6 +4,7 @@ from .errors import ActionRejected
 
 import hashlib
 import json
+import mimetypes
 from bisect import bisect_right
 from uuid import uuid4
 
@@ -64,6 +65,7 @@ class Catalog:
 
     def import_file(self, filename, data, replaces_id=""):
         from .ingestion import parse_document
+        from .blob_store import BlobStore
 
         if not filename or any(c in filename for c in ("/", "\\", "\x00")) or filename in {".", ".."}:
             raise ActionRejected("FILENAME_MUST_BE_BASENAME")
@@ -71,7 +73,10 @@ class Catalog:
         with self.store.run_lock(), self.store.connect() as db:
             old = db.execute("SELECT data FROM source_versions WHERE operation=?", (operation,)).fetchone()
             if old:
-                return {"source": {k: v for k, v in json.loads(old[0]).items() if k != "content"}, "reused": True}
+                source = json.loads(old[0])
+                if source.get('original_blob'):
+                    BlobStore(self.store.root).read(source['original_blob'])
+                return {"source": {k: v for k, v in source.items() if k != "content"}, "reused": True}
             previous = next((s for s in self.sources() if s["id"] == replaces_id), None) if replaces_id else None
             if replaces_id and (previous is None or not previous["current"]):
                 raise ActionRejected("REPLACEMENT_REQUIRES_CURRENT_SOURCE")
@@ -82,8 +87,9 @@ class Catalog:
                       "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data),
                       "coverage": parsed["coverage"], "limitations": parsed["limitations"],
                       "content": "\n\n".join(b["text"] for b in parsed["blocks"]),
-                      "origin": "operator_upload"}
-            db.execute("INSERT INTO source_versions VALUES (?, ?, ?, ?)", (source_id, operation, encode(source), data))
+                      "origin": "operator_upload",
+                      "original_blob": BlobStore(self.store.root).put(data, mimetypes.guess_type(filename)[0] or 'application/octet-stream')}
+            db.execute("INSERT INTO source_versions VALUES (?, ?, ?, ?)", (source_id, operation, encode(source), b''))
             self._blocks(db, source_id, parsed["blocks"])
             row = db.execute("SELECT value FROM state WHERE key='source_changes'").fetchone()
             changes = json.loads(row[0]) if row else []
@@ -92,6 +98,32 @@ class Catalog:
             db.execute("INSERT INTO events(kind,data) VALUES ('source_imported', ?)",
                        (encode({"source_id": source_id, "replaces_id": replaces_id, "operation": operation}),))
         return {"source": {k: v for k, v in source.items() if k != "content"}, "reused": False}
+
+    def collect_unreferenced_blobs(self):
+        """Explicit offline cleanup; a live run/import prevents collection."""
+        from .blob_store import BlobStore
+        blobs = BlobStore(self.store.root)
+        with self.store.run_lock(), blobs.locked(), self.store.connect() as db:
+            referenced = set()
+            for raw, in db.execute('SELECT data FROM source_versions'):
+                ref = json.loads(raw).get('original_blob')
+                if ref:
+                    referenced.add(str(blobs._path(ref)))
+            for raw, in db.execute("SELECT value FROM state WHERE key LIKE 'prompt_capture:%'"):
+                ref = json.loads(raw).get('capture_blob')
+                if ref:
+                    referenced.add(str(blobs._path(ref)))
+            removed = []
+            root = self.store.root / 'blobs'
+            if root.is_symlink():
+                raise ActionRejected('BLOB_PATH_INVALID')
+            for path in root.glob('*/*'):
+                if path.is_symlink() or path.parent.is_symlink():
+                    raise ActionRejected('BLOB_PATH_INVALID')
+                if path.is_file() and str(path) not in referenced:
+                    path.unlink()
+                    removed.append(str(path.relative_to(self.store.root)))
+            return removed
 
     def read(self, source_id, offset=0, limit=10):
         source = next((s for s in self.metadata() if s["id"] == source_id), None)

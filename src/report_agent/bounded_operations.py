@@ -5,6 +5,7 @@ budget ledger or business-artifact authority are added here.
 """
 import json
 from .store import encode
+from .errors import external_outcome_pending
 
 UNRESOLVED_STATES = {'reserved', 'unknown'}
 
@@ -92,7 +93,7 @@ def record_outcome(store, key, state, *, result=None, cache_operation=None):
         raise ValueError('RECEIVED_RESULT_REQUIRED')
     if cache_operation is not None and state != 'completed':
         raise ValueError('ONLY_COMPLETED_RESULT_IS_REUSABLE_SUCCESS')
-    with store.connect() as db:
+    with external_outcome_pending(key), store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         row = db.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
         if row is None:

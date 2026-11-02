@@ -9,7 +9,7 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from .content_models import PAYLOADS, SCHEMA_VERSION, Ref, ReviewSubmission, aggregate, refs_in
-from .errors import ActionForbidden, ActionRejected
+from .errors import ActionForbidden, ActionRejected, LocalStorageBusy, external_outcome_pending
 from .store import digest, encode
 
 
@@ -90,6 +90,8 @@ class ContentStore:
                 if binding_identity is not None:
                     request_digest = digest({'actor': actor.__dict__, 'request': request,
                                              'binding': binding_identity(db, result)})
+            except LocalStorageBusy:
+                raise
             except (ValidationError, ActionRejected, ActionForbidden) as exc:
                 db.execute("ROLLBACK TO content_effect")
                 failure = ActionRejected("INVALID_CONTRACT: " + str(exc)) if isinstance(exc, ValidationError) else exc
@@ -149,6 +151,8 @@ class ContentStore:
                 raise error(saved['message'])
             try:
                 prepared = prepare(db)
+            except LocalStorageBusy:
+                raise
             except (ValidationError,ActionRejected,ActionForbidden) as exc:
                 failure,pending = failure_response(exc)
             db.execute('INSERT INTO content_operations VALUES (?,?,?,?)',
@@ -156,10 +160,13 @@ class ContentStore:
         if failure:
             raise failure
         try:
-            computed = execute(prepared)  # No SQLite transaction is held here.
+            with external_outcome_pending(operation_id):
+                computed = execute(prepared)  # No SQLite transaction is held here.
+        except LocalStorageBusy:
+            raise
         except (ValidationError,ActionRejected,ActionForbidden) as exc:
             failure,response = failure_response(exc)
-        with self.store.connect() as db:
+        with external_outcome_pending(operation_id), self.store.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT actor_id,request_digest,response FROM content_operations WHERE operation_id=?',
                              (operation_id,)).fetchone()
@@ -169,6 +176,8 @@ class ContentStore:
             if failure is None:
                 try:
                     result = finalize(db,prepared,computed)
+                except LocalStorageBusy:
+                    raise
                 except (ValidationError,ActionRejected,ActionForbidden) as exc:
                     db.execute('ROLLBACK TO external_effect')
                     failure,response = failure_response(exc)
