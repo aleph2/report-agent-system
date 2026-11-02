@@ -173,8 +173,10 @@ class WorkingSummary(SummarizationMiddleware):
             from .summary_recovery import capture
             from .workspace import Workspace
             recovery=capture(Workspace(self.store),self.role,messages)
+        from .task_state_delivery import verified_frame
+        summarized = [m for m in messages if not self.store or verified_frame(self.store, m) is None]
         formatted=('Historical subset being compacted; newer messages may remain outside it.\n\n'
-                   +get_buffer_string([self._label_notes(m) for m in messages],format='xml'))
+                   +get_buffer_string([self._label_notes(m) for m in summarized],format='xml'))
         if self.store and self.role:
             from .task_context import exact_task_context
             from .decision_state import compact_context

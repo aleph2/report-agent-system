@@ -51,9 +51,11 @@ async def test_writer_adopts_only_own_receipt_and_parent_observes_real_refs(ws, 
 
     def start_writer(messages):
         label = held['current_writer']
-        assert 'TASK-' + label + ':' in messages[-1].content
+        from support.task_state_contract import current_task
+        description = current_task(messages)['current_invocation']['description']
+        assert 'TASK-' + label + ':' in description
         if label == 'B':
-            assert 'REFERENCE_RECEIPT=' + held['a_parent_receipt'] in messages[-1].content
+            assert 'REFERENCE_RECEIPT=' + held['a_parent_receipt'] in description
         return action('process_report_content', 'produce', **deepcopy(process_args))
 
     def select_adoption(messages):

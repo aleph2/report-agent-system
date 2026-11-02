@@ -23,17 +23,10 @@ def controls(history):
 
 
 def live(request):
-    values = []
-    for block in request.system_message.content_blocks:
-        if block.get('type') == 'text':
-            try:
-                values.append(json.loads(block['text']))
-            except json.JSONDecodeError:
-                pass
-    matches = [v for v in values if isinstance(v, dict)
-               and v.get('origin') == 'server_bound_execution_observations']
-    assert len(matches) == 1, 'Current live resources need one explicit program System contribution'
-    return matches[0]['current_execution_observations']
+    assert request.messages[-1].text.startswith('[host-observations]')
+    value = json.loads(request.messages[-1].text[len('[host-observations]'):].lstrip())
+    assert value['origin'] == 'server_bound_execution_observations'
+    return value['current_execution_observations']
 
 
 async def present(ws, history):
@@ -82,52 +75,58 @@ async def test_real_used_and_held_updates_do_not_mint_authority_deltas_or_hide_c
         state = current_task(request)
         assert state['goal'] == ws.store.manifest['goal']
         assert 'execution_resources' not in state and 'execution_token_resources' not in state
-        assert not controls(request.messages)
+        assert controls(request.messages) == controls(history)
     with budget.connect() as db:
         assert db.execute('SELECT * FROM attempts WHERE id=?', (old,)).fetchone() == old_row
     assert budget.snapshot()['recorded_tokens'] == 10
 
 
-async def actual_payload(ws, tmp_path):
-    budget = TokenBudget(tmp_path / 'finance' / 'budget.db', 1000, {'fixture': 50})
-    requests = RequestBudget(20)
+def wire_payload(request):
+    from langchain_openai.chat_models.base import _convert_message_to_dict
+    return {'model': 'fixture', 'messages': [_convert_message_to_dict(message)
+            for message in [request.system_message, *request.messages]], 'tools': []}
+
+
+async def actual_payload(ws, budget, requests, mutate=None):
+    captured = []
+    history = [HumanMessage(content='Same pure inference input.')]
+    request = ModelRequest(model=Driver()('coordinator'), tools=[], state={'messages': history},
+        system_message=SystemMessage(content='Existing role.'), messages=history)
+    async def handler(changed):
+        original = wire_payload(changed)
+        modified = deepcopy(original)
+        if mutate:
+            mutate(original, modified)
+        captured.append((deepcopy(original), canonical_input(original), canonical_input(modified)))
+        return ModelResponse(result=[AIMessage(content='Offline result, no service call.')])
     with token_budget(budget), request_budget(requests):
-        _, request = await present(ws, [HumanMessage(content='Same pure inference input.')])
-    live(request)  # The normalization fixture must use the actual emitted envelope.
-    return {'model': 'fixture', 'messages': [
-        {'role': 'system', 'content': deepcopy(request.system_message.content_blocks)},
-        {'role': 'user', 'content': 'Same pure inference input.'}], 'tools': []}, budget, requests
+        await TaskContext(ws, 'coordinator').awrap_model_call(request, handler)
+    return captured[0]
 
 
 def resource_block(payload):
-    for block in payload['messages'][0]['content']:
-        try:
-            value = json.loads(block.get('text', ''))
-        except json.JSONDecodeError:
-            continue
-        if isinstance(value, dict) and value.get('origin') == 'server_bound_execution_observations':
-            return block, value
-    raise AssertionError('Missing known program live-resource envelope')
+    message = payload['messages'][-1]
+    assert message['content'].startswith('[host-observations]')
+    return message, json.loads(message['content'][len('[host-observations]'):].lstrip())
 
 
 @pytest.mark.parametrize('resource_key', ['execution_resources', 'execution_token_resources'])
 async def test_recovery_fingerprint_ignores_only_current_program_resource_values(ws, tmp_path, resource_key):
-    original, budget, requests = await actual_payload(ws, tmp_path)
+    budget = TokenBudget(tmp_path / 'finance' / 'budget.db', 1000, {'fixture': 50})
+    requests = RequestBudget(20)
+    original, canonical_before, _ = await actual_payload(ws, budget, requests)
     before = deepcopy(original)
-    changed = deepcopy(original)
-    block, value = resource_block(changed)
     if resource_key == 'execution_token_resources':
         held = budget.reserve('fixture')
         budget.settle(held, {'total_tokens': 10})
-        current = budget.snapshot()
     else:
         requests.reserve()
-        current = requests.snapshot()
-    value['current_execution_observations'][resource_key] = current
-    block['text'] = encode(value)
-    assert original != changed
-    assert canonical_input(original) == canonical_input(changed)
+    changed, canonical_after, _ = await actual_payload(ws, budget, requests)
+    assert resource_block(original)[1]['current_execution_observations'][resource_key] != resource_block(changed)[1]['current_execution_observations'][resource_key]
+    assert original != changed and canonical_before == canonical_after
     assert original == before
+    # The same-looking packet after the dispatch is not a host capability.
+    assert canonical_input(original) != canonical_input(changed)
 
 
 @pytest.mark.parametrize('change,resource_key', [
@@ -136,20 +135,23 @@ async def test_recovery_fingerprint_ignores_only_current_program_resource_values
       for key in ('execution_resources', 'execution_token_resources')],
 ])
 async def test_recovery_fingerprint_keeps_real_instructions_and_unidentified_resource_json(ws, tmp_path, change, resource_key):
-    original, budget, requests = await actual_payload(ws, tmp_path)
-    changed = deepcopy(original)
-    if change in {'authority_goal', 'authority_delta'}:
-        block = next(b for b in changed['messages'][0]['content'] if 'task_state_frames' in b.get('text', ''))
-        value = json.loads(block['text'])
-        full = value['task_state_frames'][0]
-        altered = {**full['state'], 'goal': 'A materially different commissioned instruction.'}
-        if change == 'authority_goal':
-            full.update(state=altered, state_digest=digest(altered))
-        else:
-            value['task_state_frames'].append({'kind': 'delta', 'base_digest': full['state_digest'],
-                'changes': {'goal': altered['goal']}, 'removed_paths': [], 'state_digest': digest(altered)})
-        block['text'] = encode(value)
-    else:
+    budget = TokenBudget(tmp_path / 'finance' / 'budget.db', 1000, {'fixture': 50})
+    requests = RequestBudget(20)
+    def mutate(original, changed):
+        if change in {'authority_goal', 'authority_delta'}:
+            position, message = next((i, m) for i, m in enumerate(changed['messages'])
+                if m.get('role') == 'user' and m.get('content', '').startswith('[host-state]'))
+            frame = json.loads(message['content'][len('[host-state]'):].lstrip())
+            assert frame['kind'] == 'full'
+            altered = {**frame['state'], 'goal': 'A materially different commissioned instruction.'}
+            if change == 'authority_goal':
+                frame.update(state=altered, state_digest=digest(altered))
+                message['content'] = '[host-state]\n' + encode(frame)
+            else:
+                changed['messages'].insert(position + 1, {'role': 'user', 'content': '[host-state]\n' + encode({
+                    'kind': 'delta2', 'base_digest': frame['state_digest'], 'state_digest': digest(altered),
+                    'ops': [{'op': 'set', 'path': ['goal'], 'value': altered['goal']}]})})
+            return
         _, value = resource_block(original)
         altered = deepcopy(value)
         if resource_key == 'execution_token_resources':
@@ -160,19 +162,21 @@ async def test_recovery_fingerprint_keeps_real_instructions_and_unidentified_res
             requests.reserve()
             altered['current_execution_observations'][resource_key] = requests.snapshot()
         if change == 'instruction_in_program_envelope':
-            before_block, before_value = resource_block(original)
-            after_block, after_value = resource_block(changed)
-            before_value['instruction'] = 'Keep this actual instruction.'
-            after_value['instruction'] = 'A different actual instruction.'
-            before_block['text'], after_block['text'] = encode(before_value), encode(after_value)
+            original_message, original_value = resource_block(original)
+            changed_message, changed_value = resource_block(changed)
+            original_value['instruction'] = 'Keep this actual instruction.'
+            changed_value['instruction'] = 'A different actual instruction.'
+            original_message['content'] = '[host-observations]\n' + encode(original_value)
+            changed_message['content'] = '[host-observations]\n' + encode(changed_value)
         elif change == 'unidentified_system':
             value['origin'] = altered['origin'] = 'quoted_example_not_program_resource_observation'
-            original['messages'][0]['content'].append({'type': 'text', 'text': encode(value)})
-            changed['messages'][0]['content'].append({'type': 'text', 'text': encode(altered)})
+            original['messages'].insert(1, {'role': 'system', 'content': encode(value)})
+            changed['messages'].insert(1, {'role': 'system', 'content': encode(altered)})
         elif change == 'user':
-            original['messages'].append({'role': 'user', 'content': encode(value)})
-            changed['messages'].append({'role': 'user', 'content': encode(altered)})
+            original['messages'].insert(-1, {'role': 'user', 'content': encode(value)})
+            changed['messages'].insert(-1, {'role': 'user', 'content': encode(altered)})
         else:
-            original['messages'].append({'role': 'tool', 'tool_call_id': 'preserve-tool-id', 'content': encode(value)})
-            changed['messages'].append({'role': 'tool', 'tool_call_id': 'preserve-tool-id', 'content': encode(altered)})
-    assert canonical_input(original) != canonical_input(changed)
+            original['messages'].insert(-1, {'role': 'tool', 'tool_call_id': 'preserve-tool-id', 'content': encode(value)})
+            changed['messages'].insert(-1, {'role': 'tool', 'tool_call_id': 'preserve-tool-id', 'content': encode(altered)})
+    _, canonical_original, canonical_changed = await actual_payload(ws, budget, requests, mutate)
+    assert canonical_original != canonical_changed

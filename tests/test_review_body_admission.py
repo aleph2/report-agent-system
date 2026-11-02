@@ -63,16 +63,22 @@ async def test_native_52_nodes_reports_exact_32_unbound_before_reviewer(ws, reco
 
     recovered = []
     def see_error(messages):
-        public = json.loads(messages[-1].content)
+        raw = next(m for m in reversed(messages) if m.type == 'tool' and m.tool_call_id == call['id'])
+        public = json.loads(raw.content)
         metadata = public.get('metadata', public)
         assert metadata['code'] == 'REVIEW_BODY_EXTENT_OUTSIDE_MATERIAL_POOL'
         if context_policy == 'reference':
             return invoke('read_tool_observation', observation_ref=public['observation_ref'])
-        assert all(r['id'] in messages[-1].content for r in expected)
+        assert all(r['id'] in raw.content for r in expected)
         return AIMessage(content='Correct the explicit task pool; no review completed.')
 
     def read_page(messages):
-        public = json.loads(messages[-1].content)
+        decision = max(i for i, m in enumerate(messages) if m.type == 'ai'
+                       and any(c['name'] == 'read_tool_observation' for c in m.tool_calls))
+        call_id, = [c['id'] for c in messages[decision].tool_calls if c['name'] == 'read_tool_observation']
+        raw, = [m for m in messages[decision + 1:] if m.type == 'tool'
+                and m.name == 'read_tool_observation' and m.tool_call_id == call_id]
+        public = json.loads(raw.content)
         page = public.get('metadata', public)
         recovered.append(page['text'])
         if page['next_offset'] is not None:

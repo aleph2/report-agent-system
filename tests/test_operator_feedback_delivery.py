@@ -29,14 +29,16 @@ async def test_actual_model_middleware_delivers_whole_moderate_feedback_after_st
     request = SimpleNamespace(messages=[stale], system_message=SystemMessage(content='Existing role.'))
     request.state = {'messages': request.messages}
     request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
-    seen=[]
+    seen=[];business=[]
     async def handler(value):
+        from report_agent.task_state_delivery import business_messages
         seen.append(value)
+        business.append(business_messages(ws.store,value.messages))
         return AIMessage(content='Input capture only, not semantic acceptance.')
     await TaskContext(ws, 'coordinator').awrap_model_call(request, handler)
     packet = current_task(seen[0])
     assert packet['operator_feedback'][0] == item
-    assert seen[0].messages == [stale]
+    assert business == [[stale]] and business[0][0] is stale
     assert ws.store.get('feedback') == [item]
 
 

@@ -54,10 +54,11 @@ async def test_native_snapshot_target_rejected_before_creating_reviewer(ws, cont
     assert readiness_metadata(readiness)['issues']['entries'][0]['supported_target_types'] == ['ContentNode']
 
     def see_error(messages):
-        packet = json.loads(messages[-1].content)
+        raw = next(m for m in reversed(messages) if m.type == 'tool' and m.tool_call_id == call['id'])
+        packet = json.loads(raw.content)
         error = packet.get('metadata', packet)
         assert error['code'] == 'BOUNDED_TOOL_SUPPORTS_NODE_CONTENT_ONLY'
-        assert snapshot['id'] in messages[-1].content and 'ContentNode' in messages[-1].content
+        assert snapshot['id'] in raw.content and 'ContentNode' in raw.content
         return AIMessage(content='Correct the task binding; no review was executed.')
 
     driver = Driver(coordinator=[AIMessage(content='', tool_calls=[call]), see_error])

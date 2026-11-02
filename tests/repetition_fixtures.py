@@ -22,6 +22,8 @@ async def known_write_repetition_case(tmp_path, *, managed=False, progress=False
         import json
         blocks = [b['text'] for m in messages if m.type == 'system'
                   for b in m.content_blocks if b.get('type') == 'text']
+        from support.task_state_contract import moved_blocks
+        blocks.extend(part['text'] for part in moved_blocks(messages))
         notice, = [json.loads(b)['execution_observation'] for b in blocks
                    if b.startswith('{"execution_observation":')]
         assert notice == {'tool': 'commit_objects', 'identical_successful_exchanges': 3,

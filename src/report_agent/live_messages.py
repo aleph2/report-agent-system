@@ -186,9 +186,8 @@ def prepare_request(ws, role, request):
     changed = append_declared_system(request.override(tools=tools), encode(packet),
                                      'field_dictionary/current_request')
     offer = {'kind': 'reviewer', 'owner': _owner(ws, actor), 'binding': binding, 'packet': packet,
-             'function': public['function'], 'system_digest': digest(changed.system_message.content_blocks),
+             'function': public['function'],
              'nonce': uuid4().hex}
-    _once(ws.store, 'message_offer:' + digest(offer), offer)
     return changed, offer
 
 
@@ -234,8 +233,7 @@ def _co_request(ws, request):
     changed = append_declared_system(request, encode(packet), 'field_dictionary/current_request')
     offer = {'kind': 'coordinator', 'owner': _owner(ws, actor), 'resources': resources,
         'packet': packet, 'function': function,
-        'system_digest': digest(changed.system_message.content_blocks), 'nonce': uuid4().hex}
-    _once(ws.store, 'message_offer:' + digest(offer), offer)
+        'nonce': uuid4().hex}
     return changed, offer
 
 
@@ -302,6 +300,35 @@ def model_offer(offer):
         _MODEL.reset(token)
 
 
+def semantic_messages(payload):
+    from .task_state_delivery import observation_semantics
+    messages = deepcopy(payload.get('messages', []))
+    for message in messages:
+        message.pop('id', None)
+    if messages:
+        messages[-1] = observation_semantics(messages[-1])
+    return messages
+
+
+def finalize_offer(store, request, call):
+    """Bind the assembled request once; local nonce never changes wire identity."""
+    offer = _MODEL.get()
+    if offer is None:
+        return
+    from .prompt_provenance import _refuse
+    if 'prompt_call_id' in offer or offer['owner'][0] != str(store.root.resolve()):
+        _refuse('MESSAGE_CONTRACT_OFFER_REUSED', 'final_request_boundary')
+    from langchain_openai.chat_models.base import _convert_message_to_dict
+    messages = [_convert_message_to_dict(m) for m in [request.system_message, *request.messages]]
+    functions = [convert_to_openai_tool(t)['function'] for t in request.tools]
+    selected = [f for f in functions if f['name'] == offer['function']['name']]
+    if len(selected) != 1:
+        _refuse('MESSAGE_CONTRACT_TOOL_UNAVAILABLE', 'final_request_boundary')
+    offer.update(function=selected[0], prompt_call_id=call['call_id'],
+                 request_messages_digest=digest(semantic_messages({'messages': messages})))
+    _once(store, 'message_offer:' + digest(offer), offer)
+
+
 def validate_wire(payload, *, strict):
     offer = _MODEL.get()
     if offer is None:
@@ -312,22 +339,38 @@ def validate_wire(payload, *, strict):
         expected = StrictCodec(expected).function
     actual = [t['function'] for t in payload.get('tools', [])
               if t.get('function', {}).get('name') == offer['function']['name']]
-    text = encode(offer['packet'])
-    # The packet is one declared system contribution; SDK may retain text blocks.
-    blocks = [m.get('content') for m in payload.get('messages', [])]
-    present = any(text == block or (isinstance(block, list)
-        and any(b.get('text') == text for b in block if isinstance(b, dict))) for block in blocks)
-    system = [m.get('content') for m in payload.get('messages', []) if m.get('role') == 'system']
-    system_blocks = system[0] if len(system) == 1 else None
-    if isinstance(system_blocks, str):
-        system_blocks = [{'type': 'text', 'text': system_blocks}]
-    if actual != [expected] or not present or digest(system_blocks) != offer['system_digest']:
-        from .prompt_provenance import _refuse
+    from .prompt_provenance import _CALL, _refuse
+    call = _CALL.get()
+    try:
+        matched = digest(semantic_messages(payload)) == offer.get('request_messages_digest')
+    except (ValueError, TypeError, KeyError, AttributeError):
+        matched = False
+    if (actual != [expected] or not matched or call is None
+            or call['call_id'] != offer.get('prompt_call_id')):
         _refuse('MESSAGE_CONTRACT_WIRE_MISMATCH', 'adapter_before_serialization')
 
 
 def bind_response(ws, offer, response):
     if offer is None:
+        return
+    if 'prompt_call_id' not in offer:
+        for answer in response.result:
+            if not isinstance(answer, AIMessage):
+                continue
+            calls = [c for c in answer.tool_calls if c['name'] in {CHECK_TOOL, 'task'}]
+            if not calls:
+                continue
+            key = answer.additional_kwargs.get('report_tool_selection_offer')
+            proof = ws.store.get(key) if isinstance(key, str) and key.startswith('tool_selection_offer:') else None
+            # Proven omissions must reach reject_unoffered, without acquiring a binding.
+            if not (offer['owner'][0] == str(ws.store.root.resolve())
+                    and isinstance(proof, dict)
+                    and proof.get('actor_id') == offer['owner'][1]
+                    and proof.get('task_id') == offer['owner'][2]
+                    and proof.get('calls_digest') == digest(answer.tool_calls)
+                    and isinstance(proof.get('names'), list)
+                    and all(c['name'] not in proof['names'] for c in calls)):
+                raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
         return
     ref = 'message_offer:' + digest(offer)
     if ws.store.get(ref) != offer:

@@ -44,17 +44,22 @@ def packet(ws, role='coordinator', task_id=None):
 
 
 async def receive(ws, role='coordinator', history=None, failure=False):
+    from report_agent.hierarchical_tools import role_prompt
+    from report_agent.prompt_provenance import AgentPromptBoundary
+    from langchain.agents.middleware.types import ModelRequest
+    from test_deep_runtime import Driver
     seen = []
     async def handler(request):
         seen.append(request)
         if failure:
             raise TimeoutError('Offline unknown response')
         return AIMessage(content='Offline response only')
-    request = SimpleNamespace(messages=history or [HumanMessage(content='Ordinary goal')],
-                              system_message=SystemMessage(content='Existing role responsibilities'))
-    request.state = {'messages': request.messages}
-    request.override = lambda **kw: SimpleNamespace(**{**request.__dict__, **kw})
-    await TaskContext(ws, role).awrap_model_call(request, handler)
+    messages = history or [HumanMessage(content='Ordinary goal')]
+    request = ModelRequest(model=Driver()(role), messages=messages, tools=[], state={'messages': messages},
+                           system_message=SystemMessage(content=role_prompt(role)))
+    async def final_boundary(changed):
+        return await AgentPromptBoundary(ws, role).awrap_model_call(changed, handler)
+    await TaskContext(ws, role).awrap_model_call(request, final_boundary)
     context = current_task(seen[0])
     return context, seen[0]
 
@@ -66,7 +71,8 @@ async def test_system_inheritance_in_actual_coordinator_and_writer_inputs(config
     before = digest(configured.store.manifest)
     coordinator, request = await receive(configured)
     assert coordinator['scoped_instructions']['effective'] == [record]
-    assert request.system_message.content[0]['text'] == 'Existing role responsibilities'
+    from report_agent.hierarchical_tools import role_prompt
+    assert request.system_message.content_blocks[0]['text'] == role_prompt('coordinator')
     with delegated_task(configured, 'coordinator', {'id': 'writer-a', 'args': {
             'subagent_type': 'writer', 'description': 'Write this assigned paragraph'}}):
         writer, _ = await receive(configured, 'writer')
@@ -76,7 +82,7 @@ async def test_system_inheritance_in_actual_coordinator_and_writer_inputs(config
     assert len(events) == 2
     snap = configured.store.get('prompt_context_snapshot:'+events[-1]['data']['snapshot_id'])
     assert snap['scoped_instructions']['effective'][0]['payload']['text'].endswith('TAIL')
-    assert snap['system_blocks'][-1]['text'].endswith('}')
+    assert record['payload']['text'] in json.dumps(snap['messages'], ensure_ascii=False)
 
 
 def test_report_and_role_isolation_and_private_system_registry(configured, tmp_path):
@@ -155,7 +161,7 @@ async def test_supersession_live_refresh_restart_and_compacted_history(configure
     reopened = Workspace(Store(configured.store.root))
     context, request = await receive(reopened, history=stale)
     assert context['scoped_instructions']['effective'] == [revised]
-    assert request.messages == stale
+    assert [m for m in request.messages if not m.text.startswith(('[host-state]', '[host-observations]'))] == stale
     release_instruction(reopened.store, 'policy', None, expected_active=2, reason='Withdraw fixture')
     assert (await receive(reopened))[0]['scoped_instructions']['effective'] == []
     assert save_instruction(reopened.store, revised['payload']) == revised
@@ -208,5 +214,5 @@ async def test_native_graph_uses_same_delivery_boundary(configured):
     driver = Driver(coordinator=[AIMessage(content='Offline harness completion, no report acceptance')])
     result = await run_report(configured, driver)
     assert result['last_error'] is None
-    assert record['payload']['text'] in str(driver.calls[0][2][0].content)
+    assert current_task(driver.calls[0][2])['scoped_instructions']['effective'] == [record]
     assert any(e['kind'] == 'prompt_context_response_received' for e in configured.store.events())

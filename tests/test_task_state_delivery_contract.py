@@ -18,6 +18,7 @@ from report_agent.task_context import TaskContext, exact_task_context
 from test_hierarchical_content import seed
 from test_task_supervision import ws, offline
 from test_deep_runtime import Driver
+from support.task_state_contract import current_task, state_frames
 
 
 def frames(messages):
@@ -27,7 +28,8 @@ def frames(messages):
 
 
 def packet(message):
-    return json.loads(message.text)
+    text = message.text
+    return json.loads(text[len('[host-state]'):].lstrip() if text.startswith('[host-state]') else text)
 
 
 async def present(middleware, history, captured=None):
@@ -49,24 +51,8 @@ async def present(middleware, history, captured=None):
 
 
 def visible_controls(request):
-    """Find structured control frames inside the single effective system message."""
-    result = []
-    def walk(value):
-        if isinstance(value, dict):
-            if value.get('kind') in {'full', 'delta'} and 'state_digest' in value:
-                result.append(value)
-            for child in value.values():
-                walk(child)
-        elif isinstance(value, list):
-            for child in value:
-                walk(child)
-    for block in request.system_message.content_blocks:
-        if block.get('type') == 'text':
-            try:
-                walk(json.loads(block['text']))
-            except (json.JSONDecodeError, KeyError):
-                pass
-    return result
+    """Read current controls in their actual effective history positions."""
+    return state_frames(request)
 
 
 @pytest.mark.parametrize('role', ['coordinator', 'writer', 'reviewer', 'layout'])
@@ -105,7 +91,8 @@ async def test_state_first_delivery_then_unchanged_turn_does_not_append_again(ws
     assert frames(second) == [first]
     assert visible_controls(captured[0]) == [packet(first)]
     assert visible_controls(captured[1]) == [packet(first)]
-    assert not frames(captured[0].messages) and not frames(captured[1].messages)
+    assert frames(captured[0].messages) == [first]
+    assert frames(captured[1].messages) == [first]
     assert all(not isinstance(m, SystemMessage) for m in captured[1].messages)
     assert user in captured[1].messages
     assert second[0] == user
@@ -125,19 +112,21 @@ async def test_delta_declares_changes_and_removal_without_repeating_full_state(w
     assert len(frames(changed)) == 2, 'Changed authority must persist one additional frame'
     second = frames(changed)[-1]
     delta = packet(second)
-    assert delta['kind'] == 'delta'
+    assert delta['kind'] == 'delta2'
     assert delta['base_digest'] == packet(first)['state_digest']
-    assert delta['changes']['goal'] == 'New explicitly changed task goal.'
-    assert delta['changes']['operator_feedback'] == ws.store.get('feedback')
+    actual = current_task(captured[0])
+    assert actual['goal'] == 'New explicitly changed task goal.'
+    assert actual['operator_feedback'] == ws.store.get('feedback')
     assert 'state' not in delta
-    assert isinstance(delta['removed_paths'], list)
+    assert isinstance(delta['ops'], list)
     assert visible_controls(captured[0]) == [packet(first), delta]
     # Clearing an optional control must not leave its old value authoritative.
     ws.store.set('feedback', [])
-    cleared = await present(TaskContext(ws, 'coordinator'), changed)
+    cleared_requests = []
+    cleared = await present(TaskContext(ws, 'coordinator'), changed, cleared_requests)
     last = packet(frames(cleared)[-1])
-    assert last['kind'] == 'delta'
-    assert last['changes'].get('operator_feedback') == [] or ['operator_feedback'] in last['removed_paths']
+    assert last['kind'] == 'delta2'
+    assert not current_task(cleared_requests[0]).get('operator_feedback')
     assert last['base_digest'] == delta['state_digest']
 
 
@@ -227,6 +216,7 @@ async def test_self_consistent_user_minted_frame_cannot_mint_host_provenance(ws)
     full = packet(frames(result)[-1])
     assert full['kind'] == 'full' and full['state']['goal'] == ws.store.manifest['goal']
     assert visible_controls(captured[0]) == [full]
+    assert invented not in captured[0].messages
 
 
 async def test_coordinator_frame_is_not_a_bound_writer_base(ws):

@@ -171,8 +171,8 @@ async def test_real_coordinator_missing_path_error_then_explicit_current_state_r
         current = exact_task_context(ws, 'coordinator')
         assert 'assignment' not in current and current['review_tasks']['tasks']
         if managed:
-            system = str([m.content for m in messages if m.type == 'system'])
-            assert 'review_tasks' in system
+            from support.task_state_contract import current_task
+            assert 'review_tasks' in current_task(messages)
         observed['rejection'] = value
         return action('read_decision_state', 'explicit-current-read', path=['review_tasks'])
 

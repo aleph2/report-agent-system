@@ -26,9 +26,11 @@ async def test_task_context_preserves_extended_command_and_structured_result_whe
         system_message=SystemMessage(content='Existing coordinator role.'), messages=history)
     answer = AIMessage(content='Offline business answer.')
     original = wrapped(answer)
-    seen = []
+    seen, business = [], []
     async def handler(changed):
+        from report_agent.task_state_delivery import business_messages
         seen.append(changed)
+        business.append(business_messages(ws.store, changed.messages))
         return original
     response = await TaskContext(ws, 'coordinator').awrap_model_call(request, handler)
     assert isinstance(response, ExtendedModelResponse)
@@ -38,10 +40,14 @@ async def test_task_context_preserves_extended_command_and_structured_result_whe
     assert len(response.model_response.result) == 2
     frame, actual_answer = response.model_response.result
     assert isinstance(frame, HumanMessage) and frame.additional_kwargs.get('report_task_state_frame')
-    assert json.loads(frame.text)['kind'] == 'full'
+    from support.task_state_contract import state_frames
+    from report_agent.task_state_delivery import verified_frame
+    assert verified_frame(ws.store, frame) is not None
+    assert state_frames([frame])[0]['kind'] == 'full'
     assert actual_answer is answer
     assert original.model_response.result == [answer]
-    assert len(seen) == 1 and seen[0].messages == history
+    assert len(seen) == 1 and business == [history]
+    assert business[0][0] is history[0]
 
 
 async def test_native_selector_preserves_extended_command_and_binds_inner_ai_offer_without_execution(ws):

@@ -64,7 +64,10 @@ async def test_sdk_flat_call_reaches_native_save(case, monkeypatch, selector, st
         assert len(bridge.requests) == 1
         assert bridge.requests[0]['tools'][0]['function'].get('strict', False) is strict
         import json
-        packet = json.loads(bridge.requests[0]['messages'][0]['content'][-1]['text'])
+        from support.task_state_contract import moved_blocks
+        part, = [p for p in moved_blocks(bridge.requests[0]['messages'])
+                 if p['source'] == 'field_dictionary/current_request']
+        packet = json.loads(part['text'])
         assert packet['assigned_scopes'][0]['criterion']['expected_outcome'] == cs.read(criteria[0])['payload']['expected_outcome']
         assert packet['actual_read_receipts'][0]['read']['objects'][0]['object_type'] == 'ContentNode'
         assert 'payload' not in packet['actual_read_receipts'][0]['read']['objects'][0]
@@ -376,7 +379,10 @@ async def test_strict_co_to_reviewer_saves_actual_word_excel_review(pair, monkey
             strict=True, call_id='review-real-exports')
         result = await probe.graph().ainvoke({'messages':[response]})
         assert result['messages'][-1].status == 'success', result['messages'][-1].content
-        packet = json.loads(probe.requests[0]['messages'][0]['content'][-1]['text'])
+        from support.task_state_contract import moved_blocks
+        part, = [p for p in moved_blocks(probe.requests[0]['messages'])
+                 if p['source'] == 'field_dictionary/current_request']
+        packet = json.loads(part['text'])
         reads = [v['read'] for v in packet['actual_read_receipts']]
         assert [v['export']['format'] for v in reads] == ['docx','xlsx']
         assert all(v['text_characters'] and v['limitation'] for v in reads)

@@ -726,9 +726,13 @@ async def test_p20_reviewer_received_response_state_visible_without_fake_success
 
 @pytest.mark.parametrize('case', ['co-criteria-full', 'co-criteria-conflict',
     'reviewer-reuse-local', 'reviewer-reuse-expanded'])
-async def test_r5_native_packet_capture_and_synthetic_response_shape(ws, tmp_path, request, case):
+async def test_r5_native_packet_capture_and_synthetic_response_shape(ws, tmp_path, request, case, monkeypatch):
     from duty_probe_packets import capture_r5
     from jsonschema import Draft202012Validator
+    from support.task_state_contract import (observe_native_model_calls, assert_native_tool_then_host_suffix,
+                                             current_public_capture)
+    from langchain_core.messages import HumanMessage
+    observed_calls = observe_native_model_calls(monkeypatch)
     activate(ws)  # Match the configured adapter's pre-activated bounded-tool mode.
     captured = await capture_r5(ws, case, tmp_path / 'r5-native')
     tools = {t['function']['name']: t['function'] for t in captured['tools']}
@@ -736,7 +740,36 @@ async def test_r5_native_packet_capture_and_synthetic_response_shape(ws, tmp_pat
     for call in response['tool_calls']:
         spec = tools[call['function']['name']]
         Draft202012Validator(spec['parameters']).validate(json.loads(call['function']['arguments']))
-    assert captured['messages'][-1].type == 'tool'
+    actual_call = next(c for c in reversed(observed_calls) if c['role'] == captured['role'])
+    expected_tool = 'read_context' if case.startswith('co-') else 'assess_change_impact'
+    assert_native_tool_then_host_suffix(ws.store, actual_call, captured['messages'], captured['tools'],
+                                       expected_tool=expected_tool)
+    # Same old content cannot replace a missing capture for this live invocation.
+    with pytest.raises(AssertionError):
+        assert_native_tool_then_host_suffix(ws.store, {**actual_call, 'call_id': 'missing-current-capture'},
+            captured['messages'], captured['tools'], expected_tool=expected_tool)
+    prior_call = next(c for c in observed_calls if c['role'] == actual_call['role']
+                      and c['call_id'] != actual_call['call_id'])
+    other_role = 'reviewer' if actual_call['role'] == 'coordinator' else 'coordinator'
+    bad_messages = list(actual_call['messages'])
+    tool_index = max(i for i, m in enumerate(bad_messages) if m.type == 'tool')
+    bad_messages[tool_index] = bad_messages[tool_index].model_copy(
+        update={'content':str(bad_messages[tool_index].content) + '\nChanged oracle-only public result.'})
+    bad_tools = deepcopy(actual_call['tools'])
+    bad_tools[0]['function']['description'] = str(bad_tools[0]['function'].get('description', '')) + ' Changed oracle-only schema.'
+    for changed in (
+        {**actual_call, 'store_root':actual_call['store_root'] + '-foreign'},
+        {**actual_call, 'role':other_role, 'purpose':other_role},
+        {**actual_call, 'call_id':prior_call['call_id']},
+        {**actual_call, 'messages':bad_messages},
+        {**actual_call, 'tools':bad_tools},
+    ):
+        with pytest.raises(AssertionError):
+            current_public_capture(ws.store, changed)
+    rogue_suffix = [*captured['messages'][:-1], HumanMessage(content='Oracle-only non-host suffix.'), captured['messages'][-1]]
+    with pytest.raises(AssertionError):
+        assert_native_tool_then_host_suffix(ws.store, {**actual_call, 'messages':rogue_suffix},
+            rogue_suffix, captured['tools'], expected_tool=expected_tool)
     observations = captured['observations']
     assert observations['real_model_calls'] == 0
     if case.startswith('co-'):

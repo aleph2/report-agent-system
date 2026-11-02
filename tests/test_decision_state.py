@@ -169,7 +169,11 @@ async def test_native_state_injection_keeps_stale_history_and_bounded_checks_unc
     request=SimpleNamespace(messages=[stale],system_message=SystemMessage(content='Role guidance'))
     request.state = {'messages': request.messages}
     request.override=lambda **kw:SimpleNamespace(**{**request.__dict__,**kw})
-    async def handler(value): seen.append(value); return AIMessage(content='read current state')
+    business=[]
+    async def handler(value):
+        from report_agent.task_state_delivery import business_messages
+        seen.append(value);business.append(business_messages(ws.store,value.messages))
+        return AIMessage(content='read current state')
     with delegated_task(ws,'coordinator',review_call(snapshot,refs)):
         mw=TaskContext(ws,'reviewer')
         assert 'read_decision_state' in {t.__name__ for t in mw.tools}
@@ -177,7 +181,7 @@ async def test_native_state_injection_keeps_stale_history_and_bounded_checks_unc
     packet=current_task(seen[0])
     assert packet['review_progress']['execution_complete'] is False
     assert packet['assigned_targets'][0]['current_version']==1
-    assert seen[0].messages==[stale]
+    assert business==[[stale]] and business[0][0] is stale
     assert cs.list_objects('ReviewRecord')==[]
 
 

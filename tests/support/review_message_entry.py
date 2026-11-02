@@ -17,7 +17,8 @@ from report_agent.deep_models import GLMChatOpenAI
 from report_agent.deep_runtime import BusinessBoundary
 from report_agent.deepseek_strict import StrictCodec
 from report_agent.errors import ActionRejected
-from report_agent.hierarchical_tools import content_tools
+from report_agent.hierarchical_tools import content_tools, role_prompt
+from report_agent.prompt_provenance import AgentPromptBoundary
 from report_agent.message_fields import field_dictionary
 from report_agent.native_operation_tools import native_write_tools
 from report_agent.operation_identity import write_id
@@ -93,9 +94,11 @@ class ReviewEntryProbe:
         model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta',
                              deepseek_strict=strict)
         request = ModelRequest(model=model, tools=self.tools, state={'messages': []},
-            system_message=SystemMessage('Original reviewer responsibility.'), messages=[])
+            system_message=SystemMessage(role_prompt('reviewer')), messages=[])
         async def handler(changed):
-            packet = json.loads(changed.system_message.content_blocks[-1]['text'])
+            from support.task_state_contract import moved_blocks
+            field, = [p for p in moved_blocks(changed) if p['source'] == 'field_dictionary/current_request']
+            packet = json.loads(field['text'])
             if self.before_send:
                 self.before_send(packet)
             # Preserve the actual model-built system and schema. Corruption is tested before HTTP.
@@ -104,15 +107,21 @@ class ReviewEntryProbe:
             if self.function['parameters']['properties']['evidence_indexes'].get('uniqueItems'):
                 function['parameters']['properties']['evidence_indexes']['uniqueItems'] = True
             if self.before_send:
-                corrupted = deepcopy(changed.system_message.content_blocks)
-                corrupted[-1]['text'] = encode(packet)
+                from langchain_openai.chat_models.base import _convert_message_to_dict
+                corrupted = [_convert_message_to_dict(m) for m in [changed.system_message, *changed.messages]]
+                tail = json.loads(corrupted[-1]['content'].split('\n', 1)[1])
+                target, = [p for p in tail['moved_blocks'] if p['source'] == 'field_dictionary/current_request']
+                target['text'] = encode(packet)
+                corrupted[-1]['content'] = '[host-observations]\n' + encode(tail)
                 validate_wire({'tools': [{'type':'function','function':function}],
-                    'messages':[{'role':'system','content':corrupted}]}, strict=False)
+                    'messages':corrupted}, strict=False)
             answer = await sdk_response(function, value, packet, strict, self.requests, self.raw_calls,
                                         call_id, messages=[changed.system_message, *changed.messages])
             return ModelResponse(result=[answer])
         try:
-            return (await self.native.awrap_model_call(request, handler)).result[0]
+            async def final_boundary(changed):
+                return await AgentPromptBoundary(self.ws, 'reviewer').awrap_model_call(changed, handler)
+            return (await self.native.awrap_model_call(request, final_boundary)).result[0]
         finally:
             model.root_client.close()
             await model.root_async_client.close()
@@ -156,8 +165,10 @@ async def delegate(workspace, arguments, child, strict, requests, call_id='co-de
         return ModelResponse(result=[answer])
     try:
         request = ModelRequest(model=model, tools=tools, state={'messages': []},
-            system_message=SystemMessage('Original coordinator responsibility.'), messages=[])
-        answer = (await boundary.awrap_model_call(request, handler)).result[0]
+            system_message=SystemMessage(role_prompt('coordinator')), messages=[])
+        async def final_boundary(changed):
+            return await AgentPromptBoundary(workspace, 'coordinator').awrap_model_call(changed, handler)
+        answer = (await boundary.awrap_model_call(request, final_boundary)).result[0]
         result = await native_node(ToolNode(tools, awrap_tool_call=boundary.awrap_tool_call), {'messages':[answer]})
         return result, answer
     finally:

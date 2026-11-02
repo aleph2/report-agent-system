@@ -16,10 +16,16 @@ from report_agent.working_summary import WorkingSummary
 from test_hierarchical_content import ws, seed
 from test_reviewer_native_profile import native, commission, candidate
 from test_deep_runtime import Driver, invoke, observation, call
+from support.task_state_contract import moved_blocks
 
 
 def plan(text, status='pending'):
     return [{'content':text,'status':status}]
+
+
+def current_plan(messages):
+    part, = [p for p in moved_blocks(messages) if p['source'] == 'native_todos/current_child_state']
+    return json.loads(part['text'])['current_review_plan']
 
 
 async def test_current_child_plan_updates_without_becoming_a_save_or_new_task(ws):
@@ -28,15 +34,13 @@ async def test_current_child_plan_updates_without_becoming_a_save_or_new_task(ws
     first=plan('criterion → saved claim → source → inverse check → remaining')
     second=plan('Merged fact and arithmetic checks; retain unresolved source conflict','in_progress')
     def update(messages):
-        assert first[0]['content'] in messages[0].text
+        assert first[0]['content'] in json.dumps(current_plan(messages), ensure_ascii=False)
         assert not cs.list_objects('ReviewRecord')
         return invoke('write_todos',todos=second)
     def read(messages):
-        system=messages[0].text
+        system=json.dumps(current_plan(messages), ensure_ascii=False)
         assert second[0]['content'] in system and first[0]['content'] not in system
-        import json
-        current, = [json.loads(b['text'])['current_review_plan'] for m in messages if m.type == 'system'
-                    for b in m.content_blocks if b.get('text', '').startswith('{"current_review_plan":')]
+        current = current_plan(messages)
         assert current['todos'] == second and current['authority'] == 'working_intentions'
         assert current['actor_id']
         assert not cs.list_objects('ReviewRecord')
@@ -58,8 +62,8 @@ async def test_native_child_plan_is_in_effective_input_after_checkpoint_reopen(w
     current=plan('Resume this child: verify saved claim against assigned criterion','in_progress')
     seen=[]
     def after_plan(messages):
-        seen.append(messages[0].text)
-        assert current[0]['content'] in messages[0].text
+        seen.append(json.dumps(current_plan(messages), ensure_ascii=False))
+        assert current[0]['content'] in seen[-1]
         answer=interrupt({'issue_id':issue['id'],'kind':'synthetic_plan_checkpoint'})
         assert answer=='Continue fixture'
         return AIMessage(content='Plan retained; no semantic acceptance claimed.')
@@ -86,18 +90,23 @@ async def test_current_plan_survives_real_compaction_and_is_not_a_previous_task_
     compressed=add_messages(history,update['messages'])
     assert len(compressed)<len(history)
     def request_for(state):
-        request=SimpleNamespace(state=state,messages=compressed,system_message=SystemMessage(content='Fixture role.'))
-        request.override=lambda **changes:SimpleNamespace(**{**request.__dict__,**changes})
-        return request
+        from report_agent.hierarchical_tools import role_prompt
+        from langchain.agents.middleware.types import ModelRequest
+        return ModelRequest(model=Driver()('reviewer'),state=state,messages=compressed,tools=[],
+                            system_message=SystemMessage(content=role_prompt('reviewer')))
     captured=[]
     async def handler(request):
         captured.append(request);return 'fixture-result'
+    async def final_boundary(request):
+        from report_agent.prompt_provenance import AgentPromptBoundary
+        return await AgentPromptBoundary(ws, 'reviewer').awrap_model_call(request, handler)
     with delegated_task(ws,'coordinator',call('task',commission(snap,refs),'compaction-task')) as (_,actor):
         todo=plan('Current criterion and exact deliverable version; evidence still missing','in_progress')
-        await CurrentReviewPlan(ws).awrap_model_call(request_for({'messages':compressed,'todos':todo}),handler)
-        assert todo[0]['content'] in captured[-1].system_message.text
-        assert actor.id in captured[-1].system_message.text
-        assert 'Stale summary' not in captured[-1].system_message.text
+        await CurrentReviewPlan(ws).awrap_model_call(request_for({'messages':compressed,'todos':todo}),final_boundary)
+        current = json.dumps(current_plan(captured[-1].messages), ensure_ascii=False)
+        assert todo[0]['content'] in current
+        assert actor.id in current
+        assert 'Stale summary' not in current
     with delegated_task(ws,'coordinator',call('task',commission(snap,refs),'different-task')):
-        await CurrentReviewPlan(ws).awrap_model_call(request_for({'messages':compressed}),handler)
-        assert todo[0]['content'] not in captured[-1].system_message.text
+        await CurrentReviewPlan(ws).awrap_model_call(request_for({'messages':compressed}),final_boundary)
+        assert todo[0]['content'] not in json.dumps([m.content for m in captured[-1].messages], ensure_ascii=False)

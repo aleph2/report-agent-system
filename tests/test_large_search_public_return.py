@@ -186,7 +186,6 @@ async def test_current_real_profile_writer_sdk_reopens_same_owner_without_replay
     Provider replies are scripted locally; this proves reuse mechanics, not that
     a live model will choose the most efficient continuation.
     """
-    import re
     from collections import Counter
     import httpx
     from langchain_core.messages import HumanMessage
@@ -250,20 +249,10 @@ async def test_current_real_profile_writer_sdk_reopens_same_owner_without_replay
                 if step == 0:
                     args = dict(subagent_type='writer', description='Continue retained source work; no acceptance claimed.')
                     if phase[0]:
-                        packets = []
-                        for message in body['messages']:
-                            if message['role']!='system':
-                                continue
-                            blocks=message['content'] if isinstance(message['content'],list) else [message['content']]
-                            for block in blocks:
-                                text=block.get('text','') if isinstance(block,dict) else block
-                                for marker in re.finditer(r'\{',text):
-                                    try:
-                                        value,_=json.JSONDecoder().raw_decode(text[marker.start():])
-                                    except ValueError:
-                                        continue
-                                    if isinstance(value,dict):packets.append(value)
-                        dictionary = next(p for p in packets if p.get('tool')=='task' and 'resource_scopes' in p)
+                        from support.task_state_contract import moved_blocks
+                        packets = [json.loads(part['text']) for part in moved_blocks(body['messages'])
+                                   if part['source'] == 'field_dictionary/current_request']
+                        dictionary, = [p for p in packets if p.get('tool')=='task' and 'resource_scopes' in p]
                         entries = [r for r in dictionary['resource_scopes'] if r.get('role')=='writer']
                         assert len(entries)==1
                         args['resume_task_scope'] = entries[0]['scope']

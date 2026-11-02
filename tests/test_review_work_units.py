@@ -96,7 +96,9 @@ async def test_native_todo_preserves_unit_metadata_before_valid_calculation(case
     observed, visible = [], []
 
     def calculate(messages):
-        visible.append(messages[0].text)
+        from support.task_state_contract import moved_blocks
+        part, = [p for p in moved_blocks(messages) if p['source'] == 'native_todos/current_child_state']
+        visible.append(part['text'])
         return invoke('observe_evidence', kind='calculation', terms=[['9', '120'], ['6', '180']])
 
     def finish(messages):
