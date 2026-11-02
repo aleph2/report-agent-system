@@ -98,11 +98,22 @@ def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_p
     (run / 'neo-approval.json').write_text(json.dumps({'approved': True,
         'host_sha256': sha(run / 'host.py'), 'prepared_sha256': sha(run / 'prepared.json'),
         'synthetic_only': True}))
+    original_popen = subprocess.Popen
+    verified = []
+    verifier = [sys.executable, '-I', '-B', '-c',
+        'import sys; sys.path.insert(0, sys.argv[1]); '
+        'from report_agent.blob_store import verify_case_blobs; verify_case_blobs(sys.argv[2])',
+        str(run / 'source/src'), str(run / 'case')]
+
     def no_launch(*args, **kwargs):
-        pytest.fail('Restore verification must not start a report process')
+        if args != (verifier,) or kwargs != {'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE, 'text': True}:
+            pytest.fail('Restore verification permits only the pinned read-only blob verifier, never a report process')
+        verified.append(args[0])
+        return original_popen(*args, **kwargs)
     monkeypatch.setattr(subprocess, 'Popen', no_launch)
     monkeypatch.setattr(sys, 'argv', ['launch_report.py', '--run', str(run), '--check'])
     launch['main']()
+    assert verified == [verifier]
     assert not (run / 'run-launch-intent.json').exists()
     assert not (run / 'started.json').exists()
     (run / 'source/config/current.json').write_text('{}')

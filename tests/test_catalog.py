@@ -33,7 +33,9 @@ def test_import_version_receipt_and_located_paging(tmp_path):
         cat.import_file('notes.txt', b'A conflicting update', sid)
     assert len(ws.store.get('source_changes')) == 2
     with ws.store.connect() as db:
-        assert db.execute('SELECT original FROM source_versions WHERE id=?', (sid,)).fetchone()[0] == text.encode()
+        assert db.execute('SELECT original FROM source_versions WHERE id=?', (sid,)).fetchone()[0] in (None, b'')
+    from report_agent.document_tools import _original
+    assert _original(ws, sid)[1] == text.encode()
 
 
 def test_literal_search_versions_paging_and_partial_observations(tmp_path):

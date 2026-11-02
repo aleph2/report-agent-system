@@ -72,6 +72,11 @@ def _original(workspace, source_id):
         source, data = json.loads(row[0]), row[1]
         if source.get("id") != source_id:
             raise ActionRejected("SOURCE_METADATA_MISMATCH")
+        if source.get('original_blob'):
+            from .blob_store import BlobStore
+            if data and hashlib.sha256(data).hexdigest() != source.get('sha256'):
+                raise ActionRejected('SOURCE_ORIGINAL_SHA256_MISMATCH')
+            data = BlobStore(store.root).read(source['original_blob'])
 
     # A text-only source is not an original, even if a filename was recorded.
     value = source.get("copied_path") or source.get("original_path")

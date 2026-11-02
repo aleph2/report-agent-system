@@ -3,11 +3,43 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from .errors import ActionRejected
+from .errors import ActionRejected, LocalStorageBusy
+
+
+def _busy(error):
+    code = getattr(error, 'sqlite_errorcode', None)
+    return isinstance(error, sqlite3.OperationalError) and isinstance(code, int) and code & 255 == sqlite3.SQLITE_BUSY
+
+
+class _Connection(sqlite3.Connection):
+    def _local_retry(self, action):
+        # Retry only the same SQLite statement/commit, never its caller or a model.
+        timeout = None
+        try:
+            for attempt in range(3):
+                try:
+                    return action()
+                except sqlite3.OperationalError as error:
+                    if getattr(error, 'sqlite_errorcode', None) != sqlite3.SQLITE_BUSY or attempt == 2:
+                        raise
+                    if timeout is None:
+                        timeout = super().execute('PRAGMA busy_timeout').fetchone()[0]
+                    super().execute('PRAGMA busy_timeout=100')
+                    time.sleep(0.05 * (attempt + 1))
+        finally:
+            if timeout is not None:
+                super().execute(f'PRAGMA busy_timeout={timeout}')
+
+    def execute(self, *args, **kwargs):
+        return self._local_retry(lambda: super(_Connection, self).execute(*args, **kwargs))
+
+    def commit(self):
+        return self._local_retry(super().commit)
 
 
 def encode(value: object) -> str:
@@ -26,6 +58,8 @@ class Store:
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / "state.db"
         with self.connect() as db:
+            if db.execute('PRAGMA journal_mode=WAL').fetchone()[0].lower() != 'wal':
+                raise RuntimeError('PROJECT_DATABASE_WAL_REQUIRED')
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS artifacts (
@@ -38,11 +72,16 @@ class Store:
 
     @contextmanager
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=15)
-        db.execute("PRAGMA synchronous=FULL")
+        db = sqlite3.connect(self.path, timeout=15, factory=_Connection)
         try:
-            with db:
-                yield db
+            db.execute("PRAGMA synchronous=FULL")
+            yield db
+            db.commit()
+        except BaseException as error:
+            db.rollback()
+            if _busy(error):
+                raise LocalStorageBusy() from error
+            raise
         finally:
             db.close()
 
@@ -100,7 +139,13 @@ class Store:
     def get(self, key: str, default=None):
         with self.connect() as db:
             row = db.execute("SELECT value FROM state WHERE key=?", (key,)).fetchone()
-        return json.loads(row[0]) if row else default
+        result = json.loads(row[0]) if row else default
+        if key.startswith('prompt_capture:') and isinstance(result, dict) and result.get('capture_blob'):
+            from .blob_store import BlobStore
+            result = json.loads(BlobStore(self.root).read(result['capture_blob']))
+            if key != 'prompt_capture:' + digest(result):
+                raise ActionRejected('PROMPT_CAPTURE_INTEGRITY_MISMATCH')
+        return result
 
     def set(self, key: str, value: object):
         with self.connect() as db:
@@ -203,6 +248,14 @@ class Store:
         return json.loads(row[0]) if row else None
 
     def event(self, kind: str, data: object):
+        from .runtime_metrics import emit
+        # An observed call fact remains useful even if SQLite cannot record it.
+        # Metrics are diagnostic only, never an authorization or operation receipt.
+        try:
+            emit(self.root, kind, data)
+        except (OSError, ValueError) as error:
+            import logging
+            logging.getLogger(__name__).warning('Runtime metrics unavailable: %s', type(error).__name__)
         with self.connect() as db:
             db.execute("INSERT INTO events(kind,data) VALUES (?, ?)", (kind, encode(data)))
 
