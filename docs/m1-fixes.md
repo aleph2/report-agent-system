@@ -81,6 +81,84 @@ extend existing coverage accounting: an omitted object or unaccepted scope
 reduction remains incomplete. Reviewer acceptance of a limitation cannot cancel
 a customer requirement. G2 does not implement the G3 scoring or export redesign.
 
+## G2 implementation and review candidate
+
+`commission_plan.py` stores immutable source-linked section plans, exact customer
+quotations separately from interpretations, declared inventory attributes, and
+every known object as an existing Requirement record. Unknown values and
+conflicting alternatives remain visible. Required attributes are commission data,
+not a product-specific slope schema; the M1 fixture declares mileage, side,
+length, height, type and soil/rock. New plans cannot silently remove known objects.
+
+The coordinator saves a proposal and requests the existing native human interrupt.
+The generated brief and adjacent JSON show the exact plan reference and reply
+shape. The trusted operator responds using:
+
+```text
+report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json
+```
+
+Only that structured operator reply can approve the exact version or explicitly
+reduce named objects with reasons. Generic human-answer prose cannot authorize
+writing. Missing named section sources remain `pending_sources`; approval is
+refused until those sources are supplied or an explicit substitution is recorded
+in a revised plan. Corrections require a new proposal and confirmation.
+
+Writer assignments bind selected section rows. Delegation, generation before its
+helper call, and ContentNode saving all enforce the current confirmation. The
+host waits inside its original token-budget/observer scope and resumes the same
+workspace through native checkpoints; waiting does not restart the host, reset
+the ledger or replay unknown reservations.
+
+Snapshots automatically include confirmed inventory Requirements and source
+closure. Each writer records its own saved section/score/level/basis references.
+Matching outcome references are frozen into the snapshot and digest; another
+writer's draft cannot alter the selected snapshot's completeness. Ambiguous
+matching outcomes are refused. Reopening an outcome affects a newly frozen
+snapshot, while the old snapshot retains its original evidence. Missing or
+unresolved objects propagate `incomplete` through delivery, project state,
+runtime, CLI exit status and the host receipt. This is structural coverage, not
+an eleven-indicator calculation or engineering approval.
+
+The host uses a neutral commission frame and records optional supplied templates
+with purpose `template`; conventions come from the scope document. The obsolete
+tool-discovery profile is removed. Existing real-input/hash checks and the
+100M-per-run/200M-total M1 limits remain in place.
+
+### Real-source evidence and remaining acceptance gap
+
+The private offline fixture reuses the fresh G1 source cache in an isolated case
+and separately imports the authorized template PDF. All ten input hashes and
+the template hash are recorded. It saves six fixed sections (1.1, 1.2, 1.4, 3.1,
+3.2, 6), extracted sections 1.3/2/4, and chapter 5 derived from chapter 4. Fixed
+text is linked to actual template pages, and the design-priority convention is
+quoted from the actual scope file. Five design-drawing candidates retain all six
+attributes; untranscribed values are explicitly unknown, not fabricated or
+declared absent from the originals.
+
+The named `第一册第一分册 施工图总说明` and `平面总体布置图设计说明` were not
+located in the inspected material. Roadbed design notes, geological general
+notes and local slope plans are not silently renamed to fill that gap. The
+fixture preserves these pending sources and verifies approval refusal. Thus it
+proves record behavior and honest missing-source handling; the original plan's
+real-data criterion that every section has its named source remains incomplete.
+This blocks approval/writing of that real commission, not publication of this
+offline code-review candidate. Owner source clarification is pending.
+
+Private evidence is under `.analysis/m1-fixes-20261103/`: preserved RED tests,
+focused JUnit/logs, independent Neo and alignment reviews, the real-source
+mapping, `g2-real-plan.json` and `g2-real-acceptance.json`. Original M1 state,
+financial unknowns and source files remain untouched. Full-suite, scripted whole
+report, provider acceptance, visual fidelity and report quality remain G4 work.
+
+Final focused regression: **249 passed, 0 failed, 0 errors, 0 skipped**, in
+220.72 seconds. The 24 reviewed source/test/config file hashes remained unchanged.
+The earlier 247-pass/one-failure run is preserved: its subprocess could not import
+a test helper because `tests` was missing from PYTHONPATH. The final environment
+uses `PYTHONPATH=src:tests`. Independent Neo and alignment reviews found no
+remaining critical code issue in the inspected scope. These overlapping batches
+are not a new full-suite count.
+
 ## G3 rules discussed, implementation deferred
 
 Indicator bases are evidence, a stated guideline rule applied to facts, or a

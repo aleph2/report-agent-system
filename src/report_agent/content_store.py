@@ -255,6 +255,9 @@ class ContentStore:
         def save(db):
             if not objects and deliverable_selection is None:
                 raise ActionRejected("EMPTY_COMMIT")
+            if any(obj.get('type') == 'ContentNode' for obj in objects):
+                from .commission_plan import assert_writing_allowed
+                assert_writing_allowed(self, db, actor)
             assigned, plans, exception_uses = {}, [], []
             configured = db.execute("SELECT value FROM state WHERE key='content_revision_limit'").fetchone()
             revision_limit = json.loads(configured[0]) if configured else None
@@ -336,6 +339,8 @@ class ContentStore:
 
     def _snapshot_payload(self, db, root_ref, refs, workbook_refs):
         """Shared structural checks only; callers retain their separate authority checks."""
+        from .commission_plan import snapshot_inventory
+        refs, commission_plan_ref = snapshot_inventory(self, db, refs)
         by_key = {Ref.model_validate(r).key(): self._read(db, r) for r in refs}
         if len(by_key) != len(refs) or Ref.model_validate(root_ref).key() not in by_key:
             raise ActionRejected("INVALID_MANIFEST")
@@ -415,6 +420,12 @@ class ContentStore:
             if self.store.manifest["coverage_contract"] != CONTRACT:
                 raise ActionRejected("UNKNOWN_COVERAGE_CONTRACT")
             payload["coverage_contract"] = CONTRACT
+        if commission_plan_ref:
+            from .commission_plan import snapshot_outcomes
+            payload['commission_plan_ref'] = commission_plan_ref
+            payload['commission_outcome_refs'] = snapshot_outcomes(self, db, commission_plan_ref, ordered)
+            payload['manifest_digest'] = digest({'content_digest': payload['manifest_digest'],
+                'commission_plan_ref': commission_plan_ref, 'commission_outcome_refs': payload['commission_outcome_refs']})
         return payload
 
     def _saved_reference_set(self, db, actor, receipt_id):

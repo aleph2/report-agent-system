@@ -87,7 +87,7 @@ def host_case(tmp_path, monkeypatch, *, references=0, extras=1, scopes=1):
 
 
 @pytest.mark.parametrize('references,extras', [(0, 1), (2, 7)], ids=['no-format-directory', 'two-format-pdfs'])
-def test_prepare_uses_complete_requirements_and_optional_format_only_pdfs(tmp_path, monkeypatch, references, extras):
+def test_prepare_uses_complete_requirements_and_optional_template_pdfs(tmp_path, monkeypatch, references, extras):
     state = host_case(tmp_path, monkeypatch, references=references, extras=extras)
     state['prepare']()
     prepared = json.loads((state['HERE'] / 'prepared.json').read_text())
@@ -100,7 +100,7 @@ def test_prepare_uses_complete_requirements_and_optional_format_only_pdfs(tmp_pa
     for name, item in prepared['source_files'].items():
         assert item['sha256'] == state['sha'](state['INPUT'] / name)
         if Path(name).parts[0] == '成果报告':
-            assert item['purpose'] == 'structure_and_format_only'
+            assert item['purpose'] == 'template'
         elif Path(name).name == COMMISSION:
             assert item['purpose'] == 'commission'
         else:
@@ -109,7 +109,8 @@ def test_prepare_uses_complete_requirements_and_optional_format_only_pdfs(tmp_pa
         assert '成果报告' not in manifest['goal']
         assert '成果报告' not in manifest.get('scope_instruction', '')
     else:
-        assert '结构' in manifest['goal'] and '格式' in manifest['goal']
+        assert '结构' in manifest['goal']
+        assert '仅供结构' not in manifest['goal'] and '仅作格式' not in manifest['goal']
     assert not (state['CASE'] / 'checkpoints.db').exists()
 
 
@@ -120,6 +121,28 @@ def test_prepare_requires_exactly_one_commission_without_creating_case(tmp_path,
         state['prepare']()
     assert not state['CASE'].exists()
     assert not (state['HERE'] / 'prepared.json').exists()
+
+
+@pytest.mark.parametrize('references', [0, 2])
+def test_g2_preparation_uses_neutral_commission_frame_optional_templates_and_checkpoint(tmp_path, monkeypatch, references):
+    state = host_case(tmp_path, monkeypatch, references=references)
+    state['prepare']()
+    prepared = json.loads((state['HERE'] / 'prepared.json').read_text())
+    manifest = Store(state['CASE']).manifest
+    assert manifest['commission_checkpoint_required'] is True
+    assert REQUIREMENTS in manifest['goal']
+    frame = manifest['goal'].replace(REQUIREMENTS, '') + manifest.get('scope_instruction', '')
+    assert '设计' not in frame and '地勘' not in frame
+    assert 'Word' not in frame and 'Excel' not in frame
+    assert 'structure_and_format_only' not in frame
+    assert '仅供结构' not in frame and '仅作结构' not in frame
+    assert '仅供格式' not in frame and '仅作格式' not in frame
+    templates = [item for name, item in prepared['source_files'].items()
+                 if Path(name).parts[0] == '成果报告']
+    assert len(templates) == references
+    assert all(item['purpose'] == 'template' for item in templates)
+    from report_agent.handoff_release import release
+    assert release(manifest)['commission_checkpoint_required'] is True
 
 
 def stage_fixture(tmp_path, monkeypatch, *, extras):
