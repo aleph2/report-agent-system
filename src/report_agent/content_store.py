@@ -350,7 +350,7 @@ class ContentStore:
         logical = [(r[0], r[1]) for r in by_key]
         if len(logical) != len(set(logical)):
             raise ActionRejected("MIXED_LOGICAL_VERSIONS")
-        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation", "Assessment", "CommissionPlan", "CommissionDecision"}
+        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation", "Assessment", "CommissionPlan", "CommissionDecision", "CommissionRequirements"}
         if any(r[0] not in allowed for r in by_key):
             raise ActionRejected("INVALID_SNAPSHOT_TYPE")
         missing_refs, referrers = {}, []

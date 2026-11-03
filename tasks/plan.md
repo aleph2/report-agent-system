@@ -1,5 +1,19 @@
 # 实施计划：真实协作中的接口、成果表达与长等待
 
+## Active G4 repair — 2026-11-03
+
+Owner authorized the updated requirements/planning plan after pausing for review.
+See [G4 repair plan](../docs/m1-g4-repair-plan.md). H1 first: independent source
+anchors, versioned requirement dispositions and shared authority checks. H1/H2/H3
+each end in a review tag; paid restart needs separate owner approval. Current run
+already exited by earlier owner stop; preserve all records and holds. Email stopped.
+Historical plans and evidence below remain unchanged.
+
+H1 completed: 457 affected tests passed in one batch; actual inputs yielded 40
+source anchors. Neo and independent alignment review accepted H1 for owner review.
+Review tag: `m1-fixes-20261103-g4-h1`; [verification](../docs/m1-g4-h1-verification.md).
+Stop here for owner H1 review; H2/H3 and paid restart are not started.
+
 ## 技能使用与验证记录模板
 
 持续规则入口：[AGENTS.md](../AGENTS.md#development-skills-use-evidence-not-names-user-decision-2026-10-25)。在本轮已有验证记录中填写以下区块，不另建技能台账系统，不追改已封存的历史结果。本区块是可复用模板，不是已执行的证据。
