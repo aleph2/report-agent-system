@@ -18,7 +18,8 @@ from test_deep_runtime import Driver, invoke
 from test_deliverable_declaration_v4 import case
 
 
-async def test_writer_checkpoint_resumes_same_native_task_after_local_busy(case, monkeypatch):
+async def test_legacy_raw_busy_checkpoint_resumes_same_native_writer_task(case, monkeypatch):
+    """Historical raw-error permits remain compatible; current typed busy is tested in G1."""
     cs, _, _, _, _ = case
     ws = Workspace(cs.store)
     manifest = ws.store.manifest
@@ -33,11 +34,21 @@ async def test_writer_checkpoint_resumes_same_native_task_after_local_busy(case,
             failures.append('busy')
             reader = sqlite3.connect(self.workspace.store.path)
             try:
+                # Historical failure was a rollback-journal reader blocking COMMIT,
+                # not a WAL writer blocking BEGIN; the permit verifies that boundary.
+                assert reader.execute('PRAGMA journal_mode=DELETE').fetchone()[0] == 'delete'
                 reader.execute('BEGIN')
                 reader.execute('SELECT value FROM state LIMIT 1').fetchone()
-                return original(self, *args, **kwargs)
+                from report_agent import store as store_module
+                with monkeypatch.context() as legacy_policy:
+                    legacy_policy.setattr(store_module, '_busy', lambda error: False)
+                    return original(self, *args, **kwargs)
             finally:
-                reader.close()
+                try:
+                    reader.rollback()
+                    assert reader.execute('PRAGMA journal_mode=WAL').fetchone()[0] == 'wal'
+                finally:
+                    reader.close()
         return original(self, *args, **kwargs)
 
     def after_calculation(messages):

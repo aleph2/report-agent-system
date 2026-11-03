@@ -10,6 +10,7 @@ import pytest
 
 from report_agent import ingestion
 from report_agent.catalog import Catalog
+from report_agent.blob_store import BlobStore
 from report_agent.document_tools import source_page_png, vision_source_image
 from report_agent.errors import ActionRejected
 from report_agent.ingestion import parse_document
@@ -77,6 +78,11 @@ def test_catalog_registers_original_no_fabricated_text_and_vision_is_read_only(t
     assert cat.read(sid)["blocks"] == []
     assert ws.store.sources([sid])[0]["content"] == ""
     assert cat.import_file("diagram.png", data)["reused"]
+    blob = imported['source']['original_blob']
+    assert blob['sha256'] == hashlib.sha256(data).hexdigest() and blob['size'] == len(data)
+    assert BlobStore(ws.store.root).read(blob) == data
+    before_blobs = {str(p.relative_to(ws.store.root)): p.read_bytes()
+                    for p in (ws.store.root / 'blobs').glob('*/*') if p.is_file()}
     before = snapshot(ws)
     png, provenance = vision_source_image(ws, sid)
     assert snapshot(ws) == before
@@ -86,7 +92,10 @@ def test_catalog_registers_original_no_fabricated_text_and_vision_is_read_only(t
     assert provenance["page"] == 1 and provenance["crop"] is None
     assert provenance["width"] == 100 and provenance["height"] == 80
     with ws.store.connect() as db:
-        assert db.execute("SELECT original FROM source_versions WHERE id=?", (sid,)).fetchone()[0] == data
+        assert db.execute("SELECT original FROM source_versions WHERE id=?", (sid,)).fetchone()[0] == b''
+    assert BlobStore(ws.store.root).read(blob) == data
+    assert {str(p.relative_to(ws.store.root)): p.read_bytes()
+            for p in (ws.store.root / 'blobs').glob('*/*') if p.is_file()} == before_blobs
 
 
 @pytest.mark.parametrize("format,suffix", [("PNG", "png"), ("JPEG", "jpg"), ("WEBP", "webp")])

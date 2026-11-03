@@ -120,6 +120,14 @@ def capability_projection(value, ref, sha256, characters):
         'json_location': ['result', 'controls'],
         'note': 'Read the original JSON for nested constraints; this path is not a field_path argument.'},
         'changes': {'count': len(result.get('changes', [])), 'details_in_original': True}}
+    for name in ('material_issue_schema', 'table_merge_schema'):
+        if name in result:
+            definition = result[name]
+            projected[name] = {
+                **{key: definition[key] for key in ('title', 'type', 'required') if key in definition},
+                'fields': sorted(definition.get('properties', {})),
+                'json_location': ['result', name],
+                'details_in_original': True}
     return {**value, 'result': projected, 'observation_ref': ref, 'sha256': sha256,
         'stored_characters': characters,
         'exact_recovery': {'tool': 'read_tool_observation',

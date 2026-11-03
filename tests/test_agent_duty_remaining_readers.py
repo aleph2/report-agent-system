@@ -378,7 +378,8 @@ async def test_layout_capability_request_preserves_scope_and_does_not_implement_
             assert payload['resume_task_id'] == bound_actor(ws, 'layout', None).task_id
             folder = Path(__file__).resolve().parents[1] / 'src/report_agent'
             expected = hashlib.sha256(b''.join((folder / name).read_bytes() for name in
-                ('content_layout.py', 'content_export.py', 'office_finalize.py', 'office_render.py', 'layout_capabilities.py'))).hexdigest()
+                ('content_layout.py', 'content_export.py', 'g3_export.py', 'material_issues.py',
+                 'office_finalize.py', 'office_render.py', 'layout_capabilities.py'))).hexdigest()
             assert payload['capability_version'] == expected
         unchanged(cs, originals)
         assert not cs.list_objects('ExportArtifact') and not cs.list_objects('ReviewRecord')

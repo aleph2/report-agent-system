@@ -185,9 +185,11 @@ async def test_a01_native_nested_reports_refresh_render_one_directory(ws, reques
 async def test_a01_historical_insertion_fault_is_detected_by_same_oracle(ws, request, monkeypatch):
     """Restore only the documented old conditional, in test memory, never disk."""
     original = inspect.getsource(content_export.export_snapshot)
-    old_condition = 'if kind == "report" and depth == 0 and options.toc:'
+    old_condition = 'if kind == "report" and depth == 0:'
     assert original.count(old_condition) == 1, 'Historical mutation no longer matches implementation; review fixture.'
-    mutated = original.replace(old_condition, 'if kind == "report" and options.toc:')
+    # This fixture has no title pages; removing the root-only guard restores
+    # repeated TOC insertion while preserving the actual four-versus-one oracle.
+    mutated = original.replace(old_condition, 'if kind == "report":')
     namespace = dict(content_export.__dict__)
     exec(compile(mutated, '<A01-historical-toc-condition-test-only>', 'exec'), namespace)
     monkeypatch.setattr(content_export, 'export_snapshot', namespace['export_snapshot'])

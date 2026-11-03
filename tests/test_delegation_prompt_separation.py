@@ -6,6 +6,7 @@ or engineering correctness. Existing tests remain unchanged.
 import json
 import hashlib
 from collections import Counter
+from copy import deepcopy
 from pathlib import Path
 
 import httpx
@@ -31,6 +32,55 @@ DESCRIPTIONS = {
     'layout': 'Improves the presentation of an assigned immutable report snapshot when layout work is useful. Uses available export and rendering capabilities to inspect readability and returns exact artifact versions and limitations. Report content, criteria, reviews and final delivery selection remain outside its ownership.',
 }
 LEGACY = json.loads((Path(__file__).parent/'fixtures/delegation-prompt-full-role-v1.json').read_text(encoding='utf-8'))
+
+
+def reviewed_schema_tools():
+    """Explicit G2/G3 deltas; retain the immutable historical wire elsewhere.
+
+    Expected definitions are independent literals reviewed against captured SDK
+    wires. Any additional parameter or other schema change still fails equality.
+    """
+    tools = deepcopy(LEGACY['tools'])
+    task = next(t['function'] for t in tools if t['function']['name'] == 'task')
+    task['parameters']['properties']['section_ids'] = {
+        'description': 'Saved section IDs for a new writer under the confirmed commission plan; omit for other roles and continuation.',
+        'items': {'type': 'string'}, 'type': 'array'}
+    commit = next(t['function'] for t in tools if t['function']['name'] == 'commit_objects')
+    node = commit['parameters']['properties']['objects']['items']['oneOf'][2]['properties']['payload']['anyOf'][0]
+    table = node['allOf'][1]['then']['properties']['body']['properties']
+    table['header_rows'] = {
+        'anyOf': [{'items': {'items': {'type': 'string'}, 'type': 'array'}, 'type': 'array'}, {'type': 'null'}],
+        'default': None,
+        'description': 'Rendered header matrix; body row indexes do not include these header rows.',
+        'title': 'Header Rows'}
+    table['header_merges'] = {
+        'description': 'Header-relative spans, separate from data-row merges and issue anchors.',
+        'items': {'additionalProperties': False,
+            'properties': {name: {'minimum': 0, 'title': title, 'type': 'integer'} for name, title in
+                [('end_col', 'End Col'), ('end_row', 'End Row'), ('start_col', 'Start Col'), ('start_row', 'Start Row')]},
+            'required': ['start_row', 'end_row', 'start_col', 'end_col'], 'title': 'CellMerge', 'type': 'object'},
+        'title': 'Header Merges', 'type': 'array'}
+    node['properties']['citations'] = {
+        'items': {'additionalProperties': False, 'properties': {
+            'locator': {'minLength': 1, 'title': 'Locator', 'type': 'string'},
+            'quote': {'default': '', 'title': 'Quote', 'type': 'string'},
+            'source_ref': {'additionalProperties': False, 'properties': {
+                'id': {'minLength': 1, 'title': 'Id', 'type': 'string'},
+                'type': {'minLength': 1, 'title': 'Type', 'type': 'string'},
+                'version': {'minimum': 1, 'title': 'Version', 'type': 'integer'}},
+                'required': ['type', 'id', 'version'], 'title': 'Ref', 'type': 'object'}},
+            'required': ['source_ref', 'locator'], 'title': 'SourceCitation', 'type': 'object'},
+        'title': 'Citations', 'type': 'array'}
+    node['properties']['working_notes'] = {
+        'default': '', 'description': 'Audit-only working notes, never exported as report content.',
+        'title': 'Working Notes', 'type': 'string'}
+    node['properties']['qualifiers']['description'] = (
+        'Report-visible technical qualifications. Material gaps and conflicts belong in body.material_issues '
+        'for anchored Word comments and the Excel list. Execution notes belong in working_notes.')
+    return tools
+
+
+REVIEWED_TOOLS = reviewed_schema_tools()
 
 
 def profile(ws, value):
@@ -97,10 +147,10 @@ async def test_new_release_has_short_co_description_and_unchanged_child_system(w
         assert load_prompt('content-' + selected + '-description').strip() not in task['description']
     assert load_prompt('native-review-handoff').strip() in task['description']
     assert system(coordinator).startswith(role_prompt('coordinator'))
-    old_task = next(t['function'] for t in LEGACY['tools'] if t['function']['name'] == 'task')
+    old_task = next(t['function'] for t in REVIEWED_TOOLS if t['function']['name'] == 'task')
     assert {**task, 'description':old_task['description']} == old_task
     assert [t for t in coordinator['tools'] if t['function']['name'] != 'task'] == [
-        t for t in LEGACY['tools'] if t['function']['name'] != 'task']
+        t for t in REVIEWED_TOOLS if t['function']['name'] != 'task']
     child = next(body for selected, body in wires if selected == role)
     assert system(child).startswith(role_prompt(role))
     assert load_prompt('agent-context-reviewer' if role == 'reviewer' else 'agent-context-general') not in system(child)
@@ -142,10 +192,10 @@ async def test_old_release_keeps_full_role_descriptions_and_does_not_migrate(ws,
         assert load_prompt('agent-' + role).split('\n\n', 1)[0] in task['description']
         assert role_prompt(role) not in task['description']
     co = next(body for selected, body in wires if selected == 'coordinator')
-    old_task = next(t['function'] for t in LEGACY['tools'] if t['function']['name'] == 'task')
+    old_task = next(t['function'] for t in REVIEWED_TOOLS if t['function']['name'] == 'task')
     assert {**task, 'description': old_task['description']} == old_task
     assert [t for t in co['tools'] if t['function']['name'] != 'task'] == [
-        t for t in LEGACY['tools'] if t['function']['name'] != 'task']
+        t for t in REVIEWED_TOOLS if t['function']['name'] != 'task']
     assert system(co).startswith(role_prompt('coordinator'))
     capture = next(ws.store.get(e['data']['capture_key']) for e in ws.store.events()
         if e['kind'] == 'prompt_final_http_input' and e['data']['purpose'] == 'coordinator')

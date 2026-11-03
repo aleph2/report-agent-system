@@ -48,7 +48,11 @@ async def test_actual_producer_schema_receipt_adoption_and_word_preserve_the_bou
         actual_input=json.loads(model.calls[0][1][1])
         Draft202012Validator.check_schema(actual_input['output_schema'])
         Draft202012Validator(actual_input['output_schema']).validate(answer)
-        assert 'rendered in Word/Excel' in str(actual_input['output_schema'])
+        node_schema = actual_input['output_schema']['$defs']['ContentNode']['properties']
+        assert node_schema['qualifiers']['description'] == (
+            'Report-visible technical qualifications. Material gaps and conflicts belong in body.material_issues '
+            'for anchored Word comments and the Excel list. Execution notes belong in working_notes.')
+        assert node_schema['working_notes']['description'] == 'Audit-only working notes, never exported as report content.'
         stored=ws.store.get('text_work_receipt:'+result['text_work_id'])
         assert stored['result']['generation_notes']==answer['generation_notes']
         assert result['text_work_id']==receipt_digest(actor.__dict__,stored['request_hash'],[payload()],answer['generation_notes'])
