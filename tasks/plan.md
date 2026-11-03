@@ -982,3 +982,43 @@ This follow-up does not complete G4: native case/ledger startup protection,
 current-scope staging with `--template`, full suite and complete scripted pass
 remain separate readiness work before G4 review. No paid/provider calls, real
 report rerun, ledger migration or email.
+
+## G4 offline preparation complete — 2026-11-03
+
+Owner authorized preparation only and confirmed that no Word template is
+available. Use the supplied PDF. Email remains stopped; paid/provider calls and
+the real report rerun still require explicit G4 approval.
+
+Main implemented the shared native Linux storage preflight at stage/prepare/
+launch/direct-host entry points and the new-run table-spec requirement. The
+original ledger was relocated through a consistent SQLite backup, with every
+row/schema preserved: 627 attempts, 62,185,636 used tokens and 2,000,000 held.
+No unknown attempt was released or replayed. Candidate02 on native ext4 contains
+all 11 current inputs including the PDF template and runtime a722a73. Neo verified
+all 223 runtime pins, inputs, WAL/integrity, blobs, unchanged ledger and absent
+launch approval/generated report. Candidate01 and the original storage remain.
+
+Full01: 4,640 passed / 19 failed / 9 skipped. Diagnoses distinguished obsolete
+test expectations and fixture environment leakage from a real nested-capability
+projection regression. The eight-line shared repair preserves full owned schema
+recovery and all permissions. Focused04: 280 passed / one historical fixture
+failure; corrected complete checkpoint module: 18 passed. All failures retained.
+
+Full02: 4,658 passed / two test-deadline failures / nine graph skips, all 4,669
+nodes accounted for. One unchanged serial recheck of the complete 26-test runtime
+module passed under the same 30-second limit. Exact audited coverage across those
+separate batches is 4,660 passed / nine skipped; not one green full run. Two
+optional GEPA/DSPy modules were also skipped during collection. P3 parallel timing
+instability remains unexplained and documented. Complete current scripted report
+flow, paired exports and separate reviewers passed without provider calls.
+
+Skills/actions: using-agent-skills routed phases; Ponytail reused existing
+boundaries; TDD and debugging preserved RED/failure evidence and verified repairs;
+Graphify lookup found no relevant graph, so current callers were inspected;
+code review independently checked source and evidence; Git changes used named
+paths with Main as sole index operator. Exact skill pins, actions, limits and Neo
+dispositions are under `.analysis/m1-g4-preparation-20261103/`.
+
+Offline readiness accepted by Neo. See `docs/m1-g4-preparation.md` and local
+`verification.json` for receipts and limitations. This completes preparation,
+not real-model validation, actual G4 approval or engineering sign-off.
