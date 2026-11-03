@@ -13,6 +13,7 @@ from docx import Document
 from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
 from .store import digest
+from .material_issues import validate_node, rendered_issues, comment_passage
 
 
 def _asset(store, name, data):
@@ -35,6 +36,41 @@ def _bytes(store, asset, expected):
     if hashlib.sha256(data).hexdigest() != expected:
         raise ActionRejected("ASSET_DIGEST_MISMATCH")
     return data
+
+
+def _emit_source_views(doc, text, views, emit_text, render_image, width_mm):
+    """Display approved source crops in place of unique, unchanged source passages."""
+    from PIL import Image
+    from docx.shared import Mm, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    spans = []
+    for view in views:
+        passage = view.get('text')
+        if not isinstance(passage, str) or not passage or text.count(passage) != 1:
+            raise ActionRejected('SOURCE_VIEW_PASSAGE_MUST_BE_UNIQUE')
+        start = text.index(passage)
+        spans.append((start, start + len(passage), view))
+    spans.sort(key=lambda item: item[0])
+    if any(left[1] > right[0] for left, right in zip(spans, spans[1:])):
+        raise ActionRejected('SOURCE_VIEW_PASSAGES_OVERLAP')
+    cursor = 0
+    for start, stop, view in spans:
+        if text[cursor:start].strip():
+            emit_text(text[cursor:start])
+        png = render_image(view)
+        section = doc.sections[-1]
+        height_mm = (section.page_height - section.top_margin - section.bottom_margin) / 36000 - 12
+        with Image.open(BytesIO(png)) as image:
+            width = min(width_mm, height_mm * image.width / image.height)
+        doc.add_picture(BytesIO(png), width=Mm(width))
+        paragraph = doc.paragraphs[-1]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.first_line_indent = Mm(0)
+        paragraph.paragraph_format.space_before = paragraph.paragraph_format.space_after = Pt(0)
+        paragraph.paragraph_format.line_spacing = 1
+        cursor = stop
+    if text[cursor:].strip():
+        emit_text(text[cursor:])
 
 
 def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None, *, deliverable=None):
@@ -74,6 +110,9 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             if not isinstance(selected_layout, dict):
                 raise ActionRejected('LAYOUT_SOURCE_CONFIG_MISSING')
         records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot["payload"]["refs"]}
+        plan_ref = snapshot['payload'].get('commission_plan_ref')
+        plan = contents._read(db, plan_ref)['payload'] if plan_ref else None
+        method_pack = plan.get('method_pack') if plan else None
         edges = {}
         for record in records.values():
             p = record["payload"]
@@ -82,7 +121,6 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         doc, mappings = Document(), []
         end_notes, qualifier_mappings = [], []
         from . import content_layout as presentation
-        options = presentation.LayoutOptions.model_validate(selected_layout or {})
         rendered_keys = set()
         def collect_body(ref):
             key = Ref.model_validate(ref).key()
@@ -92,7 +130,14 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             for _, child in edges.get(key, []):
                 collect_body(child)
         collect_body(snapshot['payload']['root_ref'])
+        issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
+        from .g3_export import prepare_export, citation_text
+        selected_layout = prepare_export(contents, snapshot, records, rendered_keys, selected_layout)
+        options = presentation.LayoutOptions.model_validate(selected_layout or {})
         node_options = presentation.validate_layout(options, records, rendered_keys)
+        root_key = Ref.model_validate(snapshot['payload']['root_ref']).key()
+        title_pages = [ref for _, ref in sorted(edges.get(root_key, []), key=lambda pair: pair[0])
+                       if method_pack and records[Ref.model_validate(ref).key()]['payload']['body'].get('page_role') == 'title_page']
         if options.cover_vertical_alignment and records[Ref.model_validate(snapshot['payload']['root_ref']).key()]['payload']['kind'] != 'report':
             raise ActionRejected('COVER_ALIGNMENT_REQUIRES_REPORT_ROOT')
         if options.refresh_toc and records[Ref.model_validate(snapshot['payload']['root_ref']).key()]['payload']['kind'] != 'report':
@@ -100,6 +145,9 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         from .layout_revision import check as check_layout_revision
         export_config = {"exporter_digest": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                          "layout_engine_digest": hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
+                         "material_issue_ids": [issue.id for _, issue in issue_records],
+                         "helper_digests": {name: hashlib.sha256(Path(__file__).with_name(name + '.py').read_bytes()).hexdigest()
+                                            for name in ('g3_export', 'material_issues')},
                          "layout": options.model_dump()}
         if layout_from_export_ref is not None:
             export_config['layout_source'] = {'export_ref': layout_from_export_ref,
@@ -108,6 +156,8 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         presentation.setup(doc, options)
         toc_headings = []
         def headings(ref, depth):
+            if ref in title_pages:
+                return
             key = Ref.model_validate(ref).key()
             node = records[key]["payload"]
             style = node_options.get(key)
@@ -139,6 +189,10 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             if record["ref"]["type"] != "ContentNode":
                 continue
             node = record["payload"]
+            if node['body'].get('source_views'):
+                if not plan or not plan.get('method_pack'):
+                    raise ActionRejected('SOURCE_VIEWS_REQUIRE_G3_PLAN')
+                image_sources.update(view['source_id'] for view in node['body']['source_views'])
             if node["kind"] == "figure":
                 image_sources.add(node["body"]["source_id"])
             elif isinstance(node["body"].get("text"), str):
@@ -161,6 +215,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         def emit(ref, depth):
             node = records[Ref.model_validate(ref).key()]["payload"]
             body, kind = node["body"], node["kind"]
+            issues, merges = validate_node(node)
             style = node_options.get(Ref.model_validate(ref).key())
             def format_embedded_table(table):
                 presentation.format_table(table, options, style, embedded=True)
@@ -170,7 +225,15 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             elif style and style.page_break_before:
                 doc.add_page_break()
             start = len(list(doc.element.body)) - 1
-            if kind == "table":
+            paragraph_start = len(doc.paragraphs)
+            if plan and plan.get('format_source') and (kind == 'report' or ref in title_pages):
+                # Cover/title lines are literal fields with distinct typography, not Markdown prose.
+                for line in body['text'].split('\n'):
+                    paragraph = doc.add_paragraph(line)
+                    control = next((item for item in controls if item.text == line), None)
+                    if control:
+                        presentation.apply_paragraph(paragraph, control)
+            elif kind == "table":
                 title = presentation.caption(node)
                 if title:
                     p = doc.add_paragraph(title, "Caption")
@@ -181,7 +244,14 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 for values in body["rows"]:
                     for cell, value in zip(table.add_row().cells, values):
                         cell.text = str(value)
+                for merge in merges:
+                    first = table.cell(merge.start_row + 1, merge.start_col)
+                    value = first.text
+                    first.merge(table.cell(merge.end_row + 1, merge.end_col)).text = value
                 presentation.format_table(table, options, style)
+                for issue in issues:
+                    cell = table.cell(issue.anchor.row + 1, issue.anchor.column)
+                    doc.add_comment(cell.paragraphs[0].runs, issue.comment(), author="工程资料澄清", initials="审")
                 footnote = presentation.table_footnote(body)
                 if footnote is not None:
                     doc.add_paragraph(footnote)
@@ -193,6 +263,15 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 available = presentation.available_width(options, bool(style and style.landscape))
                 doc.add_picture(BytesIO(png), width=Mm(min(style.figure_width_mm if style and style.figure_width_mm else available, available)))
                 doc.add_paragraph(body["caption"], "Caption")
+            elif body.get('source_views'):
+                from .document_tools import vision_source_image
+                def render_source_view(view):
+                    png, _ = vision_source_image(source_workspace, view['source_id'], view['page'], view['crop'])
+                    used_images.add(view['source_id'])
+                    return png
+                _emit_source_views(doc, body['text'], body['source_views'],
+                    lambda text: presentation.emit_text(doc, text, image_renderer, controls, table_formatter=format_embedded_table),
+                    render_source_view, presentation.available_width(options, bool(style and style.landscape)))
             elif kind in {"report", "chapter"}:
                 first, _, rest = body["text"].partition("\n")
                 first_control = next((p for p in controls if p.text == first), None)
@@ -216,6 +295,12 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                         presentation.emit_text(doc, rest, image_renderer, controls, table_formatter=format_embedded_table)
                 else:
                     presentation.emit_text(doc, body["text"], image_renderer, controls, table_formatter=format_embedded_table)
+            if kind != 'table':
+                for issue in issues:
+                    comment_passage(doc, doc.paragraphs[paragraph_start:], issue)
+            citation = citation_text(node, records, plan=plan)
+            if citation:
+                doc.add_paragraph(citation)
             visible = {k: v for k, v in node["qualifiers"].items() if k not in presentation.STRUCTURAL}
             # Suppress only a full literal qualifier line already emitted in this node.
             body_lines = body['text'].splitlines() if kind not in {'table', 'figure'} else []
@@ -252,10 +337,17 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 separator.line_spacing = Pt(1)
                 separator.space_before = separator.space_after = Pt(0)
                 separator.keep_with_next = separator.page_break_before = False
-            if kind == "report" and depth == 0 and options.toc:
-                presentation.add_toc(doc, toc_headings, options.toc_depth, start_new_page=not cover_break, options=options)
+            if kind == "report" and depth == 0:
+                for title_page in title_pages:
+                    emit(title_page, depth + 1)
+                if options.toc:
+                    presentation.add_toc(doc, toc_headings, options.toc_depth,
+                        start_new_page=bool(title_pages) or not cover_break, options=options)
+                elif title_pages and any(child not in title_pages for _, child in edges.get(root_key, [])):
+                    presentation.section(doc, options, False)
             for _, child in sorted(edges.get(Ref.model_validate(ref).key(), []), key=lambda p: p[0]):
-                emit(child, depth + 1)
+                if not (depth == 0 and child in title_pages):
+                    emit(child, depth + 1)
         emit(snapshot["payload"]["root_ref"], 0)
         if end_notes:
             notes_heading = doc.add_paragraph('说明', 'Title')

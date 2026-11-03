@@ -12,9 +12,10 @@ from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, ConfigDict, Field
 
 from .content_models import Ref
-from .content_export import _asset
+from .content_export import _asset, _bytes
 from .errors import ActionForbidden, ActionRejected
 from . import content_layout as presentation
+from .material_issues import LABELS, validate_node, rendered_issues
 
 
 class WorkbookSheet(BaseModel):
@@ -45,7 +46,22 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
         if actor.role not in {'coordinator', 'writer'} or snapshot_ref['type'] != 'DocumentSnapshot' or not allowed:
             raise ActionForbidden('FORBIDDEN: workbook snapshot owner')
         members = {Ref.model_validate(r).key() for r in snapshot['payload']['refs']}
-        if not sheets:
+        records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot['payload']['refs']}
+        issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
+        from .g3_export import validate_export, citation_text
+        validate_export(contents, snapshot, records)
+        plan_ref = snapshot['payload'].get('commission_plan_ref')
+        plan = contents._read(db, plan_ref)['payload'] if plan_ref else None
+        method_pack = plan.get('method_pack') if plan else None
+        if method_pack:
+            from .g3_export import _order
+            rendered = set(_order(snapshot, records)[0])
+            selected = {Ref.model_validate(ref).key() for sheet in sheets
+                        for ref in [sheet['table_ref'], *sheet.get('note_refs', [])]}
+            if not selected <= rendered:
+                raise ActionRejected('G3_WORKBOOK_NODE_NOT_RENDERED')
+        clarification = bool(issue_records or method_pack)
+        if not sheets and not clarification:
             raise ActionRejected('WORKBOOK_SHEETS_REQUIRED')
         channel = snapshot['payload'].get('workbook_refs')
         if channel:
@@ -54,12 +70,17 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                         for r in [sheet['table_ref'],*sheet.get('note_refs',[])]}
             if selected != declared:
                 raise ActionRejected('WORKBOOK_CHANNEL_SELECTION_MISMATCH')
+        if issue_records and not report_export_ref:
+            raise ActionRejected('WORD_EXPORT_REQUIRED_FOR_MATERIAL_ISSUES')
         if report_export_ref:
             linked = contents._read(db, report_export_ref)
             if report_export_ref['type'] != 'ExportArtifact' or not linked['payload']['file_ref'].endswith('.docx'):
                 raise ActionRejected('WORD_EXPORT_REQUIRED')
             if linked['payload']['snapshot_ref'] != snapshot_ref:
                 raise ActionRejected('WORD_WORKBOOK_SNAPSHOT_MISMATCH')
+            _bytes(contents.store, linked['payload']['file_ref'], linked['payload']['file_digest'])
+            if linked['payload'].get('export_config', {}).get('material_issue_ids', []) != [issue.id for _, issue in issue_records]:
+                raise ActionRejected('WORD_WORKBOOK_MATERIAL_ISSUE_MISMATCH')
         names = set()
         workbook, mappings = Workbook(), []
         unverified_annotation_rows = []
@@ -69,6 +90,15 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             if len(value) > 32767 or re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', value):
                 raise ActionRejected('WORKBOOK_CELL_TEXT_UNSUPPORTED')
             return value
+        def qualifier_rows(node):
+            lines = node['body'].get('text', '').splitlines()
+            result = []
+            for key, value in node.get('qualifiers', {}).items():
+                label = '来源说明' if key == 'source_note' else str(key)
+                if key in presentation.STRUCTURAL or f'{label}：{value}' in lines:
+                    continue
+                result.append([label, text(value) if not isinstance(value, (dict, list)) else json.dumps(value, ensure_ascii=False)])
+            return result
         for sheet in sheets:
             name, ref = sheet['name'], sheet['table_ref']
             if not name.strip() or re.search(r'[\\/*?:\[\]]', name) or name.startswith("'") or name.endswith("'") or name.casefold() in names:
@@ -80,8 +110,8 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             if node['kind'] != 'table':
                 raise ActionRejected('TABLE_NODE_REQUIRED')
             body = node['body']
-            rows = [[str(k), text(v) if not isinstance(v, (dict, list)) else json.dumps(v, ensure_ascii=False)]
-                    for k, v in node.get('qualifiers', {}).items()]
+            _, merges = validate_node(node)
+            rows = qualifier_rows(node)
             annotation_rows = [(i, 2) for i in range(1, len(rows) + 1)]
             header_row = len(rows) + 1
             rows += [body['columns'], *body['rows']]
@@ -93,6 +123,10 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                 annotation_rows.append((start, 1))
                 mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'table-footnote',
                                  'row_start': start, 'row_stop': len(rows) + 1})
+            citation = citation_text(node, records, plan=plan)
+            if citation:
+                rows.append([citation])
+                annotation_rows.append((len(rows), 1))
             seen_notes = set()
             for note_ref in sheet.get('note_refs', []):
                 key = Ref.model_validate(note_ref).key()
@@ -106,8 +140,10 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                     raise ActionRejected('WORKBOOK_TEXT_NOTE_REQUIRED')
                 start = len(rows) + 1
                 rows += [[note_label, line] for line in note['body']['text'].split('\n')]
-                rows += [[str(k), text(v) if not isinstance(v, (dict, list)) else json.dumps(v, ensure_ascii=False)]
-                         for k, v in note.get('qualifiers', {}).items()]
+                citation = citation_text(note, records, plan=plan)
+                if citation:
+                    rows.append([note_label, citation])
+                rows += qualifier_rows(note)
                 annotation_rows.extend((i, 2) for i in range(start, len(rows) + 1))
                 mappings.append({'node_ref': note_ref, 'sheet': name, 'kind': 'note',
                                  'row_start': start, 'row_stop': len(rows) + 1})
@@ -124,6 +160,10 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                         cell.fill = PatternFill('solid', fgColor='244A63')
             for index in range(1, max(map(len, rows)) + 1):
                 ws.column_dimensions[get_column_letter(index)].width = 28
+            for merge in merges:
+                ws.merge_cells(start_row=header_row + 1 + merge.start_row,
+                    end_row=header_row + 1 + merge.end_row, start_column=merge.start_col + 1,
+                    end_column=merge.end_col + 1)
             if expression == READER_EXPRESSION_V2:
                 last_column = max(map(len, rows))
                 for row_index, text_column in annotation_rows:
@@ -155,6 +195,33 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             ws.page_setup.fitToHeight = 0
             mappings.append({'node_ref': ref, 'sheet': name, 'header_row': header_row,
                              'data_rows': len(body['rows']), 'columns': len(body['columns'])})
+        if clarification:
+            name = '资料澄清清单'
+            if name.casefold() in names:
+                raise ActionRejected('INVALID_OR_DUPLICATE_SHEET_NAME: ' + name)
+            ws = workbook.create_sheet(name)
+            rows = [['编号', '类型', '边坡或章节', '文件与页码', '问题与依据', '采用值', '待确认问题', '答复', '影响等级']]
+            ordered = sorted(issue_records, key=lambda pair: 0 if pair[1].kind == 'no_evidence_assumption' else 1)
+            for number, (ref, issue) in enumerate(ordered, 1):
+                rows.append([number, LABELS[issue.kind], issue.object_label, issue.source_text(), issue.basis,
+                             issue.adopted_value, issue.question, '', '是' if issue.affects_level else '否'])
+                mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'material-issue',
+                                 'issue_id': issue.id, 'row_start': number + 1, 'row_stop': number + 2})
+            if len(rows) > 1048576:
+                raise ActionRejected('WORKBOOK_DIMENSIONS_UNSUPPORTED')
+            for row_index, row in enumerate(rows, 1):
+                for col_index, value in enumerate(row, 1):
+                    cell = ws.cell(row_index, col_index, text(value))
+                    cell.data_type = 's'
+                    cell.alignment = Alignment(vertical='top', wrap_text=True)
+                    if row_index == 1:
+                        cell.font = Font(bold=True, color='FFFFFF')
+                        cell.fill = PatternFill('solid', fgColor='244A63')
+            for index in range(1, 10):
+                ws.column_dimensions[get_column_letter(index)].width = 28
+            ws.freeze_panes = 'A2'
+            ws.auto_filter.ref = f'A1:I{len(rows)}'
+            ws.print_title_rows = '1:1'
         buffer = BytesIO()
         workbook.save(buffer)
         data = buffer.getvalue()
@@ -164,6 +231,9 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             'snapshot_ref': snapshot_ref, 'file_ref': asset, 'file_digest': checksum,
             'template_ref': 'frozen-tables-notes-xlsx-v2',
             'export_config': {'format': 'xlsx', 'sheets': sheets, 'report_expression_profile': expression, 'report_export_ref': report_export_ref,
+                'material_issue_ids': [issue.id for _, issue in issue_records],
+                'helper_digests': {name: hashlib.sha256(Path(__file__).with_name(name + '.py').read_bytes()).hexdigest()
+                                   for name in ('g3_export', 'material_issues')},
                 'exporter_digest': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'layout_engine_digest': hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
                 **({'annotation_layout_unverified_rows': unverified_annotation_rows} if unverified_annotation_rows else {}),

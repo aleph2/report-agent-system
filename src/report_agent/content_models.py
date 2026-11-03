@@ -121,7 +121,10 @@ class ContentNode(Contract):
     ]})
     kind: Literal["report", "chapter", "block", "table", "cell", "claim", "figure"]
     body: dict[str, Any] = Field(description="Kind-specific complete content: report/chapter/block/cell/claim require nonblank text; table requires named columns and rectangular rows; figure requires source_id, caption and page (a positive integer 1-based physical PDF page; integer 1 for a single raster image). Auxiliary fields do not substitute for these rendered fields. Tables may include a visible footnote string: nonblank text is exported verbatim, absent/null/blank adds no note, and non-text footnotes are explicitly rejected at export.")
-    qualifiers: dict[str, Any] = Field(description="Report-visible technical qualifications, uncertainty and source attribution. Nonstructural keys and values are rendered in Word/Excel, not hidden metadata. Preserve real engineering unknowns and conflicting evidence here or in body. Processing/OCR diagnostics and model execution notes belong in the text-work result's separate generation_notes, not these report fields.")
+    qualifiers: dict[str, Any] = Field(description="Report-visible technical qualifications. Material gaps and conflicts belong in body.material_issues for anchored Word comments and the Excel list. Execution notes belong in working_notes.")
+    citations: list[SourceCitation] = Field(default_factory=list, exclude_if=lambda value: not value)
+    working_notes: str = Field(default='', exclude_if=lambda value: not value,
+        description='Audit-only working notes, never exported as report content.')
     claim_kind: Literal["fact", "calculation", "inference", "recommendation", "structure"]
 
     @model_validator(mode="after")

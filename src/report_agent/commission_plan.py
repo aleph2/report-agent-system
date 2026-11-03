@@ -2,7 +2,7 @@
 from pathlib import Path
 import json
 import re
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
@@ -10,6 +10,60 @@ from .content_models import Contract, Ref, SourceCitation, InventoryObject, refs
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
+from .method_pack import MethodPack
+
+
+class LiteralReplacement(Contract):
+    old: str = Field(min_length=1)
+    new: str = Field(min_length=1)
+
+
+class ResultBinding(Contract):
+    old: str = Field(min_length=1, description='Unique exact template passage to replace, retained in the approved plan.')
+    object_id: str | None = None
+    field: Literal['total', 'level', 'assessment_text', 'object_count', 'level_count']
+    level: str | None = None
+
+    @model_validator(mode='after')
+    def target(self):
+        aggregate = self.field in ('object_count', 'level_count')
+        if aggregate != (self.object_id is None) or (not aggregate and not self.object_id.strip()):
+            raise ValueError('RESULT_BINDING_TARGET_REQUIRED')
+        if (self.field == 'level_count') != (self.level is not None):
+            raise ValueError('RESULT_BINDING_LEVEL_REQUIRED')
+        return self
+
+
+class ScopeBoundary(Contract):
+    start_meter: str
+    end_meter: str
+    source: SourceCitation
+    customer_basis: SourceCitation | None = None
+    expected_object_count: int = Field(strict=True, ge=1)
+
+    @model_validator(mode='after')
+    def ordered(self):
+        from .method_pack import number
+        if number(self.start_meter) >= number(self.end_meter) or not self.source.quote.strip():
+            raise ValueError('COMMISSION_BOUNDARY_SOURCE_AND_ORDER_REQUIRED')
+        return self
+
+
+class MethodConvention(Contract):
+    key: str = Field(min_length=1)
+    source: SourceCitation | None
+    interpretation: str = Field(min_length=1)
+    status: Literal['specified', 'default_unagreed']
+    method_id: str = Field(min_length=1)
+    strategy_id: str = Field(min_length=1)
+
+    @model_validator(mode='after')
+    def authority(self):
+        if (self.status == 'specified') != (self.source is not None):
+            raise ValueError('METHOD_CONVENTION_SOURCE_OR_DEFAULT_REQUIRED')
+        if self.source and not self.source.quote.strip():
+            raise ValueError('METHOD_CONVENTION_EXACT_QUOTE_REQUIRED')
+        return self
 
 
 class SourceSubstitution(Contract):
@@ -18,6 +72,20 @@ class SourceSubstitution(Contract):
     replacement_sources: list[SourceCitation] = Field(min_length=1)
     customer_basis: SourceCitation
     reason: str = Field(min_length=1, description='Agent interpretation of why these actual sources fit the commissioned scope; separate from the customer quotation.')
+
+
+class SourceView(Contract):
+    source_indexes: list[Annotated[int, Field(strict=True, ge=0)]] = Field(min_length=1)
+    page: int = Field(strict=True, ge=1)
+    crop: list[Annotated[float, Field(strict=True, allow_inf_nan=False, ge=0, le=1)]] = Field(min_length=4, max_length=4)
+
+    @model_validator(mode='after')
+    def ordered(self):
+        if self.source_indexes != list(range(self.source_indexes[0], self.source_indexes[0] + len(self.source_indexes))):
+            raise ValueError('SOURCE_VIEW_CONTIGUOUS_INDEXES_REQUIRED')
+        if not (self.crop[0] < self.crop[2] and self.crop[1] < self.crop[3]):
+            raise ValueError('SOURCE_VIEW_CROP_INVALID')
+        return self
 
 
 class SectionPlan(Contract):
@@ -32,6 +100,10 @@ class SectionPlan(Contract):
         description='Section-specific proposed replacements backed by exact customer quotations. Ordinary owner confirmation of this plan is still required.')
     text: str = ''
     substitutions: list[str] = Field(default_factory=list)
+    replacements: list[LiteralReplacement] = Field(default_factory=list, exclude_if=lambda value: not value)
+    result_bindings: list[ResultBinding] = Field(default_factory=list, exclude_if=lambda value: not value)
+    source_views: list[SourceView] = Field(default_factory=list, exclude_if=lambda value: not value,
+        description='Fixed source-table excerpts rendered from the cited PDF region; quotes remain canonical. Review crop completeness in the existing checkpoint/layout review.')
     derived_from: list[str] = Field(default_factory=list)
     rule: str = ''
     examples: list[SourceCitation] = Field(default_factory=list,
@@ -56,10 +128,19 @@ class SectionPlan(Contract):
                 raise ValueError('SECTION_SUBSTITUTION_REPLACEMENT_NOT_IN_PLAN')
         if not self.outline.quote.strip():
             raise ValueError('SECTION_OUTLINE_QUOTE_REQUIRED')
-        if self.kind == 'fixed' and not self.text.strip():
+        if self.kind == 'fixed' and not self.text.strip() and not (self.sources and all(s.quote.strip() for s in self.sources)):
             raise ValueError('FIXED_SECTION_TEXT_REQUIRED')
         if self.kind == 'derived' and (not self.derived_from or not self.rule.strip()):
             raise ValueError('DERIVED_SECTION_RULE_REQUIRED')
+        last = -1
+        for view in self.source_views:
+            if self.kind != 'fixed' or view.source_indexes[0] <= last or view.source_indexes[-1] >= len(self.sources):
+                raise ValueError('SOURCE_VIEW_FIXED_ORDERED_SOURCES_REQUIRED')
+            selected = [self.sources[i] for i in view.source_indexes]
+            if any(c.source_ref != selected[0].source_ref or not c.quote.strip()
+                   or not re.fullmatch(rf'page {view.page}(?:;.*)?', c.locator) for c in selected):
+                raise ValueError('SOURCE_VIEW_SAME_SOURCE_PAGE_REQUIRED')
+            last = view.source_indexes[-1]
         return self
 
 
@@ -83,9 +164,15 @@ class CommissionPlan(Contract):
     deliverables: list[str] = Field(min_length=1)
     reconciliations: list[Reconciliation] = Field(min_length=1)
     open_questions: list[str] = Field(description='Only questions the supplied materials cannot settle.')
+    method_pack: MethodPack | None = Field(default=None, exclude_if=lambda value: value is None)
+    method_conventions: list[MethodConvention] = Field(default_factory=list, exclude_if=lambda value: not value)
+    format_source: SourceCitation | None = Field(default=None, exclude_if=lambda value: value is None)
+    scope_boundary: ScopeBoundary | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode='after')
     def complete_inventory(self):
+        if not self.method_pack and any(s.source_views for s in self.sections):
+            raise ValueError('SOURCE_VIEWS_REQUIRE_REVIEWED_METHOD_PLAN')
         names = self.inventory_attributes
         if any(not n.strip() for n in names) or len(set(names)) != len(names):
             raise ValueError('COMMISSION_INVENTORY_ATTRIBUTE_CONTRACT_INVALID')
@@ -94,6 +181,86 @@ class CommissionPlan(Contract):
             if len(actual) != len(set(actual)) or set(actual) != set(names):
                 raise ValueError('COMMISSION_INVENTORY_ATTRIBUTES_INCOMPLETE: ' + obj.object_id)
         return self
+
+
+def fixed_source_views(section):
+    return [{'text': '\n'.join(section['sources'][i]['quote'] for i in view['source_indexes']),
+             'source_ref': section['sources'][view['source_indexes'][0]]['source_ref'],
+             'page': view['page'], 'crop': view['crop']} for view in section.get('source_views', [])]
+
+
+def fixed_section_text(section):
+    """Exact quoted source spans and owner-reviewed literal substitutions only."""
+    if not section['sources'] or any(not c.get('quote', '').strip() for c in section['sources']):
+        raise ActionRejected('FIXED_SECTION_EXACT_SOURCE_SPANS_REQUIRED: ' + section['section_id'])
+    text = '\n'.join(c['quote'] for c in section['sources'])
+    views = fixed_source_views(section)
+    if any(text.count(view['text']) != 1 for view in views):
+        raise ActionRejected('FIXED_SOURCE_VIEW_PASSAGE_AMBIGUOUS')
+    seen = set()
+    for replacement in section.get('replacements', []):
+        old, new = replacement['old'], replacement['new']
+        if old in seen or old not in text:
+            raise ActionRejected('FIXED_SECTION_REPLACEMENT_INVALID: ' + section['section_id'])
+        for view in views:
+            start = text.index(view['text'])
+            end = start + len(view['text'])
+            if any(match.start() < end and match.end() > start for match in re.finditer(re.escape(old), text)):
+                raise ActionRejected('FIXED_SOURCE_VIEW_REPLACEMENT_OVERLAP')
+        seen.add(old)
+        text = text.replace(old, new)
+        if any(text.count(view['text']) != 1 for view in views):
+            raise ActionRejected('FIXED_SOURCE_VIEW_PASSAGE_AMBIGUOUS')
+    return text
+
+
+def method_questions(plan):
+    pack = plan.get('method_pack')
+    if not pack:
+        return []
+    bindings = [b for b in plan.get('method_conventions', []) if b['key'] == 'weights']
+    if len(bindings) != 1:
+        return ['权重约定未链接唯一方法包条目']
+    binding = bindings[0]
+    table = next((t for t in pack['weight_tables'] if t['id'] == binding['strategy_id']), None)
+    if binding['method_id'] != pack['method_id'] or table is None or not any(r['indicator_count'] == len(pack['indicators']) for r in table['rows']):
+        return ['权重约定没有适用的方法包条目，不能临时编造']
+    return []
+
+
+def outside_boundary(plan, obj):
+    """Only fully sourced mileage ranges can prove that an object is outside."""
+    boundary = plan.get('scope_boundary')
+    if not boundary:
+        return False
+    from decimal import Decimal
+    from .method_pack import number
+    values = [v for a in obj['attributes'] if a['name'] in ('mileage', '里程') for v in a['values']]
+    ranges = []
+    for value in values:
+        if not value.get('source') or not value.get('value'):
+            return False
+        points = re.findall(r'(?:[A-Z]*K)?(\d+)\+(\d+(?:\.\d+)?)', value['value'], re.I)
+        if len(points) != 2:
+            return False
+        start, end = [Decimal(k) * 1000 + Decimal(m) for k, m in points]
+        if start > end:
+            return False
+        ranges.append((start, end))
+    return bool(ranges) and all(end < number(boundary['start_meter']) or start > number(boundary['end_meter']) for start, end in ranges)
+
+
+def boundary_questions(plan):
+    boundary = plan.get('scope_boundary')
+    if not boundary:
+        return []
+    objects = [o for o in plan['objects'] if not outside_boundary(plan, o)]
+    questions = []
+    if len(objects) != boundary['expected_object_count']:
+        questions.append(f"合同范围内对象数量{len(objects)}与约定{boundary['expected_object_count']}不一致，需确认")
+    if any(o['included'] and outside_boundary(plan, o) for o in plan['objects']):
+        questions.append('合同边界外对象被列为纳入，需更正对象清单')
+    return questions
 
 
 class Reduction(Contract):
@@ -216,6 +383,43 @@ def save_plan(cs, actor, operation_id, plan):
         _validate_sources(cs, db, actor, plan)
         roles = _state(db, 'commission_source_roles', {})
         customer_sources = {r['id'] for r in (roles or {}).values() if r['purpose'] == 'commission'}
+        questions = method_questions(plan) + boundary_questions(plan)
+        boundary = plan.get('scope_boundary')
+        if boundary:
+            numeric_id = cs._read(db, boundary['source']['source_ref'])['payload']['source_id']
+            basis = boundary.get('customer_basis') or boundary['source']
+            if (not basis.get('quote', '').strip()
+                    or cs._read(db, basis['source_ref'])['payload']['source_id'] not in customer_sources):
+                raise ActionRejected('COMMISSION_BOUNDARY_CUSTOMER_SELECTION_REQUIRED')
+            if numeric_id not in customer_sources:
+                factual = {Ref.model_validate(c['source_ref']).key() for s in plan['sections'] if s['kind'] == 'extracted' for c in s['sources']}
+                method_sources = {Ref.model_validate(c['source_ref']).key() for c in (plan.get('method_pack') or {}).get('sources', [])}
+                template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
+                if (Ref.model_validate(boundary['source']['source_ref']).key() not in factual - method_sources
+                        or numeric_id in template_ids):
+                    raise ActionRejected('COMMISSION_BOUNDARY_FACTUAL_SOURCE_REQUIRED')
+        if plan.get('method_pack'):
+            from .method_pack import reviewed_method_questions
+            questions += reviewed_method_questions(cs, db, plan['method_pack'])
+            if plan.get('format_source'):
+                from .g3_export import FORMAT_SOURCE_SHA256
+                if cs._read(db, plan['format_source']['source_ref'])['payload']['file_digest'] != FORMAT_SOURCE_SHA256:
+                    questions.append('格式标准没有对应的已审查排版能力，不能开始编写')
+            for binding in plan.get('method_conventions', []):
+                if binding['status'] == 'specified':
+                    source = binding['source']
+                    if (cs._read(db, source['source_ref'])['payload']['source_id'] not in customer_sources
+                            or source not in [c['source'] for c in plan['conventions']]):
+                        raise ActionRejected('METHOD_CONVENTION_REQUIRES_CUSTOMER_SOURCE_AND_QUOTE')
+            for section in plan['sections']:
+                if section['kind'] == 'fixed':
+                    template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
+                    if any(cs._read(db, c['source_ref'])['payload']['source_id'] not in template_ids for c in section['sources']):
+                        raise ActionRejected('FIXED_SECTION_TEMPLATE_SOURCE_REQUIRED')
+                    expected = fixed_section_text(section)
+                    if section['text'] and section['text'] != expected:
+                        raise ActionRejected('FIXED_SECTION_DIFFERS_FROM_SOURCE: ' + section['section_id'])
+                    section['text'] = expected
         for section in plan['sections']:
             for substitution in section.get('source_substitutions', []):
                 basis = cs._read(db, substitution['customer_basis']['source_ref'])
@@ -246,7 +450,8 @@ def save_plan(cs, actor, operation_id, plan):
                 inventory.append(cs._insert(db, actor, 'Requirement', payload,
                     **({'id': previous['ref']['id'], 'version': previous['ref']['version'] + 1,
                         'previous_ref': previous['ref']} if previous else {})))
-        ref = cs._insert(db, actor, 'CommissionPlan', {**plan, 'inventory_refs': inventory},
+        ref = cs._insert(db, actor, 'CommissionPlan', {**plan, 'inventory_refs': inventory,
+            **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})},
             **({'id': old_ref['id'], 'version': old_ref['version'] + 1, 'previous_ref': old_ref} if old_ref else {}))
         _set(db, 'commission_plan', ref)
         return {'plan_ref': ref, 'inventory_refs': inventory}
@@ -306,6 +511,12 @@ def request_checkpoint(workspace):
         for attribute in obj['attributes']:
             values = '；'.join((v['value'] or '未知') + '：' + v['reason'] for v in attribute['values'])
             lines.append('  ' + attribute['name'] + ': ' + values)
+    if plan.get('scope_boundary'):
+        boundary = plan['scope_boundary']
+        lines += ['', '## 合同范围边界', '', f"{boundary['start_meter']}–{boundary['end_meter']}米；约定对象数{boundary['expected_object_count']}",
+                  '原文依据：' + boundary['source']['quote']]
+        if boundary.get('customer_basis'):
+            lines.append('客户范围选择原文：' + boundary['customer_basis']['quote'])
     lines += ['', '## 章节计划', '']
     for section in plan['sections']:
         locations = ', '.join(cs.read(c['source_ref'])['payload']['source_metadata'].get('title', c['source_ref']['id']) + ' / ' + c['locator'] for c in section['sources'])
@@ -313,6 +524,8 @@ def request_checkpoint(workspace):
             locations += '；待解决资料：' + '；'.join(unresolved_sources(section))
         kind = {'fixed': '固定内容', 'extracted': '资料提取', 'derived': '依据其他章节形成'}[section['kind']]
         lines.append(f"- {section['section_id']} {section['title']} — {kind}：{locations}")
+        for view in section.get('source_views', []):
+            lines.append(f"  原表呈现：第{view['page']}页，区域{view['crop']}；需核对裁剪完整性，原文仍逐字保留。")
     lines += ['', '## 资料替代', '']
     for section in plan['sections']:
         for substitution in section.get('source_substitutions', []):
@@ -325,6 +538,16 @@ def request_checkpoint(workspace):
     lines += ['', '## 交付物', '', *['- ' + item for item in plan['deliverables']], '', '## 客户约定', '']
     for convention in plan['conventions']:
         lines += ['- 客户原文：' + convention['source']['quote'], '  代理解释：' + convention['interpretation']]
+    if plan.get('method_pack'):
+        lines += ['', '## 方法包约定链接', '']
+        for binding in plan.get('method_conventions', []):
+            label = '默认，未约定' if binding['status'] == 'default_unagreed' else '客户约定'
+            lines.append(f"- {binding['key']}（{label}）→ {binding['method_id']} / {binding['strategy_id']}；代理解释：{binding['interpretation']}")
+        lines.append(f"- 指标及等级数据：{plan['method_pack']['method_id']}，版本{plan['method_pack']['version']}，{len(plan['method_pack']['indicators'])}项")
+        if plan.get('format_source'):
+            source = cs.read(plan['format_source']['source_ref'])['payload']
+            lines.append('- 排版能力链接：' + source['source_metadata'].get('title', '') + ' / ' + plan['format_source']['locator'])
+        lines += ['- 待解决：' + question for question in plan.get('method_questions', method_questions(plan))]
     lines += ['', '## 资料核对', '']
     for item in plan['reconciliations']:
         lines += ['- ' + item['result'], *['  - ' + text for text in item['differences']]]
@@ -366,6 +589,8 @@ def reply(workspace, issue_id, decision):
         pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
         if decision['approved'] and pending:
             raise ActionRejected('COMMISSION_PENDING_SOURCES: ' + '; '.join(pending))
+        if decision['approved'] and plan.get('method_questions', method_questions(plan)):
+            raise ActionRejected('COMMISSION_METHOD_QUESTIONS: ' + '; '.join(plan.get('method_questions', method_questions(plan))))
         reduced = [r['object_id'] for r in decision['reductions']]
         if len(set(reduced)) != len(reduced) or not set(reduced) <= {o['object_id'] for o in plan['objects']}:
             raise ActionRejected('COMMISSION_REDUCTION_OBJECT_INVALID')
@@ -402,6 +627,8 @@ def snapshot_outcomes(cs, db, plan_ref, refs):
     members = {Ref.model_validate(r).key() for r in refs}
     result = []
     for obj in cs._read(db, plan_ref)['payload']['objects']:
+        if outside_boundary(cs._read(db, plan_ref)['payload'], obj):
+            continue
         prefix = 'commission_outcome:' + digest([plan_ref, obj['object_id']]) + ':'
         matches = []
         for (value,) in db.execute('SELECT value FROM state WHERE key>=? AND key<? ORDER BY key', (prefix, prefix[:-1] + ';')):
@@ -436,8 +663,13 @@ def record_outcome(cs, actor, operation_id, object_id, section_ref, score_ref, l
             if ref['type'] != 'Evidence':
                 raise ActionRejected('COMMISSION_OUTCOME_EVIDENCE_REQUIRED')
             cs._read(db, ref)
+        assessment_ref = None
+        if plan['payload'].get('method_pack'):
+            from .risk_scoring import validate_outcome
+            assessment_ref = validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved)
         ref = cs._insert(db, actor, 'CommissionOutcome', {**request,
-            'commission_plan_ref': plan['ref'], 'object_ref': object_ref})
+            'commission_plan_ref': plan['ref'], 'object_ref': object_ref,
+            **({'assessment_ref': assessment_ref} if assessment_ref else {})})
         _set(db, 'commission_outcome:' + digest([plan['ref'], object_id]) + ':' + digest(actor.id), ref)
         return {'outcome_ref': ref}
     return cs.operation(actor, operation_id, {'commission_outcome': request}, save)

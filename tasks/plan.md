@@ -855,3 +855,66 @@ Updated isolated real plan version3 records three explicit substitutions across 
 EXPLAIN confirms indexed SEARCH for the bounded outcome lookup; no speed benchmark is claimed. WSL path check found old case/ledger on9p and /home onext4; no live migration or filesystem startup guard was added. Those deployment checks remain beforeG4. No provider/model/report call, G3 work or new budget consumption is authorized by this completion. Publish a new review tag m1-fixes-20261102-g2.1 on the existing branch, preserve earlier tags, then wait for owner review.
 
 Email was separately resumed by direct desktop instruction, with verified sender mail carrying user-level authority, minute polling and no periodic/no-change messages. It is email-only and does not duplicate development or resume paid work.
+
+## Current G3 owner plan — 2026-11-02 America/Tijuana
+
+Latest direct owner update is preserved byte-for-byte in `docs/m1-fix-plan-current.md`;
+provenance/hash receipt: `.analysis/m1-g3-20261102/updated-plan-receipt.json`.
+It supersedes the older stop-before-G3, unresolved-indicator and formula-rounding
+requirements. Email was explicitly stopped: authorization period is stopped and
+automation-2 is PAUSED. Do not resume email from the historical paragraph above.
+
+G3 is authorized for implementation and offline checks; implementation and focused
+verification are in progress. Publication and one completion email were later
+authorized in this chat; polling remains stopped.
+Read weight selection from the updated scope file, with reviewed method-pack convention links/defaults,
+four indicator basis classes, joint fixed-weight sensitivity, anchored assumption
+comments and the matching Excel list. Complete all original Steps 4–5, including
+fixed-text extraction, standard layout and export checks. Scope is the first
+contract section's five deep-cut slopes; actual inventory verification and the
+exact-version owner checkpoint remain separate. Updated scope-file bytes and
+all method tables have now been directly checked against source images. Preserve old real inputs,
+proposal versions, historical results and financial unknowns.
+
+Main owns these plan/docs updates; Neo's initial note is inspection evidence,
+not final design approval. Its rank-formula proposal is superseded by source-bound
+customer strategy selection. Existing code/test/shared-checkout ownership remains unchanged. No paid
+calls or real report run before G4 approval. This documentation update uses
+using-agent-skills routing, Ponytail minimal scope and documentation-and-adrs
+source/prose preservation; verify exact-copy SHA256, diff and links, not product
+tests. Earlier estimate is 8–16 active hours, provisional pending source/layout
+verification, not an elapsed-time guarantee.
+
+Owner clarification in the same chat: the weight disagreement is resolved by the
+end user's update to `报告编写范围说明`, where the selection strategy is defined.
+Do not predefine Table A.3-1 selection or eleven constant weights as a system-wide
+rule. Agents interpret and cite the current supplied convention; tools execute
+and validate the chosen available method. Prepared reference tables are reusable
+data, not selection authority. The plan's Table A.3-1 statement is this M1
+commission context, verified against the current scope file's exact §5 item 3.
+Source version changes require a new bound interpretation/checkpoint, never
+silent reuse of earlier approval. Customer source files remain untouched.
+
+## G3 offline review candidate — 2026-11-03 UTC
+
+Main implemented the source-bound method/assessment/commission changes; delegated
+export and method-data owners implemented their named modules. Neo independently
+reviewed the core, helper and renderer changes; the source-data owner separately
+reviewed exporter trust boundaries. Current evidence and limitations are in
+`docs/m1-g3-verification.md` and `.analysis/m1-g3-20261102/`.
+
+The final offline conversion preserves fixed source text, displays four approved
+source regions instead of flattened PDF table text, and uses editable generated
+assessment tables. All55 Word comment/value anchors and Excel rows match; all
+five44-row evaluation tables match frozen calculations; TOC refreshed. Actual
+44-page visual inspection closes the scattered-source-table issue. Current review
+pins and individual focused test batches are retained, not summed into a full-suite
+claim. No project paid/provider call or real report rerun was performed.
+
+Neo accepts publication as a G3 offline review candidate. Retain P2 template
+formula/current-scope lookup narrative discrepancy and P3 inherited line-break /
+duplicate-heading typography issues for formal report review. Validation-only
+assumptions are not engineering facts; the real proposal remains unapproved.
+Publish the scoped code/docs/tests with tag `m1-fixes-20261102-g3`, verify branch
+and peeled tag, then send the separately authorized one-off completion email.
+Email polling stays stopped; G4 and engineering sign-off remain separate.
