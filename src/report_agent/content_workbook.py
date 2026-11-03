@@ -15,7 +15,7 @@ from .content_models import Ref
 from .content_export import _asset, _bytes
 from .errors import ActionForbidden, ActionRejected
 from . import content_layout as presentation
-from .material_issues import LABELS, validate_node, rendered_issues
+from .material_issues import LABELS, validate_node, rendered_issues, table_header, validate_required_issues
 
 
 class WorkbookSheet(BaseModel):
@@ -48,6 +48,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
         members = {Ref.model_validate(r).key() for r in snapshot['payload']['refs']}
         records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot['payload']['refs']}
         issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
+        validate_required_issues(contents, db, snapshot, records, issue_records)
         from .g3_export import validate_export, citation_text
         validate_export(contents, snapshot, records)
         plan_ref = snapshot['payload'].get('commission_plan_ref')
@@ -114,7 +115,9 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             rows = qualifier_rows(node)
             annotation_rows = [(i, 2) for i in range(1, len(rows) + 1)]
             header_row = len(rows) + 1
-            rows += [body['columns'], *body['rows']]
+            headers, header_merges = table_header(body)
+            header_count = len(headers)
+            rows += [*headers, *body['rows']]
             table_stop = len(rows)
             footnote = presentation.table_footnote(body)
             if footnote is not None:
@@ -155,14 +158,18 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                     cell = ws.cell(row_index, col_index, text(value))
                     cell.data_type = 's'  # User/source text is never an executable formula.
                     cell.alignment = Alignment(vertical='top', wrap_text=True)
-                    if row_index == header_row:
+                    if header_row <= row_index < header_row + header_count:
                         cell.font = Font(bold=True, color='FFFFFF')
                         cell.fill = PatternFill('solid', fgColor='244A63')
             for index in range(1, max(map(len, rows)) + 1):
                 ws.column_dimensions[get_column_letter(index)].width = 28
+            for merge in header_merges:
+                ws.merge_cells(start_row=header_row + merge.start_row,
+                    end_row=header_row + merge.end_row, start_column=merge.start_col + 1,
+                    end_column=merge.end_col + 1)
             for merge in merges:
-                ws.merge_cells(start_row=header_row + 1 + merge.start_row,
-                    end_row=header_row + 1 + merge.end_row, start_column=merge.start_col + 1,
+                ws.merge_cells(start_row=header_row + header_count + merge.start_row,
+                    end_row=header_row + header_count + merge.end_row, start_column=merge.start_col + 1,
                     end_column=merge.end_col + 1)
             if expression == READER_EXPRESSION_V2:
                 last_column = max(map(len, rows))
@@ -185,16 +192,16 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
                         ws.merge_cells(start_row=row_index, start_column=text_column,
                                        end_row=row_index, end_column=last_column)
                     ws.row_dimensions[row_index].height = height
-            ws.freeze_panes = f'A{header_row + 1}'
-            ws.auto_filter.ref = f'A{header_row}:{get_column_letter(len(body["columns"]))}{table_stop}'
-            ws.print_title_rows = f'{header_row}:{header_row}'
+            ws.freeze_panes = f'A{header_row + header_count}'
+            ws.auto_filter.ref = f'A{header_row + header_count - 1}:{get_column_letter(len(body["columns"]))}{table_stop}'
+            ws.print_title_rows = f'{header_row}:{header_row + header_count - 1}'
             ws.sheet_properties.pageSetUpPr.fitToPage = True
             ws.page_setup.orientation = 'landscape'
             ws.page_setup.paperSize = ws.PAPERSIZE_A4
             ws.page_setup.fitToWidth = 1
             ws.page_setup.fitToHeight = 0
             mappings.append({'node_ref': ref, 'sheet': name, 'header_row': header_row,
-                             'data_rows': len(body['rows']), 'columns': len(body['columns'])})
+                             'header_rows': header_count, 'data_rows': len(body['rows']), 'columns': len(body['columns'])})
         if clarification:
             name = '资料澄清清单'
             if name.casefold() in names:

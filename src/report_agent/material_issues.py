@@ -4,7 +4,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from .content_models import Ref
+from .content_models import Ref, CellMerge as TableMerge
 from .errors import ActionRejected
 
 
@@ -24,7 +24,7 @@ class IssueSource(StrictRecord):
 
     def readable(self):
         if isinstance(self.page, int):
-            locator = f"第{self.page}页"
+            locator = f"PDF第{self.page}页"
         else:
             locator = self.page.strip()
             if locator == "manifest text":
@@ -34,7 +34,7 @@ class IssueSource(StrictRecord):
             else:
                 match = re.fullmatch(r"(?:page\s+)?(\d+)", locator, re.IGNORECASE)
                 if match:
-                    locator = f"第{match[1]}页"
+                    locator = f"PDF第{match[1]}页"
         return f"{self.document}（{locator}）"
 
 
@@ -83,11 +83,78 @@ class MaterialIssue(StrictRecord):
                 + ("\n影响等级：是，补充资料后需复核。" if self.affects_level else "\n影响等级：否"))
 
 
-class TableMerge(StrictRecord):
-    start_row: int = Field(ge=0)
-    end_row: int = Field(ge=0)
-    start_col: int = Field(ge=0)
-    end_col: int = Field(ge=0)
+class CellComment(StrictRecord):
+    text: str = Field(min_length=1)
+    value: str = Field(min_length=1)
+    anchor: CellAnchor
+
+    @model_validator(mode="after")
+    def meaningful(self):
+        if not self.text.strip() or not self.value.strip():
+            raise ValueError("blank cell comment")
+        return self
+
+
+def cell_comments(node):
+    raw = node['body'].get('cell_comments', [])
+    if not isinstance(raw, list):
+        raise ActionRejected('CELL_COMMENT_LIST_REQUIRED')
+    try:
+        return [CellComment.model_validate(item) for item in raw]
+    except ValidationError as exc:
+        raise ActionRejected('CELL_COMMENT_INVALID: ' + str(exc)) from exc
+
+
+def _merges(rows, raw, prefix):
+    if not isinstance(raw, list):
+        raise ActionRejected(prefix + '_LIST_REQUIRED')
+    try:
+        merges = [TableMerge.model_validate(item) for item in raw]
+    except ValidationError as exc:
+        raise ActionRejected(prefix + '_INVALID: ' + str(exc)) from exc
+    occupied, covered = set(), set()
+    for merge in merges:
+        if (merge.start_row > merge.end_row or merge.start_col > merge.end_col
+                or merge.end_row >= len(rows) or merge.end_col >= len(rows[merge.start_row])):
+            raise ActionRejected(prefix + '_BOUNDS')
+        cells = {(r, c) for r in range(merge.start_row, merge.end_row + 1)
+                 for c in range(merge.start_col, merge.end_col + 1)}
+        if occupied & cells:
+            raise ActionRejected(prefix + '_OVERLAP')
+        primary = (merge.start_row, merge.start_col)
+        value = str(rows[primary[0]][primary[1]])
+        if any(str(rows[r][c]) not in ('', value) for r, c in cells):
+            raise ActionRejected(prefix + '_WOULD_LOSE_TEXT')
+        occupied |= cells
+        covered |= cells - {primary}
+    return merges, covered
+
+
+def table_header(body):
+    """Shared header projection; all body anchors remain zero-based data indices."""
+    rows = body.get('header_rows')
+    if rows is None:
+        if body.get('header_merges'):
+            raise ActionRejected('TABLE_HEADER_ROWS_REQUIRED')
+        rows = [body['columns']]
+    if (not isinstance(rows, list) or not rows
+            or any(not isinstance(row, list) or len(row) != len(body['columns']) for row in rows)):
+        raise ActionRejected('TABLE_HEADER_RECTANGULAR_ROWS_REQUIRED')
+    if body.get('header_rows') is not None and any(not isinstance(value, str) for row in rows for value in row):
+        raise ActionRejected('TABLE_HEADER_TEXT_REQUIRED')
+    merges, _ = _merges(rows, body.get('header_merges', []), 'TABLE_HEADER_MERGE')
+    return rows, merges
+
+
+def _cell_anchor(node, anchor, value, covered, prefix):
+    body = node['body']
+    if (node['kind'] != 'table' or anchor.row >= len(body['rows'])
+            or anchor.column >= len(body['columns'])):
+        raise ActionRejected(prefix + '_ANCHOR_BOUNDS')
+    if (anchor.row, anchor.column) in covered:
+        raise ActionRejected(prefix + '_MERGED_AWAY_ANCHOR')
+    if str(body['rows'][anchor.row][anchor.column]) != value:
+        raise ActionRejected(prefix + '_VALUE_MISMATCH')
 
 
 def validate_node(node):
@@ -102,26 +169,13 @@ def validate_node(node):
         issues = [MaterialIssue.model_validate(item) for item in raw_issues]
     except ValidationError as exc:
         raise ActionRejected("MATERIAL_ISSUE_INVALID: " + str(exc)) from exc
-    try:
-        merges = [TableMerge.model_validate(item) for item in raw_merges]
-    except ValidationError as exc:
-        raise ActionRejected("TABLE_MERGE_INVALID: " + str(exc)) from exc
-    occupied = set()
-    covered = set()
-    for merge in merges:
-        if (node["kind"] != "table" or merge.start_row > merge.end_row or merge.start_col > merge.end_col
-                or merge.end_row >= len(body["rows"]) or merge.end_col >= len(body["columns"])):
-            raise ActionRejected("TABLE_MERGE_BOUNDS")
-        cells = {(r, c) for r in range(merge.start_row, merge.end_row + 1)
-                 for c in range(merge.start_col, merge.end_col + 1)}
-        if occupied & cells:
-            raise ActionRejected("TABLE_MERGE_OVERLAP")
-        primary = (merge.start_row, merge.start_col)
-        value = str(body["rows"][primary[0]][primary[1]])
-        if any(str(body["rows"][r][c]) not in ("", value) for r, c in cells):
-            raise ActionRejected("TABLE_MERGE_WOULD_LOSE_TEXT")
-        occupied |= cells
-        covered |= cells - {primary}
+    if node['kind'] == 'table':
+        table_header(body)
+    elif raw_merges:
+        raise ActionRejected('TABLE_MERGE_BOUNDS')
+    merges, covered = _merges(body.get('rows', []), raw_merges, 'TABLE_MERGE')
+    for annotation in cell_comments(node):
+        _cell_anchor(node, annotation.anchor, annotation.value, covered, 'CELL_COMMENT')
     seen = set()
     for issue in issues:
         if issue.id in seen:
@@ -129,13 +183,7 @@ def validate_node(node):
         seen.add(issue.id)
         anchor = issue.anchor
         if isinstance(anchor, CellAnchor):
-            if (node["kind"] != "table" or anchor.row >= len(body["rows"])
-                    or anchor.column >= len(body["columns"])):
-                raise ActionRejected("MATERIAL_ISSUE_ANCHOR_BOUNDS: " + issue.id)
-            if (anchor.row, anchor.column) in covered:
-                raise ActionRejected("MATERIAL_ISSUE_MERGED_AWAY_ANCHOR: " + issue.id)
-            if str(body["rows"][anchor.row][anchor.column]) != issue.adopted_value:
-                raise ActionRejected("MATERIAL_ISSUE_VALUE_MISMATCH: " + issue.id)
+            _cell_anchor(node, anchor, issue.adopted_value, covered, 'MATERIAL_ISSUE')
         elif (node["kind"] in {"table", "figure"} or anchor.text != issue.adopted_value
               or body.get("text", "").count(anchor.text) != 1):
             raise ActionRejected("MATERIAL_ISSUE_PASSAGE_NOT_UNIQUE: " + issue.id)
@@ -165,6 +213,46 @@ def rendered_issues(records, root_ref):
             visit(child)
     visit(root_ref)
     return result
+
+
+def validate_required_issues(contents, db, snapshot, records, issue_records):
+    """Approved obligations come from frozen confirmation, never mutable live state."""
+    plan_ref = snapshot['payload'].get('commission_plan_ref')
+    if not plan_ref:
+        return
+    plan_record = records.get(Ref.model_validate(plan_ref).key())
+    if plan_record is None or plan_ref['type'] != 'CommissionPlan':
+        raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_PLAN_NOT_FROZEN')
+    confirmation_ref = snapshot['payload'].get('commission_confirmation_ref')
+    required = None
+    if confirmation_ref:
+        decision = records.get(Ref.model_validate(confirmation_ref).key())
+        if (confirmation_ref['type'] != 'CommissionDecision' or decision is None
+                or decision.get('owner_id') != 'operator'
+                or decision['payload'].get('approved') is not True
+                or decision['payload'].get('plan_ref') != plan_ref):
+            raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_INVALID')
+        required = decision['payload'].get('required_material_issues')
+    if required is None:
+        from .commission_plan import required_material_issues
+        if required_material_issues(contents, db, plan_ref, plan_record['payload']):
+            raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REQUIRED')
+        return
+    if not isinstance(required, list):
+        raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REGISTRY_INVALID')
+    actual = {issue.id: issue.model_dump() for _, issue in issue_records}
+    fields = ('id', 'kind', 'object_label', 'basis', 'sources', 'question')
+    seen = set()
+    for expected in required:
+        if (not isinstance(expected, dict) or any(key not in expected for key in fields)
+                or not isinstance(expected['id'], str) or expected['id'] in seen):
+            raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REGISTRY_INVALID')
+        seen.add(expected['id'])
+        issue = actual.get(expected['id'])
+        if issue is None:
+            raise ActionRejected('REQUIRED_MATERIAL_ISSUE_NOT_RENDERED: ' + expected['id'])
+        if any(issue[key] != expected[key] for key in fields):
+            raise ActionRejected('REQUIRED_MATERIAL_ISSUE_MISMATCH: ' + expected['id'])
 
 
 def comment_passage(doc, paragraphs, issue):

@@ -343,14 +343,14 @@ class ContentStore:
     def _snapshot_payload(self, db, root_ref, refs, workbook_refs):
         """Shared structural checks only; callers retain their separate authority checks."""
         from .commission_plan import snapshot_inventory
-        refs, commission_plan_ref = snapshot_inventory(self, db, refs)
+        refs, commission_plan_ref, commission_confirmation_ref = snapshot_inventory(self, db, refs)
         by_key = {Ref.model_validate(r).key(): self._read(db, r) for r in refs}
         if len(by_key) != len(refs) or Ref.model_validate(root_ref).key() not in by_key:
             raise ActionRejected("INVALID_MANIFEST")
         logical = [(r[0], r[1]) for r in by_key]
         if len(logical) != len(set(logical)):
             raise ActionRejected("MIXED_LOGICAL_VERSIONS")
-        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation", "Assessment", "CommissionPlan"}
+        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation", "Assessment", "CommissionPlan", "CommissionDecision"}
         if any(r[0] not in allowed for r in by_key):
             raise ActionRejected("INVALID_SNAPSHOT_TYPE")
         missing_refs, referrers = {}, []
@@ -426,9 +426,11 @@ class ContentStore:
         if commission_plan_ref:
             from .commission_plan import snapshot_outcomes
             payload['commission_plan_ref'] = commission_plan_ref
+            payload['commission_confirmation_ref'] = commission_confirmation_ref
             payload['commission_outcome_refs'] = snapshot_outcomes(self, db, commission_plan_ref, ordered)
             payload['manifest_digest'] = digest({'content_digest': payload['manifest_digest'],
-                'commission_plan_ref': commission_plan_ref, 'commission_outcome_refs': payload['commission_outcome_refs']})
+                'commission_plan_ref': commission_plan_ref, 'commission_confirmation_ref': commission_confirmation_ref,
+                'commission_outcome_refs': payload['commission_outcome_refs']})
         return payload
 
     def _saved_reference_set(self, db, actor, receipt_id):

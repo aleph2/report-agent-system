@@ -76,7 +76,7 @@ def citation_text(node, records, plan=None):
         page = re.fullmatch(r'page ([1-9][0-9]*)(?:;.*)?', locator)
         line = re.fullmatch(r'line ([1-9][0-9]*)', locator)
         if page:
-            place = f'第{page[1]}页'
+            place = f'PDF第{page[1]}页'
         elif line:
             place = f'第{line[1]}行'
         elif locator == 'manifest text':
@@ -98,6 +98,9 @@ def _visible(node):
     if node['kind'] == 'table':
         values = list(body['columns']) + [v for row in body['rows'] for v in row]
         values += [layout.caption(node), body.get('footnote', '')]
+        values.extend(value for row in body.get('header_rows', []) for value in row)
+        from .material_issues import cell_comments
+        values.extend(comment.text for comment in cell_comments(node))
     elif node['kind'] == 'figure':
         values = [body['caption']]
     else:
@@ -375,11 +378,12 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
         node_options[key] = _merge_required(prior, item, key[1])
         if existing:
             node_options[key]['paragraphs'] = list(existing.values())
-    # Readability defaults for the generated schemas, not mandatory source typography.
+    # Preserve v1 readability defaults; source-specified v2 tables use generic caller layout.
     for key in ordered:
         node = records[key]['payload']
         body = node['body']
-        if node['kind'] != 'table' or not body.get('assessment_ref') or node_options[key].get('column_weights'):
+        if (plan['method_pack'].get('version', 1) != 1 or node['kind'] != 'table'
+                or not body.get('assessment_ref') or node_options[key].get('column_weights')):
             continue
         if body.get('assessment_part') == 'ranking' and body['columns'] == ['指标', '重要性排序', '权重', '排序理由']:
             node_options[key]['column_weights'] = [1.4, .8, .8, 3]

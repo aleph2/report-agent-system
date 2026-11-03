@@ -27,7 +27,7 @@ def fixture():
         node(title, {'text': '项目甲\n风险报告\n负责人甲\n机构甲\n2026年', 'page_role': 'title_page', 'front_matter': {**front, 'leader': '负责人甲'}}),
         node(fixed, {'text': '原文新值', 'section_id': '1.1'}),
         node(extracted, {'text': '现场事实', 'section_id': '2'}),
-        {'ref': plan_ref, 'payload': {'method_pack': {'method_id': 'fixture'}, 'format_source': citation, 'sections': [
+        {'ref': plan_ref, 'payload': {'objects': [], 'method_pack': {'method_id': 'fixture'}, 'format_source': citation, 'sections': [
             {'section_id': '1.1', 'kind': 'fixed', 'sources': [{**citation, 'quote': '原文旧值'}], 'replacements': [{'old': '旧值', 'new': '新值'}]},
             {'section_id': '2', 'kind': 'extracted', 'sources': [citation]},
         ]}},
@@ -126,7 +126,7 @@ def test_readable_citations_do_not_fallback_to_private_ids():
     from report_agent.g3_export import citation_text
     _, _, records, _ = fixture()
     node = records[('ContentNode', 'extracted', 1)]['payload']
-    assert citation_text(node, records) == '（设计文件第96页）'
+    assert citation_text(node, records) == '（设计文件PDF第96页）'
     records[('SourceArtifact', 'source', 1)]['payload']['source_metadata'] = {}
     with pytest.raises(ActionRejected):
         citation_text(node, records)
@@ -218,6 +218,24 @@ def test_comment_text_is_visible_but_issue_identity_is_not():
         validate_export(*args)
 
 
+@pytest.mark.parametrize('surface', ['cell_comment', 'header'])
+def test_new_table_visible_surfaces_receive_internal_text_preflight(surface):
+    from report_agent.g3_export import validate_export
+    args = fixture()
+    node = args[2][('ContentNode', 'extracted', 1)]['payload']
+    node['kind'] = 'table'
+    node['body'] = {'section_id': '2', 'columns': ['指标', '值'], 'rows': [['坡高', '100']],
+                    'caption': '4.2.1-1 坡甲评价表', 'header_rows': [['指标', '值']],
+                    'cell_comments': [{'anchor': {'row': 0, 'column': 1}, 'value': '100', 'text': '依据设计资料排序。'}]}
+    validate_export(*args)
+    if surface == 'cell_comment':
+        node['body']['cell_comments'][0]['text'] = 'source_id: private'
+    else:
+        node['body']['header_rows'][0][0] = 'source_id: private'
+    with pytest.raises(ActionRejected, match='extracted'):
+        validate_export(*args)
+
+
 def test_serialized_layout_roundtrip_preserves_same_mandatory_format():
     from report_agent.content_layout import LayoutOptions
     from report_agent.g3_export import prepare_export
@@ -247,6 +265,11 @@ def test_generated_assessment_widths_are_source_format_defaults_not_constraints(
     assert selected({'nodes': [{'node_ref': ref('ContentNode', 'extracted'), 'column_weights': custom}]})['column_weights'] == custom
     serialized = LayoutOptions.model_validate(prepare_export(*args, None)).model_dump()
     assert LayoutOptions.model_validate(prepare_export(*args, serialized)).model_dump() == serialized
+    method = args[2][('CommissionPlan', 'plan', 1)]['payload']['method_pack']
+    method['version'] = 2
+    assert not selected().get('column_weights')
+    assert selected({'nodes': [{'node_ref': ref('ContentNode', 'extracted'), 'column_weights': custom}]})['column_weights'] == custom
+    method['version'] = 1
     del node['body']['assessment_ref']
     assert not selected().get('column_weights')
     node['body']['assessment_ref'] = ref('Assessment', 'score')

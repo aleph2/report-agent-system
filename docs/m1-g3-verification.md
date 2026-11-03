@@ -100,3 +100,93 @@ Two contained limitations remain explicit:
 G4 retains the full suite and complete scripted pass. Current-input staging,
 native Linux case/ledger checks, the actual owner checkpoint, any paid rerun and
 manual engineering sign-off remain separate and are not claimed here.
+
+## G3 follow-up — 2026-11-03 UTC
+
+This section supersedes the original presentation results and open formula P2
+above; the original evidence remains historical. The owner approved a small,
+source-driven table specification pilot, alongside the existing method records.
+The guideline explicitly permits A.3-1 simplified selection on physical PDF page
+91. The earlier formula-versus-lookup concern is therefore closed; this does not
+assert that every tabulated weight equals a rounded formula result.
+
+### Behavior and decision boundary
+
+Two prepared table specifications reproduce this report's ranking and evaluation
+tables. Their generic renderer binds columns to immutable saved records; specs
+contain headers, bindings, groups/merges, captions, sorting and level labels,
+never numeric cell data, grade descriptions or formulas. Grade descriptions live
+in source-bound method records; adopted values, weights and scores come from saved
+calculations. The original method-record version remains readable.
+
+The existing plan checkpoint now includes table versions, source pins and rendered
+headers. Unsupported bindings and missing annotation anchors are rejected before
+approval. Each known reconciliation difference and distinct multi-valued inventory
+attribute becomes a frozen confirmation obligation. Word and Excel exports reject
+omitted or altered obligations, including pointers outside the rendered root.
+
+Approval also writes `outputs/confirmation-checklist-<digest>.md`, recording the
+method, weight-selection convention, table types/versions and source references.
+It is a readable projection of the immutable approval: editing it grants no
+authority. Repeating the same confirmation can restore a missing checklist without
+creating another approval. Users can reference confirmed rules in a future scope
+document, but automatic cross-case import/matching is not implemented. New source
+versions and applicability still require confirmation.
+
+This pilot uses prepared source-copied specifications. Runtime method discovery,
+agent-generated table specs and a dedicated versioned-spec confirmation UI remain
+later work. A different-structure generic compiler test passes, but this is not a
+claim that arbitrary report methods or layouts are already supported.
+
+### Follow-up verification
+
+Evidence is in `.analysis/m1-g3-followup-20261102/`. Main implemented integration;
+the named method-data and export owners implemented their modules. Neo independently
+reviewed tests and implementation, retaining first failures and subsequent fixes.
+No outstanding P0/P1 was found within that reviewed scope.
+
+| Separate focused batch | Result | Evidence |
+| --- | --- | --- |
+| New specification, confirmation and conflict contracts | 43 passed | `neo-followup-green-09.log/xml` |
+| Existing scoring, method, integration and commission tests | 160 passed | `neo-regression-10.log/xml` |
+| Export, workbook, footnote and native-layout regressions | 92 passed | `export-regression-green.txt` |
+| Source/compiler checks | 21 passed | `source-table-spec-green-02.txt` |
+| Presentation regressions | 37 passed | `source-presentation-green.txt` |
+| Hierarchical content and saved-reference regressions | 51 passed | `main-regression.log/xml` |
+
+Batches overlap and must not be added as unique tests or described as the full
+suite. Main's 51-test batch used fresh native Linux writable storage and the
+existing old-input/network Python guard, including normal Python children; no
+guard events were recorded. This is not an operating-system sandbox and does not
+cover interpreters started with options that bypass Python startup hooks.
+
+The final Word artifact renders to 38 pages in the verified PDF. It contains five
+evaluation tables with 47 body rows and two header rows each, and 115 comments:
+55 ranking reasons, 55 assumptions and five
+known-conflict pointers. Excel contains 60 clarification rows (55 assumptions and
+five conflicts). Exact saved-value and annotation comparisons passed; four source
+regions retain their crop pixels. All 11 source copies and durable-library blobs
+were hash-checked after export. Main reviewed both final contact sheets covering
+all pages and enlarged page 18; Neo independently reviewed representative table
+pages. Final image lineage is in `export-final-image-lineage.json`, with artifact
+hashes and checks in `export-final-handoff.json` and `export-real-qa.json`.
+The raw UNO TOC-finalization receipt reports a different intermediate page count;
+it is preserved but is not used as evidence of final pagination.
+
+These are actual generated files driven by deterministic scripted inputs and
+tool/adapter tests. They establish calculation, persistence, validation and output
+behavior for those inputs. They do not establish that an LLM can independently
+interpret new material, select correct arguments or finish an entire report.
+
+### Remaining limits
+
+The offline fixture still uses unverified drawing-title object labels and the
+previously disclosed validation assumptions; it is not an engineering assessment.
+Inherited P3 spacing and the duplicate chapter-6 heading remain formal-layout
+items. Joint assumption sensitivity remains the implemented check; individual
+assumption refinement is deferred. Fixed source prose was preserved.
+
+G4 step 6.1's full suite and complete scripted pass remain mandatory outstanding
+work, as do native case/ledger readiness and current-scope staging with `--template`
+before the actual checkpoint/rerun. No paid/provider calls, real report rerun,
+ledger migration or G4 approval occurred in this follow-up. Email remains stopped.

@@ -918,3 +918,38 @@ assumptions are not engineering facts; the real proposal remains unapproved.
 Publish the scoped code/docs/tests with tag `m1-fixes-20261102-g3`, verify branch
 and peeled tag, then send the separately authorized one-off completion email.
 Email polling stays stopped; G4 and engineering sign-off remain separate.
+
+## G3 follow-up offline candidate — 2026-11-03 UTC
+
+Owner review and subsequent clarifications are implemented: two prepared table
+specifications and generic saved-record rendering, immutable mandatory conflict
+pointers in both exports, and a readable confirmation-checklist projection. The
+existing checkpoint pins method/convention/table versions; cross-case automatic
+reuse, runtime method/table discovery and a new UI are not part of this pilot.
+
+Current results and decisions are in `docs/m1-g3-verification.md` (follow-up
+section) and `.analysis/m1-g3-followup-20261102/`. Neo's 43-test follow-up and
+160-test existing regression batches, Exporter's 92-test batch, source batches
+21/37, and Main's 51-test batch passed separately; they overlap and are not a full
+suite. Final Word renders to 38 verified PDF pages, with 115 Word comments and
+60 Excel issue rows. The raw UNO intermediate page count is not final pagination.
+Main accepted final contact sheets and page18; Neo reviewed representative pages.
+
+Correction to the earlier historical P2: guideline physical page91 expressly
+permits A.3-1 simplified selection. Preserve original evidence and fixed prose;
+the alleged formula/lookup conflict is closed. Unverified fixture labels/values
+and inherited P3 typography remain explicit engineering/formal-layout limits.
+
+Main owns integration/docs/Git; named workers own their modules; Neo performed
+independent technical review. Skills: using-agent-skills for phase routing,
+Ponytail for minimal existing-path changes, TDD/debugging for preserved RED/GREEN,
+Graphify fallback to current caller searches (no existing graph), code review for
+boundary/regression review, and documentation-and-adrs for additive decision and
+evidence records. Exact action evidence and skill pins are recorded locally;
+reading a skill alone is not counted as validation.
+
+Publish as G3 follow-up candidate only after final documentation/pin review.
+G4 full suite/complete scripted pass, current-scope staging, native case/ledger
+readiness and real owner checkpoint remain outstanding. No paid calls, real report
+rerun, ledger changes or email. This supersedes any earlier follow-up completion
+mail expectation; email monitoring remains stopped.

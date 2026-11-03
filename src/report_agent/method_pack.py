@@ -36,12 +36,23 @@ class GradeBand(Contract):
         return self
 
 
+class PresentationRow(Contract):
+    """Source-authored display subdivisions; numeric bands remain GradeBand data."""
+    grade_id: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    condition: str = ''
+    description_group_id: str = Field(min_length=1)
+
+
 class IndicatorRule(Contract):
     id: str = Field(min_length=1)
     label: str = Field(min_length=1)
     category: str = ''
     notes: str = ''
     grades: list[GradeBand] = Field(min_length=1)
+    display_label: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    category_display_label: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    presentation_rows: list[PresentationRow] = Field(default_factory=list, exclude_if=lambda v: not v)
 
     @model_validator(mode='after')
     def distinct(self):
@@ -49,6 +60,11 @@ class IndicatorRule(Contract):
         ordered = sorted(self.grades, key=lambda g: number(g.min_value))
         if any(number(a.max_value) >= number(b.min_value) for a, b in zip(ordered, ordered[1:])):
             raise ValueError('overlapping grade bands')
+        if self.presentation_rows:
+            if not self.display_label or self.category_display_label is None:
+                raise ValueError('METHOD_DISPLAY_LABEL_REQUIRED')
+            if {r.grade_id for r in self.presentation_rows} != {g.id for g in self.grades}:
+                raise ValueError('METHOD_PRESENTATION_GRADE_COVERAGE')
         return self
 
 
@@ -97,6 +113,8 @@ class MethodPack(Contract):
     indicators: list[IndicatorRule] = Field(min_length=1, max_length=1000)
     risk_bands: list[RiskBand] = Field(min_length=1)
     weight_tables: list[WeightTable] = Field(min_length=1)
+    presentation_sources: list[SourceCitation] = Field(default_factory=list, exclude_if=lambda v: not v)
+    display_labels: dict[str, str] = Field(default_factory=dict, exclude_if=lambda v: not v)
 
     @model_validator(mode='after')
     def unambiguous(self):
@@ -107,24 +125,36 @@ class MethodPack(Contract):
         for a, b in zip(bands, bands[1:]):
             if number(a.upper) != number(b.lower) or a.upper_inclusive == b.lower_inclusive:
                 raise ValueError('gap or overlap in risk bands')
+        if any(i.presentation_rows for i in self.indicators):
+            if not self.presentation_sources or not all(i.presentation_rows for i in self.indicators):
+                raise ValueError('METHOD_PRESENTATION_SOURCE_AND_COMPLETE_ROWS_REQUIRED')
         return self
 
 
-def bind_guideline(source_ref, file_digest):
+def bind_guideline(source_ref, file_digest, template_ref=None, template_digest=None):
     """Bind the reviewed transcription only to the exact verified source bytes."""
     import json
     from importlib.resources import files
     data = json.loads(files('report_agent').joinpath('methods/high_slope_guideline.json').read_text(encoding='utf-8'))
     if file_digest != data['metadata']['file_sha256']:
         raise ValueError('METHOD_SOURCE_HASH_MISMATCH')
+    if (template_ref is None) != (template_digest is None):
+        raise ValueError('METHOD_TEMPLATE_BINDING_PAIR_REQUIRED')
+    if template_ref is not None and template_digest != data['presentation_source']['file_sha256']:
+        raise ValueError('METHOD_TEMPLATE_HASH_MISMATCH')
     def cite(page):
         return {'source_ref': source_ref, 'locator': f'page {page}', 'quote': ''}
     payload = {
         'method_id': data['metadata']['name'], 'version': 1,
         'sources': [cite(p) for p in data['metadata']['pages']],
-        'indicators': [{k: v for k, v in i.items() if k != 'source_pages'} for i in data['indicators']],
+        'indicators': [{k: v for k, v in i.items() if k in {'id', 'label', 'category', 'notes', 'grades'}} for i in data['indicators']],
         'risk_bands': [{k: v for k, v in b.items() if k != 'label'} for b in data['risk_bands']],
         'weight_tables': [{'id': t['id'], 'source': cite(t['source_page']), 'rows': t['rows']} for t in data['weight_tables']]}
+    if template_ref is not None:
+        payload.update(version=2, display_labels=data['display_labels'],
+            presentation_sources=[{'source_ref': template_ref, 'locator': f'page {p}', 'quote': ''}
+                                  for p in data['presentation_source']['pages']])
+        payload['indicators'] = [{k: v for k, v in i.items() if k != 'source_pages'} for i in data['indicators']]
     return MethodPack.model_validate(payload).model_dump(mode='json')
 
 
@@ -158,6 +188,16 @@ def reviewed_method_questions(cs, db, pack):
             if str(exc) != 'METHOD_SOURCE_HASH_MISMATCH':
                 raise
             continue
+        if pack['version'] == 2:
+            from importlib.resources import files
+            import json
+            data = json.loads(files('report_agent').joinpath('methods/high_slope_guideline.json').read_text(encoding='utf-8'))
+            for template_citation in pack.get('presentation_sources', []):
+                template = cs._read(db, template_citation['source_ref'])['payload']
+                if template['file_digest'] == data['presentation_source']['file_sha256']:
+                    reviewed = bind_guideline(citation['source_ref'], source['file_digest'],
+                                              template_citation['source_ref'], template['file_digest'])
+                    break
         if pack != reviewed:
             from .errors import ActionRejected
             raise ActionRejected('METHOD_REVIEWED_DATA_CHANGED')

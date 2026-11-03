@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from copy import deepcopy
 import shutil
 import subprocess
 import tempfile
@@ -13,7 +14,8 @@ from docx import Document
 from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
 from .store import digest
-from .material_issues import validate_node, rendered_issues, comment_passage
+from .material_issues import (validate_node, rendered_issues, comment_passage,
+    table_header, cell_comments, validate_required_issues)
 
 
 def _asset(store, name, data):
@@ -131,6 +133,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 collect_body(child)
         collect_body(snapshot['payload']['root_ref'])
         issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
+        validate_required_issues(contents, db, snapshot, records, issue_records)
         from .g3_export import prepare_export, citation_text
         selected_layout = prepare_export(contents, snapshot, records, rendered_keys, selected_layout)
         options = presentation.LayoutOptions.model_validate(selected_layout or {})
@@ -238,20 +241,46 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 if title:
                     p = doc.add_paragraph(title, "Caption")
                     p.paragraph_format.keep_with_next = True
-                table = doc.add_table(rows=1, cols=len(body["columns"]), style="Table Grid")
-                for cell, value in zip(table.rows[0].cells, body["columns"]):
-                    cell.text = str(value)
-                for values in body["rows"]:
+                headers, header_merges = table_header(body)
+                header_count = len(headers)
+                table = doc.add_table(rows=0, cols=len(body["columns"]), style="Table Grid")
+                for values in [*headers, *body["rows"]]:
                     for cell, value in zip(table.add_row().cells, values):
                         cell.text = str(value)
                 for merge in merges:
-                    first = table.cell(merge.start_row + 1, merge.start_col)
+                    first = table.cell(merge.start_row + header_count, merge.start_col)
                     value = first.text
-                    first.merge(table.cell(merge.end_row + 1, merge.end_col)).text = value
+                    first.merge(table.cell(merge.end_row + header_count, merge.end_col)).text = value
                 presentation.format_table(table, options, style)
+                # Row.cells aliases horizontal spans; format_table assigns each grid width in turn.
+                for merge in merges:
+                    if merge.start_col != merge.end_col:
+                        table.cell(merge.start_row + header_count, merge.start_col).width = sum(
+                            table.columns[index].width for index in range(merge.start_col, merge.end_col + 1))
+                # Set individual widths before horizontal spans; preserve styled primary paragraph.
+                for merge in header_merges:
+                    first = table.cell(merge.start_row, merge.start_col)
+                    paragraph = deepcopy(first.paragraphs[0]._p)
+                    cell = first.merge(table.cell(merge.end_row, merge.end_col))
+                    for other in list(cell.paragraphs):
+                        other._p.getparent().remove(other._p)
+                    cell._tc.append(paragraph)
+                from docx.oxml import OxmlElement
+                from docx.oxml.ns import qn
+                for row in table.rows[:header_count]:
+                    properties = row._tr.get_or_add_trPr()
+                    if properties.find(qn('w:tblHeader')) is None:
+                        properties.append(OxmlElement('w:tblHeader'))
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            for run in paragraph.runs:
+                                run.bold = True
                 for issue in issues:
-                    cell = table.cell(issue.anchor.row + 1, issue.anchor.column)
+                    cell = table.cell(issue.anchor.row + header_count, issue.anchor.column)
                     doc.add_comment(cell.paragraphs[0].runs, issue.comment(), author="工程资料澄清", initials="审")
+                for annotation in cell_comments(node):
+                    cell = table.cell(annotation.anchor.row + header_count, annotation.anchor.column)
+                    doc.add_comment(cell.paragraphs[0].runs, annotation.text, author="评估说明", initials="评")
                 footnote = presentation.table_footnote(body)
                 if footnote is not None:
                     doc.add_paragraph(footnote)
