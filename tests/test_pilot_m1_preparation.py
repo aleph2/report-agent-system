@@ -2,6 +2,7 @@
 from copy import deepcopy
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import runpy
 from types import SimpleNamespace
@@ -48,6 +49,8 @@ def input_set(root, *, references=0, extras=1, scopes=1):
 
 
 def host_case(tmp_path, monkeypatch, *, references=0, extras=1, scopes=1):
+    # The in-process host configures its model environment during run().
+    monkeypatch.setattr(os, 'environ', os.environ.copy())
     import resource
     monkeypatch.setattr(resource, 'setrlimit', lambda *args: None)
     monkeypatch.setattr(sys, 'path', sys.path.copy())

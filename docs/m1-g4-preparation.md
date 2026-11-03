@@ -26,7 +26,28 @@ OK, and the original ledger hash remained unchanged. All 627 attempts, including
 626 settled and one reserved attempt, remain: 62,185,636 used tokens and 2,000,000
 held. This is relocation, not a new budget or permission to replay that reservation.
 
-Pending completion evidence: current-input staging with explicit template,
-frozen full-suite audit, complete current scripted flow, and independent review.
+Current-input staging includes all 11 current inputs and the explicit PDF
+template in `/home/dysun/report-agent-m1/runs/g4-candidate-01`. Original and copied
+hashes match; no launch approval, start intent or generated report exists there.
+The current scripted flow passed with separate content/export reviewers and
+three exact Word comments matching three Excel clarification rows.
+
+The first frozen full suite accounted for all 4,668 collected nodes: 4,640 passed,
+19 failed and 9 skipped for the unavailable dedicated graph service. Two optional
+GEPA/DSPy modules were separately skipped during collection. Original failures
+and pins are retained. Review distinguished obsolete assertions/test environment
+leakage from a real focused-capability projection regression: new nested G3
+schemas exceeded the existing metadata bound and safely retained the full tool
+result. The fix reuses compact descriptors and exact owned-original recovery;
+the bound, permission checks and calculation/export data remain unchanged.
+
+Follow-up focused04 recorded 280 passed and one historical fault-injection
+failure. After faithfully restoring its historical reader-at-COMMIT conditions,
+the entire checkpoint module passed 18 tests in checkpoint05. These are separate
+batches, not a single green run. Current G1 typed-busy tests passed in focused04;
+historical compatibility does not expand current recovery permissions.
+
+Independent source review is complete. Pending completion evidence: a fresh
+full02 audit and re-staging the repaired committed runtime as candidate02.
 Scripted/model-free success establishes mechanics, not actual model autonomy,
 source interpretation, engineering adequacy or owner approval of a real plan.

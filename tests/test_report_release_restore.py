@@ -102,12 +102,16 @@ def test_committed_release_stages_and_prepares_without_legacy_dependencies(tmp_p
     verified = []
     verifier = [sys.executable, '-I', '-B', '-c',
         'import sys; sys.path.insert(0, sys.argv[1]); '
+        'from report_agent.storage_preflight import require_native_storage; '
+        'require_native_storage(*sys.argv[2:]); '
         'from report_agent.blob_store import verify_case_blobs; verify_case_blobs(sys.argv[2])',
-        str(run / 'source/src'), str(run / 'case')]
+        str(run / 'source/src'), str(run / 'case'), str(run),
+        str(run / 'case/state.db'), str(run / 'case/checkpoints.db'),
+        str(run / 'case/experience-library/state.db'), str(ledger)]
 
     def no_launch(*args, **kwargs):
         if args != (verifier,) or kwargs != {'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE, 'text': True}:
-            pytest.fail('Restore verification permits only the pinned read-only blob verifier, never a report process')
+            pytest.fail('Restore verification permits only the pinned read-only storage/blob verifier, never a report process')
         verified.append(args[0])
         return original_popen(*args, **kwargs)
     monkeypatch.setattr(subprocess, 'Popen', no_launch)

@@ -193,6 +193,53 @@ def test_focused_projection_does_not_weaken_original_integrity_or_owner_checks(w
         read_observation(ws, 'coordinator', ref)
 
 
+def test_nested_capability_schemas_preserve_exact_recovery_and_tamper_binding(ws):
+    activate(ws)
+    original = capability_message()
+    value = json.loads(original.content)
+    value['result']['content_annotations'] = 'Exact values retain anchored comments; notes stay private.'
+    for name, title in [('material_issue_schema', 'MaterialIssue'), ('table_merge_schema', 'CellMerge')]:
+        value['result'][name] = {
+            'title': title, 'type': 'object', 'required': ['value', 'proof'],
+            'properties': {'value': {'type': 'integer', 'minimum': 0, 'maximum': 100},
+                           'proof': {'$ref': '#/$defs/Proof'}},
+            '$defs': {'Proof': {'type': 'string', 'minLength': 3,
+                                'description': 'Original constraint, never omitted from recovery. ' * 300}}}
+    original = original.model_copy(update={'content': encode(value)})
+    shown = TaskContext(ws, 'coordinator').bound_result(original)
+    packet = json.loads(shown.content)
+    assert 'directory' in packet['result']['controls']
+    assert len(encode(packet['result'])) <= 4800
+    for name, title in [('material_issue_schema', 'MaterialIssue'), ('table_merge_schema', 'CellMerge')]:
+        assert packet['result'][name] == {
+            'title': title, 'type': 'object', 'required': ['value', 'proof'],
+            'fields': ['proof', 'value'], 'json_location': ['result', name], 'details_in_original': True}
+    for key in ('version', 'engine_digest', 'directory_refresh', 'revision_budget', 'boundaries', 'content_annotations'):
+        assert packet['result'][key] == value['result'][key]
+    ref = packet['observation_ref']
+    pages, offset = [], 0
+    while True:
+        page = read_observation(ws, 'coordinator', ref, offset, 6000)
+        pages.append(page['text'])
+        if page['next_offset'] is None:
+            break
+        offset = page['next_offset']
+    assert len(pages) > 1 and ''.join(pages) == original.content
+    capture(ws, 'coordinator', pair(shown))
+    assert not any(e['kind'] == 'context_projection_gap' for e in ws.store.events())
+    for key, altered in [('required', []), ('json_location', ['result', 'controls'])]:
+        changed = deepcopy(packet)
+        changed['result']['material_issue_schema'][key] = altered
+        tampered = shown.model_copy(update={'content': encode(changed)})
+        with pytest.raises(ActionRejected, match='CAPABILITY_PROJECTION_UNVERIFIED'):
+            capture(ws, 'coordinator', pair(tampered))
+    record = ws.store.get('tool_observation:' + ref)
+    record['text'] += 'tampered'
+    ws.store.set('tool_observation:' + ref, record)
+    with pytest.raises(ActionRejected, match='INTEGRITY'):
+        read_observation(ws, 'coordinator', ref)
+
+
 async def test_compacted_capability_directory_keeps_conditions_and_exact_old_version(ws):
     from langchain_core.messages import HumanMessage
     from report_agent.store import Store
@@ -244,6 +291,17 @@ async def test_final_native_sdk_contains_focused_directory_and_current_state(ws)
         record = ws.store.get('tool_observation:' + shown['observation_ref'])
         assert 'properties' in json.loads(record['text'])['result']['controls']
         assert len(shown['result']['controls']['directory']) == len(json.loads(record['text'])['result']['controls']['properties'])
+        original_result = json.loads(record['text'])['result']
+        assert len(encode(shown['result'])) <= 4800
+        for name in ('material_issue_schema', 'table_merge_schema'):
+            definition = original_result[name]
+            assert shown['result'][name] == {
+                'title': definition['title'], 'type': definition['type'], 'required': definition['required'],
+                'fields': sorted(definition['properties']), 'json_location': ['result', name],
+                'details_in_original': True}
+            assert '$defs' not in shown['result'][name]
+        assert shown['result']['content_annotations'] == original_result['content_annotations']
+        assert not any(e['kind'] == 'context_projection_gap' for e in ws.store.events())
         assert len(json.dumps(shown, ensure_ascii=False)) < len(record['text'])
         assert len(wires) == 2
     finally:
