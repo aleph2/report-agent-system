@@ -47,7 +47,45 @@ the entire checkpoint module passed 18 tests in checkpoint05. These are separate
 batches, not a single green run. Current G1 typed-busy tests passed in focused04;
 historical compatibility does not expand current recovery permissions.
 
-Independent source review is complete. Pending completion evidence: a fresh
-full02 audit and re-staging the repaired committed runtime as candidate02.
+## Completed offline readiness
+
+The active prepared candidate is
+`/home/dysun/report-agent-m1/runs/g4-candidate-02`, staged from
+`a722a7370b02a4ce9963827f34ebec7cb4245f7a`. Candidate01 remains preserved.
+Independent review verified all 223 runtime files against that exact Git commit,
+all 11 originals and copied inputs, ext4 storage, WAL/integrity, saved blobs and
+the complete unchanged financial ledger. There is no launch approval, start
+intent, checkpoint, generated content or report in candidate02.
+
+Full02 recorded 4,658 passed, two 30-second test-deadline failures and nine graph
+skips out of all 4,669 collected tests. The complete unchanged 26-test
+`test_deep_runtime.py` module was then run serially under the same guards and
+30-second helper limit: all 26 passed in 186.57 pytest seconds. No timeout was
+increased. This was one controlled recheck, not repeated execution until green.
+
+Replacing the entire module's results gives **4,660 passed and nine skipped**
+across separate batches. This is not a single green full run. Independent audit
+verified exact node/phase coverage, actual JUnit outcomes, identical recollection
+and optional collection skips, unchanged source inventory/hashes/guards, and
+preservation of the original full02 failure evidence. The two optional GEPA/DSPy
+modules remain uncollected. Parallel timing instability is retained as P3; its
+cause is unresolved. A later Windows-mount I/O-wait sample does not establish the
+cause of the earlier timeouts.
+
+Neo accepted offline preparation after reviewing code, focused/scripted results,
+candidate02 and the final coverage audit. Main owns implementation, execution,
+documentation and Git; Neo authored the scoped tests and independently reviewed
+Main's production changes and execution evidence. Main reviewed Neo's test diffs.
+Receipts: `verification.json`, `g4-final-coverage-audit.json`,
+`neo-final-coverage-review.json` and `neo-candidate02-review.json` in the evidence
+directory above. Original RED/failed batches remain available.
+
+The native-mount startup check and Python test guards are not an OS sandbox;
+the existing fd-relative guard limitation remains. The supplied PDF is the
+template reference; the customer cannot supply Word. Real template fidelity,
+source interpretation and engineering conclusions still require the actual G4
+run and review. **Offline preparation is complete; actual G4 execution awaits
+explicit owner approval.** Email remains stopped and no paid calls were made.
+
 Scripted/model-free success establishes mechanics, not actual model autonomy,
 source interpretation, engineering adequacy or owner approval of a real plan.
