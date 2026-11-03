@@ -648,11 +648,18 @@ def request_checkpoint(workspace):
         from .commission_planning import requirement_lines
         with cs.store.connect() as db:
             lines += requirement_lines(cs, db, requirements)
+    def citation_location(citation):
+        if citation is None:
+            return '无来源（未知值，原因见上）'
+        source = cs.read(citation['source_ref'])['payload']
+        return source['source_metadata'].get('title', citation['source_ref']['id']) + ' / ' + citation['locator']
     for obj in plan['objects']:
         lines.append(f"- {obj['object_id']} — {obj['label']}：{'纳入' if obj['included'] else '建议排除'}；{obj['reason']}（{'客户约定' if obj['origin'] == 'customer' else '代理解释'}）")
+        lines += ['  对象依据：' + citation_location(c) for c in obj['sources']]
         for attribute in obj['attributes']:
             values = '；'.join((v['value'] or '未知') + '：' + v['reason'] for v in attribute['values'])
             lines.append('  ' + attribute['name'] + ': ' + values)
+            lines += ['  属性依据：' + citation_location(v['source']) for v in attribute['values']]
     if plan.get('scope_boundary'):
         boundary = plan['scope_boundary']
         lines += ['', '## 合同范围边界', '', f"{boundary['start_meter']}–{boundary['end_meter']}米；约定对象数{boundary.get('expected_object_count') or '未指定'}",
@@ -694,6 +701,10 @@ def request_checkpoint(workspace):
     lines += ['', '## 资料核对', '']
     for item in plan['reconciliations']:
         lines += ['- ' + item['result'], *['  - ' + text for text in item['differences']]]
+        lines += ['  核对依据：' + citation_location(c) for c in item['sources']]
+    from .source_access import coverage, lines as access_lines
+    access = coverage(cs, plan)
+    lines += access_lines(access)
     lines += ['', '## 待确认问题', '', *['- ' + item for item in plan['open_questions']]]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
@@ -702,7 +713,7 @@ def request_checkpoint(workspace):
     issue = workspace.issue('requirement', description, source_ids)
     requirement_binding = {'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}
     workspace.store.set('commission_checkpoint:' + issue['id'], {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root))})
-    path.with_suffix('.json').write_text(json.dumps({'issue_id': issue['id'], 'plan_ref': ref,
+    path.with_suffix('.json').write_text(json.dumps({'issue_id': issue['id'], 'plan_ref': ref, 'source_access': access,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
         'decision_shape': {'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': []},
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')

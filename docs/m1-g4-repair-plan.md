@@ -1,11 +1,15 @@
 # G4 requirements and planning repair
 
-Status: owner approved H1 on 2026-11-03; H2 is implemented and verified for owner review.
+Status: owner approved H1 and H2 on 2026-11-03; H3 offline verification is complete with the current scope frozen. Owner H3 review and restart approval remain separate.
 H2/H3 follow their review gates. No paid calls. The owner subsequently authorized
-one H2 completion email; inbox polling and scheduled progress remain stopped.
+one H2 completion email (sent) and, subsequently, one H3 completion email after
+verification/review and tag publication; inbox polling and scheduled progress remain stopped.
 Evidence: [H1 verification](m1-g4-h1-verification.md), review tag `m1-fixes-20261103-g4-h1`.
 H2 evidence: [verification](m1-g4-h2-verification.md), 620 passing affected tests in
-one batch; review tag `m1-fixes-20261103-g4-h2`. H3 awaits the owner's H2 review.
+one batch; review tag `m1-fixes-20261103-g4-h2`. Owner H2 review approved.
+H3 evidence: [verification](m1-g4-h3-verification.md), fresh complete batch
+4,865 passed / 0 failed / 9 skipped, plus two optional collection skips.
+Review tag: `m1-fixes-20261103-g4-h3`.
 Authoritative supplied plan: `G4 Fix Plan: Requirements and Planning`, Sandra
 GonzalezKo, Nov 3, 2026, attachment 90209170-7d51-44ab-921b-8d8e0fb38a9d.
 
@@ -16,8 +20,9 @@ pause proposal arrived. Candidate02 exited after SIGINT, with cleanup complete;
 it is interrupted, not a live checkpoint wait. Preserve its case, sources,
 attempts and reservations. Last stop receipt: 12,247,852 report tokens settled,
 2,000,000 held; 121,535,178 M1 tokens available for new reservations. These are
-recorded accounting values, to be rechecked before any new launch. No old attempt
-will be replayed or its uncertain reservation released.
+recorded accounting values, to be rechecked before any new launch. No historical provider request
+will be redispatched or its uncertain reservation released. Public planning-tool
+payloads may be replayed offline in independent fixtures, as disclosed under H3.
 
 ## Ordered work and review gates
 
@@ -84,6 +89,14 @@ saves, native malformed/schema/domain failures and no sixth model invocation.
 Finish with an H2 tag for owner review.
 
 ### H3 — inventory evidence and complete offline verification (steps 4/5)
+
+- Owner decision, 2026-11-03: freeze the current scope file for H3 and restart
+  (SHA-256 `436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df`).
+  Do not add proposed items 7/8 now. Carry them into the scope template for the next
+  report type, alongside future anchor-level classification reuse. Runtime discovery
+  and classification matching changes remain deferred. A scope-only edit invalidates
+  its 8 classified anchors; the 32 outline anchors (17 headings and 15 instructions)
+  remain bound to their own file.
 
 - Brief retains every discovered candidate, its proposed disposition, reason and
   evidence pages. K1320+380–760 right is already candidate SLOPE-TBL-2; its engineering

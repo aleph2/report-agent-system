@@ -5,13 +5,15 @@
 - [x] H1: source anchors, versioned dispositions, shared completeness guards; actual input extraction and omission matrix; review tag `m1-fixes-20261103-g4-h1` (457 passing affected tests; independent reviews accepted).
 - [x] Owner H1 review before H2 (approved 2026-11-03; entry-derived capabilities and readable brief added to H2).
 - [x] H2: ID attachments, fixed-source extraction, structured small planning tools and persistent rejection cap; 620 passing affected tests; review tag `m1-fixes-20261103-g4-h2` ([verification](../docs/m1-g4-h2-verification.md)).
-- [ ] Owner H2 review before H3.
-- [ ] H3: candidate/source-access brief, exact real-attempt replay, scripted full path and full-suite evidence; review tag.
+- [x] Owner H2 review before H3 (approved; current scope frozen for H3/restart).
+- [x] H3: candidate/source-access brief, preserved real-attempt replay with disclosed reference adaptation, scripted full path and fresh full suite (4,865 passed / 0 failed / 9 skipped; two optional collection skips); review tag `m1-fixes-20261103-g4-h3` ([verification](../docs/m1-g4-h3-verification.md)).
+- [ ] Owner H3 review before restart.
 - [ ] Owner restart approval, new staged candidate and checkpoint availability; nine-item report acceptance.
 
 Details/limits: [G4 repair plan](../docs/m1-g4-repair-plan.md). No paid calls,
-ledger replay or old-run revival during offline work. The owner authorized one H2
-completion email; polling stays stopped. Retain historical tasks below.
+financial-request replay or old-run revival during offline work. The owner authorized
+one H2 completion email (sent) and one H3 completion email after publication;
+polling stays stopped. Retain historical tasks below.
 
 ## 2026-10-29 用户确认的待办
 
