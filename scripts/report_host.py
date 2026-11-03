@@ -91,6 +91,9 @@ def endpoint_pins():
  return result
 
 def prepare():
+ from report_agent.storage_preflight import require_native_storage
+ if LEDGER is None:raise RuntimeError("STAGED_DEPLOYMENT_REQUIRED")
+ require_native_storage(HERE,CASE,CASE/"state.db",CASE/"checkpoints.db",CASE/"experience-library/state.db",LEDGER)
  import resource
  resource.setrlimit(resource.RLIMIT_AS,(CONFIG["prepare_memory_bytes"],CONFIG["prepare_memory_bytes"]))
  from report_agent.store import Store
@@ -119,7 +122,7 @@ def prepare():
  scope=(INPUT/scope_names[0]).read_text(encoding="utf-8-sig")
  instruction="根据委托要求编写报告，以所提供资料及适用规范为事实和评估依据。报告内容、结构、风格及交付形式由委托要求确定。明确说明无法确认的事项，不得编造。记录资料间的冲突，并按委托要求处理。"
  goal=instruction+"\n\n"+scope
- manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
+ manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"assessment_presentation":"table-spec-v1","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
    **CONFIG["manifest_profiles"]}
  budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds)
  ledger_baseline=finance()
@@ -174,6 +177,9 @@ async def run_with_owner_checkpoint(workspace, runner):
 
 
 async def run():
+ from report_agent.storage_preflight import require_native_storage
+ if LEDGER is None:raise RuntimeError("STAGED_DEPLOYMENT_REQUIRED")
+ require_native_storage(HERE,CASE,CASE/"state.db",CASE/"checkpoints.db",CASE/"experience-library/state.db",LEDGER)
  import report_agent.deep_runtime as runtime
  import report_agent.deep_models as dm
  import report_agent.vision as vision

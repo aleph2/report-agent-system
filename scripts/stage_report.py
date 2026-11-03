@@ -34,6 +34,8 @@ def stage(args):
     run = args.run.resolve()
     inputs = args.inputs.resolve(strict=True)
     ledger = args.ledger.resolve()
+    from report_agent.storage_preflight import require_native_storage
+    require_native_storage(run, ledger)
     if not args.authority.strip():
         raise ValueError('EXPLICIT_RUN_AUTHORITY_REQUIRED')
     reuse = getattr(args, 'reuse_ledger', False)
