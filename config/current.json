@@ -13,6 +13,7 @@
   "vision_output_tokens": 32768,
   "input_max_bytes": 268435456,
   "prepare_memory_bytes": 8589934592,
+  "commission_outline_input": "提取大纲.docx",
   "models": {
     "coordinator": "deepseek-v4.1-flash-1017",
     "reviewer": "deepseek-v4.1-flash-1017",

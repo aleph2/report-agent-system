@@ -27,6 +27,8 @@ class WorkbookSheet(BaseModel):
 
 
 def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_export_ref=None, *, deliverable=None):
+    from .commission_requirements import export_preflight
+    export_preflight(contents, actor, snapshot_ref, deliverable)
     def execute(db):
         nonlocal snapshot_ref
         from .prompt_sources import review_interface_profile, report_expression_profile, READER_EXPRESSION_V2
@@ -45,6 +47,8 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             allowed = export_allowed(contents, db, actor, snapshot)
         if actor.role not in {'coordinator', 'writer'} or snapshot_ref['type'] != 'DocumentSnapshot' or not allowed:
             raise ActionForbidden('FORBIDDEN: workbook snapshot owner')
+        from .commission_requirements import require_snapshot
+        require_snapshot(contents, db, snapshot)
         members = {Ref.model_validate(r).key() for r in snapshot['payload']['refs']}
         records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot['payload']['refs']}
         issue_records = rendered_issues(records, snapshot['payload']['root_ref'])

@@ -202,7 +202,7 @@ def _projected_tables(cs, db, plan, assessment_ref, table_records, result, label
 
 def save_assessment(cs, actor, operation_id, assessment):
     """Persist a complete judgment with reproducible calculation and rendered tables."""
-    from .commission_plan import assert_writing_allowed, _validate_sources, _state, _set, _confirmed, outside_boundary, require_assessment_tables
+    from .commission_plan import assert_writing_allowed, _validate_sources, _state, _set, _confirmed, outside_boundary
     from .content_models import ContentNode, Ref
     from .store import digest
 
@@ -210,7 +210,6 @@ def save_assessment(cs, actor, operation_id, assessment):
         plan = assert_writing_allowed(cs, db, actor)
         if not plan or not plan['payload'].get('method_pack'):
             raise ActionRejected('ASSESSMENT_METHOD_PACK_REQUIRED')
-        require_assessment_tables(_state(db, 'manifest', {}), plan['payload'])
         pack = plan['payload']['method_pack']
         choices = [b for b in plan['payload'].get('method_conventions', []) if b['key'] == 'weights']
         if len(choices) != 1 or assessment.get('weight_strategy_id') != choices[0]['strategy_id']:

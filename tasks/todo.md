@@ -1,5 +1,17 @@
 # 当前计划清单
 
+## Active G4 repair — 2026-11-03 (ordered review gates)
+
+- [x] H1: source anchors, versioned dispositions, shared completeness guards; actual input extraction and omission matrix; review tag `m1-fixes-20261103-g4-h1` (457 passing affected tests; independent reviews accepted).
+- [ ] Owner H1 review before H2.
+- [ ] H2: ID attachments, fixed-source extraction, structured small planning tools and persistent rejection cap; review tag.
+- [ ] Owner H2 review before H3.
+- [ ] H3: candidate/source-access brief, exact real-attempt replay, scripted full path and full-suite evidence; review tag.
+- [ ] Owner restart approval, new staged candidate and checkpoint availability; nine-item report acceptance.
+
+Details/limits: [G4 repair plan](../docs/m1-g4-repair-plan.md). No paid calls, email,
+ledger replay or old-run revival during offline work; retain historical tasks below.
+
 ## 2026-10-29 用户确认的待办
 
 - [ ] **P3 暂定：ONNX Runtime 原生导入段错误**。只记 backlog，当前不升级依赖或修改检索实现。2026-10-29 的 `clean-room-full-fresh-01` 全量回归 shard1，在 `tests/test_tool_discovery.py::test_local_embedding_missing_cache_never_downloads_when_local_only` 导入 fastembed → onnxruntime 时发生 `Fatal Python error: Segmentation fault`。原环境 NumPy 2.5.3 / ONNX Runtime 1.30.0 / fastembed 0.8.1；不能据栈推定版本不兼容、内存不足或并发导致。43个未完整节点串行续验全部通过，另3次同环境独立导入通过；源和运行时 pins 未变。Neo联合复核3920 passed、9 setup skipped、0 failed，另2个可选模块未收集；原崩溃证据保留，不能称问题已修复。影响为离线回归稳定性；本轮已以串行续验容纳，不阻断本组合成验证。后续若复现，先核原生core/依赖与进程状态，再做最小复现；不盲目重跑付费模型。负责人Main，Neo复核；无新证据前不扩大修复范围。证据：`/home/dysun/report-storage-isolated-20261028-runtime/clean-room-full-fresh-01/run-1.log`、`serial43-manifest.json`、`phase-serial43.json`、`onnx-import-probes.json`、`combined-review-record.json`。

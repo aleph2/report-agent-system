@@ -76,6 +76,8 @@ def _emit_source_views(doc, text, views, emit_text, render_image, width_mm):
 
 
 def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None, *, deliverable=None):
+    from .commission_requirements import export_preflight
+    export_preflight(contents, actor, snapshot_ref, deliverable)
     def execute(db):
         nonlocal snapshot_ref
         from .prompt_sources import review_interface_profile
@@ -100,6 +102,8 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             allowed = export_allowed(contents, db, actor, snapshot)
         if snapshot_ref["type"] != "DocumentSnapshot" or not allowed:
             raise ActionForbidden("FORBIDDEN: snapshot owner")
+        from .commission_requirements import require_snapshot
+        require_snapshot(contents, db, snapshot)
         if layout is not None and layout_from_export_ref is not None:
             raise ActionRejected("LAYOUT_AND_SOURCE_MUTUALLY_EXCLUSIVE")
         selected_layout = layout

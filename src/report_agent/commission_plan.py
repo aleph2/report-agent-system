@@ -40,7 +40,7 @@ class ScopeBoundary(Contract):
     end_meter: str
     source: SourceCitation
     customer_basis: SourceCitation | None = None
-    expected_object_count: int = Field(strict=True, ge=1)
+    expected_object_count: int | None = Field(default=None, strict=True, ge=1)
 
     @model_validator(mode='after')
     def ordered(self):
@@ -148,6 +148,7 @@ class SectionPlan(Contract):
 class Convention(Contract):
     source: SourceCitation
     interpretation: str = Field(description='Agent interpretation, separate from the original customer quotation.')
+    requirement_anchor_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Reconciliation(Contract):
@@ -157,6 +158,7 @@ class Reconciliation(Contract):
 
 
 class CommissionPlan(Contract):
+    requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
     sections: list[SectionPlan] = Field(min_length=1)
     inventory_attributes: list[str] = Field(min_length=1,
         description='Required object attributes from this commission; record every one, using explicit unknowns rather than omissions.')
@@ -281,7 +283,7 @@ def boundary_questions(plan):
         return []
     objects = [o for o in plan['objects'] if not outside_boundary(plan, o)]
     questions = []
-    if len(objects) != boundary['expected_object_count']:
+    if boundary.get('expected_object_count') is not None and len(objects) != boundary['expected_object_count']:
         questions.append(f"合同范围内对象数量{len(objects)}与约定{boundary['expected_object_count']}不一致，需确认")
     if any(o['included'] and outside_boundary(plan, o) for o in plan['objects']):
         questions.append('合同边界外对象被列为纳入，需更正对象清单')
@@ -295,6 +297,7 @@ class Reduction(Contract):
 
 class OwnerDecision(Contract):
     plan_ref: Ref
+    requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
     approved: bool = Field(strict=True)
     corrections: str
     reductions: list[Reduction]
@@ -313,12 +316,6 @@ class OwnerDecision(Contract):
 def enabled(store):
     from .handoff_release import manifest
     return manifest(store).get('commission_checkpoint_required') is True
-
-
-def require_assessment_tables(manifest, plan):
-    if (manifest.get('assessment_presentation') == 'table-spec-v1' and plan.get('method_pack')
-            and not {'ranking', 'evaluation'} <= set(plan.get('table_specs', {}))):
-        raise ActionRejected('ASSESSMENT_TABLE_SPECS_REQUIRED: supply and confirm both table specifications before assessment')
 
 
 def _state(db, key, default=None):
@@ -448,8 +445,9 @@ def save_plan(cs, actor, operation_id, plan):
         raise ActionForbidden('FORBIDDEN: commission proposal owner')
     if not enabled(cs.store):
         raise ActionRejected('COMMISSION_CHECKPOINT_NOT_ENABLED')
+    from .commission_requirements import require_complete
+    require_complete(cs, plan)
     plan = CommissionPlan.model_validate(plan).model_dump()
-    require_assessment_tables(cs.store.manifest, plan)
     ids = [o['object_id'] for o in plan['objects']]
     sections = [s['section_id'] for s in plan['sections']]
     if len(set(ids)) != len(ids) or len(set(sections)) != len(sections):
@@ -472,6 +470,7 @@ def save_plan(cs, actor, operation_id, plan):
     if any(not c['source']['quote'].strip() for c in plan['conventions']):
         raise ActionRejected('COMMISSION_CONVENTION_QUOTE_REQUIRED')
     def save(db):
+        require_complete(cs, plan, db=db)
         _validate_sources(cs, db, actor, plan)
         roles = _state(db, 'commission_source_roles', {})
         customer_sources = {r['id'] for r in (roles or {}).values() if r['purpose'] == 'commission'}
@@ -556,10 +555,15 @@ def _confirmed(cs, db):
     if not ref or not confirmation:
         raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED')
     decision = cs._read(db, confirmation)
+    plan = cs._read(db, ref)
+    from .commission_requirements import require_complete, enabled as requirements_enabled
+    require_complete(cs, plan['payload'], db=db)
+    if requirements_enabled(cs.store) and decision['payload'].get('requirements_ref') != plan['payload'].get('requirements_ref'):
+        raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
     if (decision['owner_id'] != 'operator' or decision['payload'].get('plan_ref') != ref
             or decision['payload'].get('approved') is not True):
         raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_STALE')
-    return cs._read(db, ref), decision
+    return plan, decision
 
 
 def assert_writing_allowed(cs, db, actor):
@@ -624,9 +628,22 @@ def request_checkpoint(workspace):
     if not record:
         raise ActionRejected('COMMISSION_PLAN_REQUIRED')
     plan, ref = record['payload'], record['ref']
+    from .commission_requirements import require_complete, enabled as requirements_enabled, read_requirements
+    require_complete(cs, plan)
     path = workspace.store.root / 'outputs' / ('commission-checkpoint-' + digest(ref) + '.md')
     lines = ['# 编制计划确认', '', '请确认本版本计划，或提出修改意见。',
              '代理建议的排除不等于范围缩减；缩减须由提交者明确确认并说明原因。', '', '## 评估对象', '']
+    if requirements_enabled(workspace.store):
+        requirements = read_requirements(cs, plan['requirements_ref'])
+        items = {i['anchor_id']: i for i in requirements['payload']['items']}
+        lines += ['## 委托要求确认', '', '本次批准同时确认此版本要求记录及明确列出的不适用项。',
+                  '要求版本：' + encode(requirements['ref']), '']
+        for anchor in requirements['payload']['anchors']:
+            item = items[anchor['id']]
+            lines += [f"- {anchor['kind']} / {anchor.get('section_id', anchor['id'])}：{item['status']}",
+                      '  原文：' + anchor['source']['quote'], '  位置：' + anchor['source']['locator'],
+                      '  解释：' + item['interpretation'], '  能力：' + ', '.join(item['capabilities'])]
+            lines += ['  续文：' + c['quote'] for c in anchor.get('continuations', [])]
     for obj in plan['objects']:
         lines.append(f"- {obj['object_id']} — {obj['label']}：{'纳入' if obj['included'] else '建议排除'}；{obj['reason']}（{'客户约定' if obj['origin'] == 'customer' else '代理解释'}）")
         for attribute in obj['attributes']:
@@ -634,7 +651,7 @@ def request_checkpoint(workspace):
             lines.append('  ' + attribute['name'] + ': ' + values)
     if plan.get('scope_boundary'):
         boundary = plan['scope_boundary']
-        lines += ['', '## 合同范围边界', '', f"{boundary['start_meter']}–{boundary['end_meter']}米；约定对象数{boundary['expected_object_count']}",
+        lines += ['', '## 合同范围边界', '', f"{boundary['start_meter']}–{boundary['end_meter']}米；约定对象数{boundary.get('expected_object_count') or '未指定'}",
                   '原文依据：' + boundary['source']['quote']]
         if boundary.get('customer_basis'):
             lines.append('客户范围选择原文：' + boundary['customer_basis']['quote'])
@@ -679,18 +696,20 @@ def request_checkpoint(workspace):
     description = 'Confirm commission plan ' + digest(ref) + '. Brief: ' + str(path.relative_to(workspace.store.root))
     source_ids = list(dict.fromkeys(cs.read(c['source_ref'])['payload']['source_id'] for c in _citations(plan)))
     issue = workspace.issue('requirement', description, source_ids)
-    workspace.store.set('commission_checkpoint:' + issue['id'], {'plan_ref': ref, 'brief_path': str(path.relative_to(workspace.store.root))})
+    requirement_binding = {'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}
+    workspace.store.set('commission_checkpoint:' + issue['id'], {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root))})
     path.with_suffix('.json').write_text(json.dumps({'issue_id': issue['id'], 'plan_ref': ref,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
-        'decision_shape': {'plan_ref': ref, 'approved': True, 'corrections': '', 'reductions': []},
+        'decision_shape': {'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': []},
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')
-    return {'issue_id': issue['id'], 'plan_ref': ref, 'brief_path': str(path.relative_to(workspace.store.root)),
+    return {'issue_id': issue['id'], 'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)),
             'description': description, 'source_ids': source_ids}
 
 
 def _confirmed_rules(plan):
     pack = plan.get('method_pack')
     return {
+        **({'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}),
         'method': ({'id': pack['method_id'], 'version': pack['version'], 'digest': digest(pack)} if pack else None),
         'tables': {role: {'id': spec['table_type'], 'version': spec['version'], 'digest': digest(spec)}
                    for role, spec in plan.get('table_specs', {}).items()},
@@ -718,6 +737,14 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
              '适用条件或规格发生变化，须返回确认节点；本清单不替代新项目范围确认或工程签审。', '',
              '- 确认记录：' + encode(ref), '- 计划版本：' + encode(plan_ref),
              '- 适用章节：' + '、'.join(s['section_id'] + ' ' + s['title'] for s in plan['sections'])]
+    if rules.get('requirements_ref'):
+        requirements = cs._read(db, rules['requirements_ref'])
+        anchors = {a['id']: a for a in requirements['payload']['anchors']}
+        lines += ['', '## 已确认委托要求', '', '- 要求版本：' + encode(requirements['ref'])]
+        for item in requirements['payload']['items']:
+            anchor = anchors[item['anchor_id']]
+            lines += ['- ' + item['status'] + ' / ' + ', '.join(item['capabilities']) + '：' + item['interpretation'],
+                      '  原文：' + anchor['source']['quote'], '  位置：' + anchor['source']['locator']]
     if rules['method']:
         lines += ['', '## 计算规则', '', '- 方法：' + encode(rules['method'])]
     for convention in plan.get('method_conventions', []):
@@ -760,7 +787,11 @@ def reply(workspace, issue_id, decision):
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
         plan = cs._read(db, decision['plan_ref'])['payload']
         if decision['approved']:
-            require_assessment_tables(_state(db, 'manifest', {}), plan)
+            from .commission_requirements import require_complete, enabled as requirements_enabled
+            require_complete(cs, plan, db=db)
+            if requirements_enabled(cs.store) and (decision.get('requirements_ref') != plan.get('requirements_ref')
+                    or checkpoint.get('requirements_ref') != plan.get('requirements_ref')):
+                raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
         answer = encode(decision)
         if issue.get('decision_origin') == 'operator':
             if issue.get('decision') != answer:
@@ -862,4 +893,6 @@ def record_outcome(cs, actor, operation_id, object_id, section_ref, score_ref, l
             **({'assessment_ref': assessment_ref} if assessment_ref else {})})
         _set(db, 'commission_outcome:' + digest([plan['ref'], object_id]) + ':' + digest(actor.id), ref)
         return {'outcome_ref': ref}
-    return cs.operation(actor, operation_id, {'commission_outcome': request}, save)
+    from .commission_requirements import enabled as requirements_enabled
+    binding = (lambda db, result: _confirmed(cs, db)[0]['ref']) if requirements_enabled(cs.store) else None
+    return cs.operation(actor, operation_id, {'commission_outcome': request}, save, binding_identity=binding)

@@ -122,7 +122,7 @@ def prepare():
  scope=(INPUT/scope_names[0]).read_text(encoding="utf-8-sig")
  instruction="根据委托要求编写报告，以所提供资料及适用规范为事实和评估依据。报告内容、结构、风格及交付形式由委托要求确定。明确说明无法确认的事项，不得编造。记录资料间的冲突，并按委托要求处理。"
  goal=instruction+"\n\n"+scope
- manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"assessment_presentation":"table-spec-v1","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
+ manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"assessment_presentation":"table-spec-v1","commission_requirements_contract":"commission-requirements-v1","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
    **CONFIG["manifest_profiles"]}
  budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds)
  ledger_baseline=finance()
@@ -149,12 +149,19 @@ def prepare():
  from report_agent.model_recovery import activate_recovery
  recovery=activate_recovery(store,authorization=load(HERE/"authorization.json")["authority"],extra_per_call=CONFIG["maximum_attempts_per_call"]-1,extra_per_case=None,extra_token_ceiling=None,backoff_seconds=CONFIG["retry_backoff_seconds"])
  if ContentStore(store).list_objects() or (CASE/"checkpoints.db").exists():raise RuntimeError("CASE_HAS_SEEDED_RESULTS")
+ from report_agent.commission_requirements import install_requirements
+ from report_agent.content_store import Actor
+ contents=ContentStore(store)
+ outline=inputs.get(CONFIG.get("commission_outline_input"))
+ requirement_source_ids=[inputs[scope_names[0]]["id"],*([outline["id"]] if outline else [])]
+ captured=contents.capture_sources(Actor("host","host","commission-requirements"),"host-commission-sources",requirement_source_ids)["result"]["source_refs"]
+ requirements_ref=install_requirements(contents,captured[0],captured[1] if outline else None)
  from report_agent.blob_store import verify_case_blobs
  verify_case_blobs(CASE)
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
     "source_ids":ids,"source_files":inputs,"format_references":references,"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
-    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
+    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
     "authority":load(HERE/"authorization.json")["authority"],
     "financial_authority_path":str(LEDGER),"m1_token_limit":TOTAL_LIMIT,"ledger_baseline":ledger_baseline,"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",
