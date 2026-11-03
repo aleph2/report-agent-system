@@ -11,6 +11,41 @@ from report_agent.content_export import export_snapshot
 from report_agent.errors import ActionRejected
 
 
+@pytest.mark.parametrize('case', ['same_block', 'cross_block', 'missing_end'])
+def test_finalized_anchor_remap_distinguishes_location_equivalent_duplicates(case):
+    """Office duplicated a required end bookmark inside one paragraph/block."""
+    from docx.oxml import OxmlElement
+    from report_agent.content_layout import remap_blocks
+
+    doc = Document()
+    cell = doc.add_table(rows=1, cols=1).cell(0, 0)
+    cell.text = 'Preserved assessment text.'
+    first = cell.paragraphs[0]._p
+    second = doc.add_paragraph('Next block.')._p
+
+    def mark(paragraph, name, bookmark_id):
+        start = OxmlElement('w:bookmarkStart')
+        start.set(qn('w:id'), str(bookmark_id))
+        start.set(qn('w:name'), name)
+        end = OxmlElement('w:bookmarkEnd')
+        end.set(qn('w:id'), str(bookmark_id))
+        paragraph.extend([start, end])
+
+    mark(first, 'layout_16_0', 48)
+    if case != 'missing_end':
+        mark(first, 'layout_16_1', 49)
+        mark(first if case == 'same_block' else second, 'layout_16_1', 50)
+    mappings = [{'layout_anchor': 16, 'block_start': 88, 'block_stop': 90}]
+
+    if case == 'same_block':
+        remap_blocks(doc, mappings)
+        assert mappings == [{'layout_anchor': 16, 'block_start': 0, 'block_stop': 1}]
+    else:
+        error = 'FINALIZED_ANCHOR_DUPLICATE' if case == 'cross_block' else 'FINALIZED_ANCHOR_MISSING'
+        with pytest.raises(ActionRejected, match=error):
+            remap_blocks(doc, mappings)
+
+
 def document(ws, result):
     return Document(BytesIO((ws.store.root / result['file_ref']).read_bytes()))
 

@@ -565,7 +565,8 @@ def remap_blocks(doc, mappings):
     for index, block in enumerate(doc.element.body):
         for mark in block.iter(qn('w:bookmarkStart')):
             name = mark.get(qn('w:name'))
-            if name in anchors:
+            # Office may repeat a bookmark inside one block; only cross-block locations conflict.
+            if name in anchors and anchors[name] != index:
                 raise ActionRejected('FINALIZED_ANCHOR_DUPLICATE')
             anchors[name] = index
     for item in mappings:

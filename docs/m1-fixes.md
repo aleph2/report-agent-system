@@ -1,5 +1,12 @@
 # M1 fixes and review gates
 
+Current authority: [the owner's updated M1 fix plan](m1-fix-plan-current.md),
+received 2026-11-02 America/Tijuana, supersedes the matching older requirements
+below. G3 implementation is authorized; its current status is inspection/design,
+not implemented or verified. G4 approval still precedes paid/provider calls.
+Email polling and sending were stopped by a later direct owner instruction.
+Earlier G1/G2 results and restrictions below remain historical evidence.
+
 The owner authorized G1 (reliability/storage) followed by G2 (requirements,
 inventory and customer checkpoint). Each gate ends with a pushed review tag.
 Pause after G2 for owner review before G3. Provider checks and the real rerun
@@ -197,7 +204,7 @@ Evidence is in `.analysis/m1-g2-followup-20261102/`: preserved failing tests,
 focused checks, independent Neo/alignment reviews, and versioned real-source
 proposal records. No paid calls, report rerun or G3 work is included.
 
-## G3 rules discussed, implementation deferred
+## Earlier G3 discussion — superseded by the updated owner plan
 
 Indicator bases are evidence, a stated guideline rule applied to facts, or a
 labelled and justified assumption with a material-issue record. Unjustifiable
@@ -206,3 +213,61 @@ assumptions with adopted weights fixed, not merely one-at-a-time changes.
 Every slope must be checked under the agreed eleven-indicator method; the old
 eight-indicator S1 score cannot establish which new results need qualification.
 Qualified delivery completeness is distinct from engineering sign-off.
+
+## Current G3 requirements — implemented and accepted for offline review
+
+- Use reviewed method-pack data for guideline Tables 3-2, 3-3 and A.3-1,
+  the format-standard Word layout and the fixed-text template. Link numbered
+  scope conventions to entries in the checkpoint brief. A required missing
+  entry blocks writing; a guideline default is labelled `默认，未约定` for
+  owner review. Precedence is scope, outline, guideline defaults, template.
+- Weight-strategy authority is the end user's current `报告编写范围说明`,
+  not a hard-coded system policy or this development plan. The agent reads
+  the supplied version, records the exact convention separately from its
+  interpretation, and links the selected strategy to available method data or
+  calculation capability. The system executes and validates that selection.
+  The updated M1 plan describes Table A.3-1 lookup as this commission's selected
+  strategy; verify it against the actual updated scope file before binding it.
+  Verified table data may be prepared, but neither its selection nor the listed
+  eleven weights becomes a universal rule. Do not silently recalculate or
+  normalize table values when the scope selects direct lookup. A missing
+  capability remains an explicit checkpoint question, not an improvised rule.
+- Every indicator has a value and a direct-evidence, applied-guideline,
+  indirect-assumption or no-evidence-assumption basis. No-evidence assumptions
+  are the last resort and take the less favourable grade. When indirect evidence
+  supports several grades equally, take the less favourable grade. Template scores are
+  never factual evidence. Both assumption classes create anchored Word comments
+  and matching filterable Excel rows, with no-evidence cases first.
+- Joint low/high plausible values use the same adopted weights. If the level
+  can change, qualify each statement of that slope's level in chapters 4 and 5
+  and flag the comments; otherwise comments and Excel rows suffice. Properly
+  recorded assumptions count as assessed, not engineering sign-off. Calculation,
+  content and required export checks still have to succeed.
+- The commissioned scope is five deep-cut slopes in the first contract section.
+  Record its sourced mileage boundary; only proven outside-range objects are
+  out of scope. Preserve in-range discrepancies and unknowns. A count other
+  than five requires an owner question, not deletion or invented objects.
+  This scope decision does not itself approve the existing real proposal.
+- G3 retains all Steps 4–5: verified tables/calculations, fixed-text extraction
+  and controlled replacements, the complete Word format, material issues,
+  matched Word/Excel output and export refusals. Full-suite/scripted whole-run
+  acceptance remains G4. Fresh staging of changed source bytes and native Linux
+  case/ledger placement with a filesystem guard remain pre-rerun requirements.
+
+The updated scope file has been read: §5 item 3 explicitly selects Table A.3-1.
+Guideline physical pages 18–24 and 91 were visually checked and transcribed;
+source hashes and format-source locators are preserved in the G3 evidence folder.
+Suggested scope conventions 7 and 8 are not asserted
+to exist in that file; the owner's plan decisions 1 and 3 apply meanwhile.
+
+Owner clarification after supplying the updated plan: the end user changed the
+scope document to define weight selection. This supersedes any interpretation
+that the development team must predefine that selection in the system. Preserve
+the customer-authored file and bind any saved interpretation to its exact version;
+an updated source must not silently inherit an older checkpoint approval.
+
+G3 code and offline artifacts passed independent review. See
+[the verification record](m1-g3-verification.md) for focused batches, exact
+Word/Excel pairing, source-view checks and contained P2/P3 limitations.
+`m1-fixes-20261102-g3` is the offline review tag, not a formal report acceptance.
+G4 approval is still required before paid/provider calls or a real report rerun.

@@ -20,7 +20,7 @@ report-agent = "report_agent.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-report_agent = ["static/*", "rules/*.md"]
+report_agent = ["static/*", "rules/*.md", "methods/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

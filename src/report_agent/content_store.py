@@ -310,6 +310,9 @@ class ContentStore:
                     raise ActionRejected("CRITERIA_REQUIRE_INDEPENDENT_REQUIREMENTS")
                 if ref["type"] == "Evidence" and any(r["type"] != "SourceArtifact" for r in payload["source_refs"]):
                     raise ActionRejected("EVIDENCE_REQUIRES_SOURCE_VERSIONS")
+                if ref['type'] == 'ContentNode' and payload.get('citations'):
+                    from .commission_plan import _validate_sources
+                    _validate_sources(self, db, actor, payload['citations'])
                 self._insert(db, actor, ref["type"], payload, id=ref["id"], version=ref["version"], previous_ref=obj.get("previous_ref"))
             from .revision_authorization import record_use
             for grant, resulting_ref in exception_uses:
@@ -347,7 +350,7 @@ class ContentStore:
         logical = [(r[0], r[1]) for r in by_key]
         if len(logical) != len(set(logical)):
             raise ActionRejected("MIXED_LOGICAL_VERSIONS")
-        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation"}
+        allowed = {"Requirement", "Criterion", "SourceArtifact", "Evidence", "ContentNode", "Relation", "Assessment", "CommissionPlan"}
         if any(r[0] not in allowed for r in by_key):
             raise ActionRejected("INVALID_SNAPSHOT_TYPE")
         missing_refs, referrers = {}, []
@@ -454,7 +457,7 @@ class ContentStore:
         for name, value in assigned.items():
             ref = Ref.model_validate(value).model_dump()
             record = self._read(db, ref)
-            if (ref['type'] not in {'Criterion','ContentNode','Evidence','Relation'}
+            if (ref['type'] not in {'Criterion','ContentNode','Evidence','Relation','Assessment'}
                     or record['owner_id'] != owner or record['created_by'] != owner
                     or (task_id is not None and record['task_id'] != task_id)):
                 raise ActionForbidden('FORBIDDEN: saved reference origin')

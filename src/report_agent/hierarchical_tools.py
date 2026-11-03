@@ -19,6 +19,7 @@ from .deliverables import DeliverableSelection, DeliverableHandle
 from .review_binding import ReuseMapping
 from .handoff_release import manifest as bound_manifest
 from .commission_plan import CommissionPlan
+from .risk_scoring import Assessment
 
 
 def enabled(workspace):
@@ -434,7 +435,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         """
         from .content_export import export_snapshot
         return export_snapshot(contents, actor(), operation_id, snapshot_ref.model_dump(),
-            layout.model_dump() if layout is not None else None,
+            layout.model_dump(exclude_unset=True) if layout is not None else None,
             layout_from_export_ref.model_dump() if layout_from_export_ref is not None else None)
 
     def export_content_workbook(operation_id: str, snapshot_ref: Ref, sheets: list[WorkbookSheet], report_export_ref: Ref | None = None) -> dict:
@@ -458,10 +459,14 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         refresh_toc uses native LibreOffice/UNO and publishes a new verified export.
         """
         from .layout_capabilities import capabilities
+        from .material_issues import MaterialIssue, TableMerge
         from .layout_revision import status as layout_revision_status
         with contents.store.connect() as db:
             budget = layout_revision_status(db)
-        return contents.observe(actor(), {**capabilities(), 'revision_budget': budget})
+        return contents.observe(actor(), {**capabilities(), 'revision_budget': budget,
+            'material_issue_schema': MaterialIssue.model_json_schema(),
+            'table_merge_schema': TableMerge.model_json_schema(),
+            'content_annotations': 'ContentNode.body.material_issues and body.merges use these schemas. Each issue anchors the exact adopted value; Word comments and Excel clarification rows share the frozen records. ContentNode.citations are readable source references; working_notes never appear in deliverables.'})
 
     def request_layout_capability(operation_id: str, snapshot_ref: Ref, problem: str,
                                   attempted: list[str], requested_operation: str, evidence: list[str]) -> dict:
@@ -664,7 +669,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             from .content_export import export_snapshot
             return export_snapshot(contents, actor(), operation_id,
                 snapshot_ref.model_dump() if snapshot_ref else None,
-                layout.model_dump() if layout else None,
+                layout.model_dump(exclude_unset=True) if layout else None,
                 layout_from_export_ref.model_dump() if layout_from_export_ref else None,
                 deliverable=deliverable.model_dump() if deliverable else None)
         export_with_selection.__name__ = 'export_content_snapshot'
@@ -713,14 +718,50 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             score_ref: Ref, level_ref: Ref, basis_refs: list[Ref], unresolved: list[str]) -> dict:
         """Link an assigned object's saved section, score, level and evidence to the confirmed plan.
 
-        Retain unresolved required indicator bases. This records structural completion,
-        not numerical correctness or engineering approval. Only the owning writer may
+        G3 requires saved system-calculated score and level nodes. Assumptions with
+        comments count as assessed, not engineering approval. Only the owning writer may
         declare its output; missing objects remain incomplete and reductions need owner action.
         """
         from .commission_plan import record_outcome
         return record_outcome(contents, actor(), operation_id, object_id,
             section_ref.model_dump(), score_ref.model_dump(), level_ref.model_dump(),
             [r.model_dump() for r in basis_refs], unresolved)
+
+    def calculate_assessment(operation_id: str, assessment: Assessment) -> dict:
+        """Save one slope's complete ranked judgments using its confirmed method pack.
+
+        Supply a reason for every rank and a source-bound basis for every value.
+        Assumptions need plausible grade IDs and a question; the system derives their
+        joint extremes, all arithmetic, ranking/evaluation tables, and level text.
+        No-evidence assumptions must choose the adverse grade. Template scores cannot
+        be evidence. Returned immutable nodes and evidence belong in the selected snapshot.
+        """
+        from .risk_scoring import save_assessment
+        return save_assessment(contents, actor(), operation_id, assessment.model_dump(mode='json'))
+
+    def read_prepared_method(source_ref: Ref) -> dict:
+        """Read reviewed guideline tables bound to the exact source file hash.
+
+        This provides method data only. The Coordinator links customer conventions
+        or labelled defaults in the commission plan before owner confirmation.
+        """
+        from .method_pack import bind_guideline
+        actor()
+        source = contents.read(source_ref.model_dump())
+        if source_ref.type != 'SourceArtifact':
+            raise ActionRejected('METHOD_SOURCE_ARTIFACT_REQUIRED')
+        return bind_guideline(source_ref.model_dump(), source['payload']['file_digest'])
+
+    def materialize_planned_section(operation_id: str, section_id: str, assessment_refs: list[Ref]) -> dict:
+        """Copy a fixed/derived section from its approved source spans and result slots.
+
+        Use no assessment refs for fixed text. Derived summary slots insert only saved
+        calculations, including the same level qualification used in the assessment.
+        No rewording or template score reuse is performed.
+        """
+        from .risk_scoring import create_planned_section
+        return create_planned_section(contents, actor(), operation_id, section_id,
+            [r.model_dump() for r in assessment_refs])
 
     common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
               read_review_status, observe_evidence, read_feedback, record_handoff,
@@ -730,9 +771,9 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     if commission_enabled(workspace.store):
         common.append(read_commission_plan)
         if role == 'coordinator':
-            common.append(save_commission_plan)
+            common += [save_commission_plan, read_prepared_method]
         if role == 'writer':
-            common.append(record_assessment_outcome)
+            common += [record_assessment_outcome, calculate_assessment, materialize_planned_section]
     if role == 'coordinator' and interface == 'review-interfaces-v4':
         common.remove(inspect_rendered_page)
     from .learning import report_tools

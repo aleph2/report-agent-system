@@ -14,7 +14,7 @@ from .errors import ActionForbidden, ActionRejected
 def capabilities():
     folder = Path(__file__).parent
     engine = hashlib.sha256(b''.join((folder/name).read_bytes() for name in
-        ('content_layout.py','content_export.py','office_finalize.py','office_render.py','layout_capabilities.py'))).hexdigest()
+        ('content_layout.py','content_export.py','g3_export.py','material_issues.py','office_finalize.py','office_render.py','layout_capabilities.py'))).hexdigest()
     program = Path('C:/Program Files/LibreOffice/program') if os.name == 'nt' else Path('/usr/lib/libreoffice/program')
     installed = (program/('soffice.bin' if os.name == 'nt' else 'soffice')).exists()
     if os.name != 'nt' and installed:
@@ -23,11 +23,12 @@ def capabilities():
                 timeout=10, env={k:v for k,v in os.environ.items() if k not in {'PYTHONHOME','PYTHONPATH'}}).returncode == 0
         except (OSError, subprocess.SubprocessError):
             installed = False
-    return {'version':'layout-v10', 'engine_digest':engine,
+    return {'version':'layout-v11', 'engine_digest':engine,
         'controls':LayoutOptions.model_json_schema(),
         'directory_refresh':{'available':installed,'runtime':'native-windows' if os.name=='nt' else 'native-linux',
             'requires':'LibreOffice Writer + UNO Python; Ubuntu packages libreoffice-writer python3-uno fonts-noto-cjk'},
-        'changes':['Independent table position, cell-paragraph alignment and cell first-line indent with global defaults and per-table overrides; None preserves previous behavior','TOC title/level styles, per-style/per-paragraph line multipliers and point/line paragraph spacing; explicit fonts override conflicting same-element theme attributes',
+        'changes':['Source-selected reviewed format, exact-value Word comments, matching Excel clarification rows, merged evaluation cells and separate audit-only working notes',
+            'Independent table position, cell-paragraph alignment and cell first-line indent with global defaults and per-table overrides; None preserves previous behavior','TOC title/level styles, per-style/per-paragraph line multipliers and point/line paragraph spacing; explicit fonts override conflicting same-element theme attributes',
             'table paragraph line-spacing multiplier, outer border single/double and eighth-point width, left/hanging paragraph indentation; per-node overrides preserve content',
             'source-bound composite header lines; exact point line spacing; character-em indent resolved to points; isolated cover vertical alignment',
             'multipart headers omit unused tab positions; explicit empty first-page header/footer parts survive Office refresh',
