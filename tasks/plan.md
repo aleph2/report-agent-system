@@ -1041,3 +1041,39 @@ dispositions are under `.analysis/m1-g4-preparation-20261103/`.
 Offline readiness accepted by Neo. See `docs/m1-g4-preparation.md` and local
 `verification.json` for receipts and limitations. This completes preparation,
 not real-model validation, actual G4 approval or engineering sign-off.
+
+
+## G4 H3 offline verification complete — 2026-11-03
+
+The owner froze the current scope for H3 and authorized tag, GitHub push and one
+completion email. H3 projects existing source-access receipts into the checkpoint
+brief and preserves candidate, attribute and reconciliation evidence locations.
+Unknown citations remain explicit. It creates no reading gate or engineering
+inventory decision. Eight scope and 32 outline anchors remain unchanged.
+
+Main implemented and executed; Neo authored the ten H3 tests and reviewed source
+and evidence. Independent alignment review checks the existing authority boundaries.
+Focused frozen batch: 10 passed. Fresh complete full02: 4,865 passed / 0 failed /
+9 opt-in integration skips; two optional collection skips. Serial81 and five shards
+cover all 4,874 unique nodes once; JSON/JSONL/JUnit IDs and outcomes agree across
+14,613 phase rows. All 1,277 input pins and harness hashes stayed unchanged. The
+initial partial full01 was intentionally interrupted for reviewed sharding; its
+111 passes are preserved separately, never added to full02. Existing deep-runtime
+tests ran serially with unchanged deadlines; the old P3 timing cause remains unknown.
+
+Thirteen preserved real planning calls refuse both in reference-mapped replay and
+in a separately disclosed diagnostic adaptation resolving fresh requirements.
+The formerly accepted call exposes 68 business gaps after that adaptation. A
+corrected real-source fixture submits 17 outline sections, eight original candidate
+dispositions, the 11-indicator method, two table specifications and six fixed spans;
+it creates a brief but no owner confirmation. Its chapter-5 binding is one paragraph,
+so it is not a complete report plan. A separate native synthetic script corrects an
+incomplete plan through H2 steps, receives typed confirmation, calculates and exports
+same-snapshot Word/Excel with two comments/two clarification rows.
+
+Actual steps, skills, RED/fixture failures, review dispositions and evidence limits
+are in docs/m1-g4-h3-verification.md and .analysis/m1-g4-h3-20261103/. Historical
+case access was read-only for explicit evidence import into independent storage;
+no financial store was opened, reservation changed or historical provider request
+redispatched. No paid call or report restart occurred. Publish the H3 review tag,
+then wait for owner review and separate restart approval; inbox polling stays stopped.
