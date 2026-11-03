@@ -15,7 +15,7 @@ from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
 from .store import digest
 from .material_issues import (validate_node, rendered_issues, comment_passage,
-    table_header, cell_comments, validate_required_issues)
+    table_header, validate_required_issues)
 
 
 def _asset(store, name, data):
@@ -278,9 +278,6 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 for issue in issues:
                     cell = table.cell(issue.anchor.row + header_count, issue.anchor.column)
                     doc.add_comment(cell.paragraphs[0].runs, issue.comment(), author="工程资料澄清", initials="审")
-                for annotation in cell_comments(node):
-                    cell = table.cell(annotation.anchor.row + header_count, annotation.anchor.column)
-                    doc.add_comment(cell.paragraphs[0].runs, annotation.text, author="评估说明", initials="评")
                 footnote = presentation.table_footnote(body)
                 if footnote is not None:
                     doc.add_paragraph(footnote)

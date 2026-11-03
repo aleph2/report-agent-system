@@ -207,6 +207,21 @@ def persist(fixture, actor, assessment=None, operation='save-assessment'):
                            assessment if assessment is not None else persistence_input(fixture))['result']
 
 
+def test_v1_ranking_keeps_reasons_only_in_immutable_assessment_audit(method_commission):
+    fixture = method_commission
+    saved = save(fixture)
+    approve(fixture, saved)
+    receipt = persist(fixture, writer(fixture, saved))
+    assessment = fixture.cs.read(receipt['assessment_ref'])['payload']
+    ranking = fixture.cs.read(receipt['ranking_ref'])['payload']['body']
+    assert ranking['columns'] == ['指标', '重要性排序', '权重']
+    assert all(len(row) == 3 for row in ranking['rows'])
+    assert not ranking.get('cell_comments')
+    for rows in (assessment['indicators'], assessment['result']['rows']):
+        assert len(rows) == 4
+        assert all(row['rank_reason'] == 'Relative importance judged from S1 design facts.' for row in rows)
+
+
 def test_assessment_receipt_is_repeatable_and_bounds_come_from_plausible_grade_endpoints(method_commission):
     from decimal import Decimal
     fixture = method_commission

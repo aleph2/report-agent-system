@@ -230,10 +230,12 @@ def test_new_table_visible_surfaces_receive_internal_text_preflight(surface):
     validate_export(*args)
     if surface == 'cell_comment':
         node['body']['cell_comments'][0]['text'] = 'source_id: private'
+        validate_export(*args)
+        assert node['body']['cell_comments'][0]['text'] == 'source_id: private'
     else:
         node['body']['header_rows'][0][0] = 'source_id: private'
-    with pytest.raises(ActionRejected, match='extracted'):
-        validate_export(*args)
+        with pytest.raises(ActionRejected, match='extracted'):
+            validate_export(*args)
 
 
 def test_serialized_layout_roundtrip_preserves_same_mandatory_format():
@@ -245,7 +247,7 @@ def test_serialized_layout_roundtrip_preserves_same_mandatory_format():
 
 
 @pytest.mark.parametrize('part,columns,expected', [
-    ('ranking', ['指标', '重要性排序', '权重', '排序理由'], [1.4, .8, .8, 3]),
+    ('ranking', ['指标', '重要性排序', '权重'], [1.4, .8, .8]),
     ('evaluation', ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释'],
      [.8, 1.1, 3.5, 1.4, 1, 1.2, 1.3, 4.9]),
 ])
@@ -277,6 +279,21 @@ def test_generated_assessment_widths_are_source_format_defaults_not_constraints(
     assert not selected().get('column_weights')
     del args[2][('CommissionPlan', 'plan', 1)]['payload']['format_source']
     assert prepare_export(*args, None) == {}
+
+
+def test_historical_generated_ranking_requires_regeneration_without_mutating_saved_body():
+    from copy import deepcopy
+    from report_agent.g3_export import validate_export
+    args = fixture()
+    node = args[2][('ContentNode', 'extracted', 1)]['payload']
+    node['kind'] = 'table'
+    node['body'] = {'section_id': '2', 'assessment_ref': ref('Assessment', 'score'),
+                    'assessment_part': 'ranking', 'columns': ['指标', '重要性排序', '权重', '排序理由'],
+                    'rows': [['坡高', '1', '0.2', '设计控制因素']], 'caption': '排序表'}
+    before = deepcopy(node['body'])
+    with pytest.raises(ActionRejected, match='legacy ranking'):
+        validate_export(*args)
+    assert node['body'] == before
 
 
 def test_fixed_source_views_require_exact_materialized_receipt():

@@ -174,12 +174,7 @@ def _projected_tables(cs, db, plan, assessment_ref, table_records, result, label
         if len(matches) != 1:
             raise ActionRejected('TABLE_SPEC_ANNOTATION_BINDING_REQUIRED: ' + field)
         return matches[0]
-    comments, issues, citations = [], [], []
-    for position, origin in enumerate(origins['ranking']):
-        if origin['binding'] == 'ranking.rows':
-            row = table_records['ranking']['rows'][origin['index']]
-            comments.append({'text': row['rank_reason'], 'value': row['indicator'],
-                             'anchor': {'row': position, 'column': column('ranking', 'indicator')}})
+    issues, citations = [], []
     for row in result['rows']:
         sources = []
         for citation in row['sources']:
@@ -201,7 +196,6 @@ def _projected_tables(cs, db, plan, assessment_ref, table_records, result, label
             'adopted_value': row['value'], 'question': row['question'],
             'anchor': {'row': min(positions), 'column': column('evaluation', 'value')},
             'affects_level': result['affects_level']})
-    bodies['ranking']['cell_comments'] = comments
     bodies['evaluation']['material_issues'] = issues
     return bodies['ranking'], bodies['evaluation'], citations
 
@@ -315,7 +309,7 @@ def save_assessment(cs, actor, operation_id, assessment):
                 if end > start:
                     for column in (1, 4, 5, 6, 7):
                         merges.append({'start_row': start, 'end_row': end, 'start_col': column, 'end_col': column})
-                ranking.append([definition['label'], str(row['rank']), row['weight'], row['rank_reason']])
+                ranking.append([definition['label'], str(row['rank']), row['weight']])
                 if row['basis_kind'].endswith('assumption'):
                     issues.append({'id': digest([assessment_ref, row['indicator_id']]), 'kind': row['basis_kind'],
                         'object_label': obj['label'], 'basis': row['rationale'], 'sources': source_texts,
@@ -335,7 +329,7 @@ def save_assessment(cs, actor, operation_id, assessment):
                 **body, 'section_id': section_id, 'assessment_ref': assessment_ref}}).model_dump(mode='json')
             return cs._insert(db, actor, 'ContentNode', payload)
         if not table_records:
-            ranking_body = {'columns': ['指标', '重要性排序', '权重', '排序理由'], 'rows': ranking,
+            ranking_body = {'columns': ['指标', '重要性排序', '权重'], 'rows': ranking,
                 'caption': table_prefix + '-1 ' + obj['label'] + '指标重要性排序表', 'assessment_part': 'ranking'}
             evaluation_body = {'columns': ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释'],
                 'caption': table_prefix + '-2 ' + obj['label'] + '施工安全风险评价表',
