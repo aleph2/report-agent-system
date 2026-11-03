@@ -12,6 +12,14 @@ from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 
 
+class SourceSubstitution(Contract):
+    # shortcut: replacements only; add a distinct resolution when an original document is later located.
+    requested_source: str = Field(min_length=1)
+    replacement_sources: list[SourceCitation] = Field(min_length=1)
+    customer_basis: SourceCitation
+    reason: str = Field(min_length=1, description='Agent interpretation of why these actual sources fit the commissioned scope; separate from the customer quotation.')
+
+
 class SectionPlan(Contract):
     section_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
@@ -19,7 +27,9 @@ class SectionPlan(Contract):
     outline: SourceCitation
     sources: list[SourceCitation]
     pending_sources: list[str] = Field(default_factory=list,
-        description='Named required sources not yet located. Preserve the gap; supply or explicitly substitute them in a revised plan before approval.')
+        description='Retain named source obligations, including those resolved by a cited substitution; unresolved names block approval.')
+    source_substitutions: list[SourceSubstitution] = Field(default_factory=list, exclude_if=lambda value: not value,
+        description='Section-specific proposed replacements backed by exact customer quotations. Ordinary owner confirmation of this plan is still required.')
     text: str = ''
     substitutions: list[str] = Field(default_factory=list)
     derived_from: list[str] = Field(default_factory=list)
@@ -33,6 +43,17 @@ class SectionPlan(Contract):
             raise ValueError('SECTION_SOURCE_OR_PENDING_SOURCE_REQUIRED')
         if any(not name.strip() for name in self.pending_sources):
             raise ValueError('SECTION_PENDING_SOURCE_NAME_REQUIRED')
+        names = [s.requested_source for s in self.source_substitutions]
+        if len(set(self.pending_sources)) != len(self.pending_sources) or len(set(names)) != len(names):
+            raise ValueError('SECTION_SOURCE_RESOLUTION_DUPLICATE')
+        available = {(s.source_ref.key(), s.locator) for s in self.sources}
+        for substitution in self.source_substitutions:
+            if substitution.requested_source not in self.pending_sources:
+                raise ValueError('SECTION_SUBSTITUTION_SOURCE_NOT_REQUESTED')
+            if not substitution.customer_basis.quote.strip() or not substitution.reason.strip():
+                raise ValueError('SECTION_SUBSTITUTION_QUOTED_BASIS_REQUIRED')
+            if any((s.source_ref.key(), s.locator) not in available for s in substitution.replacement_sources):
+                raise ValueError('SECTION_SUBSTITUTION_REPLACEMENT_NOT_IN_PLAN')
         if not self.outline.quote.strip():
             raise ValueError('SECTION_OUTLINE_QUOTE_REQUIRED')
         if self.kind == 'fixed' and not self.text.strip():
@@ -109,6 +130,11 @@ def _state(db, key, default=None):
 
 def _set(db, key, value):
     db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', (key, encode(value)))
+
+
+def unresolved_sources(section):
+    resolved = {s['requested_source'] for s in section.get('source_substitutions', [])}
+    return [name for name in section['pending_sources'] if name not in resolved]
 
 
 def read_plan(store):
@@ -189,13 +215,22 @@ def save_plan(cs, actor, operation_id, plan):
     def save(db):
         _validate_sources(cs, db, actor, plan)
         roles = _state(db, 'commission_source_roles', {})
+        customer_sources = {r['id'] for r in (roles or {}).values() if r['purpose'] == 'commission'}
+        for section in plan['sections']:
+            for substitution in section.get('source_substitutions', []):
+                basis = cs._read(db, substitution['customer_basis']['source_ref'])
+                if basis['payload']['source_id'] not in customer_sources:
+                    raise ActionRejected('COMMISSION_SUBSTITUTION_REQUIRES_CUSTOMER_SOURCE')
         if roles:
-            customer_sources = {r['id'] for r in roles.values() if r['purpose'] == 'commission'}
             if any(cs._read(db, c['source']['source_ref'])['payload']['source_id'] not in customer_sources
                    for c in plan['conventions']):
                 raise ActionRejected('COMMISSION_CONVENTION_REQUIRES_CUSTOMER_SOURCE')
         old_ref = _state(db, 'commission_plan')
         old = cs._read(db, old_ref) if old_ref else None
+        current_sections = {s['section_id']: s for s in plan['sections']}
+        for section in old['payload']['sections'] if old else []:
+            if not set(section['pending_sources']) <= set(current_sections.get(section['section_id'], {}).get('pending_sources', [])):
+                raise ActionRejected('COMMISSION_SOURCE_OBLIGATION_MUST_BE_RETAINED')
         prior = {cs._read(db, r)['payload']['inventory_object']['object_id']: cs._read(db, r)
                  for r in old['payload']['inventory_refs']} if old else {}
         if not prior.keys() <= set(ids):
@@ -264,26 +299,36 @@ def request_checkpoint(workspace):
         raise ActionRejected('COMMISSION_PLAN_REQUIRED')
     plan, ref = record['payload'], record['ref']
     path = workspace.store.root / 'outputs' / ('commission-checkpoint-' + digest(ref) + '.md')
-    lines = ['# Commission checkpoint', '', 'Approve this exact plan or provide corrections.',
-             'Proposed exclusions still require explicit owner reductions.', '', '## Objects', '']
+    lines = ['# 编制计划确认', '', '请确认本版本计划，或提出修改意见。',
+             '代理建议的排除不等于范围缩减；缩减须由提交者明确确认并说明原因。', '', '## 评估对象', '']
     for obj in plan['objects']:
-        lines.append(f"- {obj['object_id']} — {obj['label']}: {'included' if obj['included'] else 'proposed exclusion'}; {obj['reason']} ({obj['origin']})")
+        lines.append(f"- {obj['object_id']} — {obj['label']}：{'纳入' if obj['included'] else '建议排除'}；{obj['reason']}（{'客户约定' if obj['origin'] == 'customer' else '代理解释'}）")
         for attribute in obj['attributes']:
-            values = '; '.join((v['value'] or 'unknown') + ': ' + v['reason'] for v in attribute['values'])
+            values = '；'.join((v['value'] or '未知') + '：' + v['reason'] for v in attribute['values'])
             lines.append('  ' + attribute['name'] + ': ' + values)
-    lines += ['', '## Section plan', '']
+    lines += ['', '## 章节计划', '']
     for section in plan['sections']:
         locations = ', '.join(cs.read(c['source_ref'])['payload']['source_metadata'].get('title', c['source_ref']['id']) + ' / ' + c['locator'] for c in section['sources'])
-        if section['pending_sources']:
-            locations += '; PENDING: ' + '; '.join(section['pending_sources'])
-        lines.append(f"- {section['section_id']} {section['title']} — {section['kind']}: {locations}")
-    lines += ['', '## Deliverables', '', *['- ' + item for item in plan['deliverables']], '', '## Conventions', '']
+        if unresolved_sources(section):
+            locations += '；待解决资料：' + '；'.join(unresolved_sources(section))
+        kind = {'fixed': '固定内容', 'extracted': '资料提取', 'derived': '依据其他章节形成'}[section['kind']]
+        lines.append(f"- {section['section_id']} {section['title']} — {kind}：{locations}")
+    lines += ['', '## 资料替代', '']
+    for section in plan['sections']:
+        for substitution in section.get('source_substitutions', []):
+            replacements = '；'.join(cs.read(c['source_ref'])['payload']['source_metadata'].get('title', c['source_ref']['id']) + ' / ' + c['locator'] for c in substitution['replacement_sources'])
+            basis = substitution['customer_basis']
+            title = cs.read(basis['source_ref'])['payload']['source_metadata'].get('title', basis['source_ref']['id'])
+            lines += [f"- 章节{section['section_id']}：{substitution['requested_source']} → {replacements}",
+                      f"  客户原文依据（{title} / {basis['locator']}）：{basis['quote']}",
+                      '  代理解释：' + substitution['reason']]
+    lines += ['', '## 交付物', '', *['- ' + item for item in plan['deliverables']], '', '## 客户约定', '']
     for convention in plan['conventions']:
-        lines += ['- Customer quotation: ' + convention['source']['quote'], '  Agent interpretation: ' + convention['interpretation']]
-    lines += ['', '## Source reconciliation', '']
+        lines += ['- 客户原文：' + convention['source']['quote'], '  代理解释：' + convention['interpretation']]
+    lines += ['', '## 资料核对', '']
     for item in plan['reconciliations']:
         lines += ['- ' + item['result'], *['  - ' + text for text in item['differences']]]
-    lines += ['', '## Open questions', '', *['- ' + item for item in plan['open_questions']]]
+    lines += ['', '## 待确认问题', '', *['- ' + item for item in plan['open_questions']]]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     description = 'Confirm commission plan ' + digest(ref) + '. Brief: ' + str(path.relative_to(workspace.store.root))
@@ -318,7 +363,7 @@ def reply(workspace, issue_id, decision):
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
             return issue
         plan = cs._read(db, decision['plan_ref'])['payload']
-        pending = list(dict.fromkeys(name for s in plan['sections'] for name in s['pending_sources']))
+        pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
         if decision['approved'] and pending:
             raise ActionRejected('COMMISSION_PENDING_SOURCES: ' + '; '.join(pending))
         reduced = [r['object_id'] for r in decision['reductions']]
@@ -359,7 +404,7 @@ def snapshot_outcomes(cs, db, plan_ref, refs):
     for obj in cs._read(db, plan_ref)['payload']['objects']:
         prefix = 'commission_outcome:' + digest([plan_ref, obj['object_id']]) + ':'
         matches = []
-        for (value,) in db.execute('SELECT value FROM state WHERE key LIKE ? ORDER BY key', (prefix + '%',)):
+        for (value,) in db.execute('SELECT value FROM state WHERE key>=? AND key<? ORDER BY key', (prefix, prefix[:-1] + ';')):
             ref = json.loads(value)
             outcome = cs._read(db, ref)['payload']
             dependencies = [outcome['object_ref'], outcome['section_ref'], outcome['score_ref'],
