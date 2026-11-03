@@ -3,14 +3,15 @@
 ## Active G4 repair — 2026-11-03 (ordered review gates)
 
 - [x] H1: source anchors, versioned dispositions, shared completeness guards; actual input extraction and omission matrix; review tag `m1-fixes-20261103-g4-h1` (457 passing affected tests; independent reviews accepted).
-- [ ] Owner H1 review before H2.
-- [ ] H2: ID attachments, fixed-source extraction, structured small planning tools and persistent rejection cap; review tag.
+- [x] Owner H1 review before H2 (approved 2026-11-03; entry-derived capabilities and readable brief added to H2).
+- [x] H2: ID attachments, fixed-source extraction, structured small planning tools and persistent rejection cap; 620 passing affected tests; review tag `m1-fixes-20261103-g4-h2` ([verification](../docs/m1-g4-h2-verification.md)).
 - [ ] Owner H2 review before H3.
 - [ ] H3: candidate/source-access brief, exact real-attempt replay, scripted full path and full-suite evidence; review tag.
 - [ ] Owner restart approval, new staged candidate and checkpoint availability; nine-item report acceptance.
 
-Details/limits: [G4 repair plan](../docs/m1-g4-repair-plan.md). No paid calls, email,
-ledger replay or old-run revival during offline work; retain historical tasks below.
+Details/limits: [G4 repair plan](../docs/m1-g4-repair-plan.md). No paid calls,
+ledger replay or old-run revival during offline work. The owner authorized one H2
+completion email; polling stays stopped. Retain historical tasks below.
 
 ## 2026-10-29 用户确认的待办
 

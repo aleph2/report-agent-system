@@ -6,6 +6,75 @@ commission, report purpose, scope, content/style requirements, deliverables and
 source-conflict rules in that file. The host does not choose a report genre or
 require Word and Excel deliverables.
 
+### Scope and outline structure for this pilot
+
+The current deterministic scope parser uses these numbered Markdown sections;
+their titles may vary. Keep the numbers when adapting the following template:
+
+```markdown
+# 报告编写范围说明
+## 1. 编写对象
+Describe the objects to assess and the authoritative supplied sources.
+## 2. 报告目的
+Describe the intended use and audience.
+## 3. 交付要求
+Specify the required deliverables.
+## 4. 工作范围边界
+State contract/project boundaries and permitted document replacements.
+## 5. 相关约定
+1. State each convention separately, including any method/weight/table selection.
+2. State source-conflict and assumption rules as additional numbered items.
+```
+
+Lower-level subheadings are supported without ending their parent section.
+Missing/unparseable sections create visible unresolved requirements; the system
+does not guess a differently numbered customer's structure. This documented pilot
+format is a supported-input constraint, not a rule about engineering report types.
+
+The outline is a DOCX selected by `commission_outline_input` in `config/current.json`;
+the pilot value is `提取大纲.docx`. Supply that named staged input or change the
+configuration before staging. Use Word heading styles/outline levels for headings;
+normal paragraphs are retained as instructions. Unambiguous decimal Word numbering
+is supported. Table-contained outline text and unsupported numbering are preserved
+as unresolved structural-review items. Images are not interpreted by this parser.
+
+### Planning and owner replies
+
+New hosts use `commission-planning-v1`. They load reviewed method/table entries
+and requirement classifications only against their pinned source hashes. The
+pilot classification data is in `methods/pilot_planning.json`; it contains source
+and quotation hashes, not customer passages. Updated or unmatched requirements
+remain visibly unclassified until a reviewed mapping or an explicit owner reply
+supplies their meaning. Ordinary required conventions need not become “not applicable”.
+
+The Coordinator selects entry IDs and saves individual objects, sections, boundary,
+comparisons, substitutions and questions in any order. The system attaches the
+reviewed data. Final submission returns the remaining gaps before publishing the
+ordinary plan brief. Neither a saved item nor a requirement-resolution reply
+authorizes report writing.
+
+For parsing/classification questions, the separate requirements brief has an
+adjacent JSON file containing the exact issue/version, source-anchor mapping,
+decision schema and `commission-reply` command. Copy its `decision_shape` to a
+reply file, fill the written notes and any required classification, and use that
+command. Blank notes are deliberately invalid. Parsing errors and original quotes
+remain in the immutable history. The normal completed-plan approval is still required.
+
+After five consecutive rejected planning submissions, the run waits before any
+further Coordinator model or tool dispatch. Its interrupt points to a
+`planning-resume-<issue>.json` reply template. Only the typed operator
+`resume_planning` decision for that exact wait clears it; a generic issue reply,
+read, repeated write or successful sibling does not. Already-started work and
+financial receipts are preserved.
+
+Fixed text uses source page ranges and unique endpoint sentences. A hash-bound
+profile removes only declared page-edge furniture and joins broken lines;
+original citations and normalization proof remain saved and are checked again
+at authority boundaries. Page-number position describes extraction order, which
+can differ from its visual position in the PDF. Ambiguous endpoints or unsupported
+source spans stop that item rather than inventing text. Template crop completeness
+and rendered report layout still require the existing checkpoint/layout review.
+
 Supported inputs are `.pdf`, `.md` and `.docx`; Word `~$` lock files are ignored.
 There is no exact file-count requirement. Each staged input is copied into the
 new run and pinned by SHA-256. Symlink escapes and unsupported types are rejected;

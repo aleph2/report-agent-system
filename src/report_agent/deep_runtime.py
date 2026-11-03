@@ -15,7 +15,7 @@ from uuid import uuid4
 from deepagents import create_deep_agent, register_harness_profile, HarnessProfile, GeneralPurposeSubagentProfile
 from deepagents.backends import StateBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware
-from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware
+from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware, hook_config
 from langchain.tools import ToolRuntime
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -79,6 +79,17 @@ class BusinessBoundary(InvalidToolFeedback):
         self.lock = asyncio.Lock()
         from .repetition_guard import KnownWriteRepetition
         self.write_repetition = KnownWriteRepetition(workspace, role)
+        self.planning_before = {}
+
+    @hook_config(can_jump_to=['model'])
+    async def aafter_model(self, state, runtime):
+        from .planning_guard import record_planning_result
+        latest = next((m for m in reversed(state['messages']) if isinstance(m, AIMessage)), None)
+        if latest:
+            for call in latest.invalid_tool_calls:
+                record_planning_result(self.workspace, self.role, call.get('name'), call.get('id'),
+                                       rejected=True, error_code='INVALID_TOOL_ARGUMENT_JSON')
+        return await super().aafter_model(state, runtime)
 
     async def awrap_model_call(self, request, handler):
         from .prompt_provenance import append_declared_system
@@ -174,11 +185,25 @@ class BusinessBoundary(InvalidToolFeedback):
         if any(isinstance(message, ToolMessage) and message.status == 'error' for message in messages):
             emit(self.workspace.store.root, 'tool_rejected', {'role': self.role,
                 'tool_call_id': request.tool_call['id']})
+        from .planning_guard import record_planning_result, fingerprint, TOOLS
+        call = request.tool_call
+        if self.role == 'coordinator' and call['name'] in TOOLS:
+            before = self.planning_before.pop(call['id'], None)
+            record_planning_result(self.workspace, self.role, call['name'], call['id'],
+                rejected=any(isinstance(m, ToolMessage) and m.status == 'error' for m in messages),
+                error_code='PLANNING_TOOL_REJECTED', changed=before is not None and before != fingerprint(self.workspace))
         return result
 
     async def _awrap_bound_tool_call(self, request, handler):
         async with self.lock:
             call = request.tool_call
+            if self.role == 'coordinator':
+                from .planning_guard import require_resumed
+                require_resumed(self.workspace)
+            from .planning_guard import TOOLS, fingerprint
+            from .commission_planning import enabled as planning_enabled
+            if self.role == 'coordinator' and call['name'] in TOOLS and planning_enabled(self.workspace.store):
+                self.planning_before[call['id']] = fingerprint(self.workspace)
             store = self.workspace.store
             if store.get("decision_observation"):
                 raise ActionRejected("DECISION_OBSERVATION_TERMINAL_USE_NEW_ISOLATED_CASE")
@@ -913,7 +938,24 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
                 from .commission_plan import request_checkpoint
                 checkpoint = request_checkpoint(workspace)
                 return ask_human('requirement', checkpoint['description'], checkpoint['source_ids'], pause=True)
-            tools.append(request_commission_confirmation)
+            from .commission_planning import enabled as planning_enabled
+            if planning_enabled(store):
+                def submit_plan(operation_id: str) -> dict:
+                    """Submit the saved planning items. Returns all remaining gaps, or publishes the complete brief and waits for owner confirmation. No report writing is authorized by submission alone."""
+                    from .commission_planning import submit_plan as submit
+                    from .content_store import ContentStore
+                    from .text_work import actor_for_tool
+                    submit(ContentStore(store), actor_for_tool(workspace, 'coordinator'), operation_id)
+                    return request_commission_confirmation()
+                def request_requirement_resolution(operation_id: str) -> dict:
+                    """Ask the owner to resolve listed parsing ambiguities or unknown requirement classifications. This never approves the report plan."""
+                    from .commission_planning import request_requirements_checkpoint
+                    from .text_work import actor_for_tool
+                    checkpoint = request_requirements_checkpoint(workspace, operation_id, actor_for_tool(workspace, 'coordinator'))
+                    return ask_human('requirement', checkpoint['description'], checkpoint['source_ids'], pause=True)
+                tools += [submit_plan, request_requirement_resolution]
+            else:
+                tools.append(request_commission_confirmation)
         if role == "reviewer" and not native_reviewer(store):
             from .bounded_review import review_tool
             tools = [t for t in tools if t.__name__ not in {
@@ -1000,7 +1042,10 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         from .prompt_sources import validate_review_plan_contract
         from .review_work_units import ReviewPlanning
         todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
-        return [FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
+        from .commission_planning import enabled as planning_enabled
+        from .planning_guard import PlanningGuard
+        return [*([PlanningGuard(workspace)] if role == 'coordinator' and planning_enabled(workspace.store) else []),
+                FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
                 *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
                   [TodoListMiddleware()] if role == 'coordinator' else []),
                 *([TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),

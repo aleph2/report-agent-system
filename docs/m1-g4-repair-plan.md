@@ -1,8 +1,11 @@
 # G4 requirements and planning repair
 
-Status: H1 completed and independently reviewed 2026-11-03; awaiting owner H1 review.
-H2/H3 follow their review gates. No paid calls or email.
+Status: owner approved H1 on 2026-11-03; H2 is implemented and verified for owner review.
+H2/H3 follow their review gates. No paid calls. The owner subsequently authorized
+one H2 completion email; inbox polling and scheduled progress remain stopped.
 Evidence: [H1 verification](m1-g4-h1-verification.md), review tag `m1-fixes-20261103-g4-h1`.
+H2 evidence: [verification](m1-g4-h2-verification.md), 620 passing affected tests in
+one batch; review tag `m1-fixes-20261103-g4-h2`. H3 awaits the owner's H2 review.
 Authoritative supplied plan: `G4 Fix Plan: Requirements and Planning`, Sandra
 GonzalezKo, Nov 3, 2026, attachment 90209170-7d51-44ab-921b-8d8e0fb38a9d.
 
@@ -50,6 +53,21 @@ Finish with an H1 tag for owner review before H2.
 
 ### H2 — prepared data and smaller tools (steps 2/3)
 
+- H1 review addition (owner, 2026-11-03): reviewed entry links derive capabilities
+  and table roles; the Coordinator chooses an entry, never types capabilities for
+  that matched entry. A weight table requires method_pack + weight_binding;
+  a table specification requires table_specs and its declared role. Preserve this
+  invariant through subsequent status edits and submission, not only at link time.
+- Show understandable convention-to-entry results in the brief, including the
+  reviewed source/table name and applicable row. Avoid internal capability codes
+  as the owner's main explanation.
+- Per-item set_requirement_status replaces the all-items requirement proposal
+  in new-run tools. Final submission reports all unresolved obligations together.
+- Document the scope file layout (sections 1/4/5) and configured outline filename
+  in pilot-inputs.md. Provide a checkpoint reply path available only to the owner
+  for parse errors, with exact requirement-version binding and a retained written
+  resolution note. Preserve the original error/quote; do not let the Coordinator
+  waive it or use that reply to bypass other completeness checks.
 - Link conventions by reviewed entry ID; system attaches pinned method/table data.
 - Extract fixed text from template pages and endpoint sentences, preserving raw
   provenance. Deterministic removal of running furniture and line-break joining

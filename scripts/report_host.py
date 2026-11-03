@@ -122,7 +122,7 @@ def prepare():
  scope=(INPUT/scope_names[0]).read_text(encoding="utf-8-sig")
  instruction="根据委托要求编写报告，以所提供资料及适用规范为事实和评估依据。报告内容、结构、风格及交付形式由委托要求确定。明确说明无法确认的事项，不得编造。记录资料间的冲突，并按委托要求处理。"
  goal=instruction+"\n\n"+scope
- manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"assessment_presentation":"table-spec-v1","commission_requirements_contract":"commission-requirements-v1","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
+ manifest={"synthetic":CONFIG["synthetic"],"goal":goal,"scope_instruction":instruction,"commission_checkpoint_required":True,"assessment_presentation":"table-spec-v1","commission_requirements_contract":"commission-requirements-v1","commission_planning_contract":"commission-planning-v1","sources":[{"id":"commission","title":"用户委托及编写范围","content":goal,"coverage":"complete"}],
    **CONFIG["manifest_profiles"]}
  budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds)
  ledger_baseline=finance()
@@ -156,6 +156,13 @@ def prepare():
  requirement_source_ids=[inputs[scope_names[0]]["id"],*([outline["id"]] if outline else [])]
  captured=contents.capture_sources(Actor("host","host","commission-requirements"),"host-commission-sources",requirement_source_ids)["result"]["source_refs"]
  requirements_ref=install_requirements(contents,captured[0],captured[1] if outline else None)
+ from importlib.resources import files
+ from report_agent.commission_planning import install_prepared_planning
+ prepared_hashes=json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text(encoding='utf-8'))['source_hashes'].values()
+ prepared_ids=[value['id'] for value in inputs.values() if value['sha256'] in prepared_hashes]
+ prepared_refs=(contents.capture_sources(Actor('host','host','commission-prepared-data'),'host-prepared-planning-sources',prepared_ids)['result']['source_refs'] if prepared_ids else [])
+ planning_preparation=install_prepared_planning(contents,[*captured,*prepared_refs])
+ requirements_ref=planning_preparation['requirements_ref']
  from report_agent.blob_store import verify_case_blobs
  verify_case_blobs(CASE)
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),

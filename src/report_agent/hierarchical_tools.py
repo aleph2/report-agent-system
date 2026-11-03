@@ -793,7 +793,9 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     if commission_enabled(workspace.store):
         common.append(read_commission_plan)
         if role == 'coordinator':
-            common += [save_commission_plan, read_prepared_method, read_prepared_tables]
+            from .commission_planning import enabled as planning_enabled, planning_tools
+            common += (planning_tools(contents, actor) if planning_enabled(workspace.store) else
+                       [save_commission_plan, read_prepared_method, read_prepared_tables])
         if role == 'writer':
             common += [record_assessment_outcome, calculate_assessment, materialize_planned_section]
     if role == 'coordinator' and interface == 'review-interfaces-v4':
