@@ -46,8 +46,25 @@ and ledger were under `/mnt/c` (9p/DrvFS). WAL mode alone does not validate file
 locking. Do not move, reset or duplicate an active financial account: before G4,
 preserve the original ledger and every reservation, establish a verified authoritative
 Linux-native account location and update its path-bound authorization/preflight
-records. This followup verifies the location and documents the required transition;
-it does not perform that migration or claim a startup filesystem guard exists.
+records. The G4 preparation adds a shared mount check at stage, prepare, launch
+and direct host run, before database/provider effects. It resolves symlinks and
+checks the containing mount of new paths and each database path. Only verified
+local Linux filesystem types are admitted; 9p, DrvFS, network, volatile and unknown
+types are refused. This is a startup check, not protection against privileged
+mount changes during execution or a power-loss test.
+
+The original M1 ledger is preserved as historical evidence. G4 preparation relocates
+the same account using SQLite backup in its owning WSL runtime, checks all schema
+and rows and integrity, preserves the original hash, and records the new path-bound
+authority. No usage, reservation or unknown outcome is reset. Use the recorded new
+authority and ledger together; do not dispatch against the historical account.
+
+New host cases carry `assessment_presentation: table-spec-v1`: any selected
+assessment method requires both reviewed table specifications at proposal,
+confirmation and calculation. Non-assessment commissions need no assessment
+tables. Older records remain readable; the legacy table fallback cannot generate
+new assessments under this contract. The customer cannot supply a Word template;
+the explicitly staged PDF remains the template and its layout limits stay visible.
 
 M1 uses one independent persistent 200,000,000-token account for both model smoke
 checks, full report attempts and reruns. The initial full report run has a

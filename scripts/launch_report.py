@@ -40,11 +40,18 @@ def checked_intent(run):
     if actual_inputs != prepared['input_hashes']:
         raise RuntimeError('INPUT_CHANGED')
     # A fresh interpreter binds this check to the pinned release, not cached checkout modules.
+    deployment = json.loads((run / 'deployment.json').read_text())
     check = subprocess.run([sys.executable, '-I', '-B', '-c',
         'import sys; sys.path.insert(0, sys.argv[1]); '
+        'from report_agent.storage_preflight import require_native_storage; '
+        'require_native_storage(*sys.argv[2:]); '
         'from report_agent.blob_store import verify_case_blobs; verify_case_blobs(sys.argv[2])',
-        str(run / 'source/src'), str(run / 'case')], capture_output=True, text=True)
+        str(run / 'source/src'), str(run / 'case'), str(run),
+        str(run / 'case/state.db'), str(run / 'case/checkpoints.db'), str(run / 'case/experience-library/state.db'),
+        deployment['ledger']], capture_output=True, text=True)
     if check.returncode:
+        if 'NATIVE_LINUX_STORAGE_REQUIRED' in check.stderr:
+            raise RuntimeError('NATIVE_LINUX_STORAGE_REQUIRED')
         raise RuntimeError('CASE_BLOB_INTEGRITY_CHECK_FAILED')
     return {'at_utc': datetime.now(timezone.utc).isoformat(), 'phase': 'run',
             'argv': [sys.executable, '-B', '-u', str(run / 'host.py'), 'run'],

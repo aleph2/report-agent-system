@@ -315,6 +315,12 @@ def enabled(store):
     return manifest(store).get('commission_checkpoint_required') is True
 
 
+def require_assessment_tables(manifest, plan):
+    if (manifest.get('assessment_presentation') == 'table-spec-v1' and plan.get('method_pack')
+            and not {'ranking', 'evaluation'} <= set(plan.get('table_specs', {}))):
+        raise ActionRejected('ASSESSMENT_TABLE_SPECS_REQUIRED: supply and confirm both table specifications before assessment')
+
+
 def _state(db, key, default=None):
     row = db.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
     return json.loads(row[0]) if row else default
@@ -443,6 +449,7 @@ def save_plan(cs, actor, operation_id, plan):
     if not enabled(cs.store):
         raise ActionRejected('COMMISSION_CHECKPOINT_NOT_ENABLED')
     plan = CommissionPlan.model_validate(plan).model_dump()
+    require_assessment_tables(cs.store.manifest, plan)
     ids = [o['object_id'] for o in plan['objects']]
     sections = [s['section_id'] for s in plan['sections']]
     if len(set(ids)) != len(ids) or len(set(sections)) != len(sections):
@@ -751,6 +758,9 @@ def reply(workspace, issue_id, decision):
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if issue is None:
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
+        plan = cs._read(db, decision['plan_ref'])['payload']
+        if decision['approved']:
+            require_assessment_tables(_state(db, 'manifest', {}), plan)
         answer = encode(decision)
         if issue.get('decision_origin') == 'operator':
             if issue.get('decision') != answer:
@@ -759,7 +769,6 @@ def reply(workspace, issue_id, decision):
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
                 _set(db, 'report_issues', issues)
             return issue
-        plan = cs._read(db, decision['plan_ref'])['payload']
         pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
         if decision['approved'] and pending:
             raise ActionRejected('COMMISSION_PENDING_SOURCES: ' + '; '.join(pending))
