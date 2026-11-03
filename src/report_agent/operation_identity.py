@@ -8,7 +8,9 @@ ATOMIC_WRITES = frozenset({
     'freeze_snapshot', 'derive_snapshot', 'submit_review', 'record_handoff',
     'confirm_review_reuse', 'correct_own_review', 'export_content_snapshot',
     'export_content_workbook', 'request_layout_capability', 'select_content_delivery',
-    'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome'})
+    'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome',
+    'set_requirement_status', 'link_convention', 'set_scope_boundary', 'set_planning_details',
+    'add_object', 'add_section', 'add_substitution', 'add_reconciliation', 'add_question', 'submit_plan', 'request_requirement_resolution'})
 NATIVE_WRITES = ATOMIC_WRITES | {'render_content_export'}
 
 

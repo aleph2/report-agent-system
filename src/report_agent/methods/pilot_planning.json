@@ -1,0 +1,467 @@
+{
+  "entries": [
+    {"id": "pilot-method-v2", "kind": "method", "label": "《指南》指标体系法"},
+    {"id": "pilot-assessment-tables-v1", "kind": "table", "label": "《指南》表3-2及模板排序、风险评价表"},
+    {"id": "pilot-weights-v2", "kind": "weight", "label": "《指南》表A.3-1", "strategy_id": "A.3-1"}
+  ],
+  "review_note": "G4 H2 source-bound pilot classifications; reviewed against the current scope and outline, subject to owner plan confirmation.",
+  "classifications": [
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 6; chars 1-38",
+      "quote_hash": "47e1ab691eee8a56e835a3ceaf4c0df9c5d7417bb0a47a3ca205f09bf6f74714",
+      "kind": "scope",
+      "entry_ids": [],
+      "capabilities": [
+        "scope_boundary",
+        "inventory"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 17; chars 1-76",
+      "quote_hash": "734b8b4a377e23f89c36a95871480fec51a7ba53493884043a9e6022c17106af",
+      "kind": "scope",
+      "entry_ids": [],
+      "capabilities": [
+        "scope_boundary",
+        "inventory"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 20; chars 1-40",
+      "quote_hash": "efe2ff6fa930372cfe2705a2e8230851acddf7122e3e44d8ccf0dbd86731f900",
+      "kind": "convention",
+      "entry_ids": [],
+      "capabilities": [
+        "source_priority",
+        "inventory_reconciliation"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 21; chars 1-26",
+      "quote_hash": "a5e973c79854406e485f507c66b7f7c049818ae62f30d54ce4371b5588ee4cde",
+      "kind": "convention",
+      "entry_ids": [
+        "pilot-assessment-tables-v1"
+      ],
+      "capabilities": [],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 22; chars 1-23",
+      "quote_hash": "c4ae114fb69b95eb4eda61931247d1111ac654b885f0e3d76c3d180dd12e249f",
+      "kind": "convention",
+      "entry_ids": [
+        "pilot-weights-v2"
+      ],
+      "capabilities": [],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 23; chars 1-44",
+      "quote_hash": "8e0fbc6757c3b93b8e0c8a99eeeb276578d1073a3b8d2739aaaf1a81058812c0",
+      "kind": "convention",
+      "entry_ids": [],
+      "capabilities": [
+        "material_issues"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 24; chars 1-29",
+      "quote_hash": "ce6e1c5cd302b1e47532abedd30ed00443844980fe247c6ed35874de5cf7b121",
+      "kind": "convention",
+      "entry_ids": [],
+      "capabilities": [
+        "deliverables"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "436d26a7039510f5a8ab057629560f598215b0123984adfc91e51de56f1f68df",
+      "locator": "line 25; chars 1-30",
+      "quote_hash": "7cc055eb32f4ddbcf2aae72625e1f65b927091b4d691da387dff3ed48e0eaafb",
+      "kind": "convention",
+      "entry_ids": [],
+      "capabilities": [
+        "assumptions"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 1; chars 1-5",
+      "quote_hash": "1860fae8c8b7426f90d3030985d4650c08dcfd1397c5bc396e293dbca2b11981",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 2; chars 1-7",
+      "quote_hash": "c4edceaa5b7fda6a9485ccbe64df8ac28373e31b66d7f8e0ddddca29c5864599",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 3; chars 1-6",
+      "quote_hash": "303f5fd2e2fc82caba0144f6fe6decb3f39feb32eefe9cd2b4394688e33f837e",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "fixed_text"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 4; chars 1-7",
+      "quote_hash": "9abfb1235bdef3366ab16a4a2a741a1573e34f8a774ad15bd202bd58ab9febbb",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 5; chars 1-6",
+      "quote_hash": "303f5fd2e2fc82caba0144f6fe6decb3f39feb32eefe9cd2b4394688e33f837e",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "fixed_text"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 6; chars 1-7",
+      "quote_hash": "c98697c5bf3db761ff8ec9daa7ab88863baae627dd2411735417814c61f2b3ff",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 7; chars 1-54",
+      "quote_hash": "5f5b7f9be92e754f37a38d6eec76dbaf70acc5a7db3c907b38d8dcddda5df6fe",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "section",
+        "inventory",
+        "inventory_reconciliation",
+        "scope_boundary"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 8; chars 1-7",
+      "quote_hash": "e0a36bdca8f08fc326aa9d15f84ec229d7cf1f3064a62844c53fcb8b51efb872",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 9; chars 1-6",
+      "quote_hash": "303f5fd2e2fc82caba0144f6fe6decb3f39feb32eefe9cd2b4394688e33f837e",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "fixed_text"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 11; chars 1-5",
+      "quote_hash": "ff73ea3d1ddab0a9d360a12e2e9e16e5c0d5ff05c5a2ee33df9cfcbf30b2c32a",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 13; chars 1-7",
+      "quote_hash": "4618e68c49df2429075a4b96097bd2302bea8795063bd1c96831ca83b99903a2",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 14; chars 1-14",
+      "quote_hash": "6acbf10edb52bbe0c04eac4e05523bbcead58097c655df69cf2e9b543de7bd17",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 15; chars 1-9",
+      "quote_hash": "b9adc125d0f93d373217e6e19dbab7f4a5b3352d309fa4cb93ebb8daaf366414",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 16; chars 1-14",
+      "quote_hash": "6acbf10edb52bbe0c04eac4e05523bbcead58097c655df69cf2e9b543de7bd17",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 17; chars 1-7",
+      "quote_hash": "ca1c575d888b0e8928c0eacf37f9b2e164e6cc0f2c45c90b95b7c05b05b08fc9",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 18; chars 1-14",
+      "quote_hash": "6acbf10edb52bbe0c04eac4e05523bbcead58097c655df69cf2e9b543de7bd17",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 19; chars 1-7",
+      "quote_hash": "09809db9a6f1fd4d4d610a24f00ae9d86f5a015f16778e4f09975c1dc66312fa",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 20; chars 1-14",
+      "quote_hash": "6acbf10edb52bbe0c04eac4e05523bbcead58097c655df69cf2e9b543de7bd17",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 21; chars 1-7",
+      "quote_hash": "a82039a9a20311d10b8ef9bdd33978f7736602e0a575f28940c9d4a95ff91adc",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 22; chars 1-14",
+      "quote_hash": "6acbf10edb52bbe0c04eac4e05523bbcead58097c655df69cf2e9b543de7bd17",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 24; chars 1-8",
+      "quote_hash": "2ea3e53ea6d9325c22fe3e3fc03bcee85d9dd3bc34e240dfd0e9548f87374c63",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 25; chars 1-11",
+      "quote_hash": "4015dea1068012c8646921e57a686c6bbf8c215f3b0c03f3d081add9492bd00b",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 26; chars 1-6",
+      "quote_hash": "303f5fd2e2fc82caba0144f6fe6decb3f39feb32eefe9cd2b4394688e33f837e",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "fixed_text"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 27; chars 1-11",
+      "quote_hash": "b61f53abe426152dbb3e4652d9e85a4a54cb7191de646e60695044a5f4a1788e",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 28; chars 1-6",
+      "quote_hash": "303f5fd2e2fc82caba0144f6fe6decb3f39feb32eefe9cd2b4394688e33f837e",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "fixed_text"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 30; chars 1-19",
+      "quote_hash": "6a103fb874c3c64b6cbd532791dee7444437ce4de65183fda438801f6f7134d3",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 31; chars 1-82",
+      "quote_hash": "310fe362777caaf531ea11b651508b5a6e94bceef8eb420f79396d453185b955",
+      "kind": "instruction",
+      "entry_ids": [
+        "pilot-method-v2"
+      ],
+      "capabilities": [],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 32; chars 1-5",
+      "quote_hash": "3c8f9f7cf8b5c41b700961fb5c3418e5f781b406964b036c71391c5e0c273c8b",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 37; chars 1-8",
+      "quote_hash": "e7325a0db68cf9ca6c978249a5d26c1c045266842f6ec743a9d22dc85f224a89",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 38; chars 1-31",
+      "quote_hash": "c43c86a22173b347bba6f29082447e79f29eaf65753b53e4e17d7a72b644e59a",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "result_bindings"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 40; chars 1-17",
+      "quote_hash": "c54f2db5d71d6ced42776442d8d2f294317f652be4a47ab32c10b5b40e771135",
+      "kind": "section",
+      "entry_ids": [],
+      "capabilities": [
+        "section"
+      ],
+      "table_roles": []
+    },
+    {
+      "source_hash": "92fb93ae840c7cb07511a2a3cd71ec92eed7933ffe5de3aba7f2906673510f5a",
+      "locator": "body/paragraph 41; chars 1-7",
+      "quote_hash": "892f16d6e178d021181f742decba82bfa2762fd4138b5e6e1877728001791f35",
+      "kind": "instruction",
+      "entry_ids": [],
+      "capabilities": [
+        "fixed_text"
+      ],
+      "table_roles": []
+    }
+  ],
+  "text_profiles": [
+    {
+      "id": "pilot-template-lines-v1",
+      "file_digest": "be51ef3a26782a4c1563c4e496ec0f59828610e1841892c23d72ba43e0e26c99",
+      "header_line_hashes": [
+        "368abecbbcf4b85121c51ae51b8bdf2ca5fb93e57c9dc73ad60a01051b1f8387"
+      ],
+      "footer_lines": [],
+      "page_number_offset": -8,
+      "page_number_position": "header",
+      "join_lines": "paragraph"
+    }
+  ]
+}

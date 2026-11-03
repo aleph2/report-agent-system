@@ -100,6 +100,7 @@ class SectionPlan(Contract):
     source_substitutions: list[SourceSubstitution] = Field(default_factory=list, exclude_if=lambda value: not value,
         description='Section-specific proposed replacements backed by exact customer quotations. Ordinary owner confirmation of this plan is still required.')
     text: str = ''
+    extraction: dict | None = Field(default=None, exclude_if=lambda value: value is None)
     substitutions: list[str] = Field(default_factory=list)
     replacements: list[LiteralReplacement] = Field(default_factory=list, exclude_if=lambda value: not value)
     result_bindings: list[ResultBinding] = Field(default_factory=list, exclude_if=lambda value: not value)
@@ -211,7 +212,13 @@ class CommissionPlan(Contract):
 
 
 def fixed_source_views(section):
-    return [{'text': '\n'.join(section['sources'][i]['quote'] for i in view['source_indexes']),
+    def view_text(view):
+        text = '\n'.join(section['sources'][i]['quote'] for i in view['source_indexes'])
+        if section.get('extraction'):
+            from .commission_planning import normalize_text
+            text = normalize_text(text, view['page'], section['extraction']['normalization']['profile'])
+        return text
+    return [{'text': view_text(view),
              'source_ref': section['sources'][view['source_indexes'][0]]['source_ref'],
              'page': view['page'], 'crop': view['crop']} for view in section.get('source_views', [])]
 
@@ -220,7 +227,8 @@ def fixed_section_text(section):
     """Exact quoted source spans and owner-reviewed literal substitutions only."""
     if not section['sources'] or any(not c.get('quote', '').strip() for c in section['sources']):
         raise ActionRejected('FIXED_SECTION_EXACT_SOURCE_SPANS_REQUIRED: ' + section['section_id'])
-    text = '\n'.join(c['quote'] for c in section['sources'])
+    text = (section['extraction']['text'] if section.get('extraction') else
+            '\n'.join(c['quote'] for c in section['sources']))
     views = fixed_source_views(section)
     if any(text.count(view['text']) != 1 for view in views):
         raise ActionRejected('FIXED_SOURCE_VIEW_PASSAGE_AMBIGUOUS')
@@ -635,15 +643,11 @@ def request_checkpoint(workspace):
              '代理建议的排除不等于范围缩减；缩减须由提交者明确确认并说明原因。', '', '## 评估对象', '']
     if requirements_enabled(workspace.store):
         requirements = read_requirements(cs, plan['requirements_ref'])
-        items = {i['anchor_id']: i for i in requirements['payload']['items']}
         lines += ['## 委托要求确认', '', '本次批准同时确认此版本要求记录及明确列出的不适用项。',
                   '要求版本：' + encode(requirements['ref']), '']
-        for anchor in requirements['payload']['anchors']:
-            item = items[anchor['id']]
-            lines += [f"- {anchor['kind']} / {anchor.get('section_id', anchor['id'])}：{item['status']}",
-                      '  原文：' + anchor['source']['quote'], '  位置：' + anchor['source']['locator'],
-                      '  解释：' + item['interpretation'], '  能力：' + ', '.join(item['capabilities'])]
-            lines += ['  续文：' + c['quote'] for c in anchor.get('continuations', [])]
+        from .commission_planning import requirement_lines
+        with cs.store.connect() as db:
+            lines += requirement_lines(cs, db, requirements)
     for obj in plan['objects']:
         lines.append(f"- {obj['object_id']} — {obj['label']}：{'纳入' if obj['included'] else '建议排除'}；{obj['reason']}（{'客户约定' if obj['origin'] == 'customer' else '代理解释'}）")
         for attribute in obj['attributes']:
@@ -773,6 +777,12 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
 
 def reply(workspace, issue_id, decision):
     """Trusted operator entry point, deliberately absent from agent tools."""
+    if decision.get('decision') == 'resume_planning':
+        from .planning_guard import resume_planning
+        return resume_planning(workspace, issue_id, decision)
+    if decision.get('decision') == 'resolve_requirements':
+        from .commission_planning import reply_requirements
+        return reply_requirements(workspace, issue_id, decision)
     decision = OwnerDecision.model_validate(decision).model_dump()
     cs = ContentStore(workspace.store)
     with workspace.store.run_lock(), workspace.store.connect() as db:

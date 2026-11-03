@@ -23,6 +23,7 @@ class RequirementItem(Contract):
     interpretation: str = Field(min_length=1)
     capabilities: list[Capability]
     table_roles: list[str] = Field(default_factory=list, exclude_if=lambda value: not value)
+    reviewed_entry_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 def enabled(store):
@@ -232,36 +233,54 @@ def install_requirements(cs, scope_ref, outline_ref):
         return ref
 
 
-def propose_requirements(cs, actor, operation_id, requirements_ref, items):
+def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
     from .commission_plan import _state, _set
+    from .commission_planning import classified_item, enabled as planning_enabled
+    requirements_ref = previous['ref']
+    if _state(db, KEY) != requirements_ref:
+        raise ActionRejected('COMMISSION_REQUIREMENTS_VERSION_STALE')
+    items = [RequirementItem.model_validate(i).model_dump() for i in items]
+    old = {i['anchor_id']: i for i in previous['payload']['items']}
+    for item in items:
+        before = old.get(item['anchor_id'], {}).get('reviewed_entry_id')
+        if item['anchor_id'] != relink_anchor and before != item.get('reviewed_entry_id'):
+            raise ActionRejected('COMMISSION_REQUIREMENTS_EXPLICIT_LINK_REQUIRED')
+    items = [classified_item(cs, db, previous, item) for item in items]
+    anchors = {a['id']: a for a in previous['payload']['anchors']}
+    ids = [i['anchor_id'] for i in items]
+    if len(ids) != len(set(ids)) or set(ids) != set(anchors):
+        raise ActionRejected('COMMISSION_REQUIREMENTS_ANCHOR_SET_MISMATCH')
+    resolutions = previous['payload'].get('parse_resolutions', {})
+    if any(anchors[i['anchor_id']].get('parse_error') and i['anchor_id'] not in resolutions
+           and i['status'] != 'unresolved' for i in items):
+        raise ActionRejected('COMMISSION_REQUIREMENTS_PARSE_UNRESOLVED')
+    for item in items:
+        anchor = anchors[item['anchor_id']]
+        if len(item['capabilities']) != len(set(item['capabilities'])):
+            raise ActionRejected('COMMISSION_REQUIREMENTS_DUPLICATE_CAPABILITY')
+        roles = item.get('table_roles', [])
+        if (len(roles) != len(set(roles)) or any(not role.strip() for role in roles)
+                or item['status'] == 'required' and 'table_specs' in item['capabilities'] and not roles):
+            raise ActionRejected('COMMISSION_REQUIREMENTS_TABLE_ROLES_REQUIRED')
+        if (item['status'] == 'required' and not item['capabilities'] and anchor['kind'] != 'instruction'
+                and not planning_enabled(cs.store)):
+            raise ActionRejected('COMMISSION_REQUIREMENTS_CAPABILITY_REQUIRED')
+    if items == previous['payload']['items']:
+        return requirements_ref
+    payload = {**previous['payload'], 'items': items}
+    ref = cs._insert(db, actor, 'CommissionRequirements', payload, id=requirements_ref['id'],
+                     version=requirements_ref['version'] + 1, previous_ref=requirements_ref)
+    _set(db, KEY, ref)
+    return ref
+
+
+def propose_requirements(cs, actor, operation_id, requirements_ref, items):
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: requirement interpretation belongs to coordinator')
     items = [RequirementItem.model_validate(i).model_dump() for i in items]
     def save(db):
         previous = read_requirements(cs, requirements_ref, db=db)
-        if _state(db, KEY) != requirements_ref:
-            raise ActionRejected('COMMISSION_REQUIREMENTS_VERSION_STALE')
-        anchors = {a['id']: a for a in previous['payload']['anchors']}
-        ids = [i['anchor_id'] for i in items]
-        if len(ids) != len(set(ids)) or set(ids) != set(anchors):
-            raise ActionRejected('COMMISSION_REQUIREMENTS_ANCHOR_SET_MISMATCH')
-        if any(anchors[i['anchor_id']].get('parse_error') and i['status'] != 'unresolved' for i in items):
-            raise ActionRejected('COMMISSION_REQUIREMENTS_PARSE_UNRESOLVED')
-        for item in items:
-            anchor = anchors[item['anchor_id']]
-            if len(item['capabilities']) != len(set(item['capabilities'])):
-                raise ActionRejected('COMMISSION_REQUIREMENTS_DUPLICATE_CAPABILITY')
-            roles = item.get('table_roles', [])
-            if (len(roles) != len(set(roles)) or any(not role.strip() for role in roles)
-                    or item['status'] == 'required' and 'table_specs' in item['capabilities'] and not roles):
-                raise ActionRejected('COMMISSION_REQUIREMENTS_TABLE_ROLES_REQUIRED')
-            if (item['status'] == 'required' and not item['capabilities']
-                    and anchor['kind'] != 'instruction'):
-                raise ActionRejected('COMMISSION_REQUIREMENTS_CAPABILITY_REQUIRED')
-        payload = {**previous['payload'], 'items': items}
-        ref = cs._insert(db, actor, 'CommissionRequirements', payload, id=requirements_ref['id'],
-                         version=requirements_ref['version'] + 1, previous_ref=requirements_ref)
-        _set(db, KEY, ref)
+        ref = _write_items(cs, db, actor, previous, items)
         return {'requirements_ref': ref}
     return cs.operation(actor, operation_id, {'requirements_ref': requirements_ref, 'items': items}, save)
 
@@ -287,9 +306,24 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
     if (record['ref'] != _state(db, KEY) or plan.get('requirements_ref') != record['ref']):
         gap(anchors[0], 'requirements_ref', 'REQUIREMENTS_VERSION', 'Use the current complete requirement record')
     sections = {s.get('section_id'): s for s in plan.get('sections', [])}
+    for section in sections.values():
+        if section.get('extraction'):
+            from .commission_planning import resolve_source_span
+            from pydantic import ValidationError
+            extraction = section['extraction']
+            try:
+                resolved = resolve_source_span(cs, extraction['selection'])
+                valid = extraction == {'selection': extraction['selection'], **resolved} and section['sources'] == resolved['sources']
+            except (ActionRejected, ValidationError, KeyError, TypeError):
+                valid = False
+            if not valid:
+                anchor = next((a for a in anchors if a.get('section_id') == section['section_id']), anchors[0])
+                gap(anchor, 'sections.' + section['section_id'] + '.extraction', 'SECTION_EXTRACTION_CHANGED',
+                    'Use the system extraction of the exact source selection and normalization profile')
     for anchor in anchors:
         item = items.get(anchor['id'])
-        if not item or item['status'] == 'unresolved' or anchor.get('parse_error'):
+        if not item or item['status'] == 'unresolved' or (anchor.get('parse_error') and
+                anchor['id'] not in record['payload'].get('parse_resolutions', {})):
             gap(anchor, 'requirements.' + anchor['id'], 'REQUIREMENT_UNRESOLVED',
                 anchor.get('parse_error') or 'Resolve this source-linked requirement')
             continue
@@ -301,6 +335,11 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                 gap(anchor, 'sections.' + anchor['section_id'] + '.outline', 'SECTION_SOURCE', 'Retain the exact outline anchor')
         if item['status'] == 'not_applicable':
             continue  # This is a proposal only; confirmation separately pins this record.
+        from .commission_planning import entry_plan_gaps, classification_gaps
+        for message in classification_gaps(cs, db, record, item):
+            gap(anchor, 'requirements.' + anchor['id'], 'REQUIREMENT_CLASSIFICATION_REQUIRED', message)
+        for path, message in entry_plan_gaps(cs, db, item, plan):
+            gap(anchor, path, 'REVIEWED_ENTRY_REQUIRED', message)
         if anchor['kind'] == 'convention':
             links = [c for c in plan.get('conventions', []) if c.get('requirement_anchor_id') == anchor['id']]
             if len(links) != 1 or links[0].get('source') != anchor['source']:

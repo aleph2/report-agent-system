@@ -12,7 +12,12 @@ Historical plans and evidence below remain unchanged.
 H1 completed: 457 affected tests passed in one batch; actual inputs yielded 40
 source anchors. Neo and independent alignment review accepted H1 for owner review.
 Review tag: `m1-fixes-20261103-g4-h1`; [verification](../docs/m1-g4-h1-verification.md).
-Stop here for owner H1 review; H2/H3 and paid restart are not started.
+Owner approved H1 on 2026-11-03. H2 is implemented with entry-derived capabilities,
+readable convention links, per-item planning, fixed-source extraction, owner
+parse-resolution and the persistent rejection cap. One affected batch: 620 passed;
+[verification](../docs/m1-g4-h2-verification.md), tag `m1-fixes-20261103-g4-h2`.
+H2 now awaits owner review before H3; paid restart retains its separate gate.
+The owner authorized one completion email. Inbox polling remains stopped.
 
 ## 技能使用与验证记录模板
 
