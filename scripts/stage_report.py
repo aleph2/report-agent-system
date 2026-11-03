@@ -96,6 +96,21 @@ def stage(args):
             shutil.copy2(path, target)
             if host['sha'](path) != host['sha'](target):
                 raise ValueError('INPUT_CHANGED_DURING_COPY')
+        names = {str(path.relative_to(inputs)).casefold() for path in files}
+        for path in getattr(args, 'templates', []):
+            path = Path(path)
+            if (path.is_symlink() or not path.is_file() or path.suffix.lower() != '.pdf'
+                    or path.stat().st_size > config['input_max_bytes']):
+                raise ValueError('TEMPLATE_ESCAPE_TYPE_OR_LIMIT')
+            relative = Path('成果报告') / path.name
+            if str(relative).casefold() in names:
+                raise ValueError('TEMPLATE_INPUT_COLLISION')
+            names.add(str(relative).casefold())
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+            if host['sha'](path) != host['sha'](target):
+                raise ValueError('TEMPLATE_CHANGED_DURING_COPY')
         pins = host['input_files']()
         from pypdf import PdfReader
         from report_agent.ingestion import MAX_PDF_PAGES
@@ -134,6 +149,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--revision', required=True, help='Explicit Git commit or tag to export')
     parser.add_argument('--inputs', required=True, type=Path, help='Independent original input directory')
+    parser.add_argument('--template', dest='templates', action='append', default=[], type=Path,
+                        help='Explicit optional template PDF; repeat for several. Copied and pinned under inputs/成果报告 without changing originals.')
     parser.add_argument('--run', required=True, type=Path, help='New independent run directory')
     parser.add_argument('--ledger', required=True, type=Path, help='New independent token-budget.db')
     parser.add_argument('--reuse-ledger', action='store_true', help='Explicitly reuse the same authorized M1 ledger')

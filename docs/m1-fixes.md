@@ -159,6 +159,44 @@ uses `PYTHONPATH=src:tests`. Independent Neo and alignment reviews found no
 remaining critical code issue in the inspected scope. These overlapping batches
 are not a new full-suite count.
 
+## G2 review followup: scoped source replacements and template staging
+
+The owner's updated review resolves the prior source-policy question through the
+existing scope document, section 4: this stage uses the supplied first-contract
+materials. The original G2 source-gap evidence above is historical; it is not a
+new demand to supply whole-project documents or repeat the same scope approval.
+
+Each proposed source replacement retains the requested document name, actual
+replacement citations, exact quotation from the trusted commission source, and
+a separate agent explanation. Resolution is local to its section. Forged quotes,
+non-customer authority, undeclared replacement pages and deleting prior source
+obligations are refused. A replacement creates a new plan version; the ordinary
+owner checkpoint still confirms that exact version before writing. Structural
+provenance checks do not prove that a replacement is semantically sufficient.
+
+Chapter 2 can cite the actual roadbed design notes and survey general notes.
+Section 1.3 can cite the design tables and survey work-point/support records,
+retaining their differences. Four detailed survey reports are not a four-object
+inventory: support records exist separately. The offline proposal retains five
+design candidates, unknown attributes and unresolved mapping differences; it is
+not an approved or engineering-verified inventory.
+
+The checkpoint headings are Chinese. Snapshot outcome lookup uses a bounded
+indexed key range. Optional repeatable `stage_report.py --template PDF` accepts
+explicit template PDFs without moving originals; normal hashes, PDF profiles,
+resource checks and collision refusal apply. See `pilot-inputs.md` for staging.
+
+Bounded limitation: this patch implements source replacement, not discovery of
+an originally requested document. A later original-source resolution needs its
+own explicit path; it must not be mislabelled as a replacement. Automated copying
+and checking of fixed template text remains G3. The existing Windows-mounted
+WSL case was identified as 9p; native Linux case/ledger placement still needs
+verification before G4. No live case or financial ledger was migrated or reset.
+
+Evidence is in `.analysis/m1-g2-followup-20261102/`: preserved failing tests,
+focused checks, independent Neo/alignment reviews, and versioned real-source
+proposal records. No paid calls, report rerun or G3 work is included.
+
 ## G3 rules discussed, implementation deferred
 
 Indicator bases are evidence, a stated guideline rule applied to facts, or a

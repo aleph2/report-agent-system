@@ -10,10 +10,12 @@ import openai
 import pytest
 
 from report_agent.content_store import Actor
+from report_agent.catalog import Catalog
 from report_agent.learning import LearningLibrary
 from report_agent.model_recovery import activate_recovery, recovery_owner
 from report_agent.store import Store
 from report_agent.token_budget import TokenBudget
+from report_agent.workspace import Workspace
 from test_transport_observation import body, close, use_mock
 
 
@@ -49,6 +51,9 @@ async def test_exact_host_allows_post_failure_work_and_protects_independent_budg
     budget=TokenBudget(state['LEDGER'],state['TOTAL_LIMIT'],bounds)
     store=Store(case);store.initialize({'goal':'Synthetic independent host recovery proof',
         'sources':[{'id':'s','title':'Synthetic source','content':'Offline test source only.','coverage':'complete'}]})
+    # Match prepare() before pinning the fresh case for the real blob preflight.
+    Workspace(store).initialize()
+    Catalog(store)
     LearningLibrary(case/'experience-library')
     policy=activate_recovery(store,authorization='desktop-20261031-start-600s-first-plus-two',
         extra_per_call=2,extra_per_case=None,extra_token_ceiling=None,backoff_seconds=0)
