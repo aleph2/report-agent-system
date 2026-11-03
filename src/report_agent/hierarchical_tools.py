@@ -739,7 +739,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         from .risk_scoring import save_assessment
         return save_assessment(contents, actor(), operation_id, assessment.model_dump(mode='json'))
 
-    def read_prepared_method(source_ref: Ref) -> dict:
+    def read_prepared_method(source_ref: Ref, template_ref: Ref | None = None) -> dict:
         """Read reviewed guideline tables bound to the exact source file hash.
 
         This provides method data only. The Coordinator links customer conventions
@@ -747,10 +747,32 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         """
         from .method_pack import bind_guideline
         actor()
-        source = contents.read(source_ref.model_dump())
         if source_ref.type != 'SourceArtifact':
             raise ActionRejected('METHOD_SOURCE_ARTIFACT_REQUIRED')
-        return bind_guideline(source_ref.model_dump(), source['payload']['file_digest'])
+        source = contents.read(source_ref.model_dump())
+        if template_ref is None:
+            return bind_guideline(source_ref.model_dump(), source['payload']['file_digest'])
+        if template_ref.type != 'SourceArtifact':
+            raise ActionRejected('METHOD_SOURCE_ARTIFACT_REQUIRED')
+        template = contents.read(template_ref.model_dump())
+        return bind_guideline(source_ref.model_dump(), source['payload']['file_digest'],
+                             template_ref.model_dump(), template['payload']['file_digest'])
+
+    def read_prepared_tables(source_ref: Ref, template_ref: Ref) -> dict:
+        """Read the pilot's source-bound table specifications for inclusion in the plan.
+
+        Specifications bind saved fields, never template scores. The existing owner
+        checkpoint confirms the rendered headers and exact versions once per table type.
+        This reads prepared specifications; it does not discover new methods or templates.
+        """
+        from .table_spec import read_prepared_tables as prepared
+        actor()
+        if source_ref.type != 'SourceArtifact' or template_ref.type != 'SourceArtifact':
+            raise ActionRejected('TABLE_SPEC_SOURCE_ARTIFACT_REQUIRED')
+        source = contents.read(source_ref.model_dump())
+        template = contents.read(template_ref.model_dump())
+        return prepared(source_ref.model_dump(), source['payload']['file_digest'],
+                        template_ref.model_dump(), template['payload']['file_digest'])
 
     def materialize_planned_section(operation_id: str, section_id: str, assessment_refs: list[Ref]) -> dict:
         """Copy a fixed/derived section from its approved source spans and result slots.
@@ -771,7 +793,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     if commission_enabled(workspace.store):
         common.append(read_commission_plan)
         if role == 'coordinator':
-            common += [save_commission_plan, read_prepared_method]
+            common += [save_commission_plan, read_prepared_method, read_prepared_tables]
         if role == 'writer':
             common += [record_assessment_outcome, calculate_assessment, materialize_planned_section]
     if role == 'coordinator' and interface == 'review-interfaces-v4':

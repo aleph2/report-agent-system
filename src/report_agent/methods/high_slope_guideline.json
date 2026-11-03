@@ -68,6 +68,34 @@
           "max_value": "24",
           "description": "土质边坡H<20m，岩质边坡H<30m"
         }
+      ],
+      "display_label": "边坡高度 X₁₁",
+      "category_display_label": "建设规模 X₁",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "土质边坡H≥40m，岩质边坡H≥60m",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "土质边坡30m≤H<40m，岩质边坡40m≤H<60m",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "土质边坡20m≤H<30m，岩质边坡30m≤H<40m",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "土质边坡H<20m，岩质边坡H<30m",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -102,6 +130,34 @@
           "min_value": "0",
           "max_value": "24",
           "description": "Δα<5°"
+        }
+      ],
+      "display_label": "坡形坡率 X₁₂",
+      "category_display_label": "建设规模 X₁",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "路堑边坡超过所在自然斜坡比拟坡度值Δα≥15°",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "10°≤Δα<15°",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "5°≤Δα<10°",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "Δα<5°",
+          "condition": "",
+          "description_group_id": "description_4"
         }
       ]
     },
@@ -138,6 +194,34 @@
           "max_value": "24",
           "description": "弱风化层基岩"
         }
+      ],
+      "display_label": "地层岩性 X₂₁",
+      "category_display_label": "地质条件 X₂",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "易滑及软弱地层",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "全风化层基岩",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "强风化层基岩",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "弱风化层基岩",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -173,6 +257,46 @@
           "max_value": "24",
           "description": "坡体中其他方向的结构面，不贯通，不发育"
         }
+      ],
+      "display_label": "坡体结构 X₂₂",
+      "category_display_label": "地质条件 X₂",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "坡体中存在顺坡向缓倾的软弱结构面或组合体",
+          "condition": "贯通",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "坡体中存在顺坡向缓倾的软弱结构面或组合体",
+          "condition": "不贯通",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "坡体中存在顺坡向缓倾的硬性结构面或组合体",
+          "condition": "贯通",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "坡体中存在顺坡向缓倾的硬性结构面或组合体",
+          "condition": "不贯通",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "坡体中存在其他方向结构面，且贯通和发育",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "坡体中其他方向的结构面，不贯通，不发育",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -207,6 +331,34 @@
           "min_value": "0",
           "max_value": "24",
           "description": "边坡上部（0.75～1.0）H范围内有地下水，且无排水措施"
+        }
+      ],
+      "display_label": "地下水 X₂₃",
+      "category_display_label": "地质条件 X₂",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "边坡下部0.25H范围内有地下水出露，且无排水措施",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "边坡中下部（0.25～0.5）H范围内有地下水，且无排水措施",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "边坡中上部（0.5～0.75）H范围内有地下水，且无排水措施",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "边坡上部（0.75～1.0）H范围内有地下水，且无排水措施",
+          "condition": "",
+          "description_group_id": "description_4"
         }
       ]
     },
@@ -244,6 +396,34 @@
           "max_value": "24",
           "description": "旱季施工；施工周期内出现小雨或不降雨；或施工地区过去5年内年均降雨不超过300mm"
         }
+      ],
+      "display_label": "施工季节 X₃₁",
+      "category_display_label": "诱发因素 X₃",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "雨季施工，施工周期内出现暴雨；或施工地区过去5年内年均降雨超过800mm",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "雨季施工，施工周期内出现大雨；或施工地区过去5年内年均降雨600–800mm",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "雨季施工，施工周期内出现中雨；或施工地区过去5年内年均降雨300–600mm",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "旱季施工；施工周期内出现小雨或不降雨；或施工地区过去5年内年均降雨不超过300mm",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -279,6 +459,34 @@
           "max_value": "24",
           "description": "自然灾害很少"
         }
+      ],
+      "display_label": "自然灾害的影响 X₃₂",
+      "category_display_label": "诱发因素 X₃",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "自然灾害频发",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "自然灾害多发",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "自然灾害偶发",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "自然灾害很少",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -313,6 +521,34 @@
           "min_value": "0",
           "max_value": "24",
           "description": "挡土墙工程"
+        }
+      ],
+      "display_label": "工程措施类型 X₄₁",
+      "category_display_label": "施工环境 X₄",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "抗滑桩",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "锚固工程",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "注浆类工程",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "挡土墙工程",
+          "condition": "",
+          "description_group_id": "description_4"
         }
       ]
     },
@@ -350,6 +586,34 @@
           "max_value": "24",
           "description": "设施位于上述范围以外"
         }
+      ],
+      "display_label": "周边环境 X₄₂",
+      "category_display_label": "施工环境 X₄",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "在坡顶开挖线以外0.5H、路基下方1.0H范围内有地表建筑物、地下埋藏物、高压线塔、水体设施",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "在坡顶开挖线以外1.0H、路基下方1.5H范围内有地表建筑物、地下埋藏物、高压线塔、水体设施",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "在坡顶开挖线以外1.5H、路基下方2.0H范围内有地表建筑物、地下埋藏物、高压线塔、水体等设施",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "设施位于上述范围以外",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -386,6 +650,34 @@
           "max_value": "24",
           "description": "每个高边坡工点至少有一个勘察断面，每个断面至少有3个钻探和挖探点"
         }
+      ],
+      "display_label": "地质资料 X₅₁",
+      "category_display_label": "资料完整性 X₅",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "每个高边坡工点有一个或没有勘察断面，每个断面仅有1个或没有勘探点（钻探、挖探、物探）",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "每个高边坡工点至少有一个勘察断面，每个断面有2个勘探点（钻探、挖探、物探）",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "每个高边坡工点至少有一个勘察断面，每个断面有3个勘探点（钻探、挖探、物探）",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "每个高边坡工点至少有一个勘察断面，每个断面至少有3个钻探和挖探点",
+          "condition": "",
+          "description_group_id": "description_4"
+        }
       ]
     },
     {
@@ -421,6 +713,34 @@
           "min_value": "0",
           "max_value": "24",
           "description": "一坡一图一说明图件很完整，有计算参数，有边坡破坏力大小（如滑坡推力），有破裂面位置，有工程措施的抗滑力（如抗滑桩的抗滑力），提出施工安全工况、特殊工程的施工工艺及注意事项、施工风险分析及控制措施"
+        }
+      ],
+      "display_label": "设计文件 X₅₂",
+      "category_display_label": "资料完整性 X₅",
+      "presentation_rows": [
+        {
+          "grade_id": "very_high",
+          "description": "一坡一图一说明图件不完整",
+          "condition": "",
+          "description_group_id": "description_1"
+        },
+        {
+          "grade_id": "high",
+          "description": "一坡一图一说明图件较完整",
+          "condition": "",
+          "description_group_id": "description_2"
+        },
+        {
+          "grade_id": "moderate",
+          "description": "一坡一图一说明图件完整，有计算参数，有边坡破坏力大小（如滑坡推力），有破裂面位置",
+          "condition": "",
+          "description_group_id": "description_3"
+        },
+        {
+          "grade_id": "low",
+          "description": "一坡一图一说明图件很完整，有计算参数，有边坡破坏力大小（如滑坡推力），有破裂面位置，有工程措施的抗滑力（如抗滑桩的抗滑力），提出施工安全工况、特殊工程的施工工艺及注意事项、施工风险分析及控制措施",
+          "condition": "",
+          "description_group_id": "description_4"
         }
       ]
     }
@@ -604,5 +924,17 @@
         }
       ]
     }
-  ]
+  ],
+  "presentation_source": {
+    "name": "湖南省G4京港澳高速羊楼司至岳阳龙湾段扩容工程施工安全总体风险评估报告",
+    "file_sha256": "be51ef3a26782a4c1563c4e496ec0f59828610e1841892c23d72ba43e0e26c99",
+    "pages": [
+      33,
+      34,
+      37
+    ]
+  },
+  "display_labels": {
+    "total": "合计"
+  }
 }

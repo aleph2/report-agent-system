@@ -91,18 +91,47 @@ class Criterion(Contract):
     allowed_limits: str
 
 
+class CellMerge(Contract):
+    start_row: int = Field(strict=True, ge=0)
+    end_row: int = Field(strict=True, ge=0)
+    start_col: int = Field(strict=True, ge=0)
+    end_col: int = Field(strict=True, ge=0)
+
+
 class TableBody(Contract):
     """One table-shape declaration for published schema and runtime validation."""
     model_config = ConfigDict(extra="allow")
     columns: list[Any] = Field(min_length=1, strict=True)
     rows: list[Annotated[list[Any], Field(strict=True)]] = Field(strict=True,
         description="Every row must have exactly the same number of cells as columns; validated by the application.")
+    header_rows: list[list[str]] | None = Field(default=None, exclude_if=lambda value: value is None,
+        description="Rendered header matrix; body row indexes do not include these header rows.")
+    header_merges: list[CellMerge] = Field(default_factory=list, exclude_if=lambda value: not value,
+        description="Header-relative spans, separate from data-row merges and issue anchors.")
 
     @model_validator(mode="after")
     def rectangular(self) -> Self:
         if any(len(row) != len(self.columns) for row in self.rows):
             raise ValueError("TABLE_REQUIRES_NAMED_COLUMNS_AND_RECTANGULAR_ROWS")
+        if self.header_rows is not None and (not self.header_rows or
+                any(len(row) != len(self.columns) for row in self.header_rows)):
+            raise ValueError("TABLE_HEADER_REQUIRES_RECTANGULAR_ROWS")
+        if self.header_merges and self.header_rows is None:
+            raise ValueError("TABLE_HEADER_ROWS_REQUIRED")
         return self
+
+
+def _table_body_schema():
+    # This schema is embedded manually; local definitions must not escape into the parent model.
+    schema = TableBody.model_json_schema()
+    definitions = schema.pop('$defs', {})
+    def inline(value):
+        if isinstance(value, dict):
+            if '$ref' in value:
+                return inline(definitions[value['$ref'].removeprefix('#/$defs/')])
+            return {key: inline(child) for key, child in value.items()}
+        return [inline(child) for child in value] if isinstance(value, list) else value
+    return inline(schema)
 
 
 class ContentNode(Contract):
@@ -111,7 +140,7 @@ class ContentNode(Contract):
          "then": {"properties": {"body": {"type": "object", "required": ["text"],
              "properties": {"text": {"type": "string", "minLength": 1, "description": "Complete rendered text; must contain non-whitespace content. Other fields do not replace text."}}}}}},
         {"if": {"properties": {"kind": {"const": "table"}}, "required": ["kind"]},
-         "then": {"properties": {"body": TableBody.model_json_schema()}}},
+         "then": {"properties": {"body": _table_body_schema()}}},
         {"if": {"properties": {"kind": {"const": "figure"}}, "required": ["kind"]},
          "then": {"properties": {"body": {"type": "object", "required": ["source_id", "caption", "page"],
              "properties": {"source_id": {"type": "string", "minLength": 1},

@@ -1,0 +1,224 @@
+{
+  "source_hashes": {
+    "guideline": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98",
+    "template": "be51ef3a26782a4c1563c4e496ec0f59828610e1841892c23d72ba43e0e26c99"
+  },
+  "table_specs": {
+    "ranking": {
+      "table_type": "slope_ranking",
+      "version": 1,
+      "headers": [
+        {
+          "text": "序号",
+          "columns": [
+            "rank"
+          ]
+        },
+        {
+          "text": "评估指标",
+          "columns": [
+            "indicator"
+          ]
+        },
+        {
+          "text": "权重系数",
+          "columns": [
+            "weight"
+          ]
+        }
+      ],
+      "column_bindings": {
+        "rank": "rank",
+        "indicator": "indicator",
+        "weight": "weight"
+      },
+      "row_groups": [
+        {
+          "binding": "ranking.rows",
+          "merges": []
+        }
+      ],
+      "caption_pattern": "表{number} {object_label}权重系数排序",
+      "caption_bindings": {
+        "number": "ranking.number",
+        "object_label": "object_label"
+      },
+      "sort": [
+        {
+          "binding": "rank",
+          "direction": "ascending"
+        }
+      ],
+      "level_labels": {},
+      "source_pages": {
+        "template": [
+          33
+        ]
+      }
+    },
+    "evaluation": {
+      "table_type": "slope_evaluation",
+      "version": 1,
+      "headers": [
+        {
+          "text": "分类",
+          "columns": [
+            "category"
+          ]
+        },
+        {
+          "text": "评估指标",
+          "columns": [
+            "indicator"
+          ]
+        },
+        {
+          "text": "分级",
+          "columns": [
+            "description",
+            "condition"
+          ]
+        },
+        {
+          "text": "基本分值（Rᵢⱼ）",
+          "children": [
+            {
+              "text": "分值范围",
+              "columns": [
+                "range"
+              ]
+            },
+            {
+              "text": "取值",
+              "columns": [
+                "value"
+              ]
+            }
+          ]
+        },
+        {
+          "text": "权重系数（γᵢⱼ）",
+          "columns": [
+            "weight"
+          ]
+        },
+        {
+          "text": "评估分值（Xᵢⱼ）",
+          "columns": [
+            "score"
+          ]
+        },
+        {
+          "text": "说明",
+          "columns": [
+            "explanation"
+          ]
+        }
+      ],
+      "column_bindings": {
+        "category": "category",
+        "indicator": "indicator",
+        "description": "description",
+        "condition": "condition",
+        "range": "range",
+        "value": "value",
+        "weight": "weight",
+        "score": "score",
+        "explanation": "explanation"
+      },
+      "row_groups": [
+        {
+          "binding": "evaluation.rows",
+          "merges": [
+            {
+              "columns": [
+                "category"
+              ],
+              "group_by": [
+                "category_id"
+              ]
+            },
+            {
+              "columns": [
+                "indicator",
+                "value",
+                "weight",
+                "score",
+                "explanation"
+              ],
+              "group_by": [
+                "indicator_id"
+              ],
+              "axis": "vertical"
+            },
+            {
+              "columns": [
+                "range"
+              ],
+              "group_by": [
+                "indicator_id",
+                "grade_id"
+              ]
+            },
+            {
+              "columns": [
+                "description"
+              ],
+              "group_by": [
+                "indicator_id",
+                "description_group_id"
+              ]
+            },
+            {
+              "columns": [
+                "description",
+                "condition"
+              ],
+              "when_empty": "condition",
+              "axis": "horizontal"
+            }
+          ]
+        },
+        {
+          "binding": "evaluation.total_rows",
+          "merges": [
+            {
+              "columns": [
+                "category",
+                "indicator",
+                "description",
+                "condition",
+                "range",
+                "value"
+              ],
+              "axis": "horizontal"
+            }
+          ]
+        }
+      ],
+      "caption_pattern": "表{number} {object_label}施工安全总体风险评估表",
+      "caption_bindings": {
+        "number": "evaluation.number",
+        "object_label": "object_label"
+      },
+      "sort": [],
+      "level_labels": {
+        "I": "Ⅰ级（低度风险）",
+        "II": "Ⅱ级（中度风险）",
+        "III": "Ⅲ级（高度风险）",
+        "IV": "Ⅳ级（极高风险）"
+      },
+      "source_pages": {
+        "guideline": [
+          18,
+          19,
+          24
+        ],
+        "template": [
+          34,
+          37
+        ]
+      }
+    }
+  }
+}

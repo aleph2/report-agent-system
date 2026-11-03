@@ -11,6 +11,7 @@ from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 from .method_pack import MethodPack
+from .table_spec import TableSpec, compile_header, validate_table_specs
 
 
 class LiteralReplacement(Contract):
@@ -165,12 +166,36 @@ class CommissionPlan(Contract):
     reconciliations: list[Reconciliation] = Field(min_length=1)
     open_questions: list[str] = Field(description='Only questions the supplied materials cannot settle.')
     method_pack: MethodPack | None = Field(default=None, exclude_if=lambda value: value is None)
+    table_specs: dict[str, TableSpec] = Field(default_factory=dict, exclude_if=lambda value: not value)
     method_conventions: list[MethodConvention] = Field(default_factory=list, exclude_if=lambda value: not value)
     format_source: SourceCitation | None = Field(default=None, exclude_if=lambda value: value is None)
     scope_boundary: ScopeBoundary | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode='after')
     def complete_inventory(self):
+        if self.table_specs:
+            from .risk_scoring import TABLE_RECORD_CONTRACT
+            validate_table_specs(self.table_specs, TABLE_RECORD_CONTRACT)
+            if not self.method_pack or not {'ranking', 'evaluation'} <= set(self.table_specs):
+                raise ValueError('ASSESSMENT_TABLE_SPECS_REQUIRE_METHOD_AND_BOTH_ROLES')
+            if any(not i.presentation_rows for i in self.method_pack.indicators):
+                raise ValueError('ASSESSMENT_TABLE_SOURCE_ROWS_REQUIRED')
+            if not self.method_pack.display_labels.get('total', '').strip():
+                raise ValueError('ASSESSMENT_TABLE_TOTAL_LABEL_REQUIRED')
+            for role, field in (('ranking', 'indicator'), ('evaluation', 'value')):
+                spec = self.table_specs[role]
+                if (list(spec.column_bindings.values()).count(field) != 1 or
+                        [g.binding for g in spec.row_groups].count(role + '.rows') != 1):
+                    raise ValueError('ASSESSMENT_TABLE_ANNOTATION_BINDING_REQUIRED: ' + role)
+                key = next(k for k, v in spec.column_bindings.items() if v == field)
+                if any(rule.axis == 'horizontal' and key in rule.columns[1:]
+                       for group in spec.row_groups if group.binding == role + '.rows' for rule in group.merges):
+                    raise ValueError('ASSESSMENT_TABLE_ANNOTATION_ANCHOR_MERGED_AWAY: ' + role)
+            levels = {b.level for b in self.method_pack.risk_bands}
+            if set(self.table_specs['evaluation'].level_labels) != levels:
+                raise ValueError('ASSESSMENT_TABLE_LEVEL_LABELS_REQUIRED')
+        elif self.method_pack and any(getattr(i, 'presentation_rows', []) for i in self.method_pack.indicators):
+            raise ValueError('ASSESSMENT_TABLE_SPECS_REQUIRED')
         if not self.method_pack and any(s.source_views for s in self.sections):
             raise ValueError('SOURCE_VIEWS_REQUIRE_REVIEWED_METHOD_PLAN')
         names = self.inventory_attributes
@@ -305,8 +330,68 @@ def unresolved_sources(section):
 
 
 def read_plan(store):
-    ref = store.get('commission_plan')
-    return ContentStore(store).read(ref) if ref else None
+    cs = ContentStore(store)
+    with store.connect() as db:
+        ref = _state(db, 'commission_plan')
+        if not ref:
+            return None
+        record = cs._read(db, ref)
+        confirmation = _state(db, 'commission_confirmation')
+        if confirmation:
+            decision = cs._read(db, confirmation)
+            if (decision['owner_id'] == 'operator' and decision['payload'].get('approved') is True
+                    and decision['payload'].get('plan_ref') == ref):
+                record['commission_confirmation_ref'] = confirmation
+                requirements = decision['payload'].get('required_material_issues')
+                record['required_material_issues'] = (requirements if requirements is not None else
+                    required_material_issues(cs, db, ref, record['payload']))
+                path = _checklist_path(confirmation)
+                if (store.root / path).is_file():
+                    record['confirmation_checklist_path'] = path
+        return record
+
+
+def required_material_issues(cs, db, plan_ref, plan):
+    """Derive obligations from retained plan facts, independently of writer selections."""
+    def sources(citations):
+        result = []
+        for citation in citations:
+            source = cs._read(db, citation['source_ref'])['payload']
+            title = source.get('source_metadata', {}).get('title')
+            if not title or not title.strip():
+                raise ActionRejected('MATERIAL_ISSUE_READABLE_SOURCE_TITLE_REQUIRED')
+            locator = citation['locator']
+            if match := re.fullmatch(r'page ([1-9][0-9]*)(?:;.*)?', locator):
+                locator = f'PDF第{match[1]}页'
+            elif locator == 'manifest text':
+                locator = '全文'
+            elif match := re.fullmatch(r'line ([1-9][0-9]*)', locator):
+                locator = f'第{match[1]}行'
+            item = {'document': title, 'page': locator}
+            if item not in result:
+                result.append(item)
+        return result
+
+    issues = []
+    def add(origin, label, basis, citations, question):
+        issues.append({'id': digest([plan_ref, origin]), 'kind': 'conflict',
+            'object_label': label, 'basis': basis, 'sources': sources(citations), 'question': question})
+
+    for index, reconciliation in enumerate(plan.get('reconciliations', [])):
+        for position, difference in enumerate(reconciliation['differences']):
+            add(['reconciliation', index, position], '资料核对', difference,
+                reconciliation['sources'], '请确认该资料差异及报告采用的解释。')
+    for obj in plan['objects']:
+        for attribute in obj['attributes']:
+            values = attribute['values']
+            if len({v['value'] for v in values}) <= 1:
+                continue
+            basis = attribute['name'] + '：' + '；'.join(
+                (v['value'] if v['value'] is not None else '未知') + '（' + v['reason'] + '）' for v in values)
+            add(['inventory', obj['object_id'], attribute['name']], obj['label'], basis,
+                [v['source'] for v in values if v['source'] is not None],
+                '请确认' + attribute['name'] + '的采用值及其依据。')
+    return issues
 
 
 def _citations(value):
@@ -497,6 +582,35 @@ def writer_assignment(cs, db, section_ids):
             'section_plan': selected, 'customer_conventions': plan['payload']['conventions']}
 
 
+def _table_spec_lines(specs, source_read):
+    lines = []
+    for role, spec in specs.items():
+        lines += ['', '## 表型确认：' + spec['table_type'], '',
+                  f"- 用途：{role}；版本：{spec['version']}；规格摘要：{digest(spec)}",
+                  '- 以下表头由规格渲染；请与所引原表核对。本次确认后同一表型在本计划内复用。']
+        header = compile_header(spec)
+        lines += ['<table>']
+        from html import escape
+        spans = {(m['start_row'], m['start_col']): m for m in header['header_merges']}
+        covered = {(r, c) for m in header['header_merges']
+                   for r in range(m['start_row'], m['end_row'] + 1)
+                   for c in range(m['start_col'], m['end_col'] + 1)
+                   if (r, c) != (m['start_row'], m['start_col'])}
+        for r, row in enumerate(header['header_rows']):
+            cells = []
+            for c, text in enumerate(row):
+                if (r, c) in covered:
+                    continue
+                span = spans.get((r, c), {'end_row': r, 'end_col': c})
+                cells.append(f'<th rowspan="{span["end_row"] - r + 1}" colspan="{span["end_col"] - c + 1}">{escape(text)}</th>')
+            lines.append('<tr>' + ''.join(cells) + '</tr>')
+        lines += ['</table>', '', '- 标题格式：' + spec['caption_pattern']]
+        for citation in spec['sources']:
+            source = source_read(citation['source_ref'])
+            lines.append('- 原表：' + source['source_metadata'].get('title', '') + ' / ' + citation['locator'])
+    return lines
+
+
 def request_checkpoint(workspace):
     cs = ContentStore(workspace.store)
     record = read_plan(workspace.store)
@@ -548,6 +662,7 @@ def request_checkpoint(workspace):
             source = cs.read(plan['format_source']['source_ref'])['payload']
             lines.append('- 排版能力链接：' + source['source_metadata'].get('title', '') + ' / ' + plan['format_source']['locator'])
         lines += ['- 待解决：' + question for question in plan.get('method_questions', method_questions(plan))]
+    lines += _table_spec_lines(plan.get('table_specs', {}), lambda ref: cs.read(ref)['payload'])
     lines += ['', '## 资料核对', '']
     for item in plan['reconciliations']:
         lines += ['- ' + item['result'], *['  - ' + text for text in item['differences']]]
@@ -564,6 +679,62 @@ def request_checkpoint(workspace):
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')
     return {'issue_id': issue['id'], 'plan_ref': ref, 'brief_path': str(path.relative_to(workspace.store.root)),
             'description': description, 'source_ids': source_ids}
+
+
+def _confirmed_rules(plan):
+    pack = plan.get('method_pack')
+    return {
+        'method': ({'id': pack['method_id'], 'version': pack['version'], 'digest': digest(pack)} if pack else None),
+        'tables': {role: {'id': spec['table_type'], 'version': spec['version'], 'digest': digest(spec)}
+                   for role, spec in plan.get('table_specs', {}).items()},
+        'conventions_digest': digest(plan['conventions']),
+    }
+
+
+def _checklist_path(confirmation):
+    return str(Path('outputs') / ('confirmation-checklist-' + digest(confirmation) + '.md'))
+
+
+def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
+    ref = _state(db, 'commission_confirmation')
+    decision = cs._read(db, ref)
+    if decision['owner_id'] != 'operator' or decision['payload'].get('approved') is not True:
+        return
+    plan_ref = decision['payload']['plan_ref']
+    if plan_ref != checkpoint['plan_ref']:
+        raise ActionRejected('COMMISSION_CHECKLIST_CONFIRMATION_MISMATCH')
+    plan = cs._read(db, plan_ref)['payload']
+    rules = decision['payload'].get('confirmed_rules', _confirmed_rules(plan))
+    lines = ['# 已确认规则与表式清单', '', '复用范围：规则与表式；不复用历史报告数值。',
+             '本文件是已保存确认的可读清单；单独编辑本文件不会变更确认。',
+             '跨报告使用时，在《报告编写范围说明》中引用清单条目和版本，并核对适用条件与资料版本。',
+             '适用条件或规格发生变化，须返回确认节点；本清单不替代新项目范围确认或工程签审。', '',
+             '- 确认记录：' + encode(ref), '- 计划版本：' + encode(plan_ref),
+             '- 适用章节：' + '、'.join(s['section_id'] + ' ' + s['title'] for s in plan['sections'])]
+    if rules['method']:
+        lines += ['', '## 计算规则', '', '- 方法：' + encode(rules['method'])]
+    for convention in plan.get('method_conventions', []):
+        lines.append('- ' + convention['key'] + '：' + convention['strategy_id'] + '；' + convention['interpretation'])
+        if convention.get('source'):
+            lines.append('  客户原文：' + convention['source']['quote'])
+    lines += _table_spec_lines(plan.get('table_specs', {}), lambda r: cs._read(db, r)['payload'])
+    lines += ['', '## 资料版本', '']
+    sources = {}
+    for citation in _citations({'method': plan.get('method_pack'), 'tables': plan.get('table_specs'),
+                               'conventions': plan['conventions']}):
+        source = cs._read(db, citation['source_ref'])['payload']
+        key = (source['file_digest'], citation['locator'])
+        sources[key] = '- ' + source['source_metadata'].get('title', '') + ' / ' + citation['locator'] + ' / SHA256 ' + source['file_digest']
+    lines += list(sources.values())
+    relative = _checklist_path(ref)
+    path = workspace.store.root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix('.tmp')
+    temporary.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    temporary.replace(path)
+    issue['confirmation_checklist_path'] = relative
+    checkpoint['confirmation_checklist_path'] = relative
+    _set(db, 'commission_checkpoint:' + issue['id'], checkpoint)
 
 
 def reply(workspace, issue_id, decision):
@@ -584,6 +755,9 @@ def reply(workspace, issue_id, decision):
         if issue.get('decision_origin') == 'operator':
             if issue.get('decision') != answer:
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
+            if decision['approved']:
+                _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
+                _set(db, 'report_issues', issues)
             return issue
         plan = cs._read(db, decision['plan_ref'])['payload']
         pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
@@ -595,31 +769,38 @@ def reply(workspace, issue_id, decision):
         if len(set(reduced)) != len(reduced) or not set(reduced) <= {o['object_id'] for o in plan['objects']}:
             raise ActionRejected('COMMISSION_REDUCTION_OBJECT_INVALID')
         owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
-        ref = cs._insert(db, owner, 'CommissionDecision', decision)
+        accepted = {**decision, **({'required_material_issues': required_material_issues(
+            cs, db, decision['plan_ref'], plan), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
+        ref = cs._insert(db, owner, 'CommissionDecision', accepted)
         issue.update(decision=answer, decision_origin='operator', resolved=True)
         _set(db, 'commission_confirmation', ref)
         _set(db, 'report_issues', issues)
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         _set(db, 'report_status', 'ready')
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('commission_owner_decision', encode({'issue_id': issue_id, 'decision_ref': ref})))
+        if decision['approved']:
+            # Commit authority first; a failed file projection can be regenerated by the same reply.
+            db.commit()
+            _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
+            _set(db, 'report_issues', issues)
         return issue
 
 
 def snapshot_inventory(cs, db, refs):
     if not enabled(cs.store):
-        return refs, None
-    plan, _ = _confirmed(cs, db)
+        return refs, None, None
+    plan, decision = _confirmed(cs, db)
     found = {Ref.model_validate(r).key(): r for r in refs}
     if len(found) != len(refs):
         raise ActionRejected('INVALID_MANIFEST')
-    pending = list(plan['payload']['inventory_refs'])
+    pending = [decision['ref'], plan['ref'], *plan['payload']['inventory_refs']]
     while pending:
         ref = pending.pop()
         key = Ref.model_validate(ref).key()
         if key not in found:
             found[key] = ref
             pending.extend(r.model_dump() for r in refs_in(cs._read(db, ref)['payload']))
-    return list(found.values()), plan['ref']
+    return list(found.values()), plan['ref'], decision['ref']
 
 
 def snapshot_outcomes(cs, db, plan_ref, refs):

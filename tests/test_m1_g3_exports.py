@@ -190,7 +190,8 @@ def test_paragraph_comment_matches_actual_unique_rendered_value(ws, passage):
     assert len(list(load_workbook(BytesIO(excel))["资料澄清清单"].values)) == 2
 
 
-@pytest.mark.parametrize("page, expected", [("page 12", "勘察文件（第12页）"),
+@pytest.mark.parametrize("page, expected", [("page 12", "勘察文件（PDF第12页）"),
+    (12, "勘察文件（PDF第12页）"), ("PDF第12页", "勘察文件（PDF第12页）"),
     ("manifest text", "勘察文件（全文）"), ("line 17", "勘察文件（第17行）")])
 def test_material_issue_accepts_readable_scoring_source_locator(page, expected):
     from report_agent.material_issues import validate_node
@@ -263,3 +264,165 @@ def test_g3_workbook_cannot_publish_detached_unchecked_nodes(tmp_path, as_note):
     with pytest.raises(ActionRejected, match='G3_WORKBOOK_NODE_NOT_RENDERED'):
         export_workbook(cs, actor, 'unrendered-g3', snapshot, [sheet])
     assert not cs.list_objects('ExportArtifact')
+
+
+def double_header_body():
+    return dict(columns=['分类', '分值范围', '取值'],
+        header_rows=[['分类', '基本分值（Rᵢⱼ）', ''], ['', '分值范围', '取值']],
+        header_merges=[dict(start_row=0,end_row=1,start_col=0,end_col=0),
+                       dict(start_row=0,end_row=0,start_col=1,end_col=2)],
+        rows=[['地质', '0–50', '75'], ['地质', '51–100', '75']],
+        merges=[dict(start_row=0,end_row=1,start_col=0,end_col=0)])
+
+
+def test_two_header_rows_keep_body_anchors_merges_and_sheet_offsets(ws):
+    from docx.oxml.ns import qn
+    body = double_header_body()
+    annotation = issue()
+    annotation['anchor']['column'] = 2
+    body['material_issues'] = [annotation]
+    cs, actor, snapshot, added = fixture(ws, body, qualifiers={'source_note':'页码说明'})
+    word, excel = exports(ws, cs, actor, snapshot, added)
+    doc = Document(BytesIO(word)); table = doc.tables[0]
+    assert table.cell(0, 1).text == '基本分值（Rᵢⱼ）'
+    assert table.cell(0, 1)._tc is table.cell(0, 2)._tc
+    assert table.cell(0, 0)._tc is table.cell(1, 0)._tc
+    assert table.cell(1, 1).text == '分值范围' and table.cell(1, 2).text == '取值'
+    assert table.cell(2, 0)._tc is table.cell(3, 0)._tc
+    assert table.cell(2, 0).text == '地质'
+    assert abs(table.cell(0, 1).width - sum(c.width for c in list(table.columns)[1:])) < 1300
+    for row in table.rows[:2]:
+        assert row._tr.trPr.find(qn('w:tblHeader')) is not None
+        assert all(run.bold for cell in row.cells for p in cell.paragraphs for run in p.runs if run.text)
+    assert len(doc.comments) == 1
+    assert table.cell(2, 2)._tc.find('.//' + qn('w:commentRangeStart')) is not None
+    assert table.cell(1, 2)._tc.find('.//' + qn('w:commentRangeStart')) is None
+    book = load_workbook(BytesIO(excel)); sheet = book['评估']
+    assert sheet['B2'].value == '基本分值（Rᵢⱼ）' and sheet['C3'].value == '取值'
+    assert {str(r) for r in sheet.merged_cells.ranges} == {'A2:A3','B2:C2','A4:A5'}
+    assert sheet.freeze_panes == 'A4' and sheet.print_title_rows == '$2:$3'
+    assert sheet.auto_filter.ref == 'A3:C5'
+    assert sheet['B3'].font.bold and sheet['C4'].value == '75'
+    assert len(list(book['资料澄清清单'].values)) == 2
+
+
+@pytest.mark.parametrize('mutation', ['ragged','bounds','overlap','loss'])
+@pytest.mark.parametrize('format', ['word','excel'])
+def test_bad_header_projection_refuses_before_artifact(ws, mutation, format):
+    body=double_header_body()
+    # Insert malformed historical payload directly: export must defend frozen records too.
+    cs,actor,snapshot,added=fixture(ws, body)
+    if mutation=='ragged': body['header_rows'][1].pop()
+    elif mutation=='bounds': body['header_merges'][0]['end_row']=2
+    elif mutation=='overlap': body['header_merges'].append(dict(body['header_merges'][0]))
+    else: body['header_rows'][0][2]='被覆盖的值'
+    with cs.store.connect() as db:
+        record=cs._read(db,added['table'])
+        bad=cs._insert(db,actor,'ContentNode',{**record['payload'],'body':body})
+        frozen=cs._read(db,snapshot)['payload']
+        edge=cs._insert(db,actor,'Relation',{'subject_ref':frozen['root_ref'],'object_ref':bad,
+            'predicate':'contains','position':9,'provenance_kind':'adopted_during_generation'})
+        snapshot=cs._insert(db,actor,'DocumentSnapshot',{**frozen,'refs':[*frozen['refs'],bad,edge]})
+    with pytest.raises(ActionRejected,match='TABLE_HEADER'):
+        if format=='word': export_snapshot(cs,actor,'invalid-header',snapshot,{'toc':False})
+        else: export_workbook(cs,actor,'invalid-header',snapshot,[{'name':'评估','table_ref':bad}])
+    assert not cs.list_objects('ExportArtifact')
+
+
+def test_rank_reason_is_word_cell_comment_without_clarification_row(ws):
+    body=dict(columns=['序号','评估指标','权重系数'],rows=[['1','边坡高度 X11','0.2']],
+        cell_comments=[{'text':'高度是本坡主要控制因素。','value':'边坡高度 X11','anchor':{'row':0,'column':1}}])
+    cs,actor,snapshot,added=fixture(ws,body)
+    word,excel=exports(ws,cs,actor,snapshot,added)
+    doc=Document(BytesIO(word))
+    assert len(doc.comments)==1 and list(doc.comments)[0].text=='高度是本坡主要控制因素。'
+    assert load_workbook(BytesIO(excel)).sheetnames==['评估']
+    from docx.oxml.ns import qn
+    assert doc.tables[0].cell(1,1)._tc.find('.//'+qn('w:commentRangeStart')) is not None
+
+
+@pytest.mark.parametrize('mutation',['value','bounds','merged'])
+def test_rank_comment_invalid_anchor_refuses_export(ws,mutation):
+    body=double_header_body()
+    body['cell_comments']=[{'text':'排序理由','value':'地质','anchor':{'row':0,'column':0}}]
+    if mutation=='value': body['cell_comments'][0]['value']='other'
+    elif mutation=='bounds': body['cell_comments'][0]['anchor']['row']=10
+    else: body['cell_comments'][0]['anchor']['row']=1
+    cs,actor,snapshot,_=fixture(ws,body)
+    with pytest.raises(ActionRejected,match='CELL_COMMENT'):
+        export_snapshot(cs,actor,'invalid-cell-comment',snapshot,{'toc':False})
+    assert not cs.list_objects('ExportArtifact')
+
+
+def required_fixture(ws, *, mutation=None):
+    from report_agent.content_store import Actor
+    canonical=issue('required-conflict','conflict')
+    body=dict(columns=['指标','采用值'],rows=[['地下水','75']],material_issues=[deepcopy(canonical)])
+    if mutation=='missing': body['material_issues']=[]
+    elif mutation=='tampered': body['material_issues'][0]['basis']='无关解释'
+    cs,actor,snapshot,added=fixture(ws,body,detached=mutation=='detached')
+    required={key:canonical[key] for key in ('id','kind','object_label','basis','sources','question')}
+    with cs.store.connect() as db:
+        # Boundary fixture only: approval generation is tested independently in commission tests.
+        plan=cs._insert(db,actor,'CommissionPlan',{'objects':[],'sections':[],'reconciliations':[]})
+        decision=cs._insert(db,Actor('operator','operator','fixture'),'CommissionDecision',
+            {'plan_ref':plan,'approved':True,'required_material_issues':[required]})
+        if mutation=='owner':
+            decision=cs._insert(db,actor,'CommissionDecision',{'plan_ref':plan,'approved':True,'required_material_issues':[required]})
+        if mutation=='stale':
+            decision=cs._insert(db,Actor('operator','operator','fixture'),'CommissionDecision',
+                {'plan_ref':{**plan,'version':2},'approved':True,'required_material_issues':[required]})
+        if mutation=='denied':
+            decision=cs._insert(db,Actor('operator','operator','fixture'),'CommissionDecision',
+                {'plan_ref':plan,'approved':False,'required_material_issues':[required]})
+        frozen=cs._read(db,snapshot)['payload']
+        snapshot=cs._insert(db,actor,'DocumentSnapshot',{**frozen,'commission_plan_ref':plan,
+            'commission_confirmation_ref':decision,'refs':[*frozen['refs'],plan,decision]})
+    return cs,actor,snapshot,added
+
+
+@pytest.mark.parametrize('mutation',['missing','tampered','detached','owner','stale','denied'])
+@pytest.mark.parametrize('format',['word','excel'])
+def test_required_plan_issue_must_match_frozen_approval_and_rendered_anchor(ws,mutation,format):
+    cs,actor,snapshot,added=required_fixture(ws,mutation=mutation)
+    with pytest.raises(ActionRejected,match='REQUIRED_MATERIAL_ISSUE|MATERIAL_ISSUE_CONFIRMATION'):
+        if format=='word': export_snapshot(cs,actor,'required-invalid',snapshot,{'toc':False})
+        else: export_workbook(cs,actor,'required-invalid',snapshot,[{'name':'评估','table_ref':added['table']}])
+    assert not cs.list_objects('ExportArtifact')
+
+
+def test_required_plan_issue_exports_from_frozen_approval_without_live_state(ws):
+    cs,actor,snapshot,added=required_fixture(ws)
+    word,excel=exports(ws,cs,actor,snapshot,added)
+    assert len(Document(BytesIO(word)).comments)==1
+    assert len(list(load_workbook(BytesIO(excel))['资料澄清清单'].values))==2
+
+
+@pytest.mark.parametrize('format',['word','excel'])
+def test_legacy_snapshot_cannot_skip_known_required_conflicts(ws,format):
+    cs,actor,snapshot,added=fixture(ws,dict(columns=['指标'],rows=[['地下水']]))
+    with cs.store.connect() as db:
+        plan=cs._insert(db,actor,'CommissionPlan',{'objects':[],'sections':[],
+            'reconciliations':[{'differences':['桩号存在差异'],'sources':[]}]})
+        frozen=cs._read(db,snapshot)['payload']
+        snapshot=cs._insert(db,actor,'DocumentSnapshot',{**frozen,'commission_plan_ref':plan,
+            'refs':[*frozen['refs'],plan]})
+    with pytest.raises(ActionRejected,match='MATERIAL_ISSUE_CONFIRMATION'):
+        if format=='word': export_snapshot(cs,actor,'legacy-conflict',snapshot,{'toc':False})
+        else: export_workbook(cs,actor,'legacy-conflict',snapshot,[{'name':'评估','table_ref':added['table']}])
+    assert not cs.list_objects('ExportArtifact')
+
+
+def test_horizontal_body_merge_retains_grid_width_text_and_comment_anchor(ws):
+    from docx.oxml.ns import qn
+    annotation=issue()
+    annotation.update(adopted_value='共同说明',anchor={'row':0,'column':0})
+    body=dict(columns=['分级','条件','取值'],rows=[['共同说明','共同说明','75']],
+        merges=[dict(start_row=0,end_row=0,start_col=0,end_col=1)],material_issues=[annotation])
+    cs,actor,snapshot,added=fixture(ws,body)
+    word,_=exports(ws,cs,actor,snapshot,added)
+    doc=Document(BytesIO(word));table=doc.tables[0];cell=table.cell(1,0)
+    assert cell._tc is table.cell(1,1)._tc and cell.text=='共同说明'
+    assert abs(cell.width-sum(c.width for c in list(table.columns)[:2]))<1300
+    assert cell._tc.find('.//'+qn('w:commentRangeStart')) is not None
+    assert len(doc.comments)==1
