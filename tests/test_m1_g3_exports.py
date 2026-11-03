@@ -329,16 +329,64 @@ def test_bad_header_projection_refuses_before_artifact(ws, mutation, format):
     assert not cs.list_objects('ExportArtifact')
 
 
-def test_rank_reason_is_word_cell_comment_without_clarification_row(ws):
+def test_historical_rank_reason_stays_in_audit_not_customer_files(ws):
     body=dict(columns=['序号','评估指标','权重系数'],rows=[['1','边坡高度 X11','0.2']],
         cell_comments=[{'text':'高度是本坡主要控制因素。','value':'边坡高度 X11','anchor':{'row':0,'column':1}}])
     cs,actor,snapshot,added=fixture(ws,body)
     word,excel=exports(ws,cs,actor,snapshot,added)
     doc=Document(BytesIO(word))
-    assert len(doc.comments)==1 and list(doc.comments)[0].text=='高度是本坡主要控制因素。'
+    assert len(doc.comments)==0
+    assert cs.read(added['table'])['payload']['body']['cell_comments']==body['cell_comments']
+    with ZipFile(BytesIO(word)) as archive:
+        assert all('高度是本坡主要控制因素。' not in archive.read(name).decode('utf-8')
+                   for name in archive.namelist() if name.startswith('word/') and name.endswith('.xml'))
     assert load_workbook(BytesIO(excel)).sheetnames==['评估']
     from docx.oxml.ns import qn
-    assert doc.tables[0].cell(1,1)._tc.find('.//'+qn('w:commentRangeStart')) is not None
+    assert doc.tables[0].cell(1,1)._tc.find('.//'+qn('w:commentRangeStart')) is None
+
+
+def test_customer_comments_match_all_material_issue_rows_despite_saved_rank_comments(ws):
+    kinds = ['conflict', 'unclear', 'missing', 'indirect_assumption', 'no_evidence_assumption']
+    annotations, audit = [], []
+    for index, kind in enumerate(kinds):
+        annotation = issue('material-' + kind, kind, index)
+        annotation.update(object_label='坡' + str(index), basis='依据' + str(index),
+                          question='确认问题' + str(index), adopted_value=str(71 + index),
+                          affects_level=index % 2 == 0)
+        annotations.append(annotation)
+        audit.append({'text': '仅审计排序理由' + str(index), 'value': '指标' + str(index),
+                      'anchor': {'row': index, 'column': 0}})
+    body = dict(columns=['指标', '采用值'], rows=[['指标' + str(i), str(71 + i)] for i in range(5)],
+                material_issues=annotations, cell_comments=audit)
+    cs, actor, snapshot, added = fixture(ws, body)
+    before = deepcopy(cs.read(added['table']))
+    word, excel = exports(ws, cs, actor, snapshot, added)
+    doc = Document(BytesIO(word))
+    book = load_workbook(BytesIO(excel))
+    clarification = list(book['资料澄清清单'].values)[1:]
+    assert len(doc.comments) == len(clarification) == 5
+    # Compare actual customer workbook fields, independently of the comment formatter.
+    expected = []
+    for _, kind, label, sources, basis, value, question, reply, impact in clarification:
+        assert reply is None
+        suffix = '是，补充资料后需复核。' if impact == '是' else '否'
+        expected.append(f'{kind}｜{label}\n依据：{basis}\n资料：{sources}\n采用值：{value}\n待确认：{question}\n影响等级：{suffix}')
+    assert sorted(comment.text for comment in doc.comments) == sorted(expected)
+    assert {row[2] for row in clarification} == {'坡' + str(i) for i in range(5)}
+    ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+    with ZipFile(BytesIO(word)) as archive:
+        document = ET.fromstring(archive.read('word/document.xml'))
+        assert all('仅审计排序理由' not in archive.read(name).decode('utf-8')
+                   for name in archive.namelist() if name.startswith('word/') and name.endswith('.xml'))
+    anchors = []
+    for paragraph in document.findall('.//w:p', ns):
+        children = list(paragraph)
+        for start in paragraph.findall('w:commentRangeStart', ns):
+            end = next(child for child in children if child.tag.endswith('commentRangeEnd') and child.attrib == start.attrib)
+            anchors.append(''.join(t.text or '' for child in children[children.index(start)+1:children.index(end)] for t in child.findall('.//w:t', ns)))
+    assert sorted(anchors) == sorted(row[5] for row in clarification)
+    assert all('仅审计排序理由' not in str(cell) for sheet in book for row in sheet.values for cell in row)
+    assert cs.read(added['table']) == before
 
 
 @pytest.mark.parametrize('mutation',['value','bounds','merged'])

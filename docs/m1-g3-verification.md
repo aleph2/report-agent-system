@@ -190,3 +190,60 @@ G4 step 6.1's full suite and complete scripted pass remain mandatory outstanding
 work, as do native case/ledger readiness and current-scope staging with `--template`
 before the actual checkpoint/rerun. No paid/provider calls, real report rerun,
 ledger migration or G4 approval occurred in this follow-up. Email remains stopped.
+
+## Customer comment policy — owner decision, 2026-11-02
+
+The owner approved G3.1, then reversed the earlier suggestion to put ranking
+reasons in the customer Word file. Customer comments are reserved for material
+issues: conflicts, unclear or missing information, and assumptions. Ranking
+reasons remain in saved audit records. The Excel clarification list is unchanged;
+each customer Word comment must correspond to one clarification row.
+
+This supersedes the historical 115-comment output above. That artifact and its
+verification evidence remain preserved. The customer-comment follow-up uses
+`.analysis/m1-g3-customer-comments-20261102/`; it does not authorize an internal
+review-copy mode, G4 execution, paid calls or a real report rerun.
+
+The customer exporter now emits only material-issue comments, including when a
+previously saved G3.1 snapshot contains ranking-comment metadata. New assessments
+keep reasons in the immutable assessment input/results and saved ranking records,
+without creating customer comment metadata. Audit-only text is no longer scanned
+as visible customer content; validation of historical metadata and material-issue
+anchors remains in place. Excel behavior is unchanged.
+
+The legacy v1 generator also omits its visible reason column while retaining the
+audit data and existing order. A historical generated four-column ranking table
+is refused with an instruction to regenerate from the saved assessment, rather
+than silently editing frozen data or stripping arbitrary table columns.
+
+Independent tests first reproduced seven failures with two checks passing
+(`red.log/xml`). After the three-file repair, eight affected test files passed:
+269 tests in 59.13 seconds (`green.log/xml`). Neo authored the tests; Main reviewed
+them before RED, and Neo independently reviewed the repair.
+Tests include actual DOCX/XLSX correspondence for all five issue types, exact
+anchors, saved-audit preservation, historical snapshot re-export, and retained
+malformed-input guards. This is a focused regression batch, not the full suite.
+
+The existing Python input fence recorded one denied operation during RED and 65
+during GREEN. An isolated probe reproduced a limitation: relative `open` calls
+using a directory descriptor are incorrectly resolved against the working
+directory by this fence. LibreOffice profile-like paths dominate the GREEN log;
+the log does not establish each caller's cause. All recorded operations were
+denied. The guard was not weakened, and zero guard events or full OS isolation
+are not claimed. Fresh writable test storage was native Linux. The probe and raw
+events are preserved with the follow-up evidence.
+
+The newly generated offline customer Word contains 60 material-issue comments
+matching all 60 Excel clarification rows and exact value anchors. All 55 ranking
+reasons remain matched across the three saved Assessment audit locations; no new
+ranking-comment metadata is produced. Table cells, Excel cells and four source
+crops match the G3.1 fixture. `export-real-qa.json` records the checks.
+
+The first XML comparison normalized empty runs too broadly. A narrower check
+found 55 extra empty formatted runs in the old artifact, so that comparison was
+not accepted as sole layout proof. Both results are preserved. A fresh offline
+PDF was then rendered: all 38 pages match the prior verified PDF in text, page
+dimensions and RGB pixels at scale 1.4 (`export-pdf-comparison.json`). Prior visual
+review is reused on actual rendered-page equality. Excel differs only in package
+metadata. Engineering and inherited P3 limits remain unchanged; comment-balloon
+pagination is not claimed.

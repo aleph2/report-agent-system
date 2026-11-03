@@ -953,3 +953,32 @@ G4 full suite/complete scripted pass, current-scope staging, native case/ledger
 readiness and real owner checkpoint remain outstanding. No paid calls, real report
 rerun, ledger changes or email. This supersedes any earlier follow-up completion
 mail expectation; email monitoring remains stopped.
+
+## Customer Word comment policy follow-up — 2026-11-02
+
+The updated owner review approves G3.1 and reverses ranking-reason comments in the
+customer deliverable. Customer Word comments now contain material issues only;
+ranking reasons remain in immutable audit records. Excel is unchanged. The
+export boundary also protects historical G3.1 snapshots, and historical generated
+v1 tables with a visible reason column require regeneration rather than silent
+mutation. No internal-copy feature was added.
+
+Main implemented three production-file changes; Neo authored the scoped tests
+and independently reviewed the repair. RED: 7 failed / 2 passed; GREEN: 269 passed
+across eight affected files. Evidence is under
+`.analysis/m1-g3-customer-comments-20261102/`. The Python guard's fd-relative path
+limitation and all denied events are recorded, not hidden by a zero-event claim.
+See the appended policy section in `docs/m1-g3-verification.md` for full limits.
+
+The new offline Word has 60 material comments matching 60 Excel rows, with all
+55 reasons retained in audit records. Saved values and table cells are unchanged.
+Fresh offline PDF comparison found all 38 pages equal in text, dimensions and RGB
+pixels to the prior verified render, permitting reuse of its visual review.
+The earlier broad XML normalization and narrowed failure are preserved; no
+engineering assessment is claimed. Publish this narrow
+policy correction as `m1-fixes-20261102-g3.2` after final independent evidence review.
+
+This follow-up does not complete G4: native case/ledger startup protection,
+current-scope staging with `--template`, full suite and complete scripted pass
+remain separate readiness work before G4 review. No paid/provider calls, real
+report rerun, ledger migration or email.

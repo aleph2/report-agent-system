@@ -99,8 +99,6 @@ def _visible(node):
         values = list(body['columns']) + [v for row in body['rows'] for v in row]
         values += [layout.caption(node), body.get('footnote', '')]
         values.extend(value for row in body.get('header_rows', []) for value in row)
-        from .material_issues import cell_comments
-        values.extend(comment.text for comment in cell_comments(node))
     elif node['kind'] == 'figure':
         values = [body['caption']]
     else:
@@ -147,6 +145,10 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
         node = records[key]['payload']
         body = node['body']
         location = key[1]
+        if (node['kind'] == 'table' and body.get('assessment_ref')
+                and body.get('assessment_part') == 'ranking'
+                and body.get('columns') == ['指标', '重要性排序', '权重', '排序理由']):
+            problems.append(location + ': legacy ranking reasons require regeneration from saved assessment')
         if body.get('source_views'):
             receipt = cs.store.get('planned_section_receipt:' + digest(records[key]['ref'])) if cs is not None else None
             section = sections.get(body.get('section_id'), {})
@@ -385,8 +387,8 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
         if (plan['method_pack'].get('version', 1) != 1 or node['kind'] != 'table'
                 or not body.get('assessment_ref') or node_options[key].get('column_weights')):
             continue
-        if body.get('assessment_part') == 'ranking' and body['columns'] == ['指标', '重要性排序', '权重', '排序理由']:
-            node_options[key]['column_weights'] = [1.4, .8, .8, 3]
+        if body.get('assessment_part') == 'ranking' and body['columns'] == ['指标', '重要性排序', '权重']:
+            node_options[key]['column_weights'] = [1.4, .8, .8]
         elif body.get('assessment_part') == 'evaluation' and body['columns'] == ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释']:
             node_options[key]['column_weights'] = [.8, 1.1, 3.5, 1.4, 1, 1.2, 1.3, 4.9]
     result.update(styles=list(styles.values()), nodes=list(node_options.values()))

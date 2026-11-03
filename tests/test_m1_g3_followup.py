@@ -404,8 +404,10 @@ def test_v2_assessment_saves_source_rows_and_projects_both_confirmed_table_types
     evaluation = fixture.cs.read(receipt['evaluation_ref'])['payload']['body']
     assert ranking['columns'] == ['序号', '评估指标', '权重系数']
     assert [row[:2] for row in ranking['rows']] == [['1', '指标 D'], ['2', '指标 C'], ['3', '指标 B'], ['4', '指标 A']]
-    assert len(ranking['cell_comments']) == 4 and not ranking.get('material_issues')
-    assert all(comment['text'] == 'Relative importance judged from S1 design facts.' for comment in ranking['cell_comments'])
+    assert not ranking.get('cell_comments') and not ranking.get('material_issues')
+    for audit_rows in (payload['indicators'], payload['result']['rows'], records['ranking']['rows']):
+        assert len(audit_rows) == 4
+        assert all(row['rank_reason'] == 'Relative importance judged from S1 design facts.' for row in audit_rows)
     assert evaluation['header_rows'] == [
         ['分类', '评估指标', '分级', '', '基本分值（Rᵢⱼ）', '', '权重系数（γᵢⱼ）', '评估分值（Xᵢⱼ）', '说明'],
         ['', '', '', '', '分值范围', '取值', '', '', '']]
