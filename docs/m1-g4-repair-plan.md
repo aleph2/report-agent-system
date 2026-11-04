@@ -1,9 +1,11 @@
 # G4 requirements and planning repair
 
-Status: owner approved H1 and H2 on 2026-11-03; H3 offline verification is complete with the current scope frozen. Owner H3 review and restart approval remain separate.
+Status: owner approved H1, H2 and H3 on 2026-11-03; the scope remains frozen. H3.1 Option A is implemented and verified for owner review before restart approval.
 H2/H3 follow their review gates. No paid calls. The owner subsequently authorized
 one H2 completion email (sent) and, subsequently, one H3 completion email after
-verification/review and tag publication; inbox polling and scheduled progress remain stopped.
+verification/review and tag publication (sent). The owner has now authorized one
+H3.1 completion email after its review/tag publication; inbox polling and scheduled
+progress remain stopped.
 Evidence: [H1 verification](m1-g4-h1-verification.md), review tag `m1-fixes-20261103-g4-h1`.
 H2 evidence: [verification](m1-g4-h2-verification.md), 620 passing affected tests in
 one batch; review tag `m1-fixes-20261103-g4-h2`. Owner H2 review approved.
@@ -111,6 +113,21 @@ Finish with an H2 tag for owner review.
 
 Finish with an H3 tag and evidence for owner review. Scripted mechanics are not
 autonomous-model or engineering acceptance.
+
+### H3.1 — direct evidence for proposed exclusions (owner Option A)
+
+Before restart, the shared completeness check requires every proposed exclusion to
+cite at least one exact source page with direct text, page-inspection or image-return
+receipts. Snippets and text-helper inputs do not count; the gap identifies candidate
+and cited pages. Keep unread candidates included pending owner review; an explicit
+trusted checkpoint reduction with a reason is recorded and displayed as the owner's
+decision. No agent override, fixed slope count or prescribed reading sequence.
+
+Verification: [H3.1 evidence](m1-g4-h31-verification.md), 584 passing affected tests;
+separate native baseline/current scripted controls passed. Preserve three mounted-
+Windows timeout results and the unresolved P3 timing cause. The stopped SLOPE-TBL-2
+proposal receives the exact new gap for its stored page-96 citation. Review tag:
+`m1-fixes-20261103-g4-h3.1`. Owner H3.1 review precedes staging/budget/model checks.
 
 ### Restart — step 6, separate owner approval
 

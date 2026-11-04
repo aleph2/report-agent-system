@@ -389,6 +389,29 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                 missing = not any(c.get('requirement_anchor_id') == anchor['id'] for c in plan.get('conventions', []))
             if missing:
                 gap(anchor, path, 'CAPABILITY_REQUIRED', 'Provide the required ' + capability)
+    excluded = [o for o in plan.get('objects', []) if o.get('included') is False]
+    if excluded:
+        from .document_tools import physical_page_number
+        from .source_access import coverage
+        access = coverage(cs, plan, include_page_totals=False)
+        for obj in excluded:
+            cited, direct = [], False
+            for citation in obj.get('sources', []):
+                ref, locator = citation['source_ref'], citation['locator']
+                page = physical_page_number(locator)
+                cited.append({'source_ref': ref, 'locator': locator, 'page': page})
+                for row in access['sources']:
+                    if ref in row['source_version_refs']:
+                        pages = set(row['text_returned_pages']) | set(row['inspected_text_pages'])
+                        pages.update(image['page'] for image in row['image_observations'])
+                        direct = direct or page in pages
+            if not direct:
+                locations = '; '.join(c['source_ref']['id'] + ' / ' + c['locator'] for c in cited) or 'no citations'
+                gaps.append({'anchor_id': None, 'path': 'objects.' + obj['object_id'] + '.sources',
+                    'code': 'EXCLUSION_SOURCE_NOT_DIRECTLY_RETURNED', 'object_id': obj['object_id'],
+                    'cited_pages': cited, 'message': 'Exclusion of ' + obj['object_id'] + ' (' + obj.get('label', '')
+                    + ') cites no directly returned page: ' + locations
+                    + '. Read a cited page or retain the candidate for an explicit owner reduction at the checkpoint.'})
     return gaps
 
 

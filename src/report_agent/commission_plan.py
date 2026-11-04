@@ -752,6 +752,11 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
              '适用条件或规格发生变化，须返回确认节点；本清单不替代新项目范围确认或工程签审。', '',
              '- 确认记录：' + encode(ref), '- 计划版本：' + encode(plan_ref),
              '- 适用章节：' + '、'.join(s['section_id'] + ' ' + s['title'] for s in plan['sections'])]
+    if decision['payload']['reductions']:
+        labels = {obj['object_id']: obj['label'] for obj in plan['objects']}
+        lines += ['', '## 用户排除决定', '', '以下为用户在确认点记录的决定，不是代理的排除建议。']
+        lines += ['- ' + item['object_id'] + ' — ' + labels[item['object_id']] + '：' + item['reason']
+                  for item in decision['payload']['reductions']]
     if rules.get('requirements_ref'):
         requirements = cs._read(db, rules['requirements_ref'])
         anchors = {a['id']: a for a in requirements['payload']['anchors']}
