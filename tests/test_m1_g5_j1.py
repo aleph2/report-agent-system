@@ -284,8 +284,18 @@ def test_host_prepares_separate_owner_file_without_treating_it_as_source_documen
     owner_file = state['INPUT'] / 'owner-decisions.json'
     put_json(owner_file, {'contract': 'owner-records-v1', 'records': [], 'documents': [], 'substitutions': [], 'objects': []})
     put_json(state['HERE'] / 'approved-input-hashes.json', state['input_files']())
+    # This fixture tests owner-file routing; the pilot skeleton has separate source-bound tests.
+    import report_agent.commission_skeleton as skeleton_api
+    calls = []
+    def skeleton(contents, refs):
+        assert contents.store.get('commission_owner_records')
+        assert refs
+        calls.append(refs)
+        return {'requirements_ref': contents.store.get('commission_requirements'), 'digest': 'synthetic-skeleton'}
+    monkeypatch.setattr(skeleton_api, 'prepare_skeleton', skeleton)
     state['prepare']()
     prepared = json.loads((state['HERE'] / 'prepared.json').read_text())
+    assert len(calls) == 1 and prepared['skeleton_digest'] == 'synthetic-skeleton'
     assert 'owner-decisions.json' in prepared['input_hashes']
     assert 'owner-decisions.json' not in prepared['source_files']
     from report_agent.store import Store

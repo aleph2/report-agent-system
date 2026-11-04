@@ -345,6 +345,8 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     def save(db):
+        if _state(db, 'commission_skeleton'):
+            raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         items = deepcopy(previous['payload']['items'])
         item = next((i for i in items if i['anchor_id'] == anchor_id), None)
@@ -368,6 +370,20 @@ def set_requirement_status(cs, actor, operation_id, anchor_id, status, interpret
 def link_convention(cs, actor, operation_id, anchor_id, entry_id, interpretation):
     return _edit_requirement(cs, actor, operation_id, anchor_id,
         {'status': 'required', 'interpretation': interpretation, 'reviewed_entry_id': entry_id}, relink=True)
+
+
+class SectionJudgment(Contract):
+    section_id: str = Field(min_length=1)
+    sources: list[SourceCitation] = Field(default_factory=list)
+    examples: list[SourceCitation] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class CandidateDisposition(Contract):
+    object_id: str = Field(min_length=1)
+    status: Literal['included', 'owner_excluded', 'proposed_exclusion']
+    reason: str = Field(min_length=1)
+    owner_record_id: str | None = None
 
 
 class PlanDetails(Contract):
@@ -431,6 +447,12 @@ def _assemble(cs, db):
             if role in plan['table_specs'] and plan['table_specs'][role] != table:
                 raise ActionRejected('PLANNING_TABLE_LINK_CONFLICT: ' + role)
             plan['table_specs'][role] = deepcopy(table)
+    from .commission_skeleton import apply_skeleton
+    plan = apply_skeleton(cs, db, plan)
+    for judgment in items.get('section_judgment', {}).values():
+        for section in plan['sections']:
+            if section['section_id'] == judgment['section_id']:
+                section.update({k: v for k, v in judgment.items() if k != 'section_id'})
     from .commission_owner_records import decorate_plan
     plan = decorate_plan(cs, db, plan)
     for substitution in items.get('substitution', {}).values():
@@ -438,13 +460,23 @@ def _assemble(cs, db):
         if section:
             value = substitution['substitution']
             section['source_substitutions'] = [s for s in section.get('source_substitutions', []) if s['requested_source'] != value['requested_source']] + [value]
+    from .commission_skeleton import apply_dispositions
+    plan = apply_dispositions(cs, db, plan)
     return draft, requirements, plan
 
 
 def _gaps(cs, plan, db):
     from .commission_requirements import check_plan
     from .commission_plan import CommissionPlan
-    gaps = check_plan(cs, plan, db=db)
+    try:
+        gaps = check_plan(cs, plan, db=db)
+    except ActionRejected as error:
+        fields = (getattr(error, 'diagnostic', None) or {}).get('fields', [])
+        gaps = [{'anchor_id': None, 'path': f.get('section_id', 'plan') + '.' + f.get('field', 'plan'),
+                 'code': f.get('reason', 'PLAN_INCOMPLETE'), 'message': str(error), 'item_id': f.get('item_id')}
+                for f in fields] or [{'anchor_id': None, 'path': 'plan', 'code': 'PLAN_INCOMPLETE', 'message': str(error)}]
+    for question in plan.get('skeleton_questions', []):
+        gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + question['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': question['reason']})
     draft = _state(db, DRAFT, {'items': {}})
     for value in draft['items'].get('substitution', {}).values():
         if value['section_id'] not in {s['section_id'] for s in plan['sections']}:
@@ -572,6 +604,20 @@ def save_item(cs, actor, operation_id, kind, item):
     request = {'kind': kind, 'item': deepcopy(item)}
     def save(db):
         value = deepcopy(item)
+        if _state(db, 'commission_skeleton') and kind in ('section', 'details'):
+            raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
+        if kind in ('section_judgment', 'disposition') and not _state(db, 'commission_skeleton'):
+            raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
+        if kind == 'section_judgment':
+            if set(value) - {'section_id', 'sources', 'examples', 'notes'}:
+                raise ActionRejected('SKELETON_JUDGMENT_FIELDS_ONLY')
+            original = next((s for s in _state(db, 'commission_skeleton')['sections'] if s['section_id'] == value.get('section_id')), None)
+            if not original or original['kind'] == 'fixed' or original.get('extraction'):
+                raise ActionRejected('SKELETON_JUDGMENT_SECTION_INVALID')
+        if kind == 'disposition':
+            value = model_value(CandidateDisposition, value, 'disposition').model_dump(mode='json', exclude_none=True)
+            if value['status'] == 'owner_excluded':
+                raise ActionRejected('OWNER_EXCLUSION_IS_SYSTEM_OWNED')
         if kind == 'section' and 'source_span' in value:
             if any(key in value for key in ('text', 'extraction', 'sources')):
                 raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
@@ -614,10 +660,12 @@ def save_item(cs, actor, operation_id, kind, item):
             if set(value) != {'section_id', 'substitution'} or not isinstance(value['section_id'], str) or not value['section_id'].strip():
                 raise ActionRejected('SECTION_SUBSTITUTION_TARGET_REQUIRED')
             value['substitution'] = model_value(SourceSubstitution, value['substitution'], 'substitution').model_dump(mode='json')
-        else:
+        elif kind == 'section_judgment':
+            value = model_value(SectionJudgment, value, 'section_judgment').model_dump(mode='json', exclude_unset=True)
+        elif kind != 'disposition':
             raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
         _validate_sources(cs, db, actor, value)
-        key = (value['section_id'] if kind == 'section' else value['object_id'] if kind == 'object' else
+        key = (value['section_id'] if kind in ('section', 'section_judgment') else value['object_id'] if kind in ('object', 'disposition') else
                kind if kind in ('details', 'boundary') else
                value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
                value['question_id'] if kind == 'question' else value['reconciliation_id'])
@@ -881,6 +929,22 @@ def planning_tools(cs, actor):
         """Add, revise or mark answered one question by stable ID. This records planning progress, not an owner authorization."""
         return save_item(cs, actor(), operation_id, 'question', question.model_dump(mode='json'))
 
+    def set_section_judgment(operation_id: str, judgment: SectionJudgment) -> dict:
+        """Attach section evidence and notes; outline, fixed text and result bindings are system-owned."""
+        return save_item(cs, actor(), operation_id, 'section_judgment', judgment.model_dump(mode='json', exclude_unset=True))
+
+    def set_candidate_disposition(operation_id: str, disposition: CandidateDisposition) -> dict:
+        """State included or proposed exclusion with a reason. Proposed exclusion always creates an owner question; owner records are attached by the system."""
+        return save_item(cs, actor(), operation_id, 'disposition', disposition.model_dump(mode='json', exclude_none=True))
+
+    def resolve_skeleton_choice(operation_id: str, question_id: str, expected_digest: str, choice_id: str = '', selection: SourceSpan | None = None) -> dict:
+        """Answer one current structural ambiguity by its offered source-span ID. If no heading match is offered, select an actual template heading and its exact next-heading boundary with selection. No replacement text or structure is accepted."""
+        from .commission_skeleton import resolve_skeleton_question
+        return resolve_skeleton_question(cs, actor(), operation_id, question_id, expected_digest, choice_id, selection.model_dump(mode='json') if selection else None)
+
+    if cs.store.get('commission_skeleton'):
+        return [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
+            set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question]]
     return [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
             add_object, add_section, add_substitution, add_reconciliation, add_question]]
 
