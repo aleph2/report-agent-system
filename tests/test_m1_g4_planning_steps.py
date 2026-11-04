@@ -964,7 +964,20 @@ async def test_native_requirement_checkpoint_resume_keeps_original_issue_and_dec
     resumed = await run(reopened, fresh)
     assert resumed['last_error'] is None, resumed
     assert len(fresh.calls) == 1
-    assert [i['id'] for i in reopened.store.get('report_issues')] == issue_ids
+    # H3.3 refuses this deliberate final answer without a report-plan approval;
+    # the original requirement checkpoint and its delivered decision remain intact.
+    completion = reopened.store.get('commission_planning_completion_wait')
+    assert completion and completion['issue_id'] not in issue_ids
+    issues = reopened.store.get('report_issues')
+    assert [i['id'] for i in issues] == [*issue_ids, completion['issue_id']]
+    original = next(i for i in issues if i['id'] == issue_id)
+    assert original['decision'] == answered['decision'] and original['decision_origin'] == 'operator'
+    assert reopened.store.get('commission_requirements_checkpoint:' + issue_id) == checkpoint
+    assert reopened.store.get('commission_requirements') == answered['requirements_result_ref']
+    final_wait = await snapshot(reopened, fresh)
+    assert resumed['status'] == 'needs_human'
+    assert final_wait.interrupts[0].value['issue_id'] == completion['issue_id']
+    assert final_wait.interrupts[0].value['kind'] == 'planning_completion'
     assert reopened.store.get('commission_confirmation') is None
 
 
