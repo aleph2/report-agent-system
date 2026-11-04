@@ -5,6 +5,7 @@ import re
 from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
+from pydantic_core import PydanticCustomError
 
 from .content_models import Contract, Ref, SourceCitation, InventoryObject, refs_in
 from .content_store import Actor, ContentStore
@@ -41,10 +42,16 @@ class ScopeBoundary(Contract):
     source: SourceCitation
     customer_basis: SourceCitation | None = None
     expected_object_count: int | None = Field(default=None, strict=True, ge=1)
+    chainage_inputs: dict[str, str] | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode='after')
     def ordered(self):
         from .method_pack import number
+        if self.chainage_inputs is not None:
+            from .planning_inputs import metres
+            if set(self.chainage_inputs) != {'start_meter', 'end_meter'} or any(
+                    number(metres(raw)) != number(getattr(self, key)) for key, raw in self.chainage_inputs.items()):
+                raise ValueError('COMMISSION_BOUNDARY_CHAINAGE_MISMATCH')
         if number(self.start_meter) >= number(self.end_meter) or not self.source.quote.strip():
             raise ValueError('COMMISSION_BOUNDARY_SOURCE_AND_ORDER_REQUIRED')
         return self
@@ -204,10 +211,21 @@ class CommissionPlan(Contract):
         names = self.inventory_attributes
         if any(not n.strip() for n in names) or len(set(names)) != len(names):
             raise ValueError('COMMISSION_INVENTORY_ATTRIBUTE_CONTRACT_INVALID')
-        for obj in self.objects:
+        mismatches = []
+        for index, obj in enumerate(self.objects):
             actual = [a.name for a in obj.attributes]
             if len(actual) != len(set(actual)) or set(actual) != set(names):
-                raise ValueError('COMMISSION_INVENTORY_ATTRIBUTES_INCOMPLETE: ' + obj.object_id)
+                mismatches.append({'field': f'objects[{index}].attributes',
+                    'reason': 'COMMISSION_INVENTORY_ATTRIBUTES_INCOMPLETE', 'object_id': obj.object_id,
+                    'expected': list(names), 'actual': actual,
+                    'missing': [name for name in names if name not in actual],
+                    'extra': list(dict.fromkeys(name for name in actual if name not in names)),
+                    'duplicates': [name for name in dict.fromkeys(actual) if actual.count(name) > 1],
+                    'choices': list(names)})
+        if mismatches:
+            raise PydanticCustomError('commission_inventory_attributes_incomplete',
+                'COMMISSION_INVENTORY_ATTRIBUTES_INCOMPLETE: {first_object}',
+                {'first_object': mismatches[0]['object_id'], 'inventory_fields': mismatches})
         return self
 
 
@@ -405,6 +423,23 @@ def required_material_issues(cs, db, plan_ref, plan):
     return issues
 
 
+def boundary_display(boundary):
+    from decimal import Decimal, localcontext
+    def label(raw):
+        value = Decimal(raw)
+        if value < 0 or 'e' in raw.lower():
+            return raw + ' m'
+        with localcontext() as context:
+            context.prec = max(28, len(raw) + 10)
+            km = int(value // 1000)
+            rest = format(value - km * 1000, 'f')
+        integer, dot, fraction = rest.partition('.')
+        return 'K' + str(km) + '+' + integer.zfill(3) + (dot + fraction if dot else '')
+    original = boundary.get('chainage_inputs') or {}
+    return ((original['start_meter'] if 'start_meter' in original else label(boundary['start_meter'])) + '—' + (original['end_meter'] if 'end_meter' in original else label(boundary['end_meter'])) +
+            '（' + boundary['start_meter'] + '—' + boundary['end_meter'] + ' m）')
+
+
 def _citations(value):
     if isinstance(value, dict):
         if 'source_ref' in value and 'locator' in value:
@@ -420,31 +455,35 @@ def _citations(value):
 def _validate_sources(cs, db, actor, plan):
     from .deliverables import source_authority
     records = {}
-    for citation in _citations(plan):
+    from .planning_inputs import citation_paths, quote_locations, reject
+    for path, citation in citation_paths(plan):
         ref = citation['source_ref']
         key = Ref.model_validate(ref).key()
         source = records.setdefault(key, cs._read(db, ref))
         if ref['type'] != 'SourceArtifact':
-            raise ActionRejected('COMMISSION_SOURCE_ARTIFACT_REQUIRED')
+            reject(path + '.source_ref', 'COMMISSION_SOURCE_ARTIFACT_REQUIRED', code='COMMISSION_SOURCE_ARTIFACT_REQUIRED')
         payload = source['payload']
-        rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=?',
+        rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal',
                                (payload['source_id'],)))
-        located = [text for loc, text in rows if loc == citation['locator'] or loc.startswith(citation['locator'] + ';')]
+        locator = citation.get('locator', '')
+        located = [text for loc, text in rows if locator and (loc == locator or loc.startswith(locator + ';'))]
         quote = citation.get('quote', '')
         if quote and quote not in ''.join(located):
-            raise ActionRejected('COMMISSION_QUOTE_NOT_AT_SOURCE_LOCATION')
+            choices = quote_locations(rows, quote)
+            reject(path + ('.quote' if located else '.locator'),
+                   'quote_not_at_locator' if located else 'unknown_locator', choices, code='COMMISSION_QUOTE_NOT_AT_SOURCE_LOCATION')
         if not located:
             # Image-only PDF pages have no extracted text; verify physical page existence.
-            page = re.fullmatch(r'page ([1-9][0-9]*)', citation['locator'])
+            page = re.fullmatch(r'page ([1-9][0-9]*)', locator)
             if page is None or quote:
-                raise ActionRejected('COMMISSION_SOURCE_LOCATION_UNAVAILABLE')
+                reject(path + '.locator', 'COMMISSION_SOURCE_LOCATION_UNAVAILABLE', [loc for loc, _ in rows], code='COMMISSION_SOURCE_LOCATION_UNAVAILABLE')
             from .document_tools import _original
             from .workspace import Workspace
             from pypdf import PdfReader
             from io import BytesIO
             _, data = _original(Workspace(cs.store), payload['source_id'])
             if int(page[1]) > len(PdfReader(BytesIO(data)).pages):
-                raise ActionRejected('COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT')
+                reject(path + '.locator', 'COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT', code='COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT')
     source_authority(cs, db, actor, list(records.values()))
 
 
@@ -455,7 +494,8 @@ def save_plan(cs, actor, operation_id, plan):
         raise ActionRejected('COMMISSION_CHECKPOINT_NOT_ENABLED')
     from .commission_requirements import require_complete
     require_complete(cs, plan)
-    plan = CommissionPlan.model_validate(plan).model_dump()
+    from .planning_inputs import model_value
+    plan = model_value(CommissionPlan, plan).model_dump()
     ids = [o['object_id'] for o in plan['objects']]
     sections = [s['section_id'] for s in plan['sections']]
     if len(set(ids)) != len(ids) or len(set(sections)) != len(sections):
@@ -489,14 +529,29 @@ def save_plan(cs, actor, operation_id, plan):
             basis = boundary.get('customer_basis') or boundary['source']
             if (not basis.get('quote', '').strip()
                     or cs._read(db, basis['source_ref'])['payload']['source_id'] not in customer_sources):
-                raise ActionRejected('COMMISSION_BOUNDARY_CUSTOMER_SELECTION_REQUIRED')
+                choices = {}
+                for citation in _citations(plan):
+                    ref = citation['source_ref']
+                    if cs._read(db, ref)['payload']['source_id'] in customer_sources:
+                        choices[Ref.model_validate(ref).key()] = ref
+                raise ActionRejected('COMMISSION_BOUNDARY_CUSTOMER_SELECTION_REQUIRED', diagnostic={'fields': [{
+                    'field': 'scope_boundary.customer_basis', 'reason': 'customer_source_and_quote_required',
+                    'choices': list(choices.values()),
+                    'message': 'Use a verified scope requirement anchor as the customer basis. A design quotation alone does not establish the customer-selected contract.'}]})
             if numeric_id not in customer_sources:
-                factual = {Ref.model_validate(c['source_ref']).key() for s in plan['sections'] if s['kind'] == 'extracted' for c in s['sources']}
+                factual = {Ref.model_validate(c['source_ref']).key(): c['source_ref']
+                           for s in plan['sections'] if s['kind'] == 'extracted' for c in s['sources']}
                 method_sources = {Ref.model_validate(c['source_ref']).key() for c in (plan.get('method_pack') or {}).get('sources', [])}
                 template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
-                if (Ref.model_validate(boundary['source']['source_ref']).key() not in factual - method_sources
-                        or numeric_id in template_ids):
-                    raise ActionRejected('COMMISSION_BOUNDARY_FACTUAL_SOURCE_REQUIRED')
+                eligible = {key: ref for key, ref in factual.items() if key not in method_sources
+                            and cs._read(db, ref)['payload']['source_id'] not in template_ids}
+                if (Ref.model_validate(boundary['source']['source_ref']).key() not in eligible):
+                    raise ActionRejected('COMMISSION_BOUNDARY_FACTUAL_SOURCE_REQUIRED', diagnostic={'fields': [{
+                        'field': 'scope_boundary.source.source_ref',
+                        'reason': 'template_not_factual_source' if numeric_id in template_ids else 'source_not_in_extracted_factual_sections',
+                        'related_fields': ['sections[].kind', 'sections[].sources'],
+                        'choices': list(eligible.values()),
+                        'message': 'The boundary quote passed source verification. Its source must also belong to an extracted factual section appropriate to the commission; method and template sources are ineligible. Changing the quote cannot repair section/source membership. Correct the section type and sources from the outline, or choose an eligible factual source.'}]})
         if plan.get('method_pack'):
             from .method_pack import reviewed_method_questions
             questions += reviewed_method_questions(cs, db, plan['method_pack'])
@@ -634,7 +689,7 @@ def request_checkpoint(workspace):
     cs = ContentStore(workspace.store)
     record = read_plan(workspace.store)
     if not record:
-        raise ActionRejected('COMMISSION_PLAN_REQUIRED')
+        raise ActionRejected('COMMISSION_PLAN_REQUIRED', diagnostic={'fields': [{'field': 'commission_plan', 'reason': 'saved_plan_required', 'choices': []}]})
     plan, ref = record['payload'], record['ref']
     from .commission_requirements import require_complete, enabled as requirements_enabled, read_requirements
     require_complete(cs, plan)
@@ -662,7 +717,7 @@ def request_checkpoint(workspace):
             lines += ['  属性依据：' + citation_location(v['source']) for v in attribute['values']]
     if plan.get('scope_boundary'):
         boundary = plan['scope_boundary']
-        lines += ['', '## 合同范围边界', '', f"{boundary['start_meter']}–{boundary['end_meter']}米；约定对象数{boundary.get('expected_object_count') or '未指定'}",
+        lines += ['', '## 合同范围边界', '', boundary_display(boundary) + f"；约定对象数{boundary.get('expected_object_count') or '未指定'}",
                   '原文依据：' + boundary['source']['quote']]
         if boundary.get('customer_basis'):
             lines.append('客户范围选择原文：' + boundary['customer_basis']['quote'])

@@ -330,7 +330,12 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
             if a['kind'] == 'section' and a['section_id'] == section['section_id'])
         steps.append(invoke('add_section', **values))
     steps.extend(invoke('add_object', object=obj) for obj in plan['objects'])
-    steps.append(invoke('set_scope_boundary', boundary=plan['scope_boundary']))
+    boundary = deepcopy(plan['scope_boundary'])
+    basis = boundary.pop('customer_basis', boundary['source'])
+    anchor = next(a for a in fixture.anchors if a['kind'] == 'scope' and a['source'] == basis)
+    assert anchor['source'] == plan['scope_boundary'].get('customer_basis', plan['scope_boundary']['source'])
+    boundary['customer_basis_anchor_id'] = anchor['id']
+    steps.append(invoke('set_scope_boundary', boundary=boundary))
     steps.extend(invoke('add_reconciliation', reconciliation={'reconciliation_id': 'source-pair-' + str(i), **row})
         for i, row in enumerate(plan['reconciliations']))
     steps.append(invoke('set_planning_details', details={key: plan[key] for key in ('inventory_attributes', 'deliverables')}))
