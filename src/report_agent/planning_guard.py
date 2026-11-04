@@ -1,7 +1,7 @@
 """Persistent planning rejection containment on native middleware boundaries."""
 from uuid import uuid4
 
-from langchain.agents.middleware import AgentMiddleware
+from langchain.agents.middleware import AgentMiddleware, hook_config
 from langgraph.types import interrupt
 
 from .commission_plan import _state, _set
@@ -106,3 +106,56 @@ class PlanningGuard(AgentMiddleware):
     async def awrap_model_call(self, request, handler):
         require_resumed(self.workspace)
         return await handler(request)
+
+
+    @hook_config(can_jump_to=['model'])
+    async def aafter_model(self, state, runtime):
+        from langchain_core.messages import AIMessage, HumanMessage
+        from .content_store import ContentStore
+        from .commission_plan import _confirmed
+        from .commission_planning import read_draft_page
+        from .text_work import actor_for_tool
+        from .store import digest
+
+        if not enabled(self.workspace.store):
+            return None
+        messages = state['messages']
+        latest = next((m for m in reversed(messages) if isinstance(m, AIMessage)), None)
+        if latest is None or latest.tool_calls or latest.invalid_tool_calls:
+            return None
+        cs = ContentStore(self.workspace.store)
+        try:
+            with cs.store.connect() as db:
+                _confirmed(cs, db)
+            return None
+        except ActionRejected as error:
+            confirmation_error = str(error)
+        # A final answer cannot discard an unapproved commission's resumable wait.
+        identity = digest({'message_id': latest.id, 'content': latest.content, 'message_count': len(messages)})
+        key = 'commission_planning_completion_wait'
+        waiting = self.workspace.store.get(key, {})
+        if waiting.get('message_id') != identity:
+            try:
+                view = read_draft_page(cs, actor_for_tool(self.workspace, 'coordinator'))
+                gaps = {k: view[k] for k in ('gaps', 'gap_count', 'next_gap_page', 'view_ref', 'requirements_ref')}
+            except ActionRejected as error:
+                gaps = {'gaps': [{'path': 'planning', 'code': str(error).split(':')[0]}], 'gap_count': 1}
+            description = ('Planning cannot finish before the owner checkpoint. Submit a complete plan, '
+                'or ask a blocking question with pause=True. Provide guidance to continue planning; '
+                'this wait does not approve a plan. Turn: ' + identity + '\n' + encode(gaps))
+            issue = self.workspace.issue('requirement', description, [])
+            waiting = {'message_id': identity, 'issue_id': issue['id'], 'gaps': gaps,
+                       'confirmation_error': confirmation_error}
+            self.workspace.store.set(key, waiting)
+            self.workspace.store.event('planning_completion_refused', waiting)
+        interrupt({'issue_id': waiting['issue_id'], 'category': 'requirement',
+            'kind': 'planning_completion', 'description': 'Planning ended without a confirmed plan or a blocking pause. Owner guidance is required.',
+            **waiting['gaps']})
+        issue = next((i for i in self.workspace.store.get('report_issues', []) if i['id'] == waiting['issue_id']), {})
+        if issue.get('decision_origin') != 'operator' or not issue.get('decision', '').strip():
+            raise ActionRejected('PLANNING_COMPLETION_OPERATOR_DECISION_REQUIRED')
+        # Resume guidance is not a replacement for the original report goal.
+        from .task_state_delivery import MODEL_COMMAND
+        return {'messages': [HumanMessage(content='Operator guidance for planning wait ' + issue['id'] + ':\n' + issue['decision'],
+            additional_kwargs={MODEL_COMMAND: True})],
+                'jump_to': 'model'}

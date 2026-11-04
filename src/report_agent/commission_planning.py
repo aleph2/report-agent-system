@@ -477,6 +477,89 @@ def read_draft(cs, actor):
                 'text_profiles': list(_state(db, 'commission_text_profiles', {}).values()), 'gaps': _gaps(cs, plan, db)}
 
 
+
+DRAFT_COLLECTIONS = Literal['summary', 'requirements', 'sections', 'objects', 'reconciliations',
+    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps']
+
+
+def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_id='',
+                    offset=0, characters=3000, view_ref='', gap_page=1):
+    """Bound model observations before platform eviction; retain canonical data server-side."""
+    if actor.role != 'coordinator':
+        raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
+    from .store import encode
+    with cs.store.connect() as db:
+        db.execute('BEGIN')
+        draft, requirements, plan = _assemble(cs, db)
+        gaps = _gaps(cs, plan, db)
+        items = draft['items']
+        statuses = {i['anchor_id']: i for i in requirements['payload']['items']}
+        collections = {
+            'requirements': [(a['id'], {'anchor': a, 'requirement': statuses[a['id']],
+                'classification': requirements['payload'].get('classifications', {}).get(a['id'])})
+                for a in requirements['payload']['anchors']],
+            **{name: list(items.get(kind, {}).items()) for name, kind in (
+                ('sections', 'section'), ('objects', 'object'), ('questions', 'question'),
+                ('reconciliations', 'reconciliation'), ('substitutions', 'substitution'))},
+            'settings': [(k, v) for k, v in plan.items() if k not in
+                         {'sections', 'objects', 'open_questions', 'reconciliations'}],
+            'entries': [(e['id'], {'id': e['id'], 'kind': e['kind'], 'label': e['label'],
+                'capabilities': entry_obligations(e)[0], 'table_roles': entry_obligations(e)[1]})
+                for e in _state(db, CATALOG, {}).values()],
+            'text_profiles': list(_state(db, 'commission_text_profiles', {}).items()),
+            'gaps': [(str(i), g) for i, g in enumerate(gaps)],
+        }
+    current = digest({'revision': draft['revision'], 'requirements_ref': requirements['ref'], 'collections': collections})
+    if view_ref and view_ref != current:
+        reject('view_ref', 'PLANNING_VIEW_CHANGED', [current], message='Reread summary; do not combine different draft versions.')
+    if (offset or page > 1 or gap_page > 1) and not view_ref:
+        reject('view_ref', 'PLANNING_VIEW_REF_REQUIRED', [current], message='Pass the summary view_ref for continuation.')
+    # Full diagnostics are readable by gap index; compact controls never include source bodies.
+    gap_pages, batch = [], []
+    for index, gap in enumerate(gaps):
+        compact = {**{k: gap.get(k) for k in ('anchor_id', 'path', 'code')}, 'detail_id': str(index)}
+        for key, value in list(compact.items()):
+            if isinstance(value, str) and len(value) > 240:
+                compact[key] = value[:240]
+                compact['abbreviated'] = True
+        if batch and len(encode([*batch, compact])) > 4000:
+            gap_pages.append(batch)
+            batch = []
+        batch.append(compact)
+    gap_pages.append(batch)
+    if gap_page > len(gap_pages):
+        reject('gap_page', 'PLANNING_GAP_PAGE_OUT_OF_RANGE', list(range(1, len(gap_pages) + 1)))
+    result = {'gaps': gap_pages[gap_page - 1], 'gap_count': len(gaps), 'gap_page': gap_page,
+        'next_gap_page': gap_page + 1 if gap_page < len(gap_pages) else None,
+        'view_ref': current, 'revision': draft['revision'], 'requirements_ref': requirements['ref'],
+        'counts': {key: len(value) for key, value in collections.items()}, 'page_data': None,
+        'read_next': 'Choose collection and page or exact item_id. Pass view_ref on continuations. Details are JSON text; concatenate next_offset chunks before decoding. Gaps describe missing work, not plan approval.'}
+    if collection == 'summary':
+        if item_id or offset or page != 1:
+            reject('collection', 'PLANNING_SUMMARY_HAS_NO_ITEMS', collections.keys())
+        return result
+    rows = collections[collection]
+    total_pages = max(1, (len(rows) + page_size - 1) // page_size)
+    if item_id:
+        matches = [(key, value) for key, value in rows if key == item_id]
+        if not matches:
+            reject('item_id', 'PLANNING_ITEM_UNKNOWN', [key for key, _ in rows[:10]], message='Read collection pages for the exact item IDs; choices show the first ten.')
+        selected, next_page = matches[0][1], None
+    else:
+        if page > total_pages:
+            reject('page', 'PLANNING_PAGE_OUT_OF_RANGE', [1, total_pages])
+        selected = [{'id': key, 'value': value} for key, value in rows[(page - 1) * page_size:page * page_size]]
+        next_page = page + 1 if page < total_pages else None
+    text = encode(selected)
+    if offset > len(text):
+        reject('offset', 'PLANNING_OFFSET_OUT_OF_RANGE', [0, len(text)])
+    end = min(offset + characters, len(text))
+    result['page_data'] = {'collection': collection, 'page': page, 'page_size': page_size,
+        'item_id': item_id, 'total_items': len(rows), 'total_pages': total_pages,
+        'text': text[offset:end], 'offset': offset, 'next_offset': end if end < len(text) else None,
+        'total_characters': len(text), 'next_page': next_page, 'complete_page': offset == 0 and end == len(text)}
+    return result
+
 def save_item(cs, actor, operation_id, kind, item):
     from .commission_plan import SectionPlan, ScopeBoundary, Reconciliation, SourceSubstitution, _validate_sources, fixed_section_text
     from .content_models import InventoryObject
@@ -704,9 +787,21 @@ def reply_requirements(workspace, issue_id, decision):
 
 def planning_tools(cs, actor):
     """Small independent judgments; prepared payloads and authority stay server-owned."""
-    def read_planning_draft() -> dict:
-        """Read all current gaps, source anchors, eligible reviewed entries and saved planning items. No tool order is required."""
-        return read_draft(cs, actor())
+    def read_planning_draft(collection: DRAFT_COLLECTIONS = 'summary',
+            page: Annotated[int, Field(ge=1)] = 1, page_size: Annotated[int, Field(ge=1, le=10)] = 5,
+            item_id: str = '', offset: Annotated[int, Field(ge=0)] = 0,
+            characters: Annotated[int, Field(ge=1, le=3000)] = 3000,
+            view_ref: str = '', gap_page: Annotated[int, Field(ge=1)] = 1) -> dict:
+        """Read compact gaps first with counts; default returns no large draft bodies.
+
+        Read details by collection/page or exact item_id. requirements rows contain
+        anchor IDs, exact quotes, statuses and classifications. sections/objects retain
+        exact citations; settings contains methods, tables and boundary by their keys.
+        Pages contain bounded JSON text: concatenate next_offset chunks before decoding.
+        Use the returned view_ref on every continuation; changed drafts require a fresh
+        summary. next_gap_page explicitly continues large gap lists. No tool order is required.
+        """
+        return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page)
 
     def set_status(operation_id: str, anchor_id: str, status: Literal['required', 'not_applicable', 'unresolved'], interpretation: str) -> dict:
         """Set one requirement's proposed status and interpretation. Capabilities come from reviewed source classification; not-applicable remains subject to owner confirmation."""
