@@ -291,6 +291,8 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
     if db is None:
         with cs.store.connect() as connection:
             return check_plan(cs, plan, requirements_ref, db=connection)
+    from .commission_owner_records import validate_owner_records
+    validate_owner_records(cs, db, plan)
     record = read_requirements(cs, requirements_ref, db=db)
     anchors = record['payload']['anchors']
     items = {i['anchor_id']: i for i in record['payload']['items']}
@@ -395,6 +397,8 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
         from .source_access import coverage
         access = coverage(cs, plan, include_page_totals=False)
         for obj in excluded:
+            if any(r['kind'] == 'scope_exclusion' and r['target'] == obj['object_id'] for r in plan.get('owner_records', [])):
+                continue
             cited, direct = [], False
             for citation in obj.get('sources', []):
                 ref, locator = citation['source_ref'], citation['locator']
@@ -416,6 +420,12 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
 
 
 def require_complete(cs, plan, *, db=None):
+    from .commission_owner_records import validate_owner_records
+    if db is None:
+        with cs.store.connect() as connection:
+            validate_owner_records(cs, connection, plan)
+    else:
+        validate_owner_records(cs, db, plan)
     if not enabled(cs.store):
         # Historical presentation contract only; every newly prepared host uses anchors.
         from .handoff_release import manifest

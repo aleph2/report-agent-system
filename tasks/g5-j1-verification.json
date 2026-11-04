@@ -1,0 +1,129 @@
+{
+  "gate": "G5-J1",
+  "created_at_utc": "2026-11-04T22:30:11.397779+00:00",
+  "scope": [
+    "step 0 stopped run closure and judgments export",
+    "step 1 typed document obligations and separate notes",
+    "step 3 immutable pre-run owner records"
+  ],
+  "step0": {
+    "at_utc": "2026-11-04T22:10:55.198061+00:00",
+    "final_settled_tokens": 78249299,
+    "held_tokens": 0,
+    "stop_loss": 80395613,
+    "stop_reason": "direct owner stop after final unapprovable plan; numeric stop-loss not reached",
+    "judgments_path": "/home/dysun/report-agent-m1/library/g5-c04-judgments-20261104.json",
+    "judgments_sha256": "fa37a842bb5aadd08b1e991185b4381a1d5918118032f162abc6f3d9e9cfa185",
+    "plan_ref": {
+      "id": "17986141-81b1-45a6-ae6c-59c9f71ba9bd",
+      "type": "CommissionPlan",
+      "version": 6
+    },
+    "approval_copied": false,
+    "bookkeeping_copied": false,
+    "runtime_mutated": false,
+    "deferred_work_snapshot": "/mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/m1-g4-h33-restart-20261103/deferred-h34-before-g5-j1"
+  },
+  "real_replay": {
+    "at_utc": "2026-11-04T22:21:02.053944+00:00",
+    "scope": "J1 real v5/v6 representation and source validation, not skeleton/import or engineering acceptance",
+    "owner_records_digest": "37018dfa1b205f6f863d06b098eb20a3aa135e56b4a61f4301c7c4a511a76063",
+    "owner_file_sha256": "d3f4328323e8bc6ca3fbfaf0159015b3db662a8e16104c76fed207d1830ee1c5",
+    "replays": [
+      {
+        "version": 5,
+        "original_plan_ref": {
+          "id": "17986141-81b1-45a6-ae6c-59c9f71ba9bd",
+          "type": "CommissionPlan",
+          "version": 5
+        },
+        "original_payload_digest": "1fc267d8a3952c490664afb13f85a0ed4204c75eeaedc2a324bcd1ab1de8ab3e",
+        "legacy_entries_preserved_as_notes": 11,
+        "missing_documents": 6,
+        "unresolved_documents": {},
+        "section_contracts_valid": true,
+        "all_citations_revalidated": true,
+        "full_plan_approval_tested": false
+      },
+      {
+        "version": 6,
+        "original_plan_ref": {
+          "id": "17986141-81b1-45a6-ae6c-59c9f71ba9bd",
+          "type": "CommissionPlan",
+          "version": 6
+        },
+        "original_payload_digest": "d480058723a7c8c59932c1809ab75c9cec65177265e2a6aeb8d545eaf362c3c7",
+        "legacy_entries_preserved_as_notes": 17,
+        "missing_documents": 6,
+        "unresolved_documents": {},
+        "section_contracts_valid": true,
+        "all_citations_revalidated": true,
+        "full_plan_approval_tested": false
+      }
+    ],
+    "network_calls": 0,
+    "runtime_case_changed": false,
+    "source_extraction": "Previously verified extraction re-used against independently copied original bytes; no re-OCR claim."
+  },
+  "tests": {
+    "j1": {
+      "passed": 44,
+      "seconds": 21.16,
+      "runner": "Neo"
+    },
+    "regressions": {
+      "passed": 467,
+      "seconds": 418.05,
+      "runner": "Main",
+      "modules": [
+        "test_m1_commission_plan",
+        "test_m1_commission_boundaries",
+        "test_m1_g4_requirements",
+        "test_m1_g4_planning_steps",
+        "test_m1_g3_exports",
+        "test_m1_g4_h3",
+        "test_m1_g4_h31",
+        "test_m1_g4_h32",
+        "test_m1_g4_h32_parity",
+        "test_m1_g4_h33_guard",
+        "test_m1_g4_h33_pages",
+        "test_pilot_m1_preparation",
+        "test_m1_checkpoint_host",
+        "test_m1_template_staging"
+      ]
+    }
+  },
+  "alignment_review": {
+    "role": "independent alignment-reviewer",
+    "disposition": "No remaining P1/P2 alignment finding blocks J1 owner-review tag; regression and exact-commit checks required before publication.",
+    "closed": [
+      "source pin membership",
+      "no reductions on rejection",
+      "named missing frozen-plan refusal",
+      "owner module digest in both exporters"
+    ]
+  },
+  "code_sha256": {
+    "scripts/report_host.py": "9238c6c452422ab886efc6ef8aae865b0517a3545d9b415b6fa75d643b4fbea0",
+    "scripts/stage_report.py": "125681223f0bbfe8233819a080563e13c71cc3d82de87e96a63bc69a6e81cf3f",
+    "src/report_agent/commission_plan.py": "4f24276f720ebc44374495a46a8f949655e48696c8963880809fb318678008c6",
+    "src/report_agent/commission_planning.py": "2ff8dd34ed054d26028c532916ea72978679ae8c8f4f72c1808f0cd756d1a730",
+    "src/report_agent/commission_requirements.py": "02f14b49b43519e351bf8f9b1affb2c2957d290cad85378a064c4f2be011f34a",
+    "src/report_agent/content_export.py": "ee635256b6f323202a49141ca6f832900ae114ed6fb9065774d7cfaacf8e2b1d",
+    "src/report_agent/content_workbook.py": "0adb6ddd19a65675b21558e89e32908f717b902019661cf18d9d381f49993f15",
+    "src/report_agent/commission_owner_records.py": "9b3f25d31ba36d8c4d06809a4657026aee1c17414cedd303e5b2afe996889f25",
+    "tests/test_m1_g5_j1.py": "db4ee6cef9eb280ec0369821d8ed9fbb150a95d36b7fb4445840f9e014b4ab16"
+  },
+  "not_claimed": [
+    "full-suite completion",
+    "complete old-plan approvability",
+    "engineering acceptance",
+    "skeleton completion",
+    "carry-over importer completion",
+    "new-run launch"
+  ],
+  "paid_model_calls": 0,
+  "budget_ledger_changed": false,
+  "owner_gate_approval": "pending",
+  "publication_check": "Exact committed-tree test receipt will be preserved separately after commit, before tag push."
+}

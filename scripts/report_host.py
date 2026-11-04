@@ -36,7 +36,7 @@ def input_files():
  files=sorted(p for p in root.rglob("*") if p.is_file() and not p.name.startswith("~$"))
  result={}
  for p in files:
-  if p.is_symlink() or not p.resolve().is_relative_to(root) or p.suffix.lower() not in (".pdf",".md",".docx"):raise RuntimeError("INPUT_ESCAPE_OR_TYPE")
+  if p.is_symlink() or not p.resolve().is_relative_to(root) or (p.suffix.lower() not in (".pdf",".md",".docx") and p.relative_to(root).as_posix()!="owner-decisions.json"):raise RuntimeError("INPUT_ESCAPE_OR_TYPE")
   if p.stat().st_size>CONFIG["input_max_bytes"]:raise RuntimeError("INPUT_RESOURCE_LIMIT")
   result[str(p.relative_to(root))]=sha(p)
  return result
@@ -132,6 +132,7 @@ def prepare():
  ids=[];inputs={}
  try:
   for name,digest in pins.items():
+   if name=="owner-decisions.json":continue
    path=INPUT/name;data=path.read_bytes();profile=profiles.get(name)
    if hashlib.sha256(data).hexdigest()!=digest:raise RuntimeError("INPUT_CHANGED_DURING_PREPARE")
    ingestion.MAX_UPLOAD_BYTES=max(original_limits[0],len(data))
@@ -163,12 +164,21 @@ def prepare():
  prepared_refs=(contents.capture_sources(Actor('host','host','commission-prepared-data'),'host-prepared-planning-sources',prepared_ids)['result']['source_refs'] if prepared_ids else [])
  planning_preparation=install_prepared_planning(contents,[*captured,*prepared_refs])
  requirements_ref=planning_preparation['requirements_ref']
+ owner_records_digest=None
+ if 'owner-decisions.json' in pins:
+  from report_agent.commission_owner_records import install_owner_records
+  owner_refs=contents.capture_sources(Actor('host','host','owner-record-sources'),'host-owner-record-sources',ids)['result']['source_refs']
+  by_hash={}
+  for ref in [*captured,*prepared_refs,*owner_refs]:by_hash.setdefault(contents.read(ref)['payload']['file_digest'],ref)
+  owner_bytes=(INPUT/'owner-decisions.json').read_bytes()
+  if hashlib.sha256(owner_bytes).hexdigest()!=pins['owner-decisions.json']:raise RuntimeError('OWNER_RECORDS_CHANGED_DURING_PREPARE')
+  owner_records_digest=install_owner_records(contents,json.loads(owner_bytes),list(by_hash.values()))
  from report_agent.blob_store import verify_case_blobs
  verify_case_blobs(CASE)
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
     "source_ids":ids,"source_files":inputs,"format_references":references,"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
-    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
+    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"owner_records_digest":owner_records_digest,"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
     "authority":load(HERE/"authorization.json")["authority"],
     "financial_authority_path":str(LEDGER),"m1_token_limit":TOTAL_LIMIT,"ledger_baseline":ledger_baseline,"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",
