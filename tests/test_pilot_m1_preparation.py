@@ -159,7 +159,15 @@ def stage_fixture(tmp_path, monkeypatch, *, extras):
     archive = BytesIO()
     with tarfile.open(fileobj=archive, mode='w') as tar:
         for relative in state['RELEASE_PATHS']:
-            tar.add(ROOT / relative, arcname=relative, filter=lambda info: None if '__pycache__' in info.name else info)
+            if relative == 'config/current.json':
+                config = json.loads((ROOT / relative).read_text())
+                config.update(round_token_limit=100_000_000, m1_token_limit=200_000_000)
+                data = json.dumps(config).encode()
+                info = tar.gettarinfo(str(ROOT / relative), arcname=relative)
+                info.size = len(data)
+                tar.addfile(info, BytesIO(data))
+            else:
+                tar.add(ROOT / relative, arcname=relative, filter=lambda info: None if '__pycache__' in info.name else info)
     original_run_path = runpy.run_path
     def load_host(path, **kwargs):
         host = original_run_path(path, **kwargs)
@@ -206,11 +214,11 @@ def test_stage_keeps_escape_and_type_guards_with_variable_input_count(tmp_path, 
     assert not args.ledger.exists()
 
 
-def test_pilot_defaults_are_real_inputs_initial_100m_and_shared_m1_200m():
+def test_approved_restart_baseline_is_real_inputs_200m_and_account_278464822():
     config = json.loads((ROOT / 'config/current.json').read_text())
     assert config['synthetic'] is False
-    assert config['round_token_limit'] == 100_000_000
-    assert config['m1_token_limit'] == 200_000_000
+    assert config['round_token_limit'] == 200_000_000
+    assert config['m1_token_limit'] == 278_464_822
 
 
 def attempt_rows(budget):
