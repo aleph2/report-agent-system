@@ -1,7 +1,7 @@
 """Source-bound planning steps; reviewed data stays on the server."""
 from copy import deepcopy
 import re
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, ValidationError
 
@@ -13,6 +13,8 @@ from .commission_plan import (_state, _set, _citations, ScopeBoundary, SourceSub
                               Reconciliation, ResultBinding, LiteralReplacement, SourceView)
 from .store import digest
 from .commission_requirements import Capability
+from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventoryObject, PlanningSubstitution,
+    PlanningReconciliationInput, resolve_citations, model_value, reject, expose, metres)
 
 CATALOG = 'commission_reviewed_entries'
 CONTRACT = 'commission-planning-v1'
@@ -72,7 +74,10 @@ def resolve_source_span(cs, selection):
     with cs.store.connect() as db:
         profile = _state(db, 'commission_text_profiles', {}).get(selection['profile_id'])
         if not profile or profile['source_ref'] != selection['source_ref']:
-            raise ActionRejected('SOURCE_SPAN_PROFILE_REQUIRED')
+            reject('source_span.profile_id', 'SOURCE_SPAN_PROFILE_REQUIRED',
+                   [key for key, item in _state(db, 'commission_text_profiles', {}).items() if item['source_ref'] == selection['source_ref']],
+                   related_fields=['source_span.source_ref'],
+                   message='Choose a reviewed profile bound to this exact source. For an extracted section, use sources citations and omit source_span; a fixed section requires a reviewed template profile. Do not reuse a template profile for a design source.')
         source = cs._read(db, selection['source_ref'])['payload']
         if source['file_digest'] != profile['file_digest']:
             raise ActionRejected('TEXT_PROFILE_SOURCE_CHANGED')
@@ -81,29 +86,30 @@ def resolve_source_span(cs, selection):
     for page in range(selection['start_page'], selection['end_page'] + 1):
         found = [(loc, text) for loc, text in rows if physical_page_number(loc) == page]
         if not found or not any(text.strip() for _, text in found):
-            raise ActionRejected('SOURCE_SPAN_PAGE_TEXT_UNAVAILABLE')
+            reject('source_span.' + ('start_page' if page == selection['start_page'] else 'end_page' if page == selection['end_page'] else 'page_range'), 'SOURCE_SPAN_PAGE_TEXT_UNAVAILABLE: ' + str(page), sorted({physical_page_number(loc) for loc, text in rows if text.strip() and physical_page_number(loc) is not None}))
         sources += [{'source_ref': selection['source_ref'], 'locator': loc, 'quote': text} for loc, text in found]
         pages.append(normalize_text('\n'.join(text for _, text in found), page, profile))
     normalized = '\n\n'.join(pages)
     start, end = selection['start_sentence'], selection['end_sentence']
-    if normalized.count(start) != 1 or normalized.count(end) != 1:
-        raise ActionRejected('SOURCE_SPAN_ENDPOINT_AMBIGUOUS_OR_MISSING')
+    for field, sentence in [('start_sentence', start), ('end_sentence', end)]:
+        if normalized.count(sentence) != 1:
+            reject('source_span.' + field, 'SOURCE_SPAN_ENDPOINT_AMBIGUOUS_OR_MISSING', [m.start() for m in re.finditer(re.escape(sentence), normalized)])
     first, last = normalized.index(start), normalized.index(end) + len(end)
     if last < first + len(start):
         raise ActionRejected('SOURCE_SPAN_ENDPOINT_ORDER')
     text = normalized[first:last]
     # Keep exact original spans, including furniture inside the selected range.
-    def endpoint(sentence, page):
+    def endpoint(sentence, page, field):
         candidates = []
         pattern = r'\s*'.join(re.escape(char) for char in sentence if not char.isspace())
         for index, citation in enumerate(sources):
             if physical_page_number(citation['locator']) == page:
                 candidates += [(index, match.start(), match.end()) for match in re.finditer(pattern, citation['quote'])]
         if len(candidates) != 1:
-            raise ActionRejected('SOURCE_SPAN_RAW_ENDPOINT_AMBIGUOUS_OR_MISSING')
+            reject('source_span.' + field, 'SOURCE_SPAN_RAW_ENDPOINT_AMBIGUOUS_OR_MISSING', [sources[index]['locator'] for index, _, _ in candidates])
         return candidates[0]
-    start_index, start_offset, _ = endpoint(start, selection['start_page'])
-    end_index, _, end_offset = endpoint(end, selection['end_page'])
+    start_index, start_offset, _ = endpoint(start, selection['start_page'], 'start_sentence')
+    end_index, _, end_offset = endpoint(end, selection['end_page'], 'end_sentence')
     selected = []
     for index in range(start_index, end_index + 1):
         citation = sources[index]
@@ -222,7 +228,7 @@ def classified_item(cs, db, record, item):
     identity = item.get('reviewed_entry_id')
     if identity:
         if identity not in classification['entry_ids']:
-            raise ActionRejected('REQUIREMENT_ENTRY_NOT_ELIGIBLE')
+            reject('entry_id', 'REQUIREMENT_ENTRY_NOT_ELIGIBLE', classification['entry_ids'])
         return apply_entry(cs, db, item)
     if classification['entry_ids']:
         obligations = [entry_obligations(reviewed_entry(cs, db, identity)) for identity in classification['entry_ids']]
@@ -282,7 +288,7 @@ def install_reviewed_entries(cs, entries):
 def reviewed_entry(cs, db, entry_id):
     entry = _state(db, CATALOG, {}).get(entry_id)
     if entry is None:
-        raise ActionRejected('REVIEWED_ENTRY_NOT_OFFERED')
+        reject('entry_id', 'REVIEWED_ENTRY_NOT_OFFERED', _state(db, CATALOG, {}))
     for pin in entry['source_pins']:
         if cs._read(db, pin['ref'])['payload']['file_digest'] != pin['file_digest']:
             raise ActionRejected('REVIEWED_ENTRY_SOURCE_CHANGED')
@@ -343,7 +349,7 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
         items = deepcopy(previous['payload']['items'])
         item = next((i for i in items if i['anchor_id'] == anchor_id), None)
         if item is None:
-            raise ActionRejected('COMMISSION_REQUIREMENT_ANCHOR_UNKNOWN')
+            reject('anchor_id', 'COMMISSION_REQUIREMENT_ANCHOR_UNKNOWN', [i['anchor_id'] for i in items])
         item.update(change)
         ref = _write_items(cs, db, actor, previous, items, relink_anchor=anchor_id if relink else None)
         return {'requirements_ref': ref, 'changed': ref != previous['ref']}
@@ -445,8 +451,17 @@ def _gaps(cs, plan, db):
     try:
         CommissionPlan.model_validate(plan)
     except ValidationError as error:
-        gaps += [{'anchor_id': None, 'path': '.'.join(map(str, e['loc'])), 'code': 'PLAN_FIELD_REQUIRED',
-                  'message': e['msg']} for e in error.errors(include_input=False, include_url=False)]
+        from .planning_inputs import inventory_error_fields
+        for issue in error.errors(include_input=False, include_url=False):
+            fields = inventory_error_fields(issue)
+            if fields:
+                gaps.extend({'anchor_id': None, 'path': field['field'], 'code': field['reason'],
+                             'message': 'Use exactly the inventory attribute contract for this object.',
+                             **{k: v for k, v in field.items() if k not in {'field', 'reason'}}}
+                            for field in fields)
+            else:
+                gaps.append({'anchor_id': None, 'path': '.'.join(map(str, issue['loc'])),
+                             'code': 'PLAN_FIELD_REQUIRED', 'message': issue['msg']})
     return gaps
 
 
@@ -481,12 +496,31 @@ def save_item(cs, actor, operation_id, kind, item):
             raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
         models = {'section': SectionPlan, 'object': InventoryObject, 'boundary': ScopeBoundary,
                   'reconciliation': PlanningReconciliation, 'details': PlanDetails, 'question': PlanningQuestion}
+        basis_binding = None
+        if kind == 'boundary' and 'customer_basis_anchor_id' in value:
+            from .commission_requirements import read_requirements
+            boundary = model_value(BoundaryInput, value, 'boundary').model_dump(mode='json')
+            record = read_requirements(cs, db=db)
+            anchors = {a['id']: a for a in record['payload']['anchors'] if a['kind'] == 'scope'}
+            identity = boundary.pop('customer_basis_anchor_id')
+            if identity not in anchors or (anchors[identity].get('parse_error') and identity not in record['payload'].get('parse_resolutions', {})):
+                reject('boundary.customer_basis_anchor_id', 'current_scope_anchor_required', anchors)
+            boundary['chainage_inputs'] = {key: boundary[key] for key in ('start_meter', 'end_meter')}
+            boundary['start_meter'], boundary['end_meter'] = metres(boundary['start_meter']), metres(boundary['end_meter'])
+            basis = anchors[identity]['source']
+            pins = [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
+            if len(pins) != 1 or cs._read(db, basis['source_ref'])['payload']['file_digest'] != pins[0]['file_digest']:
+                reject('boundary.customer_basis_anchor_id', 'requirement_source_pin_mismatch', anchors)
+            boundary['customer_basis'] = deepcopy(basis)
+            basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
+            value = boundary
+        resolutions = resolve_citations(cs, db, actor, value, kind)
         if kind in models:
-            value = models[kind].model_validate(value).model_dump(mode='json')
+            value = model_value(models[kind], value, kind).model_dump(mode='json')
         elif kind == 'substitution':
             if set(value) != {'section_id', 'substitution'} or not isinstance(value['section_id'], str) or not value['section_id'].strip():
                 raise ActionRejected('SECTION_SUBSTITUTION_TARGET_REQUIRED')
-            value['substitution'] = SourceSubstitution.model_validate(value['substitution']).model_dump(mode='json')
+            value['substitution'] = model_value(SourceSubstitution, value['substitution'], 'substitution').model_dump(mode='json')
         else:
             raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
         _validate_sources(cs, db, actor, value)
@@ -501,7 +535,7 @@ def save_item(cs, actor, operation_id, kind, item):
             draft['items'][kind][key] = value
             draft['revision'] += 1
             _set(db, DRAFT, draft)
-        return {'revision': draft['revision'], 'changed': changed}
+        return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions, 'customer_basis_binding': basis_binding}
     return cs.operation(actor, operation_id, request, save)
 
 
@@ -562,7 +596,7 @@ def request_requirements_checkpoint(workspace, operation_id=None, actor=None):
                    (a.get('parse_error') and a['id'] not in record['payload'].get('parse_resolutions', {})) or
                    a['id'] not in record['payload'].get('classifications', {})]
         if not pending:
-            raise ActionRejected('REQUIREMENT_RESOLUTION_NOT_NEEDED')
+            reject('requirements', 'no_pending_parse_or_classification')
         relative = 'outputs/requirements-checkpoint-' + digest(record['ref']) + '.md'
         description = 'Resolve commission requirements ' + digest(record['ref']) + '. Brief: ' + relative
         source_ids = [cs._read(db, p['ref'])['payload']['source_id'] for p in record['payload']['source_pins']]
@@ -684,29 +718,34 @@ def planning_tools(cs, actor):
         return link_convention(cs, actor(), operation_id, anchor_id, entry_id, interpretation)
     link.__name__ = 'link_convention'
 
-    def set_scope_boundary(operation_id: str, boundary: ScopeBoundary) -> dict:
-        """Save the contract boundary with its source and customer basis. Object inclusion remains a separate judgment."""
+    def set_scope_boundary(operation_id: str, boundary: BoundaryInput) -> dict:
+        """Save the boundary using document chainage or metres, an exact source quote, and a scope requirement anchor ID. Unique quotes get recorded source locators automatically. Object inclusion remains a separate judgment."""
         return save_item(cs, actor(), operation_id, 'boundary', boundary.model_dump(mode='json'))
 
     def set_planning_details(operation_id: str, details: PlanDetails) -> dict:
         """Save the commissioned inventory attribute names and deliverables; this does not submit or approve a plan."""
         return save_item(cs, actor(), operation_id, 'details', details.model_dump(mode='json'))
 
-    def add_object(operation_id: str, object: InventoryObject) -> dict:
+    def add_object(operation_id: str, object: PlanningInventoryObject) -> dict:
         """Add or revise one discovered object by its stable ID, retaining sources, unknowns and exclusion reasons. Only the owner approves reductions."""
         return save_item(cs, actor(), operation_id, 'object', object.model_dump(mode='json'))
 
     def add_section(operation_id: str, section_id: str, title: str, kind: Literal['fixed', 'extracted', 'derived'],
-                    outline_anchor_id: str, source_span: SourceSpan | None = None, sources: list[SourceCitation] = [],
+                    outline_anchor_id: Annotated[str, Field(min_length=1, description='The section requirement ID returned by read_planning_draft for this section_id; use its ID, never its locator or heading text.')],
+                    source_span: Annotated[SourceSpan | None, Field(description='Reviewed source page/endpoint selector, required for fixed template sections. Mutually exclusive with sources. Its profile_id must be offered for this exact source_ref.')] = None,
+                    sources: Annotated[list[PlanningCitation], Field(description='Source citations for an extracted section (or derived evidence). Supply these and omit source_span; do not attach a template text profile to a design source.')] = [],
                     pending_sources: list[str] = [], derived_from: list[str] = [], rule: str = '',
                     result_bindings: list[ResultBinding] = [], replacements: list[LiteralReplacement] = [],
-                    source_views: list[SourceView] = [], examples: list[SourceCitation] = []) -> dict:
+                    source_views: list[SourceView] = [], examples: list[PlanningCitation] = []) -> dict:
         """Save one outline section. Fixed text uses template page/end-sentence selectors; the system extracts it. Derived summaries bind saved result fields and their producing section IDs. No model-written fixed body or proof is accepted."""
         from .commission_requirements import read_requirements
-        anchor = next((a for a in read_requirements(cs)['payload']['anchors'] if a['id'] == outline_anchor_id and
+        available_anchors = read_requirements(cs)['payload']['anchors']
+        anchor = next((a for a in available_anchors if a['id'] == outline_anchor_id and
                        a['kind'] == 'section' and a['section_id'] == section_id), None)
         if not anchor:
-            raise ActionRejected('SECTION_OUTLINE_ANCHOR_REQUIRED')
+            reject('outline_anchor_id', 'SECTION_OUTLINE_ANCHOR_REQUIRED',
+                   [a['id'] for a in available_anchors if a['kind'] == 'section' and a['section_id'] == section_id],
+                   message='Choose the returned section requirement ID matching section_id. A source locator or heading text is not an anchor ID.')
         if kind == 'fixed' and source_span is None:
             raise ActionRejected('FIXED_SECTION_SOURCE_SPAN_REQUIRED')
         value = {'section_id': section_id, 'title': title, 'kind': kind, 'outline': anchor['source'],
@@ -717,17 +756,19 @@ def planning_tools(cs, actor):
                  'examples': [e.model_dump(mode='json') for e in examples]}
         if source_span:
             if sources:
-                raise ActionRejected('SOURCE_SPAN_OR_CITATIONS_REQUIRED')
+                reject('sources', 'SOURCE_SPAN_OR_CITATIONS_REQUIRED', ['source_span', 'sources'],
+                       related_fields=['source_span'],
+                       message='Choose one source mode. For extracted sections, supply sources and omit source_span. For fixed sections, use the reviewed template source_span and omit sources; the system produces the canonical citations.')
             value['source_span'] = source_span.model_dump(mode='json')
         else:
             value['sources'] = [s.model_dump(mode='json') for s in sources]
         return save_item(cs, actor(), operation_id, 'section', value)
 
-    def add_substitution(operation_id: str, section_id: str, substitution: SourceSubstitution) -> dict:
+    def add_substitution(operation_id: str, section_id: str, substitution: PlanningSubstitution) -> dict:
         """Save a proposed document replacement for one section, with the customer's exact permission and source evidence. Requires final owner confirmation."""
         return save_item(cs, actor(), operation_id, 'substitution', {'section_id': section_id, 'substitution': substitution.model_dump(mode='json')})
 
-    def add_reconciliation(operation_id: str, reconciliation: PlanningReconciliation) -> dict:
+    def add_reconciliation(operation_id: str, reconciliation: PlanningReconciliationInput) -> dict:
         """Add or revise one source comparison by its stable ID; preserve factual differences and the proposed interpretation."""
         return save_item(cs, actor(), operation_id, 'reconciliation', reconciliation.model_dump(mode='json'))
 
@@ -735,8 +776,8 @@ def planning_tools(cs, actor):
         """Add, revise or mark answered one question by stable ID. This records planning progress, not an owner authorization."""
         return save_item(cs, actor(), operation_id, 'question', question.model_dump(mode='json'))
 
-    return [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
-            add_object, add_section, add_substitution, add_reconciliation, add_question]
+    return [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
+            add_object, add_section, add_substitution, add_reconciliation, add_question]]
 
 
 def install_prepared_planning(cs, source_refs):

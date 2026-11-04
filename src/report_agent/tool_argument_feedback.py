@@ -41,11 +41,15 @@ def compact_native_tool_error(message, store, *, args=None, schema=None):
         if not isinstance(schema, dict):
             from .errors import ActionRejected
             from .message_fields import validate_message
+            from .planning_inputs import PLANNING_TOOLS, model_value
             try:
-                validate_message(schema, deepcopy(args))
+                if message.name in PLANNING_TOOLS:
+                    model_value(schema, deepcopy(args))
+                else:
+                    validate_message(schema, deepcopy(args))
             except ActionRejected as error:
-                # ToolNode filters root-level validator errors out of its text.
-                if any(field['field'] == [] for field in error.diagnostic['fields']):
+                # Planning failures retain nested field paths as well as root rules.
+                if message.name in PLANNING_TOOLS or any(field['field'] == [] for field in error.diagnostic['fields']):
                     diagnostic = error.diagnostic
     return message.model_copy(update={'content': encode({
         'ok': False, 'code': 'NATIVE_TOOL_VALIDATION_ERROR',
