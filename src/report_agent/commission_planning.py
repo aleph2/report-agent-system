@@ -431,6 +431,8 @@ def _assemble(cs, db):
             if role in plan['table_specs'] and plan['table_specs'][role] != table:
                 raise ActionRejected('PLANNING_TABLE_LINK_CONFLICT: ' + role)
             plan['table_specs'][role] = deepcopy(table)
+    from .commission_owner_records import decorate_plan
+    plan = decorate_plan(cs, db, plan)
     for substitution in items.get('substitution', {}).values():
         section = next((s for s in plan['sections'] if s['section_id'] == substitution['section_id']), None)
         if section:
@@ -509,6 +511,8 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
             'text_profiles': list(_state(db, 'commission_text_profiles', {}).items()),
             'gaps': [(str(i), g) for i, g in enumerate(gaps)],
         }
+        collections.update(sections=[(s['section_id'], s) for s in plan['sections']],
+                           objects=[(o['object_id'], o) for o in plan['objects']])
     current = digest({'revision': draft['revision'], 'requirements_ref': requirements['ref'], 'collections': collections})
     if view_ref and view_ref != current:
         reject('view_ref', 'PLANNING_VIEW_CHANGED', [current], message='Reread summary; do not combine different draft versions.')
@@ -597,6 +601,12 @@ def save_item(cs, actor, operation_id, kind, item):
             boundary['customer_basis'] = deepcopy(basis)
             basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
             value = boundary
+        from .commission_owner_records import KEY, decorate_plan, refuse
+        if _state(db, KEY):
+            if kind == 'section':
+                value = decorate_plan(cs, db, {'sections': [value], 'objects': []})['sections'][0]
+            if kind == 'substitution' and not value.get('substitution', {}).get('document_id'):
+                refuse(value.get('section_id'), 'source_substitutions', value.get('substitution', {}).get('requested_source', 'unknown'), 'document ID required')
         resolutions = resolve_citations(cs, db, actor, value, kind)
         if kind in models:
             value = model_value(models[kind], value, kind).model_dump(mode='json')

@@ -137,6 +137,11 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 collect_body(child)
         collect_body(snapshot['payload']['root_ref'])
         issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
+        from .commission_owner_records import frozen_material_issues
+        owner_issues = frozen_material_issues(contents, snapshot, records)
+        if {i.id for _, i in issue_records} & {i.id for i in owner_issues}:
+            raise ActionRejected('OWNER_OPEN_FACT_IS_SYSTEM_OWNED')
+        issue_records += [(snapshot['payload']['root_ref'], issue) for issue in owner_issues]
         validate_required_issues(contents, db, snapshot, records, issue_records)
         from .g3_export import prepare_export, citation_text
         selected_layout = prepare_export(contents, snapshot, records, rendered_keys, selected_layout)
@@ -154,7 +159,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                          "layout_engine_digest": hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
                          "material_issue_ids": [issue.id for _, issue in issue_records],
                          "helper_digests": {name: hashlib.sha256(Path(__file__).with_name(name + '.py').read_bytes()).hexdigest()
-                                            for name in ('g3_export', 'material_issues')},
+                                            for name in ('g3_export', 'material_issues', 'commission_owner_records')},
                          "layout": options.model_dump()}
         if layout_from_export_ref is not None:
             export_config['layout_source'] = {'export_ref': layout_from_export_ref,
@@ -379,6 +384,11 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 if not (depth == 0 and child in title_pages):
                     emit(child, depth + 1)
         emit(snapshot["payload"]["root_ref"], 0)
+        if owner_issues:
+            doc.add_paragraph("业主范围决定", "Heading 1")
+            for issue in owner_issues:
+                paragraph = doc.add_paragraph(issue.adopted_value)
+                doc.add_comment(paragraph.runs, issue.comment(), author="工程资料澄清", initials="审")
         if end_notes:
             notes_heading = doc.add_paragraph('说明', 'Title')
             notes_heading.paragraph_format.keep_with_next = True

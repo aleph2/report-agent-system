@@ -76,6 +76,7 @@ class MethodConvention(Contract):
 
 class SourceSubstitution(Contract):
     # shortcut: replacements only; add a distinct resolution when an original document is later located.
+    document_id: str | None = Field(default=None, exclude_if=lambda v: v is None)
     requested_source: str = Field(min_length=1)
     replacement_sources: list[SourceCitation] = Field(min_length=1)
     customer_basis: SourceCitation
@@ -96,12 +97,21 @@ class SourceView(Contract):
         return self
 
 
+class MissingDocument(Contract):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    section_id: str = Field(min_length=1)
+    withdrawn_by: str | None = None
+
+
 class SectionPlan(Contract):
     section_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
     kind: Literal['fixed', 'extracted', 'derived']
     outline: SourceCitation
     sources: list[SourceCitation]
+    missing_documents: list[MissingDocument] = Field(default_factory=list, exclude_if=lambda v: not v)
+    notes: list[str] = Field(default_factory=list, exclude_if=lambda v: not v)
     pending_sources: list[str] = Field(default_factory=list,
         description='Retain named source obligations, including those resolved by a cited substitution; unresolved names block approval.')
     source_substitutions: list[SourceSubstitution] = Field(default_factory=list, exclude_if=lambda value: not value,
@@ -120,16 +130,24 @@ class SectionPlan(Contract):
 
     @model_validator(mode='after')
     def basis(self):
-        if not self.sources and not self.pending_sources:
+        if not self.sources and not self.pending_sources and not self.missing_documents and not self.notes:
             raise ValueError('SECTION_SOURCE_OR_PENDING_SOURCE_REQUIRED')
         if any(not name.strip() for name in self.pending_sources):
             raise ValueError('SECTION_PENDING_SOURCE_NAME_REQUIRED')
-        names = [s.requested_source for s in self.source_substitutions]
+        ids = [d.id for d in self.missing_documents]
+        if len(ids) != len(set(ids)) or any(d.section_id != self.section_id for d in self.missing_documents):
+            raise ValueError('SECTION_MISSING_DOCUMENT_ID_OR_SECTION_INVALID: ' + self.section_id)
+        names = [s.document_id or s.requested_source for s in self.source_substitutions]
         if len(set(self.pending_sources)) != len(self.pending_sources) or len(set(names)) != len(names):
             raise ValueError('SECTION_SOURCE_RESOLUTION_DUPLICATE')
         available = {(s.source_ref.key(), s.locator) for s in self.sources}
         for substitution in self.source_substitutions:
-            if substitution.requested_source not in self.pending_sources:
+            if substitution.document_id:
+                if substitution.document_id not in ids:
+                    raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_UNKNOWN: ' + self.section_id + '/source_substitutions/' + substitution.document_id)
+            elif self.missing_documents:
+                raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_ID_REQUIRED: ' + self.section_id + '/source_substitutions/' + substitution.requested_source)
+            if not substitution.document_id and substitution.requested_source not in self.pending_sources:
                 raise ValueError('SECTION_SUBSTITUTION_SOURCE_NOT_REQUESTED')
             if not substitution.customer_basis.quote.strip() or not substitution.reason.strip():
                 raise ValueError('SECTION_SUBSTITUTION_QUOTED_BASIS_REQUIRED')
@@ -166,6 +184,8 @@ class Reconciliation(Contract):
 
 
 class CommissionPlan(Contract):
+    owner_records_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    owner_records: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
     sections: list[SectionPlan] = Field(min_length=1)
     inventory_attributes: list[str] = Field(min_length=1,
@@ -354,8 +374,12 @@ def _set(db, key, value):
 
 
 def unresolved_sources(section):
+    if section.get('missing_documents'):
+        resolved = {s.get('document_id') for s in section.get('source_substitutions', [])}
+        return [f"{d['section_id']}/missing_documents/{d['id']}: {d['name']}" for d in section['missing_documents']
+                if d['id'] not in resolved and not d.get('withdrawn_by')]
     resolved = {s['requested_source'] for s in section.get('source_substitutions', [])}
-    return [name for name in section['pending_sources'] if name not in resolved]
+    return [name for name in section.get('pending_sources', []) if name not in resolved]
 
 
 def read_plan(store):
@@ -420,6 +444,9 @@ def required_material_issues(cs, db, plan_ref, plan):
             add(['inventory', obj['object_id'], attribute['name']], obj['label'], basis,
                 [v['source'] for v in values if v['source'] is not None],
                 '请确认' + attribute['name'] + '的采用值及其依据。')
+    from .commission_owner_records import material_issues
+    for issue in material_issues(cs, plan):
+        issues.append({k: v for k, v in issue.model_dump().items() if k in ('id','kind','object_label','basis','sources','question')})
     return issues
 
 
@@ -587,7 +614,9 @@ def save_plan(cs, actor, operation_id, plan):
         old = cs._read(db, old_ref) if old_ref else None
         current_sections = {s['section_id']: s for s in plan['sections']}
         for section in old['payload']['sections'] if old else []:
-            if not set(section['pending_sources']) <= set(current_sections.get(section['section_id'], {}).get('pending_sources', [])):
+            current = current_sections.get(section['section_id'], {})
+            retained = set(current.get('pending_sources', [])) | set(current.get('notes', []))
+            if not set(section['pending_sources']) <= retained:
                 raise ActionRejected('COMMISSION_SOURCE_OBLIGATION_MUST_BE_RETAINED')
         prior = {cs._read(db, r)['payload']['inventory_object']['object_id']: cs._read(db, r)
                  for r in old['payload']['inventory_refs']} if old else {}
@@ -728,6 +757,10 @@ def request_checkpoint(workspace):
             locations += '；待解决资料：' + '；'.join(unresolved_sources(section))
         kind = {'fixed': '固定内容', 'extracted': '资料提取', 'derived': '依据其他章节形成'}[section['kind']]
         lines.append(f"- {section['section_id']} {section['title']} — {kind}：{locations}")
+        for document in section.get('missing_documents', []):
+            status = ('业主已撤回：' + document['withdrawn_by'] if document.get('withdrawn_by') else
+                      '有引用替代，随计划审批' if any(s.get('document_id') == document['id'] for s in section.get('source_substitutions', [])) else '未解决')
+            lines.append(f"  资料义务：{document['id']} / {document['name']} / {status}")
         for view in section.get('source_views', []):
             lines.append(f"  原表呈现：第{view['page']}页，区域{view['crop']}；需核对裁剪完整性，原文仍逐字保留。")
     lines += ['', '## 资料替代', '']
@@ -739,6 +772,14 @@ def request_checkpoint(workspace):
             lines += [f"- 章节{section['section_id']}：{substitution['requested_source']} → {replacements}",
                       f"  客户原文依据（{title} / {basis['locator']}）：{basis['quote']}",
                       '  代理解释：' + substitution['reason']]
+    if plan.get('owner_records_digest'):
+        lines += ['', '## 业主决定（本计划仍待审批）', '']
+        for record in plan['owner_records']:
+            lines += [f"- {record['id']} / {record['kind']} / {record['target']}: {record['text']}",
+                      '  原因：' + record['reason'], '  记录值：' + encode(record['value'])]
+        lines += ['', '## 说明（不作为缺失资料义务）', '']
+        for section in plan['sections']:
+            lines += [f"- {section['section_id']}: {note}" for note in section.get('notes', [])]
     lines += ['', '## 交付物', '', *['- ' + item for item in plan['deliverables']], '', '## 客户约定', '']
     for convention in plan['conventions']:
         lines += ['- 客户原文：' + convention['source']['quote'], '  代理解释：' + convention['interpretation']]
@@ -889,8 +930,10 @@ def reply(workspace, issue_id, decision):
         reduced = [r['object_id'] for r in decision['reductions']]
         if len(set(reduced)) != len(reduced) or not set(reduced) <= {o['object_id'] for o in plan['objects']}:
             raise ActionRejected('COMMISSION_REDUCTION_OBJECT_INVALID')
+        from .commission_owner_records import effective_reductions
+        owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
         owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
-        accepted = {**decision, **({'required_material_issues': required_material_issues(
+        accepted = {**decision, 'reductions': owner_reductions, **({'required_material_issues': required_material_issues(
             cs, db, decision['plan_ref'], plan), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
         ref = cs._insert(db, owner, 'CommissionDecision', accepted)
         issue.update(decision=answer, decision_origin='operator', resolved=True)

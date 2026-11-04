@@ -52,6 +52,11 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
         members = {Ref.model_validate(r).key() for r in snapshot['payload']['refs']}
         records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot['payload']['refs']}
         issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
+        from .commission_owner_records import frozen_material_issues
+        owner_issues = frozen_material_issues(contents, snapshot, records)
+        if {i.id for _, i in issue_records} & {i.id for i in owner_issues}:
+            raise ActionRejected('OWNER_OPEN_FACT_IS_SYSTEM_OWNED')
+        issue_records += [(snapshot['payload']['root_ref'], issue) for issue in owner_issues]
         validate_required_issues(contents, db, snapshot, records, issue_records)
         from .g3_export import validate_export, citation_text
         validate_export(contents, snapshot, records)
@@ -244,7 +249,7 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
             'export_config': {'format': 'xlsx', 'sheets': sheets, 'report_expression_profile': expression, 'report_export_ref': report_export_ref,
                 'material_issue_ids': [issue.id for _, issue in issue_records],
                 'helper_digests': {name: hashlib.sha256(Path(__file__).with_name(name + '.py').read_bytes()).hexdigest()
-                                   for name in ('g3_export', 'material_issues')},
+                                   for name in ('g3_export', 'material_issues', 'commission_owner_records')},
                 'exporter_digest': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'layout_engine_digest': hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
                 **({'annotation_layout_unverified_rows': unverified_annotation_rows} if unverified_annotation_rows else {}),

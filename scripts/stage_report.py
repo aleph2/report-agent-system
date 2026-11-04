@@ -90,7 +90,8 @@ def stage(args):
         destination.mkdir()
         for path in files:
             if (path.is_symlink() or not path.resolve().is_relative_to(inputs)
-                    or path.suffix.lower() not in {'.pdf', '.md', '.docx'}
+                    or (path.suffix.lower() not in {'.pdf', '.md', '.docx'}
+                        and path.relative_to(inputs).as_posix() != 'owner-decisions.json')
                     or path.stat().st_size > config['input_max_bytes']):
                 raise ValueError('INPUT_ESCAPE_TYPE_OR_LIMIT')
             target = destination / path.relative_to(inputs)
@@ -113,6 +114,16 @@ def stage(args):
             shutil.copy2(path, target)
             if host['sha'](path) != host['sha'](target):
                 raise ValueError('TEMPLATE_CHANGED_DURING_COPY')
+        owner_path = getattr(args, 'owner_decisions', None)
+        if owner_path is not None:
+            owner_path = Path(owner_path)
+            target = destination / 'owner-decisions.json'
+            if (owner_path.is_symlink() or not owner_path.is_file() or target.exists()
+                    or owner_path.stat().st_size > config['input_max_bytes']):
+                raise ValueError('OWNER_DECISIONS_FILE_OR_DUPLICATE_INVALID')
+            shutil.copy2(owner_path, target)
+            if host['sha'](owner_path) != host['sha'](target):
+                raise ValueError('OWNER_DECISIONS_CHANGED_DURING_COPY')
         pins = host['input_files']()
         from pypdf import PdfReader
         from report_agent.ingestion import MAX_PDF_PAGES
@@ -153,6 +164,7 @@ def main():
     parser.add_argument('--inputs', required=True, type=Path, help='Independent original input directory')
     parser.add_argument('--template', dest='templates', action='append', default=[], type=Path,
                         help='Explicit optional template PDF; repeat for several. Copied and pinned under inputs/成果报告 without changing originals.')
+    parser.add_argument('--owner-decisions', type=Path, help='Explicit immutable owner-records JSON; copied and pinned as inputs/owner-decisions.json.')
     parser.add_argument('--run', required=True, type=Path, help='New independent run directory')
     parser.add_argument('--ledger', required=True, type=Path, help='New independent token-budget.db')
     parser.add_argument('--reuse-ledger', action='store_true', help='Explicitly reuse the same authorized M1 ledger')
