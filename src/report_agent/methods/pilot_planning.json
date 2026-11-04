@@ -1,8 +1,21 @@
 {
   "entries": [
-    {"id": "pilot-method-v2", "kind": "method", "label": "《指南》指标体系法"},
-    {"id": "pilot-assessment-tables-v1", "kind": "table", "label": "《指南》表3-2及模板排序、风险评价表"},
-    {"id": "pilot-weights-v2", "kind": "weight", "label": "《指南》表A.3-1", "strategy_id": "A.3-1"}
+    {
+      "id": "pilot-method-v2",
+      "kind": "method",
+      "label": "《指南》指标体系法"
+    },
+    {
+      "id": "pilot-assessment-tables-v1",
+      "kind": "table",
+      "label": "《指南》表3-2及模板排序、风险评价表"
+    },
+    {
+      "id": "pilot-weights-v2",
+      "kind": "weight",
+      "label": "《指南》表A.3-1",
+      "strategy_id": "A.3-1"
+    }
   ],
   "review_note": "G4 H2 source-bound pilot classifications; reviewed against the current scope and outline, subject to owner plan confirmation.",
   "classifications": [
@@ -463,5 +476,58 @@
       "page_number_position": "header",
       "join_lines": "paragraph"
     }
-  ]
+  ],
+  "skeleton": {
+    "deliverables": [
+      "Word",
+      "Excel"
+    ],
+    "documents": [
+      {
+        "id": "first-volume-general-design-notes",
+        "name": "第一册第一分册 施工图总说明",
+        "mentions": [
+          "施工图总说明"
+        ]
+      }
+    ],
+    "derived": {
+      "5": {
+        "derived_from": [
+          "4"
+        ],
+        "rule": "保留来源约束的5.1通用说明与5.5建议；5.2至5.4全部旧项目叙述及表格由第4章本次纳入对象的已保存评估结果重新生成。5.3列出全部11项指标的重要性排序，不虚构重要指标子集；专项评估按Ⅲ级及以上或单项指标达到最大分值筛选。",
+        "result_bindings": [],
+        "template": true,
+        "composition": [
+          {
+            "section_id": "5.1",
+            "kind": "source"
+          },
+          {
+            "section_id": "5.2",
+            "kind": "assessment_summary"
+          },
+          {
+            "section_id": "5.3",
+            "kind": "indicator_list"
+          },
+          {
+            "section_id": "5.4",
+            "kind": "special_assessments"
+          },
+          {
+            "section_id": "5.5",
+            "kind": "source"
+          }
+        ]
+      }
+    },
+    "inventory_attributes": [
+      "起讫桩号及位置（含左右侧）",
+      "长度（m）",
+      "边坡最大高度（m）",
+      "工程类型"
+    ]
+  }
 }

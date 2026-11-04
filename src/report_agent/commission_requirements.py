@@ -293,10 +293,14 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
             return check_plan(cs, plan, requirements_ref, db=connection)
     from .commission_owner_records import validate_owner_records
     validate_owner_records(cs, db, plan)
+    from .commission_skeleton import validate_skeleton, disposition_gaps
+    validate_skeleton(cs, db, plan)
     record = read_requirements(cs, requirements_ref, db=db)
     anchors = record['payload']['anchors']
     items = {i['anchor_id']: i for i in record['payload']['items']}
-    gaps = []
+    gaps = disposition_gaps(cs, db, plan)
+    for q in (_state(db, 'commission_skeleton') or {}).get('questions', []):
+        gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + q['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': q['reason']})
     def gap(anchor, path, code, message):
         gaps.append({'anchor_id': anchor['id'], 'path': path, 'code': code, 'message': message})
     for pin in record['payload']['source_pins']:
@@ -377,7 +381,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                 if capability == 'fixed_text':
                     missing = missing or section.get('kind') != 'fixed' or not section.get('sources')
                 if capability == 'result_bindings':
-                    missing = (missing or not section.get('result_bindings') or not section.get('derived_from')
+                    missing = (missing or not (section.get('result_bindings') or section.get('result_composition')) or not section.get('derived_from')
                                or not set(section.get('derived_from', [])) <= sections.keys()
                                or identity in section.get('derived_from', []))
                 if capability in ('fixed_text', 'result_bindings'):

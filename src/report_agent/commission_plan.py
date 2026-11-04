@@ -36,6 +36,18 @@ class ResultBinding(Contract):
         return self
 
 
+class ResultComposition(Contract):
+    section_id: str = Field(min_length=1)
+    kind: Literal['source', 'assessment_summary', 'indicator_list', 'special_assessments']
+    text: str = ''
+
+    @model_validator(mode='after')
+    def source_only(self):
+        if (self.kind == 'source') != bool(self.text.strip()):
+            raise ValueError('COMPOSITION_SOURCE_TEXT_ONLY')
+        return self
+
+
 class ScopeBoundary(Contract):
     start_meter: str
     end_meter: str
@@ -121,6 +133,7 @@ class SectionPlan(Contract):
     substitutions: list[str] = Field(default_factory=list)
     replacements: list[LiteralReplacement] = Field(default_factory=list, exclude_if=lambda value: not value)
     result_bindings: list[ResultBinding] = Field(default_factory=list, exclude_if=lambda value: not value)
+    result_composition: list[ResultComposition] = Field(default_factory=list, exclude_if=lambda value: not value)
     source_views: list[SourceView] = Field(default_factory=list, exclude_if=lambda value: not value,
         description='Fixed source-table excerpts rendered from the cited PDF region; quotes remain canonical. Review crop completeness in the existing checkpoint/layout review.')
     derived_from: list[str] = Field(default_factory=list)
@@ -159,6 +172,10 @@ class SectionPlan(Contract):
             raise ValueError('FIXED_SECTION_TEXT_REQUIRED')
         if self.kind == 'derived' and (not self.derived_from or not self.rule.strip()):
             raise ValueError('DERIVED_SECTION_RULE_REQUIRED')
+        if self.result_composition:
+            ids = [part.section_id for part in self.result_composition]
+            if self.kind != 'derived' or self.result_bindings or len(ids) != len(set(ids)):
+                raise ValueError('COMPOSITION_DERIVED_UNIQUE_NO_LITERAL_BINDINGS')
         last = -1
         for view in self.source_views:
             if self.kind != 'fixed' or view.source_indexes[0] <= last or view.source_indexes[-1] >= len(self.sources):
@@ -184,6 +201,9 @@ class Reconciliation(Contract):
 
 
 class CommissionPlan(Contract):
+    skeleton_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    skeleton_questions: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
+    candidate_dispositions: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     owner_records_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
     owner_records: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -804,13 +824,18 @@ def request_checkpoint(workspace):
     lines += ['', '## 待确认问题', '', *['- ' + item for item in plan['open_questions']]]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    brief_artifacts = {}
+    if plan.get('skeleton_digest'):
+        from .commission_brief import write_brief
+        brief_artifacts = write_brief(cs, plan, requirements, access, ref, path, lines)
     description = 'Confirm commission plan ' + digest(ref) + '. Brief: ' + str(path.relative_to(workspace.store.root))
     source_ids = list(dict.fromkeys(cs.read(c['source_ref'])['payload']['source_id'] for c in _citations(plan)))
     issue = workspace.issue('requirement', description, source_ids)
     requirement_binding = {'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}
-    workspace.store.set('commission_checkpoint:' + issue['id'], {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root))})
+    workspace.store.set('commission_checkpoint:' + issue['id'], {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)), **brief_artifacts})
     path.with_suffix('.json').write_text(json.dumps({'issue_id': issue['id'], 'plan_ref': ref, 'source_access': access,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
+        **brief_artifacts, 'plan_sha256': digest(plan),
         'decision_shape': {'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': []},
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')
     return {'issue_id': issue['id'], 'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)),
@@ -930,6 +955,10 @@ def reply(workspace, issue_id, decision):
         reduced = [r['object_id'] for r in decision['reductions']]
         if len(set(reduced)) != len(reduced) or not set(reduced) <= {o['object_id'] for o in plan['objects']}:
             raise ActionRejected('COMMISSION_REDUCTION_OBJECT_INVALID')
+        if decision['approved'] and plan.get('skeleton_digest'):
+            proposed = {d['object_id'] for d in plan.get('candidate_dispositions', []) if d['status'] == 'proposed_exclusion'}
+            if not proposed <= set(reduced):
+                raise ActionRejected('COMMISSION_CANDIDATE_DECISION_REQUIRED: ' + ', '.join(sorted(proposed - set(reduced))))
         from .commission_owner_records import effective_reductions
         owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
         owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)

@@ -399,9 +399,9 @@ def create_planned_section(cs, actor, operation_id, section_id, assessment_refs=
             bound[obj] = record['payload']['result']
             receipts.append(receipt)
         slots = section.get('result_bindings', [])
-        aggregate = any(s['field'] in ('object_count', 'level_count') for s in slots)
+        aggregate = bool(section.get('result_composition')) or any(s['field'] in ('object_count', 'level_count') for s in slots)
         referenced_objects = {s['object_id'] for s in slots if s['object_id'] is not None}
-        if section['kind'] == 'derived' and (not slots or (not aggregate and referenced_objects != set(bound)) or not referenced_objects <= set(bound)):
+        if section['kind'] == 'derived' and (not (slots or section.get('result_composition')) or (not aggregate and referenced_objects != set(bound)) or not referenced_objects <= set(bound)):
             raise ActionRejected('PLANNED_SECTION_RESULT_BINDINGS_REQUIRED')
         if aggregate:
             _, decision = _confirmed(cs, db)
@@ -412,6 +412,27 @@ def create_planned_section(cs, actor, operation_id, section_id, assessment_refs=
             levels = {b['level'] for b in plan['payload']['method_pack']['risk_bands']}
             if any(s['field'] == 'level_count' and s['level'] not in levels for s in slots):
                 raise ActionRejected('PLANNED_SECTION_UNKNOWN_LEVEL')
+        if section.get('result_composition'):
+            from .commission_results import composed_nodes
+            from .commission_plan import _set
+            nodes = composed_nodes(plan['payload'], section, bound)
+            root = ContentNode.model_validate({'kind': 'block', 'body': {'text': section['section_id'] + ' ' + section['title'],
+                'section_id': section_id}, 'qualifiers': {}, 'claim_kind': 'structure', 'citations': section['sources']}).model_dump(mode='json')
+            all_nodes = [root, *nodes]
+            for node in all_nodes:
+                node['body'].update(planned_section=True, commission_plan_ref=plan['ref'], assessment_refs=list(assessment_refs))
+            refs = [cs._insert(db, actor, 'ContentNode', node) for node in all_nodes]
+            relations = [cs._insert(db, actor, 'Relation', {'subject_ref': refs[0], 'object_ref': ref,
+                'predicate': 'contains', 'position': n, 'provenance_kind': 'adopted_during_generation'}) for n, ref in enumerate(refs[1:])]
+            for ref, node in zip(refs, all_nodes):
+                receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
+                    'section_id': section_id, 'body_digest': digest(node['body']), 'composition_digest': digest(section['result_composition']),
+                    'group_ref': refs[0]}
+                if ref == refs[0]:
+                    receipt['node_refs'] = refs
+                _set(db, 'planned_section_receipt:' + digest(ref), receipt)
+            return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
+                **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
         if section['kind'] == 'fixed' and (slots or assessment_refs):
             raise ActionRejected('FIXED_SECTION_CANNOT_INSERT_UNDECLARED_RESULTS')
         for slot in slots:

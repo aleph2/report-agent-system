@@ -122,6 +122,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
     problems, sections = [], {s['section_id']: s for s in plan['sections']}
     texts = {s: [] for s in sections}
     selected_assessments = set()
+    composition_groups = {sid: set() for sid, section in sections.items() if section.get('result_composition')}
     outcomes = snapshot['payload'].get('commission_outcome_refs', [])
     if cs is not None:
         for outcome_ref in outcomes:
@@ -207,8 +208,17 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             if (not receipt or receipt.get('node_ref') != records[key]['ref']
                     or receipt.get('commission_plan_ref') != snapshot['payload']['commission_plan_ref']
                     or receipt.get('section_id') != sid
-                    or receipt.get('text_digest') != digest(body.get('text'))):
+                    or (receipt.get('body_digest') != digest(body) or receipt.get('composition_digest') != digest(section['result_composition'])
+                        if section.get('result_composition') else receipt.get('text_digest') != digest(body.get('text')))):
                 problems.append(location + ': derived section receipt mismatch')
+            elif section.get('result_composition'):
+                composition_groups[sid].add(digest(receipt.get('group_ref')))
+                group = cs.store.get('planned_section_receipt:' + digest(receipt.get('group_ref')))
+                expected = [_key(r) for r in (group or {}).get('node_refs', [])]
+                if not expected or any(k not in selected for k in expected) or [k for k in ordered if k in expected] != expected:
+                    problems.append(location + ': derived composition incomplete or reordered')
+                if outcomes and any(_key(r) not in selected_assessments for r in receipt.get('assessment_refs', [])):
+                    problems.append(location + ': derived assessment not selected by frozen outcomes')
             elif outcomes and any(_key(r) not in selected_assessments for r in receipt.get('assessment_refs', [])):
                 problems.append(location + ': derived assessment not selected by frozen outcomes')
         if section['kind'] == 'fixed':
@@ -223,6 +233,8 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 problems.append(location + ': extracted section must cite its planned sources')
     from .commission_plan import fixed_section_text
     for sid, section in sections.items():
+        if section.get('result_composition') and len(composition_groups[sid]) != 1:
+            problems.append(sid + ': exactly one complete derived composition required')
         if section['kind'] == 'fixed':
             try:
                 expected = fixed_section_text(section)

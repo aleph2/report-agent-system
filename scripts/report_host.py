@@ -165,6 +165,7 @@ def prepare():
  planning_preparation=install_prepared_planning(contents,[*captured,*prepared_refs])
  requirements_ref=planning_preparation['requirements_ref']
  owner_records_digest=None
+ skeleton_digest=None
  if 'owner-decisions.json' in pins:
   from report_agent.commission_owner_records import install_owner_records
   owner_refs=contents.capture_sources(Actor('host','host','owner-record-sources'),'host-owner-record-sources',ids)['result']['source_refs']
@@ -173,12 +174,15 @@ def prepare():
   owner_bytes=(INPUT/'owner-decisions.json').read_bytes()
   if hashlib.sha256(owner_bytes).hexdigest()!=pins['owner-decisions.json']:raise RuntimeError('OWNER_RECORDS_CHANGED_DURING_PREPARE')
   owner_records_digest=install_owner_records(contents,json.loads(owner_bytes),list(by_hash.values()))
+  from report_agent.commission_skeleton import prepare_skeleton
+  skeleton=prepare_skeleton(contents,list(by_hash.values()))
+  requirements_ref=skeleton["requirements_ref"];skeleton_digest=skeleton["digest"]
  from report_agent.blob_store import verify_case_blobs
  verify_case_blobs(CASE)
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
     "source_ids":ids,"source_files":inputs,"format_references":references,"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
-    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"owner_records_digest":owner_records_digest,"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
+    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"owner_records_digest":owner_records_digest,"skeleton_digest":skeleton_digest,"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
     "authority":load(HERE/"authorization.json")["authority"],
     "financial_authority_path":str(LEDGER),"m1_token_limit":TOTAL_LIMIT,"ledger_baseline":ledger_baseline,"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",

@@ -125,7 +125,7 @@ def install_owner_records(cs, bundle, source_refs):
             if previous['digest'] != fingerprint:
                 refuse(None, 'registry', fingerprint, 'owner records are immutable')
             return fingerprint
-        if _state(db, 'commission_plan') or _state(db, 'commission_confirmation') or _state(db, 'commission_planning_draft', {}).get('revision'):
+        if _state(db, 'commission_skeleton') or _state(db, 'commission_plan') or _state(db, 'commission_confirmation') or _state(db, 'commission_planning_draft', {}).get('revision'):
             refuse(None, 'registry', fingerprint, 'fresh preparation required')
         from .hierarchical_tools import actor_for
         _validate_sources(cs, db, actor_for('coordinator'), bundle)
@@ -145,15 +145,20 @@ def _registry(cs, db):
     return record
 
 
-def _documents(bundle, section_id):
+def _documents(bundle, section_id, skeleton=None):
     withdrawals = {r['target']: r['id'] for r in bundle['records'] if r['kind'] == 'withdrawal'}
     return [dict(id=d['id'], name=d['name'], section_id=section_id, withdrawn_by=withdrawals.get(d['id']))
-            for d in bundle['documents'] if section_id in d['section_ids']]
+            for d in (skeleton['documents'] if skeleton else bundle['documents']) if section_id in d['section_ids']]
 
 
 def decorate_plan(cs, db, plan):
     record = _registry(cs, db)
     if not record:
+        skeleton = _state(db, 'commission_skeleton')
+        if skeleton:
+            plan = deepcopy(plan)
+            for section in plan.get('sections', []):
+                section['missing_documents'] = _documents({'records': [], 'documents': []}, section['section_id'], skeleton)
         return plan
     result = deepcopy(plan);bundle = record['bundle']
     result.update(owner_records_digest=record['digest'], owner_records=deepcopy(bundle['records']))
@@ -164,7 +169,7 @@ def decorate_plan(cs, db, plan):
         sid = section['section_id']
         section['notes'] = list(dict.fromkeys([*section.get('notes', []), *section.get('pending_sources', [])]))
         section['pending_sources'] = []
-        section['missing_documents'] = _documents(bundle, sid)
+        section['missing_documents'] = _documents(bundle, sid, _state(db, 'commission_skeleton'))
         # Historical string-keyed replacements are history, never authority in the new contract.
         current = {s['document_id']: s for s in section.get('source_substitutions', []) if s.get('document_id')}
         current.update({s['document_id']: {k: deepcopy(v) for k, v in s.items() if k != 'section_id'}
@@ -181,7 +186,7 @@ def validate_owner_records(cs, db, plan):
     registry = _registry(cs, db)
     typed = plan.get('owner_records_digest') or plan.get('owner_records') or any(s.get('missing_documents') for s in plan.get('sections', []))
     if not registry:
-        if typed:
+        if typed and not (_state(db, 'commission_skeleton') and not plan.get('owner_records_digest') and not plan.get('owner_records')):
             refuse(None, 'owner_records', 'unbound', 'trusted registry required')
         return
     bundle = registry['bundle']
@@ -189,10 +194,10 @@ def validate_owner_records(cs, db, plan):
         refuse(None, 'owner_records', registry['digest'], 'binding mismatch')
     sections = {s['section_id']: s for s in plan.get('sections', [])}
     for sid, section in sections.items():
-        if section.get('missing_documents', []) != _documents(bundle, sid) or section.get('pending_sources'):
+        if section.get('missing_documents', []) != _documents(bundle, sid, _state(db, 'commission_skeleton')) or section.get('pending_sources'):
             refuse(sid, 'missing_documents', 'registry', 'retain ID-based documents; legacy text belongs in notes')
         for sub in section.get('source_substitutions', []):
-            if not sub.get('document_id') or sub['document_id'] not in {d['id'] for d in _documents(bundle, sid)}:
+            if not sub.get('document_id') or sub['document_id'] not in {d['id'] for d in _documents(bundle, sid, _state(db, 'commission_skeleton'))}:
                 refuse(sid, 'source_substitutions', sub.get('document_id') or sub['requested_source'], 'registered document ID required')
     objects = {o['object_id']: o for o in plan.get('objects', [])}
     for record in bundle['records']:

@@ -777,7 +777,8 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     def materialize_planned_section(operation_id: str, section_id: str, assessment_refs: list[Ref]) -> dict:
         """Copy a fixed/derived section from its approved source spans and result slots.
 
-        Use no assessment refs for fixed text. Derived summary slots insert only saved
+        Use no assessment refs for fixed text. Derived compositions return an ordered section
+        tree with sealed tables; include all returned refs. Derived summary slots insert only saved
         calculations, including the same level qualification used in the assessment.
         No rewording or template score reuse is performed.
         """
