@@ -220,6 +220,11 @@ def test_checkpoint_lists_every_proposed_candidate_and_evidence_locations(draft_
     fixture.plan['objects'].append(extra)
     fixture.plan['reconciliations'].append({'sources': [cited(4), cited(5)],
         'result': 'The two source accounts remain available for owner review.', 'differences': []})
+    # H3.1 requires a verified direct return before an agent proposes this exclusion.
+    source_id = fixture.cs.read(ref)['payload']['source_id']
+    returned = Catalog(fixture.ws.store).read(source_id, 1, 1)
+    assert returned['blocks'][0]['locator'] == cited(2)['locator']
+    issue(fixture.ws, fixture.co, 'read_source_page', json.dumps(returned), block_material(returned))
     save_draft_parts(fixture)
     saved = planning().submit_plan(fixture.cs, fixture.co, 'h3-proposed-inventory')
     checkpoint = api().request_checkpoint(fixture.ws)

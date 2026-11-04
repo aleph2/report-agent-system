@@ -15,7 +15,7 @@ def _payload_digests(source):
     return {digest(ContentStore.source_payload({**source, 'current': current})) for current in (True, False)}
 
 
-def coverage(cs, plan):
+def coverage(cs, plan, *, include_page_totals=True):
     """No reading gate or new ledger: return metadata about actual tool returns."""
     from .commission_plan import _citations
     workspace = SimpleNamespace(store=cs.store)
@@ -34,7 +34,7 @@ def coverage(cs, plan):
         expected = _payload_digests(source)
         refs = [a['ref'] for a in artifacts if digest(a['payload']) in expected]
         count, status = None, 'physical_pages_unavailable'
-        if source.get('filename', '').lower().endswith('.pdf'):
+        if include_page_totals and source.get('filename', '').lower().endswith('.pdf'):
             try:
                 _, _, _, count = _pdf_page(workspace, source_id, 1)
                 status = 'verified_original_pdf'

@@ -1077,3 +1077,35 @@ case access was read-only for explicit evidence import into independent storage;
 no financial store was opened, reservation changed or historical provider request
 redispatched. No paid call or report restart occurred. Publish the H3 review tag,
 then wait for owner review and separate restart approval; inbox polling stays stopped.
+
+
+## G4 H3.1 Option A — 2026-11-03
+
+Owner approved H3 and requested a small shared exclusion-evidence check. Main added
+it to the existing completeness path using verified receipt coverage, without PDF
+page-count I/O for the check. Each false candidate must cite a directly returned
+page from the exact source version. Search/helper inputs cannot satisfy it. Unread
+candidates remain included until an explicit owner reduction, whose ID/label/reason
+are now shown in the confirmation checklist. No new override or agent permission.
+
+Neo authored 38 new cases plus the single authorized H3 receipt fixture migration;
+Main implemented/executed and owns Git. Read-only alignment review endorsed this
+boundary. Final affected06: 584 passed / 0 failed / 0 skipped, 23 modules; 1,752
+phase rows and JUnit agree, all 1,279 worktree/native snapshot pins unchanged.
+Three mounted-Windows native-script timeouts remain preserved. The exact script
+passed in both baseline-H3 and current-H3.1 native source controls under unchanged
+deadlines. Other nine H3 nodes passed separately; no combined whole-module/full-
+suite pass is claimed. P3 timing root cause is unknown, contained for offline
+publication by explicit successful native mechanics and bounded affected coverage.
+
+The 13 public stopped-attempt payloads were imported with exact hashes, disclosed
+source-reference mapping and 120 verified receipt/body rows into independent storage.
+The previously accepted SLOPE-TBL-2 exclusion receives the new explicit page-96 gap.
+No old runtime/financial database access, provider calls, report restart or owner
+confirmation occurred. Snapshot harness Chinese-path failure before pytest is
+preserved separately from product tests. Full evidence/limits and actual skill
+steps: docs/m1-g4-h31-verification.md and .analysis/m1-g4-h31-20261103/.
+
+Owner authorized tag/push and one completion email. H3.1 review precedes fresh
+report staging, budget/model checks and separately approved restart. Polling stays
+stopped; scope remains frozen. Other H3 P3 display/query suggestions stay deferred.
