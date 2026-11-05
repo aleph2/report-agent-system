@@ -5,7 +5,7 @@ from pydantic import Field, ValidationError
 
 from .calculations import sum_products
 from .content_models import Contract, SourceCitation
-from .errors import ActionRejected
+from .errors import ActionForbidden, ActionRejected
 from .method_pack import MethodPack, number
 
 
@@ -329,6 +329,11 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
     if problems:
         raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(problems))
     validate_indicator_sources(cs, db, actor, plan, section_id, candidate['indicators'])
+    if task.get('assessment_object_id') is not None:
+        producer_key = 'g6_assessment_producer:' + digest([plan['ref'], candidate['object_id']])
+        producer = _state(db, producer_key) or _state(db, 'g6_assessment:' + digest([plan['ref'], candidate['object_id']]))
+        if producer and cs._read(db, producer)['owner_id'] != actor.id:
+            raise ActionForbidden('FORBIDDEN: assessment producer ownership')
     index = plan['payload']['objects'].index(obj) + 1
     parts = section_id.split('.')
     table_prefix = '.'.join((parts + ['2'])[:2] + [str(index)])
@@ -408,6 +413,8 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
                          *['relation' + str(n) for n in range(len(relations))]],
                         [assessment_ref, evidence_ref, *generated, *relations]))}
     _set(db, 'assessment_receipt:' + digest(assessment_ref), receipt)
+    if task.get('assessment_object_id') is not None:
+        _set(db, producer_key, producer or assessment_ref)
     from .section_writing import enabled as system_writing
     if system_writing(cs.store):
         _set(db, 'g6_assessment:' + digest([plan['ref'], candidate['object_id']]), assessment_ref)
