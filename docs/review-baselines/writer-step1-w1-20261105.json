@@ -1,0 +1,102 @@
+{
+  "stage": "W1 implementation ready for owner review; no rescue launch",
+  "at_utc": "2026-11-05T23:26:38.558696+00:00",
+  "baseline_tag": "g5-stopped-rescue-w-baseline-20261105",
+  "code_head": "f89068b8eb26a383df1223458657ee58c07e5de4",
+  "source_commits": [
+    "4ca0de68bcb28fc3dd6a8f336c4f5c1e6439452a",
+    "b80feb0c7729f199bb30e32ef6daacd5ea08c4b6",
+    "b15faf1eeef7259c5121bc0232d2369ddf3f880e",
+    "2064d0b2469a6a76396d83706a9b272fb69d9b0f",
+    "f89068b8eb26a383df1223458657ee58c07e5de4"
+  ],
+  "focused_tests": {
+    "passed": 115,
+    "seconds": 28.62
+  },
+  "full_suite": {
+    "started_utc": "2026-11-05T22:50:03.323207+00:00",
+    "finished_utc": "2026-11-05T23:22:50.755741+00:00",
+    "execution": "Full suite in four isolated Linux Python processes using existing guarded runner; exact node-set reconciliation against fresh default collection",
+    "coverage": {
+      "expected": 5552,
+      "executed_collection": 5552,
+      "missing": [],
+      "extra": [],
+      "duplicate_nodes": 0
+    },
+    "passed": 5541,
+    "failed_phases": 2,
+    "source_changes_during_test": []
+  },
+  "skips": {
+    "test_setup": 9,
+    "optional_modules": 2,
+    "reason": "Nine opt-in knowledge/graph tests not enabled; GEPA and DSPy modules not installed"
+  },
+  "failures": {
+    "at_utc": "2026-11-05T23:05:27.910059+00:00",
+    "id": "W1-V1",
+    "severity": "P2",
+    "scope": "Legacy assessment_completion.build_writer_agent summary checkpoint in a process previously running a managed-context report",
+    "finding": "Native _summarization_event is absent after state seeding; isolated test passes but ordered pair fails on unchanged accepted baseline and full W1 group",
+    "cause_evidence": [
+      "deep_runtime registers openai HarnessProfile excluding SummarizationMiddleware for managed context",
+      "assessment_completion registers general-purpose subagent preference without explicitly clearing prior middleware exclusions",
+      "accepted baseline ordered pair reproduces missing private summary state"
+    ],
+    "baseline_tag": "g5-stopped-rescue-w-baseline-20261105",
+    "reproduction": "baseline-checkpoint-order.json and .txt",
+    "isolated_baseline": "baseline-checkpoint-failure.json records exit0; filename retained as initial suspected failure investigation",
+    "isolated_current": "current-checkpoint-isolated.txt records1passed",
+    "checkpoint_module_unchanged": true,
+    "blocked_actions": [
+      "Claiming a clean full-suite pass",
+      "Reusing legacy checkpoint path after managed-profile execution in the same process without resolving its profile state"
+    ],
+    "containment": "W1 uses fresh compact create_agent tasks and no legacy checkpoint path; G5/rescue remains stopped, no launch authorized",
+    "main_disposition": "Defer repair outside W1 under explicit owner instruction to leave checkpoint repair unchanged. Does not block reviewing the scoped W1 implementation; disclose full-suite failure without skip/xfail or weakened assertions.",
+    "installed_deepagents_version": "0.7.19",
+    "installed_library_contract": "register_harness_profile merges re-registrations; unspecified settings remain, including prior middleware exclusions.",
+    "verified_failing_nodes": [
+      "tests/test_assessment_completion_extension.py::test_native_checkpoint_retains_writer_files_summary_and_tool_receipts",
+      "tests/test_assessment_completion_unknown_continuation.py::test_native_summary_prefix_changes_only_with_genuine_authority_notice"
+    ],
+    "baseline_ordered_reproductions": [
+      "baseline-checkpoint-order.json",
+      "baseline-summary-order.json"
+    ]
+  },
+  "native_request_bytes": {
+    "initial_including_tools": [
+      7316,
+      7316,
+      7316,
+      7316,
+      7316
+    ],
+    "assignment_loaded_including_tools": [
+      16363,
+      16363,
+      16363,
+      16363,
+      16363
+    ],
+    "limit": "Synthetic offline serialization only, not provider-billed tokens or real-case performance"
+  },
+  "preservation": {
+    "at_utc": "2026-11-05T23:26:38.536350+00:00",
+    "frozen_files_match": 726,
+    "original_files_match": 1824,
+    "baseline_ledger_rows_unchanged": 2392,
+    "ledger_unchanged_since_w1_check": true,
+    "authorization_unchanged": true,
+    "unresolved_hold_tokens_preserved": 2000000,
+    "matching_g5_rescue_processes": [],
+    "legacy_checkpoint_source_and_tests_unchanged": true,
+    "report_model_calls": 0
+  },
+  "independent_alignment": "A1/A2/A3 closed in implementation scope; no owner approval implied",
+  "full_suite_clean": false,
+  "live_rescue_authorized": false
+}
