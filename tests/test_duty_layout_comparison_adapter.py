@@ -203,7 +203,8 @@ async def test_layout_comparison_actual_sdk_handoffs_files_and_shared_budget(ws,
         assert phase['server_context']['role'] == 'layout' and phase['server_context']['actor_id'] == actor
         assert phase['server_context']['assignment'] == task['payload']
     assert len(cs.list_objects('DocumentSnapshot')) == 1 and cs.list_objects('ReviewRecord') == []
-    assert len(cs.list_objects('ExportArtifact')) == len(cs.list_objects('RenderArtifact')) == len(cs.list_objects('MappingArtifact')) == 2
+    assert len(cs.list_objects('ExportArtifact')) == len(cs.list_objects('MappingArtifact')) == 4
+    assert len(cs.list_objects('RenderArtifact')) == 2
     assert cs.read(fixture['inputs']['source_refs'][1])['payload']['content'] == STANDARD
     assert cs.read(fixture['inputs']['source_refs'][0])['payload']['content'] == 'Class B permits 75 to 100.'
     assert cs.read(fixture['refs']['claim'])['payload'] == {'kind': 'claim', 'body': {'text': 'For adopted class B use 70.'},

@@ -80,6 +80,7 @@ class BusinessBoundary(InvalidToolFeedback):
         from .repetition_guard import KnownWriteRepetition
         self.write_repetition = KnownWriteRepetition(workspace, role)
         self.planning_before = {}
+        self.export_before = {}
 
     @hook_config(can_jump_to=['model'])
     async def aafter_model(self, state, runtime):
@@ -89,12 +90,24 @@ class BusinessBoundary(InvalidToolFeedback):
             for call in latest.invalid_tool_calls:
                 record_planning_result(self.workspace, self.role, call.get('name'), call.get('id'),
                                        rejected=True, error_code='INVALID_TOOL_ARGUMENT_JSON')
+                from .delivery_guard import record_export_result
+                record_export_result(self.workspace, self.role, call.get('name'), call.get('id'),
+                                     rejected=True, error_code='INVALID_TOOL_ARGUMENT_JSON')
         return await super().aafter_model(state, runtime)
 
     async def awrap_model_call(self, request, handler):
         from .prompt_provenance import append_declared_system
         from .tool_argument_feedback import diagnostic_messages
         request = request.override(messages=diagnostic_messages(request.messages))
+        from .section_writing import enabled as system_writing
+        if system_writing(self.workspace.store) and self.role in {'coordinator', 'writer'}:
+            request = append_declared_system(request,
+                'This run uses system-assembler-v1. Writers save assigned section prose and current citations, '
+                'calculate canonical assessments, and propose material issues for their nodes. The system owns '
+                'fixed text, tables, chapter 5, relationships, snapshots and comment anchors. The coordinator '
+                'requests system delivery from saved inputs. Do not manually reconstruct those system objects. '
+                'A successful export is a draft, not engineering sign-off. Missing engineering judgments remain explicit.',
+                'system_assembler/writing_boundary')
         from .hierarchical_tools import enabled as content_enabled
         if self.role == "coordinator" and content_enabled(self.workspace):
             from .content_tasks import task_tool
@@ -192,11 +205,24 @@ class BusinessBoundary(InvalidToolFeedback):
             record_planning_result(self.workspace, self.role, call['name'], call['id'],
                 rejected=any(isinstance(m, ToolMessage) and m.status == 'error' for m in messages),
                 error_code='PLANNING_TOOL_REJECTED', changed=before is not None and before != fingerprint(self.workspace))
+        from .delivery_guard import record_export_result, TOOLS as EXPORT_TOOLS
+        if call['name'] in EXPORT_TOOLS and self.export_before.get(call['id']) is not None:
+            before = self.export_before.pop(call['id'], None)
+            with self.workspace.store.connect() as db:
+                after = db.execute("SELECT count(*) FROM content_versions WHERE type='ExportArtifact'").fetchone()[0]
+            record_export_result(self.workspace, self.role, call['name'], call['id'],
+                rejected=any(isinstance(m, ToolMessage) and m.status == 'error' for m in messages),
+                error_code='EXPORT_TOOL_REJECTED', changed=before is not None and after > before)
         return result
 
     async def _awrap_bound_tool_call(self, request, handler):
         async with self.lock:
             call = request.tool_call
+            from .delivery_guard import require_resumed as require_delivery_resumed, enabled as delivery_enabled, TOOLS as EXPORT_TOOLS
+            require_delivery_resumed(self.workspace)
+            if delivery_enabled(self.workspace.store) and call['name'] in EXPORT_TOOLS:
+                with self.workspace.store.connect() as db:
+                    self.export_before[call['id']] = db.execute("SELECT count(*) FROM content_versions WHERE type='ExportArtifact'").fetchone()[0]
             if self.role == 'coordinator':
                 from .planning_guard import require_resumed
                 require_resumed(self.workspace)
@@ -1044,7 +1070,9 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
         from .commission_planning import enabled as planning_enabled
         from .planning_guard import PlanningGuard
-        return [*([PlanningGuard(workspace)] if role == 'coordinator' and planning_enabled(workspace.store) else []),
+        from .delivery_guard import DeliveryGuard, enabled as delivery_enabled
+        return [*([DeliveryGuard(workspace)] if delivery_enabled(workspace.store) else []),
+                *([PlanningGuard(workspace)] if role == 'coordinator' and planning_enabled(workspace.store) else []),
                 FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
                 *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
                   [TodoListMiddleware()] if role == 'coordinator' else []),

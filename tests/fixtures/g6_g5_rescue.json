@@ -1,0 +1,525 @@
+{
+  "contract": "g6-synthetic-rescue-replay-v1",
+  "provenance": {
+    "description": "Wholly synthetic five-object numeric and required-issue fixture. Historical originals are private."
+  },
+  "tables": [
+    {
+      "object_id": "SLOPE-01",
+      "rows": [
+        {
+          "ordinal": "1",
+          "weight": "0.17",
+          "score": "30",
+          "product": "5.10"
+        },
+        {
+          "ordinal": "2",
+          "weight": "0.16",
+          "score": "37",
+          "product": "5.92"
+        },
+        {
+          "ordinal": "3",
+          "weight": "0.14",
+          "score": "44",
+          "product": "6.16"
+        },
+        {
+          "ordinal": "4",
+          "weight": "0.12",
+          "score": "51",
+          "product": "6.12"
+        },
+        {
+          "ordinal": "5",
+          "weight": "0.11",
+          "score": "58",
+          "product": "6.38"
+        },
+        {
+          "ordinal": "6",
+          "weight": "0.09",
+          "score": "65",
+          "product": "5.85"
+        },
+        {
+          "ordinal": "7",
+          "weight": "0.07",
+          "score": "72",
+          "product": "5.04"
+        },
+        {
+          "ordinal": "8",
+          "weight": "0.06",
+          "score": "79",
+          "product": "4.74"
+        },
+        {
+          "ordinal": "9",
+          "weight": "0.04",
+          "score": "86",
+          "product": "3.44"
+        },
+        {
+          "ordinal": "10",
+          "weight": "0.03",
+          "score": "32",
+          "product": "0.96"
+        },
+        {
+          "ordinal": "11",
+          "weight": "0.01",
+          "score": "39",
+          "product": "0.39"
+        }
+      ],
+      "total": "50.10"
+    },
+    {
+      "object_id": "SLOPE-02",
+      "rows": [
+        {
+          "ordinal": "1",
+          "weight": "0.17",
+          "score": "43",
+          "product": "7.31"
+        },
+        {
+          "ordinal": "2",
+          "weight": "0.16",
+          "score": "50",
+          "product": "8.00"
+        },
+        {
+          "ordinal": "3",
+          "weight": "0.14",
+          "score": "57",
+          "product": "7.98"
+        },
+        {
+          "ordinal": "4",
+          "weight": "0.12",
+          "score": "64",
+          "product": "7.68"
+        },
+        {
+          "ordinal": "5",
+          "weight": "0.11",
+          "score": "71",
+          "product": "7.81"
+        },
+        {
+          "ordinal": "6",
+          "weight": "0.09",
+          "score": "78",
+          "product": "7.02"
+        },
+        {
+          "ordinal": "7",
+          "weight": "0.07",
+          "score": "85",
+          "product": "5.95"
+        },
+        {
+          "ordinal": "8",
+          "weight": "0.06",
+          "score": "31",
+          "product": "1.86"
+        },
+        {
+          "ordinal": "9",
+          "weight": "0.04",
+          "score": "38",
+          "product": "1.52"
+        },
+        {
+          "ordinal": "10",
+          "weight": "0.03",
+          "score": "45",
+          "product": "1.35"
+        },
+        {
+          "ordinal": "11",
+          "weight": "0.01",
+          "score": "52",
+          "product": "0.52"
+        }
+      ],
+      "total": "57.00"
+    },
+    {
+      "object_id": "SLOPE-03",
+      "rows": [
+        {
+          "ordinal": "1",
+          "weight": "0.17",
+          "score": "56",
+          "product": "9.52"
+        },
+        {
+          "ordinal": "2",
+          "weight": "0.16",
+          "score": "63",
+          "product": "10.08"
+        },
+        {
+          "ordinal": "3",
+          "weight": "0.14",
+          "score": "70",
+          "product": "9.80"
+        },
+        {
+          "ordinal": "4",
+          "weight": "0.12",
+          "score": "77",
+          "product": "9.24"
+        },
+        {
+          "ordinal": "5",
+          "weight": "0.11",
+          "score": "84",
+          "product": "9.24"
+        },
+        {
+          "ordinal": "6",
+          "weight": "0.09",
+          "score": "30",
+          "product": "2.70"
+        },
+        {
+          "ordinal": "7",
+          "weight": "0.07",
+          "score": "37",
+          "product": "2.59"
+        },
+        {
+          "ordinal": "8",
+          "weight": "0.06",
+          "score": "44",
+          "product": "2.64"
+        },
+        {
+          "ordinal": "9",
+          "weight": "0.04",
+          "score": "51",
+          "product": "2.04"
+        },
+        {
+          "ordinal": "10",
+          "weight": "0.03",
+          "score": "58",
+          "product": "1.74"
+        },
+        {
+          "ordinal": "11",
+          "weight": "0.01",
+          "score": "65",
+          "product": "0.65"
+        }
+      ],
+      "total": "60.24"
+    },
+    {
+      "object_id": "SLOPE-04",
+      "rows": [
+        {
+          "ordinal": "1",
+          "weight": "0.17",
+          "score": "69",
+          "product": "11.73"
+        },
+        {
+          "ordinal": "2",
+          "weight": "0.16",
+          "score": "76",
+          "product": "12.16"
+        },
+        {
+          "ordinal": "3",
+          "weight": "0.14",
+          "score": "83",
+          "product": "11.62"
+        },
+        {
+          "ordinal": "4",
+          "weight": "0.12",
+          "score": "90",
+          "product": "10.80"
+        },
+        {
+          "ordinal": "5",
+          "weight": "0.11",
+          "score": "36",
+          "product": "3.96"
+        },
+        {
+          "ordinal": "6",
+          "weight": "0.09",
+          "score": "43",
+          "product": "3.87"
+        },
+        {
+          "ordinal": "7",
+          "weight": "0.07",
+          "score": "50",
+          "product": "3.50"
+        },
+        {
+          "ordinal": "8",
+          "weight": "0.06",
+          "score": "57",
+          "product": "3.42"
+        },
+        {
+          "ordinal": "9",
+          "weight": "0.04",
+          "score": "64",
+          "product": "2.56"
+        },
+        {
+          "ordinal": "10",
+          "weight": "0.03",
+          "score": "71",
+          "product": "2.13"
+        },
+        {
+          "ordinal": "11",
+          "weight": "0.01",
+          "score": "78",
+          "product": "0.78"
+        }
+      ],
+      "total": "66.53"
+    },
+    {
+      "object_id": "SLOPE-05",
+      "rows": [
+        {
+          "ordinal": "1",
+          "weight": "0.17",
+          "score": "82",
+          "product": "13.94"
+        },
+        {
+          "ordinal": "2",
+          "weight": "0.16",
+          "score": "89",
+          "product": "14.24"
+        },
+        {
+          "ordinal": "3",
+          "weight": "0.14",
+          "score": "35",
+          "product": "4.90"
+        },
+        {
+          "ordinal": "4",
+          "weight": "0.12",
+          "score": "42",
+          "product": "5.04"
+        },
+        {
+          "ordinal": "5",
+          "weight": "0.11",
+          "score": "49",
+          "product": "5.39"
+        },
+        {
+          "ordinal": "6",
+          "weight": "0.09",
+          "score": "56",
+          "product": "5.04"
+        },
+        {
+          "ordinal": "7",
+          "weight": "0.07",
+          "score": "63",
+          "product": "4.41"
+        },
+        {
+          "ordinal": "8",
+          "weight": "0.06",
+          "score": "70",
+          "product": "4.20"
+        },
+        {
+          "ordinal": "9",
+          "weight": "0.04",
+          "score": "77",
+          "product": "3.08"
+        },
+        {
+          "ordinal": "10",
+          "weight": "0.03",
+          "score": "84",
+          "product": "2.52"
+        },
+        {
+          "ordinal": "11",
+          "weight": "0.01",
+          "score": "30",
+          "product": "0.30"
+        }
+      ],
+      "total": "63.06"
+    }
+  ],
+  "canonical_assessment_refs": [],
+  "canonical_assessment_record_count": 0,
+  "required_issues": [
+    {
+      "id": "6fdb9a40da912f2ff10b6057f68db7fab5715c37269c0fc64ea61905f7a3d803",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "6c80597d9eb1a0abde6231ab5d83fe2aea63af7932beb5e16c0b664c583bbd36",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "f2e1f91dae2a8b03d8357e4d722217159fecbf3c59f9cb9de46a6e31e28fa68a",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "2f22fc58759ab42dbeda643462877b3df419a34b14d2b9fed3459d27d8d65db6",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "6935b7e38776645c0dfc37dfa9c305f1bbc669f79f15628974efeba139b0cb91",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "3a4f03c1dd8c191025abf6a95dc35b9d1b90754438159c55966272e8167d8f1d",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "233c6e985af5a4ae27c70e922fd6d73260ae8d581077d76922c92597db933050",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "1579a18507fdf80389dfc87e89aa09a00c451020154146b606001d8d423755b1",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "fac8508d7dfa658052e62e2d551033db5a9f18d37a8e1ae480bac61de527e1af",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "3034e4249a19e1a98acf5fad6a468ca7b916c22bd9b61bc32fbd5ac801430d33",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "6ed406c9987f12486b1a0b71818fcd77ff59e0f78c636cc40758242d45a17293",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "87bbb86510b5ad1bf00765cfcfa18307546c2eb48e941972a99b2a6de21b696f",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "1a19de7a1348a2a379c2c008cc837b89d378c7b78413364f0df29bd5f45b5e46",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "dbe074d85bf28f00e25855e09a3563e95e00abc70ef66cdb4ffcd8b6a7594d91",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "ba4f00494da1836a29180245fe7517211e8f5d6eafad7a67538e197394d95110",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "6f612ef56116f7ef20c32e41d8f8cbb8478641bbab8dff0a89b08bd3ef776e04",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "785684978ec734c98e356af21bad1d99bf7731a4490ff7e154f056f25e2197f1",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "6db85433a574b1bcabade4888ff85e1ef37a9caba1b2cec740fa05e913829433",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "7cd81d2db74df68ad7fed02602f51f24efd587e5419b0507eec714af6d021f35",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "e6a286e388cd9bc702fb08c91510e2b0ac896fca1bb959010f343241e80a268b",
+      "kind": "conflict",
+      "origin": "decision_registry"
+    },
+    {
+      "id": "owner:owner-survey-1:survey-1",
+      "kind": "conflict",
+      "origin": "system_owner_record"
+    },
+    {
+      "id": "owner:owner-survey-2:survey-2",
+      "kind": "unclear",
+      "origin": "system_owner_record"
+    },
+    {
+      "id": "owner:owner-survey-3:survey-3",
+      "kind": "unclear",
+      "origin": "system_owner_record"
+    },
+    {
+      "id": "template-applicability:5.1",
+      "kind": "unclear",
+      "origin": "template_applicability"
+    },
+    {
+      "id": "template-applicability:5.5",
+      "kind": "unclear",
+      "origin": "template_applicability"
+    }
+  ],
+  "missing_required_issue_ids": [
+    "6fdb9a40da912f2ff10b6057f68db7fab5715c37269c0fc64ea61905f7a3d803",
+    "6c80597d9eb1a0abde6231ab5d83fe2aea63af7932beb5e16c0b664c583bbd36",
+    "f2e1f91dae2a8b03d8357e4d722217159fecbf3c59f9cb9de46a6e31e28fa68a",
+    "2f22fc58759ab42dbeda643462877b3df419a34b14d2b9fed3459d27d8d65db6",
+    "6935b7e38776645c0dfc37dfa9c305f1bbc669f79f15628974efeba139b0cb91",
+    "3a4f03c1dd8c191025abf6a95dc35b9d1b90754438159c55966272e8167d8f1d",
+    "233c6e985af5a4ae27c70e922fd6d73260ae8d581077d76922c92597db933050",
+    "1579a18507fdf80389dfc87e89aa09a00c451020154146b606001d8d423755b1",
+    "fac8508d7dfa658052e62e2d551033db5a9f18d37a8e1ae480bac61de527e1af",
+    "3034e4249a19e1a98acf5fad6a468ca7b916c22bd9b61bc32fbd5ac801430d33",
+    "6ed406c9987f12486b1a0b71818fcd77ff59e0f78c636cc40758242d45a17293",
+    "87bbb86510b5ad1bf00765cfcfa18307546c2eb48e941972a99b2a6de21b696f",
+    "1a19de7a1348a2a379c2c008cc837b89d378c7b78413364f0df29bd5f45b5e46",
+    "dbe074d85bf28f00e25855e09a3563e95e00abc70ef66cdb4ffcd8b6a7594d91",
+    "ba4f00494da1836a29180245fe7517211e8f5d6eafad7a67538e197394d95110",
+    "6f612ef56116f7ef20c32e41d8f8cbb8478641bbab8dff0a89b08bd3ef776e04",
+    "785684978ec734c98e356af21bad1d99bf7731a4490ff7e154f056f25e2197f1",
+    "6db85433a574b1bcabade4888ff85e1ef37a9caba1b2cec740fa05e913829433",
+    "7cd81d2db74df68ad7fed02602f51f24efd587e5419b0507eec714af6d021f35",
+    "e6a286e388cd9bc702fb08c91510e2b0ac896fca1bb959010f343241e80a268b",
+    "template-applicability:5.1",
+    "template-applicability:5.5"
+  ],
+  "internal_content_counts": {
+    "qualifier_metadata": 34,
+    "prose_regex_matches": 0
+  }
+}

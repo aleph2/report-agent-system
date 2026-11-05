@@ -6,6 +6,7 @@ NATIVE = 'native-tool-runtime-v1'
 ATOMIC_WRITES = frozenset({
     'import_source_versions', 'capture_review_sources', 'commit_objects', 'save_text_node',
     'freeze_snapshot', 'derive_snapshot', 'submit_review', 'record_handoff',
+    'save_section_prose', 'propose_material_issue', 'request_system_delivery',
     'confirm_review_reuse', 'correct_own_review', 'export_content_snapshot',
     'export_content_workbook', 'request_layout_capability', 'select_content_delivery',
     'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome',

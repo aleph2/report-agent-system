@@ -174,8 +174,8 @@ async def test_writer_owned_current_pair_and_historical_selection_sensitivity(ws
             continue
         assert original['ref']['id'] in first
     assert BODY_A in first and BODY_B in first and UNKNOWN in first and BOOK_NOTE in first
-    assert len(capture['saved_snapshots']) == 1 and len(capture['saved_exports']) == 2
-    assert len(capture['saved_mappings']) == 2
+    assert len(capture['saved_snapshots']) == 1 and len(capture['saved_exports']) == 3
+    assert len(capture['saved_mappings']) == 3
     snapshot = capture['saved_snapshots'][0]
     assert snapshot['ref'] == held['freeze']['result']['snapshot_ref']
     assert snapshot['payload']['root_ref'] == held['selected']['root']
@@ -197,10 +197,15 @@ async def test_writer_owned_current_pair_and_historical_selection_sensitivity(ws
     assert config['report_export_ref'] == word['ref']
     assert config['sheets'] == [{'name': 'Issues', 'table_ref': held['selected']['issues'],
                                 'note_refs': [held['selected']['note']]}]
+    automatic=cs.read(held['word']['result']['workbook']['export_ref'])
+    assert automatic['payload']['snapshot_ref']==snapshot['ref']
+    assert automatic['payload']['export_config']['report_export_ref']==word['ref']
     for mapping in capture['saved_mappings']:
         assert mapping['payload']['snapshot_ref'] == snapshot['ref']
-        assert mapping['payload']['export_ref'] in [word['ref'], book['ref']]
-    assert len(capture['assets']) == 2
+        assert mapping['payload']['export_ref'] in [word['ref'], book['ref'], automatic['ref']]
+    assert len(capture['assets']) == 3
+    auto_asset=next(a for a in capture['assets'] if a['file_ref']==automatic['payload']['file_ref'])
+    assert hashlib.sha256((folder/auto_asset['retained_path']).read_bytes()).hexdigest()==auto_asset['sha256']==automatic['payload']['file_digest']
     for name, obj in [('word', word), ('book', book)]:
         asset = next(a for a in capture['assets'] if a['file_ref'] == obj['payload']['file_ref'])
         data = (folder / asset['retained_path']).read_bytes()

@@ -80,6 +80,8 @@ async def test_native_layout_nested_default_equivalence_and_change_guard(ws, tmp
                                    for p in (ws.store.root / 'content-assets').iterdir() if p.is_file()}
         capture['word_observations'] = []
         for record in cs.list_objects('ExportArtifact'):
+            if not record['payload']['file_ref'].endswith('.docx'):
+                continue
             path = ws.store.root / record['payload']['file_ref']
             data = path.read_bytes()
             with ZipFile(path) as archive:
@@ -114,13 +116,16 @@ async def test_native_layout_nested_default_equivalence_and_change_guard(ws, tmp
         assert context['role'] == 'layout' and context['actor_id'] == 'content:layout:' + task['ref']['id']
         assert context['assignment'] == task['payload']
     exports, mappings = cs.list_objects('ExportArtifact'), cs.list_objects('MappingArtifact')
-    expected_count = 1 if variant == 'changed-lines' else 2
+    expected_count = 2 if variant == 'changed-lines' else 4
     assert len(exports) == len(mappings) == expected_count
     for call_id in ['layout-baseline', *(['layout-second'] if variant != 'changed-lines' else [])]:
         observed = capture['observed'][call_id]
         assert observed['message']['status'] == 'success' and observed['value']['ok'] is True
         public = observed['value']['result']
         exported = cs.read(public['export_ref'])
+        companion=cs.read(public['workbook']['export_ref'])
+        assert companion['payload']['snapshot_ref']==exported['payload']['snapshot_ref']
+        assert companion['payload']['export_config']['report_export_ref']==exported['ref']
         mapping = cs.read(public['mapping_ref'])
         assert exported['ref'] in [o['ref'] for o in exports] and mapping['ref'] in [o['ref'] for o in mappings]
         assert mapping['payload']['export_ref'] == exported['ref']
@@ -128,7 +133,12 @@ async def test_native_layout_nested_default_equivalence_and_change_guard(ws, tmp
     for exported in exports:
         assert exported['owner_id'] == exported['created_by'] == 'content:layout:' + task['ref']['id']
         assert exported['task_id'] == task['ref']['id'] and exported['payload']['snapshot_ref'] == snapshot
-        assert exported['payload']['export_config']['layout'] == capture['normalized_first']
+        if exported['payload']['file_ref'].endswith('.docx'):
+            assert exported['payload']['export_config']['layout'] == capture['normalized_first']
+        else:
+            parent=cs.read(exported['payload']['export_config']['report_export_ref'])
+            assert parent['payload']['snapshot_ref']==snapshot
+            assert parent['payload']['export_config']['layout']==capture['normalized_first']
         mapping, = [m for m in mappings if m['payload']['export_ref'] == exported['ref']]
         assert mapping['owner_id'] == exported['owner_id'] and mapping['task_id'] == task['ref']['id']
         assert mapping['payload']['snapshot_ref'] == snapshot

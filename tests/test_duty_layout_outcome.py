@@ -188,7 +188,8 @@ async def test_native_layout_preserves_content_files_observations_and_final_limi
                               'export_content_workbook', 'submit_review', 'perform_assigned_review',
                               'perform_assigned_artifact_review', 'confirm_review_reuse'}
     assert capture['saved_reviews'] == []
-    assert len(capture['saved_tasks']) == len(capture['saved_exports']) == len(capture['saved_renders']) == 1
+    assert len(capture['saved_tasks']) == len(capture['saved_renders']) == 1
+    assert len(capture['saved_exports']) == 2
     fixture, task = capture['fixture'], capture['saved_tasks'][0]
     prepared = capture['phase_events'][0]['response']['tool_calls']
     assert [c['name'] for c in prepared] == ['read_context', 'read_context']
@@ -219,10 +220,15 @@ async def test_native_layout_preserves_content_files_observations_and_final_limi
                                'qualifiers': {'condition': 'class B'}, 'claim_kind': 'inference'}
     assert cs.read(fixture['inputs']['source_refs'][0])['payload']['content'] == 'Class B permits 75 to 100.'
     assert cs.read(fixture['format_ref'])['payload']['content'] == FORMAT_STANDARD
-    exported, rendered = capture['saved_exports'][0], capture['saved_renders'][0]
+    exported,= [e for e in capture['saved_exports'] if e['payload']['file_ref'].endswith('.docx')]
+    companion,= [e for e in capture['saved_exports'] if e['payload']['file_ref'].endswith('.xlsx')]
+    assert companion['owner_id']==actor_id
+    assert companion['payload']['snapshot_ref']==fixture['snapshot_ref']
+    assert companion['payload']['export_config']['report_export_ref']==exported['ref']
+    rendered = capture['saved_renders'][0]
     mappings = cs.list_objects('MappingArtifact')
-    assert len(mappings) == 1
-    mapping = mappings[0]
+    assert len(mappings) == 2
+    mapping,= [m for m in mappings if m['ref']==held['export']['result']['mapping_ref']]
     assert mapping['ref'] == held['export']['result']['mapping_ref']
     assert mapping['owner_id'] == mapping['created_by'] == actor_id
     assert mapping['task_id'] == task['ref']['id']

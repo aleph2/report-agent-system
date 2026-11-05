@@ -216,7 +216,7 @@ def test_clarification_refuses_corrupt_linked_word_bytes(ws):
     with pytest.raises(ActionRejected, match='ASSET_DIGEST_MISMATCH'):
         export_workbook(cs, actor, 'corrupt-linked-word', snapshot,
             [{'name': '评估', 'table_ref': added['table']}], report_export_ref=word['export_ref'])
-    assert len(cs.list_objects('ExportArtifact')) == 1
+    assert len(cs.list_objects('ExportArtifact')) == 2
 
 
 def test_workbook_qualifiers_match_word_visible_labels(ws):

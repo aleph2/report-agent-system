@@ -86,7 +86,7 @@ async def test_native_layout_task_returns_export_to_coordinator(ws, monkeypatch)
         layout=[invoke('export_content_snapshot', operation_id='native-layout', snapshot_ref=snap, layout={'toc':False}), AIMessage(content='Saved export; not approved.')])
     await deep_runtime.run_report(ws, driver)
     exports=cs.list_objects('ExportArtifact')
-    assert len(exports)==1
+    assert len(exports)==2
     assert exports[0]['created_by'].startswith('content:layout:')
     assert not cs.list_objects('ReviewRecord')
     assert cs.read(refs['claim'])['payload']['body']['text']=='For adopted class B use 70.'

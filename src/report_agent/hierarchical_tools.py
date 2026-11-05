@@ -20,6 +20,8 @@ from .review_binding import ReuseMapping
 from .handoff_release import manifest as bound_manifest
 from .commission_plan import CommissionPlan
 from .risk_scoring import Assessment
+from .content_models import SourceCitation
+from .section_writing import IssueProposal
 
 
 def enabled(workspace):
@@ -786,6 +788,37 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         return create_planned_section(contents, actor(), operation_id, section_id,
             [r.model_dump() for r in assessment_refs])
 
+    def save_section_prose(operation_id: str, section_id: str, text: str,
+                           citations: list[SourceCitation], previous_ref: Ref | None = None) -> dict:
+        """Save or revise prose for one assigned extracted section with its source citations.
+
+        Write adopted project facts, retaining conditions and uncertainty. Supply current
+        citations on every revision. Exact validation spans identify rejected text.
+        Fixed text, calculations, tables, structure and comment anchors are system-owned.
+        """
+        from .section_writing import save_section_prose as save_prose
+        return save_prose(contents, actor(), operation_id, section_id, text,
+                          [c.model_dump() for c in citations], previous_ref.model_dump() if previous_ref else None)
+
+    def propose_material_issue(operation_id: str, node_ref: Ref, issue: IssueProposal) -> dict:
+        """Record a source conflict, gap or assumption for your current saved prose node.
+
+        Supply engineering facts, adopted value and impact; the system assigns the comment
+        position and the matching Excel row. This does not change scope or approve a plan.
+        """
+        from .section_writing import propose_material_issue as propose
+        return propose(contents, actor(), operation_id, node_ref.model_dump(), issue.model_dump())
+
+    def request_system_delivery(operation_id: str) -> dict:
+        """Assemble the approved plan from saved section prose and canonical assessments,
+        then export Word and Excel from the same frozen snapshot. Missing inputs are
+        reported; no model, guessed judgments or automatic approval is used.
+        """
+        from .system_assembler import assemble_current_report
+        from .content_export import export_snapshot
+        assembled = assemble_current_report(contents, actor(), operation_id + ':assembly')['result']
+        return export_snapshot(contents, actor(), operation_id + ':export', assembled['snapshot_ref'])
+
     common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
               read_review_status, observe_evidence, read_feedback, record_handoff,
               assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,
@@ -821,4 +854,15 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         if bound_manifest(workspace.store).get("review_entrypoint") != "native-rubric-v1":
             common.remove(save_text_node)
             commit_objects.__doc__ += "\nYour coordinator binding may commit Criterion, Evidence and Relation; delegate all ContentNode creation/revision to writer."
+    from .section_writing import enabled as system_writing
+    if system_writing(workspace.store):
+        system_owned = {'commit_objects', 'save_text_node', 'freeze_snapshot', 'derive_snapshot',
+                        'export_content_workbook', 'materialize_planned_section', 'record_assessment_outcome'}
+        if role in {'coordinator', 'writer'}:
+            system_owned.add('export_content_snapshot')
+        common = [tool for tool in common if tool.__name__ not in system_owned]
+        if role == 'writer':
+            common += [save_section_prose, propose_material_issue]
+        if role == 'coordinator':
+            common += [request_system_delivery]
     return common

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from .content_models import Ref, CellMerge as TableMerge
 from .errors import ActionRejected
+from .position_anchors import ParagraphAnchor, comment_position
 
 
 class StrictRecord(BaseModel):
@@ -59,7 +60,7 @@ class MaterialIssue(StrictRecord):
     sources: list[IssueSource]
     adopted_value: str = Field(min_length=1)
     question: str = Field(min_length=1)
-    anchor: CellAnchor | PassageAnchor
+    anchor: CellAnchor | PassageAnchor | ParagraphAnchor
     affects_level: bool
 
     @model_validator(mode="after")
@@ -157,7 +158,16 @@ def _cell_anchor(node, anchor, value, covered, prefix):
         raise ActionRejected(prefix + '_VALUE_MISMATCH')
 
 
-def validate_node(node):
+def validate_node(node, node_ref=None):
+    try:
+        return _validate_node(node)
+    except ActionRejected as exc:
+        raw = node.get('body', {}).get('material_issues', [])
+        ids = [item.get('id', '?') for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
+        raise ActionRejected(f"{exc}; issues={ids}; node={node_ref}") from exc
+
+
+def _validate_node(node):
     """Validate actual body positions before export; return typed issues and merges."""
     body = node["body"]
     raw_issues, raw_merges = body.get("material_issues", []), body.get("merges", [])
@@ -184,7 +194,10 @@ def validate_node(node):
         anchor = issue.anchor
         if isinstance(anchor, CellAnchor):
             _cell_anchor(node, anchor, issue.adopted_value, covered, 'MATERIAL_ISSUE')
-        elif (node["kind"] in {"table", "figure"} or anchor.text != issue.adopted_value
+        elif isinstance(anchor, ParagraphAnchor):
+            if node['kind'] in {'table', 'figure'}:
+                raise ActionRejected('MATERIAL_ISSUE_POSITION_INVALID: ' + issue.id)
+        elif (node["kind"] in {"table", "figure"}
               or body.get("text", "").count(anchor.text) != 1):
             raise ActionRejected("MATERIAL_ISSUE_PASSAGE_NOT_UNIQUE: " + issue.id)
     return issues, merges
@@ -203,10 +216,10 @@ def rendered_issues(records, root_ref):
         if key in visited:
             return
         visited.add(key)
-        issues, _ = validate_node(records[key]["payload"])
+        issues, _ = validate_node(records[key]["payload"], ref)
         for issue in issues:
             if issue.id in ids:
-                raise ActionRejected("MATERIAL_ISSUE_DUPLICATE_ID: " + issue.id)
+                raise ActionRejected(f"MATERIAL_ISSUE_DUPLICATE_ID: {issue.id}; node={ref}")
             ids.add(issue.id)
             result.append((ref, issue))
         for _, child in sorted(edges.get(key, []), key=lambda pair: pair[0]):
@@ -255,14 +268,16 @@ def validate_required_issues(contents, db, snapshot, records, issue_records):
             raise ActionRejected('REQUIRED_MATERIAL_ISSUE_MISMATCH: ' + expected['id'])
 
 
-def comment_passage(doc, paragraphs, issue):
+def comment_passage(doc, paragraphs, issue, node_ref):
+    if isinstance(issue.anchor, ParagraphAnchor):
+        return comment_position(doc, paragraphs, issue, node_ref)
     """Split existing runs at exact anchor boundaries, preserving their formatting."""
     from copy import deepcopy
     from docx.text.run import Run
-    target = issue.adopted_value
+    target = issue.anchor.text
     matches = [paragraph for paragraph in paragraphs if target in paragraph.text]
     if len(matches) != 1 or matches[0].text.count(target) != 1:
-        raise ActionRejected("MATERIAL_ISSUE_RENDERED_PASSAGE_NOT_UNIQUE: " + issue.id)
+        raise ActionRejected(f"MATERIAL_ISSUE_RENDERED_PASSAGE_NOT_UNIQUE: {issue.id}; node={node_ref}")
     paragraph = matches[0]
     start = paragraph.text.index(target)
     stop = start + len(target)
@@ -285,5 +300,26 @@ def comment_passage(doc, paragraphs, issue):
                 selected.append(fragment)
         position = end
     if "".join(run.text for run in selected) != target:
-        raise ActionRejected("MATERIAL_ISSUE_RENDERED_RUNS_UNSUPPORTED: " + issue.id)
+        raise ActionRejected(f"MATERIAL_ISSUE_RENDERED_RUNS_UNSUPPORTED: {issue.id}; node={node_ref}")
     doc.add_comment(selected, issue.comment(), author="工程资料澄清", initials="审")
+
+
+def export_issue_records(contents, db, snapshot, records):
+    """Use assembled owner positions only after receipt and unchanged issue checks."""
+    from .system_assembler import require_assembled
+    from .commission_owner_records import frozen_material_issues
+    receipt = require_assembled(contents, db, snapshot, records)
+    issues = rendered_issues(records, snapshot['payload']['root_ref'])
+    owner = frozen_material_issues(contents, snapshot, records)
+    if receipt is None:
+        if {i.id for _, i in issues} & {i.id for i in owner}:
+            raise ActionRejected('OWNER_OPEN_FACT_IS_SYSTEM_OWNED')
+        return issues + [(snapshot['payload']['root_ref'], issue) for issue in owner], owner
+    actual = {i.id: (ref, i) for ref, i in issues}
+    for expected in owner:
+        target = actual.get(expected.id)
+        if (target is None or receipt['issue_targets'].get(expected.id) != target[0]
+                or records[Ref.model_validate(target[0]).key()]['payload']['body'].get('section_id') != '1.3'
+                or target[1].model_dump(exclude={'anchor'}) != expected.model_dump(exclude={'anchor'})):
+            raise ActionRejected('ASSEMBLED_OWNER_ISSUE_MISMATCH: ' + expected.id)
+    return issues, []

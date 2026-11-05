@@ -133,7 +133,7 @@ def test_unconfigured_layout_allows_successive_revisions_without_resetting_count
         actual = layout_status(db)
     assert actual['max_revisions'] is None
     assert actual['revisions_used'] == 2
-    assert len(cs.list_objects('ExportArtifact')) == 3
+    assert len(cs.list_objects('ExportArtifact')) == 6
 
 
 @pytest.mark.parametrize('limit', [0, 1])

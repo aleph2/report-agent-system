@@ -258,6 +258,10 @@ class ContentStore:
             if any(obj.get('type') == 'ContentNode' for obj in objects):
                 from .commission_plan import assert_writing_allowed
                 assert_writing_allowed(self, db, actor)
+            from .section_writing import enabled as system_writing, validate_prose
+            g6 = system_writing(self.store)
+            if g6 and any(o.get('type') == 'Relation' for o in objects):
+                raise ActionRejected('RELATIONS_ARE_SYSTEM_OWNED')
             assigned, plans, exception_uses = {}, [], []
             configured = db.execute("SELECT value FROM state WHERE key='content_revision_limit'").fetchone()
             revision_limit = json.loads(configured[0]) if configured else None
@@ -310,10 +314,15 @@ class ContentStore:
                     raise ActionRejected("CRITERIA_REQUIRE_INDEPENDENT_REQUIREMENTS")
                 if ref["type"] == "Evidence" and any(r["type"] != "SourceArtifact" for r in payload["source_refs"]):
                     raise ActionRejected("EVIDENCE_REQUIRES_SOURCE_VERSIONS")
+                if g6 and ref['type'] == 'ContentNode':
+                    writing_plan = validate_prose(self, db, actor, payload, obj.get('previous_ref'))
                 if ref['type'] == 'ContentNode' and payload.get('citations'):
                     from .commission_plan import _validate_sources
                     _validate_sources(self, db, actor, payload['citations'])
                 self._insert(db, actor, ref["type"], payload, id=ref["id"], version=ref["version"], previous_ref=obj.get("previous_ref"))
+                if g6 and ref['type'] == 'ContentNode':
+                    from .commission_plan import _set
+                    _set(db, 'g6_section_prose:' + digest([writing_plan['ref'], payload['body']['section_id']]), ref)
             from .revision_authorization import record_use
             for grant, resulting_ref in exception_uses:
                 record_use(db, grant, resulting_ref, operation_id)
@@ -505,6 +514,9 @@ class ContentStore:
             return directory(self, db, actor, full=True)
 
     def freeze(self, actor, operation_id, root_ref, refs, workbook_refs=None, saved_receipt_ids=None):
+        from .section_writing import enabled as system_writing
+        if system_writing(self.store):
+            raise ActionRejected('SNAPSHOTS_ARE_SYSTEM_OWNED')
         workbook_refs = workbook_refs or []
         if saved_receipt_ids is not None and (not isinstance(saved_receipt_ids, list)
                 or any(not isinstance(v,str) or not v.strip() for v in saved_receipt_ids)):

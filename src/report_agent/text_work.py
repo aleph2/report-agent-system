@@ -713,6 +713,26 @@ def guarded_tools(workspace, role, model, base_tools):
     if content_input_profile(workspace.store) == RELATION_ENDPOINTS_V2:
         commit_objects.__annotations__['objects'] = list[GuardedObjectV2]
     replacements = {"commit_objects": commit_objects, "save_text_node": save_text_node}
+    if 'save_section_prose' in by_name:
+        def save_section_prose(operation_id: str, section_id: str, text_work_id: str,
+                               previous_ref: Ref | None = None, text_work_index: int = 0) -> dict:
+            """Adopt one exact text-tool prose result into its assigned section.
+
+            No body, citations or qualifications can be overridden. The system binds
+            section identity and keeps ownership, revision limits and source checks.
+            """
+            actor = actor_for_tool(workspace, role)
+            previous = previous_ref.model_dump() if previous_ref else None
+            payload = adopt(workspace, actor, text_work_id, 'ContentNode', None, text_work_index, previous)
+            if payload['body'].get('section_id', section_id) != section_id:
+                raise ActionRejected('PROSE_REVISION_SECTION_MISMATCH')
+            payload = {**payload, 'body': {**payload['body'], 'section_id': section_id}}
+            obj = {'client_key': 'prose', 'type': 'ContentNode', 'payload': payload}
+            if previous:
+                obj['previous_ref'] = previous
+            return ContentStore(workspace.store).commit(actor, operation_id, [obj])
+        replacements['save_section_prose'] = save_section_prose
+
     result = [replacements.get(t.__name__, t) for t in base_tools]
     if role in {"coordinator", "writer"}:
         from .operation_identity import profile, NATIVE, native_id

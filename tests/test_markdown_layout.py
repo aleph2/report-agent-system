@@ -71,9 +71,13 @@ async def test_native_layout_task_uses_embedded_controls_without_authority_expan
                       layout={'toc':False,**CONTROLS}),AIMessage(content='Saved actual Word; no semantic acceptance.')])
     await run_report(ws,driver)
     exports=cs.list_objects('ExportArtifact')
-    assert len(exports)==1
-    assert exports[0]['owner_id'].startswith('content:layout:')
-    doc=Document(ws.store.root/exports[0]['payload']['file_ref'])
+    assert len(exports)==2
+    word,= [e for e in exports if e['payload']['file_ref'].endswith('.docx')]
+    book,= [e for e in exports if e['payload']['file_ref'].endswith('.xlsx')]
+    assert word['owner_id'].startswith('content:layout:') and book['owner_id']==word['owner_id']
+    assert word['payload']['snapshot_ref']==book['payload']['snapshot_ref']==snap
+    assert book['payload']['export_config']['report_export_ref']==word['ref']
+    doc=Document(ws.store.root/word['payload']['file_ref'])
     check_tables(doc)
     assert cs.read(node)==before and not cs.list_objects('ReviewRecord')
 

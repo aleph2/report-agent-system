@@ -117,8 +117,9 @@ async def test_layout_comparison_preserves_actual_page_identity_and_cache(ws, re
         'kind': 'claim', 'body': {'text': 'For adopted class B use 70.'},
         'qualifiers': {'condition': 'class B'}, 'claim_kind': 'inference'}
     assert len(cs.list_objects('DocumentSnapshot')) == 1
-    assert len(cs.list_objects('ExportArtifact')) == len(cs.list_objects('RenderArtifact')) == 2
-    assert len(cs.list_objects('MappingArtifact')) == 2 and cs.list_objects('ReviewRecord') == []
+    assert len(cs.list_objects('ExportArtifact')) == 4
+    assert len(cs.list_objects('RenderArtifact')) == 2
+    assert len(cs.list_objects('MappingArtifact')) == 4 and cs.list_objects('ReviewRecord') == []
     layouts = []
     for label, expected_size, receipt_index in [('before', 11, 0), ('after', 12, 2)]:
         export, render = cs.read(pair[label]['export_ref']), cs.read(pair[label]['render_ref'])

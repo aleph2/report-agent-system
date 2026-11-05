@@ -476,7 +476,7 @@ async def test_optional_calculator_and_actual_export_observations(tmp_path, fail
     assert status["last_error"] is None, (status, failure_stacks)
     assert observed["receipt"]["ok"] is True
     assert not cs.list_objects("ReviewRecord") and not cs.list_objects("RenderArtifact")
-    assert len(cs.list_objects("ExportArtifact")) == 1
+    assert len(cs.list_objects("ExportArtifact")) == 2
     assert sum(role == "text_tool" for role, _, _ in driver.calls) == 1
     names = {schema["name"] for schema in driver.bindings["coordinator"][-1]}
     assert {"calculate", "read_content_export", "export_content_snapshot"} <= names

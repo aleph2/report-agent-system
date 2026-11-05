@@ -401,7 +401,9 @@ async def test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_a
     assert result['last_error'] is None, result
     cs = ContentStore(ws.store)
     exports = cs.list_objects('ExportArtifact')
-    assert len(exports) == 2 and len({json.dumps(e['payload']['snapshot_ref'], sort_keys=True) for e in exports}) == 1
+    assert len(exports) == 3 and len({json.dumps(e['payload']['snapshot_ref'], sort_keys=True) for e in exports}) == 1
+    assert sum(e['payload']['file_ref'].endswith('.docx') for e in exports)==1
+    assert sum(e['payload']['file_ref'].endswith('.xlsx') for e in exports)==2
     for saved in exports:
         payload = saved['payload']
         data = _bytes(ws.store, payload['file_ref'], payload['file_digest'])
@@ -410,7 +412,7 @@ async def test_native_scoped_trunk_adopts_batch_and_exports_same_snapshot_word_a
             assert blocks[0]['body']['text'] in text and 'Unknown source date' not in text
         else:
             workbook = load_workbook(BytesIO(data))
-            values = [v for row in workbook['Issues'].iter_rows(values_only=True) for v in row if v is not None]
+            values = [v for sheet in workbook for row in sheet.iter_rows(values_only=True) for v in row if v is not None]
             assert 'Unknown source date' in values and blocks[2]['body']['text'] in values
     assert not cs.list_objects('ReviewRecord')
     assert sum(role == 'text_tool' for role, _, _ in driver.calls) == 1
