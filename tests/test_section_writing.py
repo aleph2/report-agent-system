@@ -151,3 +151,15 @@ def test_new_writing_tools_use_native_operation_identity(writing):
                 assert 'operation_id' not in tool.tool_call_schema.model_json_schema()['properties']
                 expected=expected-{tool.name}
         assert not expected
+
+
+def test_prose_cannot_smuggle_an_agent_authored_scoring_table(writing):
+    f=writing
+    table='| Indicator | Score |\n| --- | --- |\n| Height | 48 |\n'
+    text='Saved project context.\n\n'+table
+    with pytest.raises(ActionRejected,match='SECTION_PROSE_CHECK_FAILED') as exc:
+        save_section_prose(f.cs,f.writer,'score-table','4',text,[f.cite('design')])
+    spans=[s for s in exc.value.diagnostic['spans'] if s['reason']=='system_table_required']
+    assert len(spans)==1
+    assert text[spans[0]['start']:spans[0]['end']]==table
+    assert f.ws.store.get('g6_section_prose:'+digest([f.plan_ref,'4'])) is None

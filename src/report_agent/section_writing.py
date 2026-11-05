@@ -47,6 +47,11 @@ def validate_prose(cs, db, actor, node, previous_ref=None):
     text = node['body']['text']
     spans = [{'reason': 'internal_content', 'field': 'text', 'start': m.start(), 'end': m.end()}
              for m in _INTERNAL.finditer(text)]
+    from .exporting import markdown_table_spans
+    lines = text.splitlines(keepends=True)
+    for _, start_line, end_line in markdown_table_spans(text):
+        spans.append({'reason': 'system_table_required', 'field': 'text',
+                      'start': sum(map(len, lines[:start_line])), 'end': sum(map(len, lines[:end_line]))})
     actual = {Ref.model_validate(x['source_ref']).key() for x in node.get('citations', [])}
     expected = {Ref.model_validate(x['source_ref']).key() for x in section['sources']}
     if not actual.intersection(expected):
