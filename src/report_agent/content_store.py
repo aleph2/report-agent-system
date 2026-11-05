@@ -248,7 +248,7 @@ class ContentStore:
                                     for s in sources]}
         return self.operation(actor, operation_id, {"capture_sources": source_ids}, save)
 
-    def commit(self, actor, operation_id, objects, *, deliverable_selection=None):
+    def commit(self, actor, operation_id, objects, *, deliverable_selection=None, _request_context=None):
         """Atomic batch; {'client_key': key} references are resolved only inside this batch."""
         if hasattr(deliverable_selection, 'model_dump'):
             deliverable_selection = deliverable_selection.model_dump()
@@ -322,7 +322,8 @@ class ContentStore:
                 self._insert(db, actor, ref["type"], payload, id=ref["id"], version=ref["version"], previous_ref=obj.get("previous_ref"))
                 if g6 and ref['type'] == 'ContentNode':
                     from .commission_plan import _set
-                    _set(db, 'g6_section_prose:' + digest([writing_plan['ref'], payload['body']['section_id']]), ref)
+                    from .section_writing import prose_selection_key
+                    _set(db, prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id']), ref)
             from .revision_authorization import record_use
             for grant, resulting_ref in exception_uses:
                 record_use(db, grant, resulting_ref, operation_id)
@@ -334,6 +335,8 @@ class ContentStore:
                     result['selection_only'] = True
             return result
         request = {"commit": objects}
+        if _request_context is not None:
+            request["host_context"] = _request_context
         if deliverable_selection is not None:
             request['deliverable_selection'] = deliverable_selection
         return self.operation(actor, operation_id, request, save)

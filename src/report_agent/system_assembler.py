@@ -37,9 +37,25 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
     plan, decision = _confirmed(cs, db)
     if plan['owner_id'] != actor.id:
         raise ActionForbidden('FORBIDDEN: assembly commission owner')
+    typed_proposals, proposal_errors = [], []
+    if current:
+        from .writer_issues import verify_issue_proposal
+        for key, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<?",
+                                   ('g6_issue_record:', 'g6_issue_record;')):
+            proposal = json.loads(raw)
+            if 'writer_task_ref' not in proposal:
+                continue
+            issue_id = proposal.get('issue', {}).get('id')
+            if key != 'g6_issue_record:' + digest([plan['ref'], issue_id]):
+                continue
+            try:
+                typed_proposals.append(verify_issue_proposal(cs, db, proposal, plan, actor))
+            except (ActionRejected, ActionForbidden, ValueError, KeyError, TypeError) as exc:
+                proposal_errors.append({'code': 'issue_proposal_invalid', 'issue_id': issue_id, 'reason': str(exc)})
     if current:
         seeds = [plan['ref'], decision['ref'], *assessment_refs,
                  *[r for refs in prose_bindings.values() for r in refs]]
+        seeds.extend(c['source_ref'] for p in typed_proposals for c in p['source_citations'])
         for ref in assessment_refs:
             receipt = _state(db, 'assessment_receipt:' + digest(ref))
             if receipt:
@@ -62,7 +78,8 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
     sections = {s['section_id']: s for s in plan['payload']['sections']}
     if len(sections) != len(plan['payload']['sections']):
         raise ActionRejected('ASSEMBLY_DUPLICATE_PLANNED_SECTION')
-    problems = []
+    source['typed_issue_proposals'] = typed_proposals
+    problems = list(proposal_errors)
     def problem(code, **where):
         problems.append({'code': code, **where})
     if current:
@@ -72,6 +89,8 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             proposal = json.loads(raw)
             issue = proposal.get('issue', {})
             if key != 'g6_issue_record:' + digest([plan['ref'], issue.get('id')]):
+                continue
+            if 'writer_task_ref' in proposal:
                 continue
             node_ref = proposal.get('node_ref')
             record = records.get(_key(node_ref)) if node_ref else None
@@ -84,7 +103,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 problem('issue_proposal_invalid', issue_id=issue.get('id'), ref=node_ref)
                 continue
             record['payload']['body'].setdefault('material_issues', []).append(typed)
-    projections = {}
+    projections, site_objects = {}, {}
     def producer(record, sid):
         if record['ref']['type'] == 'ContentNode' and record.get('owner_id') == actor.id:
             from .rescue_projection import verify_projection
@@ -111,6 +130,15 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 sid not in p.get('section_ids', [])):
             problem('writer_section_unassigned', ref=record['ref'], section_id=sid)
             return False
+        if p.get('assessment_object_id') is not None:
+            from .writer_assignments import bound_assignment
+            from .content_store import Actor
+            try:
+                bound = bound_assignment(cs, db, Actor(record['owner_id'], 'writer', task_id))
+            except (ActionRejected, ActionForbidden) as exc:
+                problem('writer_object_unassigned', ref=record['ref'], section_id=sid, reason=str(exc))
+                return False
+            site_objects[_key(record['ref'])] = bound['object']['object_id']
         return True
     selected, seen = {}, set()
     for sid, refs in prose_bindings.items():
@@ -247,6 +275,10 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             selected.setdefault(sid, [])
             completed.add(sid)
     source['structural_parent_refs'] = structural_parents
+    source['site_objects'] = site_objects
+    for ref_key, object_id in site_objects.items():
+        if object_id not in assessments:
+            problem('object_prose_assessment_missing', object_id=object_id)
     missing_prose = [sid for sid, section in sections.items() if section['kind'] == 'extracted' and sid not in selected]
     for sid, bound in selected.items():
         if not bound and sid not in structural_parents and not any(a[2] == sid for a in assessments.values()):
@@ -265,6 +297,12 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             if old is not None and {k: v for k, v in old.items() if k != 'anchor'} != without_anchor:
                 problem('issue_record_ambiguous', issue_id=issue['id'])
             full_issues[issue['id']] = issue
+    for proposal in typed_proposals:
+        issue = proposal['issue']
+        old = full_issues.get(issue['id'])
+        if old and {k: v for k, v in old.items() if k != 'anchor'} != {k: v for k, v in issue.items() if k != 'anchor'}:
+            problem('issue_record_ambiguous', issue_id=issue['id'])
+        full_issues[issue['id']] = issue
     from .commission_owner_records import material_issues
     for issue in material_issues(cs, plan['payload']):
         full_issues[issue.id] = issue.model_dump()
@@ -283,6 +321,12 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 routes[issue_id] = {'section_id': assessments[obj['object_id']][2], 'object_id': obj['object_id']}
             elif obj['object_id'] not in expected_objects:
                 routes[issue_id] = {'section_id': '1.3'}
+    for proposal in typed_proposals:
+        issue_id, binding = proposal['issue']['id'], proposal['binding']
+        if issue_id in routes and routes[issue_id] != binding:
+            problem('issue_route_conflicts_with_system', issue_id=issue_id, expected=routes[issue_id], supplied=binding)
+        elif issue_id not in template_ids:
+            routes[issue_id] = binding
     for issue_id in required.keys() - routes.keys() - template_ids - inventory_ids:
         saved = _state(db, 'g6_issue_route:' + digest([plan['ref'], issue_id]))
         if saved is not None:
@@ -370,6 +414,11 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
         return issues
     site_objects = {_key(p['projection_ref']): p['assessment_replacement']['object_id']
                     for p in source.get('rescue_projections', []) if p.get('assessment_replacement')}
+    site_objects.update(source.get('site_objects', {}))
+    def issue_citations(sid, obj=None):
+        return [citation for p in source.get('typed_issue_proposals', [])
+                if p['binding'] == ({'section_id': sid} if obj is None else {'section_id': sid, 'object_id': obj})
+                for citation in p['source_citations']]
     def copy_prose(record, sid, parent, position):
         node = deepcopy(record['payload']); node['body']['section_id'] = sid
         retained = [positioned(i) for i in node['body'].get('material_issues', []) if i['id'] not in issue_bindings]
@@ -390,7 +439,7 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
         if issues:
             heading_body['material_issues'] = issues
         head = insert({'kind': 'block', 'body': heading_body, 'qualifiers': {},
-                       'claim_kind': 'structure', 'citations': section['sources']})
+                       'claim_kind': 'structure', 'citations': section['sources'] + issue_citations(sid)})
         contains(root, head, index)
         child_index = 0
         if section['kind'] in {'fixed', 'derived'}:
@@ -411,7 +460,7 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
             if issues:
                 body['material_issues'] = issues
             object_head = insert({'kind': 'block', 'body': body, 'qualifiers': {},
-                'claim_kind': 'structure', 'citations': section['sources']})
+                'claim_kind': 'structure', 'citations': section['sources'] + issue_citations(sid, obj)})
             contains(head, object_head, child_index); child_index += 1; object_heads[obj] = object_head
             refs.extend(receipt['refs'].values())
             object_position = 0
@@ -475,6 +524,10 @@ def _current_selections(cs, db):
         selected = _state(db, 'g6_section_prose:' + digest([plan['ref'], sid]))
         if selected is not None:
             prose[sid] = selected if isinstance(selected, list) else [selected]
+        for obj in plan['payload']['objects']:
+            selected = _state(db, 'g6_object_prose:' + digest([plan['ref'], sid, obj['object_id']]))
+            if selected is not None:
+                prose.setdefault(sid, []).extend(selected if isinstance(selected, list) else [selected])
     for obj in plan['payload']['objects']:
         selected = _state(db, 'g6_assessment:' + digest([plan['ref'], obj['object_id']]))
         if selected is not None:
