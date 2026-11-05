@@ -4,7 +4,11 @@ from .errors import ActionRejected
 from .method_pack import number
 
 
-def composed_nodes(plan, section, bound):
+# shortcut: pilot wording and specialist criterion remain here; move to source-bound method/table data after this pilot.
+def composed_nodes(plan, section, bound, template_decisions=(), applicability_issues=()):
+    from .commission_plan import template_decision_texts, template_issue
+    adopted = template_decision_texts({"sections": [section]}, template_decisions)
+    frozen_issues = {issue["id"]: issue for issue in applicability_issues}
     definitions = {i['id']: i for i in plan['method_pack']['indicators']}
     bands = {b['level']: b for b in plan['method_pack']['risk_bands']}
     threshold = next((b for b in bands.values() if b['level'] in ('Ⅲ', 'III')), None)
@@ -37,7 +41,12 @@ def composed_nodes(plan, section, bound):
     for part in section['result_composition']:
         sid, kind = part['section_id'], part['kind']
         if kind == 'source':
-            node('block', {'text': '以下保留模板通用说明与建议；其中的适用性及资料依据须结合本次委托核验，不表示本次已完成现场调查。\n' + part['text']}, section['sources'])
+            text = adopted.get(sid, part['text'])
+            anchor = next((line.strip() for line in text.splitlines() if line.strip() and text.count(line.strip()) == 1), None)
+            if not anchor:raise ActionRejected('TEMPLATE_MATERIAL_ISSUE_ANCHOR_REQUIRED: ' + sid)
+            issue = frozen_issues.get('template-applicability:' + sid) or template_issue(part, [], next((c['choice'] for c in template_decisions if c['section_id'] == sid), None))
+            issue = {**issue, 'adopted_value': anchor, 'anchor': {'text': anchor}, 'affects_level': False}
+            node('block', {'text': text, 'material_issues': [issue]}, section['sources'])
         elif kind == 'assessment_summary':
             counts = '；'.join(level + '级' + str(sum(r['adopted']['level'] == level for r in bound.values())) + '处'
                               for level in sorted(bands, key=lambda v: number(bands[v]['lower'])))

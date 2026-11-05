@@ -6,7 +6,7 @@
   "reasoning_effort": "high",
   "synthetic": false,
   "round_token_limit": 120000000,
-  "m1_token_limit": 278464822,
+  "m1_token_limit": 478464822,
   "reserved_tokens_per_attempt": 2000000,
   "retry_backoff_seconds": 2,
   "text_output_tokens": 65536,
@@ -37,5 +37,8 @@
     "context_projection": "review-materials-v1",
     "history_projection_profile": "exact-history-v1",
     "review_submission_contract": "task-scope-selectors-v1"
-  }
+  },
+  "grant_token_limit": 200000000,
+  "planning_alert_tokens": 15000000,
+  "planning_stop_tokens": 25000000
 }

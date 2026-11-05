@@ -34,7 +34,10 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines):
     html = path.with_suffix('.html')
     bindings = {'plan_ref': plan_ref, 'requirements_ref': plan.get('requirements_ref'),
                 'plan_sha256': digest(plan), 'requirements_sha256': digest(requirements['payload'])}
-    audit.write_text(json.dumps({**bindings, 'plan': plan, 'requirements': requirements, 'source_access': access}, ensure_ascii=False, indent=2), encoding='utf-8')
+    from .commission_carryover import rows
+    with cs.store.connect() as db:
+        carried = rows(db,plan,True)
+    audit.write_text(json.dumps({**bindings, 'plan': plan, 'requirements': requirements, 'source_access': access, 'carried_judgments':carried}, ensure_ascii=False, indent=2), encoding='utf-8')
     appendix.write_text('# 完整审查证据\n\n' + json.dumps(bindings, ensure_ascii=False) + '\n\n' + '\n'.join(full_lines) + '\n', encoding='utf-8')
     def source(c):
         if not c:
@@ -94,8 +97,7 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines):
     page1 += ['## 业主已记录决定', *mdtable(['类型','对象','采用内容'], owner_rows(plan)), '## 范围与约定', boundary, *conventions,
               '## 资料替代', *[','.join(ids) + '：' + text for text,ids in substitutions.items()],
               '## 待确认问题与警示', *plan.get('open_questions', []), *list(dict.fromkeys(warnings))]
-    if any(s.get('result_composition') for s in plan['sections']):
-        page1 += ['模板适用性：5.1/5.5保留通用说明及建议，其中类似工程案例和桥梁措辞仍需适用性核验；不表示本次实施了现场调查。']
+    page1 += ['章节' + p['section_id'] + '：' + p['applicability_question'] + ' keep_verbatim（保留原文）／replace（逐项替换）。' for section in plan['sections'] for p in section.get('result_composition', []) if p.get('applicability_question')]
     sections = plan['sections'];fixed = [s for s in sections if s['kind']=='fixed']
     count = len([a for a in requirements['payload']['anchors'] if a['kind']=='section'])
     resolved = len([i for i in requirements['payload']['items'] if i['status'] != 'unresolved'])
@@ -108,6 +110,9 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines):
         '## 审查绑定', '计划版本：' + str(plan_ref['version']), '计划指纹：' + bindings['plan_sha256'],
         '要求指纹：' + bindings['requirements_sha256'],
         f'[完整要求、引用与读取记录]({appendix.name})', f'[完整JSON]({audit.name})']
+    if plan.get('carried_items'):
+        counts = {s:sum(r['status']==s for r in plan['carried_items']) for s in ('proposed','confirmed','revised')}
+        page2 += ['承接判断：待复核 ' + str(counts['proposed']) + '；已复核 ' + str(counts['confirmed']) + '；已修订复核 ' + str(counts['revised']) + '。逐项原值、当前值、引用和复核状态见完整JSON；不承接旧计划批准。']
     path.write_text('\n\n'.join(page1) + '\n\n---\n\n' + '\n\n'.join(page2) + '\n', encoding='utf-8')
     from markdown_it import MarkdownIt
     render = MarkdownIt('commonmark').enable('table')

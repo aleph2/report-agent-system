@@ -91,7 +91,7 @@ def stage(args):
         for path in files:
             if (path.is_symlink() or not path.resolve().is_relative_to(inputs)
                     or (path.suffix.lower() not in {'.pdf', '.md', '.docx'}
-                        and path.relative_to(inputs).as_posix() != 'owner-decisions.json')
+                        and path.relative_to(inputs).as_posix() not in ('owner-decisions.json','carryover-judgments.json'))
                     or path.stat().st_size > config['input_max_bytes']):
                 raise ValueError('INPUT_ESCAPE_TYPE_OR_LIMIT')
             target = destination / path.relative_to(inputs)
@@ -124,6 +124,16 @@ def stage(args):
             shutil.copy2(owner_path, target)
             if host['sha'](owner_path) != host['sha'](target):
                 raise ValueError('OWNER_DECISIONS_CHANGED_DURING_COPY')
+        carryover_path = getattr(args, 'carryover_judgments', None)
+        if carryover_path is not None:
+            carryover_path = Path(carryover_path)
+            target = destination / 'carryover-judgments.json'
+            if (carryover_path.is_symlink() or not carryover_path.is_file() or target.exists()
+                    or carryover_path.stat().st_size > config['input_max_bytes']):
+                raise ValueError('CARRYOVER_FILE_OR_DUPLICATE_INVALID')
+            shutil.copy2(carryover_path, target)
+            if host['sha'](carryover_path) != host['sha'](target):
+                raise ValueError('CARRYOVER_CHANGED_DURING_COPY')
         pins = host['input_files']()
         from pypdf import PdfReader
         from report_agent.ingestion import MAX_PDF_PAGES
@@ -165,6 +175,7 @@ def main():
     parser.add_argument('--template', dest='templates', action='append', default=[], type=Path,
                         help='Explicit optional template PDF; repeat for several. Copied and pinned under inputs/成果报告 without changing originals.')
     parser.add_argument('--owner-decisions', type=Path, help='Explicit immutable owner-records JSON; copied and pinned as inputs/owner-decisions.json.')
+    parser.add_argument('--carryover-judgments', type=Path, help='Explicit proposals only; copied and pinned as inputs/carryover-judgments.json.')
     parser.add_argument('--run', required=True, type=Path, help='New independent run directory')
     parser.add_argument('--ledger', required=True, type=Path, help='New independent token-budget.db')
     parser.add_argument('--reuse-ledger', action='store_true', help='Explicitly reuse the same authorized M1 ledger')

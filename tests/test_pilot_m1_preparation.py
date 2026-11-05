@@ -214,11 +214,14 @@ def test_stage_keeps_escape_and_type_guards_with_variable_input_count(tmp_path, 
     assert not args.ledger.exists()
 
 
-def test_approved_restart_baseline_is_real_inputs_120m_and_account_278464822():
+def test_g5_authority_is_real_inputs_120m_plus200m_and_planning_limits():
     config = json.loads((ROOT / 'config/current.json').read_text())
     assert config['synthetic'] is False
     assert config['round_token_limit'] == 120_000_000
-    assert config['m1_token_limit'] == 278_464_822
+    assert config['m1_token_limit'] == 478_464_822
+    assert config['grant_token_limit'] == 200_000_000
+    assert config['planning_alert_tokens'] == 15_000_000
+    assert config['planning_stop_tokens'] == 25_000_000
 
 
 def attempt_rows(budget):

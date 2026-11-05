@@ -801,7 +801,8 @@ def test_template_source_guidance_is_visibly_attributed_not_claimed_as_run_work(
     f = composition_data
     nodes = composed(f, {"S_NORMAL": f.result("S_NORMAL")})
     source = next(n for n in nodes if f.section["result_composition"][0]["text"] in n["body"].get("text", ""))
-    assert any(word in source["body"]["text"] for word in ("模板", "来源指引", "source guidance"))
+    assert source["body"]["text"] == f.section["result_composition"][0]["text"]
+    assert source["body"]["material_issues"], "Applicability belongs in annotations, per owner J2 review."
     assert "Retained management guidance." in visible_nodes(nodes)
 
 

@@ -40,9 +40,12 @@ class ResultComposition(Contract):
     section_id: str = Field(min_length=1)
     kind: Literal['source', 'assessment_summary', 'indicator_list', 'special_assessments']
     text: str = ''
+    applicability_question: str = Field(default='', exclude_if=lambda v: not v)
 
     @model_validator(mode='after')
     def source_only(self):
+        if self.kind != 'source' and self.applicability_question:
+            raise ValueError('COMPOSITION_SOURCE_QUESTION_ONLY')
         if (self.kind == 'source') != bool(self.text.strip()):
             raise ValueError('COMPOSITION_SOURCE_TEXT_ONLY')
         return self
@@ -201,6 +204,8 @@ class Reconciliation(Contract):
 
 
 class CommissionPlan(Contract):
+    carryover_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    carried_items: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     skeleton_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
     skeleton_questions: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     candidate_dispositions: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
@@ -361,22 +366,63 @@ class Reduction(Contract):
     reason: str = Field(min_length=1)
 
 
+class TemplateDecision(Contract):
+    section_id: str = Field(min_length=1)
+    choice: Literal['keep_verbatim', 'replace']
+    replacements: list[LiteralReplacement] = Field(default_factory=list)
+
+
 class OwnerDecision(Contract):
     plan_ref: Ref
     requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
     approved: bool = Field(strict=True)
     corrections: str
     reductions: list[Reduction]
+    template_decisions: list[TemplateDecision] = Field(default_factory=list, exclude_if=lambda v: not v)
 
     @model_validator(mode='after')
     def unambiguous(self):
         if (self.approved and self.corrections.strip()) or (not self.approved and not self.corrections.strip()):
             raise ValueError('COMMISSION_APPROVAL_OR_CORRECTIONS_REQUIRED')
+        if not self.approved and self.template_decisions:
+            raise ValueError('TEMPLATE_DECISION_REQUIRES_APPROVAL')
         if not self.approved and self.reductions:
             raise ValueError('COMMISSION_REDUCTION_REQUIRES_APPROVAL')
         if any(not r.reason.strip() for r in self.reductions):
             raise ValueError('COMMISSION_REDUCTION_REASON_REQUIRED')
         return self
+
+
+def template_decision_texts(plan, choices):
+    parts = {p['section_id']: p for section in plan['sections'] for p in section.get('result_composition', []) if p.get('applicability_question')}
+    ids = [c['section_id'] for c in choices]
+    if len(ids) != len(set(ids)) or set(ids) != set(parts):
+        raise ActionRejected('TEMPLATE_DECISION_REQUIRED: template_decisions/' + ','.join(sorted(set(ids) ^ set(parts) or set(ids))))
+    adopted = {}
+    for choice in choices:
+        sid = choice['section_id'];original = parts[sid]['text'];changes = choice.get('replacements', [])
+        if choice['choice'] not in ('keep_verbatim', 'replace') or (choice['choice'] == 'replace') != bool(changes):
+            raise ActionRejected('TEMPLATE_DECISION_REPLACEMENTS_REQUIRED: ' + sid)
+        spans = []
+        for replacement in changes:
+            old, new = replacement['old'], replacement['new']
+            if not old.strip() or not new.strip() or original.count(old) != 1:
+                raise ActionRejected('TEMPLATE_REPLACEMENT_NOT_UNIQUE: ' + sid)
+            start = original.index(old);spans.append((start,start+len(old),new))
+        spans.sort()
+        if any(a[1] > b[0] for a,b in zip(spans,spans[1:])):
+            raise ActionRejected('TEMPLATE_REPLACEMENT_OVERLAP: ' + sid)
+        text = original
+        for start,end,new in reversed(spans):text = text[:start] + new + text[end:]
+        adopted[sid] = text
+    return adopted
+
+
+def template_issue(part, sources, choice=None):
+    return {'id': 'template-applicability:' + part['section_id'], 'kind': 'unclear',
+        'object_label': '模板章节' + part['section_id'],
+        'basis': '保留模板通用说明与建议的适用性及资料依据须结合本次委托核验，不表示本次已完成现场调查。桥梁措辞及类似工程案例的适用性尚需核验。' + ('业主本次选择：保留原文。' if choice == 'keep_verbatim' else '业主本次选择：按明示文本替换。' if choice == 'replace' else ''),
+        'sources': sources, 'question': part.get('applicability_question') or '请核验本节通用说明及建议对本项目的适用性。'}
 
 
 def enabled(store):
@@ -424,7 +470,7 @@ def read_plan(store):
         return record
 
 
-def required_material_issues(cs, db, plan_ref, plan):
+def required_material_issues(cs, db, plan_ref, plan, template_decisions=()):
     """Derive obligations from retained plan facts, independently of writer selections."""
     def sources(citations):
         result = []
@@ -467,6 +513,10 @@ def required_material_issues(cs, db, plan_ref, plan):
     from .commission_owner_records import material_issues
     for issue in material_issues(cs, plan):
         issues.append({k: v for k, v in issue.model_dump().items() if k in ('id','kind','object_label','basis','sources','question')})
+    for section in plan['sections']:
+        for part in section.get('result_composition', []):
+            if part.get('applicability_question'):
+                issues.append(template_issue(part, sources(section['sources']), next((c['choice'] for c in template_decisions if c['section_id'] == part['section_id']), None)))
     return issues
 
 
@@ -822,6 +872,7 @@ def request_checkpoint(workspace):
     access = coverage(cs, plan)
     lines += access_lines(access)
     lines += ['', '## 待确认问题', '', *['- ' + item for item in plan['open_questions']]]
+    lines += ['- 章节' + p['section_id'] + '：' + p['applicability_question'] + '；选择 keep_verbatim（保留原文）或 replace（逐项明示替换）。' for s in plan['sections'] for p in s.get('result_composition', []) if p.get('applicability_question')]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     brief_artifacts = {}
@@ -836,7 +887,7 @@ def request_checkpoint(workspace):
     path.with_suffix('.json').write_text(json.dumps({'issue_id': issue['id'], 'plan_ref': ref, 'source_access': access,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
         **brief_artifacts, 'plan_sha256': digest(plan),
-        'decision_shape': {'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': []},
+        'decision_shape': {'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': [], 'template_decisions': [{'section_id': p['section_id'], 'choice': 'KEEP_OR_REPLACE_REQUIRED', 'replacements': []} for s in plan['sections'] for p in s.get('result_composition', []) if p.get('applicability_question')]},
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')
     return {'issue_id': issue['id'], 'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)),
             'description': description, 'source_ids': source_ids}
@@ -936,6 +987,7 @@ def reply(workspace, issue_id, decision):
         if decision['approved']:
             from .commission_requirements import require_complete, enabled as requirements_enabled
             require_complete(cs, plan, db=db)
+            template_decision_texts(plan, decision.get('template_decisions', []))
             if requirements_enabled(cs.store) and (decision.get('requirements_ref') != plan.get('requirements_ref')
                     or checkpoint.get('requirements_ref') != plan.get('requirements_ref')):
                 raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
@@ -963,7 +1015,7 @@ def reply(workspace, issue_id, decision):
         owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
         owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
         accepted = {**decision, 'reductions': owner_reductions, **({'required_material_issues': required_material_issues(
-            cs, db, decision['plan_ref'], plan), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
+            cs, db, decision['plan_ref'], plan, decision.get('template_decisions', [])), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
         ref = cs._insert(db, owner, 'CommissionDecision', accepted)
         issue.update(decision=answer, decision_origin='operator', resolved=True)
         _set(db, 'commission_confirmation', ref)

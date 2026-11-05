@@ -462,7 +462,8 @@ def _assemble(cs, db):
             section['source_substitutions'] = [s for s in section.get('source_substitutions', []) if s['requested_source'] != value['requested_source']] + [value]
     from .commission_skeleton import apply_dispositions
     plan = apply_dispositions(cs, db, plan)
-    return draft, requirements, plan
+    from .commission_carryover import decorate
+    return draft, requirements, decorate(db, plan)
 
 
 def _gaps(cs, plan, db):
@@ -513,7 +514,7 @@ def read_draft(cs, actor):
 
 
 DRAFT_COLLECTIONS = Literal['summary', 'requirements', 'sections', 'objects', 'reconciliations',
-    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps']
+    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps', 'carried_items']
 
 
 def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_id='',
@@ -543,6 +544,8 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
             'text_profiles': list(_state(db, 'commission_text_profiles', {}).items()),
             'gaps': [(str(i), g) for i, g in enumerate(gaps)],
         }
+        from .commission_carryover import rows
+        collections['carried_items'] = [(r['item_id'],r) for r in rows(db,plan,True)]
         collections.update(sections=[(s['section_id'], s) for s in plan['sections']],
                            objects=[(o['object_id'], o) for o in plan['objects']])
     current = digest({'revision': draft['revision'], 'requirements_ref': requirements['ref'], 'collections': collections})
@@ -942,9 +945,15 @@ def planning_tools(cs, actor):
         from .commission_skeleton import resolve_skeleton_question
         return resolve_skeleton_question(cs, actor(), operation_id, question_id, expected_digest, choice_id, selection.model_dump(mode='json') if selection else None)
 
+    from .commission_carryover import CarriedReview
+    def review_carried_items(operation_id: str, reviews: list[CarriedReview]) -> dict:
+        """Recheck current imported judgments against new sources; acknowledge each exact digest as confirmed or revised with a reason. No prior approval is carried."""
+        from .commission_carryover import review_carried_items as review
+        return review(cs, actor(), operation_id, [r.model_dump(mode='json') for r in reviews])
+
     if cs.store.get('commission_skeleton'):
         return [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
-            set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question]]
+            set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question, review_carried_items]]
     return [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
             add_object, add_section, add_substitution, add_reconciliation, add_question]]
 

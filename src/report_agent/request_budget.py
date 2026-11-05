@@ -19,7 +19,7 @@ class RequestBudgetExceeded(OpenAIError, RuntimeError):
 # Fixed local codes only; never disclose arbitrary host/provider exception text.
 HOST_ADMISSION_REASONS = frozenset({
     'HOST_TOKEN_BUDGET_REACHED', 'HOST_ADMISSION_WINDOW_ENDED',
-    'HOST_TECHNICAL_FAILURE_PENDING', 'HOST_BASELINE_CHANGED',
+    'HOST_TECHNICAL_FAILURE_PENDING', 'HOST_BASELINE_CHANGED', 'HOST_PLANNING_STOP_LOSS',
 })
 
 
