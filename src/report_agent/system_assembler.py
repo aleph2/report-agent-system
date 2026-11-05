@@ -84,22 +84,34 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 problem('issue_proposal_invalid', issue_id=issue.get('id'), ref=node_ref)
                 continue
             record['payload']['body'].setdefault('material_issues', []).append(typed)
+    projections = {}
     def producer(record, sid):
+        if record['ref']['type'] == 'ContentNode' and record.get('owner_id') == actor.id:
+            from .rescue_projection import verify_projection
+            try:
+                receipt = verify_projection(cs, db, cs._read(db, record['ref']), sid, plan, actor)
+            except (ActionRejected, ActionForbidden) as exc:
+                problem('rescue_projection_invalid', ref=record['ref'], section_id=sid, reason=str(exc))
+                return False
+            projections[_key(record['ref'])] = receipt
+            return True
         task_id = record.get('task_id')
         if (not task_id or record.get('owner_id') != 'content:writer:' + task_id or
                 record.get('created_by') != record.get('owner_id')):
             problem('writer_identity_invalid', ref=record['ref'], section_id=sid)
-            return
+            return False
         try:
             task = cs._read(db, {'type': 'DelegatedTask', 'id': task_id, 'version': 1})
         except ActionRejected:
             problem('writer_task_missing', ref=record['ref'], section_id=sid)
-            return
+            return False
         p = task['payload']
         if (task['owner_id'] != actor.id or p.get('delegated_by') != actor.id or
                 p.get('role') != 'writer' or p.get('commission_plan_ref') != plan['ref'] or
                 sid not in p.get('section_ids', [])):
             problem('writer_section_unassigned', ref=record['ref'], section_id=sid)
+            return False
+        return True
     selected, seen = {}, set()
     for sid, refs in prose_bindings.items():
         if sid not in sections or sections[sid]['kind'] != 'extracted' or not isinstance(refs, list):
@@ -116,7 +128,8 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             if record is None or ref['type'] != 'ContentNode':
                 problem('prose_not_frozen', ref=ref, section_id=sid)
                 continue
-            producer(record, sid)
+            if not producer(record, sid):
+                continue
             node = record['payload']; body = node['body']
             if (node['kind'] != 'block' or body.get('assessment_ref') or body.get('planned_section') or
                     body.get('section_id', sid) != sid or body.get('section_heading')):
@@ -130,7 +143,6 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             if unsupported:
                 problem('prose_unresolved_metadata', ref=ref, section_id=sid, fields=sorted(unsupported))
             selected[sid].append(record)
-    missing_prose = [sid for sid, s in sections.items() if s['kind'] == 'extracted' and sid not in selected]
     reductions = {r['object_id'] for r in decision['payload'].get('reductions', [])}
     expected_objects = {o['object_id'] for o in plan['payload']['objects']
                         if not outside_boundary(plan['payload'], o)} - reductions
@@ -153,7 +165,8 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             problem('assessment_generated_records_not_frozen', ref=ref, object_id=obj)
             continue
         sid = records[_key(receipt['evaluation_ref'])]['payload']['body']['section_id']
-        producer(record, sid)
+        if not producer(record, sid):
+            continue
         if sid not in sections or sections[sid]['kind'] != 'extracted':
             problem('assessment_section_invalid', ref=ref, section_id=sid)
             continue
@@ -180,8 +193,63 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                     body.get('text') in {sections[sid]['title'], sid + ' ' + sections[sid]['title']}):
                 continue
             unbound_source_nodes.append(record['ref'])
+    rescued_snapshot = None
+    projection_sources = {_key(p['source_snapshot_ref']): p['source_snapshot_ref'] for p in projections.values()}
+    if len(projection_sources) > 1:
+        problem('rescue_source_snapshots_mixed', source_snapshot_refs=list(projection_sources.values()))
+    elif projection_sources:
+        rescued_snapshot = cs._read(db, next(iter(projection_sources.values())))
+        original_root = cs._read(db, rescued_snapshot['payload']['root_ref'])['payload']
+        if (original_root['kind'] != 'report' or not original_root['body'].get('text', '').strip() or
+                original_root['body'].get('material_issues') or
+                (plan['payload'].get('report_title') and plan['payload']['report_title'] != original_root['body']['text'])):
+            problem('rescue_root_title_ambiguous', source_snapshot_ref=rescued_snapshot['ref'])
+        elif current:
+            source['root_payload'] = deepcopy(original_root)
+    source['rescue_projections'] = list(projections.values())
+    source['rescue_source_snapshot_ref'] = rescued_snapshot['ref'] if rescued_snapshot else None
+    for receipt in projections.values():
+        replacement = receipt.get('assessment_replacement')
+        if replacement:
+            obj = replacement['object_id']
+            if (obj not in assessments or assessments[obj][0]['ref'] != replacement['assessment_ref'] or
+                    assessments[obj][2] != receipt['section_id']):
+                problem('rescue_site_assessment_mismatch', ref=receipt['projection_ref'], object_id=obj)
+    structural_parents = {}
+    if rescued_snapshot:
+        heading_candidates = {}
+        for ref in rescued_snapshot['payload']['refs']:
+            if ref['type'] != 'ContentNode':
+                continue
+            node_record = cs._read(db, ref); node = node_record['payload']
+            if (node['kind'] not in {'block', 'chapter'} or node.get('citations') or node.get('qualifiers') or
+                    set(node['body']) != {'text'}):
+                continue
+            for sid, section in sections.items():
+                if section['kind'] == 'extracted' and node['body']['text'] == sid + ' ' + section['title']:
+                    heading_candidates.setdefault(sid, []).append(node_record)
+        completed = {sid for sid, section in sections.items() if section['kind'] != 'extracted' or
+                     selected.get(sid) or any(a[2] == sid for a in assessments.values())}
+        for sid in sorted(sections, key=lambda value: value.count('.'), reverse=True):
+            if selected.get(sid) or sid not in heading_candidates:
+                continue
+            descendants = {child for child in sections if child.startswith(sid + '.')}
+            canonical_children = any(a[2] == sid for a in assessments.values())
+            if (not descendants and not canonical_children) or not descendants <= completed:
+                continue
+            candidates = heading_candidates[sid]
+            if len(candidates) != 1:
+                problem('rescue_parent_heading_ambiguous', section_id=sid)
+                continue
+            if not producer(candidates[0], sid):
+                continue
+            structural_parents[sid] = candidates[0]['ref']
+            selected.setdefault(sid, [])
+            completed.add(sid)
+    source['structural_parent_refs'] = structural_parents
+    missing_prose = [sid for sid, section in sections.items() if section['kind'] == 'extracted' and sid not in selected]
     for sid, bound in selected.items():
-        if not bound and not any(a[2] == sid for a in assessments.values()):
+        if not bound and sid not in structural_parents and not any(a[2] == sid for a in assessments.values()):
             problem('empty_extracted_section', section_id=sid)
     required = {i['id']: i for i in decision['payload'].get('required_material_issues', [])}
     full_issues = {}
@@ -300,6 +368,17 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
         issues = [positioned(full_issues[i]) for i, binding in issue_bindings.items()
                   if binding.get('section_id') == sid and binding.get('object_id') == obj]
         return issues
+    site_objects = {_key(p['projection_ref']): p['assessment_replacement']['object_id']
+                    for p in source.get('rescue_projections', []) if p.get('assessment_replacement')}
+    def copy_prose(record, sid, parent, position):
+        node = deepcopy(record['payload']); node['body']['section_id'] = sid
+        retained = [positioned(i) for i in node['body'].get('material_issues', []) if i['id'] not in issue_bindings]
+        if retained:
+            node['body']['material_issues'] = retained
+        else:
+            node['body'].pop('material_issues', None)
+        ref = insert(node); contains(parent, ref, position)
+        copies.append({'source_ref': record['ref'], 'assembled_ref': ref, 'section_id': sid})
     root_payload = deepcopy(source.get('root_payload') or cs._read(db, source['payload']['root_ref'])['payload'])
     root_payload['body'].pop('material_issues', None)
     root = insert(root_payload)
@@ -321,17 +400,8 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
             refs.extend(generated['refs'].values()); contains(head, generated['node_ref'], child_index)
             continue
         for record in selected.get(sid, []):
-            node = deepcopy(record['payload']); node['body']['section_id'] = sid
-            retained = []
-            for issue in node['body'].get('material_issues', []):
-                if issue['id'] not in issue_bindings:
-                    retained.append(positioned(issue))
-            if retained:
-                node['body']['material_issues'] = retained
-            else:
-                node['body'].pop('material_issues', None)
-            ref = insert(node); contains(head, ref, child_index); child_index += 1
-            copies.append({'source_ref': record['ref'], 'assembled_ref': ref, 'section_id': sid})
+            if _key(record['ref']) not in site_objects:
+                copy_prose(record, sid, head, child_index); child_index += 1
         for obj, (record, receipt, assessment_sid) in assessments.items():
             if assessment_sid != sid:
                 continue
@@ -344,7 +414,11 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
                 'claim_kind': 'structure', 'citations': section['sources']})
             contains(head, object_head, child_index); child_index += 1; object_heads[obj] = object_head
             refs.extend(receipt['refs'].values())
-            for position, part in enumerate(('ranking_ref', 'evaluation_ref', 'level_ref')):
+            object_position = 0
+            for prose in selected.get(sid, []):
+                if site_objects.get(_key(prose['ref'])) == obj:
+                    copy_prose(prose, sid, object_head, object_position); object_position += 1
+            for position, part in enumerate(('ranking_ref', 'evaluation_ref', 'level_ref'), object_position):
                 contains(object_head, receipt[part], position)
     from .risk_scoring import validate_outcome
     outcomes = []
@@ -370,6 +444,9 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
         'contract': CONTRACT, 'snapshot_ref': result['snapshot_ref'], 'manifest_digest': result['manifest_digest'],
         'source_snapshot_ref': request['source_snapshot_ref'], 'source_manifest_digest': source['payload']['manifest_digest'],
         'source_kind': 'current-selections' if current else 'frozen-snapshot',
+        'rescue_source_snapshot_ref': source.get('rescue_source_snapshot_ref'),
+        'rescue_projection_refs': [r['projection_ref'] for r in source.get('rescue_projections', [])],
+        'structural_parent_refs': source.get('structural_parent_refs', {}),
         'commission_plan_ref': plan['ref'], 'commission_confirmation_ref': decision['ref'],
         'bindings_digest': digest(request), 'resolved_issue_bindings': issue_bindings,
         'operator_issue_routes': {i: saved for i in issue_bindings
