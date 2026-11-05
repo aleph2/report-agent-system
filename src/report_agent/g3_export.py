@@ -74,11 +74,13 @@ def citation_text(node, records, plan=None):
         title = source.get('source_metadata', {}).get('title', '').strip()
         locator = citation['locator'].strip()
         page = re.fullmatch(r'page ([1-9][0-9]*)(?:;.*)?', locator)
-        line = re.fullmatch(r'line ([1-9][0-9]*)', locator)
+        text_location = re.fullmatch(r'(line|body/paragraph) ([1-9][0-9]*)(?:; chars ([1-9][0-9]*)-([1-9][0-9]*))?', locator)
+        if text_location and text_location[3] and int(text_location[3]) > int(text_location[4]):
+            raise ActionRejected('G3_CITATION_LOCATION_NOT_READABLE')
         if page:
             place = f'PDF第{page[1]}页'
-        elif line:
-            place = f'第{line[1]}行'
+        elif text_location:
+            place = (f'第{text_location[2]}行' if text_location[1] == 'line' else f'正文第{text_location[2]}段')
         elif locator == 'manifest text':
             place = '全文'
         elif re.fullmatch(r'[\u3400-\u9fff\d、，。；（）()\s.\-]+', locator):
