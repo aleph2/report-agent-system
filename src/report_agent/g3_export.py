@@ -212,6 +212,12 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                         if section.get('result_composition') else receipt.get('text_digest') != digest(body.get('text')))):
                 problems.append(location + ': derived section receipt mismatch')
             elif section.get('result_composition'):
+                if any(p.get('applicability_question') for p in section['result_composition']):
+                    confirmation = snapshot['payload'].get('commission_confirmation_ref')
+                    saved = (records.get(_key(confirmation)) or cs.read(confirmation)) if confirmation else None
+                    if (not saved or receipt.get('commission_confirmation_ref') != confirmation
+                            or receipt.get('decision_digest') != digest(saved['payload'])):
+                        problems.append(location + ': derived template decision receipt mismatch')
                 composition_groups[sid].add(digest(receipt.get('group_ref')))
                 group = cs.store.get('planned_section_receipt:' + digest(receipt.get('group_ref')))
                 expected = [_key(r) for r in (group or {}).get('node_refs', [])]

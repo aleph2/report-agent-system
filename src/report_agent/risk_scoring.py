@@ -415,19 +415,21 @@ def create_planned_section(cs, actor, operation_id, section_id, assessment_refs=
         if section.get('result_composition'):
             from .commission_results import composed_nodes
             from .commission_plan import _set
-            nodes = composed_nodes(plan['payload'], section, bound)
+            nodes = composed_nodes(plan['payload'], section, bound,
+                [c for c in decision['payload'].get('template_decisions', []) if c['section_id'] in {p['section_id'] for p in section['result_composition']}],
+                decision['payload'].get('required_material_issues', []))
             root = ContentNode.model_validate({'kind': 'block', 'body': {'text': section['section_id'] + ' ' + section['title'],
                 'section_id': section_id}, 'qualifiers': {}, 'claim_kind': 'structure', 'citations': section['sources']}).model_dump(mode='json')
             all_nodes = [root, *nodes]
             for node in all_nodes:
-                node['body'].update(planned_section=True, commission_plan_ref=plan['ref'], assessment_refs=list(assessment_refs))
+                node['body'].update(planned_section=True, commission_plan_ref=plan['ref'], commission_confirmation_ref=decision['ref'], assessment_refs=list(assessment_refs))
             refs = [cs._insert(db, actor, 'ContentNode', node) for node in all_nodes]
             relations = [cs._insert(db, actor, 'Relation', {'subject_ref': refs[0], 'object_ref': ref,
                 'predicate': 'contains', 'position': n, 'provenance_kind': 'adopted_during_generation'}) for n, ref in enumerate(refs[1:])]
             for ref, node in zip(refs, all_nodes):
                 receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
                     'section_id': section_id, 'body_digest': digest(node['body']), 'composition_digest': digest(section['result_composition']),
-                    'group_ref': refs[0]}
+                    'group_ref': refs[0], 'commission_confirmation_ref': decision['ref'], 'decision_digest': digest(decision['payload'])}
                 if ref == refs[0]:
                     receipt['node_refs'] = refs
                 _set(db, 'planned_section_receipt:' + digest(ref), receipt)

@@ -502,7 +502,8 @@
         "composition": [
           {
             "section_id": "5.1",
-            "kind": "source"
+            "kind": "source",
+            "applicability_question": "本节含桥梁措辞或类似工程案例表述：是否保留模板原文，或提供明确的逐项替换文本？请在本计划确认时选择；适用性问题将列入Word批注与Excel。"
           },
           {
             "section_id": "5.2",
@@ -518,7 +519,8 @@
           },
           {
             "section_id": "5.5",
-            "kind": "source"
+            "kind": "source",
+            "applicability_question": "本节含桥梁措辞或类似工程案例表述：是否保留模板原文，或提供明确的逐项替换文本？请在本计划确认时选择；适用性问题将列入Word批注与Excel。"
           }
         ]
       }

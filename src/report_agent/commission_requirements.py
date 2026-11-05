@@ -298,7 +298,8 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
     record = read_requirements(cs, requirements_ref, db=db)
     anchors = record['payload']['anchors']
     items = {i['anchor_id']: i for i in record['payload']['items']}
-    gaps = disposition_gaps(cs, db, plan)
+    from .commission_carryover import gaps as carryover_gaps
+    gaps = disposition_gaps(cs, db, plan) + carryover_gaps(cs, db, plan)
     for q in (_state(db, 'commission_skeleton') or {}).get('questions', []):
         gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + q['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': q['reason']})
     def gap(anchor, path, code, message):

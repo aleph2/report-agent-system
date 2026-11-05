@@ -36,7 +36,7 @@ def input_files():
  files=sorted(p for p in root.rglob("*") if p.is_file() and not p.name.startswith("~$"))
  result={}
  for p in files:
-  if p.is_symlink() or not p.resolve().is_relative_to(root) or (p.suffix.lower() not in (".pdf",".md",".docx") and p.relative_to(root).as_posix()!="owner-decisions.json"):raise RuntimeError("INPUT_ESCAPE_OR_TYPE")
+  if p.is_symlink() or not p.resolve().is_relative_to(root) or (p.suffix.lower() not in (".pdf",".md",".docx") and p.relative_to(root).as_posix() not in ("owner-decisions.json","carryover-judgments.json")):raise RuntimeError("INPUT_ESCAPE_OR_TYPE")
   if p.stat().st_size>CONFIG["input_max_bytes"]:raise RuntimeError("INPUT_RESOURCE_LIMIT")
   result[str(p.relative_to(root))]=sha(p)
  return result
@@ -69,14 +69,16 @@ def validate_budget_authority():
      or authority.get("maximum_tokens")!=TOTAL_LIMIT or authority.get("model_bounds")!=MODEL_BOUNDS
      or any(not isinstance(authority.get(k),str) or not authority[k].strip() for k in ("authorization_id","user_authority"))):
   raise RuntimeError("M1_BUDGET_AUTHORITY_MISMATCH")
+ grant=authority.get('grant_scope')
+ if CONFIG.get('grant_token_limit'):
+  if (not isinstance(grant,dict) or grant.get('maximum_tokens')!=CONFIG['grant_token_limit']
+      or grant.get('baseline_sha256')!=hashlib.sha256(json.dumps(grant.get('baseline'),sort_keys=True,separators=(',',':')).encode()).hexdigest()
+      or grant.get('baseline',{}).get('auth')!=finance()['auth']):raise RuntimeError('G5_GRANT_SCOPE_REQUIRED')
+  used,held,_=budget_scope_cost(grant['baseline'],finance())
+  if used+held>grant['maximum_tokens']:raise RuntimeError('G5_GRANT_EXHAUSTED')
 
-def budget_scope_cost(before,now):
- from report_agent.request_budget import RequestBudgetExceeded
- old={x[0]:x for x in before["rows"]};rows={x[0]:x for x in now["rows"]}
- if now["auth"]!=before["auth"] or any(rows.get(k)!=v for k,v in old.items()):
-  raise RequestBudgetExceeded("HOST_BASELINE_CHANGED")
- diff=[x for k,x in rows.items() if k not in old]
- return sum(x[3] or 0 for x in diff),sum(x[2] for x in diff if x[4] in ("reserved","unknown")),any(x[4]=="unknown" for x in diff)
+from report_agent.planning_budget import budget_scope_cost
+
 
 def endpoint_pins():
  from report_agent.model_config import load_mixed_services,role_service
@@ -132,7 +134,7 @@ def prepare():
  ids=[];inputs={}
  try:
   for name,digest in pins.items():
-   if name=="owner-decisions.json":continue
+   if name in ("owner-decisions.json","carryover-judgments.json"):continue
    path=INPUT/name;data=path.read_bytes();profile=profiles.get(name)
    if hashlib.sha256(data).hexdigest()!=digest:raise RuntimeError("INPUT_CHANGED_DURING_PREPARE")
    ingestion.MAX_UPLOAD_BYTES=max(original_limits[0],len(data))
@@ -177,12 +179,19 @@ def prepare():
   from report_agent.commission_skeleton import prepare_skeleton
   skeleton=prepare_skeleton(contents,list(by_hash.values()))
   requirements_ref=skeleton["requirements_ref"];skeleton_digest=skeleton["digest"]
+ carryover_digest=None
+ if 'carryover-judgments.json' in pins:
+  if not skeleton_digest:raise RuntimeError('CARRYOVER_OWNER_SKELETON_REQUIRED')
+  from report_agent.commission_carryover import install_carryover
+  carryover_bytes=(INPUT/'carryover-judgments.json').read_bytes()
+  if hashlib.sha256(carryover_bytes).hexdigest()!=pins['carryover-judgments.json']:raise RuntimeError('CARRYOVER_CHANGED_DURING_PREPARE')
+  carryover_digest=install_carryover(contents,json.loads(carryover_bytes),list(by_hash.values()))
  from report_agent.blob_store import verify_case_blobs
  verify_case_blobs(CASE)
  save(HERE/"prepared.json",{"case":str(CASE),"input_hashes":pins,"source_pins":source_pins(),"host_sha256":sha(__file__),
     "deployment_sha256":sha(HERE/"deployment.json"),"authorization_sha256":sha(HERE/"authorization.json"),
     "source_ids":ids,"source_files":inputs,"format_references":references,"goal":goal,"state_sha256":sha(CASE/"state.db"),"library_sha256":sha(CASE/"experience-library/state.db"),
-    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"owner_records_digest":owner_records_digest,"skeleton_digest":skeleton_digest,"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
+    "pdf_limits_sha256":sha(HERE/"pdf-limits.json"),"carryover_digest":carryover_digest,"owner_records_digest":owner_records_digest,"skeleton_digest":skeleton_digest,"requirements_ref":requirements_ref,"recovery_policy":recovery,"endpoint_pins":settings,"synthetic":CONFIG["synthetic"],"scope_limit":LIMIT,"timeout_seconds":CONFIG["timeout_seconds"],"canonical_baseline":canonical,
     "authority":load(HERE/"authorization.json")["authority"],
     "financial_authority_path":str(LEDGER),"m1_token_limit":TOTAL_LIMIT,"ledger_baseline":ledger_baseline,"maximum_attempts_per_call":CONFIG["maximum_attempts_per_call"],"sdk_retries":CONFIG["sdk_retries"],"connect_retries":CONFIG["connect_retries"],
     "resource_limit_note":"Reuse previously measured per-SHA PDF limits under8GiB prepare address-space and256MiB per original; no general product upload-limit change.",
@@ -246,6 +255,15 @@ async def run():
   if (policy!=prep["recovery_policy"] or policy["extra_per_call"]!=CONFIG["maximum_attempts_per_call"]-1 or policy["extra_per_case"] is not None or policy["extra_token_ceiling"] is not None):raise RuntimeError("RECOVERY_DRIFT")
   bind_role_services(store)
   budget=TokenBudget(LEDGER,TOTAL_LIMIT,bounds);failed={"seen":False}
+  from report_agent.planning_budget import PlanningBudget, approvable_plan, watch_planning
+  def planning_alert(record):
+   store.event('planning_budget_alert',record)
+   print(json.dumps({'event':'planning_budget_alert',**record}),file=sys.stderr,flush=True)
+  planning_guard=PlanningBudget(HERE/'planning-budget.json',finance,before,
+   CONFIG['planning_alert_tokens'],CONFIG['planning_stop_tokens'],on_alert=planning_alert)
+  grant=load(DEPLOYMENT['budget_authority']).get('grant_scope') if DEPLOYMENT and DEPLOYMENT.get('budget_authority') else None
+  if CONFIG.get('grant_token_limit') and DEPLOYMENT and DEPLOYMENT.get('reuse_ledger') and not grant:raise RuntimeError('G5_GRANT_SCOPE_REQUIRED')
+
   def scope_cost():
    return budget_scope_cost(before,finance())
   def observation():
@@ -255,6 +273,10 @@ async def run():
      "model_reservation_bounds":bounds,"includes_original_phases":True}
   def observer():
    used,held,unknown=scope_cost()
+   planning_guard.check(approvable_plan(workspace))
+   if grant:
+    grant_used,grant_held,_=budget_scope_cost(grant['baseline'],finance())
+    rb.enforce_host_admission(used_plus_held=grant_used+grant_held,limit=grant['maximum_tokens'],unknown=False,failed=False)
    # Unresolved attempts remain in held; the explicit policy owns new inference attempts.
    # A transient model/vision failure is a task observation, not a global host latch.
    rb.enforce_host_admission(used_plus_held=used+held,limit=LIMIT,unknown=False,failed=failed["seen"])
@@ -316,11 +338,11 @@ async def run():
   runtime.configured_model=factory;vision.configured_vision_client=vision_factory;dm.configured_vision_client=vision_factory;Store.event=mirror
   save(HERE/"started.json",{"pid":os.getpid(),"host_sha256":sha(__file__),"canonical_baseline":prep["canonical_baseline"]})
   try:
-   with token_budget(budget),rb.request_reservation_observer(observer,observation=observation):result=await run_with_owner_checkpoint(workspace,runtime.run_report)
+   with token_budget(budget),rb.request_reservation_observer(observer,observation=observation):result=await watch_planning(run_with_owner_checkpoint(workspace,runtime.run_report),planning_guard,lambda:approvable_plan(workspace))
    save(HERE/"result.json",{"status":"incomplete" if store.get("report_status")=="incomplete" else "finished_pending_independent_review","report_status":store.get("report_status"),"scope_cost":scope_cost()})
   except BaseException as exc:
    failed["seen"]=True
-   save(HERE/"failure.json",{"status":"failed","exception_type":type(exc).__name__})
+   save(HERE/"failure.json",{"status":"failed","exception_type":type(exc).__name__,"reason":"HOST_PLANNING_STOP_LOSS" if str(exc)=="HOST_PLANNING_STOP_LOSS" else "host_failure","scope_cost":scope_cost()})
    raise
   finally:
    runtime.configured_model=original;vision.configured_vision_client=original_vision;dm.configured_vision_client=original_deep_vision;Store.event=original_event
