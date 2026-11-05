@@ -1,0 +1,473 @@
+{
+  "at_utc": "2026-11-05T21:28:34.150428+00:00",
+  "status": "Review baseline for W plan; execution stopped; not a release or engineering acceptance",
+  "code_base": "5509f749ec576211f9f99f5001a63120536ceb04",
+  "code_head_before_documentation": "387553bfa24e02b5f4e1fb5884cd482cb7be5ae0",
+  "scope_commits": [
+    "db1ca97724eba3f746059db9d7dcabca2557c5b5 feat: assemble and export reports from system-bound saved inputs",
+    "a96dcba1fe704ebe411fa9c0a249107e4a27cfec fix: reject agent-authored tables embedded in section prose",
+    "48c94540de7134cc618aaeaad7cf3f48ac61d50c fix: distinguish unresolved source impact from calculated sensitivity",
+    "b66e68903a4a033095ca3e8d56e12f4e7f53a1f1 feat: add capped Writer-only assessment recovery command",
+    "89de40b6e3650dc40bb640c1e5b29305d01b45e9 feat: preserve audited G5 prose in canonical offline assembly",
+    "b63db5844640bd3563ab686b0ba390acd6749d8f fix: recognize identical frozen guideline captures in assessments",
+    "51cd4111bcbca8f40ed4e21c120bf17ea0723f42 feat: continue assessment recovery under explicit extra token authority",
+    "f2e462293ff58224b63e6e0c1525951cbcbb2ff9 feat: allow owner-authorized continuation with unresolved summary held",
+    "387553bfa24e02b5f4e1fb5884cd482cb7be5ae0 fix: validate pinned native failed-summary checkpoint state"
+  ],
+  "changed_code_paths": [
+    "A\tsrc/report_agent/assessment_completion.py",
+    "M\tsrc/report_agent/commission_plan.py",
+    "M\tsrc/report_agent/commission_results.py",
+    "M\tsrc/report_agent/content_export.py",
+    "M\tsrc/report_agent/content_store.py",
+    "M\tsrc/report_agent/content_workbook.py",
+    "M\tsrc/report_agent/deep_runtime.py",
+    "A\tsrc/report_agent/delivery_guard.py",
+    "M\tsrc/report_agent/handoff_release.py",
+    "M\tsrc/report_agent/hierarchical_tools.py",
+    "M\tsrc/report_agent/material_issues.py",
+    "A\tsrc/report_agent/offline_export.py",
+    "M\tsrc/report_agent/operation_identity.py",
+    "A\tsrc/report_agent/position_anchors.py",
+    "A\tsrc/report_agent/rescue_projection.py",
+    "M\tsrc/report_agent/risk_scoring.py",
+    "A\tsrc/report_agent/section_writing.py",
+    "A\tsrc/report_agent/system_assembler.py",
+    "M\tsrc/report_agent/text_work.py",
+    "A\ttests/fixtures/g6_g5_rescue.json",
+    "M\ttests/test_agent_duty_artifacts.py",
+    "A\ttests/test_assessment_completion.py",
+    "A\ttests/test_assessment_completion_extension.py",
+    "A\ttests/test_assessment_completion_unknown_continuation.py",
+    "A\ttests/test_assessment_source_aliases.py",
+    "M\ttests/test_baseline_repair_contracts.py",
+    "M\ttests/test_content_layout.py",
+    "M\ttests/test_content_workbook.py",
+    "M\ttests/test_deep_runtime.py",
+    "A\ttests/test_delivery_guard.py",
+    "M\ttests/test_duty_agent_decisions.py",
+    "M\ttests/test_duty_layout_comparison_adapter.py",
+    "M\ttests/test_duty_layout_comparison_outcome.py",
+    "M\ttests/test_duty_layout_contract_defaults.py",
+    "M\ttests/test_duty_layout_outcome.py",
+    "M\ttests/test_duty_layout_outcome_adapter.py",
+    "M\ttests/test_duty_layout_received_replay.py",
+    "M\ttests/test_duty_review_original_requirement_handoff.py",
+    "M\ttests/test_duty_writer_delivery_outcome.py",
+    "M\ttests/test_duty_writer_delivery_outcome_adapter.py",
+    "A\ttests/test_g5_offline_delivery.py",
+    "A\ttests/test_g6_offline_assembly.py",
+    "A\ttests/test_g6_rescue_fixture.py",
+    "M\ttests/test_m1_g3_exports.py",
+    "M\ttests/test_markdown_layout.py",
+    "A\ttests/test_material_issues_impact.py",
+    "A\ttests/test_position_anchors.py",
+    "A\ttests/test_rescue_assembly.py",
+    "A\ttests/test_rescue_projection.py",
+    "M\ttests/test_saved_layout_reuse.py",
+    "A\ttests/test_section_writing.py",
+    "M\ttests/test_summary_io_lifecycle.py",
+    "A\ttests/test_system_assembler.py",
+    "M\ttests/test_text_work.py"
+  ],
+  "stopped_verification": {
+    "at_utc": "2026-11-05T21:15:05.342291+00:00",
+    "scope": "G5candidate01 and its boundedassessmentrescue only",
+    "matching_processes": [],
+    "saved_host_identities_checked": [
+      {
+        "pid": 1145,
+        "uid": 1000,
+        "process_start_ticks": "89099"
+      },
+      {
+        "pid": 1230,
+        "uid": 1000,
+        "process_start_ticks": "1728"
+      },
+      {
+        "pid": 1282,
+        "uid": 1000,
+        "process_start_ticks": "42863"
+      },
+      {
+        "pid": 1302,
+        "uid": 1000,
+        "process_start_ticks": "20938"
+      }
+    ],
+    "exact2Mhold_unchanged": true,
+    "exact_hold_row_sha256": "d13a246332b60b0fcf696c522bae334cfc3aba123b516edb3fdcf53b21b4c14d",
+    "entire_ledger_unchanged_since_precontinuation": true,
+    "old_unknown_recovery_record_unchanged": true,
+    "rescue_settled_tokens": 8733638,
+    "rescue_held_tokens": 2000000,
+    "rescue_limit": 20000000,
+    "remaining_after_hold": 9266362,
+    "latest_case_event_sequence": 10363,
+    "no_local_preflight_repair_launch": true,
+    "no_new_launch_authorized_in_baseline_preparation": true
+  },
+  "phase1": {
+    "settled_tokens": 8097818,
+    "held_tokens": 0,
+    "provider_prompt_tokens": 7892687,
+    "provider_completion_tokens": 205131,
+    "input_share": 0.9746683612795447,
+    "logical_invocations": 75,
+    "returned_requests": 74,
+    "known_not_sent": 1,
+    "decision_turn_ordinal": 72,
+    "canonical_assessments": 0,
+    "unfilled_indicator_judgments": 55,
+    "distinct_recorded_tool_rejections": 9,
+    "assessment_attempts": 5,
+    "direct_save_assessment_rejections": 3,
+    "upstream_assessment_rejections": 2,
+    "groups": {
+      "project_status": {
+        "calls": 2,
+        "prompt_tokens": 141379,
+        "completion_tokens": 4242,
+        "total_tokens": 145621,
+        "cached_tokens": 0
+      },
+      "search_sources": {
+        "calls": 20,
+        "prompt_tokens": 2423590,
+        "completion_tokens": 39943,
+        "total_tokens": 2463533,
+        "cached_tokens": 0
+      },
+      "inspect_source_page": {
+        "calls": 7,
+        "prompt_tokens": 809675,
+        "completion_tokens": 30308,
+        "total_tokens": 839983,
+        "cached_tokens": 0
+      },
+      "read_commission_plan": {
+        "calls": 2,
+        "prompt_tokens": 122812,
+        "completion_tokens": 2118,
+        "total_tokens": 124930,
+        "cached_tokens": 0
+      },
+      "read_file": {
+        "calls": 2,
+        "prompt_tokens": 154385,
+        "completion_tokens": 483,
+        "total_tokens": 154868,
+        "cached_tokens": 0
+      },
+      "grep": {
+        "calls": 4,
+        "prompt_tokens": 360586,
+        "completion_tokens": 2818,
+        "total_tokens": 363404,
+        "cached_tokens": 0
+      },
+      "read_tool_observation": {
+        "calls": 13,
+        "prompt_tokens": 1404907,
+        "completion_tokens": 51765,
+        "total_tokens": 1456672,
+        "cached_tokens": 0
+      },
+      "read_object_index": {
+        "calls": 7,
+        "prompt_tokens": 495299,
+        "completion_tokens": 4770,
+        "total_tokens": 500069,
+        "cached_tokens": 0
+      },
+      "read_context": {
+        "calls": 8,
+        "prompt_tokens": 754781,
+        "completion_tokens": 4307,
+        "total_tokens": 759088,
+        "cached_tokens": 0
+      },
+      "calculate_assessment": {
+        "calls": 5,
+        "prompt_tokens": 700008,
+        "completion_tokens": 32503,
+        "total_tokens": 732511,
+        "cached_tokens": 0
+      },
+      "get_operation_receipt": {
+        "calls": 1,
+        "prompt_tokens": 146453,
+        "completion_tokens": 220,
+        "total_tokens": 146673,
+        "cached_tokens": 0
+      },
+      "native_context_summary": {
+        "calls": 3,
+        "prompt_tokens": 378812,
+        "completion_tokens": 31654,
+        "total_tokens": 410466,
+        "cached_tokens": 0
+      }
+    },
+    "timeline": {
+      "parts": {
+        "before_first_submission": {
+          "returned_requests": 54,
+          "tokens": 5391997,
+          "actions": {
+            "project_status": 2,
+            "search_sources": 17,
+            "inspect_source_page": 7,
+            "read_commission_plan": 2,
+            "read_file": 2,
+            "grep": 4,
+            "read_tool_observation": 4,
+            "read_object_index": 7,
+            "read_context": 7
+          },
+          "first_at": "2026-11-05T15:14:13.359369+00:00",
+          "last_at": "2026-11-05T15:53:11.670937+00:00"
+        },
+        "first_through_last_submission": {
+          "returned_requests": 7,
+          "tokens": 1018493,
+          "actions": {
+            "calculate_assessment": 5,
+            "read_tool_observation": 1,
+            "get_operation_receipt": 1
+          },
+          "first_at": "2026-11-05T15:55:52.731178+00:00",
+          "last_at": "2026-11-05T16:00:47.375124+00:00"
+        },
+        "after_last_submission": {
+          "returned_requests": 13,
+          "tokens": 1687328,
+          "actions": {
+            "search_sources": 3,
+            "read_context": 1,
+            "read_tool_observation": 8
+          },
+          "first_at": "2026-11-05T16:01:13.209322+00:00",
+          "last_at": "2026-11-05T16:18:26.323415+00:00"
+        }
+      },
+      "submissions": [
+        {
+          "at_utc": "2026-11-05T15:55:52.731178+00:00",
+          "attempt_id": "15fe5e0b-2629-4482-b324-df871be2365f",
+          "tool_call_id": "call_4799ce3b8bb04cfeb37833d1",
+          "tokens": 137472
+        },
+        {
+          "at_utc": "2026-11-05T15:56:54.697042+00:00",
+          "attempt_id": "892feb4a-73cc-435c-9141-c9a69fb8a7c5",
+          "tool_call_id": "call_e8b3cdd72f36435aa8370274",
+          "tokens": 138323
+        },
+        {
+          "at_utc": "2026-11-05T15:58:11.225814+00:00",
+          "attempt_id": "c5e64bbb-1f97-44fb-8f8b-410d687b5c0b",
+          "tool_call_id": "call_526930fc65944d3d810e2684",
+          "tokens": 145763
+        },
+        {
+          "at_utc": "2026-11-05T15:59:29.314355+00:00",
+          "attempt_id": "8d07e5bf-8e9e-4a2e-badc-76aa589525a6",
+          "tool_call_id": "call_db1d50c25dc3481494de3fa6",
+          "tokens": 152298
+        },
+        {
+          "at_utc": "2026-11-05T16:00:47.375124+00:00",
+          "attempt_id": "86a1731e-4bd6-49c1-903d-590336e7e628",
+          "tool_call_id": "call_2f8ec218c1ab4983b448dad8",
+          "tokens": 158655
+        }
+      ]
+    },
+    "all_assessment_refusals": [
+      {
+        "actor_id": "content:writer:b23375cc-8866-4a1c-9461-c2329b355a3b",
+        "native_call_id": "call_4799ce3b8bb04cfeb37833d1",
+        "name": "calculate_assessment",
+        "object_id": "HP-01-K1323p110-R",
+        "result": {
+          "code": "NATIVE_TOOL_VALIDATION_ERROR",
+          "diagnostic": "assessment.question: Extra inputs are not permitted\n Please fix the error and try again."
+        },
+        "boundary": "Native typed-argument validation, before save_assessment",
+        "cause": "Unexpected top-level assessment.question field; no canonical save was attempted.",
+        "at_utc": "2026-11-05T15:55:52.731178+00:00",
+        "provider_attempt_id": "15fe5e0b-2629-4482-b324-df871be2365f",
+        "preceding_model_tokens": 137472
+      },
+      {
+        "actor_id": "content:writer:b23375cc-8866-4a1c-9461-c2329b355a3b",
+        "native_call_id": "call_e8b3cdd72f36435aa8370274",
+        "name": "calculate_assessment",
+        "object_id": "HP-01-K1323p110-R",
+        "result": {
+          "accepted": false,
+          "code": "ASSESSMENT_INVALID",
+          "message": "ASSESSMENT_INVALID: method identity/version mismatch"
+        },
+        "boundary": "risk_scoring.save_assessment identity validation",
+        "cause": "The reported message says method identity/version mismatch; actual submitted version2 matched, but method_id was wrong.",
+        "at_utc": "2026-11-05T15:56:54.697042+00:00",
+        "provider_attempt_id": "892feb4a-73cc-435c-9141-c9a69fb8a7c5",
+        "preceding_model_tokens": 138323
+      },
+      {
+        "actor_id": "content:writer:b23375cc-8866-4a1c-9461-c2329b355a3b",
+        "native_call_id": "call_526930fc65944d3d810e2684",
+        "name": "calculate_assessment",
+        "object_id": "HP-01-K1323p110-R",
+        "result": {
+          "accepted": false,
+          "code": "OPERATION_CONFLICT",
+          "message": "OPERATION_CONFLICT"
+        },
+        "boundary": "ContentStore.operation idempotency guard, before a new save_assessment",
+        "cause": "Reused the prior failed operation_id with a changed method_id/payload. This is a legitimate changed-request conflict; no duplicate save.",
+        "at_utc": "2026-11-05T15:58:11.225814+00:00",
+        "provider_attempt_id": "c5e64bbb-1f97-44fb-8f8b-410d687b5c0b",
+        "preceding_model_tokens": 145763
+      },
+      {
+        "actor_id": "content:writer:b23375cc-8866-4a1c-9461-c2329b355a3b",
+        "native_call_id": "call_db1d50c25dc3481494de3fa6",
+        "name": "calculate_assessment",
+        "object_id": "HP-01-K1323p110-R",
+        "result": {
+          "accepted": false,
+          "code": "COMMISSION_QUOTE_NOT_AT_SOURCE_LOCATION",
+          "message": "COMMISSION_QUOTE_NOT_AT_SOURCE_LOCATION",
+          "diagnostic": {
+            "fields": [
+              {
+                "choices": [],
+                "field": "indicators[0].sources[0].quote",
+                "reason": "quote_not_at_locator"
+              }
+            ]
+          }
+        },
+        "boundary": "Source/locator validation inside save_assessment",
+        "cause": "An indicator source quote did not match its supplied locator. Preserve the exact quote/location guard; no inference that the whole source was absent.",
+        "at_utc": "2026-11-05T15:59:29.314355+00:00",
+        "provider_attempt_id": "8d07e5bf-8e9e-4a2e-badc-76aa589525a6",
+        "preceding_model_tokens": 152298
+      },
+      {
+        "actor_id": "content:writer:b23375cc-8866-4a1c-9461-c2329b355a3b",
+        "native_call_id": "call_2f8ec218c1ab4983b448dad8",
+        "name": "calculate_assessment",
+        "object_id": "HP-01-K1323p110-R",
+        "result": {
+          "accepted": false,
+          "code": "ASSESSMENT_GUIDELINE_RULE_SOURCE_REQUIRED",
+          "message": "ASSESSMENT_GUIDELINE_RULE_SOURCE_REQUIRED: X11"
+        },
+        "boundary": "Guideline-rule source validation inside save_assessment",
+        "cause": "X11 cited an equivalent frozen capture of the same guideline, with equal source_id/file digest/exact text but a different ContentStore Ref. This was a system identity bug, not missing guideline evidence. Fixed in b63db58; strict content/source/permission checks remain.",
+        "at_utc": "2026-11-05T16:00:47.375124+00:00",
+        "provider_attempt_id": "86a1731e-4bd6-49c1-903d-590336e7e628",
+        "preceding_model_tokens": 158655
+      }
+    ],
+    "ledger_reconciliation": {
+      "phase1_ledger_rows": 75,
+      "settled_rows": 74,
+      "known_not_sent_rows": 1,
+      "settled_tokens": 8097818,
+      "all74usage_records_match_ledger_attempt_used": true,
+      "all74provider_raw_responses_matched": true,
+      "all74response_action_sets_single_tool_or_native_summary": true,
+      "first_phase_held_tokens": 0,
+      "privacy": "No private raw sources, prompts, reasoning, credentials or assessment values in repository audit."
+    },
+    "summary_classification_proof": {
+      "native_template_sha256": "403eb2c93d8f8684545e1d863e1e2844fceec6f8808df16a585290b3a18aa16e",
+      "formatting_note": "Apply native .format(messages=marker) before comparing, so escaped template braces are interpreted exactly as at runtime.",
+      "calls": [
+        {
+          "event_sequence": 9611,
+          "at_utc": "2026-11-05 15:24:17 UTC",
+          "attempt_id": "990c75db-5b54-424d-bb6b-92b383acb9b2",
+          "capture_sha256": "ff4c0eb5e6d94abb67b22763a1a3953f1ca2e8e09125321cb9a94a428040944a",
+          "message_count": 1,
+          "message_roles": [
+            "user"
+          ],
+          "tool_count": 0,
+          "formatted_native_summary_prefix_matches": true,
+          "formatted_native_summary_suffix_matches": true,
+          "native_prefix_characters": 3338,
+          "suffix_characters": 12,
+          "input_characters": 306015,
+          "original_provenance_status": "unexplained",
+          "classification": "native internal context summarization; Writercharged; historicalpurposeattribution gap retained"
+        },
+        {
+          "event_sequence": 10003,
+          "at_utc": "2026-11-05 15:42:36 UTC",
+          "attempt_id": "44c7b6ff-625c-4382-b4ef-34c7818168b7",
+          "capture_sha256": "51d8cbf4f3cdb2403426e386e746eb859aa8337a95abec7068f9c99df50cf372",
+          "message_count": 1,
+          "message_roles": [
+            "user"
+          ],
+          "tool_count": 0,
+          "formatted_native_summary_prefix_matches": true,
+          "formatted_native_summary_suffix_matches": true,
+          "native_prefix_characters": 3338,
+          "suffix_characters": 12,
+          "input_characters": 271785,
+          "original_provenance_status": "unexplained",
+          "classification": "native internal context summarization; Writercharged; historicalpurposeattribution gap retained"
+        },
+        {
+          "event_sequence": 10188,
+          "at_utc": "2026-11-05 16:02:47 UTC",
+          "attempt_id": "1198103e-996c-4d01-aee2-99415fe6aa43",
+          "capture_sha256": "8c0aeaa5c8de97fbeca2c6a8d13581e0f4ada70fc00246e808b20045e7a60fae",
+          "message_count": 1,
+          "message_roles": [
+            "user"
+          ],
+          "tool_count": 0,
+          "formatted_native_summary_prefix_matches": true,
+          "formatted_native_summary_suffix_matches": true,
+          "native_prefix_characters": 3338,
+          "suffix_characters": 12,
+          "input_characters": 247168,
+          "original_provenance_status": "unexplained",
+          "classification": "native internal context summarization; Writercharged; historicalpurposeattribution gap retained"
+        }
+      ]
+    },
+    "original_summary_attribution_gap": "Three calls were historically recorded unattributed:writer/unexplained. Derived native-summary classification is proven by exact formatted native prompt prefix/suffix, one user message and no tools; historical records remain unchanged."
+  },
+  "current_rescue": {
+    "settled_tokens": 8733638,
+    "held_tokens": 2000000,
+    "cap": 20000000,
+    "available_after_hold": 9266362,
+    "canonical_assessments": 0
+  },
+  "checkpoint_work": {
+    "commit": "387553bfa24e02b5f4e1fb5884cd482cb7be5ae0",
+    "source_sha256": "0f8cde978ec2488d44aac83ed1eadc40cf5db0ddc0b7228f3253ecd004fab2b3",
+    "local_tests": "86 passed in20.45s; actual offline checkpoint-copy pure guard accepted; network disabled; ainvoke false",
+    "live_continuation": "NOT EXERCISED; unfinished integration validation",
+    "local_preflight_repair_launch": "NOT RUN",
+    "full_suite_after_last_change": "NOT RUN",
+    "final_offline_assembly_export_render": "NOT RUN; canonical assessments absent"
+  },
+  "excluded_preexisting_unrelated_work": [
+    "tasks/todo.md G4 candidate04 backlog diff",
+    "tests/fixtures/g4_h34_bookkeeping.json"
+  ],
+  "privacy": "No private source text, model reasoning, credentials or assessment grade/value/rank payloads included. Native tool-call and ledger-attempt IDs are audit pointers only.",
+  "budget_caveat": "Token groups are provider usage of the returned model response that selected the named action, not separate billing for deterministic tool execution; no causal savings claim. Developer-agent usage is unavailable, not inferred."
+}
