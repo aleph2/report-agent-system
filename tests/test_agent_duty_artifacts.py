@@ -129,7 +129,7 @@ async def test_real_layout_error_trace_reaches_agent_then_explicit_correction_ex
         layout=[first, correct, finished])
     result = await run_report(ws, driver)
     assert result['last_error'] is None, result
-    assert len(cs.list_objects('ExportArtifact')) == 1
+    assert len(cs.list_objects('ExportArtifact')) == 2
     doc = Document(BytesIO((ws.store.root / observed['export']['file_ref']).read_bytes()))
     text = '\n'.join(p.text for p in doc.paragraphs)
     assert 'For adopted class B use 70.' in text
@@ -184,6 +184,7 @@ async def test_p10_native_exact_pair_rejects_one_changed_binding_then_saves_corr
         value = result_value(tool_reply(messages, 'word'))
         assert value['ok'], value
         saved['word'] = value['result']
+        saved['xlsx_before_attempt'] = sorted(str(p) for p in (ws.store.root / 'content-assets').glob('*.xlsx'))
         saved['sheets'] = [{'name': 'Issues', 'table_ref': new_table, 'note_refs': [added['note']]}]
         sheets = deepcopy(saved['sheets'])
         link = saved['word']['export_ref']
@@ -200,7 +201,7 @@ async def test_p10_native_exact_pair_rejects_one_changed_binding_then_saves_corr
             assert value['ok'] is False, value
             expected = 'WORD_WORKBOOK_SNAPSHOT_MISMATCH' if fault == 'old_word_snapshot' else 'WORKBOOK_CHANNEL_SELECTION_MISMATCH'
             assert value['code'] == expected, value
-            assert not list((ws.store.root / 'content-assets').glob('*.xlsx'))
+            assert sorted(str(p) for p in (ws.store.root / 'content-assets').glob('*.xlsx')) == saved['xlsx_before_attempt']
             assert ws.store.get('content_delivery') is None
             saved['rejection'] = value
             return action('export_content_workbook', 'correct-xlsx', operation_id='p10-correct-xlsx',

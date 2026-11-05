@@ -185,22 +185,26 @@ async def test_writer_pair_actual_adapter_sdk_and_local_budget(ws, request, monk
         assert delivered['result']['unreturned_refs'] == []
     assert capture['originals_unchanged'] is True
     assert capture['saved_reviews'] == capture['saved_renders'] == []
-    assert len(capture['saved_snapshots']) == 1 and len(capture['saved_exports']) == 2
-    assert len(capture['saved_mappings']) == 2
+    assert len(capture['saved_snapshots']) == 1 and len(capture['saved_exports']) == 3
+    assert len(capture['saved_mappings']) == 3
     snapshot = capture['saved_snapshots'][0]
     word = next(o for o in capture['saved_exports'] if o['payload']['file_ref'].endswith('.docx'))
-    book = next(o for o in capture['saved_exports'] if o['payload']['file_ref'].endswith('.xlsx'))
+    explicit_book_ref=result_value(tool_reply(messages_from_dict(phases[3]['messages']), 'delivery-book'))['result']['export_ref']
+    book = next(o for o in capture['saved_exports'] if o['ref']==explicit_book_ref)
+    automatic,= [o for o in capture['saved_exports'] if o['payload']['file_ref'].endswith('.xlsx') and o['ref']!=explicit_book_ref]
+    assert automatic['payload']['snapshot_ref']==snapshot['ref']
+    assert automatic['payload']['export_config']['report_export_ref']==word['ref']
     assert snapshot['ref'] == word['payload']['snapshot_ref'] == book['payload']['snapshot_ref']
     assert book['payload']['export_config']['report_export_ref'] == word['ref']
     assert {ref_key(r) for r in snapshot['payload']['workbook_refs']} == {
         ref_key(fixture['bundles']['current']['issues']), ref_key(fixture['bundles']['current']['note'])}
-    for obj in [snapshot, word, book, *capture['saved_mappings']]:
+    for obj in [snapshot, word, book, automatic, *capture['saved_mappings']]:
         assert obj['owner_id'] == obj['created_by'] == actor and obj['task_id'] == task['ref']['id']
     for mapping in capture['saved_mappings']:
         assert mapping['payload']['snapshot_ref'] == snapshot['ref']
-        assert mapping['payload']['export_ref'] in [word['ref'], book['ref']]
-    assert len(capture['assets']) == 2
-    for obj in [word, book]:
+        assert mapping['payload']['export_ref'] in [word['ref'], book['ref'], automatic['ref']]
+    assert len(capture['assets']) == 3
+    for obj in [word, book, automatic]:
         asset = next(a for a in capture['assets'] if a['file_ref'] == obj['payload']['file_ref'])
         assert hashlib.sha256((folder / asset['retained_path']).read_bytes()).hexdigest() == asset['sha256'] == obj['payload']['file_digest']
     doc = Document(ws.store.root / word['payload']['file_ref'])

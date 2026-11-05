@@ -98,10 +98,11 @@ def test_word_workbook_joint_review_binds_same_snapshot(ws):
 def test_linked_workbook_rejects_other_word_snapshot_before_asset_creation(ws):
     cs, actor, original, snap, sheets = prepared(ws)
     word = export_snapshot(cs, actor, 'original-word', original)['result']['export_ref']
+    before = set((ws.store.root / 'content-assets').glob('*.xlsx'))
     with pytest.raises(ActionRejected, match='WORD_WORKBOOK_SNAPSHOT_MISMATCH'):
         export_workbook(cs, actor, 'mismatch', snap, sheets, word)
     assert cs.receipt(actor, 'mismatch')['state'] == 'known_failure'
-    assert not list((ws.store.root / 'content-assets').glob('*.xlsx'))
+    assert set((ws.store.root / 'content-assets').glob('*.xlsx')) == before
 
 
 def test_correction_notes_and_qualifiers_reach_actual_workbook_without_table_revision(ws):

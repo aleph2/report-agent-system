@@ -362,7 +362,7 @@ async def test_explicit_nonblocking_human_issue_preserves_supported_draft(ws, re
     issues = ws.store.get("report_issues", [])
     assert len(issues) == 1 and issues[0]["description"] == GAP and issues[0]["resolved"] is False
     assert held["context_after"]["issues"] == issues
-    assert len(cs.list_objects("ExportArtifact")) == 1 and not cs.list_objects("ReviewRecord")
+    assert len(cs.list_objects("ExportArtifact")) == 2 and not cs.list_objects("ReviewRecord")
     import hashlib
     artifact = cs.list_objects("ExportArtifact")[0]
     assert artifact["payload"]["snapshot_ref"] == snapshot

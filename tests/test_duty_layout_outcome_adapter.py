@@ -197,8 +197,14 @@ async def test_layout_actual_adapter_sdk_files_vision_and_budget(ws, request, mo
         assert native == {m['tool_call_id']: m['content']
                           for m in wire['body']['messages'] if m['role'] == 'tool'}
     assert capture['originals_unchanged'] is True and capture['saved_reviews'] == []
-    assert len(capture['saved_tasks']) == len(capture['saved_exports']) == len(capture['saved_renders']) == 1
-    task, exported, rendered = capture['saved_tasks'][0], capture['saved_exports'][0], capture['saved_renders'][0]
+    assert len(capture['saved_tasks']) == len(capture['saved_renders']) == 1
+    assert len(capture['saved_exports']) == 2
+    exported,= [e for e in capture['saved_exports'] if e['payload']['file_ref'].endswith('.docx')]
+    companion,= [e for e in capture['saved_exports'] if e['payload']['file_ref'].endswith('.xlsx')]
+    task, rendered = capture['saved_tasks'][0], capture['saved_renders'][0]
+    assert companion['owner_id']==exported['owner_id']
+    assert companion['payload']['snapshot_ref']==exported['payload']['snapshot_ref']
+    assert companion['payload']['export_config']['report_export_ref']==exported['ref']
     fixture, cs = capture['fixture'], ContentStore(ws.store)
     actor = 'content:layout:' + task['ref']['id']
     assert task['owner_id'] == task['payload']['delegated_by'] == 'content:coordinator'
@@ -215,8 +221,8 @@ async def test_layout_actual_adapter_sdk_files_vision_and_budget(ws, request, mo
     assert rendered['payload']['export_ref'] == exported['ref']
     assert rendered['payload']['export_digest'] == exported['payload']['file_digest']
     mappings = cs.list_objects('MappingArtifact')
-    assert len(mappings) == 1
-    mapping = mappings[0]
+    assert len(mappings) == 2
+    mapping,= [m for m in mappings if m['ref']==held['export']['result']['mapping_ref']]
     assert mapping['ref'] == held['export']['result']['mapping_ref']
     assert mapping['owner_id'] == mapping['created_by'] == actor and mapping['task_id'] == task['ref']['id']
     assert mapping['payload']['snapshot_ref'] == fixture['snapshot_ref']

@@ -136,12 +136,8 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             for _, child in edges.get(key, []):
                 collect_body(child)
         collect_body(snapshot['payload']['root_ref'])
-        issue_records = rendered_issues(records, snapshot['payload']['root_ref'])
-        from .commission_owner_records import frozen_material_issues
-        owner_issues = frozen_material_issues(contents, snapshot, records)
-        if {i.id for _, i in issue_records} & {i.id for i in owner_issues}:
-            raise ActionRejected('OWNER_OPEN_FACT_IS_SYSTEM_OWNED')
-        issue_records += [(snapshot['payload']['root_ref'], issue) for issue in owner_issues]
+        from .material_issues import export_issue_records
+        issue_records, owner_issues = export_issue_records(contents, db, snapshot, records)
         validate_required_issues(contents, db, snapshot, records, issue_records)
         from .g3_export import prepare_export, citation_text
         selected_layout = prepare_export(contents, snapshot, records, rendered_keys, selected_layout)
@@ -227,7 +223,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         def emit(ref, depth):
             node = records[Ref.model_validate(ref).key()]["payload"]
             body, kind = node["body"], node["kind"]
-            issues, merges = validate_node(node)
+            issues, merges = validate_node(node, ref)
             style = node_options.get(Ref.model_validate(ref).key())
             def format_embedded_table(table):
                 presentation.format_table(table, options, style, embedded=True)
@@ -332,7 +328,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                     presentation.emit_text(doc, body["text"], image_renderer, controls, table_formatter=format_embedded_table)
             if kind != 'table':
                 for issue in issues:
-                    comment_passage(doc, doc.paragraphs[paragraph_start:], issue)
+                    comment_passage(doc, doc.paragraphs[paragraph_start:], issue, ref)
             citation = citation_text(node, records, plan=plan)
             if citation:
                 doc.add_paragraph(citation)
@@ -439,6 +435,9 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         result = {"export_ref": export_ref, "mapping_ref": mapping_ref, "file_ref": asset, "file_digest": checksum}
         if layout_from_export_ref is not None:
             result['layout_source'] = export_config['layout_source']
+        from .content_workbook import _export_workbook, companion_sheets
+        result['workbook'] = _export_workbook(contents, actor, db, snapshot_ref,
+            companion_sheets(snapshot, records, rendered_keys), export_ref, system_companion=True)
         return result
     request = {"export": snapshot_ref}
     if deliverable is not None:

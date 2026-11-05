@@ -965,6 +965,9 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
 
 def reply(workspace, issue_id, decision):
     """Trusted operator entry point, deliberately absent from agent tools."""
+    if decision.get('decision') == 'resume_delivery':
+        from .delivery_guard import resume_delivery
+        return resume_delivery(workspace, issue_id, decision)
     if decision.get('decision') == 'resume_planning':
         from .planning_guard import resume_planning
         return resume_planning(workspace, issue_id, decision)

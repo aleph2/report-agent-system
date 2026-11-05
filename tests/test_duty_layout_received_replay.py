@@ -317,7 +317,7 @@ async def test_independent_legal_text_heading_reaches_actual_word(ws, request):
         result = await run_report(ws, driver)
         observed['runtime_result'] = result
         assert result['last_error'] is None, result
-        assert observed['parent_received'] and len(cs.list_objects('ExportArtifact')) == 1
+        assert observed['parent_received'] and len(cs.list_objects('ExportArtifact')) == 2
         schema = next(t['parameters'] for t in driver.bindings['layout'][0] if t['name'] == 'export_content_snapshot')
         Draft202012Validator(schema).validate({'operation_id': 'legal-heading-export', 'snapshot_ref': snapshot, 'layout': layout})
         saved = cs.read(observed['export']['export_ref'])

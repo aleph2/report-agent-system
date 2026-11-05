@@ -5,7 +5,7 @@ from .method_pack import number
 
 
 # shortcut: pilot wording and specialist criterion remain here; move to source-bound method/table data after this pilot.
-def composed_nodes(plan, section, bound, template_decisions=(), applicability_issues=()):
+def composed_nodes(plan, section, bound, template_decisions=(), applicability_issues=(), *, positional_anchors=False):
     from .commission_plan import template_decision_texts, template_issue
     adopted = template_decision_texts({"sections": [section]}, template_decisions)
     frozen_issues = {issue["id"]: issue for issue in applicability_issues}
@@ -42,10 +42,10 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
         sid, kind = part['section_id'], part['kind']
         if kind == 'source':
             text = adopted.get(sid, part['text'])
-            anchor = next((line.strip() for line in text.splitlines() if line.strip() and text.count(line.strip()) == 1), None)
+            anchor = (text.splitlines()[0] if text.splitlines() else '') if positional_anchors else next((line.strip() for line in text.splitlines() if line.strip() and text.count(line.strip()) == 1), None)
             if not anchor:raise ActionRejected('TEMPLATE_MATERIAL_ISSUE_ANCHOR_REQUIRED: ' + sid)
             issue = frozen_issues.get('template-applicability:' + sid) or template_issue(part, [], next((c['choice'] for c in template_decisions if c['section_id'] == sid), None))
-            issue = {**issue, 'adopted_value': anchor, 'anchor': {'text': anchor}, 'affects_level': False}
+            issue = {**issue, 'adopted_value': anchor, 'anchor': {'paragraph_index': 0, 'start': 0, 'end': None} if positional_anchors else {'text': anchor}, 'affects_level': False}
             node('block', {'text': text, 'material_issues': [issue]}, section['sources'])
         elif kind == 'assessment_summary':
             counts = '；'.join(level + '级' + str(sum(r['adopted']['level'] == level for r in bound.values())) + '处'

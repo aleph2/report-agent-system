@@ -26,7 +26,8 @@ def fake_factory(ws, case, variant, held):
         words = [o for o in exports if o['payload']['file_ref'].endswith('.docx')]
         target = words[-1] if variant == 'wrong' else words[1]
         snap = target['payload']['snapshot_ref']
-        workbook = next(o for o in exports if o['payload'].get('export_config', {}).get('report_export_ref') == target['ref'])
+        workbook = next(o for o in exports if o['payload'].get('export_config', {}).get('report_export_ref') == target['ref']
+            and any(sheet['name']=='Issues' for sheet in o['payload']['export_config'].get('sheets', [])))
         held['pair'] = {'snapshot_ref': snap, 'export_ref': target['ref'], 'workbook_export_ref': workbook['ref']}
         return action('read_content_export', 'read-draft', export_ref=target['ref'])
 

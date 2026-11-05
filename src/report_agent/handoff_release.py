@@ -5,7 +5,7 @@ from .errors import ActionRejected
 
 FIELDS = ('review_interface_profile', 'delegation_prompt_profile', 'operation_identity_profile',
     'content_input_profile', 'report_expression_profile', 'content_contract', 'review_entrypoint',
-    'review_execution_mode', 'goal', 'scope_instruction', 'report_id', 'report_category', 'source_use', 'report_prompt_profile', 'review_plan_contract', 'review_submission_contract', 'tool_selection_mode', 'commission_checkpoint_required', 'assessment_presentation', 'commission_requirements_contract', 'commission_planning_contract')
+    'review_execution_mode', 'goal', 'scope_instruction', 'report_id', 'report_category', 'source_use', 'report_prompt_profile', 'review_plan_contract', 'review_submission_contract', 'tool_selection_mode', 'commission_checkpoint_required', 'assessment_presentation', 'commission_requirements_contract', 'commission_planning_contract', 'assembly_contract')
 METADATA = {'review_interface_profile': 'report_review_interface_profile',
     'delegation_prompt_profile': 'report_delegation_prompt_profile',
     'operation_identity_profile': 'report_operation_identity_profile',
@@ -17,6 +17,8 @@ METADATA = {'review_interface_profile': 'report_review_interface_profile',
 def release(manifest):
     from .tool_selection import selection_mode
     selection_mode(manifest)
+    if manifest.get('assembly_contract') not in (None, 'system-assembler-v1'):
+        raise ActionRejected('UNKNOWN_ASSEMBLY_CONTRACT')
     from .prompt_sources import (validate_review_interface_profile, validate_delegation_profile,
         validate_content_input_profile, validate_report_expression_profile, validate_report_prompt_profile,
         validate_review_plan_contract, validate_review_submission_contract)

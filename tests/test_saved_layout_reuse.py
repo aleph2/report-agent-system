@@ -72,7 +72,10 @@ def test_old_request_identity_and_result_unchanged(ws,layout):
     request = {'export':snap}
     if layout is not None: request['layout'] = layout
     assert cs.receipt(actor,'old-call')['request_digest'] == digest({'actor':actor.__dict__,'request':request})
-    assert set(result['result']) == {'export_ref','mapping_ref','file_ref','file_digest'}
+    assert set(result['result']) == {'export_ref','mapping_ref','file_ref','file_digest','workbook'}
+    companion=cs.read(result['result']['workbook']['export_ref'])['payload']
+    assert companion['snapshot_ref']==snap
+    assert companion['export_config']['report_export_ref']==result['result']['export_ref']
     assert export_snapshot(cs,actor,'old-call',snap,layout) == result
 
 

@@ -350,6 +350,9 @@ def save_assessment(cs, actor, operation_id, assessment):
                              *['relation' + str(n) for n in range(len(relations))]],
                             [assessment_ref, evidence_ref, *generated, *relations]))}
         _set(db, 'assessment_receipt:' + digest(assessment_ref), receipt)
+        from .section_writing import enabled as system_writing
+        if system_writing(cs.store):
+            _set(db, 'g6_assessment:' + digest([plan['ref'], candidate['object_id']]), assessment_ref)
         return receipt
     return cs.operation(actor, operation_id, {'assessment': assessment}, save,
         binding_identity=lambda db, result: _confirmed(cs, db)[0]['ref'])
@@ -371,102 +374,112 @@ def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, 
 
 def create_planned_section(cs, actor, operation_id, section_id, assessment_refs=()):
     """Copy approved source text, inserting only system-calculated result slots."""
-    from .commission_plan import assert_writing_allowed, fixed_section_text, fixed_source_views, _state, _confirmed, outside_boundary
-    from .content_models import ContentNode, Ref
-    from .store import digest
+    from .commission_plan import assert_writing_allowed, _confirmed
     def save(db):
         plan = assert_writing_allowed(cs, db, actor)
         if not plan or not plan['payload'].get('method_pack'):
             raise ActionRejected('PLANNED_SECTION_METHOD_REQUIRED')
         assignment = cs._read(db, {'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
-        section = next((s for s in plan['payload']['sections'] if s['section_id'] == section_id), None)
-        if section is None or section_id not in assignment['section_ids'] or section['kind'] not in ('fixed', 'derived'):
+        if section_id not in assignment['section_ids']:
             raise ActionRejected('PLANNED_SECTION_ASSIGNMENT_REQUIRED')
-        text = fixed_section_text(section)
-        views = [{**view, 'source_id': cs._read(db, view['source_ref'])['payload']['source_id']}
-                 for view in fixed_source_views(section)]
-        bound, receipts = {}, []
-        for ref in assessment_refs:
-            record = cs._read(db, ref)
-            if ref['type'] != 'Assessment' or record['payload']['commission_plan_ref'] != plan['ref']:
-                raise ActionRejected('PLANNED_SECTION_ASSESSMENT_STALE')
-            obj = record['payload']['object_id']
-            if obj in bound:
-                raise ActionRejected('PLANNED_SECTION_DUPLICATE_ASSESSMENT')
-            receipt = _state(db, 'assessment_receipt:' + digest(ref))
-            if not receipt:
-                raise ActionRejected('PLANNED_SECTION_SYSTEM_RECEIPT_REQUIRED')
-            bound[obj] = record['payload']['result']
-            receipts.append(receipt)
-        slots = section.get('result_bindings', [])
-        aggregate = bool(section.get('result_composition')) or any(s['field'] in ('object_count', 'level_count') for s in slots)
-        referenced_objects = {s['object_id'] for s in slots if s['object_id'] is not None}
-        if section['kind'] == 'derived' and (not (slots or section.get('result_composition')) or (not aggregate and referenced_objects != set(bound)) or not referenced_objects <= set(bound)):
-            raise ActionRejected('PLANNED_SECTION_RESULT_BINDINGS_REQUIRED')
-        if aggregate:
-            _, decision = _confirmed(cs, db)
-            reduced = {r['object_id'] for r in decision['payload']['reductions']}
-            expected = {o['object_id'] for o in plan['payload']['objects'] if not outside_boundary(plan['payload'], o)} - reduced
-            if set(bound) != expected:
-                raise ActionRejected('PLANNED_SECTION_AGGREGATE_REQUIRES_ALL_COMMISSIONED_ASSESSMENTS')
-            levels = {b['level'] for b in plan['payload']['method_pack']['risk_bands']}
-            if any(s['field'] == 'level_count' and s['level'] not in levels for s in slots):
-                raise ActionRejected('PLANNED_SECTION_UNKNOWN_LEVEL')
-        if section.get('result_composition'):
-            from .commission_results import composed_nodes
-            from .commission_plan import _set
-            nodes = composed_nodes(plan['payload'], section, bound,
-                [c for c in decision['payload'].get('template_decisions', []) if c['section_id'] in {p['section_id'] for p in section['result_composition']}],
-                decision['payload'].get('required_material_issues', []))
-            root = ContentNode.model_validate({'kind': 'block', 'body': {'text': section['section_id'] + ' ' + section['title'],
-                'section_id': section_id}, 'qualifiers': {}, 'claim_kind': 'structure', 'citations': section['sources']}).model_dump(mode='json')
-            all_nodes = [root, *nodes]
-            for node in all_nodes:
-                node['body'].update(planned_section=True, commission_plan_ref=plan['ref'], commission_confirmation_ref=decision['ref'], assessment_refs=list(assessment_refs))
-            refs = [cs._insert(db, actor, 'ContentNode', node) for node in all_nodes]
-            relations = [cs._insert(db, actor, 'Relation', {'subject_ref': refs[0], 'object_ref': ref,
-                'predicate': 'contains', 'position': n, 'provenance_kind': 'adopted_during_generation'}) for n, ref in enumerate(refs[1:])]
-            for ref, node in zip(refs, all_nodes):
-                receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
-                    'section_id': section_id, 'body_digest': digest(node['body']), 'composition_digest': digest(section['result_composition']),
-                    'group_ref': refs[0], 'commission_confirmation_ref': decision['ref'], 'decision_digest': digest(decision['payload'])}
-                if ref == refs[0]:
-                    receipt['node_refs'] = refs
-                _set(db, 'planned_section_receipt:' + digest(ref), receipt)
-            return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
-                **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
-        if section['kind'] == 'fixed' and (slots or assessment_refs):
-            raise ActionRejected('FIXED_SECTION_CANNOT_INSERT_UNDECLARED_RESULTS')
-        for slot in slots:
-            if text.count(slot['old']) != 1:
-                raise ActionRejected('PLANNED_SECTION_RESULT_PASSAGE_AMBIGUOUS')
-            if slot['field'] in ('object_count', 'level_count'):
-                value = str(len(bound) if slot['field'] == 'object_count' else sum(r['adopted']['level'] == slot['level'] for r in bound.values()))
-                text = text.replace(slot['old'], value, 1)
-                continue
-            result = bound[slot['object_id']]
-            receipt = next(r for r in receipts if cs._read(db, r['assessment_ref'])['payload']['object_id'] == slot['object_id'])
-            if slot['field'] == 'assessment_text':
-                value = cs._read(db, receipt['level_ref'])['payload']['body']['text']
-            else:
-                value = result['adopted'][slot['field']]
-                if slot['field'] == 'level':
-                    if plan['payload'].get('table_specs'):
-                        value = plan['payload']['table_specs']['evaluation']['level_labels'][value]
-                    value += '。' + cs._read(db, receipt['level_ref'])['payload']['body']['level_qualification'] if result['affects_level'] else ''
-            text = text.replace(slot['old'], value, 1)
-        payload = ContentNode.model_validate({'kind': 'block', 'body': {'text': text,
-            'section_id': section_id, 'planned_section': True, 'commission_plan_ref': plan['ref'],
-            'assessment_refs': list(assessment_refs), **({'source_views': views} if views else {})}, 'qualifiers': {},
-            'citations': section['sources'], 'claim_kind': 'calculation' if slots else 'structure',
-            'working_notes': 'Source copy and reviewed literal/result substitutions.'}).model_dump(mode='json')
-        ref = cs._insert(db, actor, 'ContentNode', payload)
-        receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
-                   'section_id': section_id, 'text_digest': digest(text)}
-        if views:
-            receipt['source_views_digest'] = digest(views)
-        from .commission_plan import _set
-        _set(db, 'planned_section_receipt:' + digest(ref), receipt)
-        return {'node_ref': ref, 'refs': {'section': ref}, 'assessment_refs': list(assessment_refs)}
+        return create_planned_section_in_transaction(cs, db, actor, plan, section_id, assessment_refs)
     return cs.operation(actor, operation_id, {'planned_section': section_id, 'assessment_refs': list(assessment_refs)}, save,
         binding_identity=lambda db, result: _confirmed(cs, db)[0]['ref'])
+
+
+def create_planned_section_in_transaction(cs, db, actor, plan, section_id, assessment_refs=(), *, positional_anchors=False):
+    """Trusted assembler and writer API share the same validated projection."""
+    from .commission_plan import fixed_section_text, fixed_source_views, _state, _confirmed, outside_boundary
+    from .content_models import ContentNode
+    from .store import digest
+    if not plan or not plan['payload'].get('method_pack'):
+        raise ActionRejected('PLANNED_SECTION_METHOD_REQUIRED')
+    section = next((s for s in plan['payload']['sections'] if s['section_id'] == section_id), None)
+    if section is None or section['kind'] not in ('fixed', 'derived'):
+        raise ActionRejected('PLANNED_SECTION_ASSIGNMENT_REQUIRED')
+    text = fixed_section_text(section)
+    views = [{**view, 'source_id': cs._read(db, view['source_ref'])['payload']['source_id']}
+             for view in fixed_source_views(section)]
+    bound, receipts = {}, []
+    for ref in assessment_refs:
+        record = cs._read(db, ref)
+        if ref['type'] != 'Assessment' or record['payload']['commission_plan_ref'] != plan['ref']:
+            raise ActionRejected('PLANNED_SECTION_ASSESSMENT_STALE')
+        obj = record['payload']['object_id']
+        if obj in bound:
+            raise ActionRejected('PLANNED_SECTION_DUPLICATE_ASSESSMENT')
+        receipt = _state(db, 'assessment_receipt:' + digest(ref))
+        if not receipt:
+            raise ActionRejected('PLANNED_SECTION_SYSTEM_RECEIPT_REQUIRED')
+        bound[obj] = record['payload']['result']
+        receipts.append(receipt)
+    slots = section.get('result_bindings', [])
+    aggregate = bool(section.get('result_composition')) or any(s['field'] in ('object_count', 'level_count') for s in slots)
+    referenced_objects = {s['object_id'] for s in slots if s['object_id'] is not None}
+    if section['kind'] == 'derived' and (not (slots or section.get('result_composition')) or (not aggregate and referenced_objects != set(bound)) or not referenced_objects <= set(bound)):
+        raise ActionRejected('PLANNED_SECTION_RESULT_BINDINGS_REQUIRED')
+    if aggregate:
+        _, decision = _confirmed(cs, db)
+        reduced = {r['object_id'] for r in decision['payload']['reductions']}
+        expected = {o['object_id'] for o in plan['payload']['objects'] if not outside_boundary(plan['payload'], o)} - reduced
+        if set(bound) != expected:
+            raise ActionRejected('PLANNED_SECTION_AGGREGATE_REQUIRES_ALL_COMMISSIONED_ASSESSMENTS')
+        levels = {b['level'] for b in plan['payload']['method_pack']['risk_bands']}
+        if any(s['field'] == 'level_count' and s['level'] not in levels for s in slots):
+            raise ActionRejected('PLANNED_SECTION_UNKNOWN_LEVEL')
+    if section.get('result_composition'):
+        from .commission_results import composed_nodes
+        from .commission_plan import _set
+        nodes = composed_nodes(plan['payload'], section, bound,
+            [c for c in decision['payload'].get('template_decisions', []) if c['section_id'] in {p['section_id'] for p in section['result_composition']}],
+            decision['payload'].get('required_material_issues', []), positional_anchors=positional_anchors)
+        root = ContentNode.model_validate({'kind': 'block', 'body': {'text': section['section_id'] + ' ' + section['title'],
+            'section_id': section_id}, 'qualifiers': {}, 'claim_kind': 'structure', 'citations': section['sources']}).model_dump(mode='json')
+        all_nodes = [root, *nodes]
+        for node in all_nodes:
+            node['body'].update(planned_section=True, commission_plan_ref=plan['ref'], commission_confirmation_ref=decision['ref'], assessment_refs=list(assessment_refs))
+        refs = [cs._insert(db, actor, 'ContentNode', node) for node in all_nodes]
+        relations = [cs._insert(db, actor, 'Relation', {'subject_ref': refs[0], 'object_ref': ref,
+            'predicate': 'contains', 'position': n, 'provenance_kind': 'adopted_during_generation'}) for n, ref in enumerate(refs[1:])]
+        for ref, node in zip(refs, all_nodes):
+            receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
+                'section_id': section_id, 'body_digest': digest(node['body']), 'composition_digest': digest(section['result_composition']),
+                'group_ref': refs[0], 'commission_confirmation_ref': decision['ref'], 'decision_digest': digest(decision['payload'])}
+            if ref == refs[0]:
+                receipt['node_refs'] = refs
+            _set(db, 'planned_section_receipt:' + digest(ref), receipt)
+        return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
+            **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
+    if section['kind'] == 'fixed' and (slots or assessment_refs):
+        raise ActionRejected('FIXED_SECTION_CANNOT_INSERT_UNDECLARED_RESULTS')
+    for slot in slots:
+        if text.count(slot['old']) != 1:
+            raise ActionRejected('PLANNED_SECTION_RESULT_PASSAGE_AMBIGUOUS')
+        if slot['field'] in ('object_count', 'level_count'):
+            value = str(len(bound) if slot['field'] == 'object_count' else sum(r['adopted']['level'] == slot['level'] for r in bound.values()))
+            text = text.replace(slot['old'], value, 1)
+            continue
+        result = bound[slot['object_id']]
+        receipt = next(r for r in receipts if cs._read(db, r['assessment_ref'])['payload']['object_id'] == slot['object_id'])
+        if slot['field'] == 'assessment_text':
+            value = cs._read(db, receipt['level_ref'])['payload']['body']['text']
+        else:
+            value = result['adopted'][slot['field']]
+            if slot['field'] == 'level':
+                if plan['payload'].get('table_specs'):
+                    value = plan['payload']['table_specs']['evaluation']['level_labels'][value]
+                value += '。' + cs._read(db, receipt['level_ref'])['payload']['body']['level_qualification'] if result['affects_level'] else ''
+        text = text.replace(slot['old'], value, 1)
+    payload = ContentNode.model_validate({'kind': 'block', 'body': {'text': text,
+        'section_id': section_id, 'planned_section': True, 'commission_plan_ref': plan['ref'],
+        'assessment_refs': list(assessment_refs), **({'source_views': views} if views else {})}, 'qualifiers': {},
+        'citations': section['sources'], 'claim_kind': 'calculation' if slots else 'structure',
+        'working_notes': 'Source copy and reviewed literal/result substitutions.'}).model_dump(mode='json')
+    ref = cs._insert(db, actor, 'ContentNode', payload)
+    receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
+               'section_id': section_id, 'text_digest': digest(text)}
+    if views:
+        receipt['source_views_digest'] = digest(views)
+    from .commission_plan import _set
+    _set(db, 'planned_section_receipt:' + digest(ref), receipt)
+    return {'node_ref': ref, 'refs': {'section': ref}, 'assessment_refs': list(assessment_refs)}
