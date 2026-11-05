@@ -369,8 +369,12 @@ def test_customer_comments_match_all_material_issue_rows_despite_saved_rank_comm
     expected = []
     for _, kind, label, sources, basis, value, question, reply, impact in clarification:
         assert reply is None
-        suffix = '是，补充资料后需复核。' if impact == '是' else '否'
-        expected.append(f'{kind}｜{label}\n依据：{basis}\n资料：{sources}\n采用值：{value}\n待确认：{question}\n影响等级：{suffix}')
+        if kind in {'间接证据假设', '无证据假设'}:
+            suffix = '影响等级：' + ('是，补充资料后需复核。' if impact == '是' else '否')
+        else:
+            assert impact in {'待复核（不能排除）', '本次评分未计入该事项；不评价实际工程风险'}
+            suffix = '等级影响：' + impact
+        expected.append(f'{kind}｜{label}\n依据：{basis}\n资料：{sources}\n采用值：{value}\n待确认：{question}\n{suffix}')
     assert sorted(comment.text for comment in doc.comments) == sorted(expected)
     assert {row[2] for row in clarification} == {'坡' + str(i) for i in range(5)}
     ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
