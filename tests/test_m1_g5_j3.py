@@ -306,3 +306,39 @@ def test_export_requires_composition_receipt_bound_to_frozen_owner_choices(sourc
     f.cs.store.set(key, receipt)
     with pytest.raises(ActionRejected, match="template decision receipt"):
         validate_export(f.cs, snapshot, records)
+
+
+@pytest.mark.parametrize("locator,readable", [
+    ("body/paragraph 1", "正文第1段"),
+    ("body/paragraph 11; chars 1-5", "正文第11段"),
+    ("body/paragraph 2; chars 7-7", "正文第2段"),
+    ("line 22", "第22行"),
+    ("line 22; chars 1-23", "第22行"),
+])
+def test_validated_document_locations_render_readably(method_commission, locator, readable):
+    from report_agent.content_models import Ref
+    from report_agent.g3_export import citation_text
+    f = method_commission
+    citation = {**f.cite("outline"), "locator": locator}
+    records = {Ref.model_validate(citation["source_ref"]).key(): f.cs.read(citation["source_ref"])}
+    node = {"kind": "block", "body": {"text": "Offline citation fixture."}, "citations": [citation]}
+    rendered = citation_text(node, records)
+    assert "outline" in rendered and readable in rendered
+    assert "body/paragraph" not in rendered and "; chars" not in rendered
+
+
+@pytest.mark.parametrize("locator", [
+    "body/paragraph 0", "body/paragraph -1", "body/paragraph 1x",
+    "body/paragraph 1; chars 0-5", "body/paragraph 1; chars 8-2",
+    "body/paragraph 1; chars 1-5; ignored", "body/paragraph 1; arbitrary",
+    "line 22; chars 0-5", "line 22; chars 8-2", "line 22; arbitrary",
+])
+def test_malformed_document_locations_are_still_refused(method_commission, locator):
+    from report_agent.content_models import Ref
+    from report_agent.g3_export import citation_text
+    f = method_commission
+    citation = {**f.cite("outline"), "locator": locator}
+    records = {Ref.model_validate(citation["source_ref"]).key(): f.cs.read(citation["source_ref"])}
+    node = {"kind": "block", "body": {"text": "Offline citation fixture."}, "citations": [citation]}
+    with pytest.raises(ActionRejected, match="G3_CITATION_LOCATION_NOT_READABLE"):
+        citation_text(node, records)
