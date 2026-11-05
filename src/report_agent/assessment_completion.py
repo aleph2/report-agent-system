@@ -272,7 +272,14 @@ def require_continuation_checkpoint(state, fresh_authority=None):
     tasks = state.tasks
     valid_error = ("RecoveryBlocked('RECOVERY_PRIOR_ATTEMPT_UNRESOLVED')" if fresh_authority else
         "RequestBudgetExceeded('ASSESSMENT_COMPLETION_TOKEN_LIMIT')")
-    if (tuple(state.next) != ('model',) or len(tasks) != 1 or tasks[0].name != 'model' or
+    expected_next = ((), ('model',)) if fresh_authority else (('model',),)
+    partial_ok = True
+    if fresh_authority and len(tasks) == 1:
+        result, pinned = getattr(tasks[0],'result',None), fresh_authority.get('native_failed_model_partial_result_sha256')
+        partial_ok = (isinstance(result,dict) and set(result) == {'files'} and digest(result) == pinned
+            if pinned else result is None)
+        partial_ok = partial_ok and not getattr(tasks[0],'interrupts',())
+    if (tuple(state.next) not in expected_next or not partial_ok or len(tasks) != 1 or tasks[0].name != 'model' or
             repr(tasks[0].error) != valid_error and tasks[0].error != valid_error or
             state.config.get('configurable', {}).get('thread_id') != 'bounded-assessment-completion' or
             not state.config['configurable'].get('checkpoint_id') or fresh_authority and
@@ -283,13 +290,47 @@ def require_continuation_checkpoint(state, fresh_authority=None):
 
 
 
+
+def require_local_preflight_repair(case, evidence, authority, now):
+    """One known pre-send repair; keep the consumed fresh receipt immutable."""
+    folder = evidence/'extension-1/fresh-continuation'
+    local, old, frozen, before = [_load(folder/name) for name in (
+        'writer-launch.json','owner-approval.json','execution-source-receipt.json','pre-continuation-preservation.json')]
+    changed = {'at_utc','code_sha256','commit','execution_source'}
+    prior = _load(evidence/'extension-1/writer-launch.json')
+    if (any(authority.get(k) != value for k,value in old.items() if k not in changed) or
+            authority.get('known_local_failure_launch_sha256') != _sha(folder/'writer-launch.json') or
+            local.get('status') != 'blocked' or local.get('error_type') != 'ValueError' or
+            local.get('maximum_tokens') != 2 * LIMIT or 'continuation_checkpoint' in local or
+            local.get('assessment_refs') != {} or local.get('writer_actor') != prior['writer_actor'] or
+            local.get('budget') != prior['budget'] or
+            local['binding'].get('continuation_authority_sha256') != _sha(folder/'owner-approval.json') or
+            local['binding'].get('code_sha256') != old.get('code_sha256') or
+            frozen.get('owner_authority_sha256') != _sha(folder/'owner-approval.json') or
+            frozen.get('execution_source') != old.get('execution_source') or frozen.get('commit') != old.get('commit') or
+            _sha(Path(old['execution_source'])/'src/report_agent/assessment_completion.py') != old['code_sha256']):
+        raise ValueError('ASSESSMENT_LOCAL_REPAIR_KNOWN_PREFLIGHT_FAILURE_REQUIRED')
+    if (now != before['finance'] or authority.get('known_local_finance_sha256') != digest(before['finance']) or
+            not authority.get('native_failed_model_partial_result_sha256')):
+        raise ValueError('ASSESSMENT_LOCAL_REPAIR_FINANCE_OR_PARTIAL_PIN_CHANGED')
+    require_prior_process_absent(local,case)
+    start = datetime.fromisoformat(local['at_utc']).astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    with closing(sqlite3.connect((case/'state.db').as_uri()+'?mode=ro',uri=True,timeout=3)) as db:
+        db.execute('PRAGMA query_only=ON')
+        kinds = [row[0] for row in db.execute('SELECT kind FROM events WHERE at>=?',(start,))]
+    if any(kind != 'prompt_runtime_bound' for kind in kinds):
+        raise ValueError('ASSESSMENT_LOCAL_REPAIR_DISPATCH_ABSENCE_NOT_PROVEN')
+
 def require_fresh_continuation(case, evidence, authority_path, binding, now):
-    folder = evidence / 'extension-1' / 'fresh-continuation'
-    if (folder / 'writer-launch.json').exists():
-        raise FileExistsError('ASSESSMENT_FRESH_CONTINUATION_ALREADY_LAUNCHED')
-    if authority_path != folder / 'owner-approval.json':
+    base = evidence / 'extension-1' / 'fresh-continuation'
+    repair = authority_path == base/'local-preflight-repair/owner-approval.json'
+    if authority_path not in (base/'owner-approval.json',base/'local-preflight-repair/owner-approval.json'):
         raise ValueError('ASSESSMENT_FRESH_AUTHORITY_PATH_INVALID')
+    if (authority_path.parent / 'writer-launch.json').exists():
+        raise FileExistsError('ASSESSMENT_FRESH_CONTINUATION_ALREADY_LAUNCHED')
     authority = _load(authority_path)
+    if repair:
+        require_local_preflight_repair(case,evidence,authority,now)
     prior_path, baseline_path = evidence / 'extension-1/writer-launch.json', evidence / 'completion-budget-baseline.json'
     prior, original = _load(prior_path), _load(baseline_path)
     if (not all(authority.get(k) for k in ('turn_id','message_id','checkpoint_id')) or
@@ -394,7 +435,7 @@ async def _run_completion_locked(case, evidence, env, grant_file, extension_auth
     continuation_authority = Path(continuation_authority).resolve() if continuation_authority else None
     if extension_authority and continuation_authority:
         raise ValueError('ASSESSMENT_COMPLETION_ONE_AUTHORITY_ROUTE_REQUIRED')
-    output = (evidence/'extension-1/fresh-continuation' if continuation_authority else
+    output = (continuation_authority.parent if continuation_authority else
         evidence/'extension-1' if extension_authority else evidence)
     launch_path = output / 'writer-launch.json'
     if launch_path.exists():

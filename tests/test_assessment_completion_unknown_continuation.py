@@ -224,3 +224,84 @@ async def test_native_summary_prefix_changes_only_with_genuine_authority_notice(
     assert notice not in outputs[0]  # Newest owner message is outside the summarized older partition.
     assert notice in outputs[1]
     assert outputs[0]!=outputs[1]
+
+
+@pytest.mark.parametrize('fault',['valid','digest','messages','interrupt','checkpoint','extra_task','normal_route'])
+def test_native_files_partial_write_can_hide_next_node_only_in_exact_fresh_scope(fault):
+    partial={'files':{'/conversation_history/session.md':{'content':['saved prior context']}}}
+    authority={'checkpoint_id':'native-saved','native_failed_model_partial_result_sha256':digest(partial)}
+    task=SimpleNamespace(name='model',id='errored-model',error="RecoveryBlocked('RECOVERY_PRIOR_ATTEMPT_UNRESOLVED')",
+        result=partial,interrupts=())
+    state=SimpleNamespace(next=(),tasks=(task,),config={'configurable':{
+        'thread_id':'bounded-assessment-completion','checkpoint_id':'native-saved'}})
+    if fault=='digest':authority['native_failed_model_partial_result_sha256']='different'
+    elif fault=='messages':task.result={'messages':[]};authority['native_failed_model_partial_result_sha256']=digest(task.result)
+    elif fault=='interrupt':task.interrupts=('waiting',)
+    elif fault=='checkpoint':authority['checkpoint_id']='different'
+    elif fault=='extra_task':state.tasks=(task,task)
+    elif fault=='normal_route':authority=None
+    if fault=='valid':assert api.require_continuation_checkpoint(state,fresh_authority=authority)['next']==[]
+    else:
+        with pytest.raises(ValueError):api.require_continuation_checkpoint(state,fresh_authority=authority)
+
+
+@pytest.fixture
+def local_repair(fresh):
+    f=fresh
+    source=f.folder/'old-execution';(source/'src/report_agent').mkdir(parents=True)
+    code=source/'src/report_agent/assessment_completion.py';code.write_text('original frozen operator source')
+    f.authority.update(code_sha256=api._sha(code),execution_source=str(source),commit='original-commit')
+    write(f.path,f.authority)
+    write(f.folder/'execution-source-receipt.json',{'execution_source':str(source),'commit':'original-commit',
+        'owner_authority_sha256':api._sha(f.path)})
+    original_launch={'status':'blocked','error_type':'ValueError','maximum_tokens':20_000_000,'at_utc':'2026-11-05T20:54:37.889764+00:00',
+        'pid':999999999,'uid':1000,'process_start_ticks':'0','assessment_refs':{},'writer_actor':f.prior['writer_actor'],
+        'binding':{**f.binding,'code_sha256':f.authority['code_sha256'],'continuation_authority_sha256':api._sha(f.path)},
+        'budget':json.loads((f.evidence/'extension-1/writer-launch.json').read_text())['budget']}
+    write(f.folder/'writer-launch.json',original_launch)
+    finance=api.read_finance(f.budget.path)
+    write(f.folder/'pre-continuation-preservation.json',{'finance':finance})
+    with sqlite3.connect(f.case/'state.db') as db:
+        db.execute('create table events(sequence integer primary key,at text,kind text,data text)')
+        db.execute('insert into events values (1,?,?,?)',('2026-11-05 20:54:45','prompt_runtime_bound','{}'))
+    repair=f.folder/'local-preflight-repair';repair.mkdir()
+    f.binding['code_sha256']='repaired-code'
+    derivative={**f.authority,'code_sha256':'repaired-code','commit':'new-commit','execution_source':'new-source',
+        'known_local_failure_launch_sha256':api._sha(f.folder/'writer-launch.json'),
+        'known_local_finance_sha256':digest(finance),
+        'native_failed_model_partial_result_sha256':'pinned-partial-files-digest'}
+    f.authority=derivative;f.path=repair/'owner-approval.json';write(f.path,derivative)
+    return f
+
+
+def test_known_local_preflight_repair_uses_separate_exclusive_receipt(local_repair):
+    f=local_repair
+    before=(f.folder/'writer-launch.json').read_bytes();check(f)
+    assert (f.folder/'writer-launch.json').read_bytes()==before
+    api.claim_launch(f.path.parent/'writer-launch.json',{'status':'running'})
+    with pytest.raises(FileExistsError):check(f)
+
+
+@pytest.mark.parametrize('fault',['finance_added','finance_changed','wrong_status','checkpoint_present',
+    'assessments','unknown_error','model_event','owner_changed','source_changed','other_route'])
+def test_local_repair_refuses_any_unproven_zero_dispatch_or_authority_change(local_repair,fault):
+    f=local_repair;p=f.folder/'writer-launch.json';launch=json.loads(p.read_text())
+    if fault=='finance_added':
+        f.budget.settle(f.budget.reserve('writer-model'),{'total_tokens':0})
+    elif fault=='finance_changed':
+        with f.budget.connect() as db:db.execute('update attempts set reason=? where id=?',('changed',HELD))
+    elif fault=='wrong_status':launch['status']='incomplete'
+    elif fault=='checkpoint_present':launch['continuation_checkpoint']={}
+    elif fault=='assessments':launch['assessment_refs']={'object':'saved'}
+    elif fault=='unknown_error':launch['error_type']='RecoveryBlocked'
+    elif fault=='model_event':
+        with sqlite3.connect(f.case/'state.db') as db:
+            db.execute('insert into events values (2,?,?,?)',('2026-11-05 20:54:46','model_invocation_started','{}'))
+    elif fault=='owner_changed':f.authority['message_id']='other-owner-decision'
+    elif fault=='source_changed':
+        (f.folder/'old-execution/src/report_agent/assessment_completion.py').write_text('changed frozen source')
+    else:f.path=f.folder/'generic-repair/owner-approval.json';f.path.parent.mkdir()
+    if fault in ['wrong_status','checkpoint_present','assessments','unknown_error']:
+        write(p,launch);f.authority['known_local_failure_launch_sha256']=api._sha(p)
+    write(f.path,f.authority)
+    with pytest.raises((ValueError,FileExistsError,RequestBudgetExceeded)):check(f)
