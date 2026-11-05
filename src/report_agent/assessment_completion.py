@@ -41,18 +41,21 @@ def read_finance(path):
 
 
 class CompletionBudget:
-    def __init__(self, finance, baseline, grant_baseline, bounds, *, writer_model):
+    def __init__(self, finance, baseline, grant_baseline, bounds, *, writer_model, maximum_tokens=LIMIT):
         self.finance, self.baseline = finance, deepcopy(baseline)
         self.grant_baseline, self.bounds = deepcopy(grant_baseline), dict(bounds)
         if writer_model not in self.bounds:
             raise ValueError('ASSESSMENT_COMPLETION_WRITER_BOUND_REQUIRED')
+        if maximum_tokens not in (LIMIT, 2 * LIMIT):
+            raise ValueError('ASSESSMENT_COMPLETION_LIMIT_INVALID')
+        self.maximum_tokens = maximum_tokens
         self.writer_model = writer_model
 
     def check(self):
         now = self.finance()
         used, held, _ = budget_scope_cost(self.baseline, now)
         grant_used, grant_held, _ = budget_scope_cost(self.grant_baseline, now)
-        if used + held > LIMIT:
+        if used + held > self.maximum_tokens:
             raise RequestBudgetExceeded('ASSESSMENT_COMPLETION_TOKEN_LIMIT')
         if grant_used + grant_held > GRANT_LIMIT:
             raise RequestBudgetExceeded('ASSESSMENT_COMPLETION_GRANT_LIMIT')
@@ -68,8 +71,8 @@ class CompletionBudget:
 
     def observation(self):
         used, held, _ = budget_scope_cost(self.baseline, self.finance())
-        return {'scope_id': 'assessment-completion', 'maximum_tokens': LIMIT, 'recorded_tokens': used,
-            'reserved_or_unknown_upper_bounds': held, 'remaining_for_new_reservations': max(0, LIMIT-used-held),
+        return {'scope_id': 'assessment-completion', 'maximum_tokens': self.maximum_tokens, 'recorded_tokens': used,
+            'reserved_or_unknown_upper_bounds': held, 'remaining_for_new_reservations': max(0, self.maximum_tokens-used-held),
             'model_reservation_bounds': self.bounds, 'includes_original_phases': True}
 
 
@@ -190,9 +193,98 @@ def _preflight(case, evidence, env, grant_file):
     return authority, working, grant, ledger, now, blobs, name, hashlib.sha256(url.rstrip('/').encode()).hexdigest()
 
 
-async def _run_completion_locked(case, evidence, env, grant_file):
+
+def require_prior_process_absent(prior, case):
+    """Check the saved process identity and every matching completion argv."""
+    for process in Path('/proc').iterdir():
+        if not process.name.isdigit():
+            continue
+        try:
+            start = (process / 'stat').read_text().rpartition(')')[2].split()[19]
+            argv = (process / 'cmdline').read_bytes().decode(errors='replace').split('\0')
+            same = (int(process.name) == prior['pid'] and start == prior['process_start_ticks'] and
+                process.stat().st_uid == prior['uid'])
+        except (FileNotFoundError, PermissionError, ProcessLookupError):
+            continue
+        matching = (int(process.name) != os.getpid() and
+            any(arg == str(case) or arg == '--case=' + str(case) for arg in argv) and
+            any(arg == 'report_agent.assessment_completion' or arg.endswith('/assessment_completion.py') for arg in argv))
+        if same or matching:
+            raise ValueError('ASSESSMENT_EXTENSION_PRIOR_PROCESS_PRESENT')
+
+
+def require_extension(case, evidence, authority_path, binding, now):
+    folder = evidence / 'extension-1'
+    if (folder / 'writer-launch.json').exists():
+        raise FileExistsError('ASSESSMENT_EXTENSION_ALREADY_LAUNCHED_INSPECT_OUTCOME')
+    if authority_path != folder / 'owner-approval.json':
+        raise ValueError('ASSESSMENT_EXTENSION_AUTHORITY_PATH_INVALID')
+    authority = _load(authority_path)
+    prior_path, baseline_path = evidence / 'writer-launch.json', evidence / 'completion-budget-baseline.json'
+    if (not all(authority.get(k) for k in ('turn_id', 'message_id')) or
+            authority.get('additional_tokens') != LIMIT or authority.get('maximum_tokens') != 2 * LIMIT or
+            authority.get('grant_limit_unchanged') != GRANT_LIMIT or
+            authority.get('prior_launch_path') != str(prior_path) or
+            authority.get('original_baseline_path') != str(baseline_path) or
+            authority.get('prior_launch_sha256') != _sha(prior_path) or
+            authority.get('original_baseline_sha256') != _sha(baseline_path)):
+        raise ValueError('ASSESSMENT_EXTENSION_AUTHORITY_OR_BASELINE_INVALID')
+    prior, original = _load(prior_path), _load(baseline_path)
+    if (prior.get('status') != 'blocked' or prior.get('error_type') != 'RequestBudgetExceeded' or
+            prior.get('maximum_tokens') != LIMIT or prior.get('budget', {}).get('maximum_tokens') != LIMIT):
+        raise ValueError('ASSESSMENT_EXTENSION_KNOWN_BUDGET_DENIAL_REQUIRED')
+    if (prior['binding'] != original['binding'] or
+            {k:v for k,v in binding.items() if k != 'code_sha256'} !=
+            {k:v for k,v in prior['binding'].items() if k != 'code_sha256'} or
+            authority.get('code_sha256') != binding['code_sha256'] or
+            authority.get('original_owner_authority_sha256') != binding['authority_sha256']):
+        raise ValueError('ASSESSMENT_EXTENSION_PIN_CHANGED')
+    actor = prior.get('writer_actor', {})
+    checkpoint = case / 'assessment-completion-checkpoints.db'
+    if (actor.get('role') != 'writer' or not actor.get('task_id') or
+            actor.get('id') != 'content:writer:' + actor['task_id']):
+        raise ValueError('ASSESSMENT_EXTENSION_WRITER_PIN_INVALID')
+    if not checkpoint.is_file() or checkpoint.stat().st_size == 0:
+        raise ValueError('ASSESSMENT_EXTENSION_EXISTING_CHECKPOINT_REQUIRED')
+    require_prior_process_absent(prior, case)
+    used, held, _ = budget_scope_cost(original['baseline'], now)
+    old = {row[0] for row in original['baseline']['rows']}
+    added = [row for row in now['rows'] if row[0] not in old]
+    if held or any(row[4] in ('reserved', 'unknown') for row in added):
+        raise ValueError('ASSESSMENT_EXTENSION_PENDING_ATTEMPT_REFUSED')
+    if (prior['budget'].get('reserved_or_unknown_upper_bounds') != 0 or
+            used != prior['budget'].get('recorded_tokens') or
+            any(row[1] != binding['writer_model'] for row in added)):
+        raise ValueError('ASSESSMENT_EXTENSION_PRIOR_USAGE_CHANGED')
+    return authority, original, prior
+
+
+def require_continuation_checkpoint(state):
+    tasks = state.tasks
+    valid_error = "RequestBudgetExceeded('ASSESSMENT_COMPLETION_TOKEN_LIMIT')"
+    if (tuple(state.next) != ('model',) or len(tasks) != 1 or tasks[0].name != 'model' or
+            repr(tasks[0].error) != valid_error and tasks[0].error != valid_error or
+            state.config.get('configurable', {}).get('thread_id') != 'bounded-assessment-completion' or
+            not state.config['configurable'].get('checkpoint_id')):
+        raise ValueError('ASSESSMENT_EXTENSION_CHECKPOINT_MUST_BE_KNOWN_FAILED_MODEL')
+    return {'checkpoint_id': state.config['configurable']['checkpoint_id'], 'next': list(state.next),
+        'tasks': [{'id': tasks[0].id, 'name': tasks[0].name, 'error': valid_error}]}
+
+
+def approved_method_context(plan):
+    pack = plan['payload']['method_pack']
+    return {'method_id': pack['method_id'], 'version': pack['version'], 'sources': pack['sources'],
+        'indicators': [{key: row[key] for key in ('id','label','grades','notes')} for row in pack['indicators']],
+        'weight_tables': [{'id': table['id'], 'source': table['source'],
+            'rows': [row for row in table['rows'] if row['indicator_count'] == len(pack['indicators'])]}
+            for table in pack['weight_tables']],
+        'method_conventions': plan['payload']['method_conventions']}
+
+async def _run_completion_locked(case, evidence, env, grant_file, extension_authority=None):
     case, evidence, env, grant_file = [Path(p).resolve() for p in (case, evidence, env, grant_file)]
-    launch_path = evidence / 'writer-launch.json'
+    extension_authority = Path(extension_authority).resolve() if extension_authority else None
+    output = evidence / 'extension-1' if extension_authority else evidence
+    launch_path = output / 'writer-launch.json'
     if launch_path.exists():
         raise FileExistsError('ASSESSMENT_COMPLETION_ALREADY_LAUNCHED_INSPECT_ORIGINAL_OUTCOME')
     authority, working, grant, ledger, now, blobs, model_name, endpoint_pin = _preflight(case, evidence, env, grant_file)
@@ -223,23 +315,37 @@ async def _run_completion_locked(case, evidence, env, grant_file):
         'g5_prepared_sha256': _sha(Path(_load(evidence/'financial-authority-paths.json')['g5_prepared'])),
         'writer_model': model_name, 'writer_endpoint_sha256': endpoint_pin, 'code_sha256': _sha(Path(__file__))}
     baseline_path = evidence / 'completion-budget-baseline.json'
-    if baseline_path.exists():
-        saved = _load(baseline_path)
-        if saved['binding'] != binding or saved['baseline'] != now:
-            raise ValueError('ASSESSMENT_COMPLETION_BASELINE_NOT_FRESH')
+    prior = None
+    maximum_tokens = LIMIT
+    if extension_authority:
+        extension, original, prior = require_extension(case, evidence, extension_authority, binding, now)
+        baseline = original['baseline']
+        maximum_tokens = extension['maximum_tokens']
+        binding.update(extension_authority_sha256=_sha(extension_authority),
+            prior_launch_sha256=extension['prior_launch_sha256'],
+            original_baseline_sha256=extension['original_baseline_sha256'])
     else:
-        claim_launch(baseline_path, {'binding': binding, 'baseline': now})
-    guard = CompletionBudget(lambda: read_finance(ledger), now, grant['baseline'], json.loads(now['auth'][1]), writer_model=model_name)
+        if baseline_path.exists():
+            saved = _load(baseline_path)
+            if saved['binding'] != binding or saved['baseline'] != now:
+                raise ValueError('ASSESSMENT_COMPLETION_BASELINE_NOT_FRESH')
+        else:
+            claim_launch(baseline_path, {'binding': binding, 'baseline': now})
+        baseline = now
+    guard = CompletionBudget(lambda: read_finance(ledger), baseline, grant['baseline'], json.loads(now['auth'][1]),
+        writer_model=model_name, maximum_tokens=maximum_tokens)
     guard.check()
     launch = {'at_utc': datetime.now(timezone.utc).isoformat(), 'status': 'running', 'binding': binding,
-              'maximum_tokens': LIMIT, 'source_blobs': blobs, 'assessment_refs': {},
+              'maximum_tokens': maximum_tokens, 'source_blobs': blobs, 'assessment_refs': {},
               'pid': os.getpid(), 'uid': os.getuid(),
               'process_start_ticks': Path('/proc/self/stat').read_text().rpartition(')')[2].split()[19]}
     claim_launch(launch_path, launch)
     metrics_path = case / 'runtime-metrics.jsonl'
     metric_offset = metrics_path.stat().st_size if metrics_path.exists() else 0
+    actor = None
     try:
-        store.set('manifest', {**store.manifest, 'assembly_contract': 'system-assembler-v1'})
+        if not prior:
+            store.set('manifest', {**store.manifest, 'assembly_contract': 'system-assembler-v1'})
         from .content_tasks import delegated_task
         goal = ('The owner has explicitly approved this bounded assessment-completion extension, hard cap10M tokens. '
             'This does not restart G5, change its approved plan or grant engineering sign-off. '
@@ -254,6 +360,21 @@ async def _run_completion_locked(case, evidence, env, grant_file):
             'Engineering acceptance remains human. Report missing evidence honestly; never invent source pages.')
         call = {'name': 'task', 'id': 'owner-approved-assessment-completion', 'args': {
             'subagent_type': 'writer', 'section_ids': ['4'], 'description': goal}}
+        if prior:
+            goal = ('The owner explicitly authorizes an additional 10M tokens: cumulative maximum 20M from the ORIGINAL '
+                f"completion baseline, including the prior {prior['budget']['recorded_tokens']:,} settled tokens. Continue the SAME Writer task and "
+                'retained native checkpoint; this is a known pre-send budget denial, not an unknown HTTP outcome or '
+                'a replay of business tools. Original scope and approved plan remain unchanged: save only the five '
+                'canonical assessments; confirm/correct the existing 55 unverified suggestions from retained evidence; '
+                'invent no grades, ranks or pages. Prior refusal diagnosed a source alias: two verified guideline refs '
+                'have the same source_id, file digest and exact text; the fixed shared guard accepts that equivalence. '
+                'Use a fresh operation_id for post-fix assessment submissions; failed receipts remain historical. '
+                'Exact source quotes, source-use permissions and all assessment checks still apply. Do not repeat '
+                'whole-document research; use the retained evidence and the approved method contract below. '
+                'Finish after all five save; engineering acceptance stays human.\nApproved method contract:\n' +
+                json.dumps(approved_method_context(plan), ensure_ascii=False))
+            call = {'name': 'task', 'id': 'owner-approved-assessment-completion-extension-1', 'args': {
+                'subagent_type': 'writer', 'resume_content_task_id': prior['writer_actor']['task_id'], 'description': goal}}
         from .token_budget import TokenBudget, token_budget
         from .request_budget import request_reservation_observer
         budget = TokenBudget(ledger, now['auth'][0], guard.bounds)
@@ -262,6 +383,8 @@ async def _run_completion_locked(case, evidence, env, grant_file):
         from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
         from .deep_runtime import business_tools
         with delegated_task(workspace, 'coordinator', call) as (native_call, actor):
+            if prior and actor.__dict__ != prior['writer_actor']:
+                raise ValueError('ASSESSMENT_EXTENSION_WRITER_ACTOR_CHANGED')
             def saved():
                 return saved_assessments(contents, plan['ref'], ids, actor.id)
             async with AsyncExitStack() as resources:
@@ -278,10 +401,15 @@ async def _run_completion_locked(case, evidence, env, grant_file):
                 _save(launch_path, launch)
                 async with AsyncSqliteSaver.from_conn_string(str(case/'assessment-completion-checkpoints.db')) as saver:
                     agent = build_writer_agent(workspace, model, tools, lambda: len(saved()) == 5, saver)
+                    config = {'configurable': {'thread_id': 'bounded-assessment-completion'}, 'recursion_limit': 10000}
+                    if prior:
+                        launch['continuation_checkpoint'] = require_continuation_checkpoint(await agent.aget_state(config))
+                        _save(launch_path, launch)
+                    prompt = native_call['args']['description']
+                    if not prior:
+                        prompt += '\nUnverified system prefill:\n' + json.dumps(suggestions, ensure_ascii=False)
                     with token_budget(budget), request_reservation_observer(guard.check, observation=guard.observation):
-                        await agent.ainvoke({'messages': [HumanMessage(content=native_call['args']['description'] +
-                            '\nUnverified system prefill:\n' + json.dumps(suggestions, ensure_ascii=False))]},
-                            {'configurable': {'thread_id': 'bounded-assessment-completion'}, 'recursion_limit': 10000})
+                        await agent.ainvoke({'messages': [HumanMessage(content=prompt)]}, config)
                 launch['assessment_refs'] = saved()
         launch['status'] = 'completed' if len(launch['assessment_refs']) == 5 else 'incomplete'
         launch['missing_objects'] = sorted(set(ids)-launch['assessment_refs'].keys())
@@ -289,6 +417,12 @@ async def _run_completion_locked(case, evidence, env, grant_file):
         launch.update(status='blocked', error_type=type(error).__name__)
         raise
     finally:
+        if actor is not None:
+            try:
+                launch['assessment_refs'] = saved_assessments(contents, plan['ref'], ids, actor.id)
+                launch['missing_objects'] = sorted(set(ids) - launch['assessment_refs'].keys())
+            except Exception as error:
+                launch['assessment_receipt_error_type'] = type(error).__name__
         launch['finished_at_utc'] = datetime.now(timezone.utc).isoformat()
         try:
             launch['budget'] = guard.observation()
@@ -298,7 +432,7 @@ async def _run_completion_locked(case, evidence, env, grant_file):
         if metrics_path.exists():
             with metrics_path.open('rb') as stream:
                 stream.seek(metric_offset)
-                (evidence/'writer-metrics.jsonl').write_bytes(stream.read())
+                (output/'writer-metrics.jsonl').write_bytes(stream.read())
     return launch
 
 
@@ -328,7 +462,7 @@ def build_writer_agent(workspace, model, tools, complete, checkpointer):
     return agent.with_config(metadata=metadata)
 
 
-async def run_completion(case, evidence, env, grant_file):
+async def run_completion(case, evidence, env, grant_file, extension_authority=None):
     import fcntl
     case, evidence = Path(case).resolve(), Path(evidence).resolve()
     working = _load(evidence / 'working-copy.json')
@@ -336,16 +470,17 @@ async def run_completion(case, evidence, env, grant_file):
         raise ValueError('ASSESSMENT_COMPLETION_WORKING_COPY_REQUIRED')
     with (case / 'run.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return await _run_completion_locked(case, evidence, env, grant_file)
+        return await _run_completion_locked(case, evidence, env, grant_file, extension_authority)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('case', 'evidence', 'env', 'grant-baseline'):
         parser.add_argument('--'+name, required=True, type=Path)
+    parser.add_argument('--extension-authority', type=Path)
     args = parser.parse_args()
     try:
-        result = asyncio.run(run_completion(args.case,args.evidence,args.env,args.grant_baseline))
+        result = asyncio.run(run_completion(args.case,args.evidence,args.env,args.grant_baseline,args.extension_authority))
     except BaseException as error:
         print(json.dumps({'status':'blocked','error_type':type(error).__name__}))
         return 1
