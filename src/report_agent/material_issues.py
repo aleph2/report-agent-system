@@ -61,7 +61,7 @@ class MaterialIssue(StrictRecord):
     adopted_value: str = Field(min_length=1)
     question: str = Field(min_length=1)
     anchor: CellAnchor | PassageAnchor | ParagraphAnchor
-    affects_level: bool
+    affects_level: bool = Field(description="Assumptions: calculated sensitivity. Other source issues: True conservatively flags unresolved grade impact; False requires proof this item is outside the current calculation.")
 
     @model_validator(mode="after")
     def meaningful_fields(self):
@@ -78,10 +78,17 @@ class MaterialIssue(StrictRecord):
     def source_text(self):
         return "；".join(source.readable() for source in self.sources) or "无可用证据"
 
+    def impact_text(self):
+        if self.kind in {'indirect_assumption', 'no_evidence_assumption'}:
+            return '是' if self.affects_level else '否'
+        return '待复核（不能排除）' if self.affects_level else '本次评分未计入该事项；不评价实际工程风险'
+
     def comment(self):
         return (f"{LABELS[self.kind]}｜{self.object_label}\n依据：{self.basis}\n资料：{self.source_text()}"
                 f"\n采用值：{self.adopted_value}\n待确认：{self.question}"
-                + ("\n影响等级：是，补充资料后需复核。" if self.affects_level else "\n影响等级：否"))
+                + ("\n影响等级：" if self.kind in {'indirect_assumption', 'no_evidence_assumption'} else "\n等级影响：")
+                + self.impact_text()
+                + ("，补充资料后需复核。" if self.kind in {'indirect_assumption', 'no_evidence_assumption'} and self.affects_level else ""))
 
 
 class CellComment(StrictRecord):

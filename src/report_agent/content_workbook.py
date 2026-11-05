@@ -226,7 +226,7 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
         ordered = sorted(issue_records, key=lambda pair: 0 if pair[1].kind == 'no_evidence_assumption' else 1)
         for number, (ref, issue) in enumerate(ordered, 1):
             rows.append([number, LABELS[issue.kind], issue.object_label, issue.source_text(), issue.basis,
-                         issue.adopted_value, issue.question, '', '是' if issue.affects_level else '否'])
+                         issue.adopted_value, issue.question, '', issue.impact_text()])
             mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'material-issue',
                              'issue_id': issue.id, 'row_start': number + 1, 'row_stop': number + 2})
         if len(rows) > 1048576:
