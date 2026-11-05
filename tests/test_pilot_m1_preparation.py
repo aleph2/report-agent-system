@@ -1,6 +1,7 @@
 """M1 prepares requirements-led real-input cases without model requests."""
 from copy import deepcopy
 from io import BytesIO
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -339,8 +340,11 @@ def authorize_existing_ledger(state, args, tmp_path):
     budget.settle(budget.reserve('glm-5.3'), None)
     args.reuse_ledger = True
     args.budget_authority = tmp_path / 'm1-authority.json'
+    baseline = host['read_finance'](args.ledger)
+    grant_scope = {'maximum_tokens': 200_000_000, 'baseline': baseline,
+        'baseline_sha256': hashlib.sha256(json.dumps(baseline, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
     put_json(args.budget_authority, {'ledger': str(args.ledger.resolve()), 'maximum_tokens': 200_000_000,
-        'model_bounds': bounds, 'authorization_id': 'm1-offline-fixture-only',
+        'model_bounds': bounds, 'authorization_id': 'm1-offline-fixture-only', 'grant_scope': grant_scope,
         'user_authority': 'Synthetic fixture tests aggregate M1 accounting; not a real spend grant.'})
     return budget
 
