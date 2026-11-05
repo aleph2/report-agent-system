@@ -744,15 +744,24 @@ def assert_writing_allowed(cs, db, actor):
     return plan
 
 
-def writer_assignment(cs, db, section_ids):
+def writer_assignment(cs, db, section_ids, *, assessment_object_id=None):
     plan, _ = _confirmed(cs, db)
     if not section_ids or len(set(section_ids)) != len(section_ids):
         raise ActionRejected('COMMISSION_SECTION_ASSIGNMENT_REQUIRED')
     selected = [s for s in plan['payload']['sections'] if s['section_id'] in section_ids]
     if len(selected) != len(section_ids):
         raise ActionRejected('COMMISSION_SECTION_NOT_IN_PLAN')
-    return {'commission_plan_ref': plan['ref'], 'section_ids': section_ids,
-            'section_plan': selected, 'customer_conventions': plan['payload']['conventions']}
+    result = {'commission_plan_ref': plan['ref'], 'section_ids': section_ids,
+              'section_plan': selected, 'customer_conventions': plan['payload']['conventions']}
+    if assessment_object_id is not None:
+        _, decision = _confirmed(cs, db)
+        obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment_object_id), None)
+        reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
+        if (obj is None or not obj['included'] or outside_boundary(plan['payload'], obj) or assessment_object_id in reduced
+                or len(selected) != 1 or selected[0]['kind'] != 'extracted'):
+            raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
+        result['assessment_object_id'] = assessment_object_id
+    return result
 
 
 def _table_spec_lines(specs, source_read):

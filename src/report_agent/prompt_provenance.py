@@ -379,23 +379,25 @@ class AgentPromptBoundary(AgentMiddleware):
 
     async def _awrap_model_call(self, request, handler):
         independent_optimizer = self.source == 'experience-optimizer' and self.role == 'experience_optimizer'
-        expression_profile = (REPORT_EXPRESSION_V1 if independent_optimizer else
+        independent_writer = self.source == 'writer-judgments' and self.role == 'writer'
+        independent_prompt = independent_optimizer or independent_writer
+        expression_profile = (REPORT_EXPRESSION_V1 if independent_prompt else
                               self.expression_profile if self.expression_profile is not None
                               else report_expression_profile(self.workspace.store))
         from .prompt_sources import (role_sources, describe_current_tools,
             report_prompt_profile, report_rule_source, LEGACY_PROMPTS, CONCISE_PROMPTS,
             REVIEW_INTERFACE_V3, submit_review_source, validate_review_submission_contract)
         from .handoff_release import manifest as bound_manifest
-        text_profile = (LEGACY_PROMPTS if independent_optimizer else self.prompt_profile
+        text_profile = (LEGACY_PROMPTS if independent_prompt else self.prompt_profile
             if self.prompt_profile is not None else report_prompt_profile(self.workspace.store))
-        interface = ('not_applicable' if independent_optimizer else self.interface_profile
+        interface = ('not_applicable' if independent_prompt else self.interface_profile
             if self.interface_profile is not None else review_interface_profile(self.workspace.store))
-        submission_contract = (None if independent_optimizer else self.review_submission_contract
+        submission_contract = (None if independent_prompt else self.review_submission_contract
             if self.review_submission_contract is not None else
             validate_review_submission_contract(bound_manifest(self.workspace.store)))
-        files = [self.source] if independent_optimizer else role_sources(self.role, expression_profile, interface)
+        files = [self.source] if independent_prompt else role_sources(self.role, expression_profile, interface)
         # Read the allowed files independently of the renderer being checked.
-        expected = (load_prompt(self.source) if independent_optimizer else
+        expected = (load_prompt(self.source) if independent_prompt else
                     '\n\n'.join(text for name in files if (text := load_prompt(name)).strip()))
         blocks = request.system_message.content_blocks if request.system_message else []
         status, sources = classify_agent_system(request.system_message, expected)
