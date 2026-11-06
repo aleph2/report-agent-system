@@ -350,3 +350,101 @@ def test_second_probe_explicit_cap_rejects_changed_original_two_million_hold(tmp
     with pytest.raises(RequestBudgetExceeded,match='PROBE_PRESERVED_HOLD_CHANGED'):
         guard.check()
     assert finance(b)==stage
+
+
+def carryover_stage(tmp_path):
+    """The approved fresh stage snapshots, but never releases, a prior TLS hold."""
+    b,original,_,hold,_=setup_probe(tmp_path)
+    full=replace(BOUND,input_limit=1_048_576,output_limit=131_072)
+    request=httpx.Request('POST',URL,json=payload(max_tokens=65_536))
+    with token_budget(b),request_token_bound(full):
+        account_request_sync(request)
+    prior_id=request.extensions['report_token_budget'][1]
+    stage=finance(b)
+    guard=ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    return b,original,stage,hold,prior_id,full,guard
+
+
+def test_fresh_stage_allows_current_full_reservation_with_prior_tls_hold_retained(tmp_path):
+    b,original,stage,hold,prior_id,full,guard=carryover_stage(tmp_path)
+    before=deepcopy(stage);admission=[]
+    with request_reservation_observer(lambda:admission.append(guard.check())):
+        assert len(send(b,guard,payload(max_tokens=65_536),bound=full))==1
+    assert admission==[(0,1_179_648)]
+    now=finance(b)
+    assert all(row in now['rows'] for row in before['rows'])
+    assert next(row for row in now['rows'] if row[0]==prior_id)[2:5]==[1_179_648,None,'reserved']
+    assert next(row for row in now['rows'] if row[0]==hold[0])==hold
+    assert b.snapshot()['reserved_or_unknown_upper_bounds']==3_179_648
+    assert guard.check()==(10,0)
+    assert now['auth']==original['auth']
+
+
+@pytest.mark.parametrize('column,value',[(4,'unknown'),(3,0),(2,1_179_649)])
+def test_prior_tls_hold_in_fresh_baseline_is_byte_immutable(tmp_path,column,value):
+    b,_,stage,_,prior_id,full,guard=carryover_stage(tmp_path)
+    changed=deepcopy(stage)
+    next(row for row in changed['rows'] if row[0]==prior_id)[column]=value
+    guard.finance=lambda:changed
+    with pytest.raises(RequestBudgetExceeded,match='HOST_BASELINE_CHANGED'):
+        send(b,guard,payload(max_tokens=65_536),bound=full)
+    assert all(row in finance(b)['rows'] for row in stage['rows'])
+
+
+def test_fresh_stage_current_unknown_remains_blocking_despite_baselined_old_tls_hold(tmp_path):
+    b,_,stage,_,_,_,guard=carryover_stage(tmp_path)
+    send(b,guard,usage=None)
+    before=finance(b)
+    with pytest.raises(RequestBudgetExceeded,match='PROBE_UNRESOLVED_ATTEMPT'):
+        send(b,guard)
+    assert all(row in finance(b)['rows'] for row in before['rows'])
+    assert all(row in finance(b)['rows'] for row in stage['rows'])
+
+
+def test_fresh_stage_second_current_pending_stays_blocked(tmp_path):
+    b,_,stage,_,_,_,guard=carryover_stage(tmp_path)
+    with token_budget(b),request_token_bound(BOUND),request_reservation_observer(guard.check):
+        first=httpx.Request('POST',URL,json=payload())
+        account_request_sync(first)
+        with pytest.raises(RequestBudgetExceeded,match='PROBE_UNRESOLVED_ATTEMPT'):
+            account_request_sync(httpx.Request('POST',URL,json=payload()))
+    now=finance(b)
+    first_id=first.extensions['report_token_budget'][1]
+    assert next(row for row in now['rows'] if row[0]==first_id)[4]=='reserved'
+    assert all(row in now['rows'] for row in stage['rows'])
+    assert sum(row[4]=='known_not_sent' for row in now['rows'])==1
+
+
+@pytest.mark.parametrize('over',[0,1])
+def test_rescue_twenty_million_counts_prior_tls_and_original_holds_in_fresh_stage(tmp_path,over):
+    from report_agent.planning_budget import budget_scope_cost
+    b,original,_,hold,_,full,_=carryover_stage(tmp_path)
+    for used in [2_000_000]*7+[1_640_704+over]:
+        identity=b.reserve(MODEL);b.settle(identity,{'total_tokens':used})
+    stage=finance(b)
+    guard=ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    if over:
+        with pytest.raises(RequestBudgetExceeded,match='PROBE_OVERALL_TOKEN_LIMIT'):
+            send(b,guard,payload(max_tokens=65_536),bound=full)
+    else:
+        admissions=[]
+        with request_reservation_observer(lambda:admissions.append(sum(budget_scope_cost(original,finance(b))[:2]))):
+            assert len(send(b,guard,payload(max_tokens=65_536),bound=full))==1
+        assert admissions==[20_000_000]
+    assert all(row in finance(b)['rows'] for row in stage['rows'])
+
+
+@pytest.mark.parametrize('fault,code',[('model','PROBE_WRITER_MODEL_ONLY'),('bound','PROBE_TOKEN_BOUND_VIOLATION')])
+def test_fresh_stage_keeps_rescue_wide_model_and_bound_violation_guards(tmp_path,fault,code):
+    _,original,stage,hold,prior_id,_,_=carryover_stage(tmp_path)
+    now=deepcopy(stage);prior=next(row for row in now['rows'] if row[0]==prior_id)
+    if fault=='model':
+        prior[1]='other-model'
+    else:
+        prior[3]=prior[2]+1;prior[4]='bound_violation'
+    guard=ProbeBudget(lambda:now,original,now,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    with pytest.raises(RequestBudgetExceeded,match=code):
+        guard.check()

@@ -47,8 +47,9 @@ class ProbeBudget:
             raise RequestBudgetExceeded('PROBE_WRITER_MODEL_ONLY')
         if any(r[4] == 'bound_violation' for r in added):
             raise RequestBudgetExceeded('PROBE_TOKEN_BOUND_VIOLATION')
-        pending = [r for r in added if r[4] in ('reserved', 'unknown') and r != self.preserved_hold]
-        # The observer sees the current reservation before its first dispatch.
+        stage_old = {r[0] for r in self.stage_baseline['rows']}
+        pending = [r for r in added if r[0] not in stage_old and r[4] in ('reserved', 'unknown')]
+        # Baseline holds remain immutable/charged; only this stage's current request may be pending.
         if len(pending) > 1 or any(r[4] == 'unknown' for r in pending):
             raise RequestBudgetExceeded('PROBE_UNRESOLVED_ATTEMPT')
         return used, held
