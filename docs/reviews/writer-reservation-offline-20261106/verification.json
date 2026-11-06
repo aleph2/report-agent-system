@@ -1,0 +1,131 @@
+{
+  "at_utc": "2026-11-06T07:53:57.299890+00:00",
+  "baseline_commit": "1a3770da319dc3f409706d9babb7e6a3aecfef9a",
+  "formula": "min(1048576,ceil(local_input*1.2)+4096)+65536",
+  "hard_bound_verified": false,
+  "requests_count": 9,
+  "minimum_total_estimate": 74170,
+  "maximum_total_estimate": 88276,
+  "all_estimates_below_100K": true,
+  "tests": {
+    "passed": 22,
+    "exit_code": 0
+  },
+  "counterexample": {
+    "local_input": 10000,
+    "estimated_input": 16096,
+    "estimated_output": 65536,
+    "estimated_total": 81632,
+    "prior_settled": 1418368,
+    "provider_input": 20000,
+    "provider_output": 65536,
+    "actual_total": 85536,
+    "stage_total_after_response": 1503904,
+    "hard_cap": 1500000,
+    "overrun": 3904,
+    "type": "synthetic_unsafe_proposal_not_current_runtime"
+  },
+  "remaining_rescue_tokens": 8882273,
+  "model_invocations": 0,
+  "live_reservation_unchanged": 1179648,
+  "new_probe_launched": false,
+  "limitations": [
+    "Private endpoint framing and counting overhead not bounded by a serving contract.",
+    "Configured output field alone does not establish private endpoint enforcement or tolerance.",
+    "Post-response checks can stop further work, not undo current response cost.",
+    "Synthetic replay does not prove real Writer behavior or engineering judgments."
+  ],
+  "red_test_note": "Initial test collection failed because candidate module did not yet exist; not a behavioral red regression.",
+  "scope": "Published offline experiment only; application runtime code and live policy unchanged.",
+  "source_evidence": "Local protected nine-wire replay; private request bodies, sources and ledger rows excluded from publication.",
+  "requests": [
+    {
+      "number": 1,
+      "wire_sha256": "69af8eca8185f4e58c3b9947a35ec5e95747ed4d421e2f5e58c06377b4136380",
+      "local_input_tokens": 3781,
+      "input_estimate": 8634,
+      "output_allowance": 65536,
+      "total_estimate": 74170
+    },
+    {
+      "number": 2,
+      "wire_sha256": "c842bcb240d88563c9c675c2665aa8d6370dca8133a8202718ecac6f3ae342c5",
+      "local_input_tokens": 12425,
+      "input_estimate": 19006,
+      "output_allowance": 65536,
+      "total_estimate": 84542
+    },
+    {
+      "number": 3,
+      "wire_sha256": "0c6e8c7faf29438f0c961c77e570ae2af8b870dec0cebda8cc0c224afb627d6c",
+      "local_input_tokens": 13751,
+      "input_estimate": 20598,
+      "output_allowance": 65536,
+      "total_estimate": 86134
+    },
+    {
+      "number": 4,
+      "wire_sha256": "c487d4f1bbf81169b05e2a8b0ae736b9f197d584ef2feabea6b7137643a89280",
+      "local_input_tokens": 14507,
+      "input_estimate": 21505,
+      "output_allowance": 65536,
+      "total_estimate": 87041
+    },
+    {
+      "number": 5,
+      "wire_sha256": "b59796a1060df0e1148e254978efac6a1ce509f6d4b89b59abe0ea173d27210c",
+      "local_input_tokens": 15536,
+      "input_estimate": 22740,
+      "output_allowance": 65536,
+      "total_estimate": 88276
+    },
+    {
+      "number": 6,
+      "wire_sha256": "1861757c0e5bbecbe0c00233a49f7fd8b573f32da286a98ae1360270d806aefd",
+      "local_input_tokens": 14863,
+      "input_estimate": 21932,
+      "output_allowance": 65536,
+      "total_estimate": 87468
+    },
+    {
+      "number": 7,
+      "wire_sha256": "f492ddf475af09afc26be00942b1a0d22cdc87040c0e91d9dc492f23b1842a50",
+      "local_input_tokens": 13988,
+      "input_estimate": 20882,
+      "output_allowance": 65536,
+      "total_estimate": 86418
+    },
+    {
+      "number": 8,
+      "wire_sha256": "f85579f1dbeaa8ca0629aa0aa51c02671efb75df3d9fb8ea45fc8a07f527c08b",
+      "local_input_tokens": 14692,
+      "input_estimate": 21727,
+      "output_allowance": 65536,
+      "total_estimate": 87263
+    },
+    {
+      "number": 9,
+      "wire_sha256": "097c777bff2f3205baac945f24b864fdda7acdba765aba9c43c75e6690e16aa9",
+      "local_input_tokens": 13949,
+      "input_estimate": 20835,
+      "output_allowance": 65536,
+      "total_estimate": 86371
+    }
+  ],
+  "tokenizer": {
+    "method": "pinned_openweight_template_not_private_proxy_or_financial_bound",
+    "revision": "ba32f8c19c8738e2c57c71798c601d477a7bf844",
+    "tokenizer_sha256": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d"
+  },
+  "preservation": {
+    "ledger_rows": 2482,
+    "exact_financial_baseline_unchanged": true,
+    "historical_2M_hold_unchanged": true,
+    "new_native_attempts": 0,
+    "G5_stopped": true
+  },
+  "independent_reviews": {
+    "architecture": "offline experiment accepted; endpoint serving contract required for live bound",
+    "alignment": "offline scope accepted; no new deployed bug; cap-overrun counterexample blocks live promotion"
+  }
+}
