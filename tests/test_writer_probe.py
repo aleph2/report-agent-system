@@ -97,7 +97,8 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     hold_id = budget.reserve('glm-5.3')
     stage = read_finance(ledger)
     hold = next(r for r in stage['rows'] if r[0]==hold_id)
-    authority = {'hard_probe_tokens':1_500_000,'overall_rescue_tokens':20_000_000,
+    authority = {'hard_probe_tokens':2_200_000,'investigation_threshold_tokens':1_000_000,
+        'overall_rescue_tokens':20_000_000,
         'preserve_unknown_hold_tokens':2_000_000,'no_other_slopes_cleanup_export_or_model_tests':True}
     (evidence/'owner-authority.json').write_text(json.dumps(authority))
     inputs = {'import_sha256':sha((case/'probe-import.json').read_bytes()),
@@ -161,7 +162,11 @@ def assert_probe_preserved(setup, result):
     assert result['overall_rescue']['preserved_hold_unchanged'] is True
     assert result['automatic_continuation'] is False and result['engineering_acceptance'] is False
     assert result['visual_verification']=='SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'
-    assert result['maximum_tokens']==1_500_000 and result['request_bound']==1_179_648
+    assert result['maximum_tokens']==2_200_000 and result['request_bound']==1_179_648
+    assert result['budget']['maximum_tokens']==2_200_000
+    assert result['investigation_threshold_tokens']==1_000_000
+    assert result['investigation_threshold_basis']=='settled_stage_tokens'
+    assert result['investigation_threshold_reached']==(result['budget']['recorded_tokens']>=1_000_000)
     assert json.loads((setup['evidence']/'probe-launch.json').read_text())==result
     assert set(result['tools'])=={'read_assignment','read_assigned_page','read_assigned_text',
                                  'set_indicator','submit_assessment','propose_material_issue'}
@@ -205,17 +210,17 @@ async def test_probe_actual_glm_sdk_incomplete_refusal_receipt_and_exclusive_lau
 @pytest.mark.asyncio
 async def test_probe_budget_stops_second_sdk_dispatch_and_preserves_old_hold(prepared_probe, monkeypatch):
     p = prepared_probe
-    install_probe_transport(monkeypatch,p,[sdk_reply(tool='read_assignment',usage=400_000)])
+    install_probe_transport(monkeypatch,p,[sdk_reply(tool='read_assignment',usage=1_020_353)])
     result = await probe.run_probe(p['case'],p['evidence'],p['env'])
     assert result['status']=='stopped' and result['stop_code']=='PROBE_TOKEN_LIMIT'
     assert result['assessment_refs']=={}
     now = assert_probe_preserved(p,result)
     assert len(p['wires'])==1
-    assert result['budget']['recorded_tokens']==400_000
+    assert result['budget']['recorded_tokens']==1_020_353
     assert result['budget']['reserved_or_unknown_upper_bounds']==0
     assert sum(r[4]=='known_not_sent' and r[3]==0 for r in now['rows'])==1
     assert sum(r[4]=='settled' and r[2]==1_179_648 for r in now['rows'])==1
-    assert result['metrics']['roles']['writer']['tokens']==400_000
+    assert result['metrics']['roles']['writer']['tokens']==1_020_353
     with pytest.raises(FileExistsError):
         await probe.run_probe(p['case'],p['evidence'],p['env'])
     assert len(p['wires'])==1 and read_finance(p['ledger'])==now
@@ -241,3 +246,71 @@ async def test_probe_final_sdk_wire_rejection_precedes_finance(prepared_probe, m
     assert_probe_preserved(p,result)
     assert p['wires']==[]
     assert read_finance(p['ledger'])==p['inputs']['stage_baseline']
+
+
+@pytest.mark.asyncio
+async def test_second_probe_threshold_is_observation_and_exact_boundary_allows_next_sdk(prepared_probe,monkeypatch):
+    p=prepared_probe
+    install_probe_transport(monkeypatch,p,[
+        sdk_reply(tool='read_assignment',usage=1_020_352),sdk_reply()])
+    result=await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert result['status']=='returned'
+    assert result['investigation_threshold_reached'] is True
+    assert result['budget']['recorded_tokens']==1_020_362
+    assert len(p['wires'])==2
+    now=assert_probe_preserved(p,result)
+    with pytest.raises(FileExistsError,match='ALREADY_LAUNCHED'):
+        await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert len(p['wires'])==2 and read_finance(p['ledger'])==now
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change',[
+    {'hard_probe_tokens':1_500_000},{'hard_probe_tokens':2_200_001},
+    {'hard_probe_tokens':2_200_000.0},{'hard_probe_tokens':True},
+    {'investigation_threshold_tokens':None},{'investigation_threshold_tokens':1_000_001},
+    {'investigation_threshold_tokens':1_000_000.0},{'overall_rescue_tokens':20_000_001},
+    {'overall_rescue_tokens':20_000_000.0},{'preserve_unknown_hold_tokens':0},
+    {'preserve_unknown_hold_tokens':2_000_000.0},
+    {'no_other_slopes_cleanup_export_or_model_tests':False},
+])
+async def test_second_probe_requires_exact_new_authority_before_model_or_finance(prepared_probe,monkeypatch,change):
+    p=prepared_probe
+    path=p['evidence']/'owner-authority.json'
+    authority=json.loads(path.read_text());authority.update(change)
+    if authority.get('investigation_threshold_tokens') is None:
+        authority.pop('investigation_threshold_tokens',None)
+    path.write_text(json.dumps(authority))
+    p['inputs']['authority_sha256']=sha(path.read_bytes())
+    (p['evidence']/'probe-inputs.json').write_text(json.dumps(p['inputs']))
+    before=read_finance(p['ledger'])
+    install_probe_transport(monkeypatch,p,[])
+    with pytest.raises(ValueError,match='PROBE_OWNER_AUTHORITY_REQUIRED'):
+        await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert not p['models'] and not p['wires']
+    assert read_finance(p['ledger'])==before
+    assert not (p['evidence']/'probe-launch.json').exists()
+
+
+@pytest.mark.asyncio
+async def test_second_probe_nonobject_authority_refused_before_finance(prepared_probe):
+    p=prepared_probe
+    path=p['evidence']/'owner-authority.json';path.write_text('[]')
+    p['inputs']['authority_sha256']=sha(path.read_bytes())
+    (p['evidence']/'probe-inputs.json').write_text(json.dumps(p['inputs']))
+    with pytest.raises(ValueError,match='PROBE_OWNER_AUTHORITY_REQUIRED'):
+        await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert read_finance(p['ledger'])==p['inputs']['stage_baseline']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('settled,reached',[(999_999,False),(1_000_000,True)])
+async def test_second_probe_investigation_flag_counts_only_settled_stage_tokens(prepared_probe,monkeypatch,settled,reached):
+    p=prepared_probe
+    install_probe_transport(monkeypatch,p,[sdk_reply(usage=settled)])
+    result=await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert result['status']=='returned'
+    assert result['investigation_threshold_reached'] is reached
+    assert result['budget']['recorded_tokens']==settled
+    assert result['overall_rescue']['held']==2_000_000
+    assert_probe_preserved(p,result)

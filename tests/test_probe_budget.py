@@ -259,3 +259,94 @@ def test_actual_recovery_accounts_scoped_bound_and_cannot_escape_probe_guard(tmp
     assert next(r for r in now['rows'] if r[0] == hold[0]) == hold
     assert sum(r[4] == 'known_not_sent' for r in now['rows']) == 1
     assert sorted(r[2] for r in now['rows'] if r[4] == 'reserved') == [BOUND.total, 2_000_000]
+
+
+@pytest.mark.parametrize('over',[0,1])
+def test_second_probe_full_request_bound_exact_boundary_and_one_over(tmp_path,over):
+    b, original, stage, hold, _ = setup_probe(tmp_path)
+    guard = ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=2_200_000,
+                        preserved_hold=hold,writer_model=MODEL)
+    prior=b.reserve(MODEL)
+    b.settle(prior,{'total_tokens':1_020_352+over})
+    before=finance(b)
+    full=replace(BOUND,input_limit=1_048_576,output_limit=131_072)
+    admission=[]
+    if over:
+        with pytest.raises(RequestBudgetExceeded,match='PROBE_TOKEN_LIMIT'):
+            send(b,guard,payload(max_tokens=65_536),bound=full)
+        added=[r for r in finance(b)['rows'] if r[0] not in {r[0] for r in before['rows']}]
+        assert len(added)==1 and added[0][3:5]==[0,'known_not_sent']
+    else:
+        with request_reservation_observer(lambda:admission.append(guard.check())):
+            assert len(send(b,guard,payload(max_tokens=65_536),bound=full))==1
+        assert admission==[(1_020_352,1_179_648)]
+        assert sum(admission[0])==2_200_000
+    assert all(r in finance(b)['rows'] for r in before['rows'])
+    assert next(r for r in finance(b)['rows'] if r[0]==hold[0])==hold
+    assert finance(b)['auth']==original['auth']
+    assert b.model_bounds=={MODEL:2_000_000}
+
+
+@pytest.mark.parametrize('cap',[2_200_001,2_200_000.0,True,0,-1])
+def test_second_probe_cap_cannot_be_widened_or_malformed(tmp_path,cap):
+    b,original,stage,hold,_=setup_probe(tmp_path)
+    with pytest.raises(ValueError,match='PROBE_LIMIT_INVALID'):
+        ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=cap,
+                    preserved_hold=hold,writer_model=MODEL)
+    assert finance(b)==stage
+
+
+def test_second_probe_still_obeys_overall_cap_and_keeps_original_hold(tmp_path):
+    b,original,stage,hold,_=setup_probe(tmp_path)
+    for _ in range(9):
+        identity=b.reserve(MODEL);b.settle(identity,{'total_tokens':2_000_000})
+    stage=finance(b)
+    guard=ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    with pytest.raises(RequestBudgetExceeded,match='PROBE_OVERALL_TOKEN_LIMIT'):
+        send(b,guard)
+    assert all(r in finance(b)['rows'] for r in stage['rows'])
+    assert next(r for r in finance(b)['rows'] if r[0]==hold[0])==hold
+
+
+def test_second_probe_unknown_outcome_retained_and_further_dispatch_blocked(tmp_path):
+    b,original,stage,hold,_=setup_probe(tmp_path)
+    guard=ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    send(b,guard,usage=None)
+    before=finance(b)
+    with pytest.raises(RequestBudgetExceeded,match='PROBE_UNRESOLVED_ATTEMPT'):
+        send(b,guard)
+    assert all(r in finance(b)['rows'] for r in before['rows'])
+    assert next(r for r in finance(b)['rows'] if r[0]==hold[0])==hold
+
+
+def test_second_probe_full_worst_case_settlement_reaches_cap_and_next_http_is_blocked(tmp_path):
+    b,original,stage,hold,_=setup_probe(tmp_path)
+    guard=ProbeBudget(lambda:finance(b),original,stage,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    prior=b.reserve(MODEL);b.settle(prior,{'total_tokens':1_020_352})
+    full=replace(BOUND,input_limit=1_048_576,output_limit=131_072)
+    assert len(send(b,guard,payload(max_tokens=full.output_limit),
+                    usage=full.total,bound=full))==1
+    assert guard.check()==(2_200_000,0)
+    before=finance(b)
+    with pytest.raises(RequestBudgetExceeded,match='PROBE_TOKEN_LIMIT'):
+        send(b,guard,payload(max_tokens=full.output_limit),bound=full)
+    now=finance(b)
+    assert all(row in now['rows'] for row in before['rows'])
+    assert guard.check()==(2_200_000,0)
+    assert next(row for row in now['rows'] if row[0]==hold[0])==hold
+    assert sum(row[3] or 0 for row in now['rows'])==2_200_000
+    assert sum(row[4]=='known_not_sent' and row[3]==0 for row in now['rows'])==1
+
+
+def test_second_probe_explicit_cap_rejects_changed_original_two_million_hold(tmp_path):
+    b,original,stage,hold,_=setup_probe(tmp_path)
+    changed=deepcopy(stage)
+    next(row for row in changed['rows'] if row[0]==hold[0])[4]='unknown'
+    guard=ProbeBudget(lambda:changed,original,stage,maximum_tokens=2_200_000,
+                      preserved_hold=hold,writer_model=MODEL)
+    with pytest.raises(RequestBudgetExceeded,match='PROBE_PRESERVED_HOLD_CHANGED'):
+        guard.check()
+    assert finance(b)==stage
