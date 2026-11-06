@@ -1,0 +1,36 @@
+{
+  "font_sha256": "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a",
+  "documents": [
+    {
+      "file": "inputs/01_initial.pdf",
+      "sha256": "970914dada055b8c50d58d766c1e767a9538d79c72a80d2a64c76f6326b61e3c",
+      "bytes": 135208,
+      "pages": 2,
+      "native_text_pages": 0,
+      "page_image_sha256": [
+        "b520719949fcd63d243987eb075a980d96c1cd0e3496835ba00bb9f7b45374e5",
+        "344cc5923ec0a5fd437323ebb4629f2b45c787870b7bd83c316ad162d158bf3c"
+      ]
+    },
+    {
+      "file": "inputs/02_revision.pdf",
+      "sha256": "eb5cc706e0015d4ee3eaffc1c953e31b77187e06c4a5db61a913cf2a1288acdf",
+      "bytes": 67280,
+      "pages": 1,
+      "native_text_pages": 0,
+      "page_image_sha256": [
+        "7128d32f8dbe1382820f4a3764fe198ed95087ecebbcee9560874a2b23c31723"
+      ]
+    },
+    {
+      "file": "inputs/03_requirements.pdf",
+      "sha256": "0ccee322c51ffc026b9a33507192736ec540bc31243c6e36adf8fa42384e0831",
+      "bytes": 79060,
+      "pages": 1,
+      "native_text_pages": 0,
+      "page_image_sha256": [
+        "137c948cabbb292dbe1c4d61722d124cd8f41f79022d9b63bdb2b431704b4427"
+      ]
+    }
+  ]
+}
