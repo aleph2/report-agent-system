@@ -223,3 +223,120 @@ def test_text_page_does_not_render_pixels_or_issue_visual_credit(assigned, monke
     assert result['table_view']['page'] == 3
     with f.ws.store.connect() as db:
         assert not db.execute("SELECT key FROM state WHERE key LIKE 'writer_page_read:%'").fetchall()
+
+
+def projected_page():
+    return {
+        'source_handle':'source-2', 'source_id':'PRIVATE_SOURCE', 'source_ref':{'id':'PRIVATE_REF'},
+        'sha256':'a'*64, 'page':43, 'page_count':400, 'locator':'PDF physical page 43 of 400',
+        'native_text':'Native PDF value 12; OCR correction is elsewhere.',
+        'frozen_text_blocks':[{'ordinal':7,'locator':'page 43; chars 1-34','text':'Stored OCR value 21.\nExact spacing  retained.'}],
+        'frozen_text_note':'Stored extraction/OCR; no OCR rerun.',
+        'visual_evidence':'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE',
+        'limitations':['Physical page only; not complete visual coverage.'],
+        'limitation':'Drawing-only evidence is unverified, not missing.',
+        'coverage':{'text':'page only','visual':'unverified'},
+        'table_view':{'status':'extracted','derived':True,'page':43,'page_count':400,
+            'source_id':'PRIVATE_SOURCE','source_sha256':'a'*64,'coordinate_system':'PDF points',
+            'page_bbox':[0,0,100,100],'limitations':['Mechanical candidates; empty text is not zero.'],
+            'tables':[{'table':1,'bbox':[1,2,3,4],
+                'rows':[['A',None,''],['0','21.0','exact\nline']],
+                'nonempty_cell_bounds':[{'row':1,'column':1,'bbox':[1,2,3,4]}],
+                'geometry':{'cells':[[1,1,1,1]]},'geometry_representation':'exact_grid_v1'}]},
+        'image_ref':'PRIVATE_IMAGE_REF','image_data_url':'PRIVATE_PIXELS','image_sha256':'b'*64,
+    }
+
+
+def test_page_view_default_preserves_exact_stored_text_and_only_one_representation():
+    raw=projected_page(); before=deepcopy(raw)
+    view=api.page_view(raw)
+    assert view['view']=='text' and view['text_channel']=='frozen_text_blocks'
+    assert view['frozen_text_blocks']==raw['frozen_text_blocks']
+    assert not {'native_text','table_view','source_id','source_ref','sha256',
+                'image_ref','image_data_url','image_sha256'} & view.keys()
+    assert view['text_channels']=={'frozen_text_blocks':'available','native_text':'available'}
+    assert view['source_handle']=='source-2' and view['page']==43
+    assert view['visual_evidence']==raw['visual_evidence']
+    assert view['coverage']==raw['coverage'] and view['limitations']==raw['limitations']
+    assert view['frozen_text_note']==raw['frozen_text_note']
+    assert raw==before
+    view['frozen_text_blocks'][0]['text']='Projection edit'
+    assert raw==before
+    assert 'page_handle' not in view
+
+
+def test_page_view_explicit_native_keeps_pdf_text_without_losing_ocr_availability():
+    raw=projected_page()
+    view=api.page_view(raw,'native_text')
+    assert view['native_text']==raw['native_text']
+    assert view['text_channel']=='native_text'
+    assert view['text_channels']['frozen_text_blocks']=='available'
+    assert 'frozen_text_blocks' not in view and 'table_view' not in view
+    assert view['limitation']==raw['limitation']
+
+
+@pytest.mark.parametrize('frozen,native,expected',[
+    ([], 'Native only', 'native_text'),
+    ([{'ordinal':0,'locator':'page 1','text':'OCR only'}], '', 'frozen_text_blocks'),
+    ([], '', 'native_text'),
+    ([{'ordinal':0,'locator':'page 1','text':'  \n'}], 'PDF text', 'native_text'),
+])
+def test_page_view_empty_channels_and_native_fallback_are_explicit(frozen,native,expected):
+    raw=projected_page(); raw['frozen_text_blocks']=frozen; raw['native_text']=native
+    view=api.page_view(raw)
+    assert view['text_channel']==expected
+    assert (view.get('native_text')==native if expected=='native_text'
+            else view['frozen_text_blocks']==frozen)
+    assert view['text_channels']['native_text']==('available' if native.strip() else 'empty')
+    assert view['text_channels']['frozen_text_blocks']==('available' if any(b['text'].strip() for b in frozen) else 'empty')
+    assert 'table_view' not in view
+
+
+def test_page_view_tables_keep_all_cells_and_status_without_text_or_geometry():
+    raw=projected_page(); before=deepcopy(raw)
+    view=api.page_view(raw,'tables')
+    table=view['table_view']
+    assert table['status']=='extracted' and table['derived'] is True
+    assert table['tables']==[{'table':1,'rows':raw['table_view']['tables'][0]['rows']}]
+    assert table['limitations']==raw['table_view']['limitations']
+    assert not {'native_text','frozen_text_blocks','source_id','source_ref','image_data_url'} & view.keys()
+    assert not {'source_id','source_sha256','page_bbox','coordinate_system'} & table.keys()
+    assert not {'bbox','nonempty_cell_bounds','geometry','geometry_representation'} & table['tables'][0].keys()
+    table['tables'][0]['rows'][0][0]='changed'
+    assert raw==before
+
+
+@pytest.mark.parametrize('status',['unavailable','no_tables_detected'])
+def test_page_view_does_not_turn_empty_table_channel_into_missing_evidence(status):
+    raw=projected_page()
+    raw['table_view']={'status':status,'tables':[],'limitations':['No detected table does not establish absent information.']}
+    view=api.page_view(raw,'tables')
+    assert view['table_view']==raw['table_view']
+    assert view['visual_evidence']=='SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'
+    assert view['text_channels']['frozen_text_blocks']=='available'
+
+
+def test_page_view_preserves_only_an_existing_visual_handle():
+    raw=projected_page()
+    raw['page_handle']='page-verified-receipt'
+    for mode in ('text','native_text','tables'):
+        view=api.page_view(raw,mode)
+        assert view['page_handle']=='page-verified-receipt'
+        assert 'PRIVATE' not in str(view)
+    raw.pop('page_handle')
+    assert all('page_handle' not in api.page_view(raw,mode) for mode in ('text','native_text','tables'))
+
+
+def test_page_view_unavailable_text_channels_remain_explicit():
+    raw={'page':2,'limitations':['No channel proves absent source information.']}
+    view=api.page_view(raw)
+    assert view['native_text']==''
+    assert view['text_channels']=={'frozen_text_blocks':'unavailable','native_text':'unavailable'}
+    assert view['limitations']==raw['limitations']
+
+
+def test_page_view_rejects_unknown_mode_without_mutation():
+    raw=projected_page(); before=deepcopy(raw)
+    with pytest.raises(ActionRejected,match='PAGE_VIEW'):
+        api.page_view(raw,'guessed-summary')
+    assert raw==before
