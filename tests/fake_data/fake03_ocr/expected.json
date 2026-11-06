@@ -1,0 +1,36 @@
+{
+  "scope": "Source facts verified against the four fake03 scan pages. For the verifier only.",
+  "slopes": [
+    {
+      "id": "A",
+      "height_m": 18,
+      "length_m": 120,
+      "source": "01_initial.pdf p1"
+    },
+    {
+      "id": "B",
+      "height_m": 25,
+      "length_m": 80,
+      "source": "01_initial.pdf p2"
+    }
+  ],
+  "construction_start": {
+    "superseded": "2026-03-01",
+    "adopted": "2026-04-15",
+    "revision_issued": "2026-02-01",
+    "geometry_changed": false,
+    "sources": [
+      "01_initial.pdf p1",
+      "02_revision.pdf p1"
+    ]
+  },
+  "groundwater": {
+    "slope": "B",
+    "survey_record": "not provided",
+    "presence": "unknown",
+    "sources": [
+      "01_initial.pdf p2",
+      "03_requirements.pdf p1"
+    ]
+  }
+}
