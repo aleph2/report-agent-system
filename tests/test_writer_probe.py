@@ -86,7 +86,7 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     for key in ('REPORT_COORDINATOR_REASONING_EFFORT','REPORT_REVIEWER_REASONING_EFFORT','REPORT_GRADER_MODEL'):
         monkeypatch.delenv(key, raising=False)
     for key,value in {'REPORT_REASONING_EFFORT':'high','REPORT_SDK_RETRIES':'0',
-        'REPORT_CONNECT_RETRIES':'0','REPORT_DEEPSEEK_STRICT':'0',
+        'REPORT_CONNECT_RETRIES':'2','REPORT_DEEPSEEK_STRICT':'0',
         'LANGSMITH_TRACING':'false','LANGCHAIN_TRACING_V2':'false'}.items():
         monkeypatch.setenv(key,value)
     ledger = root/'tokens.db'
@@ -163,6 +163,9 @@ def assert_probe_preserved(setup, result):
     assert result['automatic_continuation'] is False and result['engineering_acceptance'] is False
     assert result['visual_verification']=='SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'
     assert result['maximum_tokens']==2_200_000 and result['request_bound']==1_179_648
+    assert result['connection_retries']==2 and result['sdk_retries']==0
+    assert result['keepalive_expiry_seconds']==60.0
+    assert result['retry_scope']=='pre_http_connection_only'
     assert result['budget']['maximum_tokens']==2_200_000
     assert result['investigation_threshold_tokens']==1_000_000
     assert result['investigation_threshold_basis']=='settled_stage_tokens'
@@ -314,3 +317,18 @@ async def test_second_probe_investigation_flag_counts_only_settled_stage_tokens(
     assert result['budget']['recorded_tokens']==settled
     assert result['overall_rescue']['held']==2_000_000
     assert_probe_preserved(p,result)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('connect,sdk', [('0','0'),('1','0'),('3','0'),('0','1'),('2','1')])
+async def test_probe_requires_bounded_connection_only_retry_policy_before_model_or_ledger(prepared_probe,monkeypatch,connect,sdk):
+    p=prepared_probe
+    monkeypatch.setenv('REPORT_CONNECT_RETRIES',connect)
+    monkeypatch.setenv('REPORT_SDK_RETRIES',sdk)
+    before=read_finance(p['ledger'])
+    install_probe_transport(monkeypatch,p,[])
+    with pytest.raises((ValueError,RuntimeError)):
+        await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert not p['models'] and not p['wires']
+    assert read_finance(p['ledger'])==before
+    assert not (p['evidence']/'probe-launch.json').exists()
