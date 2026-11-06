@@ -401,6 +401,28 @@ class PlanningReconciliation(Reconciliation):
     reconciliation_id: str = Field(min_length=1)
 
 
+def _owner_rank_binding(conventions, indicators):
+    """Recognize only an explicit numbered permutation in the customer's rank declaration."""
+    pattern = r'(?:[0-9]+[.)]\s+)?本委托的重要性顺序（1\s*为首位）对各坡段相同[：:]\s*(.+?)[。.]?'
+    expected = {rule['id'] for rule in indicators}
+    binding = None
+    for convention in conventions:
+        source = convention['source']
+        match = re.fullmatch(pattern, source['quote'].strip())
+        if match is None:
+            continue
+        entries = [re.fullmatch(r'([1-9][0-9]*)\s+([A-Za-z][A-Za-z0-9_-]*)', pair.strip())
+                   for pair in re.split(r'[,，]', match[1])]
+        if (any(entry is None for entry in entries)
+                or [int(entry[1]) for entry in entries] != list(range(1, len(expected) + 1))
+                or {entry[2] for entry in entries} != expected):
+            raise ActionRejected('PLANNING_OWNER_RANK_ORDER_INVALID')
+        if binding is not None:
+            raise ActionRejected('PLANNING_OWNER_RANK_ORDER_AMBIGUOUS')
+        binding = {'indicator_ids': [entry[2] for entry in entries], 'source': deepcopy(source)}
+    return binding
+
+
 def _assemble(cs, db):
     from .commission_requirements import read_requirements
     from .commission_plan import CommissionPlan
@@ -447,6 +469,9 @@ def _assemble(cs, db):
             if role in plan['table_specs'] and plan['table_specs'][role] != table:
                 raise ActionRejected('PLANNING_TABLE_LINK_CONFLICT: ' + role)
             plan['table_specs'][role] = deepcopy(table)
+    if pack := plan.get('method_pack'):
+        if binding := _owner_rank_binding(plan['conventions'], pack['indicators']):
+            plan['indicator_rank_order'] = binding
     from .commission_skeleton import apply_skeleton
     plan = apply_skeleton(cs, db, plan)
     for judgment in items.get('section_judgment', {}).values():

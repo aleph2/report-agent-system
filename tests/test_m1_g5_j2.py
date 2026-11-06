@@ -632,6 +632,7 @@ def test_derived_result_binding_requires_one_exact_template_occurrence(derived_t
         prepare(derived_template_case)
 
 
+@pytest.mark.parametrize('anchored', [None, 'with-owner-rank-clause'], indirect=True)
 def test_fresh_plan_can_submit_through_judgment_tools_without_hidden_details(derived_template_case):
     f = derived_template_case
     prepare(f)
@@ -653,6 +654,22 @@ def test_fresh_plan_can_submit_through_judgment_tools_without_hidden_details(der
     saved = f.cs.read(receipt["result"]["plan_ref"])["payload"]
     assert saved["inventory_attributes"] == f.plan["inventory_attributes"]
     assert not f.cs.store.get("commission_confirmation")
+    anchor = next((a for a in f.anchors if "本委托的重要性顺序" in a["source"]["quote"]), None)
+    if anchor:
+        from report_agent.content_store import Actor
+        from report_agent.writer_assessment import read_indicator_step
+        from test_m1_commission_plan import writer
+        from test_m1_g4_requirements import confirm
+        assert saved["indicator_rank_order"] == {"indicator_ids": ["B", "A", "D", "C"], "source": anchor["source"]}
+        confirm(f, receipt["result"], ref=saved["requirements_ref"])
+        prior = writer(f, receipt["result"], section_ids=["4"])
+        task = deepcopy(f.cs.read({"type":"DelegatedTask","id":prior.task_id,"version":1})["payload"])
+        task["assessment_object_id"] = f.plan["objects"][0]["object_id"]
+        ref = f.cs.operation(f.co, "ranked-slope", {}, lambda db: f.cs._insert(db,f.co,"DelegatedTask",task))["result"]
+        actor = Actor("content:writer:"+ref["id"],"writer",ref["id"])
+        step = read_indicator_step(f.cs, actor)
+        assert (step["indicator_id"], step["rank"], step["rank_basis"]) == ("A", 2, anchor["source"]["quote"])
+
 
 
 @pytest.mark.parametrize("derived_template_case", ["missing"], indirect=True)

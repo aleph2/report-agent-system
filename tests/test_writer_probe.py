@@ -64,6 +64,9 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     f = method_commission
     f.plan['objects'][0].update(object_id='HP-02-K1323p670-L', label='HP02 synthetic slope')
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract':'system-assembler-v1'})
+    if 'Owner rank order: B, A, D, C.' in f.ws.store.manifest['goal']:
+        from test_writer_indicator_outcomes import attach_ranks
+        attach_ranks(f)
     saved = save(f); approve(f, saved)
     root = tmp_path_factory.mktemp('writer-probe')
     case, evidence, env = root/'case', root/'evidence', root/'synthetic.env'

@@ -203,7 +203,13 @@ class Reconciliation(Contract):
     differences: list[str]
 
 
+class IndicatorRankOrder(Contract):
+    indicator_ids: list[str] = Field(min_length=1, description='Owner-specified order, most important first.')
+    source: SourceCitation
+
+
 class CommissionPlan(Contract):
+    indicator_rank_order: IndicatorRankOrder | None = Field(default=None, exclude_if=lambda value: value is None)
     carryover_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
     carried_items: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     skeleton_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
@@ -228,6 +234,11 @@ class CommissionPlan(Contract):
 
     @model_validator(mode='after')
     def complete_inventory(self):
+        if self.indicator_rank_order:
+            ids = self.indicator_rank_order.indicator_ids
+            expected = {rule.id for rule in self.method_pack.indicators} if self.method_pack else set()
+            if len(ids) != len(expected) or set(ids) != expected or not self.indicator_rank_order.source.quote.strip():
+                raise ValueError('COMMISSION_RANK_ORDER_REQUIRES_COMPLETE_METHOD_AND_BASIS')
         if self.table_specs:
             from .risk_scoring import TABLE_RECORD_CONTRACT
             validate_table_specs(self.table_specs, TABLE_RECORD_CONTRACT)
@@ -619,6 +630,9 @@ def save_plan(cs, actor, operation_id, plan):
         _validate_sources(cs, db, actor, plan)
         roles = _state(db, 'commission_source_roles', {})
         customer_sources = {r['id'] for r in (roles or {}).values() if r['purpose'] == 'commission'}
+        if order := plan.get('indicator_rank_order'):
+            if cs._read(db, order['source']['source_ref'])['payload']['source_id'] not in customer_sources:
+                raise ActionRejected('COMMISSION_RANK_ORDER_REQUIRES_CUSTOMER_SOURCE')
         questions = method_questions(plan) + boundary_questions(plan)
         boundary = plan.get('scope_boundary')
         if boundary:
@@ -862,6 +876,9 @@ def request_checkpoint(workspace):
     lines += ['', '## 交付物', '', *['- ' + item for item in plan['deliverables']], '', '## 客户约定', '']
     for convention in plan['conventions']:
         lines += ['- 客户原文：' + convention['source']['quote'], '  代理解释：' + convention['interpretation']]
+    if order := plan.get('indicator_rank_order'):
+        lines += ['- 业主指标排序（最重要在先）：' + '、'.join(order['indicator_ids']),
+                  '  客户原文：' + order['source']['quote'], '  位置：' + citation_location(order['source'])]
     if plan.get('method_pack'):
         lines += ['', '## 方法包约定链接', '']
         for binding in plan.get('method_conventions', []):

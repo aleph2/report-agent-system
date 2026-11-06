@@ -89,9 +89,12 @@ def capture(fixture, filename, data, operation):
 
 
 @pytest.fixture
-def anchored(method_commission):
+def anchored(method_commission, request):
     fixture = method_commission
-    fixture.scope_ref = capture(fixture, 'synthetic-scope.md', SCOPE.encode(), 'h1-scope')
+    scope = SCOPE
+    if getattr(request, 'param', None) == 'with-owner-rank-clause':
+        scope = scope.replace('## 6. Contacts', '5. 本委托的重要性顺序（1 为首位）对各坡段相同：1 B，2 A，3 D，4 C。\n\n## 6. Contacts')
+    fixture.scope_ref = capture(fixture, 'synthetic-scope.md', scope.encode(), 'h1-scope')
     fixture.outline_ref = capture(fixture, 'synthetic-outline.docx', outline_bytes(), 'h1-outline')
     roles = deepcopy(fixture.ws.store.get('commission_source_roles'))
     source_id = fixture.cs.read(fixture.scope_ref)['payload']['source_id']

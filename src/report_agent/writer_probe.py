@@ -94,6 +94,9 @@ async def _run_probe_locked(case, evidence, env):
                    for key,value in required_limits.items())
             or authority.get('no_other_slopes_cleanup_export_or_model_tests') is not True):
         raise ValueError('PROBE_OWNER_AUTHORITY_REQUIRED')
+    workflow = inputs.get('writer_workflow')
+    if workflow != authority.get('writer_workflow') or workflow not in (None,'indicator-steps-v1'):
+        raise ValueError('PROBE_WORKFLOW_AUTHORITY_REQUIRED')
     imported = _fresh_import(case, inputs)
     ledger = Path(inputs['ledger']).resolve()
     now = read_finance(ledger)
@@ -149,6 +152,8 @@ async def _run_probe_locked(case, evidence, env):
         'process_start_ticks':Path('/proc/self/stat').read_text().rpartition(')')[2].split()[19],
         'automatic_continuation':False,'engineering_acceptance':False,
         'visual_verification':'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'}
+    if workflow:
+        result['writer_workflow'] = workflow
     claim_launch(launch_path,result)
     session = None
     try:
@@ -167,12 +172,16 @@ async def _run_probe_locked(case, evidence, env):
                 raise ValueError('PROBE_EFFECTIVE_MODEL_MISMATCH')
             with (token_budget(budget),request_token_bound(bound),
                   request_reservation_observer(guard.check,observation=guard.observation),
-                  writer_session(Workspace(store),selected[0]['label'],model,assessment_only=True) as session):
+                  writer_session(Workspace(store),selected[0]['label'],model,assessment_only=True,
+                                 indicator_steps=bool(workflow)) as session):
                 result['writer_actor'] = session.actor.__dict__
-                result['tools'] = [t.name for t in session.tools]
+                result['tools'] = session.tool_names if workflow else [t.name for t in session.tools]
                 _save(launch_path,result)
-                config = {**session.config,'recursion_limit':200}
-                await session.agent.ainvoke({'messages':[session.initial_message]},config)
+                if workflow:
+                    result['indicator_steps'] = await session.run()
+                else:
+                    config = {**session.config,'recursion_limit':200}
+                    await session.agent.ainvoke({'messages':[session.initial_message]},config)
                 guard.check()
                 result['status'] = 'returned'
     except BaseException as error:
@@ -180,7 +189,7 @@ async def _run_probe_locked(case, evidence, env):
         result['error_type'] = type(error).__name__
         # Preserve exact trusted local guard codes without provider text or credentials.
         code = str(error)
-        if re.fullmatch(r'(PROBE|SCOPED)_[A-Z0-9_]{1,140}',code):
+        if re.fullmatch(r'(PROBE|SCOPED|WRITER)_[A-Z0-9_]{1,140}',code):
             result['stop_code'] = code
     finally:
         try:
@@ -197,8 +206,17 @@ async def _run_probe_locked(case, evidence, env):
             if session is not None:
                 refs = saved_assessments(contents,plan['ref'],[object_id],session.actor.id)
                 result['assessment_refs'] = refs
-                state = await session.agent.aget_state(session.config)
-                result['refusals'] = refusal_rows(state.values.get('messages',[]))
+                if workflow:
+                    result['refusals'] = session.refusals
+                    result['refusal_count'] = len(session.refusals)
+                    result['indicator_steps'] = session.progress
+                    if result['status'] == 'stopped':
+                        result['step_status'] = 'interrupted'
+                    elif result['indicator_steps']['gap_indicators']:
+                        result['status'] = 'closed_with_gaps'
+                else:
+                    state = await session.agent.aget_state(session.config)
+                    result['refusals'] = refusal_rows(state.values.get('messages',[]))
                 if refs and result['status'] == 'returned':
                     result['status'] = 'assessment_saved'
             from .runtime_metrics import summarize
@@ -226,7 +244,7 @@ def main():
     args = parser.parse_args()
     result = asyncio.run(run_probe(args.case,args.evidence,args.env))
     print(json.dumps({k:result.get(k) for k in ('status','stop_code','assessment_refs','budget','metrics')},ensure_ascii=False))
-    return 0 if result['status']=='assessment_saved' else 1
+    return 0 if result['status'] in {'assessment_saved','closed_with_gaps'} else 1
 
 
 if __name__=='__main__':

@@ -72,7 +72,8 @@ def repeated_observation(messages):
 class BusinessBoundary(InvalidToolFeedback):
     """Serialize native tools and report rejected actions as observations."""
 
-    def __init__(self, workspace, role, decision_only=False, *, subagent_descriptions=()):
+    def __init__(self, workspace, role, decision_only=False, *, subagent_descriptions=(), indicator_step=False):
+        self.indicator_step = indicator_step
         self.workspace, self.role = workspace, role
         self.decision_only = decision_only
         self.subagent_descriptions = subagent_descriptions
@@ -100,7 +101,7 @@ class BusinessBoundary(InvalidToolFeedback):
         from .tool_argument_feedback import diagnostic_messages
         request = request.override(messages=diagnostic_messages(request.messages))
         from .section_writing import enabled as system_writing
-        if system_writing(self.workspace.store) and self.role in {'coordinator', 'writer'}:
+        if not self.indicator_step and system_writing(self.workspace.store) and self.role in {'coordinator', 'writer'}:
             request = append_declared_system(request,
                 'This run uses system-assembler-v1. Writers save assigned section prose and current citations, '
                 'calculate canonical assessments, and propose material issues for their nodes. The system owns '

@@ -125,7 +125,7 @@ class WriterSession:
 
 
 @contextmanager
-def writer_session(workspace, object_label, model, *, assessment_only=False):
+def writer_session(workspace, object_label, model, *, assessment_only=False, indicator_steps=False, section_id=None):
     """Bind one fresh slope task; the caller separately owns any authority to invoke a model."""
     from langchain.agents import create_agent
     from langgraph.checkpoint.memory import InMemorySaver
@@ -141,7 +141,8 @@ def writer_session(workspace, object_label, model, *, assessment_only=False):
     with workspace.store.connect() as db:
         plan,_=_confirmed(cs,db)
         matches=[o for o in plan['payload']['objects'] if o['label']==object_label]
-        sections=[s for s in plan['payload']['sections'] if s['kind']=='extracted' and s['section_id'].split('.')[0]=='4']
+        sections=[s for s in plan['payload']['sections'] if s['kind']=='extracted' and
+                  (s['section_id']==section_id if section_id is not None else s['section_id'].split('.')[0]=='4')]
     if len(matches)!=1 or len(sections)!=1:raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
     include_images = (getattr(model, 'profile', None) or {}).get('image_inputs') is not False
     goal = 'Assess the assigned slope using the bound assignment.'
@@ -155,6 +156,12 @@ def writer_session(workspace, object_label, model, *, assessment_only=False):
     with delegated_task(workspace,'coordinator',call) as (native,actor):
         prepare_assignment_pages(cs,actor)
         tools=writer_tools(workspace,actor,include_images=include_images,assessment_only=assessment_only)
+        if indicator_steps:
+            from .writer_indicator_steps import IndicatorRun
+            if not assessment_only:
+                raise ValueError('ASSESSMENT_ONLY_WORKFLOW_REQUIRED')
+            yield IndicatorRun(workspace,actor,model,tools)
+            return
         middleware=[BusinessBoundary(workspace,'writer')]
         if not include_images:
             middleware.append(writer_context([tool.name for tool in tools]))

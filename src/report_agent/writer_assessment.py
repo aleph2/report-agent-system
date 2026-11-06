@@ -177,8 +177,20 @@ def resolve_judgment_sources(cs, db, actor, context, quotes, visual_pages=()):
     return citations
 
 
-def set_indicator(cs, actor, operation_id, judgment):
+def _validated_judgment(cs, db, actor, current, rule, value):
     from .risk_scoring import validate_indicator_judgment, validate_indicator_sources
+    pack = current['plan']['payload']['method_pack']
+    grades = {_grade(g): g['id'] for g in rule['grades']}
+    row = {k: value[k] for k in ('rank','value','basis_kind','rationale','rank_reason','question','low','high')}
+    row.update(indicator_id=rule['id'], grade_id=grades[value['grade']],
+        plausible_grades=[grades[g] for g in value['plausible_grades']],
+        sources=resolve_judgment_sources(cs, db, actor, current, value['quotes'], value['visual_pages']))
+    row = validate_indicator_judgment(pack, row)
+    validate_indicator_sources(cs, db, actor, current['plan'], current['section_id'], [row])
+    return row
+
+
+def set_indicator(cs, actor, operation_id, judgment):
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
     model = _input_model(_layout(scope['plan']['payload']['method_pack']))
@@ -189,13 +201,7 @@ def set_indicator(cs, actor, operation_id, judgment):
             raise ActionRejected('WRITER_ASSESSMENT_ASSIGNMENT_CHANGED')
         pack = current['plan']['payload']['method_pack']
         rule = next(r for r in pack['indicators'] if _label(r) == value['indicator'])
-        grades = {_grade(g): g['id'] for g in rule['grades']}
-        row = {k: value[k] for k in ('rank','value','basis_kind','rationale','rank_reason','question','low','high')}
-        row.update(indicator_id=rule['id'], grade_id=grades[value['grade']],
-            plausible_grades=[grades[g] for g in value['plausible_grades']],
-            sources=resolve_judgment_sources(cs, db, actor, current, value['quotes'], value['visual_pages']))
-        row = validate_indicator_judgment(pack, row)
-        validate_indicator_sources(cs, db, actor, current['plan'], current['section_id'], [row])
+        row = _validated_judgment(cs, db, actor, current, rule, value)
         draft = deepcopy(_draft(db, current, actor)); entry = {'input': deepcopy(value), 'judgment': row}
         changed = draft['rows'].get(rule['id']) != entry
         draft['rows'][rule['id']] = entry
@@ -211,8 +217,19 @@ def set_indicator(cs, actor, operation_id, judgment):
         binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])
 
 
-def submit_assessment(cs, actor, operation_id):
+def _score_saved_rows(cs, db, actor, operation_id, current, draft):
     from .risk_scoring import save_assessment_in_transaction
+    pack = current['plan']['payload']['method_pack']
+    choices = [c for c in current['plan']['payload']['method_conventions'] if c['key'] == 'weights']
+    if len(choices) != 1:
+        raise ActionRejected('WRITER_ASSESSMENT_WEIGHT_BINDING_REQUIRED')
+    assessment = {'object_id': current['object']['object_id'], 'section_id': current['section_id'],
+        'method_id': pack['method_id'], 'method_version': pack['version'], 'weight_strategy_id': choices[0]['strategy_id'],
+        'indicators': [draft['rows'][r['id']]['judgment'] for r in pack['indicators']]}
+    return save_assessment_in_transaction(cs, db, actor, operation_id, assessment)
+
+
+def submit_assessment(cs, actor, operation_id):
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
     def submit(db):
@@ -220,14 +237,7 @@ def submit_assessment(cs, actor, operation_id):
         status = _status(current, draft)
         if status['missing_indicators'] or status['rank_collisions']:
             return {'accepted': False, **status}
-        pack = current['plan']['payload']['method_pack']
-        choices = [c for c in current['plan']['payload']['method_conventions'] if c['key'] == 'weights']
-        if len(choices) != 1:
-            raise ActionRejected('WRITER_ASSESSMENT_WEIGHT_BINDING_REQUIRED')
-        assessment = {'object_id': current['object']['object_id'], 'section_id': current['section_id'],
-            'method_id': pack['method_id'], 'method_version': pack['version'], 'weight_strategy_id': choices[0]['strategy_id'],
-            'indicators': [draft['rows'][r['id']]['judgment'] for r in pack['indicators']]}
-        receipt = save_assessment_in_transaction(cs, db, actor, operation_id, assessment)
+        receipt = _score_saved_rows(cs, db, actor, operation_id, current, draft)
         return {'accepted': True, **receipt, **status}
     def binding(db, result):
         current = _assignment(cs, db, actor)
@@ -254,3 +264,113 @@ def tool_functions(cs, actor):
     set_tool.message_model = model
     submit_tool.message_model = create_model('WriterAssessmentSubmitInput', __base__=Contract)
     return [read_tool, set_tool, submit_tool]
+
+
+# The bounded route uses its own draft so an old free-form save cannot complete a step.
+def _step_state(db, scope, actor):
+    order = scope['plan']['payload'].get('indicator_rank_order')
+    if not order:
+        raise ActionRejected('WRITER_CONFIRMED_RANK_ORDER_REQUIRED')
+    key = 'writer_indicator_steps:' + scope['assignment_digest']
+    draft = _state(db, key)
+    if draft is None:
+        selected = 'g6_assessment:' + digest([scope['plan']['ref'], scope['object']['object_id']])
+        if _state(db, selected) or _draft(db, scope, actor)['rows']:
+            raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
+        draft = {'rows': {}, 'assessment_ref': None}
+    rules = scope['plan']['payload']['method_pack']['indicators']
+    rule = next((r for r in rules if r['id'] not in draft['rows']), None)
+    status = {'complete': rule is None, 'progress': {'recorded': len(draft['rows']), 'total': len(rules)},
+              'gap_indicators': [r['id'] for r in rules if draft['rows'].get(r['id'], {}).get('kind') == 'gap'],
+              'assessment_ref': draft['assessment_ref']}
+    return key, draft, rule, status
+
+
+def read_indicator_step(cs, actor):
+    """Prepare just the next judgment, bound to the owner-confirmed plan and method."""
+    from .writer_assignments import read_assignment_pages
+    with cs.store.connect() as db:
+        scope = _assignment(cs, db, actor)
+        _, draft, rule, status = _step_state(db, scope, actor)
+        if status['complete']:
+            return {**status, 'outcomes': draft['rows']}
+        order = scope['plan']['payload']['indicator_rank_order']
+        packet = {**status, 'assignment_digest': scope['assignment_digest'],
+                  'object_label': scope['object']['label'], 'indicator_id': rule['id'],
+                  'indicator': _label(rule), 'notes': rule['notes'],
+                  'rank': order['indicator_ids'].index(rule['id']) + 1,
+                  'rank_basis': order['source']['quote'],
+                  'grades': [{**{k:g[k] for k in ('description','min_value','max_value')},
+                              'choice':_grade(g)} for g in rule['grades']],
+                  **_assignment_context(cs, db, scope)}
+    index = read_assignment_pages(cs, actor)
+    return {**packet, 'sources': index['sources'], 'page_index_digest': index['index_digest'],
+            'limitations': index.get('limitations', [])}
+
+
+@lru_cache(maxsize=128)
+def _step_schema(choices):
+    grade = Literal[choices]
+
+    @model_validator(mode='after')
+    def matches_kind(self):
+        if self.kind == 'gap':
+            if (not self.missing.strip() or not self.question.strip() or self.grade is not None
+                    or self.value is not None or self.basis_kind or self.plausible_grades or self.rationale):
+                raise ValueError('A gap requires missing information and a review question, without a proposed score.')
+        else:
+            if self.missing or self.grade is None or self.value is None or not self.rationale.strip() or not self.quotes:
+                raise ValueError('A scored judgment requires a grade, value, rationale and exact quoted basis.')
+            if self.kind == 'assumption':
+                if self.basis_kind != 'indirect_assumption' or not self.question.strip() or not self.plausible_grades:
+                    raise ValueError('Explain the assumption and provide plausible grades and a review question.')
+            elif self.basis_kind not in ('direct_evidence', 'applied_guideline') or self.plausible_grades:
+                raise ValueError('Evidence requires a supported evidence basis.')
+        return self
+
+    return create_model('IndicatorStepOutcome', __base__=Contract, __validators__={'matches_kind':matches_kind},
+        kind=(Literal['evidence','assumption','gap'], ...), grade=(grade | None, None),
+        value=(str | None, None), basis_kind=(Literal['direct_evidence','applied_guideline','indirect_assumption'] | None, None),
+        rationale=(str, ''), quotes=(list[str], Field(default_factory=list)),
+        plausible_grades=(list[grade], Field(default_factory=list)), missing=(str, ''), question=(str, ''),
+        contrary_evidence=(str, ''))
+
+
+def step_outcome_schema(cs, actor, indicator_id):
+    with cs.store.connect() as db:
+        scope = _assignment(cs, db, actor)
+        _, _, rule, _ = _step_state(db, scope, actor)
+        if not rule or rule['id'] != indicator_id:
+            raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+        return _step_schema(tuple(_grade(g) for g in rule['grades']))
+
+
+def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, read_locations=()):
+    """Atomically record one step, and score the last one only when every row supports it."""
+    def save(db):
+        scope = _assignment(cs, db, actor)
+        key, draft, rule, _ = _step_state(db, scope, actor)
+        if not rule or rule['id'] != indicator_id:
+            raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+        model = _step_schema(tuple(_grade(g) for g in rule['grades']))
+        value = model.model_validate(outcome).model_dump(mode='json')
+        order = scope['plan']['payload']['indicator_rank_order']
+        rank = order['indicator_ids'].index(indicator_id) + 1
+        entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations)}
+        if value['kind'] == 'gap':
+            entry['sources'] = resolve_judgment_sources(cs, db, actor, scope, value['quotes'])
+        else:
+            bound = {**value, 'rank':rank, 'rank_reason':order['source']['quote'],
+                     'low':None, 'high':None, 'visual_pages':[]}
+            entry['judgment'] = _validated_judgment(cs, db, actor, scope, rule, bound)
+        draft['rows'][indicator_id] = entry
+        _set(db, key, draft)
+        _, _, _, status = _step_state(db, scope, actor)
+        if status['complete'] and not status['gap_indicators']:
+            receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
+            draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']
+            _set(db, key, draft)
+        return {**status, 'saved_indicator':indicator_id}
+    return cs.operation(actor, operation_id,
+        {'indicator_step':indicator_id,'outcome':outcome,'read_locations':list(read_locations)}, save,
+        binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])

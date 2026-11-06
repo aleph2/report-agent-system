@@ -29,7 +29,7 @@ WEIGHTS = ['0.20','0.15','0.12','0.10','0.09','0.08','0.07','0.06','0.05','0.04'
 
 
 @pytest.fixture
-def five(tmp_path, monkeypatch):
+def five(tmp_path, monkeypatch, request):
     def forbidden(*args, **kwargs):
         raise AssertionError('No network is permitted in five-slope acceptance tests')
     monkeypatch.setattr(socket.socket, 'connect', forbidden)
@@ -41,6 +41,11 @@ def five(tmp_path, monkeypatch):
         'outline':'Section 4 assesses each commissioned slope. Section 5 summarizes section 4.',
         'guideline':'Synthetic eleven-indicator method and explicit rank-weight row for acceptance tests.',
         'design':' '.join(f'Slope {i} has synthetic evidence.' for i in range(1,6))}
+    ranked = getattr(request, 'param', None) == 'with-owner-ranks'
+    ids = [f'I{i:02d}' for i in range(1,12)]
+    rank_quote = 'Owner rank order: ' + ', '.join(ids) + '.'
+    if ranked:
+        texts['scope'] += ' ' + rank_quote
     store = Store(tmp_path)
     store.initialize({'goal':texts['scope'],'content_contract':'hierarchical-review-v1',
         'commission_checkpoint_required':True,'coverage_contract':'object-coverage-v1',
@@ -69,6 +74,9 @@ def five(tmp_path, monkeypatch):
             'result':'Five synthetic objects retained.','differences':[]}],'open_questions':[],
         'method_pack':pack,'method_conventions':[{'key':'weights','source':cite('scope'),'interpretation':'Use n=11 rank row exactly.',
             'status':'specified','method_id':pack['method_id'],'strategy_id':'rank-lookup'}]}
+    if ranked:
+        plan['indicator_rank_order'] = {'indicator_ids':ids,
+            'source':{**cite('scope'),'quote':rank_quote}}
     f=SimpleNamespace(ws=ws,cs=cs,co=co,plan=plan,sources=sources)
     saved=save(f);approve(f,saved);f.plan_ref=saved['plan_ref']
     store.set('manifest',{**store.manifest,'assembly_contract':'system-assembler-v1'})
