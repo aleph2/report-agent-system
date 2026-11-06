@@ -109,12 +109,13 @@ async def _run_probe_locked(case, evidence, env):
         raise ValueError('PROBE_STAGE_DOES_NOT_FIT_REMAINING_BUDGET')
     from .model_config import load_mixed_services, role_service, bind_role_services
     from .deep_models import (configured_model, model_client_ownership,
-                             sdk_retry_count, connection_retry_count)
+                             sdk_retry_count, connection_retry_count, MODEL_KEEPALIVE_EXPIRY_SECONDS)
     load_mixed_services(env)
     name,url,_ = role_service('writer')
     bound = verified_request_bound(inputs['request_bound_proof'],env,name,url)
-    if sdk_retry_count() or connection_retry_count():
-        raise ValueError('PROBE_RETRIES_MUST_BE_DISABLED')
+    connect_retries = connection_retry_count()
+    if sdk_retry_count() or connect_retries != 2:
+        raise ValueError('PROBE_CONNECTION_ONLY_RETRY_POLICY_REQUIRED')
     from .store import Store
     from .workspace import Workspace
     from .content_store import ContentStore
@@ -140,6 +141,9 @@ async def _run_probe_locked(case, evidence, env):
         'decision_ref':decision['ref'],'maximum_tokens':guard.maximum_tokens,'request_bound':bound.total,
         'investigation_threshold_tokens':authority['investigation_threshold_tokens'],
         'investigation_threshold_basis':'settled_stage_tokens',
+        'connection_retries':connect_retries,'sdk_retries':0,
+        'keepalive_expiry_seconds':MODEL_KEEPALIVE_EXPIRY_SECONDS,
+        'retry_scope':'pre_http_connection_only',
         'inputs_sha256':_hash((evidence/'probe-inputs.json').read_bytes()),
         'pid':os.getpid(),'uid':os.getuid(),
         'process_start_ticks':Path('/proc/self/stat').read_text().rpartition(')')[2].split()[19],

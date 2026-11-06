@@ -22,6 +22,10 @@ from .transport_observation import observation_scope, observe_model_boundary
 
 from .model_invocation import model_invocation, model_request_timeout, MODEL_REQUEST_DEADLINE_SECONDS
 
+MODEL_KEEPALIVE_EXPIRY_SECONDS = 60.0
+_MODEL_HTTP_LIMITS = httpx.Limits(max_connections=100, max_keepalive_connections=20,
+                                keepalive_expiry=MODEL_KEEPALIVE_EXPIRY_SECONDS)
+
 
 def _http_status(exc):
     if isinstance(exc, openai.APIStatusError):
@@ -363,11 +367,11 @@ def model_async_client(store=None, role=None, extra_hooks=(), *, capacity_profil
         hooks.insert(2, observe_connections)
         observe_event(store, "model_transport_retry_policy", {"role": role, "connect_retries": retries,
             "sdk_retries": 0, "read_write_status_retries": False})
-    options = {"event_hooks": {"request": hooks, "response": responses}}
+    options = {"event_hooks": {"request": hooks, "response": responses}, "limits": _MODEL_HTTP_LIMITS}
     if retries:
         # HTTPX's native transport retries ConnectError/ConnectTimeout only.
         # It does not repeat HTTP requests after a read/write/status failure.
-        options["transport"] = httpx.AsyncHTTPTransport(retries=retries)
+        options["transport"] = httpx.AsyncHTTPTransport(retries=retries, limits=_MODEL_HTTP_LIMITS)
     return ObservedAsyncClient(observation_store=store, observation_role=role, **options)
 
 
@@ -385,7 +389,7 @@ def model_sync_client(store=None, role=None, *, capacity_profile=None):
     from .input_capacity import capacity_request_hook
     from .prompt_provenance import admit_prompt_request, observe_prompt_request, observe_provider_usage
     return ObservedClient(observation_store=store, observation_role=role,
-        transport=httpx.HTTPTransport(retries=retries),
+        limits=_MODEL_HTTP_LIMITS, transport=httpx.HTTPTransport(retries=retries, limits=_MODEL_HTTP_LIMITS),
         event_hooks={'request':[capacity_request_hook(capacity_profile, store), admit_prompt_request,
                                account_request_sync, observe_start,
                                lambda request: observe_prompt_request(request,store,role)],
