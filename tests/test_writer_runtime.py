@@ -103,3 +103,49 @@ async def test_text_windows_remain_navigable_without_hidden_truncation(ready):
     assert ''.join(r['text'] for r in replies) == f.cs.read(f.sources['design'])['payload']['content']
     assert replies[-1]['next_offset'] is None
     assert replies[-1]['total_characters'] == len(''.join(r['text'] for r in replies))
+
+
+@pytest.mark.asyncio
+async def test_text_only_model_receives_page_text_without_visual_read_credit(assigned):
+    from test_deep_runtime import observation
+    f = assigned
+    f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
+    def choose_page(messages):
+        source = next(s for s in observation(messages, 'read_assignment')['sources'] if s['title'] == 'design')
+        return invoke('read_assigned_page', source_handle=source['source_handle'], page=3)
+    driver = Driver(writer=[invoke('read_assignment'), choose_page, AIMessage(content='Text only; no visual verification.')])
+    model = driver('writer'); model.profile = {'image_inputs': False, 'image_tool_message': False}
+    with writer_session(f.ws, f.plan['objects'][0]['label'], model) as session:
+        assert 'text-only' in session.initial_message.content
+        await session.agent.ainvoke({'messages': [session.initial_message]}, session.config)
+    page = next(m for m in driver.calls[-1][2] if isinstance(m, ToolMessage) and m.name == 'read_assigned_page')
+    assert [block['type'] for block in page.content] == ['text']
+    view = json.loads(page.content[0]['text'])
+    assert view['native_text'] == 'Drawing K1p250'
+    assert view['visual_evidence'] == 'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'
+    assert 'page_handle' not in view
+    with f.ws.store.connect() as db:
+        assert not db.execute("SELECT key FROM state WHERE key LIKE 'writer_page_read:%'").fetchall()
+
+
+@pytest.mark.asyncio
+async def test_assessment_only_session_stops_after_canonical_save_without_extra_model_call(ready):
+    from report_agent import writer_assessment as api
+    from test_writer_assessment import input_row
+    from test_deep_runtime import call
+    f = ready
+    script = [invoke('read_assignment')]
+    for index in range(4):
+        def row(messages, index=index):
+            return AIMessage(content='', tool_calls=[call('set_indicator', input_row(f, api, index), 'row-' + str(index))])
+        script.append(row)
+    script.append(invoke('submit_assessment'))
+    driver = Driver(writer=script)
+    with writer_session(f.ws, 'Slope 1', driver('writer'), assessment_only=True) as session:
+        f.actor = session.actor
+        assert 'save_section_prose' not in {tool.name for tool in session.tools}
+        assert 'prose' in session.initial_message.content
+        result = await session.agent.ainvoke({'messages': [session.initial_message]}, {**session.config, 'recursion_limit': 100})
+        assert result['messages'][-1].name == 'submit_assessment'
+        assert len(driver.calls) == 6
+        assert len(f.cs.list_objects('Assessment')) == 1

@@ -189,7 +189,7 @@ def _prepared(cs, db, actor):
     return bound, index
 
 
-def read_assigned_page(cs, actor, source_handle, page):
+def read_assigned_page(cs, actor, source_handle, page, *, include_image=True):
     from .commission_plan import _set
     from .document_tools import source_page_info, source_page_png
     from .workspace import Workspace
@@ -201,9 +201,19 @@ def read_assigned_page(cs, actor, source_handle, page):
             raise ActionRejected('WRITER_SOURCE_HANDLE_UNKNOWN')
         record, pin = _pin(cs, db, source['source_ref'])
     result = source_page_info(Workspace(cs.store), record['payload']['source_id'], page)
-    pixels = source_page_png(Workspace(cs.store), record['payload']['source_id'], page)
     if result['sha256'] != record['payload']['file_digest']:
         raise ActionRejected('WRITER_SOURCE_CHANGED')
+    if not include_image:
+        from .source_tables import source_tables
+        tables = source_tables(Workspace(cs.store), record['payload']['source_id'], [page])
+        with cs.store.connect() as db:
+            current = bound_assignment(cs, db, actor)
+            if current['assignment_digest'] != bound['assignment_digest']:
+                raise ActionRejected('WRITER_ASSIGNMENT_CHANGED_DURING_READ')
+        return {**result, 'table_view': tables[0],
+            'visual_evidence': 'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE',
+            'limitation': 'Native page text and mechanical table geometry only. The configured Writer is text-only; drawing-only evidence remains unverified, not absent.'}
+    pixels = source_page_png(Workspace(cs.store), record['payload']['source_id'], page)
     image_sha256 = hashlib.sha256(pixels).hexdigest()
     handle = 'page-' + uuid4().hex
     receipt = {'actor': actor.__dict__, 'assignment_digest': bound['assignment_digest'],

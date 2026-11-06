@@ -4,6 +4,9 @@ Reservations use documented model input+output upper bounds, never prompt estima
 Unknown responses retain their full reservation. This is not a semantic agent loop.
 """
 import json
+import hashlib
+import re
+from dataclasses import dataclass
 import sqlite3
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -13,12 +16,103 @@ from datetime import datetime, timezone
 from .request_budget import RequestBudgetExceeded
 
 _active=ContextVar('report_token_budget',default=None)
+_request_bound = ContextVar('report_request_token_bound', default=None)
+
+
+@dataclass(frozen=True)
+class RequestBound:
+    """Trusted host-verified limits; a proof hash is provenance, not verification.
+
+    Never construct this from a model response or caller-controlled tool arguments.
+    The host must verify the service/model's hard limits before activating it.
+    """
+    model: str
+    request_url_sha256: str
+    input_limit: int
+    output_limit: int
+    proof_sha256: str
+
+    def __post_init__(self):
+        if (not isinstance(self.model, str) or not self.model.strip()
+                or any(type(n) is not int or n < 1 for n in (self.input_limit, self.output_limit))
+                or any(not isinstance(h, str) or not re.fullmatch(r'[0-9a-f]{64}', h)
+                       for h in (self.request_url_sha256, self.proof_sha256))):
+            raise ValueError('VERIFIED_REQUEST_TOKEN_BOUND_REQUIRED')
+
+    @property
+    def total(self):
+        return self.input_limit + self.output_limit
+
+
+@contextmanager
+def request_token_bound(bound):
+    """Host-only lexical override; nested recovery cannot replace its limits."""
+    if not isinstance(bound, RequestBound):
+        raise TypeError('VERIFIED_REQUEST_TOKEN_BOUND_REQUIRED')
+    outer = _request_bound.get()
+    if outer is not None and outer != bound:
+        raise RequestBudgetExceeded('SCOPED_REQUEST_BOUND_CONFLICT')
+    token = _request_bound.set(bound)
+    try:
+        yield bound
+    finally:
+        _request_bound.reset(token)
+
+
+def _effective_bound(budget, model):
+    bound = _request_bound.get()
+    registered = budget.model_bounds.get(model)
+    if bound is None:
+        return registered
+    if model != bound.model or registered is None or bound.total > registered:
+        raise RequestBudgetExceeded('SCOPED_REQUEST_BOUND_NOT_VERIFIED')
+    return bound.total
+
+
+def _contains_multimodal(value):
+    if isinstance(value, dict):
+        return bool({'image_url', 'input_image', 'input_audio', 'audio', 'video_url', 'input_file'} & value.keys()) or any(
+            _contains_multimodal(v) for v in value.values())
+    return isinstance(value, list) and any(_contains_multimodal(v) for v in value)
+
+
+def _validate_bounded_request(request, body):
+    bound = _request_bound.get()
+    if bound is None:
+        return
+    if (not isinstance(body, dict) or body.get('model') != bound.model
+            or hashlib.sha256(str(request.url).encode()).hexdigest() != bound.request_url_sha256
+            or body.get('stream', False) is not False
+            or type(body.get('n', 1)) is not int or body.get('n', 1) != 1):
+        raise RequestBudgetExceeded('SCOPED_REQUEST_WIRE_MISMATCH')
+    outputs = [body[k] for k in ('max_tokens', 'max_completion_tokens') if k in body]
+    if not outputs or any(type(n) is not int or not 0 < n <= bound.output_limit for n in outputs):
+        raise RequestBudgetExceeded('SCOPED_REQUEST_OUTPUT_LIMIT_REQUIRED')
+    messages = body.get('messages')
+    if not isinstance(messages, list) or not messages:
+        raise RequestBudgetExceeded('SCOPED_REQUEST_TEXT_ONLY')
+    for message in messages:
+        if not isinstance(message, dict):
+            raise RequestBudgetExceeded('SCOPED_REQUEST_TEXT_ONLY')
+        content = message.get('content')
+        if content is None and message.get('role') == 'assistant':
+            continue
+        if isinstance(content, str):
+            continue
+        if not isinstance(content, list) or any(
+                not isinstance(part, dict) or set(part) != {'type', 'text'}
+                or part['type'] != 'text' or not isinstance(part['text'], str) for part in content):
+            raise RequestBudgetExceeded('SCOPED_REQUEST_TEXT_ONLY')
+    # Reject extra multimodal channels even when messages themselves are text.
+    if _contains_multimodal(body) or any(key in body for key in ('modalities', 'image', 'images')):
+        raise RequestBudgetExceeded('SCOPED_REQUEST_TEXT_ONLY')
+
 
 
 def current_model_token_bound(model):
     """Read the active authoritative reservation bound; never estimate tokens."""
     budget = _active.get()
-    return budget.model_bounds.get(model) if budget is not None else None
+    return _effective_bound(budget, model) if budget is not None else None
 
 
 class TokenBudget:
@@ -84,8 +178,12 @@ class TokenBudget:
         return used,held
 
     def reserve(self,model):
+        return self._reserve(model, self.model_bounds.get(model))
+
+    def _reserve(self, model, bound):
         if model not in self.model_bounds:raise RequestBudgetExceeded('MODEL_TOKEN_BOUND_NOT_VERIFIED')
-        bound=self.model_bounds[model]
+        if type(bound) is not int or not 0 < bound <= self.model_bounds[model]:
+            raise RequestBudgetExceeded('SCOPED_REQUEST_BOUND_NOT_VERIFIED')
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             used,held=self.totals(db)
@@ -151,13 +249,20 @@ def current_token_observation():
 
 def reserve_request(request):
     from .model_recovery import admit_recovery_request
-    admit_recovery_request(request)
+    bound = _request_bound.get()
+    body = json.loads(request.content) if bound is not None else None
+    _validate_bounded_request(request, body)
     budget=_active.get()
+    if bound is not None and budget is None:
+        raise RequestBudgetExceeded('AUTHORITATIVE_TOKEN_BUDGET_REQUIRED')
+    effective = _effective_bound(budget, body.get('model')) if bound is not None else None
+    admit_recovery_request(request)
     if budget is None:return None
-    body=json.loads(request.content)
+    if body is None:body=json.loads(request.content)
     if body.get('stream'):raise RequestBudgetExceeded('STREAM_USAGE_BUDGET_NOT_SUPPORTED')
     if body.get('n',1)!=1:raise RequestBudgetExceeded('MODEL_TOKEN_BOUND_NOT_VERIFIED')
-    identity=budget.reserve(body.get('model'))
+    identity=(budget._reserve(body.get('model'), effective) if bound is not None
+              else budget.reserve(body.get('model')))
     request.extensions['report_token_budget']=(budget,identity)
     return budget,identity
 
