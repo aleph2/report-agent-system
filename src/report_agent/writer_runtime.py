@@ -34,7 +34,7 @@ def _public(value):
     return value
 
 
-def writer_tools(workspace, actor):
+def writer_tools(workspace, actor, *, include_images=True, assessment_only=False):
     from .writer_assessment import tool_functions as assessments
     from .writer_issues import tool_functions as issues
     from .writer_assignments import (read_assigned_page as read_page, mark_visual_page_delivered,
@@ -43,6 +43,8 @@ def writer_tools(workspace, actor):
     from .operation_identity import NATIVE_WRITES
     cs = ContentStore(workspace.store)
     functions = [*assessments(cs, lambda:actor), *issues(cs, lambda:actor)]
+    if assessment_only:
+        functions = [f for f in functions if f.__name__ != 'save_section_prose']
     tools = [_native_write(workspace,'writer',f) if f.__name__ in NATIVE_WRITES
              else StructuredTool.from_function(f) for f in functions]
 
@@ -50,12 +52,16 @@ def writer_tools(workspace, actor):
             tool_call_id: Annotated[str, InjectedToolCallId]) -> ToolMessage:
         """Read an offered original physical page, including its actual image pixels."""
         args=ReadPage.model_validate({'source_handle':source_handle,'page':page})
-        value=read_page(cs,actor,args.source_handle,args.page)
-        content=[{'type':'text','text':json.dumps(_public(value),ensure_ascii=False)},
-                 {'type':'image_url','image_url':{'url':value['image_data_url']}}]
+        value=read_page(cs,actor,args.source_handle,args.page,include_image=include_images)
+        content=[{'type':'text','text':json.dumps(_public(value),ensure_ascii=False)}]
+        if include_images:
+            content.append({'type':'image_url','image_url':{'url':value['image_data_url']}})
         message=ToolMessage(content=content,tool_call_id=tool_call_id,name='read_assigned_page')
-        mark_visual_page_delivered(cs,actor,value['page_handle'],value['image_sha256'])
+        if include_images:
+            mark_visual_page_delivered(cs,actor,value['page_handle'],value['image_sha256'])
         return message
+    if not include_images:
+        read_assigned_page.__doc__ = 'Read native physical-page text and mechanical tables. This text-only Writer cannot inspect image pixels; drawing-only evidence remains unverified.'
     invocation=create_model('ReadAssignedPageInvocation',__base__=ReadPage,
         tool_call_id=(Annotated[str,InjectedToolCallId],...))
     tools.append(MessageTool.from_function(read_assigned_page,args_schema=invocation,message_model=ReadPage))
@@ -88,7 +94,7 @@ class WriterSession:
 
 
 @contextmanager
-def writer_session(workspace, object_label, model):
+def writer_session(workspace, object_label, model, *, assessment_only=False):
     """Bind one fresh slope task; the caller separately owns any authority to invoke a model."""
     from langchain.agents import create_agent
     from langgraph.checkpoint.memory import InMemorySaver
@@ -106,14 +112,27 @@ def writer_session(workspace, object_label, model):
         matches=[o for o in plan['payload']['objects'] if o['label']==object_label]
         sections=[s for s in plan['payload']['sections'] if s['kind']=='extracted' and s['section_id'].split('.')[0]=='4']
     if len(matches)!=1 or len(sections)!=1:raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
+    include_images = (getattr(model, 'profile', None) or {}).get('image_inputs') is not False
+    goal = 'Assess the assigned slope using the bound assignment.'
+    if assessment_only:
+        goal += ' Save this one canonical assessment and necessary material issues only; do not write prose, assess other slopes, approve plans or export.'
+    if not include_images:
+        goal += ' This service is text-only. Page reads provide native text and mechanical tables, not visual interpretation. Drawing-only needs remain SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE, not missing sources; never claim image verification.'
     call={'name':'task','id':'writer-'+uuid4().hex,'args':{'subagent_type':'writer',
-        'description':'Assess the assigned slope using the bound assignment.',
+        'description':goal,
         'section_ids':[sections[0]['section_id']],'assessment_object_id':matches[0]['object_id']}}
     with delegated_task(workspace,'coordinator',call) as (native,actor):
         prepare_assignment_pages(cs,actor)
-        tools=writer_tools(workspace,actor)
+        tools=writer_tools(workspace,actor,include_images=include_images,assessment_only=assessment_only)
         middleware=[BusinessBoundary(workspace,'writer'),
             AgentPromptBoundary(workspace,'writer',source='writer-judgments')]
+        if assessment_only:
+            from .assessment_completion import AssessmentCompletionStop
+            from .store import digest
+            def completed():
+                ref = workspace.store.get('g6_assessment:' + digest([plan['ref'], matches[0]['object_id']]))
+                return bool(ref and cs.read(ref)['owner_id'] == actor.id)
+            middleware.insert(0, AssessmentCompletionStop(completed))
         agent=create_agent(model,tools,system_prompt=load_prompt('writer-judgments'),
             middleware=middleware,checkpointer=InMemorySaver(),name='writer_judgments')
         config={'configurable':{'thread_id':actor.task_id},'metadata':{

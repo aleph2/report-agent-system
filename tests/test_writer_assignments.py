@@ -208,3 +208,18 @@ def test_chainage_discovered_page_also_offers_table_row_candidates(assigned, mon
     row = next(row for row in pdf_entry(f, packet)['pages'] if row['page'] == 3)
     assert row['table_rows'] == [{'table': 1, 'row': 1}]
     assert row['row_status'] == 'unique_candidate'
+
+
+def test_text_page_does_not_render_pixels_or_issue_visual_credit(assigned, monkeypatch):
+    f = assigned
+    source = pdf_entry(f, api.read_assignment_pages(f.cs, f.actor))
+    def forbidden(*args, **kwargs):
+        raise AssertionError('Text-only page read rendered an image')
+    monkeypatch.setattr('report_agent.document_tools.source_page_png', forbidden)
+    result = api.read_assigned_page(f.cs, f.actor, source['source_handle'], 3, include_image=False)
+    assert result['native_text'] == 'Drawing K1p250'
+    assert result['visual_evidence'] == 'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'
+    assert not {'page_handle', 'image_data_url', 'image_sha256'} & result.keys()
+    assert result['table_view']['page'] == 3
+    with f.ws.store.connect() as db:
+        assert not db.execute("SELECT key FROM state WHERE key LIKE 'writer_page_read:%'").fetchall()
