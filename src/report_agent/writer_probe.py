@@ -86,10 +86,12 @@ async def _run_probe_locked(case, evidence, env):
         raise FileExistsError('PROBE_ALREADY_LAUNCHED_INSPECT_ORIGINAL_OUTCOME')
     inputs = _load(evidence/'probe-inputs.json')
     authority = _load(evidence/'owner-authority.json')
+    required_limits = {'hard_probe_tokens':2_200_000, 'investigation_threshold_tokens':1_000_000,
+                       'overall_rescue_tokens':20_000_000, 'preserve_unknown_hold_tokens':2_000_000}
     if (_hash((evidence/'owner-authority.json').read_bytes()) != inputs['authority_sha256']
-            or authority.get('hard_probe_tokens') != 1_500_000
-            or authority.get('overall_rescue_tokens') != 20_000_000
-            or authority.get('preserve_unknown_hold_tokens') != 2_000_000
+            or not isinstance(authority,dict)
+            or any(type(authority.get(key)) is not int or authority[key] != value
+                   for key,value in required_limits.items())
             or authority.get('no_other_slopes_cleanup_export_or_model_tests') is not True):
         raise ValueError('PROBE_OWNER_AUTHORITY_REQUIRED')
     imported = _fresh_import(case, inputs)
@@ -98,6 +100,7 @@ async def _run_probe_locked(case, evidence, env):
     if now != inputs['stage_baseline']:
         raise ValueError('PROBE_PERSISTED_BASELINE_CHANGED')
     guard = ProbeBudget(lambda:read_finance(ledger),inputs['original_baseline'],inputs['stage_baseline'],
+        maximum_tokens=authority['hard_probe_tokens'],overall_limit=authority['overall_rescue_tokens'],
         preserved_hold=inputs['preserved_hold'],writer_model='glm-5.3')
     guard.check()
     from .planning_budget import budget_scope_cost
@@ -134,7 +137,9 @@ async def _run_probe_locked(case, evidence, env):
     budget = TokenBudget(ledger,now['auth'][0],guard.bounds)
     result = {'at_utc':datetime.now(timezone.utc).isoformat(),'status':'running',
         'object_id':object_id,'object_label':selected[0]['label'],'plan_ref':plan['ref'],
-        'decision_ref':decision['ref'],'maximum_tokens':1_500_000,'request_bound':bound.total,
+        'decision_ref':decision['ref'],'maximum_tokens':guard.maximum_tokens,'request_bound':bound.total,
+        'investigation_threshold_tokens':authority['investigation_threshold_tokens'],
+        'investigation_threshold_basis':'settled_stage_tokens',
         'inputs_sha256':_hash((evidence/'probe-inputs.json').read_bytes()),
         'pid':os.getpid(),'uid':os.getuid(),
         'process_start_ticks':Path('/proc/self/stat').read_text().rpartition(')')[2].split()[19],
@@ -176,6 +181,8 @@ async def _run_probe_locked(case, evidence, env):
     finally:
         try:
             result['budget'] = guard.observation()
+            result['investigation_threshold_reached'] = (
+                result['budget']['recorded_tokens'] >= result['investigation_threshold_tokens'])
             result['budget']['effective_request_bound'] = bound.total
             result['budget']['model_reservation_bounds'] = {name:bound.total}
             final = read_finance(ledger)

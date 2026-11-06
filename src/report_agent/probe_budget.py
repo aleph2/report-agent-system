@@ -11,7 +11,7 @@ class ProbeBudget:
     def __init__(self, finance, original_baseline, stage_baseline, *,
                  maximum_tokens=1_500_000, overall_limit=20_000_000,
                  preserved_hold, writer_model):
-        if (type(maximum_tokens) is not int or not 0 < maximum_tokens <= 1_500_000
+        if (type(maximum_tokens) is not int or not 0 < maximum_tokens <= 2_200_000
                 or type(overall_limit) is not int or not 0 < overall_limit <= 20_000_000):
             raise ValueError('PROBE_LIMIT_INVALID')
         if (not isinstance(preserved_hold, list) or len(preserved_hold) != 8
