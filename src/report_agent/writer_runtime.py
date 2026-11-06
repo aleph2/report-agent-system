@@ -2,7 +2,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
 import json
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage, ToolMessage
@@ -17,6 +17,7 @@ from .errors import ActionRejected
 class ReadPage(Contract):
     source_handle: str = Field(min_length=1)
     page: int = Field(strict=True, ge=1)
+    view: Literal["text", "native_text", "tables"] = "text"
 
 
 class ReadText(Contract):
@@ -38,7 +39,7 @@ def writer_tools(workspace, actor, *, include_images=True, assessment_only=False
     from .writer_assessment import tool_functions as assessments
     from .writer_issues import tool_functions as issues
     from .writer_assignments import (read_assigned_page as read_page, mark_visual_page_delivered,
-        prepare_assignment_pages, bound_assignment)
+        prepare_assignment_pages, bound_assignment, page_view)
     from .native_operation_tools import _native_write, MessageTool
     from .operation_identity import NATIVE_WRITES
     cs = ContentStore(workspace.store)
@@ -49,11 +50,13 @@ def writer_tools(workspace, actor, *, include_images=True, assessment_only=False
              else StructuredTool.from_function(f) for f in functions]
 
     def read_assigned_page(source_handle: str, page: int,
-            tool_call_id: Annotated[str, InjectedToolCallId]) -> ToolMessage:
-        """Read an offered original physical page, including its actual image pixels."""
-        args=ReadPage.model_validate({'source_handle':source_handle,'page':page})
+            tool_call_id: Annotated[str, InjectedToolCallId],
+            view: Literal["text", "native_text", "tables"] = "text") -> ToolMessage:
+        """Read an offered physical page. Default text is citation-aligned frozen text, falling back to native text; choose native_text or tables for an alternate view."""
+        args=ReadPage.model_validate({'source_handle':source_handle,'page':page,'view':view})
         value=read_page(cs,actor,args.source_handle,args.page,include_image=include_images)
-        content=[{'type':'text','text':json.dumps(_public(value),ensure_ascii=False)}]
+        projected=page_view({**value,'source_handle':args.source_handle},args.view)
+        content=[{'type':'text','text':json.dumps(_public(projected),ensure_ascii=False)}]
         if include_images:
             content.append({'type':'image_url','image_url':{'url':value['image_data_url']}})
         message=ToolMessage(content=content,tool_call_id=tool_call_id,name='read_assigned_page')
@@ -61,7 +64,7 @@ def writer_tools(workspace, actor, *, include_images=True, assessment_only=False
             mark_visual_page_delivered(cs,actor,value['page_handle'],value['image_sha256'])
         return message
     if not include_images:
-        read_assigned_page.__doc__ = 'Read native physical-page text and mechanical tables. This text-only Writer cannot inspect image pixels; drawing-only evidence remains unverified.'
+        read_assigned_page.__doc__ = 'Read one physical-page view: text uses frozen citation text with native fallback; native_text reads the PDF text; tables returns exact mechanical cell rows. Reopen another view when needed. This text-only Writer cannot inspect image pixels; drawing-only evidence remains unverified.'
     invocation=create_model('ReadAssignedPageInvocation',__base__=ReadPage,
         tool_call_id=(Annotated[str,InjectedToolCallId],...))
     tools.append(MessageTool.from_function(read_assigned_page,args_schema=invocation,message_model=ReadPage))
@@ -82,6 +85,34 @@ def writer_tools(workspace, actor, *, include_images=True, assessment_only=False
             'coverage':'exact window only; quote resolution retains the original frozen locations'}
     tools.append(MessageTool.from_function(read_assigned_text,args_schema=ReadText,message_model=ReadText))
     return tools
+
+
+class _ClearUsedReadResults:
+    def __init__(self, excluded):
+        self.excluded = excluded
+
+    def apply(self, messages, *, count_tokens):
+        from langchain_core.messages import AIMessage
+        from langchain.agents.middleware import ClearToolUsesEdit
+        # Protect every result in the new batch, including batches with appended notices.
+        unseen = 0
+        for message in reversed(messages):
+            if isinstance(message, AIMessage):
+                break
+            unseen += isinstance(message, ToolMessage)
+        errors = {i:m for i,m in enumerate(messages) if isinstance(m,ToolMessage) and m.status=='error'}
+        ClearToolUsesEdit(trigger=1,keep=max(1,unseen),clear_tool_inputs=False,
+            exclude_tools=self.excluded,
+            placeholder='[Earlier page/window text cleared. Its source handle and page/offset remain in the tool call; saved indicator quotes remain in saved inputs. Re-read the offered source when needed.]'
+        ).apply(messages,count_tokens=count_tokens)
+        for i,message in errors.items():
+            messages[i] = message
+
+
+def writer_context(tool_names):
+    from langchain.agents.middleware import ContextEditingMiddleware
+    excluded=tuple(name for name in tool_names if name not in {'read_assigned_page','read_assigned_text'})
+    return ContextEditingMiddleware(edits=[_ClearUsedReadResults(excluded)])
 
 
 @dataclass
@@ -117,15 +148,17 @@ def writer_session(workspace, object_label, model, *, assessment_only=False):
     if assessment_only:
         goal += ' Save this one canonical assessment and necessary material issues only; do not write prose, assess other slopes, approve plans or export.'
     if not include_images:
-        goal += ' This service is text-only. Page reads provide native text and mechanical tables, not visual interpretation. Drawing-only needs remain SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE, not missing sources; never claim image verification.'
+        goal += ' This service is text-only. Page reads provide frozen/native text and mechanical table views, not visual interpretation. Drawing-only needs remain SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE, not missing sources; never claim image verification.'
     call={'name':'task','id':'writer-'+uuid4().hex,'args':{'subagent_type':'writer',
         'description':goal,
         'section_ids':[sections[0]['section_id']],'assessment_object_id':matches[0]['object_id']}}
     with delegated_task(workspace,'coordinator',call) as (native,actor):
         prepare_assignment_pages(cs,actor)
         tools=writer_tools(workspace,actor,include_images=include_images,assessment_only=assessment_only)
-        middleware=[BusinessBoundary(workspace,'writer'),
-            AgentPromptBoundary(workspace,'writer',source='writer-judgments')]
+        middleware=[BusinessBoundary(workspace,'writer')]
+        if not include_images:
+            middleware.append(writer_context([tool.name for tool in tools]))
+        middleware.append(AgentPromptBoundary(workspace,'writer',source='writer-judgments'))
         if assessment_only:
             from .assessment_completion import AssessmentCompletionStop
             from .store import digest

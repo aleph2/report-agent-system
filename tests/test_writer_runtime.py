@@ -112,7 +112,7 @@ async def test_text_only_model_receives_page_text_without_visual_read_credit(ass
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     def choose_page(messages):
         source = next(s for s in observation(messages, 'read_assignment')['sources'] if s['title'] == 'design')
-        return invoke('read_assigned_page', source_handle=source['source_handle'], page=3)
+        return invoke('read_assigned_page', source_handle=source['source_handle'], page=3, view='native_text')
     driver = Driver(writer=[invoke('read_assignment'), choose_page, AIMessage(content='Text only; no visual verification.')])
     model = driver('writer'); model.profile = {'image_inputs': False, 'image_tool_message': False}
     with writer_session(f.ws, f.plan['objects'][0]['label'], model) as session:

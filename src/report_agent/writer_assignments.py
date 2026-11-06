@@ -259,3 +259,37 @@ def resolve_visual_pages(cs, db, actor, handles):
             raise ActionRejected('WRITER_VISUAL_PAGE_NOT_DELIVERED')
         citations.append({'source_ref': receipt['source_ref'], 'locator': 'page ' + str(receipt['page']), 'quote': ''})
     return citations
+
+
+def page_view(result, view='text'):
+    """Project one returned page without changing its source or read authority."""
+    if view not in ('text', 'native_text', 'tables'):
+        raise ActionRejected('WRITER_PAGE_VIEW_INVALID')
+    blocks = result.get('frozen_text_blocks') or []
+    native = result.get('native_text') or ''
+    frozen_available = any(block['text'].strip() for block in blocks)
+    public = deepcopy({key: result[key] for key in (
+        'source_handle', 'page', 'page_count', 'locator', 'page_handle',
+        'status', 'coverage', 'text_coverage', 'native_text_coverage',
+        'frozen_text_coverage', 'visual_evidence', 'limitations', 'limitation',
+        'frozen_text_note') if key in result})
+    public.update(view=view, text_channels={
+        'frozen_text_blocks': ('available' if frozen_available else
+                              'empty' if 'frozen_text_blocks' in result else 'unavailable'),
+        'native_text': ('available' if native.strip() else
+                        'empty' if 'native_text' in result else 'unavailable')})
+    tables = result.get('table_view') or {}
+    public['table_status'] = tables.get('status', 'unavailable')
+    if view == 'tables':
+        public['table_view'] = deepcopy({key: tables[key] for key in (
+            'status', 'error', 'derived', 'extractor', 'page', 'page_count',
+            'locator', 'coverage', 'limitations', 'limitation') if key in tables})
+        public['table_view'].setdefault('status', 'unavailable')
+        public['table_view']['tables'] = [
+            {'table': table['table'], 'rows': deepcopy(table['rows'])}
+            for table in tables.get('tables', [])]
+    else:
+        channel = 'frozen_text_blocks' if view == 'text' and frozen_available else 'native_text'
+        public['text_channel'] = channel
+        public[channel] = deepcopy(blocks if channel == 'frozen_text_blocks' else native)
+    return public
