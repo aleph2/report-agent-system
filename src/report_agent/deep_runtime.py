@@ -69,6 +69,12 @@ def repeated_observation(messages):
     return exchanges[-1]["tool"] if exchanges[0] == exchanges[1] == exchanges[2] else None
 
 
+class _ManagedSummarySlot(AgentMiddleware):
+    # Deep Agents replaces this named slot per graph. WorkingSummary keeps its
+    # separate checkpoint node; other graphs in this process keep their native summary.
+    name = "SummarizationMiddleware"
+
+
 class BusinessBoundary(InvalidToolFeedback):
     """Serialize native tools and report rejected actions as observations."""
 
@@ -1054,7 +1060,6 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     bind_projection(workspace, manifest=manifest)
     managed_context = hierarchical and context_enabled(workspace)
     register_harness_profile("openai", HarnessProfile(
-        excluded_middleware=frozenset({"SummarizationMiddleware"}) if managed_context else frozenset(),
         general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False)))
     backend = StateBackend()
     summary_service = model_factory("coordinator") if managed_context else None
@@ -1082,7 +1087,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                     if workspace.store.manifest.get('execution_progress_policy') is not None else []),
                 # Use the already selected coordinator service for summaries.
                 # Writer GLM-5.3 has forced thinking; its authored calls remain unchanged.
-                *([working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
+                *([_ManagedSummarySlot(), working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
                 BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions),
                 *([NativeToolSelection(workspace, role)] if tool_selection_mode == 'on' else []),
                 AgentPromptBoundary(workspace, role, expression_profile=expression_profile,
