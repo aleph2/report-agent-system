@@ -379,7 +379,7 @@ class AgentPromptBoundary(AgentMiddleware):
 
     async def _awrap_model_call(self, request, handler):
         independent_optimizer = self.source == 'experience-optimizer' and self.role == 'experience_optimizer'
-        independent_writer = self.source == 'writer-judgments' and self.role == 'writer'
+        independent_writer = self.source in {'writer-judgments','writer-indicator-step'} and self.role == 'writer'
         independent_prompt = independent_optimizer or independent_writer
         expression_profile = (REPORT_EXPRESSION_V1 if independent_prompt else
                               self.expression_profile if self.expression_profile is not None

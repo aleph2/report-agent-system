@@ -85,6 +85,8 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines):
             substitutions.setdefault(key, []).append(section['section_id'])
         warnings += [section['section_id'] + '：' + v for v in unresolved_sources(section)]
     conventions = [c['source']['quote'] for c in plan.get('conventions', [])]
+    if order := plan.get('indicator_rank_order'):
+        conventions.append('业主指标排序（最重要在先）：' + '、'.join(order['indicator_ids']) + '。' + source(order['source']))
     conventions += ['权重采用 ' + b['strategy_id'] + ' 的 n=' + str(len(plan.get('method_pack', {}).get('indicators', []))) + ' 指标行。' for b in plan.get('method_conventions', [])]
     conventions += [('排序表' if role == 'ranking' else '风险评价表') + '：' + spec['caption_pattern'].replace('{number}', '〔按对象编号〕').replace('{object_label}', '〔对象名称〕') + '；' + '、'.join(dict.fromkeys(source(c) for c in spec['sources'])) for role, spec in plan.get('table_specs', {}).items()]
     boundary = boundary_display(plan['scope_boundary']) if plan.get('scope_boundary') else '范围边界尚待确认'

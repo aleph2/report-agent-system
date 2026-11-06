@@ -28,6 +28,8 @@ def method_commission(tmp_path, request):
                     'Project OLD.\nExact method sentence.\nSummary: {SUMMARY}\n'
                     'Score {TOTAL}; level {LEVEL}.\nRepeated {REPEAT} and {REPEAT}.\n'
                     'Objects {COUNT}; level II {II_COUNT}; level III {III_COUNT}.'}
+    if getattr(request, 'param', None) == 'with-owner-ranks':
+        texts['scope'] += ' Owner rank order: B, A, D, C.'
     if getattr(request, 'param', None) == 'without-weight-convention':
         texts['scope'] = 'Assess S1.'
     store = Store(tmp_path)
