@@ -142,6 +142,13 @@ async def test_native_checkpoint_retains_writer_files_summary_and_tool_receipts(
         'operation_identity_profile':'native-tool-runtime-v1', 'report_expression_profile':'reader-expression-v2',
         'report_prompt_profile':'concise-v1', 'assembly_contract':'system-assembler-v1',
         'sources':[{'id':'source','title':'Synthetic','coverage':'complete','content':'Synthetic evidence'}]})
+    # A managed graph built earlier in this process uses its own WorkingSummary.
+    # Construct it before the independent Writer to exercise profile isolation.
+    from report_agent.deep_runtime import build_agent
+    from report_agent.task_context import POLICY
+    managed = Store(tmp_path / 'managed')
+    managed.initialize({**store.manifest, 'context_policy': POLICY})
+    build_agent(Workspace(managed), Driver(), None)
     ws=Workspace(store); ContentStore(store); saver=InMemorySaver()
     def deny(messages): raise RequestBudgetExceeded('ASSESSMENT_COMPLETION_TOKEN_LIMIT')
     driver=Driver(writer=[invoke('write_file',file_path='/prior-evidence.txt',content='Saved evidence'), deny])
