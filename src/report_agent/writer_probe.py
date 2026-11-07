@@ -212,6 +212,8 @@ async def _run_probe_locked(case, evidence, env):
                     result['indicator_steps'] = session.progress
                     if result['status'] == 'stopped':
                         result['step_status'] = 'interrupted'
+                    elif result['indicator_steps']['interrupted_indicators']:
+                        result['status'] = 'incomplete'
                     elif result['indicator_steps']['gap_indicators']:
                         result['status'] = 'closed_with_gaps'
                 else:

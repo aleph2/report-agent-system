@@ -127,3 +127,33 @@ def test_real_mini_scope_ranks_are_exactly_bound_and_ambiguous_input_fails_close
     with pytest.raises(ActionRejected, match='INVALID'):
         _owner_rank_binding([{'source':wrong}], rules)
     assert _owner_rank_binding([{'source':{'quote':'Unapproved example: ' + order['source']['quote']}}], rules) is None
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_gap_accepts_rationale_but_refuses_scoring_fields(ranked):
+    step=api.read_indicator_step(ranked.cs, ranked.actor)
+    model=api.step_outcome_schema(ranked.cs,ranked.actor,step['indicator_id'],'gap')
+    valid={'missing':'Natural slope angle missing','question':'What is the angle?',
+           'rationale':'The difference of angles cannot be calculated.'}
+    assert model.model_validate(valid).rationale == valid['rationale']
+    for field,value in [('value',None),('grade',step['grades'][0]['choice']),
+                        ('plausible_grades',[]),('basis_kind','direct_evidence'),('kind','gap')]:
+        with pytest.raises(ValidationError):
+            model.model_validate({**valid,field:value})
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_refused_step_is_durable_and_no_scorable_row_is_created(ranked):
+    f=ranked
+    step=api.read_indicator_step(f.cs,f.actor)
+    api.save_indicator_outcome(f.cs,f.actor,'first','A',evidence(f,step))
+    refusals=[{'tool':'save_gap','tool_call_id':i,'code':'MESSAGE_FIELDS_INVALID'} for i in ['bad-1','bad-2']]
+    receipt=api.interrupt_indicator_step(f.cs,f.actor,'B',refusals)
+    assert api.interrupt_indicator_step(f.cs,f.actor,'B',refusals)==receipt
+    assert receipt['result']['progress']['recorded']==1
+    next_step=api.read_indicator_step(f.cs,f.actor)
+    assert next_step['indicator_id']=='C' and next_step['interrupted_indicators']['B']['refusals']==refusals
+    for identity in ['C','D']:
+        step=api.read_indicator_step(f.cs,f.actor)
+        api.save_indicator_outcome(f.cs,f.actor,identity,identity,evidence(f,step))
+    done=api.read_indicator_step(f.cs,f.actor)
+    assert done['complete'] and done['progress']=={'recorded':3,'total':4}
+    assert 'B' not in done['outcomes'] and not done['assessment_ref'] and not f.cs.list_objects('Assessment')

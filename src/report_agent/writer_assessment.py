@@ -2,9 +2,10 @@
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, create_model, model_validator
+from pydantic_core import PydanticCustomError
 
 from .commission_plan import _set, _state
 from .content_models import Contract, Ref
@@ -277,12 +278,13 @@ def _step_state(db, scope, actor):
         selected = 'g6_assessment:' + digest([scope['plan']['ref'], scope['object']['object_id']])
         if _state(db, selected) or _draft(db, scope, actor)['rows']:
             raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
-        draft = {'rows': {}, 'assessment_ref': None}
+        draft = {'rows': {}, 'assessment_ref': None, 'interrupted_indicators': {}}
     rules = scope['plan']['payload']['method_pack']['indicators']
-    rule = next((r for r in rules if r['id'] not in draft['rows']), None)
+    interrupted = draft.get('interrupted_indicators', {})
+    rule = next((r for r in rules if r['id'] not in draft['rows'] and r['id'] not in interrupted), None)
     status = {'complete': rule is None, 'progress': {'recorded': len(draft['rows']), 'total': len(rules)},
               'gap_indicators': [r['id'] for r in rules if draft['rows'].get(r['id'], {}).get('kind') == 'gap'],
-              'assessment_ref': draft['assessment_ref']}
+              'assessment_ref': draft['assessment_ref'], 'interrupted_indicators': interrupted}
     return key, draft, rule, status
 
 
@@ -309,40 +311,71 @@ def read_indicator_step(cs, actor):
 
 
 @lru_cache(maxsize=128)
-def _step_schema(choices):
+def _step_schema(choices, kind):
+    from .writer_issues import IndicatorConflict
     grade = Literal[choices]
+    nonblank = Annotated[str, Field(min_length=1, pattern=r'\S')]
+    common = {
+        'quotes':(list[nonblank],Field(default_factory=list,
+            description='Exact source quotations. The system resolves unique source locations.')),
+        'contrary_evidence':(IndicatorConflict | None, Field(default=None,
+            description='An actual conflict with both quoted values and the adopted basis, for the material-issue record.'))
+    }
+    if kind == 'gap':
+        return create_model('WriterGap',__base__=Contract,**common,
+            missing=(nonblank,Field(description='Name the missing fact that prevents a defensible judgment.')),
+            question=(nonblank,Field(description='Ask the specific question needed to resolve this gap.')),
+            rationale=(str,Field(default='',description='Optional explanation of why the supplied evidence cannot resolve the indicator.')))
+    if kind not in ('evidence','assumption'):
+        raise ActionRejected('WRITER_INDICATOR_KIND_INVALID')
 
     @model_validator(mode='after')
-    def matches_kind(self):
-        if self.kind == 'gap':
-            if (not self.missing.strip() or not self.question.strip() or self.grade is not None
-                    or self.value is not None or self.basis_kind or self.plausible_grades or self.rationale):
-                raise ValueError('A gap requires missing information and a review question, without a proposed score.')
-        else:
-            if self.missing or self.grade is None or self.value is None or not self.rationale.strip() or not self.quotes:
-                raise ValueError('A scored judgment requires a grade, value, rationale and exact quoted basis.')
-            if self.kind == 'assumption':
-                if self.basis_kind != 'indirect_assumption' or not self.question.strip() or not self.plausible_grades:
-                    raise ValueError('Explain the assumption and provide plausible grades and a review question.')
-            elif self.basis_kind not in ('direct_evidence', 'applied_guideline') or self.plausible_grades:
-                raise ValueError('Evidence requires a supported evidence basis.')
+    def plausible(self):
+        if kind=='assumption' and self.grade not in self.plausible_grades:
+            raise PydanticCustomError('adopted_grade_not_plausible',
+                'Include the adopted grade in plausible_grades, or correct the adopted grade.')
         return self
 
-    return create_model('IndicatorStepOutcome', __base__=Contract, __validators__={'matches_kind':matches_kind},
-        kind=(Literal['evidence','assumption','gap'], ...), grade=(grade | None, None),
-        value=(str | None, None), basis_kind=(Literal['direct_evidence','applied_guideline','indirect_assumption'] | None, None),
-        rationale=(str, ''), quotes=(list[str], Field(default_factory=list)),
-        plausible_grades=(list[grade], Field(default_factory=list)), missing=(str, ''), question=(str, ''),
-        contrary_evidence=(str, ''))
+    scoring = {
+        **common,
+        'grade':(grade, Field(description='Choose one of the offered grade labels.')),
+        'value':(str,Field(pattern=r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$',
+            description='Finite decimal string within the chosen grade bounds. Put explanations and calculations in rationale.')),
+        'rationale':(nonblank,Field(description='Explain the quoted basis, grade and numeric value, including limitations.')),
+        'quotes':(list[nonblank],Field(min_length=1,
+            description='Exact supporting project quotations. Applied-guideline evidence also needs an exact approved method quotation.'))
+    }
+    if kind=='evidence':
+        scoring['basis_kind']=(Literal['direct_evidence','applied_guideline'],Field(
+            description='direct_evidence uses project facts; applied_guideline uses project facts plus a quoted approved guideline rule.'))
+    else:
+        scoring.update(plausible_grades=(list[grade],Field(min_length=1,
+            description='Plausible offered grades, including the adopted grade. The system computes sensitivity bounds.')),
+            question=(nonblank,Field(description='Ask what evidence would confirm or revise this assumption.')))
+    return create_model('WriterEvidence' if kind=='evidence' else 'WriterAssumption',
+        __base__=Contract,__validators__={'plausible':plausible},**scoring)
 
 
-def step_outcome_schema(cs, actor, indicator_id):
+def step_outcome_schema(cs, actor, indicator_id, kind):
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
         _, _, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        return _step_schema(tuple(_grade(g) for g in rule['grades']))
+        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind)
+
+
+def _step_value(rule, outcome):
+    from .message_fields import validate_message
+    data = deepcopy(outcome)
+    kind = data.pop('kind', None)
+    # Legacy local callers used an explicit basis tag. The public assumption tool owns it now.
+    if kind == 'assumption' and data.get('basis_kind') == 'indirect_assumption':
+        data.pop('basis_kind')
+    value = validate_message(_step_schema(tuple(_grade(g) for g in rule['grades']),kind),data).model_dump(mode='json')
+    return {'kind':kind,'grade':None,'value':None,'basis_kind':None,'question':'',
+            'rationale':'','missing':'','plausible_grades':[],**value,
+            **({'basis_kind':'indirect_assumption'} if kind=='assumption' else {})}
 
 
 def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, read_locations=()):
@@ -352,8 +385,7 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
         key, draft, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        model = _step_schema(tuple(_grade(g) for g in rule['grades']))
-        value = model.model_validate(outcome).model_dump(mode='json')
+        value = _step_value(rule, outcome)
         order = scope['plan']['payload']['indicator_rank_order']
         rank = order['indicator_ids'].index(indicator_id) + 1
         entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations)}
@@ -363,14 +395,42 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
             bound = {**value, 'rank':rank, 'rank_reason':order['source']['quote'],
                      'low':None, 'high':None, 'visual_pages':[]}
             entry['judgment'] = _validated_judgment(cs, db, actor, scope, rule, bound)
+        issue_receipt = {}
+        if value['contrary_evidence']:
+            from .writer_issues import save_indicator_conflict
+            issue_receipt = save_indicator_conflict(cs,db,actor,operation_id,scope,value['contrary_evidence'])
+            entry.update(issue_receipt)
         draft['rows'][indicator_id] = entry
         _set(db, key, draft)
         _, _, _, status = _step_state(db, scope, actor)
-        if status['complete'] and not status['gap_indicators']:
+        if status['complete'] and not status['gap_indicators'] and not status['interrupted_indicators']:
             receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
             draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']
             _set(db, key, draft)
-        return {**status, 'saved_indicator':indicator_id}
+        return {**status, 'saved_indicator':indicator_id, **issue_receipt}
     return cs.operation(actor, operation_id,
         {'indicator_step':indicator_id,'outcome':outcome,'read_locations':list(read_locations)}, save,
         binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])
+
+
+def interrupt_indicator_step(cs, actor, indicator_id, refusals):
+    """Trusted host records two distinct refused saves without inventing an engineering outcome."""
+    names = {'save_evidence','save_assumption','save_gap'}
+    if (len(refusals)!=2 or any(r.get('tool') not in names or not r.get('code') or not r.get('tool_call_id')
+                               for r in refusals)
+            or len({r['tool_call_id'] for r in refusals})!=2):
+        raise ActionRejected('WRITER_TWO_DISTINCT_SAVE_REFUSALS_REQUIRED')
+    with cs.store.connect() as db:
+        scope = _assignment(cs,db,actor)
+    operation = 'indicator-interruption:' + digest([actor.id,scope['assignment_digest'],indicator_id,refusals])
+    def record(db):
+        current = _assignment(cs,db,actor)
+        key,draft,rule,_ = _step_state(db,current,actor)
+        if not rule or rule['id']!=indicator_id:
+            raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+        draft.setdefault('interrupted_indicators',{})[indicator_id] = {
+            'status':'interrupted: save rejected','refusals':deepcopy(refusals)}
+        _set(db,key,draft)
+        return _step_state(db,current,actor)[3]
+    return cs.operation(actor,operation,{'indicator':indicator_id,'refusals':refusals},record,
+        binding_identity=lambda db,result:_assignment(cs,db,actor)['assignment_digest'])

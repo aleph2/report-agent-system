@@ -2,7 +2,8 @@
 import json
 import re
 from typing import Literal
-from pydantic import Field
+from pydantic import Field, field_validator
+from pydantic_core import PydanticCustomError
 from .content_models import Ref
 from .content_store import Actor
 from .errors import ActionForbidden, ActionRejected
@@ -25,6 +26,23 @@ class IssueInput(StrictRecord):
     adopted_value: str = Field(min_length=1)
     question: str = Field(min_length=1)
     affects_level: bool
+
+
+class IndicatorConflict(StrictRecord):
+    """The competing facts and the engineering decision that will reach Word and Excel."""
+    basis: str = Field(min_length=1, description="State both conflicting source values.")
+    adopted_value: str = Field(min_length=1, description="State the chosen value and why it takes precedence.")
+    quotes: list[str] = Field(min_length=2, description="At least two distinct nonblank exact quotations for both sides of the conflict.")
+    question: str = Field(min_length=1, description="What should the engineer clarify?")
+    affects_level: bool = Field(description="Whether this conflict could change the risk level.")
+
+    @field_validator('quotes')
+    @classmethod
+    def distinct_quotes(cls, quotes):
+        if any(not q.strip() for q in quotes) or len({q.strip() for q in quotes})<2:
+            raise PydanticCustomError('conflict_quotes_distinct',
+                'Provide at least two distinct nonblank exact quotations, one for each side of the conflict.')
+        return quotes
 
 
 def _sources(cs, db, actor, bound, value):
@@ -79,7 +97,6 @@ def save_section_prose(cs, actor, operation_id, payload):
 
 def propose_material_issue(cs, actor, operation_id, payload):
     """Record a source issue without requiring prose or an agent-authored location."""
-    from .commission_plan import _confirmed, _set, _state
     value = IssueInput.model_validate(payload)
     # Recheck current authority before operation receipt replay as well as during the transaction.
     with cs.store.connect() as db:
@@ -89,30 +106,61 @@ def propose_material_issue(cs, actor, operation_id, payload):
         bound = bound_assignment(cs, db, actor)
         if bound['assignment_digest'] != scope['assignment_digest']:
             raise ActionRejected('WRITER_ASSIGNMENT_CHANGED')
-        citations = _sources(cs, db, actor, bound, value)
-        issue = {k: getattr(value, k) for k in ('kind', 'basis', 'adopted_value', 'question', 'affects_level')}
-        issue.update(object_label=bound['object']['label'], sources=_readable_sources(cs, db, citations),
-                     anchor={'paragraph_index': 0, 'start': 0, 'end': None})
-        _, decision = _confirmed(cs, db)
-        fields = ('kind', 'object_label', 'basis', 'sources', 'question')
-        matches = [i for i in decision['payload'].get('required_material_issues', [])
-                   if all(i[k] == issue[k] for k in fields)]
-        if len(matches) > 1:
-            raise ActionRejected('REQUIRED_MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
-        issue['id'] = matches[0]['id'] if matches else 'writer-issue:' + digest(
-            [bound['task_ref'], bound['plan']['ref'], {k: issue[k] for k in fields}])
-        issue = MaterialIssue.model_validate(issue).model_dump()
-        proposal = {'issue': issue, 'writer_task_ref': bound['task_ref'],
-            'commission_plan_ref': bound['plan']['ref'], 'binding': _binding(bound, value.kind),
-            'source_citations': citations, 'receipt_id': operation_id}
-        key = digest([bound['plan']['ref'], issue['id']])
-        old = _state(db, 'g6_issue_record:' + key)
-        if old and old.get('writer_task_ref') != bound['task_ref']:
-            raise ActionForbidden('FORBIDDEN: material issue proposal owner')
-        _set(db, 'g6_issue_record:' + key, proposal)
-        _set(db, 'g6_issue_binding:' + key, proposal['binding'])
-        return {'issue_id': issue['id'], 'binding': proposal['binding'], 'proposal_digest': digest(proposal)}
+        return _write_issue(cs, db, actor, operation_id, bound, value)
     return cs.operation(actor, operation_id, request, save)
+
+
+def save_indicator_conflict(cs, db, actor, operation_id, bound, payload):
+    """Use the existing issue record and the calling indicator's atomic operation receipt."""
+    conflict = IndicatorConflict.model_validate(payload)
+    value = IssueInput(kind='conflict', **conflict.model_dump())
+    return _write_issue(cs, db, actor, operation_id, bound, value)
+
+
+def _write_issue(cs, db, actor, operation_id, bound, value):
+    from .commission_plan import _confirmed, _set, _state
+    citations = _sources(cs, db, actor, bound, value)
+    issue = {k: getattr(value, k) for k in ('kind', 'basis', 'adopted_value', 'question', 'affects_level')}
+    issue.update(object_label=bound['object']['label'], sources=_readable_sources(cs, db, citations),
+                 anchor={'paragraph_index': 0, 'start': 0, 'end': None})
+    _, decision = _confirmed(cs, db)
+    fields = ('kind', 'object_label', 'basis', 'sources', 'question')
+    def identity(item):
+        return {k: sorted(item[k], key=digest) if k=='sources' else item[k] for k in fields}
+    signature = identity(issue)
+    matches = [i for i in decision['payload'].get('required_material_issues', [])
+               if identity(i) == signature]
+    if len(matches) > 1:
+        raise ActionRejected('REQUIRED_MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
+    if not matches:
+        # Reuse historical IDs even when their source order differed; never rewrite old keys.
+        for _, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<?",
+                                 ('g6_issue_record:', 'g6_issue_record;')):
+            previous = json.loads(raw)
+            if (previous.get('writer_task_ref') == bound['task_ref']
+                    and previous.get('commission_plan_ref') == bound['plan']['ref']
+                    and identity(previous['issue']) == signature):
+                matches.append(previous['issue'])
+        if len(matches)>1:
+            raise ActionRejected('MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
+    issue['id'] = matches[0]['id'] if matches else 'writer-issue:' + digest(
+        [bound['task_ref'], bound['plan']['ref'], signature])
+    if matches:
+        # The confirmed source order is part of the export obligation, even when incoming quotes reverse it.
+        issue['sources'] = matches[0]['sources']
+        citations.sort(key=lambda c: issue['sources'].index(_readable_sources(cs, db, [c])[0]))
+    issue = MaterialIssue.model_validate(issue).model_dump()
+    proposal = {'issue': issue, 'writer_task_ref': bound['task_ref'],
+        'commission_plan_ref': bound['plan']['ref'], 'binding': _binding(bound, value.kind),
+        'source_citations': citations, 'receipt_id': operation_id}
+    key = digest([bound['plan']['ref'], issue['id']])
+    old = _state(db, 'g6_issue_record:' + key)
+    if old and old.get('writer_task_ref') != bound['task_ref']:
+        raise ActionForbidden('FORBIDDEN: material issue proposal owner')
+    _set(db, 'g6_issue_record:' + key, proposal)
+    _set(db, 'g6_issue_binding:' + key, proposal['binding'])
+    return {'issue_id': issue['id'], 'binding': proposal['binding'], 'proposal_digest': digest(proposal)}
+
 
 
 def verify_issue_proposal(cs, db, proposal, plan, coordinator):

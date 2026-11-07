@@ -49,7 +49,8 @@ def compact_native_tool_error(message, store, *, args=None, schema=None):
                     validate_message(schema, deepcopy(args))
             except ActionRejected as error:
                 # Planning failures retain nested field paths as well as root rules.
-                if message.name in PLANNING_TOOLS or any(field['field'] == [] for field in error.diagnostic['fields']):
+                if (message.name in PLANNING_TOOLS or message.name in {'save_evidence','save_assumption','save_gap'}
+                        or any(field['field'] == [] for field in error.diagnostic['fields'])):
                     diagnostic = error.diagnostic
     return message.model_copy(update={'content': encode({
         'ok': False, 'code': 'NATIVE_TOOL_VALIDATION_ERROR',
