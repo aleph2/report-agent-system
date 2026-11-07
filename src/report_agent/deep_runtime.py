@@ -512,6 +512,10 @@ def project_view(workspace):
 def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, reviewer_handles=False):
     if reviewer_handles and role != 'reviewer':
         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
+    from .content_tasks import qualitative_review_active
+    if role == 'reviewer' and qualitative_review_active():
+        from .hierarchical_tools import content_tools
+        return content_tools(workspace, role, reviewer_handles=reviewer_handles)
     store, catalog = workspace.store, Catalog(workspace.store)
     allowed_kinds = {"purpose", "plan"} if role == "knowledge" else {"review"} if role == "reviewer" else {"draft"}
 
@@ -1007,7 +1011,10 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         from .content_store import ContentStore
         from .text_work import actor_for_tool
         from .review_handles import read_tools
-        return read_tools(ContentStore(store), lambda: actor_for_tool(workspace, role), tools)
+        tools = read_tools(ContentStore(store), lambda: actor_for_tool(workspace, role), tools)
+    if role == 'reviewer':
+        from .hierarchical_tools import general_reviewer_tool
+        return [general_reviewer_tool(tool) for tool in tools]
     return tools
 
 

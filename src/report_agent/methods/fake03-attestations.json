@@ -1,0 +1,414 @@
+[
+  {
+    "fact_id": "F03-A-HEIGHT",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "initial",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Initial height of A",
+    "purpose": "geometry",
+    "indicator_ids": [
+      "X11"
+    ],
+    "document": "01_initial.pdf",
+    "page": 1,
+    "quote": "坡段 A：坡高 18 米；边坡长度 120 米。",
+    "value": 18,
+    "unit": "m"
+  },
+  {
+    "fact_id": "F03-B-HEIGHT",
+    "subject": "B",
+    "applies_to": [
+      "B"
+    ],
+    "source_class": "initial",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Initial height of B",
+    "purpose": "geometry",
+    "indicator_ids": [
+      "X11"
+    ],
+    "document": "01_initial.pdf",
+    "page": 2,
+    "quote": "坡段 B：坡高 25 米；边坡长度 80 米。",
+    "value": 25,
+    "unit": "m"
+  },
+  {
+    "fact_id": "F03-B-WATER-RECORD",
+    "subject": "B",
+    "applies_to": [
+      "B"
+    ],
+    "source_class": "initial",
+    "state": "unknown",
+    "coverage": "document",
+    "coverage_detail": "No groundwater record supplied for B",
+    "purpose": "groundwater_survey_coverage",
+    "indicator_ids": [
+      "X23",
+      "X51"
+    ],
+    "document": "01_initial.pdf",
+    "page": 2,
+    "quote": "现场调查：未提供地下水调查记录。",
+    "value": null
+  },
+  {
+    "fact_id": "F03-START",
+    "subject": "Project",
+    "applies_to": [
+      "A",
+      "B"
+    ],
+    "source_class": "revision",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Revised project construction start only",
+    "purpose": "construction_date",
+    "indicator_ids": [
+      "X31",
+      "X32"
+    ],
+    "document": "02_revision.pdf",
+    "page": 1,
+    "quote": "更正：施工开始日期由 2026-03-01 改为 2026-04-15。",
+    "value": "2026-04-15"
+  },
+  {
+    "fact_id": "F03-REVISION-SCOPE",
+    "subject": "Project",
+    "applies_to": [
+      "A",
+      "B"
+    ],
+    "source_class": "revision",
+    "state": "known",
+    "coverage": "document",
+    "coverage_detail": "Geometry excluded from the revision",
+    "purpose": "revision_scope",
+    "indicator_ids": [
+      "X11"
+    ],
+    "document": "02_revision.pdf",
+    "page": 1,
+    "quote": "其他坡高、坡长数据保持不变。",
+    "value": "height and length unchanged"
+  },
+  {
+    "fact_id": "F03-INSTRUCTION",
+    "subject": "Project",
+    "applies_to": [
+      "A",
+      "B"
+    ],
+    "source_class": "requirements",
+    "state": "known",
+    "coverage": "document",
+    "coverage_detail": "Commission review instruction",
+    "purpose": "review_instruction",
+    "indicator_ids": [],
+    "document": "03_requirements.pdf",
+    "page": 1,
+    "quote": "仅依据所给资料；资料不足时保留待核事项。",
+    "value": "record information gaps"
+  },
+  {
+    "fact_id": "F03-A-MATERIAL",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Material type only; no lithological units or bedding angles",
+    "purpose": "material",
+    "indicator_ids": [
+      "X11",
+      "X21",
+      "X22"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
+    "value": "岩质"
+  },
+  {
+    "fact_id": "F03-A-WEATHERING",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Weathering stated for A",
+    "purpose": "weathering",
+    "indicator_ids": [
+      "X21"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
+    "value": "强风化"
+  },
+  {
+    "fact_id": "F03-A-DESIGN-RATIO",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "A designed slope; natural comparator not measured here",
+    "purpose": "slope_ratio",
+    "indicator_ids": [
+      "X12"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "设计坡率为 1:0.75，分三级开挖。",
+    "value": "1:0.75"
+  },
+  {
+    "fact_id": "F03-A-BENCHES",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Excavation stages; individual heights unreported",
+    "purpose": "bench_count",
+    "indicator_ids": [
+      "X11",
+      "X12"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "设计坡率为 1:0.75，分三级开挖。",
+    "value": 3
+  },
+  {
+    "fact_id": "F03-A-PROTECTION",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Design treatment attributed to A",
+    "purpose": "engineering_measure",
+    "indicator_ids": [
+      "X41"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "防护采用锚杆框架梁，设置截排水沟。",
+    "value": "锚杆框架梁"
+  },
+  {
+    "fact_id": "F03-A-DRAINAGE",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Designed drainage measure, no groundwater measurement",
+    "purpose": "engineering_measure",
+    "indicator_ids": [
+      "X41"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "防护采用锚杆框架梁，设置截排水沟。",
+    "value": "截排水沟"
+  },
+  {
+    "fact_id": "F03-B-DRAWING-REFERENCE",
+    "subject": "B",
+    "applies_to": [
+      "B"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "document",
+    "coverage_detail": "Design refers to the drawing; image contents unverified",
+    "purpose": "drawing_reference",
+    "indicator_ids": [
+      "X11",
+      "X52"
+    ],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "坡段 B 位于 K0+380，分级情况见横断面图。",
+    "value": "横断面图"
+  },
+  {
+    "fact_id": "F03-C-LOCATION",
+    "subject": "C",
+    "applies_to": [
+      "C"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Location of C outside the commissioned boundary",
+    "purpose": "location",
+    "indicator_ids": [],
+    "document": "04_design.pdf",
+    "page": 1,
+    "quote": "另列坡段 C，中心桩号 K0+620。",
+    "value": "K0+620"
+  },
+  {
+    "fact_id": "F03-A-MEASURED-RATIO",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Survey ratio; no attestation of the natural stable reference",
+    "purpose": "slope_ratio",
+    "indicator_ids": [
+      "X12"
+    ],
+    "document": "05_survey.pdf",
+    "page": 1,
+    "quote": "坡段 A：实测坡率为 1:1.0。",
+    "value": "1:1.0"
+  },
+  {
+    "fact_id": "F03-A-SURVEY-SECTIONS",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Documented survey section at A",
+    "purpose": "survey_section_count",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "05_survey.pdf",
+    "page": 1,
+    "quote": "坡段 A 有一个勘察断面，断面设置三个钻孔。",
+    "value": 1
+  },
+  {
+    "fact_id": "F03-A-BOREHOLES",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Three boreholes in the documented section at A",
+    "purpose": "borehole_count",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "05_survey.pdf",
+    "page": 1,
+    "quote": "坡段 A 有一个勘察断面，断面设置三个钻孔。",
+    "value": 3
+  },
+  {
+    "fact_id": "F03-SURVEY-COVERAGE",
+    "subject": "A",
+    "applies_to": [
+      "A"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "document",
+    "coverage_detail": "Coverage of this page only; other site investigation activities unestablished",
+    "purpose": "survey_coverage",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "05_survey.pdf",
+    "page": 1,
+    "quote": "本页仅记录坡段 A。",
+    "value": "A only"
+  },
+  {
+    "fact_id": "F03-REGIONAL-RAIN",
+    "subject": "Region",
+    "applies_to": [
+      "A",
+      "B"
+    ],
+    "source_class": "regional",
+    "state": "known",
+    "coverage": "region",
+    "coverage_detail": "Mean annual rainfall across region of A and B, not a hazard record",
+    "purpose": "rainfall",
+    "indicator_ids": [
+      "X31"
+    ],
+    "document": "07_region.pdf",
+    "page": 1,
+    "quote": "坡段 A、B 所在区域过去五年年均降雨量为 720 mm。",
+    "value": 720,
+    "period_years": 5,
+    "unit": "mm/year"
+  },
+  {
+    "fact_id": "F03-OFFSITE-ROCKFALL",
+    "subject": "Region",
+    "applies_to": [],
+    "source_class": "regional",
+    "state": "known",
+    "coverage": "region",
+    "coverage_detail": "One recorded rockfall about 2 km from A; no observation period or distance to B",
+    "purpose": "hazard_event",
+    "indicator_ids": [
+      "X32"
+    ],
+    "document": "07_region.pdf",
+    "page": 1,
+    "quote": "距坡段 A 约 2 km 处有一次小型落石记录。",
+    "value": "small rockfall",
+    "related_to": [
+      "A"
+    ],
+    "event_count": 1
+  },
+  {
+    "fact_id": "F03-ROCKFALL-LOCATION",
+    "subject": "Region",
+    "applies_to": [],
+    "source_class": "regional",
+    "state": "known",
+    "coverage": "region",
+    "coverage_detail": "Location of the documented offsite event only",
+    "purpose": "location",
+    "indicator_ids": [
+      "X32"
+    ],
+    "document": "07_region.pdf",
+    "page": 1,
+    "quote": "该记录的位置在坡段 A 以外。",
+    "value": "outside A",
+    "related_to": [
+      "A"
+    ]
+  }
+]

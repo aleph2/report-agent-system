@@ -211,9 +211,12 @@ def identity(cs, db, actor, result):
     if record['owner_id'] != actor.id:
         raise ActionForbidden('FORBIDDEN: review binding owner')
     payload = record['payload']
-    return {k:payload.get(k) for k in ('review_snapshot_ref', 'review_requirements',
+    binding = {k:payload.get(k) for k in ('review_snapshot_ref', 'review_requirements',
         'review_commission_basis', 'review_selection', 'review_scope_provenance', 'source_use_policy_ref',
         'handoff_release_digest', 'commission_origin', 'scoped_instructions')}
+    if 'qualitative_review_digest' in payload:
+        binding['qualitative_review_digest'] = payload['qualitative_review_digest']
+    return binding
 
 
 def confirm_reuse(cs, db, actor, review_ref, snapshot, reason, mappings):

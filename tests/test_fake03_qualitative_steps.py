@@ -49,6 +49,10 @@ async def test_fresh_profile_and_verified_qualitative_authority_must_agree(mini)
 @pytest.mark.parametrize('interrupt',[False,True])
 async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_scoring(mini, interrupt):
     ws, binding, profile = mini
+    # This historical routing/arithmetic driver proposes synthetic grades. Replay its original
+    # untyped contract; test_run06_claim_replay exercises the current native scored contract.
+    for assigned in profile['facts'].values():
+        assigned.pop('attestations', None)
     ws.store.set('fake03_qualitative_profile', profile)
     cs=ContentStore(ws.store)
     plan=cs.read(binding.plan_ref)['payload']
