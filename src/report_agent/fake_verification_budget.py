@@ -38,6 +38,13 @@ _CONTINUATION_TRIGGER = _RESERVATION_TRIGGER.replace(
     )""",
 )
 
+# A permit names one new request and its owning run. Other callers remain subject
+# to the existing pending-request trigger, including the historical one-shot route.
+_COMPARISON_TRIGGER = _CONTINUATION_TRIGGER.replace(
+    "id <> NEW.id", """id <> NEW.id AND NOT EXISTS (SELECT 1 FROM fake_comparison_requests p
+        WHERE p.held_id=attempts.id AND p.request_id=NEW.id AND p.run_id=fake_run_id())""",
+)
+
 
 class FakeVerificationBudget(TokenBudget):
     """Run ids come from the trusted host and stay the same when inspecting a retry."""
@@ -126,7 +133,7 @@ class FakeContinuationBudget(FakeVerificationBudget):
         if current and normalize(current[0]) == normalize(_RESERVATION_TRIGGER):
             db.execute('DROP TRIGGER fake_reservation')
             db.execute(_CONTINUATION_TRIGGER)
-        elif not current or normalize(current[0]) != normalize(_CONTINUATION_TRIGGER):
+        elif not current or normalize(current[0]) not in {normalize(_CONTINUATION_TRIGGER), normalize(_COMPARISON_TRIGGER)}:
             raise RequestBudgetExceeded('FAKE_CONTINUATION_GUARD_MISMATCH')
         if db.execute('SELECT 1 FROM fake_continuations WHERE previous_id=? OR retry_id=?',
                       (self.previous_attempt,self.previous_attempt)).fetchone():
@@ -136,11 +143,105 @@ class FakeContinuationBudget(FakeVerificationBudget):
         return retry_id
 
 
+class FakeComparisonBudget(FakeVerificationBudget):
+    """Fresh runs under one pinned campaign with an identified historical hold."""
+
+    def __init__(self, grant_dir, run_id, comparison, comparison_sha256):
+        super().__init__(grant_dir, run_id)
+        if run_id not in comparison['run_ids'] or run_id == comparison['previous_run_id']:
+            raise ValueError('FAKE_COMPARISON_RUN_MISMATCH')
+        self.comparison = comparison
+        self.comparison_sha256 = comparison_sha256
+
+    def _check_hold(self, db, model, bound):
+        c = self.comparison
+        if self.model_bounds != {model: bound} or model != 'glm-5.3' or bound != 1_179_648:
+            raise RequestBudgetExceeded('FAKE_COMPARISON_BOUND_MISMATCH')
+        pending = db.execute("""SELECT a.id,r.run_id,a.model,a.reserved,a.used
+            FROM attempts a LEFT JOIN fake_run_attempts r ON r.attempt_id=a.id
+            WHERE a.state IN ('reserved','unknown')""").fetchall()
+        if pending != [(c['previous_attempt'], c['previous_run_id'], model, bound, None)]:
+            raise RequestBudgetExceeded('FAKE_COMPARISON_HOLD_MISMATCH')
+        mapped = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='fake_continuations'").fetchone()
+        settled = mapped and db.execute("""SELECT a.used FROM fake_continuations c
+            JOIN attempts a ON a.id=c.retry_id JOIN fake_run_attempts r ON r.attempt_id=a.id
+            WHERE c.previous_id=? AND c.retry_id=? AND c.run_id=? AND r.run_id=c.run_id
+            AND a.model=? AND a.reserved=? AND a.state='settled' AND a.used BETWEEN 0 AND a.reserved""",
+            (c['previous_attempt'], c['settled_retry_attempt'], c['previous_run_id'], model, bound)).fetchone()
+        if not settled:
+            raise RequestBudgetExceeded('FAKE_COMPARISON_RETRY_MISMATCH')
+
+        first,second = c['run_ids']
+        if self.run_id == second:
+            table = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='fake_comparison_terminals'").fetchone()
+            ready = table and db.execute("""SELECT settled FROM fake_comparison_terminals
+                WHERE run_id=? AND comparison_sha256=?""", (first,self.comparison_sha256)).fetchone()
+            if not ready or db.execute(_RUN_COSTS,(first,)).fetchone()!=(ready[0],0):
+                raise RequestBudgetExceeded('FAKE_COMPARISON_FIRST_TERMINAL_REQUIRED')
+
+    def record_first_terminal(self, result):
+        if self.run_id != self.comparison['run_ids'][0]:
+            return
+        status = result.get('status')
+        if status == 'incomplete':
+            slopes = result.get('slopes', [])
+            if [s.get('object_id') for s in slopes] != ['A','B']:
+                return
+            for slope in slopes:
+                steps = slope.get('indicator_steps') or {}
+                progress = steps.get('progress') or {}
+                stopped = steps.get('interrupted_indicators', {})
+                if (slope.get('status') not in {'closed_with_gaps','assessment_saved','incomplete'}
+                        or progress.get('total') != 11 or progress.get('recorded') != 11-len(stopped)
+                        or any(row.get('status') != 'interrupted: save rejected'
+                               or len(row.get('refusals', [])) != 2 for row in stopped.values())):
+                    return
+        elif status not in {'closed_with_gaps','assessments_saved'}:
+            return
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self._check_hold(db, 'glm-5.3', 1_179_648)
+            settled,held = db.execute(_RUN_COSTS,(self.run_id,)).fetchone()
+            if (result.get('run_id')!=self.run_id or result.get('comparison_sha256')!=self.comparison_sha256
+                    or not result.get('finished_at_utc') or held or not settled
+                    or result.get('budget')!={'settled':settled,'held':0,'maximum_tokens':RUN_LIMIT}):
+                raise RequestBudgetExceeded('FAKE_COMPARISON_FIRST_TERMINAL_REQUIRED')
+            db.execute("""CREATE TABLE IF NOT EXISTS fake_comparison_terminals
+                (run_id TEXT PRIMARY KEY, comparison_sha256 TEXT NOT NULL, settled INTEGER NOT NULL)""")
+            db.execute('INSERT INTO fake_comparison_terminals VALUES (?,?,?)',
+                       (self.run_id,self.comparison_sha256,settled))
+
+    def check_fresh(self):
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            self._check_hold(db, 'glm-5.3', 1_179_648)
+            if db.execute('SELECT 1 FROM fake_run_attempts WHERE run_id=?',(self.run_id,)).fetchone():
+                raise RequestBudgetExceeded('FAKE_COMPARISON_RUN_ALREADY_COUNTED')
+
+    def _reservation_id(self, db, model, bound):
+        # Called inside the normal reservation's BEGIN IMMEDIATE after the campaign cap.
+        self._check_hold(db, model, bound)
+        current = db.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='fake_reservation'").fetchone()
+        normalize = lambda sql: ' '.join(sql.rstrip(';').split())
+        if current and normalize(current[0]) == normalize(_CONTINUATION_TRIGGER):
+            db.execute("""CREATE TABLE fake_comparison_requests (
+                request_id TEXT PRIMARY KEY, held_id TEXT NOT NULL, run_id TEXT NOT NULL)""")
+            db.execute('DROP TRIGGER fake_reservation')
+            db.execute(_COMPARISON_TRIGGER)
+        elif not current or normalize(current[0]) != normalize(_COMPARISON_TRIGGER):
+            raise RequestBudgetExceeded('FAKE_COMPARISON_GUARD_MISMATCH')
+        identity = super()._reservation_id(db, model, bound)
+        db.execute('INSERT INTO fake_comparison_requests VALUES (?,?,?)',
+                   (identity, self.comparison['previous_attempt'], self.run_id))
+        return identity
+
+
 @contextmanager
-def fake_verification_budget(grant_dir, run_id):
+def fake_verification_budget(grant_dir, run_id, *, comparison=None, comparison_sha256=None):
     """Use around the trusted fake host's complete invocation, including its vision calls."""
     if current_token_observation() is not None:
         raise ValueError('FAKE_VERIFICATION_REQUIRES_SEPARATE_GRANT')
-    budget = FakeVerificationBudget(grant_dir, run_id)
+    budget = (FakeComparisonBudget(grant_dir, run_id, comparison, comparison_sha256) if comparison is not None
+              else FakeVerificationBudget(grant_dir, run_id))
     with token_budget(budget):
         yield budget

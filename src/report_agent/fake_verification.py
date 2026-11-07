@@ -87,7 +87,42 @@ def preflight(approval_file, approval_sha256):
     run = grant/'runs'/authority['run_id']
     if run.resolve() != run:
         raise ValueError('FAKE_RUN_PATH_INVALID')
+    if 'fresh_comparison' in authority:
+        _verify_comparison(authority, grant)
     return authority
+
+
+def _verify_comparison(authority, grant):
+    c = authority['fresh_comparison']
+    required = {'run_ids','previous_run_id','previous_attempt','settled_retry_attempt','retry_result_sha256'}
+    if (not isinstance(c,dict) or set(c)!=required or not isinstance(c['run_ids'],list)
+            or len(c['run_ids'])!=2 or not all(isinstance(i,str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}',i)
+                for i in [*c['run_ids'],c['previous_run_id']])
+            or len(set([*c['run_ids'],c['previous_run_id']]))!=3 or authority['run_id'] not in c['run_ids']):
+        raise ValueError('FAKE_COMPARISON_AUTHORITY_REQUIRED')
+    if not isinstance(c['retry_result_sha256'],str) or not re.fullmatch('[0-9a-f]{64}',c['retry_result_sha256']):
+        raise ValueError('FAKE_COMPARISON_HISTORY_PIN_MISMATCH')
+    path = grant/'comparison-receipts'/(c['retry_result_sha256']+'.json')
+    if path.resolve()!=path or not path.is_file():
+        raise ValueError('FAKE_COMPARISON_HISTORY_REQUIRED')
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest()!=c['retry_result_sha256']:
+        raise ValueError('FAKE_COMPARISON_HISTORY_PIN_MISMATCH')
+    result=json.loads(raw)
+    attempt=result.get('retry_attempt') or {}
+    if (result.get('run_id')!=c['previous_run_id'] or result.get('old_attempt')!=c['previous_attempt']
+            or result.get('status')!='row_saved' or result.get('indicator')!='X41'
+            or not all(result.get(k) is True for k in ('scope_preserved','seven_rows_preserved','old_hold_preserved'))
+            or attempt.get('id')!=c['settled_retry_attempt'] or attempt.get('state')!='settled'
+            or attempt.get('reserved')!=BOUND or type(attempt.get('used')) is not int
+            or not 0 <= attempt['used'] <= BOUND):
+        raise ValueError('FAKE_COMPARISON_X41_RECEIPT_MISMATCH')
+
+
+def _comparison_identity(authority):
+    # Both arms must use the same treatment, model proof, source fixture and candidate.
+    return digest({k:authority[k] for k in ('fresh_comparison','grant_dir','candidate_commit',
+        'fixture_manifest_sha256','workflow','request_bound_proof','aggregate_tokens','per_run_tokens')})
 
 
 def _seal(case):
@@ -192,9 +227,14 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
     bound=verified_request_bound(proof,env_file,name,url)
     if bound.total!=BOUND or sdk_retry_count()!=0 or connection_retry_count()!=2:
         raise ValueError('FAKE_SERVICE_POLICY_REQUIRED')
-    with fake_verification_budget(authority['grant_dir'],authority['run_id']) as budget, request_token_bound(bound):
+    comparison = authority.get('fresh_comparison')
+    comparison_pin = _comparison_identity(authority) if comparison is not None else None
+    with fake_verification_budget(authority['grant_dir'],authority['run_id'],comparison=comparison,
+                                  comparison_sha256=comparison_pin) as budget, request_token_bound(bound):
+        if comparison is not None:
+            budget.check_fresh()
         account=budget.snapshot()
-        if (budget.model_bounds!={MODEL:BOUND} or budget.run_snapshot()['settled'] or account['reserved_or_unknown_upper_bounds']
+        if (budget.model_bounds!={MODEL:BOUND} or budget.run_snapshot()['settled'] or account['reserved_or_unknown_upper_bounds']!=(BOUND if comparison else 0)
                 or account['remaining_for_new_reservations']<BOUND or account['attempt_states'].get('bound_violation')):
             raise ValueError('FAKE_FRESH_RUN_BUDGET_REQUIRED')
         binding=VerifiedFakeRun(authority['run_id'],case,authority['candidate_commit'],authority['fixture_manifest_sha256'],
@@ -203,6 +243,8 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
         result={'status':'claimed','run_id':binding.run_id,'scope':WORKFLOW,'started_at_utc':_utc(),
                 'candidate_commit':binding.candidate_commit,'authority_sha256':approval_sha256,'case_seal':receipt['case_seal'],'prepared_sha256':prepared_sha256,
                 'plan_ref':receipt['plan_ref'],'decision_ref':receipt['decision_ref'],'fixture_manifest_sha256':binding.fixture_manifest_sha256}
+        if comparison is not None:
+            result['comparison_sha256'] = comparison_pin
         claim_launch(path,result)
         t=_active.set(binding); model=None
         try:
@@ -229,6 +271,8 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
             finally:
                 result.update(finished_at_utc=_utc(),budget=budget.run_snapshot(),campaign_budget=budget.snapshot())
                 _save(path,result)
+                if comparison is not None:
+                    budget.record_first_terminal(result)
     return result
 
 
@@ -250,6 +294,8 @@ def main():
         if not args.authority or not args.authority_sha256:parser.error('authority and separately pinned SHA-256 required')
         auth=preflight(args.authority,args.authority_sha256)
         if args.action=='init-grant':
+            if 'fresh_comparison' in auth:
+                raise ValueError('FAKE_COMPARISON_REQUIRES_EXISTING_GRANT')
             FakeVerificationBudget.initialize(Path(auth['grant_dir']),{MODEL:BOUND})
             result={'status':'initialized','maximum_tokens':CAMPAIGN_LIMIT}
         elif args.action=='run':

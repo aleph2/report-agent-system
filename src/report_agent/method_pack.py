@@ -6,6 +6,17 @@ from pydantic import Field, model_validator
 from .content_models import Contract, SourceCitation
 
 
+# Guidance for this governed method category. It interprets document availability without assigning a grade.
+CATEGORY_DOCUMENTATION_NOTES = {
+    '资料完整性': (
+        'When the relevant documentation is missing or unavailable, record a gap if its actual contents '
+        'or completeness cannot be established. Non-submission does not prove a deficient investigation '
+        'or design. Use direct positive evidence of the documented work or a verified deficiency when '
+        'it establishes the grade. Use evidence for absence only if a source states the absence for this object.'
+    )
+}
+
+
 def number(value):
     if not isinstance(value, str) or not value.strip() or len(value) > 80:
         raise ValueError('finite decimal string required')
