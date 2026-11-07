@@ -78,6 +78,9 @@ def test_external_quote_cannot_bypass_typed_decisive_fact(fixture,oid,indicator,
 
 
 def test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no_quality_basis(fixture):
+    # Exercise the general adjustment rule on a synthetic assignment without the pilot deferral.
+    fixture.profile['facts']['A']['engineering_reviews'].clear()
+    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
     with at(fixture,'A','X51') as (actor,step):
         value=scored(step,grade_claim=claim('sec','holes'),investigation_counts=[
             {'fact_id':'sec','purpose':'survey_section_count','count':1},{'fact_id':'holes','purpose':'borehole_count','count':3}],
@@ -92,6 +95,30 @@ def test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no
         assert adjustment['status']=='refused_midpoint_retained' and adjustment['retained_value']=='37'
         assert adjustment['original_rationale']==value['rationale']
         assert '49' not in draft['judgment']['rationale']
+
+
+
+def test_owner_deferred_row_stays_unscored_for_reviewer(fixture):
+    with at(fixture,'A','X51') as (actor,step):
+        decision = step['engineering_review']
+        assert decision['conditional_grades'] == ['low','moderate']
+        evidence = scored(step, grade_claim=claim('sec','holes'), investigation_counts=[
+            {'fact_id':'sec','purpose':'survey_section_count','count':1},
+            {'fact_id':'holes','purpose':'borehole_count','count':3}])
+        assumption = {**evidence, 'kind':'assumption', 'assumption_basis':{
+            **claim('holes'), 'relationship':'Single section.', 'narrowing':'Three boreholes.'},
+            'plausible_grades':[g['choice'] for g in step['grades'] if g['min_value'] in ['0','25']]}
+        assumption.pop('basis_kind')
+        for proposed in (evidence, assumption):
+            with pytest.raises(ActionRejected, match='save_gap'):
+                api.save_indicator_outcome(fixture.cs,actor,'attempt-'+proposed['kind'],'X51',proposed)
+        receipt = api.save_indicator_outcome(fixture.cs,actor,'defer','X51',{
+            'kind':'gap','missing':'X51 interpretation and remaining per-section counts.',
+            'question':'Which reading applies, and were test pits or geophysical points recorded?'})['result']
+        row = fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X51']
+        assert row['kind']=='gap' and 'judgment' not in row
+        assert row['input']['grade'] is None and row['input']['value'] is None
+        assert row['claim_checks']['engineering_review'] == receipt['claim_checks']['engineering_review'] == decision
 
 
 def test_offsite_assumption_survives_and_question_is_flagged(fixture):
@@ -111,6 +138,8 @@ def test_offsite_assumption_survives_and_question_is_flagged(fixture):
 
 @pytest.mark.parametrize('kind', ['evidence', 'gap'])
 def test_registered_subquote_must_use_fact_handle_before_native_save(fixture, kind):
+    fixture.profile['facts']['A']['engineering_reviews'].clear()
+    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
     with at(fixture,'A','X51') as (actor,step):
         value = scored(step, grade_claim=claim('sec','holes'), investigation_counts=[
             {'fact_id':'sec','purpose':'survey_section_count','count':1},

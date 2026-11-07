@@ -335,6 +335,8 @@ def read_indicator_step(cs, actor):
         if 'qualitative_profile' in scope:
             profile = scope['qualitative_profile']
             packet['object_facts'] = profile['facts'][scope['object']['object_id']]
+            if decision := packet['object_facts'].get('engineering_reviews', {}).get(rule['id']):
+                packet['engineering_review'] = decision
             packet['midpoint_convention'] = profile['midpoint_convention']
             if 'attestations' in packet['object_facts']:
                 assigned_ids = {f['fact_id'] for f in packet['object_facts']['attestations']}
@@ -469,6 +471,10 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
         key, draft, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+        object_facts = scope.get('qualitative_profile', {}).get('facts', {}).get(scope['object']['object_id'], {})
+        decision = object_facts.get('engineering_reviews', {}).get(indicator_id)
+        if decision and outcome.get('kind') != 'gap':
+            raise ActionRejected('WRITER_ENGINEERING_REVIEW_PENDING: use save_gap. '+decision['reason'])
         facts = _typed_facts(scope)
         value = _step_value(rule, outcome, qualitative='qualitative_profile' in scope, facts=facts)
         claim_receipt = {}
@@ -484,6 +490,8 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
                                          registered_excerpts=[r['quote'] for obj in scope['qualitative_profile']['facts'].values()
                                             for r in [*obj.get('observations',[]), *obj.get('attestations',[])] if r.get('quote')])
             claim_receipt = {'claim_checks': checks}
+        if decision:
+            claim_receipt.setdefault('claim_checks', {}).update(engineering_review=decision, semantic_review_required=True)
         order = scope['plan']['payload']['indicator_rank_order']
         rank = order['indicator_ids'].index(indicator_id) + 1
         entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations), **claim_receipt}

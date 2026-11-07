@@ -53,6 +53,7 @@ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_
     # untyped contract; test_run06_claim_replay exercises the current native scored contract.
     for assigned in profile['facts'].values():
         assigned.pop('attestations', None)
+        assigned.pop('engineering_reviews', None)  # This fixture replays the pre-deferral routing contract.
     ws.store.set('fake03_qualitative_profile', profile)
     cs=ContentStore(ws.store)
     plan=cs.read(binding.plan_ref)['payload']

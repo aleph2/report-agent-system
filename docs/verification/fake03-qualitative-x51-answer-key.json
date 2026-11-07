@@ -1,0 +1,15 @@
+{
+  "scope": "Next Fake03 qualitative pilot, A/X51 only",
+  "previous_replay_revision": "7f92c74eb3fa14b1e870bc01faccf5e2af4835f9",
+  "decision_sha256": "8c1eac2cd870e5e6c7aae7c14d83e3d02eed7f22acd5b16be52a9075f074cc4a",
+  "row": "A/X51",
+  "kind": "gap",
+  "grade": null,
+  "value": null,
+  "conditional_grades": [
+    "low",
+    "moderate"
+  ],
+  "requires_engineering_review": true,
+  "accepted_scored_assessment": false
+}

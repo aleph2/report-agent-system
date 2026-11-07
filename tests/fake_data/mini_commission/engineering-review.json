@@ -1,0 +1,12 @@
+{
+  "A": {
+    "X51": {
+      "status": "deferred_to_engineering",
+      "conditional_grades": [
+        "low",
+        "moderate"
+      ],
+      "reason": "One section and three boreholes are documented. Other investigation types are unreported. Engineers must resolve the low-band interpretation and precedence where the low and moderate descriptions overlap. Save an unscored gap."
+    }
+  }
+}

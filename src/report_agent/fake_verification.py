@@ -55,7 +55,7 @@ def _fixture():
 def _candidate_commit():
     def git(*args):
         return subprocess.check_output(['git', '-C', str(_REPO), *args], text=True)
-    paths = ['src', _FIXTURE, 'pyproject.toml']
+    paths = ['src', _FIXTURE, 'tests/fake_data/mini_commission/engineering-review.json', 'pyproject.toml']
     if git('status','--porcelain','--untracked-files=all','--',*paths):
         raise ValueError('FAKE_CANDIDATE_MUST_BE_COMMITTED')
     if set(git('ls-files',_FIXTURE).splitlines()) != {_FIXTURE+'/'+name for name in _NAMES}:

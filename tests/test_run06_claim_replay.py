@@ -117,6 +117,11 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
         oid = next(o for o in ('A','B') if packet['object_facts'] == profile['facts'][o])
         label = oid + '/' + packet['indicator_id']
         attempts[label] += 1
+        if label == 'A/X51':
+            assert packet['engineering_review']['conditional_grades'] == ['low','moderate']
+            return action('save_gap', label+'-deferred', missing='X51 band interpretation is deferred.',
+                          fact_ids=['F03-A-SURVEY-SECTIONS','F03-A-BOREHOLES'],
+                          question='Which low-band reading and overlap convention apply?')
         if attempts[label] == 1:
             facts = [*packet['object_facts']['attestations'], *packet.get('other_context_facts', [])]
             payload = submission(label, original[label], facts)
@@ -157,9 +162,13 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
                     assert after['kind']=='gap' and 'WRITER_CLAIM_UNSUPPORTED' in json.dumps(diagnostics[label]), label
                     disposition='original refused; scripted gap saved'
                 elif label=='A/X51':
-                    assert after['grade']==original[label]['grade'] and after['value']=='37'
-                    assert str(checks['adjustment']['proposed_value'])=='49'
-                    disposition='grade preserved; original override refused; midpoint 37 saved'
+                    assert e['kind']=='gap' and after['grade'] is None and after['value'] is None
+                    assert 'judgment' not in e
+                    key = json.loads((REGISTER.parents[3]/'docs/verification/fake03-qualitative-x51-answer-key.json').read_bytes())
+                    assert key['decision_sha256'] == hashlib.sha256(REGISTER.with_name('engineering-review.json').read_bytes()).hexdigest()
+                    assert (e['kind'], after['grade'], after['value']) == (key['kind'], key['grade'], key['value'])
+                    assert checks['engineering_review']['conditional_grades'] == key['conditional_grades'] == ['low','moderate']
+                    disposition='owner-deferred unscored gap with conditional low and moderate'
                 elif label=='A/X32':
                     assert after['kind']=='assumption' and after['grade']==original[label]['grade']
                     assert 'QUESTION_EFFECT_CONFLICT' in json.dumps(checks), checks
@@ -168,7 +177,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
                 else:
                     assert all(after[k]==original[label][k] for k in ('kind','grade','value','rationale','question','missing')), label
                     disposition='control retained'
-                report['rows'][label]={'disposition':disposition,'old':original[label], 'annotations':annotations[label],
+                report['rows'][label]={'disposition':disposition,'old':original[label], 'annotations':annotations.get(label),
                                      'stored_input':after,'claim_checks':checks,'rejection':diagnostics.get(label),
                                      'saved_row_digest':digest(e)}
             if oid == 'A':

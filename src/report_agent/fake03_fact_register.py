@@ -95,11 +95,13 @@ def qualitative_profile(expected_sha256):
         raise ValueError('FAKE03_REGISTER_PIN_MISMATCH')
     register = json.loads(raw)
     typed = load_attestations(TYPED_REGISTER)
+    deferrals = json.loads(REGISTER.with_name("engineering-review.json").read_bytes())
     facts = {}
     for obj in ('A', 'B'):
         facts[obj] = {
             'source_roles': register['source_roles'],
             'scope': register['scope'],
+            'engineering_reviews': deferrals.get(obj, {}),
             'attestations': attestations_for(typed, obj),
             'observations': [row for row in register['facts'] if row['applies_to'] in (obj, 'A, B', 'Region')],
             'unresolved': register['unresolved'][obj],

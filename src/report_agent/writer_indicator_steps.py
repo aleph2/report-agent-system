@@ -170,7 +170,8 @@ class IndicatorRun:
                     'gap':'Record missing information, a review question and optional rationale without a score.'}[kind]
                 save.message_model=schema
                 return _native_write(self.workspace,'writer',save)
-            tools=[*self.tools,*(save_tool(k) for k in ('evidence','assumption','gap'))]
+            kinds = ('gap',) if step.get('engineering_review') else ('evidence','assumption','gap')
+            tools=[*self.tools,*(save_tool(k) for k in kinds)]
             agent = create_agent(self.model,tools,system_prompt=load_prompt('writer-indicator-step'),
                 middleware=[self.receipts,boundary,
                             AgentPromptBoundary(self.workspace,'writer',source='writer-indicator-step')],

@@ -1,5 +1,7 @@
 # Fake03 qualitative Writer claim checks
 
+This record describes the historical verification at `7f92c74`. The [subsequent owner decision on A/X51](fake03-x51-review-follow-up.md) applies to the next pilot.
+
 ## Reproduction
 
 Commit `459110c` accepted all 16 Run 06 qualitative saves. The frozen business inputs are in `tests/fixtures/fake03_run06_saved_inputs.json`. On a fresh mini-commission the earlier code reproduces their input digests. Six rows contained errors despite having genuine source quotations. The save path could bind quoted text to a source without establishing which proposition it supported.
