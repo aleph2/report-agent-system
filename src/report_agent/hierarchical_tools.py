@@ -42,6 +42,30 @@ def actor_for(role):
     return Actor("content:" + role, role, "content-task:" + role)
 
 
+def general_reviewer_tool(fn):
+    """Enforce the active delegation even on closures built before a task started."""
+    from functools import wraps
+    from inspect import iscoroutinefunction
+    from .content_tasks import require_general_review_tool
+
+    if getattr(fn, '_general_review_guard', None) is fn:
+        return fn
+    if iscoroutinefunction(fn):
+        @wraps(fn)
+        async def call_async(*args, **kwargs):
+            require_general_review_tool()
+            return await fn(*args, **kwargs)
+        call_async._general_review_guard = call_async
+        return call_async
+
+    @wraps(fn)
+    def call(*args, **kwargs):
+        require_general_review_tool()
+        return fn(*args, **kwargs)
+    call._general_review_guard = call
+    return call
+
+
 def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=False):
     if reviewer_handles and role != 'reviewer':
         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
@@ -49,6 +73,11 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     def actor():
         from .content_tasks import bound_actor
         return bound_actor(workspace, role, fallback)
+    from .content_tasks import qualitative_review_active
+    if role == 'reviewer' and qualitative_review_active():
+        actor()  # Reject an attempt to build a catalog for another workspace.
+        from .qualitative_review import reviewer_tools
+        return reviewer_tools(contents, actor)
     from .prompt_sources import review_interface_profile, report_expression_profile, report_prompt_profile
     from .review_scope_selectors import validate_contract
     submission_contract = validate_contract(bound_manifest(workspace.store))
@@ -843,8 +872,8 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         tools = common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
         if reviewer_handles:
             from .review_handles import read_tools
-            return read_tools(contents, actor, tools)
-        return tools
+            tools = read_tools(contents, actor, tools)
+        return [general_reviewer_tool(tool) for tool in tools] if role == 'reviewer' else tools
     if role in {"coordinator", "writer"}:
         common += [import_source_versions, commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
     if role == "layout":

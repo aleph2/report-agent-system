@@ -1,0 +1,176 @@
+"""Canonical save guards for typed grade support in a disposable qualitative pilot."""
+from pathlib import Path
+from types import SimpleNamespace
+import hashlib
+import pytest
+
+from report_agent import writer_assessment as api
+from report_agent.content_store import ContentStore
+from report_agent.errors import ActionRejected
+from report_agent.fake03_fact_register import REGISTER, qualitative_profile
+from report_agent.mini_commission import prepare_mini_commission
+from report_agent.store import Store, digest
+from report_agent.workspace import Workspace
+from report_agent.writer_runtime import writer_session
+
+
+def fact(fid, purpose, quote, obj='A', **kwargs):
+    return {'fact_id':fid,'purpose':purpose,'state':'known','subject':obj,'applies_to':[obj],
+            'indicator_ids':['X32','X42','X51','X52'],'related_to':[],'quote':quote,'coverage':'object','coverage_detail':'','visual_verified':False,
+            **kwargs}
+
+
+@pytest.fixture
+def fixture(tmp_path):
+    record = prepare_mini_commission(Path(__file__).parent/'fake_data'/'mini_commission'/'inputs',tmp_path/'case')
+    ws = Workspace(Store(tmp_path/'case'))
+    cs = ContentStore(ws.store)
+    profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
+    quote = '坡段 A 有一个勘察断面，断面设置三个钻孔。'
+    event_quote = '距坡段 A 约 2 km 处有一次小型落石记录。'
+    test_facts = [fact('sec','survey_section_count',quote,value=1), fact('holes','borehole_count',quote,value=3),
+        fact('only','survey_coverage','本页仅记录坡段 A。',coverage='document'),
+        fact('rain','rainfall','坡段 A、B 所在区域过去五年年均降雨量为 720 mm。',applies_to=['A','B'],period_years=5),
+        fact('event','hazard_event',event_quote,obj='Region',applies_to=[],related_to=['A'],event_count=1)]
+    for obj in ['A','B']:
+        profile['facts'][obj]['attestations'] = test_facts
+    ws.store.set('fake03_qualitative_profile',profile)
+    return SimpleNamespace(ws=ws,cs=cs,profile=profile, plan=record['plan_ref'])
+
+
+from contextlib import contextmanager
+@contextmanager
+def at(f, oid, indicator):
+    label = next(o['label'] for o in f.cs.read(f.plan)['payload']['objects'] if o['object_id']==oid)
+    with writer_session(f.ws,label,None,assessment_only=True,indicator_steps=True,section_id='3') as session:
+        actor = session.actor
+        f.ws.store.set('fake03_qualitative_actor:'+actor.id, {'plan_ref':f.plan,'object_id':oid,'profile_digest':digest(f.profile)})
+        while True:
+            step=api.read_indicator_step(f.cs,actor)
+            if step['indicator_id']==indicator:
+                yield actor, step
+                return
+            api.save_indicator_outcome(f.cs,actor,'skip-'+step['indicator_id'],step['indicator_id'],
+                {'kind':'gap','missing':'Synthetic traversal','question':'Supply the documents?'})
+
+
+def claim(*refs):
+    return {'statement':'Synthetic proposition under test.','fact_ids':list(refs)}
+
+
+def scored(step, grade='moderate', **kwargs):
+    choices = {g['min_value']:g['choice'] for g in step['grades']}
+    return {'kind':'evidence','grade':choices[{'moderate':'25','very_high':'75','low':'0'}[grade]],
+            'rationale':'Synthetic rationale.','basis_kind':'direct_evidence',**kwargs}
+
+
+@pytest.mark.parametrize('oid,indicator,fields',[('B','X32',{'grade_claim':claim('rain','event'),
+    'event_frequency':{'fact_id':'rain','event_count':1,'period_years':5}}),
+    ('A','X42',{'grade_claim':claim('event')}),
+    ('A','X52',{'grade_claim':claim('only')}),
+    ('B','X51',{'grade_claim':claim('only'),'investigation_counts':[{'fact_id':'only','purpose':'survey_section_count','count':0}]})])
+def test_external_quote_cannot_bypass_typed_decisive_fact(fixture,oid,indicator,fields):
+    with at(fixture,oid,indicator) as (actor,step):
+        value=scored(step,quotes=['Additional outside-register source.'],**fields)
+        with pytest.raises(ActionRejected,match='save_gap'):
+            api.save_indicator_outcome(fixture.cs,actor,'bad',indicator,value)
+        assert api.read_indicator_step(fixture.cs,actor)['indicator_id']==indicator
+
+
+def test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no_quality_basis(fixture):
+    with at(fixture,'A','X51') as (actor,step):
+        value=scored(step,grade_claim=claim('sec','holes'),investigation_counts=[
+            {'fact_id':'sec','purpose':'survey_section_count','count':1},{'fact_id':'holes','purpose':'borehole_count','count':3}],
+            value='49',value_reason='Other types were not mentioned.',adjustment_claim={**claim('holes'),'direction':'higher'})
+        value['rationale'] = 'Use 49 because the other types were not mentioned.'
+        receipt=api.save_indicator_outcome(fixture.cs,actor,'save','X51',value)['result']
+        draft=fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X51']
+        assert draft['judgment']['value']=='37' and draft['judgment']['grade_id']=='moderate'
+        assert len(draft['judgment']['sources'])==1
+        adjustment=receipt['claim_checks']['adjustment']
+        assert adjustment==draft['claim_checks']['adjustment'] and adjustment['proposed_value']=='49'
+        assert adjustment['status']=='refused_midpoint_retained' and adjustment['retained_value']=='37'
+        assert adjustment['original_rationale']==value['rationale']
+        assert '49' not in draft['judgment']['rationale']
+
+
+def test_offsite_assumption_survives_and_question_is_flagged(fixture):
+    with at(fixture,'A','X32') as (actor,step):
+        value=scored(step,grade_claim=claim('event'))
+        del value['basis_kind']
+        value.update(kind='assumption',assumption_basis={**claim('event'),'relationship':'Nearby event outside A.',
+                      'narrowing':'Nearby rockfall supports the low/moderate provisional range.'},
+                     plausible_grades=[g['choice'] for g in step['grades'] if g['min_value'] in ['0','25']],
+                     question='Would work in that season raise the frequency grade?',question_effect='grade',
+                     value='27',value_reason='The event was off site.',adjustment_claim={**claim('event'),'direction':'lower'})
+        result=api.save_indicator_outcome(fixture.cs,actor,'save','X32',value)['result']
+        draft=fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X32']
+        assert draft['kind']=='assumption' and draft['judgment']['value']=='27'
+        assert 'QUESTION_EFFECT_CONFLICT' in result['claim_checks']['review_flags']
+
+
+@pytest.mark.parametrize('kind', ['evidence', 'gap'])
+def test_registered_subquote_must_use_fact_handle_before_native_save(fixture, kind):
+    with at(fixture,'A','X51') as (actor,step):
+        value = scored(step, grade_claim=claim('sec','holes'), investigation_counts=[
+            {'fact_id':'sec','purpose':'survey_section_count','count':1},
+            {'fact_id':'holes','purpose':'borehole_count','count':3}]) if kind=='evidence' else {
+            'kind':'gap','question':'Is additional documentation available?', 'missing':'Other investigation points.'}
+        value['quotes'] = ['断面设置 三个钻孔']
+        with pytest.raises(ActionRejected, match='fact_id'):
+            api.save_indicator_outcome(fixture.cs,actor,'registered-subquote','X51',value)
+        assert api.read_indicator_step(fixture.cs,actor)['indicator_id']=='X51'
+
+
+
+def test_object_totals_do_not_establish_per_section_count():
+    from decimal import Decimal
+    from report_agent.writer_claims import apply_claims
+
+    facts = [fact('sections','survey_section_count','Two sections.',value=2),
+             fact('holes','borehole_count','Three holes in the whole survey.',value=3)]
+    value = {'kind':'evidence','value':'37','grade_claim':claim('sections','holes'),
+             'investigation_counts':[{'fact_id':f['fact_id'],'purpose':f['purpose'],'count':f['value']} for f in facts]}
+    with pytest.raises(ActionRejected, match='section'):
+        apply_claims(value, indicator_id='X51', subject='A', attestations=facts, midpoint=Decimal(37), grade_id='moderate')
+
+
+def test_gap_question_always_has_semantic_review_even_when_writer_claims_no_issue():
+    from report_agent.writer_claims import apply_claims
+    original = {'kind':'gap','missing':'Groundwater investigation is missing.',
+                'question':'When did all the known wells dry up?'}
+    row, checks = apply_claims(original, indicator_id='X23', subject='B', attestations=[], midpoint=None,grade_id=None)
+    assert row['question']==original['question']
+    assert 'QUESTION_REQUIRES_SEMANTIC_REVIEW' in checks['review_flags']
+    assert checks['semantic_review_required']
+
+
+def test_upper_bound_cannot_assume_unknown_geophysical_or_test_pit_count_is_zero():
+    from decimal import Decimal
+    from report_agent.writer_claims import apply_claims
+    facts = [fact('sec','survey_section_count','One section.',value=1),
+             fact('holes','borehole_count','Two boreholes.',value=2)]
+    value = {'kind':'evidence','value':'62','grade_claim':claim('sec','holes'),
+             'investigation_counts':[{'fact_id':f['fact_id'],'purpose':f['purpose'],'count':f['value']} for f in facts]}
+    with pytest.raises(ActionRejected, match='count'):
+        apply_claims(value, indicator_id='X51', subject='A', attestations=facts, midpoint=Decimal(62), grade_id='high')
+
+
+
+def test_external_evidence_has_native_source_check_and_critical_scope_review(fixture):
+    # Simulate a register that has not catalogued one real sentence of the synthetic design PDF.
+    quote = '防护采用锚杆框架梁，设置截排水沟。'
+    for obj in fixture.profile['facts'].values():
+        obj['observations'] = [f for f in obj['observations'] if f['quote']!=quote]
+    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
+    with at(fixture,'A','X41') as (actor,step):
+        support = {'statement':'The drawing describes an anchored frame.', 'subject':'A',
+                   'scope':'Design notes for A', 'quotes':['No such sentence in any attached source.']}
+        value = scored(step, grade_claim=claim(), external_support=support)
+        with pytest.raises(ActionRejected, match='QUOTE_NOT_FOUND'):
+            api.save_indicator_outcome(fixture.cs,actor,'fabricated-external','X41',value)
+        support['quotes'] = [quote]
+        receipt = api.save_indicator_outcome(fixture.cs,actor,'real-external','X41',value)
+        assert 'EXTERNAL_SCOPE_REQUIRES_CRITICAL_REVIEW' in receipt['result']['claim_checks']['review_flags']
+        draft = fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X41']
+        assert len(draft['judgment']['sources'])==1

@@ -11,6 +11,28 @@ from .prompt_sources import BOUNDED_REVIEW, NATIVE_REVIEW, load_prompt
 
 
 _binding = ContextVar("content_task_binding", default=None)
+_qualitative_review = ContextVar("qualitative_review_grant", default=False)
+
+
+def qualitative_review_active():
+    return _qualitative_review.get()
+
+
+def require_general_review_tool():
+    """A tool built for report review cannot expand a live row-review delegation."""
+    if _qualitative_review.get():
+        raise ActionForbidden('QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN')
+
+
+@contextmanager
+def _native_binding(workspace, actor, native_call, qualitative_review):
+    binding = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
+    grant = _qualitative_review.set(_qualitative_review.get() or bool(qualitative_review))
+    try:
+        yield native_call, actor
+    finally:
+        _qualitative_review.reset(grant)
+        _binding.reset(binding)
 
 
 def model_owner_identity(store):
@@ -284,12 +306,18 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
 def delegated_task(workspace, caller_role, call):
     if caller_role != "coordinator":
         raise ActionForbidden("FORBIDDEN: delegation authority")
+    qualitative = call['args'].get('qualitative_writer_task_ref')
+    if qualitative is not None and (call['args'].get('subagent_type') != 'reviewer'
+            or any(call['args'].get(k) is not None for k in ('resume_content_task_id', 'review',
+                   'review_requirements', 'review_snapshot_ref', 'layout_snapshot_ref', 'supervision_plugin'))):
+        raise ActionRejected('QUALITATIVE_REVIEW_REQUIRES_FRESH_REVIEWER')
     from .prompt_sources import review_interface_profile
     if review_interface_profile(workspace.store) == 'review-interfaces-v4':
         with _v4_task(workspace, call) as bound:
             yield bound
         return
     args = dict(call["args"])
+    qualitative = args.pop('qualitative_writer_task_ref', None)
     section_ids = args.pop('section_ids', [])
     assessment_object_id = args.pop('assessment_object_id', None)
     resumed = args.pop("resume_content_task_id", None)
@@ -359,6 +387,9 @@ def delegated_task(workspace, caller_role, call):
                 raise ActionForbidden("FORBIDDEN: layout snapshot grant owner")
         from .commission_plan import enabled as commission_enabled, writer_assignment
         section_assignment = writer_assignment(cs, db, section_ids, assessment_object_id=assessment_object_id) if role == 'writer' and commission_enabled(workspace.store) else {}
+        if qualitative is not None:
+            from .qualitative_review import freeze_writer_rows
+            section_assignment = freeze_writer_rows(cs, db, qualitative)
         task_ref = cs._insert(db, coordinator, "DelegatedTask", {
             "role": role, "goal": args.get("description", ""),
             **({"review_snapshot_ref": review_snapshot, "review_requirements": requirements} if requirements else {}),
@@ -372,6 +403,8 @@ def delegated_task(workspace, caller_role, call):
                 ('source_use_task_binding:' + task_ref['id'], encode(policy_ref)))
         return {"task_ref": task_ref}
     request = {"native_task": args, "resume": resumed}
+    if qualitative is not None:
+        request["qualitative_writer_task_ref"] = qualitative
     if assessment_object_id is not None:
         request["assessment_object_id"] = assessment_object_id
     if section_ids:
@@ -420,11 +453,8 @@ def delegated_task(workspace, caller_role, call):
         if plugin and plugin.requires_check_evidence:
             args["description"] += "\nSelected supervision plugin requires check_results for each required check: requirement_index, actual execution_state, result, observation_indexes into this item's actual observations, and remaining reason for unfinished checks. Outside-assignment notes belong in outside_assignment_notes, never cancel assigned work. Linked evidence is not proof of correctness."
     native_call = {**call, "args": args}
-    token = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
-    try:
-        yield native_call, actor
-    finally:
-        _binding.reset(token)
+    with _native_binding(workspace, actor, native_call, payload.get('qualitative_review_digest')) as bound:
+        yield bound
 
 
 @contextmanager
@@ -435,6 +465,7 @@ def _v4_task(workspace, call):
     from .review_binding import bind, identity, canonical_selection
     from .source_use import report_binding
     args = deepcopy(call['args'])
+    qualitative = args.pop('qualitative_writer_task_ref', None)
     section_ids = args.pop('section_ids', [])
     assessment_object_id = args.pop('assessment_object_id', None)
     review = canonical_selection(args.pop('review', None))
@@ -479,7 +510,10 @@ def _v4_task(workspace, call):
         from .commission_plan import enabled as commission_enabled, writer_assignment
         if role == 'writer' and commission_enabled(workspace.store):
             payload.update(writer_assignment(cs, db, section_ids, assessment_object_id=assessment_object_id))
-        if role == 'reviewer':
+        if qualitative is not None:
+            from .qualitative_review import freeze_writer_rows
+            payload.update(freeze_writer_rows(cs, db, qualitative))
+        elif role == 'reviewer':
             if manifest(workspace.store).get('review_submission_contract') is not None:
                 payload['review_submission_contract'] = manifest(workspace.store)['review_submission_contract']
             if manifest(workspace.store).get('review_plan_contract') is not None:
@@ -509,6 +543,8 @@ def _v4_task(workspace, call):
         return {'task_ref': cs._insert(db, co, 'DelegatedTask', payload, id=task_id)}
     raw = {'native_task': args, 'resume': resumed, 'review': review,
            'layout_snapshot_ref': layout, 'supervision_plugin': plugin}
+    if qualitative is not None:
+        raw['qualitative_writer_task_ref'] = qualitative
     if assessment_object_id is not None:
         raw['assessment_object_id'] = assessment_object_id
     if section_ids:
@@ -527,8 +563,7 @@ def _v4_task(workspace, call):
             args['description'] += '\nSaved confirmed section assignment:\n' + encode({
                 'sections': payload['section_plan'], 'conventions': payload['customer_conventions']})
     native_call = {**call, 'args': args}
-    token = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
-    try:
-        yield native_call, actor
-    finally:
-        _binding.reset(token)
+    qualitative_review = (role == 'reviewer'
+                          and cs.read(task_ref)['payload'].get('qualitative_review_digest'))
+    with _native_binding(workspace, actor, native_call, qualitative_review) as bound:
+        yield bound
