@@ -1,0 +1,468 @@
+[
+  {
+    "example": "event-specific-period",
+    "subject": "North",
+    "indicator": "X32",
+    "accepted": {
+      "handles": [
+        "F04-N-FREQUENCY"
+      ],
+      "fields": {
+        "grade_id": "moderate",
+        "event_frequency": {
+          "fact_id": "F04-N-FREQUENCY",
+          "event_count": 3,
+          "period_years": 5
+        }
+      },
+      "value": "37",
+      "quotes": [
+        "North work area: three rockfalls recorded from 2021-01-01 through 2025-12-31."
+      ],
+      "flags": [
+        "FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW"
+      ]
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-FREQUENCY"
+      ],
+      "fields": {
+        "grade_id": "moderate",
+        "event_frequency": {
+          "fact_id": "F04-N-FREQUENCY",
+          "event_count": 3,
+          "period_years": 1
+        }
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: A direct frequency claim needs the event count and observation period from the same applicable event history. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "true-zero-not-an-invented-count",
+    "subject": "South",
+    "indicator": "X32",
+    "accepted": {
+      "handles": [
+        "F04-S-FREQUENCY"
+      ],
+      "fields": {
+        "grade_id": "low",
+        "event_frequency": {
+          "fact_id": "F04-S-FREQUENCY",
+          "event_count": 0,
+          "period_years": 5
+        }
+      },
+      "value": "12",
+      "quotes": [
+        "South work area: zero rockfalls recorded from 2021-01-01 through 2025-12-31."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-S-FREQUENCY"
+      ],
+      "fields": {
+        "grade_id": "moderate",
+        "event_frequency": {
+          "fact_id": "F04-S-FREQUENCY",
+          "event_count": 3,
+          "period_years": 5
+        }
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: A direct frequency claim needs the event count and observation period from the same applicable event history. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "season-and-start-cannot-set-frequency-grade",
+    "subject": "North",
+    "indicator": "X32",
+    "accepted": {
+      "handles": [
+        "F04-N-FREQUENCY"
+      ],
+      "fields": {
+        "grade_id": "moderate",
+        "event_frequency": {
+          "fact_id": "F04-N-FREQUENCY",
+          "event_count": 3,
+          "period_years": 5
+        }
+      },
+      "value": "37",
+      "quotes": [
+        "North work area: three rockfalls recorded from 2021-01-01 through 2025-12-31."
+      ],
+      "flags": [
+        "FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW"
+      ]
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-SEASON",
+        "F04-N-START"
+      ],
+      "fields": {},
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: grade requires applicable hazard_frequency evidence. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "zero-facilities-vs-absence-of-groundwater",
+    "subject": "North",
+    "indicator": "X42",
+    "accepted": {
+      "handles": [
+        "F04-N-FACILITIES"
+      ],
+      "fields": {
+        "grade_id": "low"
+      },
+      "value": "12",
+      "quotes": [
+        "North: no surveyed facilities within 2.0H above the crest or 2.0H below the road."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-GROUNDWATER"
+      ],
+      "fields": {
+        "grade_id": "low"
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: grade requires applicable facility_presence evidence. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "survey-applies-to-own-object",
+    "subject": "South",
+    "indicator": "X42",
+    "accepted": {
+      "handles": [
+        "F04-S-FACILITY"
+      ],
+      "fields": {
+        "grade_id": "very_high"
+      },
+      "value": "87",
+      "quotes": [
+        "South: field survey located a water tank 0.4H upslope from the cut crest."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-FACILITIES"
+      ],
+      "fields": {
+        "grade_id": "low"
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: Unknown or unoffered fact handle. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "zero-vs-unrecorded-investigation-type",
+    "subject": "North",
+    "indicator": "X51",
+    "accepted": {
+      "handles": [
+        "F04-N-SECTIONS",
+        "F04-N-BOREHOLES",
+        "F04-N-PITS"
+      ],
+      "fields": {
+        "investigation_counts": [
+          {
+            "fact_id": "F04-N-SECTIONS",
+            "purpose": "survey_section_count",
+            "count": 1
+          },
+          {
+            "fact_id": "F04-N-BOREHOLES",
+            "purpose": "borehole_count",
+            "count": 3
+          },
+          {
+            "fact_id": "F04-N-PITS",
+            "purpose": "test_pit_count",
+            "count": 0
+          }
+        ]
+      },
+      "value": "37",
+      "quotes": [
+        "North: N1 is the only investigation section.",
+        "North section N1: three boreholes; zero test pits; no geophysics performed."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-SECTIONS",
+        "F04-N-BOREHOLES",
+        "F04-N-PITS"
+      ],
+      "fields": {
+        "investigation_counts": [
+          {
+            "fact_id": "F04-N-SECTIONS",
+            "purpose": "survey_section_count",
+            "count": 1
+          },
+          {
+            "fact_id": "F04-N-BOREHOLES",
+            "purpose": "borehole_count",
+            "count": 3
+          },
+          {
+            "fact_id": "F04-N-BOREHOLES",
+            "purpose": "test_pit_count",
+            "count": 0
+          }
+        ]
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: Every investigation count, including zero, needs an explicit value for this object and investigation type. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "object-count-vs-page-coverage",
+    "subject": "North",
+    "indicator": "X51",
+    "accepted": {
+      "handles": [
+        "F04-N-SECTIONS",
+        "F04-N-BOREHOLES",
+        "F04-N-PITS"
+      ],
+      "fields": {
+        "investigation_counts": [
+          {
+            "fact_id": "F04-N-SECTIONS",
+            "purpose": "survey_section_count",
+            "count": 1
+          },
+          {
+            "fact_id": "F04-N-BOREHOLES",
+            "purpose": "borehole_count",
+            "count": 3
+          },
+          {
+            "fact_id": "F04-N-PITS",
+            "purpose": "test_pit_count",
+            "count": 0
+          }
+        ]
+      },
+      "value": "37",
+      "quotes": [
+        "North: N1 is the only investigation section.",
+        "North section N1: three boreholes; zero test pits; no geophysics performed."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-SECTIONS",
+        "F04-S-SURVEY-RECORD"
+      ],
+      "fields": {
+        "investigation_counts": [
+          {
+            "fact_id": "F04-N-SECTIONS",
+            "purpose": "survey_section_count",
+            "count": 1
+          },
+          {
+            "fact_id": "F04-S-SURVEY-RECORD",
+            "purpose": "borehole_count",
+            "count": 0
+          }
+        ]
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: The decisive grade handle F04-S-SURVEY-RECORD is contextual or concerns another subject. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "verified-file-inventory-vs-drawing-reference",
+    "subject": "North",
+    "indicator": "X52",
+    "accepted": {
+      "handles": [
+        "F04-N-INDEX"
+      ],
+      "fields": {},
+      "value": "37",
+      "quotes": [
+        "North: checked drawing index lists plan, elevation, cross-section, structure and detail sheets."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-S-REF"
+      ],
+      "fields": {},
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: grade requires applicable design_file_coverage, drawing_contents evidence. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "verified-drawing-contents-vs-unread-reference",
+    "subject": "North",
+    "indicator": "X52",
+    "accepted": {
+      "handles": [
+        "F04-N-INDEX",
+        "F04-N-DRAWING"
+      ],
+      "fields": {},
+      "value": "37",
+      "quotes": [
+        "North: checked drawing index lists plan, elevation, cross-section, structure and detail sheets.",
+        "North: verified drawing N-1 shows a bench width of 4 m below the upper cut."
+      ],
+      "flags": []
+    },
+    "rejected": {
+      "handles": [
+        "F04-S-REF"
+      ],
+      "fields": {},
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: grade requires applicable design_file_coverage, drawing_contents evidence. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "groundwater-absence-vs-facility-absence",
+    "subject": "North",
+    "indicator": "X23",
+    "accepted": {
+      "handles": [
+        "F04-N-GROUNDWATER"
+      ],
+      "fields": {
+        "grade_id": "low"
+      },
+      "value": "12",
+      "quotes": [
+        "No groundwater was encountered in the North N1 boreholes down to 15 m on 2026-03-21."
+      ],
+      "flags": [
+        "ABSENCE_GRADE_REQUIRES_CRITICAL_REVIEW"
+      ]
+    },
+    "rejected": {
+      "handles": [
+        "F04-N-FACILITIES"
+      ],
+      "fields": {
+        "grade_id": "low"
+      },
+      "diagnostic": "WRITER_CLAIM_UNSUPPORTED: grade requires applicable groundwater_condition evidence. Use save_gap to record the missing support and a specific review question."
+    }
+  },
+  {
+    "example": "X32 directional adjustment",
+    "accepted": {
+      "handles": [
+        "F04-N-SEASON",
+        "F04-N-START"
+      ],
+      "value": "42",
+      "quotes": [
+        "North work area: three rockfalls recorded from 2021-01-01 through 2025-12-31.",
+        "All three North events took place in July, during the local rockfall season.",
+        "North excavation begins on 2026-07-05."
+      ],
+      "checks": {
+        "review_flags": [
+          "FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW",
+          "ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW"
+        ],
+        "semantic_review_required": true
+      }
+    },
+    "unsupported": {
+      "handles": [
+        "F04-N-START"
+      ],
+      "value": "37",
+      "quotes": [
+        "North work area: three rockfalls recorded from 2021-01-01 through 2025-12-31."
+      ],
+      "checks": {
+        "review_flags": [
+          "FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW",
+          "UNSUPPORTED_ADJUSTMENT_RETAINED_MIDPOINT"
+        ],
+        "semantic_review_required": true,
+        "adjustment": {
+          "status": "refused_midpoint_retained",
+          "proposed_value": "42",
+          "proposed_reason": "Separate directional evidence.",
+          "proposed_claim": {
+            "statement": "Within-band proposition.",
+            "fact_ids": [
+              "F04-N-START"
+            ],
+            "direction": "higher"
+          },
+          "retained_value": "37",
+          "reason": "No applicable fact supporting the proposed within-band direction.",
+          "original_rationale": "The saved observation supports this grade."
+        }
+      }
+    }
+  },
+  {
+    "example": "X51 directional adjustment",
+    "accepted": {
+      "handles": [
+        "F04-N-INVESTIGATION"
+      ],
+      "value": "32",
+      "quotes": [
+        "North: N1 is the only investigation section.",
+        "North section N1: three boreholes; zero test pits; no geophysics performed.",
+        "North: investigation of geology and groundwater is adequate to select calculation parameters."
+      ],
+      "checks": {
+        "review_flags": [
+          "ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW"
+        ],
+        "semantic_review_required": true
+      }
+    },
+    "unsupported": {
+      "handles": [
+        "F04-N-BOREHOLES"
+      ],
+      "value": "37",
+      "quotes": [
+        "North: N1 is the only investigation section.",
+        "North section N1: three boreholes; zero test pits; no geophysics performed."
+      ],
+      "checks": {
+        "review_flags": [
+          "UNSUPPORTED_ADJUSTMENT_RETAINED_MIDPOINT"
+        ],
+        "semantic_review_required": true,
+        "adjustment": {
+          "status": "refused_midpoint_retained",
+          "proposed_value": "32",
+          "proposed_reason": "Separate directional evidence.",
+          "proposed_claim": {
+            "statement": "Within-band proposition.",
+            "fact_ids": [
+              "F04-N-BOREHOLES"
+            ],
+            "direction": "lower"
+          },
+          "retained_value": "37",
+          "reason": "No applicable fact supporting the proposed within-band direction.",
+          "original_rationale": "The saved observation supports this grade."
+        }
+      }
+    }
+  }
+]

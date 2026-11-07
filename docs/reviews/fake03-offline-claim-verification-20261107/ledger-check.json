@@ -1,0 +1,8 @@
+{
+  "checked_utc": "2026-11-07T13:14:59.257576+00:00",
+  "total_settled": 1991060,
+  "settled_requests": 315,
+  "held_tokens": 1179648,
+  "outstanding_reservations": 1,
+  "scope": "Fake verification campaign ledger, mode=ro and query_only"
+}

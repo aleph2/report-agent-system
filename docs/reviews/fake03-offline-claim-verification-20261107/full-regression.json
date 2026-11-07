@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "candidate_commit": "7f92c74eb3fa14b1e870bc01faccf5e2af4835f9",
+  "expected_nodes": 5819,
+  "passed": 5810,
+  "skipped": 9,
+  "failures": 0,
+  "failed_nodes": [],
+  "missing": [],
+  "extra": [],
+  "duplicate_nodes": [],
+  "collection_errors": [],
+  "source_frozen": true,
+  "evidence_dir": "/home/dysun/report-agent-m1/verification/phase1-release-20261107T125003Z",
+  "finished_at_utc": "2026-11-07T13:14:38.005631+00:00"
+}
