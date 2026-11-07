@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+from unittest.mock import patch
 
 import pytest
 
@@ -26,7 +27,9 @@ def packet(tmp_path, monkeypatch):
     data = {**info, 'workflow': operator.WORKFLOW, 'run_id': 'test-01',
             'grant_dir': str(grant), 'per_run_tokens': 3_700_000, 'aggregate_tokens': 10_000_000,
             'owner_authority_ref':'synthetic-test', 'request_bound_proof': {}}
-    return authority, write_json(authority, data), data
+    # The operator configures every service role in the process environment.
+    with patch.dict('os.environ'):
+        yield authority, write_json(authority, data), data
 
 
 def test_authority_hash_candidate_manifest_and_limits_are_pinned(packet):
