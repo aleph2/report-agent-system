@@ -142,6 +142,47 @@ async def test_sdk_malformed_save_refusals_preserve_committed_row_and_continue_b
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('limit_before_save', [True, False])
+async def test_graph_limit_advances_only_a_committed_indicator(tmp_path, monkeypatch, limit_before_save):
+    from langgraph.errors import GraphRecursionError
+    from report_agent import fake_verification, writer_indicator_steps
+    from report_agent.mini_commission import prepare_mini_commission
+
+    case = tmp_path / 'case'
+    prepared = prepare_mini_commission(Path(__file__).parent / 'fake_data/mini_commission/inputs', case)
+    workspace = Workspace(Store(case))
+    binding = SimpleNamespace(plan_ref=prepared['plan_ref'], assessment_section_id=prepared['assessment_section_id'])
+    monkeypatch.setattr(fake_verification, 'assert_active_fake_run', lambda run, ws: None)
+
+    create = writer_indicator_steps.create_agent
+    def limited_agent(*args, **kwargs):
+        graph = create(*args, **kwargs)
+        async def invoke(messages, config):
+            if limit_before_save:
+                raise GraphRecursionError('limit before the native tool')
+            await graph.ainvoke(messages, config)
+            raise GraphRecursionError('limit after the native tool')
+        return SimpleNamespace(ainvoke=invoke)
+    monkeypatch.setattr(writer_indicator_steps, 'create_agent', limited_agent)
+
+    seen = []
+    def decide(messages):
+        packet = json.loads(next(m.content for m in messages if isinstance(m, HumanMessage)))
+        seen.append((packet['object_label'], packet['indicator_id']))
+        return action('save_gap', f'bound-{len(seen)}', missing='Missing fixture value.', question='Supply the value?')
+
+    result = await run_mini_assessment(workspace, Driver(writer=[decide] * 22)('writer'), verified_run=binding)
+    if limit_before_save:
+        assert result['status'] == 'interrupted'
+        assert result['slopes'][0]['error_type'] == 'GraphRecursionError'
+        assert not seen
+    else:
+        assert result['status'] == 'closed_with_gaps'
+        assert len(seen) == len(set(seen)) == 22
+        assert [s['indicator_steps']['progress']['recorded'] for s in result['slopes']] == [11, 11]
+
+
+@pytest.mark.asyncio
 async def test_unexpected_writer_error_reports_only_deepest_project_location(tmp_path, monkeypatch):
     import inspect
     from report_agent import fake_verification, writer_assessment
