@@ -34,6 +34,28 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
     cached_runtime = business_tools(ws, 'reviewer', None, None)
     cached_runtime_handles = business_tools(ws, 'reviewer', None, None, reviewer_handles=True)
     assert 'read_source_page' in {t.__name__ for t in cached_runtime}
+    from langchain_core.tools import StructuredTool
+    from report_agent.hierarchical_tools import general_reviewer_tool
+    from report_agent.native_operation_tools import MessageTool
+    from pydantic import BaseModel
+
+    class Input(BaseModel):
+        subject: str
+
+    def read_subject(subject: str) -> str:
+        """Example read with a native V4 schema."""
+        return subject
+
+    structured = StructuredTool.from_function(read_subject, args_schema=Input)
+    message = MessageTool.from_function(read_subject, args_schema=Input, message_model=Input)
+    guarded_sdk_tools = []
+    for original in (structured, message):
+        guarded = general_reviewer_tool(original)
+        assert type(guarded) is type(original)
+        assert guarded.args_schema is original.args_schema
+        assert guarded.tool_call_schema.model_json_schema() == original.tool_call_schema.model_json_schema()
+        assert guarded.invoke({'subject':'A'}) == 'A'
+        guarded_sdk_tools.append(guarded)
     cached = content_tools(ws, 'reviewer')
     cached_handles = content_tools(ws, 'reviewer', reviewer_handles=True)
     with qualitative_reviewer_session(ws, scope['task_ref']) as tools:
@@ -41,6 +63,11 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         # The scope check must precede parameter validation, reads, and writes.
         import inspect
         import asyncio
+        for guarded in guarded_sdk_tools:
+            with pytest.raises(ActionForbidden, match='QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN'):
+                guarded.invoke({'subject':'B'})
+            with pytest.raises(ActionForbidden, match='QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN'):
+                asyncio.run(guarded.ainvoke({'subject':'B'}))
         for handles in (False, True):
             live = business_tools(ws, 'reviewer', None, None, reviewer_handles=handles)
             assert {tool.__name__ for tool in live} == set(tools)

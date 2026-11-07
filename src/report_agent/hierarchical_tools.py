@@ -48,6 +48,14 @@ def general_reviewer_tool(fn):
     from inspect import iscoroutinefunction
     from .content_tasks import require_general_review_tool
 
+    from langchain_core.tools import StructuredTool
+    if isinstance(fn, StructuredTool):
+        # LangChain consumes native tool objects directly, including the V4
+        # MessageTool's explicit public schema and injected operation ID.
+        updates = {slot: general_reviewer_tool(callback)
+                   for slot in ('func', 'coroutine')
+                   if (callback := getattr(fn, slot)) is not None}
+        return fn.model_copy(update=updates)
     if getattr(fn, '_general_review_guard', None) is fn:
         return fn
     if iscoroutinefunction(fn):
