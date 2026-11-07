@@ -288,8 +288,21 @@ def _step_state(db, scope, actor):
     return key, draft, rule, status
 
 
+def _source_priority(cs, db, plan):
+    """Return the classified rule from the version approved with this plan."""
+    if not plan.get('requirements_ref'):
+        return None
+    requirements = cs._read(db, plan['requirements_ref'])['payload']
+    anchors = {a['id']: a['source'] for a in requirements['anchors']}
+    return [{'scope_quote': anchors[i['anchor_id']]['quote'],
+             'location': anchors[i['anchor_id']]['locator'], 'interpretation': i['interpretation']}
+            for i in requirements['items']
+            if i['status'] == 'required' and 'source_priority' in i['capabilities']]
+
+
 def read_indicator_step(cs, actor):
     """Prepare just the next judgment, bound to the owner-confirmed plan and method."""
+    from .method_pack import CATEGORY_DOCUMENTATION_NOTES
     from .writer_assignments import read_assignment_pages
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
@@ -299,12 +312,15 @@ def read_indicator_step(cs, actor):
         order = scope['plan']['payload']['indicator_rank_order']
         packet = {**status, 'assignment_digest': scope['assignment_digest'],
                   'object_label': scope['object']['label'], 'indicator_id': rule['id'],
-                  'indicator': _label(rule), 'notes': rule['notes'],
+                  'indicator': _label(rule), 'notes': rule['notes'], 'category': rule.get('category', ''),
+                  'source_priority': _source_priority(cs, db, scope['plan']['payload']),
                   'rank': order['indicator_ids'].index(rule['id']) + 1,
                   'rank_basis': order['source']['quote'],
                   'grades': [{**{k:g[k] for k in ('description','min_value','max_value')},
                               'choice':_grade(g)} for g in rule['grades']],
                   **_assignment_context(cs, db, scope)}
+        if note := CATEGORY_DOCUMENTATION_NOTES.get(packet['category']):
+            packet['documentation_note'] = note
     index = read_assignment_pages(cs, actor)
     return {**packet, 'sources': index['sources'], 'page_index_digest': index['index_digest'],
             'limitations': index.get('limitations', [])}
