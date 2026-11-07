@@ -1,0 +1,154 @@
+{
+  "status": "confirmed for the Fake03 qualitative pilot",
+  "source_revision": "f33cc663067570dd3e707c111b820c7a363300a3",
+  "source_roles": {
+    "00_scope.md": "委托范围、业主约定和重要性顺序",
+    "01_initial.pdf": "初始项目资料",
+    "02_revision.pdf": "更正通知",
+    "03_requirements.pdf": "审核要求，不是工程地质调查",
+    "04_design.pdf": "施工图设计说明",
+    "05_survey.pdf": "工程地质调查记录",
+    "06_drawing.pdf": "横断面图，本次文字通道未核读图像",
+    "07_region.pdf": "区域气象与灾害资料",
+    "08_template.docx": "报告模板与固定文字"
+  },
+  "scope": "K0+000–K0+500; design takes precedence, survey supplements a missing design value, preserve discrepancies. The revision supersedes only its explicitly changed value. C at K0+620 was proposed for exclusion and then confirmed at the scripted fake owner checkpoint.",
+  "facts": [
+    {
+      "applies_to": "A",
+      "fact": "Initial geometry",
+      "document": "01_initial.pdf",
+      "page": 1,
+      "quote": "坡段 A：坡高 18 米；边坡长度 120 米。"
+    },
+    {
+      "applies_to": "B",
+      "fact": "Initial geometry",
+      "document": "01_initial.pdf",
+      "page": 2,
+      "quote": "坡段 B：坡高 25 米；边坡长度 80 米。"
+    },
+    {
+      "applies_to": "B",
+      "fact": "Groundwater survey record unavailable. Actual groundwater condition unknown.",
+      "document": "01_initial.pdf",
+      "page": 2,
+      "quote": "现场调查：未提供地下水调查记录。"
+    },
+    {
+      "applies_to": "A, B",
+      "fact": "Effective start date",
+      "document": "02_revision.pdf",
+      "page": 1,
+      "quote": "更正：施工开始日期由 2026-03-01 改为 2026-04-15。"
+    },
+    {
+      "applies_to": "A, B",
+      "fact": "Scope of revision",
+      "document": "02_revision.pdf",
+      "page": 1,
+      "quote": "其他坡高、坡长数据保持不变。"
+    },
+    {
+      "applies_to": "A, B",
+      "fact": "Review instruction",
+      "document": "03_requirements.pdf",
+      "page": 1,
+      "quote": "仅依据所给资料；资料不足时保留待核事项。"
+    },
+    {
+      "applies_to": "A",
+      "fact": "Location, material and weathering",
+      "document": "04_design.pdf",
+      "page": 1,
+      "quote": "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。"
+    },
+    {
+      "applies_to": "A",
+      "fact": "Design ratio and number of benches attributed to A by placement after the A description and before B. Individual bench heights unreported.",
+      "document": "04_design.pdf",
+      "page": 1,
+      "quote": "设计坡率为 1:0.75，分三级开挖。"
+    },
+    {
+      "applies_to": "A",
+      "fact": "Support and drainage attributed to A by placement in the same paragraph sequence after A and before B.",
+      "document": "04_design.pdf",
+      "page": 1,
+      "quote": "防护采用锚杆框架梁，设置截排水沟。"
+    },
+    {
+      "applies_to": "B",
+      "fact": "Location. Benching referred to drawing.",
+      "document": "04_design.pdf",
+      "page": 1,
+      "quote": "坡段 B 位于 K0+380，分级情况见横断面图。"
+    },
+    {
+      "applies_to": "C",
+      "fact": "Outside K0+000–K0+500. Proposed for exclusion by the plan, then confirmed by the scripted owner in the fake checkpoint.",
+      "document": "04_design.pdf",
+      "page": 1,
+      "quote": "另列坡段 C，中心桩号 K0+620。"
+    },
+    {
+      "applies_to": "A",
+      "fact": "Measured ratio retained as conflicting evidence. Natural comparator unresolved.",
+      "document": "05_survey.pdf",
+      "page": 1,
+      "quote": "坡段 A：实测坡率为 1:1.0。"
+    },
+    {
+      "applies_to": "A",
+      "fact": "One documented section with three boreholes on A. Other investigation types, including test pits and geophysics, are unstated.",
+      "document": "05_survey.pdf",
+      "page": 1,
+      "quote": "坡段 A 有一个勘察断面，断面设置三个钻孔。"
+    },
+    {
+      "applies_to": "A",
+      "fact": "Coverage of this survey page. B survey coverage remains unknown.",
+      "document": "05_survey.pdf",
+      "page": 1,
+      "quote": "本页仅记录坡段 A。"
+    },
+    {
+      "applies_to": "A, B",
+      "fact": "Regional mean annual rainfall, five-year period",
+      "document": "07_region.pdf",
+      "page": 1,
+      "quote": "坡段 A、B 所在区域过去五年年均降雨量为 720 mm。"
+    },
+    {
+      "applies_to": "Region",
+      "fact": "One event. Distance relative to A only. Event date unresolved.",
+      "document": "07_region.pdf",
+      "page": 1,
+      "quote": "距坡段 A 约 2 km 处有一次小型落石记录。"
+    },
+    {
+      "applies_to": "Region",
+      "fact": "Event location",
+      "document": "07_region.pdf",
+      "page": 1,
+      "quote": "该记录的位置在坡段 A 以外。"
+    }
+  ],
+  "unresolved": {
+    "A": [
+      "Groundwater: no groundwater information supplied; condition unknown.",
+      "Individual bench heights and the natural reference slope angle are unknown.",
+      "Beyond the documented section and three boreholes, other investigation types such as test pits and geophysics are unstated."
+    ],
+    "B": [
+      "Material type (rock or soil) unknown.",
+      "Design slope ratio unknown on this text-only route.",
+      "Bench heights unknown. The design refers to the cross-section drawing, which remains visually unverified.",
+      "Support measures and drainage measures unknown.",
+      "Numbers of survey sections and boreholes unknown. The survey page covers A only.",
+      "Groundwater survey record not supplied; actual groundwater condition unknown.",
+      "The natural reference slope angle and the applicability of the regional rockfall to B are unestablished."
+    ]
+  },
+  "midpoint_convention": "仅限本模拟委托的定性指标：按《指南》选择等级；默认由系统取该等级分值区间的算术中点。若偏离中点，需给出具体理由并指出支持该调整的事实。资料缺口不赋分。"
+}

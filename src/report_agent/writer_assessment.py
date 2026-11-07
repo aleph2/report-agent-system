@@ -50,10 +50,21 @@ def _input_model(layout):
         plausible_grades=(list[Literal[grades]], Field(default_factory=list)))
 
 
+# Approved fake03 qualitative subset. Full-method grades, ranks and sources stay bound to the plan.
+FAKE03_QUALITATIVE_INDICATORS = frozenset(('X21','X22','X23','X32','X41','X42','X51','X52'))
+
+
 def _assignment(cs, db, actor):
     from .writer_assignments import bound_assignment
     scope = bound_assignment(cs, db, actor)
     _layout(scope['plan']['payload']['method_pack'])
+    binding = _state(db, 'fake03_qualitative_actor:' + actor.id)
+    if binding is not None:
+        profile = _state(db, 'fake03_qualitative_profile')
+        if (binding['plan_ref'] != scope['plan']['ref'] or binding['object_id'] != scope['object']['object_id']
+                or binding['profile_digest'] != digest(profile)):
+            raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
+        scope['qualitative_profile'] = profile
     return scope
 
 
@@ -280,6 +291,8 @@ def _step_state(db, scope, actor):
             raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
         draft = {'rows': {}, 'assessment_ref': None, 'interrupted_indicators': {}}
     rules = scope['plan']['payload']['method_pack']['indicators']
+    if 'qualitative_profile' in scope:
+        rules = [r for r in rules if r['id'] in FAKE03_QUALITATIVE_INDICATORS]
     interrupted = draft.get('interrupted_indicators', {})
     rule = next((r for r in rules if r['id'] not in draft['rows'] and r['id'] not in interrupted), None)
     status = {'complete': rule is None, 'progress': {'recorded': len(draft['rows']), 'total': len(rules)},
@@ -319,6 +332,10 @@ def read_indicator_step(cs, actor):
                   'grades': [{**{k:g[k] for k in ('description','min_value','max_value')},
                               'choice':_grade(g)} for g in rule['grades']],
                   **_assignment_context(cs, db, scope)}
+        if 'qualitative_profile' in scope:
+            profile = scope['qualitative_profile']
+            packet['object_facts'] = profile['facts'][scope['object']['object_id']]
+            packet['midpoint_convention'] = profile['midpoint_convention']
         if note := CATEGORY_DOCUMENTATION_NOTES.get(packet['category']):
             packet['documentation_note'] = note
     index = read_assignment_pages(cs, actor)
@@ -327,7 +344,7 @@ def read_indicator_step(cs, actor):
 
 
 @lru_cache(maxsize=128)
-def _step_schema(choices, kind):
+def _step_schema(choices, kind, qualitative=False):
     from .writer_issues import IndicatorConflict
     grade = Literal[choices]
     nonblank = Annotated[str, Field(min_length=1, pattern=r'\S')]
@@ -361,6 +378,11 @@ def _step_schema(choices, kind):
         'quotes':(list[nonblank],Field(min_length=1,
             description='Exact supporting project quotations. Applied-guideline evidence also needs an exact approved method quotation.'))
     }
+    if qualitative:
+        scoring['value'] = (str | None, Field(default=None, pattern=r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$',
+            description='Omit to use the midpoint of the adopted grade. Supply an alternative only with value_reason.'))
+        scoring['value_reason'] = (nonblank | None, Field(default=None,
+            description='Specific object fact and reasoning for departing from the midpoint within the adopted grade.'))
     if kind=='evidence':
         scoring['basis_kind']=(Literal['direct_evidence','applied_guideline'],Field(
             description='direct_evidence uses project facts; applied_guideline uses project facts plus a quoted approved guideline rule.'))
@@ -378,17 +400,27 @@ def step_outcome_schema(cs, actor, indicator_id, kind):
         _, _, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind)
+        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'qualitative_profile' in scope)
 
 
-def _step_value(rule, outcome):
+def _step_value(rule, outcome, *, qualitative=False):
     from .message_fields import validate_message
     data = deepcopy(outcome)
     kind = data.pop('kind', None)
     # Legacy local callers used an explicit basis tag. The public assumption tool owns it now.
     if kind == 'assumption' and data.get('basis_kind') == 'indirect_assumption':
         data.pop('basis_kind')
-    value = validate_message(_step_schema(tuple(_grade(g) for g in rule['grades']),kind),data).model_dump(mode='json')
+    value = validate_message(_step_schema(tuple(_grade(g) for g in rule['grades']),kind,qualitative),data).model_dump(mode='json')
+    if qualitative and kind in ('evidence','assumption'):
+        from .method_pack import number
+        band = next(g for g in rule['grades'] if _grade(g) == value['grade'])
+        midpoint = (number(band['min_value']) + number(band['max_value'])) / 2
+        if value['value'] is None:
+            value['value'] = str(midpoint)
+        elif number(value['value']) != midpoint and not value['value_reason']:
+            raise ActionRejected('WRITER_NON_MIDPOINT_VALUE_REASON_REQUIRED')
+        if value['value_reason'] is None:
+            value.pop('value_reason')
     return {'kind':kind,'grade':None,'value':None,'basis_kind':None,'question':'',
             'rationale':'','missing':'','plausible_grades':[],**value,
             **({'basis_kind':'indirect_assumption'} if kind=='assumption' else {})}
@@ -401,7 +433,7 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
         key, draft, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        value = _step_value(rule, outcome)
+        value = _step_value(rule, outcome, qualitative='qualitative_profile' in scope)
         order = scope['plan']['payload']['indicator_rank_order']
         rank = order['indicator_ids'].index(indicator_id) + 1
         entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations)}
@@ -419,7 +451,8 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
         draft['rows'][indicator_id] = entry
         _set(db, key, draft)
         _, _, _, status = _step_state(db, scope, actor)
-        if status['complete'] and not status['gap_indicators'] and not status['interrupted_indicators']:
+        if (status['complete'] and 'qualitative_profile' not in scope
+                and not status['gap_indicators'] and not status['interrupted_indicators']):
             receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
             draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']
             _set(db, key, draft)

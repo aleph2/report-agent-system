@@ -146,12 +146,14 @@ class FakeContinuationBudget(FakeVerificationBudget):
 class FakeComparisonBudget(FakeVerificationBudget):
     """Fresh runs under one pinned campaign with an identified historical hold."""
 
-    def __init__(self, grant_dir, run_id, comparison, comparison_sha256):
+    def __init__(self, grant_dir, run_id, comparison, comparison_sha256, *, qualitative_only=False):
         super().__init__(grant_dir, run_id)
-        if run_id not in comparison['run_ids'] or run_id == comparison['previous_run_id']:
+        if (len(comparison['run_ids']) != (1 if qualitative_only else 2)
+                or run_id not in comparison['run_ids'] or run_id == comparison['previous_run_id']):
             raise ValueError('FAKE_COMPARISON_RUN_MISMATCH')
         self.comparison = comparison
         self.comparison_sha256 = comparison_sha256
+        self.qualitative_only = qualitative_only
 
     def _check_hold(self, db, model, bound):
         c = self.comparison
@@ -171,6 +173,8 @@ class FakeComparisonBudget(FakeVerificationBudget):
         if not settled:
             raise RequestBudgetExceeded('FAKE_COMPARISON_RETRY_MISMATCH')
 
+        if self.qualitative_only:
+            return
         first,second = c['run_ids']
         if self.run_id == second:
             table = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='fake_comparison_terminals'").fetchone()
@@ -180,7 +184,7 @@ class FakeComparisonBudget(FakeVerificationBudget):
                 raise RequestBudgetExceeded('FAKE_COMPARISON_FIRST_TERMINAL_REQUIRED')
 
     def record_first_terminal(self, result):
-        if self.run_id != self.comparison['run_ids'][0]:
+        if self.qualitative_only or self.run_id != self.comparison['run_ids'][0]:
             return
         status = result.get('status')
         if status == 'incomplete':
@@ -237,11 +241,12 @@ class FakeComparisonBudget(FakeVerificationBudget):
 
 
 @contextmanager
-def fake_verification_budget(grant_dir, run_id, *, comparison=None, comparison_sha256=None):
+def fake_verification_budget(grant_dir, run_id, *, comparison=None, comparison_sha256=None, qualitative_only=False):
     """Use around the trusted fake host's complete invocation, including its vision calls."""
     if current_token_observation() is not None:
         raise ValueError('FAKE_VERIFICATION_REQUIRES_SEPARATE_GRANT')
-    budget = (FakeComparisonBudget(grant_dir, run_id, comparison, comparison_sha256) if comparison is not None
+    budget = (FakeComparisonBudget(grant_dir, run_id, comparison, comparison_sha256,
+                                   qualitative_only=qualitative_only) if comparison is not None
               else FakeVerificationBudget(grant_dir, run_id))
     with token_budget(budget):
         yield budget

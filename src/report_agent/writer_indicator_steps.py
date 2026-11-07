@@ -3,6 +3,7 @@ import json
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.errors import GraphRecursionError
 
 from .content_store import ContentStore
 from .deep_runtime import BusinessBoundary
@@ -183,7 +184,12 @@ class IndicatorRun:
             if continuation is not None:
                 messages.append(HumanMessage(content=json.dumps(
                     {'prior_page_read_results_for_this_indicator':prior_reads},ensure_ascii=False)))
-            await agent.ainvoke({'messages':messages},config)
+            try:
+                await agent.ainvoke({'messages':messages},config)
+            except GraphRecursionError:
+                # The native save can commit on the last graph step, before the end hook runs.
+                if not boundary.saved:
+                    raise
             if len(boundary.save_refusals)==2 and not boundary.saved:
                 receipt=interrupt_indicator_step(cs,self.actor,indicator_id,list(boundary.save_refusals.values()))
                 self._record_progress(receipt['result'])
@@ -220,7 +226,19 @@ async def run_mini_assessment(workspace, model, *, verified_run):
     if (set(objects) != {'A','B'} or len({obj['label'] for obj in objects.values()}) != 2
             or len(ids) != 11 or len(order) != 11 or set(order) != set(ids)):
         raise ActionRejected('FAKE_TWO_SLOPE_RANKED_PLAN_REQUIRED')
-    result = {'status':'running','scope':'assessment_writer_only','plan_ref':plan['ref'],
+    from .writer_assessment import FAKE03_QUALITATIVE_INDICATORS
+    from .store import digest
+    qualitative = getattr(verified_run, 'qualitative_only', False)
+    profile = workspace.store.get('fake03_qualitative_profile')
+    if qualitative != (profile is not None):
+        raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
+    if qualitative and (set(ids) != FAKE03_QUALITATIVE_INDICATORS | {'X11','X12','X31'}
+            or not isinstance(profile,dict) or not isinstance(profile.get('facts'),dict)
+            or set(profile['facts']) != {'A','B'} or not all(isinstance(v,dict) for v in profile['facts'].values())
+            or not isinstance(profile.get('midpoint_convention'),str) or not profile['midpoint_convention'].strip()
+            or not re.fullmatch('[a-f0-9]{64}',str(profile.get('register_sha256','')))):
+        raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
+    result = {'status':'running','scope':'qualitative_writer_only' if qualitative else 'assessment_writer_only','plan_ref':plan['ref'],
               'decision_ref':decision['ref'],'slopes':[],'engineering_acceptance':False}
     for object_id in ('A','B'):
         slope = {'object_id':object_id}
@@ -229,10 +247,15 @@ async def run_mini_assessment(workspace, model, *, verified_run):
             with writer_session(workspace,objects[object_id]['label'],model,assessment_only=True,
                                 indicator_steps=True,section_id=verified_run.assessment_section_id) as session:
                 slope['writer_actor'] = session.actor.id
+                if qualitative:
+                    workspace.store.set('fake03_qualitative_actor:' + session.actor.id, {
+                        'object_id': object_id, 'plan_ref': plan['ref'], 'profile_digest': digest(profile)})
                 try:
                     await session.run()
                     if session.progress['interrupted_indicators']:
                         slope['status'] = 'incomplete'
+                    elif qualitative and session.progress['progress'] == {'recorded':8, 'total':8}:
+                        slope['status'] = 'qualitative_rows_saved'
                     elif session.progress['gap_indicators']:
                         slope['status'] = 'closed_with_gaps'
                     elif session.progress['assessment_ref']:
@@ -259,6 +282,8 @@ async def run_mini_assessment(workspace, model, *, verified_run):
             return result
     if any(s['status']=='incomplete' for s in result['slopes']):
         result['status']='incomplete'
+    elif qualitative:
+        result['status']='qualitative_rows_saved'
     else:
         result['status']='closed_with_gaps' if any(s['status']=='closed_with_gaps' for s in result['slopes']) else 'assessments_saved'
     return result

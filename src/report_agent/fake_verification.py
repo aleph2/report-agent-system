@@ -87,18 +87,26 @@ def preflight(approval_file, approval_sha256):
     run = grant/'runs'/authority['run_id']
     if run.resolve() != run:
         raise ValueError('FAKE_RUN_PATH_INVALID')
+    if 'qualitative_pilot' in authority:
+        pilot = authority['qualitative_pilot']
+        if (not isinstance(pilot,dict) or set(pilot) != {'register_sha256'}
+                or not isinstance(pilot['register_sha256'],str)
+                or not re.fullmatch(r'[0-9a-f]{64}',pilot['register_sha256'])
+                or 'fresh_comparison' not in authority):
+            raise ValueError('FAKE_QUALITATIVE_AUTHORITY_REQUIRED')
     if 'fresh_comparison' in authority:
         _verify_comparison(authority, grant)
     return authority
 
 
 def _verify_comparison(authority, grant):
+    count = 1 if 'qualitative_pilot' in authority else 2
     c = authority['fresh_comparison']
     required = {'run_ids','previous_run_id','previous_attempt','settled_retry_attempt','retry_result_sha256'}
     if (not isinstance(c,dict) or set(c)!=required or not isinstance(c['run_ids'],list)
-            or len(c['run_ids'])!=2 or not all(isinstance(i,str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}',i)
+            or len(c['run_ids'])!=count or not all(isinstance(i,str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}',i)
                 for i in [*c['run_ids'],c['previous_run_id']])
-            or len(set([*c['run_ids'],c['previous_run_id']]))!=3 or authority['run_id'] not in c['run_ids']):
+            or len(set([*c['run_ids'],c['previous_run_id']]))!=count+1 or authority['run_id'] not in c['run_ids']):
         raise ValueError('FAKE_COMPARISON_AUTHORITY_REQUIRED')
     if not isinstance(c['retry_result_sha256'],str) or not re.fullmatch('[0-9a-f]{64}',c['retry_result_sha256']):
         raise ValueError('FAKE_COMPARISON_HISTORY_PIN_MISMATCH')
@@ -121,8 +129,11 @@ def _verify_comparison(authority, grant):
 
 def _comparison_identity(authority):
     # Both arms must use the same treatment, model proof, source fixture and candidate.
-    return digest({k:authority[k] for k in ('fresh_comparison','grant_dir','candidate_commit',
-        'fixture_manifest_sha256','workflow','request_bound_proof','aggregate_tokens','per_run_tokens')})
+    keys = ['fresh_comparison','grant_dir','candidate_commit','fixture_manifest_sha256','workflow',
+            'request_bound_proof','aggregate_tokens','per_run_tokens']
+    if 'qualitative_pilot' in authority:
+        keys.append('qualitative_pilot')
+    return digest({k:authority[k] for k in keys})
 
 
 def _seal(case):
@@ -145,6 +156,10 @@ def prepare(approval_file, approval_sha256):
     from .mini_commission import prepare_mini_commission
     authority = preflight(approval_file, approval_sha256)
     run = Path(authority['grant_dir'])/'runs'/authority['run_id']
+    profile = None
+    if 'qualitative_pilot' in authority:
+        from .fake03_fact_register import qualitative_profile
+        profile = qualitative_profile(authority['qualitative_pilot']['register_sha256'])
     run.mkdir(mode=0o700, parents=True, exist_ok=False)
     case = run/'case'
     result = prepare_mini_commission(INPUTS, case)
@@ -153,6 +168,11 @@ def prepare(approval_file, approval_sha256):
             or result['method_source_name']!='system-method-high-slope.txt'
             or result['plan_ref']['type']!='CommissionPlan' or result['decision_ref']['type']!='CommissionDecision'):
         raise ValueError('FAKE_PREPARED_HANDOFF_MISMATCH')
+    if 'qualitative_pilot' in authority:
+        from .store import Store
+        from .workspace import Workspace
+        Workspace(Store(case)).store.set('fake03_qualitative_profile', profile)
+        result['qualitative_pilot'] = authority['qualitative_pilot']
     receipt = {**result, 'case_path': str(case), 'authority_sha256': approval_sha256, **identify(),
                'case_seal':_seal(case)}
     claim_launch(run/'prepared.json',receipt)
@@ -171,6 +191,7 @@ def check_prepared(approval_file, approval_sha256, prepared_sha256):
     if (receipt['authority_sha256']!=approval_sha256 or receipt['fixture_sha256']!=_fixture()
             or receipt['case_path']!=str(case) or receipt['candidate_commit']!=authority['candidate_commit']
             or receipt['fixture_manifest_sha256']!=authority['fixture_manifest_sha256']
+            or receipt.get('qualitative_pilot')!=authority.get('qualitative_pilot')
             or receipt['case_seal']!=_seal(case)):
         raise ValueError('FAKE_PREPARED_CASE_CHANGED')
     with closing(sqlite3.connect((case/'state.db').as_uri()+'?mode=ro',uri=True,timeout=2)) as db:
@@ -181,6 +202,13 @@ def check_prepared(approval_file, approval_sha256, prepared_sha256):
         pins={k:json.loads(v) for k,v in raw}
         if pins!={'commission_plan':receipt['plan_ref'],'commission_confirmation':receipt['decision_ref']}:
             raise ValueError('FAKE_CONFIRMED_PLAN_CHANGED')
+        stored = db.execute("SELECT value FROM state WHERE key='fake03_qualitative_profile'").fetchone()
+        if 'qualitative_pilot' in authority:
+            from .fake03_fact_register import qualitative_profile
+            if stored is None or json.loads(stored[0])!=qualitative_profile(authority['qualitative_pilot']['register_sha256']):
+                raise ValueError('FAKE_QUALITATIVE_PROFILE_CHANGED')
+        elif stored is not None:
+            raise ValueError('FAKE_QUALITATIVE_AUTHORITY_REQUIRED')
     return receipt
 
 
@@ -194,6 +222,7 @@ class VerifiedFakeRun:
     assessment_section_id: str
     object_ids: tuple
     budget: FakeVerificationBudget
+    qualitative_only: bool = False
 
 
 def assert_active_fake_run(verified_run, workspace):
@@ -228,9 +257,10 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
     if bound.total!=BOUND or sdk_retry_count()!=0 or connection_retry_count()!=2:
         raise ValueError('FAKE_SERVICE_POLICY_REQUIRED')
     comparison = authority.get('fresh_comparison')
+    qualitative = 'qualitative_pilot' in authority
     comparison_pin = _comparison_identity(authority) if comparison is not None else None
     with fake_verification_budget(authority['grant_dir'],authority['run_id'],comparison=comparison,
-                                  comparison_sha256=comparison_pin) as budget, request_token_bound(bound):
+                                  comparison_sha256=comparison_pin,qualitative_only=qualitative) as budget, request_token_bound(bound):
         if comparison is not None:
             budget.check_fresh()
         account=budget.snapshot()
@@ -238,13 +268,15 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
                 or account['remaining_for_new_reservations']<BOUND or account['attempt_states'].get('bound_violation')):
             raise ValueError('FAKE_FRESH_RUN_BUDGET_REQUIRED')
         binding=VerifiedFakeRun(authority['run_id'],case,authority['candidate_commit'],authority['fixture_manifest_sha256'],
-                                receipt['plan_ref'],receipt['assessment_section_id'],tuple(receipt['object_ids']),budget)
+                                receipt['plan_ref'],receipt['assessment_section_id'],tuple(receipt['object_ids']),budget,qualitative_only=qualitative)
         path=case.parent/'result.json'
         result={'status':'claimed','run_id':binding.run_id,'scope':WORKFLOW,'started_at_utc':_utc(),
                 'candidate_commit':binding.candidate_commit,'authority_sha256':approval_sha256,'case_seal':receipt['case_seal'],'prepared_sha256':prepared_sha256,
                 'plan_ref':receipt['plan_ref'],'decision_ref':receipt['decision_ref'],'fixture_manifest_sha256':binding.fixture_manifest_sha256}
         if comparison is not None:
             result['comparison_sha256'] = comparison_pin
+        if qualitative:
+            result['qualitative_pilot'] = authority['qualitative_pilot']
         claim_launch(path,result)
         t=_active.set(binding); model=None
         try:
@@ -271,7 +303,7 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
             finally:
                 result.update(finished_at_utc=_utc(),budget=budget.run_snapshot(),campaign_budget=budget.snapshot())
                 _save(path,result)
-                if comparison is not None:
+                if comparison is not None and not qualitative:
                     budget.record_first_terminal(result)
     return result
 
@@ -307,7 +339,10 @@ def main():
         else:
             result=prepare(args.authority,args.authority_sha256)
     print(json.dumps(result,ensure_ascii=False,indent=2))
-    return int(args.action=='run' and result.get('status') not in {'closed_with_gaps','assessments_saved'})
+    if args.action!='run':
+        return 0
+    accepted = {'qualitative_rows_saved'} if 'qualitative_pilot' in auth else {'closed_with_gaps','assessments_saved'}
+    return int(result.get('status') not in accepted)
 
 
 if __name__=='__main__':
