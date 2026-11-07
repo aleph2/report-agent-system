@@ -265,4 +265,6 @@ def main():
 
 
 if __name__=='__main__':
-    raise SystemExit(main())
+    # The Writer imports this module's binding class and ContextVar by package name.
+    from report_agent.fake_verification import main as package_main
+    raise SystemExit(package_main())
