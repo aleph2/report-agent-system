@@ -1,0 +1,421 @@
+{
+  "schema_version": "fake03-extended-gate1-run04-v1",
+  "scope": "Text-only Writer on the nine frozen synthetic inputs and the approved method. Predictions for all 22 rows, authored before Run04.",
+  "basis": "Independent fixture + method review; never derived from returned Writer rows",
+  "engineering_acceptance": "human_review_required",
+  "fixture_sha256": {
+    "00_scope.md": "04deb3abc4784b49d47c6d7bf41aa7f34d3a0141d7d79a35f2e1dca5d3633d83",
+    "01_initial.pdf": "a36128335a49345fde678591e409e0731898f3a37e52c9f478f02bbfbfb0b7da",
+    "02_revision.pdf": "54f9d3e543eb1e271f6af17df1f2a5ee03a1f5586a9376fcb7931c0dace366aa",
+    "03_requirements.pdf": "971eac1d289175272f6566e62486e859616eae21f726821dd96c38593d86324a",
+    "04_design.pdf": "8b7587d9c31c6ecc0c8af6558aece8f317c698b69be37b4e0bba5a8e6a826a1c",
+    "05_survey.pdf": "a7b8b8f79ba7f19eca64bb2f0051278a595945a4d93ec3d936ebca4754dbacd0",
+    "06_drawing.pdf": "01d13ae492e6ef96b7c75ea0f969e247045e90ee4cfe94e12307a2b7cfae9852",
+    "07_region.pdf": "cedb480a6c3df5bd82adff6b0cba6df349e6f4e02577863a7e8a475f1351e890",
+    "08_template.docx": "97e15102a603fa36daa387f6715796706db2ffdc651d8dad523122fa0c2728f6"
+  },
+  "method_sha256": "a986b71512ca846cc5fc8e2edf030a9fcc83db472d6b7df1ae368d417db00931",
+  "rank_order": [
+    "X11",
+    "X23",
+    "X21",
+    "X22",
+    "X12",
+    "X31",
+    "X32",
+    "X41",
+    "X51",
+    "X52",
+    "X42"
+  ],
+  "rows": [
+    {
+      "object_id": "A",
+      "indicator": "X11",
+      "reason": "18 m; rock. Low grade is determinate, but individual bench heights are not given; three benches do not prove equal height. Exact value requires review.",
+      "fixture_refs": [
+        "01_initial.pdf:1",
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        18
+      ],
+      "method_notes": "（1）土质边坡H≥60m、岩质边坡H≥80m时，基本分值确定为100，其他分值可按高度线性内插计算取值。（2）在每一档分值给定时，当单级坡（两碎落台间距）土质边坡h≥12m、岩质边坡h≥15m时取大值；当单级土质边坡h≤6m、岩质边坡h≤8m时取小值；当单级土质边坡高度h=8m、岩质边坡h=10m时，取中间值。其他情况按分级高度线性内插。（3）当用上述两种标准给定分值不一致，采用大值。",
+      "expected_kind": "evidence",
+      "allowed_grades": [
+        "low"
+      ],
+      "rank": 1
+    },
+    {
+      "object_id": "A",
+      "indicator": "X12",
+      "reason": "Natural analogous slope angle is absent. A design 1:0.75 overrides survey 1:1.0; their difference is not the required natural-slope delta.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "05_survey.pdf:1"
+      ],
+      "method_pages": [
+        18
+      ],
+      "method_notes": "自然坡斜坡的比拟坡是广义的概念，可选择当地极限稳定坡、稳定坡或所在自然坡的坡度。Δα≥25°时，分值为100，其他分值可按Δα实际值线性内插取值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 5
+    },
+    {
+      "object_id": "A",
+      "indicator": "X21",
+      "reason": "Strongly weathered rock stated by design. Rock lithology subtype is not given; check contrary weak-layer note before declaring certainty.",
+      "fixture_refs": [
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        19
+      ],
+      "method_notes": "易滑及软弱地层，是指煤系地层岩组、泥质岩岩组（泥质粉砂岩、砂质泥岩、泥岩、泥灰岩、页岩等）、残积层、第四系重力堆积层；基岩，是指除去“易滑及软弱地层”的基岩；地层分布复杂者取大值；反之，取小值。",
+      "expected_kind": "evidence",
+      "allowed_grades": [
+        "moderate"
+      ],
+      "rank": 3
+    },
+    {
+      "object_id": "A",
+      "indicator": "X22",
+      "reason": "Structure orientation, persistence and development are absent. No evidence-backed grade.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "05_survey.pdf:1"
+      ],
+      "method_pages": [
+        19
+      ],
+      "method_notes": "根据结构面贯通性和发育程度取值。缓倾的软弱结构面是指结构面的倾角小于路堑边坡坡角。结构面及其组合面的倾向与边坡倾向之间的夹角β=0°取大值，β=45°取中间，β=60°取小值，其它的值建议用线性内插法确定。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 4
+    },
+    {
+      "object_id": "A",
+      "indicator": "X23",
+      "reason": "Groundwater elevation/type absent. B explicitly lacks survey; absence of records is not absence of groundwater. A drainage alone does not establish water elevation.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "05_survey.pdf:1"
+      ],
+      "method_pages": [
+        20
+      ],
+      "method_notes": "根据地下水的分布范围和地下水的类型及边坡体的储水构造确定。基岩承压水取大值，基岩裂隙和土层孔隙潜水取小值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 2
+    },
+    {
+      "object_id": "A",
+      "indicator": "X31",
+      "reason": "Five-year mean 720 mm satisfies 600–800 mm alternative independent of season; corrected start 2026-04-15. Exact interpolation is not fixed here.",
+      "fixture_refs": [
+        "07_region.pdf:1",
+        "02_revision.pdf:1"
+      ],
+      "method_pages": [
+        20,
+        21
+      ],
+      "method_notes": "根据边坡所在区域的降雨等级进行确定。如没有过去5年内年均降雨量资料，可用当地的年降雨量数据代替5年内年均降雨。超过1000mm，分值为100，其他分值可按实际值线性内插取值。",
+      "expected_kind": "evidence",
+      "allowed_grades": [
+        "high"
+      ],
+      "rank": 6
+    },
+    {
+      "object_id": "A",
+      "indicator": "X32",
+      "reason": "The single minor rockfall 2 km away is indirect context. An assumed rare or occasional frequency requires explicit spatial/frequency uncertainty and plausible alternatives.",
+      "fixture_refs": [
+        "07_region.pdf:1"
+      ],
+      "method_pages": [
+        21
+      ],
+      "method_notes": "自然灾害指施工区域暴雨、洪水、泥石流、崩塌、滑坡等，自然灾害多发季节施工取大值。",
+      "expected_kind": "assumption",
+      "allowed_grades": [
+        "low",
+        "moderate"
+      ],
+      "rank": 7
+    },
+    {
+      "object_id": "A",
+      "indicator": "X41",
+      "reason": "Anchor frame beam is anchor engineering. Drainage present; multiple measures note affects value justification, not an invented measure.",
+      "fixture_refs": [
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        21
+      ],
+      "method_notes": "本指标只考虑边坡处治采用单一的工程措施。一个边坡采用多种工程措施时，取施工难度较大的工程措施对应的分值，并酌情提高取值。",
+      "expected_kind": "evidence",
+      "allowed_grades": [
+        "high"
+      ],
+      "rank": 8
+    },
+    {
+      "object_id": "A",
+      "indicator": "X42",
+      "reason": "Facility locations and scaled distances absent; no evidence-backed grade.",
+      "fixture_refs": [
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        21,
+        22
+      ],
+      "method_notes": "上边坡为土质、岩层产状顺层的边坡取大值；岩质边坡岩层产状反倾的边坡取小值。下边坡位于沟谷地带、地形较陡的、有河流水体的取大值；反之，取小值。如果上下自然边坡高陡，虽离路堑边坡水平距离较大，但也受到影响的，应酌情提高指标取值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 11
+    },
+    {
+      "object_id": "A",
+      "indicator": "X51",
+      "reason": "One survey section with three boreholes supports moderate by the three-point clause or low by the at-least-three clause with the drilling/pit wording justified. Missing general investigation detail alone does not establish the one-band uplift.",
+      "fixture_refs": [
+        "05_survey.pdf:1"
+      ],
+      "method_pages": [
+        22,
+        23
+      ],
+      "method_notes": "对地形地貌、地层岩性、地质构造、水文地质条件调查分析清楚，岩土计算参数选取依据充分的取小值；调查分析不太清楚、依据欠充分的取大值；缺乏调查分析，无依据的提高一档进行指标赋值，最高分为100。",
+      "expected_kind": "evidence",
+      "allowed_grades": [
+        "low",
+        "moderate"
+      ],
+      "rank": 9
+    },
+    {
+      "object_id": "A",
+      "indicator": "X52",
+      "reason": "Pack completeness and drawing details cannot be established from unread image-only drawing. Gap or justified assumption; no invented completeness.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "06_drawing.pdf:1"
+      ],
+      "method_pages": [
+        23,
+        24
+      ],
+      "method_notes": "完整的图件包括平面图、立面图、断面图、结构图及大样图等。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 10
+    },
+    {
+      "object_id": "B",
+      "indicator": "X11",
+      "reason": "25 m; material unspecified. Low if rock, moderate if soil. Do not invent material or claim drawing was read.",
+      "fixture_refs": [
+        "01_initial.pdf:2"
+      ],
+      "method_pages": [
+        18
+      ],
+      "method_notes": "（1）土质边坡H≥60m、岩质边坡H≥80m时，基本分值确定为100，其他分值可按高度线性内插计算取值。（2）在每一档分值给定时，当单级坡（两碎落台间距）土质边坡h≥12m、岩质边坡h≥15m时取大值；当单级土质边坡h≤6m、岩质边坡h≤8m时取小值；当单级土质边坡高度h=8m、岩质边坡h=10m时，取中间值。其他情况按分级高度线性内插。（3）当用上述两种标准给定分值不一致，采用大值。",
+      "expected_kind": "assumption",
+      "allowed_grades": [
+        "low",
+        "moderate"
+      ],
+      "rank": 1,
+      "required_plausible_grades": [
+        "low",
+        "moderate"
+      ]
+    },
+    {
+      "object_id": "B",
+      "indicator": "X12",
+      "reason": "B has no readable natural comparison angle or usable design angle. Its image-only cross-section is unchecked. Do not transfer A’s ratios to B.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "06_drawing.pdf:1"
+      ],
+      "method_pages": [
+        18
+      ],
+      "method_notes": "自然坡斜坡的比拟坡是广义的概念，可选择当地极限稳定坡、稳定坡或所在自然坡的坡度。Δα≥25°时，分值为100，其他分值可按Δα实际值线性内插取值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 5
+    },
+    {
+      "object_id": "B",
+      "indicator": "X21",
+      "reason": "B material/weathering absent. No evidence-backed grade.",
+      "fixture_refs": [
+        "01_initial.pdf:2",
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        19
+      ],
+      "method_notes": "易滑及软弱地层，是指煤系地层岩组、泥质岩岩组（泥质粉砂岩、砂质泥岩、泥岩、泥灰岩、页岩等）、残积层、第四系重力堆积层；基岩，是指除去“易滑及软弱地层”的基岩；地层分布复杂者取大值；反之，取小值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 3
+    },
+    {
+      "object_id": "B",
+      "indicator": "X22",
+      "reason": "Structure orientation, persistence and development are absent. No evidence-backed grade.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "05_survey.pdf:1"
+      ],
+      "method_pages": [
+        19
+      ],
+      "method_notes": "根据结构面贯通性和发育程度取值。缓倾的软弱结构面是指结构面的倾角小于路堑边坡坡角。结构面及其组合面的倾向与边坡倾向之间的夹角β=0°取大值，β=45°取中间，β=60°取小值，其它的值建议用线性内插法确定。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 4
+    },
+    {
+      "object_id": "B",
+      "indicator": "X23",
+      "reason": "Groundwater elevation/type absent. B explicitly lacks survey; absence of records is not absence of groundwater. A drainage alone does not establish water elevation.",
+      "fixture_refs": [
+        "01_initial.pdf:2",
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        20
+      ],
+      "method_notes": "根据地下水的分布范围和地下水的类型及边坡体的储水构造确定。基岩承压水取大值，基岩裂隙和土层孔隙潜水取小值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 2
+    },
+    {
+      "object_id": "B",
+      "indicator": "X31",
+      "reason": "Same 720 mm regional rainfall applies to B; corrected start 2026-04-15.",
+      "fixture_refs": [
+        "07_region.pdf:1",
+        "02_revision.pdf:1"
+      ],
+      "method_pages": [
+        20,
+        21
+      ],
+      "method_notes": "根据边坡所在区域的降雨等级进行确定。如没有过去5年内年均降雨量资料，可用当地的年降雨量数据代替5年内年均降雨。超过1000mm，分值为100，其他分值可按实际值线性内插取值。",
+      "expected_kind": "evidence",
+      "allowed_grades": [
+        "high"
+      ],
+      "rank": 6
+    },
+    {
+      "object_id": "B",
+      "indicator": "X32",
+      "reason": "The single rockfall is located relative to A. No B-specific location, time series or frequency is established.",
+      "fixture_refs": [
+        "07_region.pdf:1"
+      ],
+      "method_pages": [
+        21
+      ],
+      "method_notes": "自然灾害指施工区域暴雨、洪水、泥石流、崩塌、滑坡等，自然灾害多发季节施工取大值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 7
+    },
+    {
+      "object_id": "B",
+      "indicator": "X41",
+      "reason": "B engineering measure type absent; do not inherit A anchors.",
+      "fixture_refs": [
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        21
+      ],
+      "method_notes": "本指标只考虑边坡处治采用单一的工程措施。一个边坡采用多种工程措施时，取施工难度较大的工程措施对应的分值，并酌情提高取值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 8
+    },
+    {
+      "object_id": "B",
+      "indicator": "X42",
+      "reason": "Facility locations and scaled distances absent; no evidence-backed grade.",
+      "fixture_refs": [
+        "04_design.pdf:1"
+      ],
+      "method_pages": [
+        21,
+        22
+      ],
+      "method_notes": "上边坡为土质、岩层产状顺层的边坡取大值；岩质边坡岩层产状反倾的边坡取小值。下边坡位于沟谷地带、地形较陡的、有河流水体的取大值；反之，取小值。如果上下自然边坡高陡，虽离路堑边坡水平距离较大，但也受到影响的，应酌情提高指标取值。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 11
+    },
+    {
+      "object_id": "B",
+      "indicator": "X51",
+      "reason": "B section and investigation counts absent; do not inherit A three boreholes or assert zero investigation.",
+      "fixture_refs": [
+        "05_survey.pdf:1"
+      ],
+      "method_pages": [
+        22,
+        23
+      ],
+      "method_notes": "对地形地貌、地层岩性、地质构造、水文地质条件调查分析清楚，岩土计算参数选取依据充分的取小值；调查分析不太清楚、依据欠充分的取大值；缺乏调查分析，无依据的提高一档进行指标赋值，最高分为100。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 9
+    },
+    {
+      "object_id": "B",
+      "indicator": "X52",
+      "reason": "Pack completeness and drawing details cannot be established from unread image-only drawing. Gap or justified assumption; no invented completeness.",
+      "fixture_refs": [
+        "04_design.pdf:1",
+        "06_drawing.pdf:1"
+      ],
+      "method_pages": [
+        23,
+        24
+      ],
+      "method_notes": "完整的图件包括平面图、立面图、断面图、结构图及大样图等。",
+      "expected_kind": "gap",
+      "allowed_grades": [],
+      "rank": 10
+    }
+  ],
+  "cross_checks": {
+    "rank": "Every rank must match both the approved plan and the ordered scope list.",
+    "quotes": "Every reported source quotation must match its attributed frozen source and locator exactly, including both sides of a conflict. Check factual entailment separately.",
+    "A/X12": "Natural comparison angle missing. Save a gap. Adopt the design 1:0.75, retain survey 1:1.0 and the reason for design precedence. Require both sources on the persisted conflict.",
+    "B/X12": "Drawing-only details remain unchecked. No readable independent support for a grade in these frozen materials.",
+    "groundwater": "No slope is established to have no groundwater. B explicitly lacks survey records. Require open questions about elevation/type.",
+    "date": "Use 2026-04-15 as revised start; 2026-03-01 only as superseded. Both X31 grades follow the five-year 720 mm rainfall.",
+    "scope": "A and B only. C is outside the boundary. Any gap suppresses the overall score.",
+    "numeric": "Check each proposed value against its band and rationale. X11 A bench heights are unknown."
+  },
+  "pass_rule": {
+    "full": "All 22 recorded rows match kind, allowed grades, ranks, exact quotations and cross-checks; no interrupted indicators.",
+    "provisional": "Exactly one durable explained interruption, all 21 other rows satisfy all applicable checks. Report the missing check and stop for review.",
+    "fail": "Any other missing row, unexplained interruption, semantic mismatch, fabricated value or broken citation fails Gate 1."
+  }
+}
