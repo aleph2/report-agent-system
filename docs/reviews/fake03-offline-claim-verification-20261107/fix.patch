@@ -1,0 +1,2747 @@
+diff --git a/docs/reviews/fake03-claim-validation-offline.md b/docs/reviews/fake03-claim-validation-offline.md
+new file mode 100644
+index 0000000..5d812da
+--- /dev/null
++++ b/docs/reviews/fake03-claim-validation-offline.md
+@@ -0,0 +1,32 @@
++# Fake03 qualitative Writer claim checks
++
++## Reproduction
++
++Commit `459110c` accepted all 16 Run 06 qualitative saves. The frozen business inputs are in `tests/fixtures/fake03_run06_saved_inputs.json`. On a fresh mini-commission the earlier code reproduces their input digests. Six rows contained errors despite having genuine source quotations. The save path could bind quoted text to a source without establishing which proposition it supported.
++
++## Change and acceptance criteria
++
++The qualitative Writer saves register identifiers against three distinct claims: the grade, an assumption and any move away from the midpoint. The system resolves the quotations and checks the observation's subject, scope, state and purpose. Direct event frequency requires the event's own count and period. An investigation count requires a record that actually counts that item on the subject. An unsupported grade is refused with a route to a gap. A failed value adjustment preserves the supported grade and its midpoint. Questions and engineering interpretations remain reviewable.
++
++The Reviewer reads the exact frozen Writer row under its assigned slope and records any finding separately. Its view includes the provenance of the plan, register and sources, the effective input and the claim checks. A stored finding cannot change a Writer row.
++
++| Historical row | Offline check |
++| --- | --- |
++| A/X32 | Preserve the provisional grade and 27. Keep the original question visible and flag its proposed grade change. |
++| A/X42 | An offsite rockfall and a material description cannot establish facility distances. Refuse the grade. |
++| A/X51 | Preserve moderate from the confirmed survey observations. Refuse the unsupported 49 and retain the midpoint 37. |
++| A/X52 | A reference to B's drawing cannot establish the completeness of A's drawing package. Refuse the grade. |
++| B/X32 | A rainfall period cannot establish the observation period or frequency of rockfalls at B. Refuse the grade. |
++| B/X51 | A page covering A cannot supply zero investigation counts for B. Refuse the grade. |
++
++## Offline checks
++
++Run the following from the repository's native Python environment. The replay scripts the historical propositions and annotates them with the new fields. After a refusal, a scripted gap exercises the real save path. Its example Reviewer finding is also scripted.
++
++```sh
++python -B tests/support/run_offline_tests.py -q tests/test_run06_claim_replay.py tests/test_writer_typed_claims.py tests/test_fake_attestation_register.py tests/test_fake04_claim_controls.py tests/test_qualitative_review_view.py
++```
++
++Set `FAKE03_OFFLINE_REPLAY_RECORD` to an output path to retain all 16 before/after records, the tool refusals, the frozen Reviewer views and the sample finding. The ten controls must preserve their business outcomes. Fake04's synthetic PDFs use new wording and exercise positive and negative evidence for the same rules. The full offline regression is required on the same revision.
++
++These checks verify what the system enforces or exposes to review. A Writer still chooses the claim and its links, and semantic agreement between the free text and those links requires independent review. A live model comparison is a separate experiment.
+diff --git a/src/report_agent/content_tasks.py b/src/report_agent/content_tasks.py
+index 4d150c8..a3ccf87 100644
+--- a/src/report_agent/content_tasks.py
++++ b/src/report_agent/content_tasks.py
+@@ -11,6 +11,28 @@ from .prompt_sources import BOUNDED_REVIEW, NATIVE_REVIEW, load_prompt
+ 
+ 
+ _binding = ContextVar("content_task_binding", default=None)
++_qualitative_review = ContextVar("qualitative_review_grant", default=False)
++
++
++def qualitative_review_active():
++    return _qualitative_review.get()
++
++
++def require_general_review_tool():
++    """A tool built for report review cannot expand a live row-review delegation."""
++    if _qualitative_review.get():
++        raise ActionForbidden('QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN')
++
++
++@contextmanager
++def _native_binding(workspace, actor, native_call, qualitative_review):
++    binding = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
++    grant = _qualitative_review.set(_qualitative_review.get() or bool(qualitative_review))
++    try:
++        yield native_call, actor
++    finally:
++        _qualitative_review.reset(grant)
++        _binding.reset(binding)
+ 
+ 
+ def model_owner_identity(store):
+@@ -284,12 +306,18 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
+ def delegated_task(workspace, caller_role, call):
+     if caller_role != "coordinator":
+         raise ActionForbidden("FORBIDDEN: delegation authority")
++    qualitative = call['args'].get('qualitative_writer_task_ref')
++    if qualitative is not None and (call['args'].get('subagent_type') != 'reviewer'
++            or any(call['args'].get(k) is not None for k in ('resume_content_task_id', 'review',
++                   'review_requirements', 'review_snapshot_ref', 'layout_snapshot_ref', 'supervision_plugin'))):
++        raise ActionRejected('QUALITATIVE_REVIEW_REQUIRES_FRESH_REVIEWER')
+     from .prompt_sources import review_interface_profile
+     if review_interface_profile(workspace.store) == 'review-interfaces-v4':
+         with _v4_task(workspace, call) as bound:
+             yield bound
+         return
+     args = dict(call["args"])
++    qualitative = args.pop('qualitative_writer_task_ref', None)
+     section_ids = args.pop('section_ids', [])
+     assessment_object_id = args.pop('assessment_object_id', None)
+     resumed = args.pop("resume_content_task_id", None)
+@@ -359,6 +387,9 @@ def delegated_task(workspace, caller_role, call):
+                 raise ActionForbidden("FORBIDDEN: layout snapshot grant owner")
+         from .commission_plan import enabled as commission_enabled, writer_assignment
+         section_assignment = writer_assignment(cs, db, section_ids, assessment_object_id=assessment_object_id) if role == 'writer' and commission_enabled(workspace.store) else {}
++        if qualitative is not None:
++            from .qualitative_review import freeze_writer_rows
++            section_assignment = freeze_writer_rows(cs, db, qualitative)
+         task_ref = cs._insert(db, coordinator, "DelegatedTask", {
+             "role": role, "goal": args.get("description", ""),
+             **({"review_snapshot_ref": review_snapshot, "review_requirements": requirements} if requirements else {}),
+@@ -372,6 +403,8 @@ def delegated_task(workspace, caller_role, call):
+                 ('source_use_task_binding:' + task_ref['id'], encode(policy_ref)))
+         return {"task_ref": task_ref}
+     request = {"native_task": args, "resume": resumed}
++    if qualitative is not None:
++        request["qualitative_writer_task_ref"] = qualitative
+     if assessment_object_id is not None:
+         request["assessment_object_id"] = assessment_object_id
+     if section_ids:
+@@ -420,11 +453,8 @@ def delegated_task(workspace, caller_role, call):
+         if plugin and plugin.requires_check_evidence:
+             args["description"] += "\nSelected supervision plugin requires check_results for each required check: requirement_index, actual execution_state, result, observation_indexes into this item's actual observations, and remaining reason for unfinished checks. Outside-assignment notes belong in outside_assignment_notes, never cancel assigned work. Linked evidence is not proof of correctness."
+     native_call = {**call, "args": args}
+-    token = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
+-    try:
+-        yield native_call, actor
+-    finally:
+-        _binding.reset(token)
++    with _native_binding(workspace, actor, native_call, payload.get('qualitative_review_digest')) as bound:
++        yield bound
+ 
+ 
+ @contextmanager
+@@ -435,6 +465,7 @@ def _v4_task(workspace, call):
+     from .review_binding import bind, identity, canonical_selection
+     from .source_use import report_binding
+     args = deepcopy(call['args'])
++    qualitative = args.pop('qualitative_writer_task_ref', None)
+     section_ids = args.pop('section_ids', [])
+     assessment_object_id = args.pop('assessment_object_id', None)
+     review = canonical_selection(args.pop('review', None))
+@@ -479,7 +510,10 @@ def _v4_task(workspace, call):
+         from .commission_plan import enabled as commission_enabled, writer_assignment
+         if role == 'writer' and commission_enabled(workspace.store):
+             payload.update(writer_assignment(cs, db, section_ids, assessment_object_id=assessment_object_id))
+-        if role == 'reviewer':
++        if qualitative is not None:
++            from .qualitative_review import freeze_writer_rows
++            payload.update(freeze_writer_rows(cs, db, qualitative))
++        elif role == 'reviewer':
+             if manifest(workspace.store).get('review_submission_contract') is not None:
+                 payload['review_submission_contract'] = manifest(workspace.store)['review_submission_contract']
+             if manifest(workspace.store).get('review_plan_contract') is not None:
+@@ -509,6 +543,8 @@ def _v4_task(workspace, call):
+         return {'task_ref': cs._insert(db, co, 'DelegatedTask', payload, id=task_id)}
+     raw = {'native_task': args, 'resume': resumed, 'review': review,
+            'layout_snapshot_ref': layout, 'supervision_plugin': plugin}
++    if qualitative is not None:
++        raw['qualitative_writer_task_ref'] = qualitative
+     if assessment_object_id is not None:
+         raw['assessment_object_id'] = assessment_object_id
+     if section_ids:
+@@ -527,8 +563,7 @@ def _v4_task(workspace, call):
+             args['description'] += '\nSaved confirmed section assignment:\n' + encode({
+                 'sections': payload['section_plan'], 'conventions': payload['customer_conventions']})
+     native_call = {**call, 'args': args}
+-    token = _binding.set((str(workspace.store.root.resolve()), actor, _invocation(native_call)))
+-    try:
+-        yield native_call, actor
+-    finally:
+-        _binding.reset(token)
++    qualitative_review = (role == 'reviewer'
++                          and cs.read(task_ref)['payload'].get('qualitative_review_digest'))
++    with _native_binding(workspace, actor, native_call, qualitative_review) as bound:
++        yield bound
+diff --git a/src/report_agent/deep_runtime.py b/src/report_agent/deep_runtime.py
+index eafca7f..4f743e4 100644
+--- a/src/report_agent/deep_runtime.py
++++ b/src/report_agent/deep_runtime.py
+@@ -512,6 +512,10 @@ def project_view(workspace):
+ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, reviewer_handles=False):
+     if reviewer_handles and role != 'reviewer':
+         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
++    from .content_tasks import qualitative_review_active
++    if role == 'reviewer' and qualitative_review_active():
++        from .hierarchical_tools import content_tools
++        return content_tools(workspace, role, reviewer_handles=reviewer_handles)
+     store, catalog = workspace.store, Catalog(workspace.store)
+     allowed_kinds = {"purpose", "plan"} if role == "knowledge" else {"review"} if role == "reviewer" else {"draft"}
+ 
+@@ -1007,7 +1011,10 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
+         from .content_store import ContentStore
+         from .text_work import actor_for_tool
+         from .review_handles import read_tools
+-        return read_tools(ContentStore(store), lambda: actor_for_tool(workspace, role), tools)
++        tools = read_tools(ContentStore(store), lambda: actor_for_tool(workspace, role), tools)
++    if role == 'reviewer':
++        from .hierarchical_tools import general_reviewer_tool
++        return [general_reviewer_tool(tool) for tool in tools]
+     return tools
+ 
+ 
+diff --git a/src/report_agent/fake03_fact_register.py b/src/report_agent/fake03_fact_register.py
+index e1f9f57..4a576ef 100644
+--- a/src/report_agent/fake03_fact_register.py
++++ b/src/report_agent/fake03_fact_register.py
+@@ -2,20 +2,105 @@
+ import hashlib
+ import json
+ from pathlib import Path
++from typing import Annotated, Literal
++
++from pydantic import BaseModel, ConfigDict, Field, model_validator
+ 
+ REGISTER = Path(__file__).resolve().parents[2] / 'tests/fake_data/mini_commission/confirmed-facts.json'
+ 
+ 
++TYPED_REGISTER = Path(__file__).with_name('methods') / 'fake03-attestations.json'
++
++
++class SurveyExtent(BaseModel):
++    model_config = ConfigDict(extra='forbid', strict=True)
++    upslope_h: float = Field(gt=0, allow_inf_nan=False)
++    downslope_h: float = Field(gt=0, allow_inf_nan=False)
++
++
++class FacilityLocation(BaseModel):
++    model_config = ConfigDict(extra='forbid', strict=True)
++    side: Literal['upslope','downslope']
++    distance_h: float = Field(ge=0, allow_inf_nan=False)
++
++
++class FactAttestation(BaseModel):
++    """A source assertion with explicit subject, coverage and observation type."""
++
++    model_config = ConfigDict(extra='forbid', strict=True)
++    fact_id: str = Field(min_length=1)
++    subject: str = Field(min_length=1)
++    applies_to: list[str]
++    related_to: list[str] = Field(default_factory=list)
++    source_class: Literal['initial','revision','requirements','design','survey','drawing','regional']
++    state: Literal['known','unknown','explicit_absence']
++    coverage: Literal['object','region','document']
++    coverage_detail: str = Field(min_length=1)
++    purpose: Literal['geometry','material','weathering','slope_structure','construction_date','revision_scope',
++        'review_instruction','slope_ratio','bench_count','engineering_measure','location',
++        'survey_section_count','borehole_count','test_pit_count','survey_coverage',
++        'survey_investigation_quality','groundwater_condition','groundwater_survey_coverage',
++        'rainfall','hazard_event','hazard_frequency','hazard_season','facility_presence',
++        'drawing_reference','drawing_contents','design_file_coverage']
++    indicator_ids: list[str]
++    document: str = Field(min_length=1)
++    page: int = Field(ge=1)
++    quote: str = Field(min_length=1)
++    value: str | int | float | None
++    unit: str | None = None
++    event_count: int | None = Field(default=None, ge=0)
++    period_years: int | None = Field(default=None, gt=0)
++    months: list[Annotated[int, Field(ge=1,le=12)]] = Field(default_factory=list)
++    survey_extent: SurveyExtent | None = None
++    facility_location: FacilityLocation | None = None
++    visual_verified: bool = False
++
++    @model_validator(mode='after')
++    def observation_bounds(self):
++        if self.state=='unknown' and (self.value is not None or self.event_count is not None):
++            raise ValueError('Unknown facts cannot carry a measured value or count')
++        if self.purpose=='hazard_frequency' and (
++                self.event_count is None or self.period_years is None or not self.applies_to):
++            raise ValueError('A frequency requires an applicable event count and observation period')
++        if self.event_count is not None and self.purpose not in ('hazard_event','hazard_frequency'):
++            raise ValueError('Event counts belong only to event observations')
++        if self.visual_verified and (self.source_class!='drawing' or self.purpose!='drawing_contents'):
++            raise ValueError('Visual verification applies only to observed drawing contents')
++        if (self.survey_extent or self.facility_location) and self.purpose!='facility_presence':
++            raise ValueError('Facility survey and location measurements require a facility observation')
++        if self.months and (self.purpose!='hazard_season' or len(set(self.months))!=len(self.months)):
++            raise ValueError('Season months must be distinct and tied to a hazard-season observation')
++        if self.purpose=='drawing_contents' and not self.visual_verified:
++            raise ValueError('Drawing contents require verified inspection')
++        return self
++
++
++def load_attestations(path):
++    rows = [FactAttestation.model_validate(row).model_dump(mode='json')
++            for row in json.loads(Path(path).read_bytes())]
++    if len({row['fact_id'] for row in rows}) != len(rows):
++        raise ValueError('DUPLICATE_ATTESTED_FACT_ID')
++    return rows
++
++
++def attestations_for(rows, subject):
++    """Area and coverage observations stay visible with their recorded subject."""
++    return [row for row in rows if subject in row['applies_to'] or subject in row['related_to']
++            or row['coverage'] in ('region','document')]
++
++
+ def qualitative_profile(expected_sha256):
+     raw = REGISTER.read_bytes()
+     if hashlib.sha256(raw).hexdigest() != expected_sha256:
+         raise ValueError('FAKE03_REGISTER_PIN_MISMATCH')
+     register = json.loads(raw)
++    typed = load_attestations(TYPED_REGISTER)
+     facts = {}
+     for obj in ('A', 'B'):
+         facts[obj] = {
+             'source_roles': register['source_roles'],
+             'scope': register['scope'],
++            'attestations': attestations_for(typed, obj),
+             'observations': [row for row in register['facts'] if row['applies_to'] in (obj, 'A, B', 'Region')],
+             'unresolved': register['unresolved'][obj],
+         }
+diff --git a/src/report_agent/hierarchical_tools.py b/src/report_agent/hierarchical_tools.py
+index eae9251..b81b134 100644
+--- a/src/report_agent/hierarchical_tools.py
++++ b/src/report_agent/hierarchical_tools.py
+@@ -42,6 +42,38 @@ def actor_for(role):
+     return Actor("content:" + role, role, "content-task:" + role)
+ 
+ 
++def general_reviewer_tool(fn):
++    """Enforce the active delegation even on closures built before a task started."""
++    from functools import wraps
++    from inspect import iscoroutinefunction
++    from .content_tasks import require_general_review_tool
++
++    from langchain_core.tools import StructuredTool
++    if isinstance(fn, StructuredTool):
++        # LangChain consumes native tool objects directly, including the V4
++        # MessageTool's explicit public schema and injected operation ID.
++        updates = {slot: general_reviewer_tool(callback)
++                   for slot in ('func', 'coroutine')
++                   if (callback := getattr(fn, slot)) is not None}
++        return fn.model_copy(update=updates)
++    if getattr(fn, '_general_review_guard', None) is fn:
++        return fn
++    if iscoroutinefunction(fn):
++        @wraps(fn)
++        async def call_async(*args, **kwargs):
++            require_general_review_tool()
++            return await fn(*args, **kwargs)
++        call_async._general_review_guard = call_async
++        return call_async
++
++    @wraps(fn)
++    def call(*args, **kwargs):
++        require_general_review_tool()
++        return fn(*args, **kwargs)
++    call._general_review_guard = call
++    return call
++
++
+ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=False):
+     if reviewer_handles and role != 'reviewer':
+         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
+@@ -49,6 +81,11 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
+     def actor():
+         from .content_tasks import bound_actor
+         return bound_actor(workspace, role, fallback)
++    from .content_tasks import qualitative_review_active
++    if role == 'reviewer' and qualitative_review_active():
++        actor()  # Reject an attempt to build a catalog for another workspace.
++        from .qualitative_review import reviewer_tools
++        return reviewer_tools(contents, actor)
+     from .prompt_sources import review_interface_profile, report_expression_profile, report_prompt_profile
+     from .review_scope_selectors import validate_contract
+     submission_contract = validate_contract(bound_manifest(workspace.store))
+@@ -843,8 +880,8 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
+         tools = common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
+         if reviewer_handles:
+             from .review_handles import read_tools
+-            return read_tools(contents, actor, tools)
+-        return tools
++            tools = read_tools(contents, actor, tools)
++        return [general_reviewer_tool(tool) for tool in tools] if role == 'reviewer' else tools
+     if role in {"coordinator", "writer"}:
+         common += [import_source_versions, commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
+     if role == "layout":
+diff --git a/src/report_agent/methods/fake03-attestations.json b/src/report_agent/methods/fake03-attestations.json
+new file mode 100644
+index 0000000..6d0e090
+--- /dev/null
++++ b/src/report_agent/methods/fake03-attestations.json
+@@ -0,0 +1,414 @@
++[
++  {
++    "fact_id": "F03-A-HEIGHT",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "initial",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Initial height of A",
++    "purpose": "geometry",
++    "indicator_ids": [
++      "X11"
++    ],
++    "document": "01_initial.pdf",
++    "page": 1,
++    "quote": "坡段 A：坡高 18 米；边坡长度 120 米。",
++    "value": 18,
++    "unit": "m"
++  },
++  {
++    "fact_id": "F03-B-HEIGHT",
++    "subject": "B",
++    "applies_to": [
++      "B"
++    ],
++    "source_class": "initial",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Initial height of B",
++    "purpose": "geometry",
++    "indicator_ids": [
++      "X11"
++    ],
++    "document": "01_initial.pdf",
++    "page": 2,
++    "quote": "坡段 B：坡高 25 米；边坡长度 80 米。",
++    "value": 25,
++    "unit": "m"
++  },
++  {
++    "fact_id": "F03-B-WATER-RECORD",
++    "subject": "B",
++    "applies_to": [
++      "B"
++    ],
++    "source_class": "initial",
++    "state": "unknown",
++    "coverage": "document",
++    "coverage_detail": "No groundwater record supplied for B",
++    "purpose": "groundwater_survey_coverage",
++    "indicator_ids": [
++      "X23",
++      "X51"
++    ],
++    "document": "01_initial.pdf",
++    "page": 2,
++    "quote": "现场调查：未提供地下水调查记录。",
++    "value": null
++  },
++  {
++    "fact_id": "F03-START",
++    "subject": "Project",
++    "applies_to": [
++      "A",
++      "B"
++    ],
++    "source_class": "revision",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Revised project construction start only",
++    "purpose": "construction_date",
++    "indicator_ids": [
++      "X31",
++      "X32"
++    ],
++    "document": "02_revision.pdf",
++    "page": 1,
++    "quote": "更正：施工开始日期由 2026-03-01 改为 2026-04-15。",
++    "value": "2026-04-15"
++  },
++  {
++    "fact_id": "F03-REVISION-SCOPE",
++    "subject": "Project",
++    "applies_to": [
++      "A",
++      "B"
++    ],
++    "source_class": "revision",
++    "state": "known",
++    "coverage": "document",
++    "coverage_detail": "Geometry excluded from the revision",
++    "purpose": "revision_scope",
++    "indicator_ids": [
++      "X11"
++    ],
++    "document": "02_revision.pdf",
++    "page": 1,
++    "quote": "其他坡高、坡长数据保持不变。",
++    "value": "height and length unchanged"
++  },
++  {
++    "fact_id": "F03-INSTRUCTION",
++    "subject": "Project",
++    "applies_to": [
++      "A",
++      "B"
++    ],
++    "source_class": "requirements",
++    "state": "known",
++    "coverage": "document",
++    "coverage_detail": "Commission review instruction",
++    "purpose": "review_instruction",
++    "indicator_ids": [],
++    "document": "03_requirements.pdf",
++    "page": 1,
++    "quote": "仅依据所给资料；资料不足时保留待核事项。",
++    "value": "record information gaps"
++  },
++  {
++    "fact_id": "F03-A-MATERIAL",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Material type only; no lithological units or bedding angles",
++    "purpose": "material",
++    "indicator_ids": [
++      "X11",
++      "X21",
++      "X22"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
++    "value": "岩质"
++  },
++  {
++    "fact_id": "F03-A-WEATHERING",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Weathering stated for A",
++    "purpose": "weathering",
++    "indicator_ids": [
++      "X21"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
++    "value": "强风化"
++  },
++  {
++    "fact_id": "F03-A-DESIGN-RATIO",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "A designed slope; natural comparator not measured here",
++    "purpose": "slope_ratio",
++    "indicator_ids": [
++      "X12"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "设计坡率为 1:0.75，分三级开挖。",
++    "value": "1:0.75"
++  },
++  {
++    "fact_id": "F03-A-BENCHES",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Excavation stages; individual heights unreported",
++    "purpose": "bench_count",
++    "indicator_ids": [
++      "X11",
++      "X12"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "设计坡率为 1:0.75，分三级开挖。",
++    "value": 3
++  },
++  {
++    "fact_id": "F03-A-PROTECTION",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Design treatment attributed to A",
++    "purpose": "engineering_measure",
++    "indicator_ids": [
++      "X41"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "防护采用锚杆框架梁，设置截排水沟。",
++    "value": "锚杆框架梁"
++  },
++  {
++    "fact_id": "F03-A-DRAINAGE",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Designed drainage measure, no groundwater measurement",
++    "purpose": "engineering_measure",
++    "indicator_ids": [
++      "X41"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "防护采用锚杆框架梁，设置截排水沟。",
++    "value": "截排水沟"
++  },
++  {
++    "fact_id": "F03-B-DRAWING-REFERENCE",
++    "subject": "B",
++    "applies_to": [
++      "B"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "document",
++    "coverage_detail": "Design refers to the drawing; image contents unverified",
++    "purpose": "drawing_reference",
++    "indicator_ids": [
++      "X11",
++      "X52"
++    ],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "坡段 B 位于 K0+380，分级情况见横断面图。",
++    "value": "横断面图"
++  },
++  {
++    "fact_id": "F03-C-LOCATION",
++    "subject": "C",
++    "applies_to": [
++      "C"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Location of C outside the commissioned boundary",
++    "purpose": "location",
++    "indicator_ids": [],
++    "document": "04_design.pdf",
++    "page": 1,
++    "quote": "另列坡段 C，中心桩号 K0+620。",
++    "value": "K0+620"
++  },
++  {
++    "fact_id": "F03-A-MEASURED-RATIO",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Survey ratio; no attestation of the natural stable reference",
++    "purpose": "slope_ratio",
++    "indicator_ids": [
++      "X12"
++    ],
++    "document": "05_survey.pdf",
++    "page": 1,
++    "quote": "坡段 A：实测坡率为 1:1.0。",
++    "value": "1:1.0"
++  },
++  {
++    "fact_id": "F03-A-SURVEY-SECTIONS",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Documented survey section at A",
++    "purpose": "survey_section_count",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "05_survey.pdf",
++    "page": 1,
++    "quote": "坡段 A 有一个勘察断面，断面设置三个钻孔。",
++    "value": 1
++  },
++  {
++    "fact_id": "F03-A-BOREHOLES",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Three boreholes in the documented section at A",
++    "purpose": "borehole_count",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "05_survey.pdf",
++    "page": 1,
++    "quote": "坡段 A 有一个勘察断面，断面设置三个钻孔。",
++    "value": 3
++  },
++  {
++    "fact_id": "F03-SURVEY-COVERAGE",
++    "subject": "A",
++    "applies_to": [
++      "A"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "document",
++    "coverage_detail": "Coverage of this page only; other site investigation activities unestablished",
++    "purpose": "survey_coverage",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "05_survey.pdf",
++    "page": 1,
++    "quote": "本页仅记录坡段 A。",
++    "value": "A only"
++  },
++  {
++    "fact_id": "F03-REGIONAL-RAIN",
++    "subject": "Region",
++    "applies_to": [
++      "A",
++      "B"
++    ],
++    "source_class": "regional",
++    "state": "known",
++    "coverage": "region",
++    "coverage_detail": "Mean annual rainfall across region of A and B, not a hazard record",
++    "purpose": "rainfall",
++    "indicator_ids": [
++      "X31"
++    ],
++    "document": "07_region.pdf",
++    "page": 1,
++    "quote": "坡段 A、B 所在区域过去五年年均降雨量为 720 mm。",
++    "value": 720,
++    "period_years": 5,
++    "unit": "mm/year"
++  },
++  {
++    "fact_id": "F03-OFFSITE-ROCKFALL",
++    "subject": "Region",
++    "applies_to": [],
++    "source_class": "regional",
++    "state": "known",
++    "coverage": "region",
++    "coverage_detail": "One recorded rockfall about 2 km from A; no observation period or distance to B",
++    "purpose": "hazard_event",
++    "indicator_ids": [
++      "X32"
++    ],
++    "document": "07_region.pdf",
++    "page": 1,
++    "quote": "距坡段 A 约 2 km 处有一次小型落石记录。",
++    "value": "small rockfall",
++    "related_to": [
++      "A"
++    ],
++    "event_count": 1
++  },
++  {
++    "fact_id": "F03-ROCKFALL-LOCATION",
++    "subject": "Region",
++    "applies_to": [],
++    "source_class": "regional",
++    "state": "known",
++    "coverage": "region",
++    "coverage_detail": "Location of the documented offsite event only",
++    "purpose": "location",
++    "indicator_ids": [
++      "X32"
++    ],
++    "document": "07_region.pdf",
++    "page": 1,
++    "quote": "该记录的位置在坡段 A 以外。",
++    "value": "outside A",
++    "related_to": [
++      "A"
++    ]
++  }
++]
+diff --git a/src/report_agent/qualitative_review.py b/src/report_agent/qualitative_review.py
+new file mode 100644
+index 0000000..99377e6
+--- /dev/null
++++ b/src/report_agent/qualitative_review.py
+@@ -0,0 +1,121 @@
++"""Frozen, slope-scoped Reviewer assignments over saved qualitative Writer rows."""
++from contextlib import contextmanager
++from uuid import uuid4
++
++from .commission_plan import _state
++from .content_store import Actor, ContentStore
++from .errors import ActionForbidden, ActionRejected
++from .store import digest, encode
++
++
++def freeze_writer_rows(cs, db, writer_ref):
++    """Coordinator transaction: resolve the draft only through a verified Writer assignment."""
++    from .writer_assessment import _assignment, FAKE03_QUALITATIVE_INDICATORS
++    if not isinstance(writer_ref, dict) or writer_ref.get('type') != 'DelegatedTask' or writer_ref.get('version') != 1:
++        raise ActionRejected('QUALITATIVE_REVIEW_WRITER_TASK_REQUIRED')
++    task = cs._read(db, writer_ref)
++    if task['payload'].get('role') != 'writer' or task['owner_id'] != 'content:coordinator':
++        raise ActionForbidden('QUALITATIVE_REVIEW_WRITER_TASK_REQUIRED')
++    writer = Actor('content:writer:' + writer_ref['id'], 'writer', writer_ref['id'])
++    scope = _assignment(cs, db, writer)
++    profile = scope.get('qualitative_profile')
++    draft = _state(db, 'writer_indicator_steps:' + scope['assignment_digest'])
++    if not profile or not draft or not draft['rows']:
++        raise ActionRejected('QUALITATIVE_REVIEW_SAVED_ROWS_REQUIRED')
++    oid = scope['object']['object_id']
++    plan = scope['plan']
++    pack = plan['payload']['method_pack']
++    facts = profile['facts'][oid]
++    methods = {r['id']: r for r in pack['indicators'] if r['id'] in FAKE03_QUALITATIVE_INDICATORS}
++    if not set(draft['rows']).issubset(methods):
++        raise ActionRejected('QUALITATIVE_REVIEW_ROW_OUTSIDE_SCOPE')
++    from .commission_plan import _citations
++    from .deliverables import source_authority
++    for citation in _citations(draft['rows']):
++        if citation['source_ref'] not in scope['sources']:
++            raise ActionForbidden('QUALITATIVE_REVIEW_SOURCE_OUTSIDE_ASSIGNMENT')
++
++    from .hierarchical_tools import actor_for
++    records = [cs._read(db, ref) for ref in scope['sources']]
++    source_authority(cs, db, actor_for('coordinator'), records)
++    sources = []
++    for record in records:
++        ref, source = record['ref'], record['payload']
++        sources.append({'ref':ref, 'source_id':source['source_id'], 'file_digest':source['file_digest']})
++    provenance = {'writer_task_ref':writer_ref, 'assignment_digest':scope['assignment_digest'],
++                  'plan_ref':plan['ref'], 'decision_ref':scope['decision']['ref'],
++                  'requirements_ref':plan['payload'].get('requirements_ref'),
++                  'profile_digest':digest(profile),
++                  'method_digest':digest(pack), 'register_sha256':profile['register_sha256'],
++                  'fact_digest':digest(facts), 'source_versions':sources}
++    frozen = {'object_id':oid, 'provenance':provenance, 'object_facts':facts, 'methods':methods,
++              'midpoint_convention':profile['midpoint_convention'], 'rows':draft['rows']}
++    pin = digest(frozen)
++    db.execute('INSERT OR IGNORE INTO state(key,value) VALUES (?,?)',
++               ('qualitative_reviewer_snapshot:'+pin, encode(frozen)))
++    return {'qualitative_review_digest':pin,
++            'write_scope':'Record separate findings against the assigned frozen rows. Engineering acceptance belongs to humans.'}
++
++
++def _assigned(cs, db, reviewer):
++    from .content_tasks import bound_actor
++    from .workspace import Workspace
++    if reviewer.role != 'reviewer' or bound_actor(Workspace(cs.store), 'reviewer', None) != reviewer:
++        raise ActionForbidden('QUALITATIVE_REVIEW_DELEGATION_REQUIRED')
++    ref = {'type':'DelegatedTask','id':reviewer.task_id,'version':1}
++    task = cs._read(db, ref)
++    pin = task['payload'].get('qualitative_review_digest')
++    if not pin or task['owner_id'] != 'content:coordinator' or task['payload']['role'] != 'reviewer':
++        raise ActionForbidden('QUALITATIVE_REVIEW_DELEGATION_REQUIRED')
++    frozen = _state(db, 'qualitative_reviewer_snapshot:' + pin)
++    if not frozen or digest(frozen) != pin:
++        raise ActionRejected('QUALITATIVE_REVIEW_FROZEN_DIGEST_MISMATCH')
++    return ref, pin, frozen
++
++
++def reviewer_tools(cs, actor):
++    def read_qualitative_row(indicator_id: str | None = None) -> dict:
++        """List this assignment's frozen rows or inspect one row, its facts, method and provenance."""
++        with cs.store.connect() as db:
++            task, pin, view = _assigned(cs, db, actor())
++        header = {'review_task_ref':task, 'snapshot_digest':pin, 'object_id':view['object_id'],
++                  'provenance':view['provenance']}
++        if indicator_id is None:
++            return {**header, 'rows':{k:digest(v) for k,v in view['rows'].items()}}
++        if indicator_id not in view['rows']:
++            raise ActionRejected('QUALITATIVE_REVIEW_ROW_OUTSIDE_SCOPE')
++        row = view['rows'][indicator_id]
++        return {**header, 'indicator_id':indicator_id, 'row_digest':digest(row), 'saved_row':row,
++                'indicator_method':view['methods'][indicator_id], 'object_facts':view['object_facts'],
++                'midpoint_convention':view['midpoint_convention']}
++
++    def record_qualitative_finding(operation_id: str, indicator_id: str, row_digest: str,
++                                   finding: str) -> dict:
++        """Record a separate Reviewer finding against one exact frozen row; the Writer retains row ownership."""
++        reviewer = actor()
++        def record(db):
++            task, pin, view = _assigned(cs, db, reviewer)
++            if indicator_id not in view['rows'] or digest(view['rows'][indicator_id]) != row_digest:
++                raise ActionRejected('QUALITATIVE_REVIEW_ROW_DIGEST_MISMATCH')
++            if not finding.strip():
++                raise ActionRejected('QUALITATIVE_REVIEW_FINDING_REQUIRED')
++            payload = {'review_task_ref':task, 'snapshot_digest':pin, 'object_id':view['object_id'],
++                       'indicator_id':indicator_id, 'row_digest':row_digest, 'finding':finding}
++            return {'finding_ref':cs._insert(db, reviewer, 'QualitativeRowFinding', payload)}
++        return cs.operation(reviewer, operation_id, {'indicator_id':indicator_id, 'row_digest':row_digest,
++                            'qualitative_finding':finding}, record)
++    return [read_qualitative_row, record_qualitative_finding]
++
++
++@contextmanager
++def qualitative_reviewer_session(workspace, writer_task_ref):
++    """Trusted offline operator entry, with native Coordinator delegation and restricted Reviewer tools."""
++    from .content_tasks import delegated_task
++    from .hierarchical_tools import content_tools
++    call = {'name':'task', 'id':'qualitative-review-'+uuid4().hex,
++            'args':{'subagent_type':'reviewer', 'description':('Review the assigned rows against their cited excerpts, confirmed facts and method. '
++                                   'Check the grade, rationale, assumptions, adjustment and follow-up question together. '
++                                   'Record findings against exact row digests and refer weak bases to engineers.'),
++                    'qualitative_writer_task_ref':writer_task_ref}}
++    with delegated_task(workspace, 'coordinator', call):
++        yield {tool.__name__:tool for tool in content_tools(workspace,'reviewer')}
+diff --git a/src/report_agent/review_binding.py b/src/report_agent/review_binding.py
+index 1a67210..a45eb19 100644
+--- a/src/report_agent/review_binding.py
++++ b/src/report_agent/review_binding.py
+@@ -211,9 +211,12 @@ def identity(cs, db, actor, result):
+     if record['owner_id'] != actor.id:
+         raise ActionForbidden('FORBIDDEN: review binding owner')
+     payload = record['payload']
+-    return {k:payload.get(k) for k in ('review_snapshot_ref', 'review_requirements',
++    binding = {k:payload.get(k) for k in ('review_snapshot_ref', 'review_requirements',
+         'review_commission_basis', 'review_selection', 'review_scope_provenance', 'source_use_policy_ref',
+         'handoff_release_digest', 'commission_origin', 'scoped_instructions')}
++    if 'qualitative_review_digest' in payload:
++        binding['qualitative_review_digest'] = payload['qualitative_review_digest']
++    return binding
+ 
+ 
+ def confirm_reuse(cs, db, actor, review_ref, snapshot, reason, mappings):
+diff --git a/src/report_agent/writer_assessment.py b/src/report_agent/writer_assessment.py
+index c745e3d..9cd8255 100644
+--- a/src/report_agent/writer_assessment.py
++++ b/src/report_agent/writer_assessment.py
+@@ -336,6 +336,21 @@ def read_indicator_step(cs, actor):
+             profile = scope['qualitative_profile']
+             packet['object_facts'] = profile['facts'][scope['object']['object_id']]
+             packet['midpoint_convention'] = profile['midpoint_convention']
++            if 'attestations' in packet['object_facts']:
++                assigned_ids = {f['fact_id'] for f in packet['object_facts']['attestations']}
++                packet['other_context_facts'] = [{k:f[k] for k in ('fact_id','subject','purpose','quote')}
++                    for f in _typed_facts(scope) if f['fact_id'] not in assigned_ids]
++                packet['claim_instructions'] = (
++                    'Select the fact handles that support each distinct claim. State what establishes the grade, '
++                    'how an assumption relates to this object and narrows alternatives, and the direction and basis '
++                    'for any within-band adjustment. Cite registered excerpts by fact_id. Other objects’ facts can be '
++                    'used as context or contrary evidence. An event count and '
++                    'its period must refer to the same hazard observation. For every investigation count or zero, '
++                    'identify the corresponding observation for this object. A source covering another object or '
++                    'a reference to an unread drawing cannot establish absence. Use save_gap when support is missing.')
++                if rule['id']=='X32':
++                    packet['method_adjustment'] = {'condition':'construction during a disaster-prone season',
++                                                   'target':'in_band_value','direction':'higher'}
+         if note := CATEGORY_DOCUMENTATION_NOTES.get(packet['category']):
+             packet['documentation_note'] = note
+     index = read_assignment_pages(cs, actor)
+@@ -344,7 +359,7 @@ def read_indicator_step(cs, actor):
+ 
+ 
+ @lru_cache(maxsize=128)
+-def _step_schema(choices, kind, qualitative=False):
++def _step_schema(choices, kind, qualitative=False, fact_ids=None):
+     from .writer_issues import IndicatorConflict
+     grade = Literal[choices]
+     nonblank = Annotated[str, Field(min_length=1, pattern=r'\S')]
+@@ -354,6 +369,11 @@ def _step_schema(choices, kind, qualitative=False):
+         'contrary_evidence':(IndicatorConflict | None, Field(default=None,
+             description='An actual conflict with both quoted values and the adopted basis, for the material-issue record.'))
+     }
++    typed_fields = {}
++    if fact_ids is not None:
++        from .writer_claims import claim_fields
++        typed_fields = claim_fields(kind, fact_ids)
++        common.update(typed_fields)
+     if kind == 'gap':
+         return create_model('WriterGap',__base__=Contract,**common,
+             missing=(nonblank,Field(description='Name the missing fact that prevents a defensible judgment.')),
+@@ -383,6 +403,7 @@ def _step_schema(choices, kind, qualitative=False):
+             description='Omit to use the midpoint of the adopted grade. Supply an alternative only with value_reason.'))
+         scoring['value_reason'] = (nonblank | None, Field(default=None,
+             description='Specific object fact and reasoning for departing from the midpoint within the adopted grade.'))
++    scoring.update(typed_fields)
+     if kind=='evidence':
+         scoring['basis_kind']=(Literal['direct_evidence','applied_guideline'],Field(
+             description='direct_evidence uses project facts; applied_guideline uses project facts plus a quoted approved guideline rule.'))
+@@ -394,30 +415,45 @@ def _step_schema(choices, kind, qualitative=False):
+         __base__=Contract,__validators__={'plausible':plausible},**scoring)
+ 
+ 
++def _typed_facts(scope):
++    profile = scope.get('qualitative_profile', {})
++    current = profile.get('facts', {}).get(scope['object']['object_id'], {})
++    if 'attestations' not in current:
++        return None
++    # A review question may cite a different object's source as context. Decisive support
++    # is restricted to the assessed object by the native claim validator.
++    return list({row['fact_id']:row for obj in profile['facts'].values()
++                 for row in obj.get('attestations', [])}.values())
++
++
++def _fact_ids(facts):
++    return tuple(f['fact_id'] for f in facts) if facts is not None else None
++
++
+ def step_outcome_schema(cs, actor, indicator_id, kind):
+     with cs.store.connect() as db:
+         scope = _assignment(cs, db, actor)
+         _, _, rule, _ = _step_state(db, scope, actor)
+         if not rule or rule['id'] != indicator_id:
+             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+-        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'qualitative_profile' in scope)
++        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'qualitative_profile' in scope,_fact_ids(_typed_facts(scope)))
+ 
+ 
+-def _step_value(rule, outcome, *, qualitative=False):
++def _step_value(rule, outcome, *, qualitative=False, facts=None):
+     from .message_fields import validate_message
+     data = deepcopy(outcome)
+     kind = data.pop('kind', None)
+     # Legacy local callers used an explicit basis tag. The public assumption tool owns it now.
+     if kind == 'assumption' and data.get('basis_kind') == 'indirect_assumption':
+         data.pop('basis_kind')
+-    value = validate_message(_step_schema(tuple(_grade(g) for g in rule['grades']),kind,qualitative),data).model_dump(mode='json')
++    value = validate_message(_step_schema(tuple(_grade(g) for g in rule['grades']),kind,qualitative,_fact_ids(facts)),data).model_dump(mode='json')
+     if qualitative and kind in ('evidence','assumption'):
+         from .method_pack import number
+         band = next(g for g in rule['grades'] if _grade(g) == value['grade'])
+         midpoint = (number(band['min_value']) + number(band['max_value'])) / 2
+         if value['value'] is None:
+             value['value'] = str(midpoint)
+-        elif number(value['value']) != midpoint and not value['value_reason']:
++        elif facts is None and number(value['value']) != midpoint and not value['value_reason']:
+             raise ActionRejected('WRITER_NON_MIDPOINT_VALUE_REASON_REQUIRED')
+         if value['value_reason'] is None:
+             value.pop('value_reason')
+@@ -433,10 +469,24 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
+         key, draft, rule, _ = _step_state(db, scope, actor)
+         if not rule or rule['id'] != indicator_id:
+             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+-        value = _step_value(rule, outcome, qualitative='qualitative_profile' in scope)
++        facts = _typed_facts(scope)
++        value = _step_value(rule, outcome, qualitative='qualitative_profile' in scope, facts=facts)
++        claim_receipt = {}
++        if facts is not None:
++            from .method_pack import number
++            from .writer_claims import apply_claims
++            band = next((g for g in rule['grades'] if _grade(g)==value['grade']),None)
++            midpoint = (number(band['min_value'])+number(band['max_value']))/2 if band else None
++            if band and not number(band['min_value']) <= number(value['value']) <= number(band['max_value']):
++                raise ActionRejected('WRITER_VALUE_OUTSIDE_CHOSEN_GRADE')
++            value, checks = apply_claims(value, indicator_id=indicator_id, subject=scope['object']['object_id'],
++                                         attestations=facts, midpoint=midpoint, grade_id=band['id'] if band else None,
++                                         registered_excerpts=[r['quote'] for obj in scope['qualitative_profile']['facts'].values()
++                                            for r in [*obj.get('observations',[]), *obj.get('attestations',[])] if r.get('quote')])
++            claim_receipt = {'claim_checks': checks}
+         order = scope['plan']['payload']['indicator_rank_order']
+         rank = order['indicator_ids'].index(indicator_id) + 1
+-        entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations)}
++        entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations), **claim_receipt}
+         if value['kind'] == 'gap':
+             entry['sources'] = resolve_judgment_sources(cs, db, actor, scope, value['quotes'])
+         else:
+@@ -456,7 +506,7 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
+             receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
+             draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']
+             _set(db, key, draft)
+-        return {**status, 'saved_indicator':indicator_id, **issue_receipt}
++        return {**status, 'saved_indicator':indicator_id, **issue_receipt, **claim_receipt}
+     return cs.operation(actor, operation_id,
+         {'indicator_step':indicator_id,'outcome':outcome,'read_locations':list(read_locations)}, save,
+         binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])
+diff --git a/src/report_agent/writer_claims.py b/src/report_agent/writer_claims.py
+new file mode 100644
+index 0000000..cdb1b57
+--- /dev/null
++++ b/src/report_agent/writer_claims.py
+@@ -0,0 +1,280 @@
++"""Claim checks for the qualitative pilot. Engineering interpretation belongs to review."""
++from datetime import date
++from decimal import Decimal
++from typing import Annotated, Literal
++from unicodedata import normalize
++
++from pydantic import Field, create_model
++
++from .content_models import Contract
++from .errors import ActionRejected
++from .writer_issues import IndicatorConflict
++
++
++Text = Annotated[str, Field(min_length=1, pattern=r'\S')]
++
++
++class ExternalSupport(Contract):
++    statement: Text
++    subject: Text
++    scope: Text
++    quotes: list[Text] = Field(min_length=1)
++
++
++class ReferencedConflict(IndicatorConflict):
++    # The host supplies quotes selected through contrary_fact_ids before native issue validation.
++    quotes: list[Text] = Field(default_factory=list)
++
++
++def claim_fields(kind, ids):
++    handle = Literal[ids] if ids else Text
++    handles = list[handle]
++    common = {
++        'quotes': (list[Text], Field(default_factory=list, description='Exact outside-register text only. Use fact_ids for quotations already in the register.')),
++        'context_fact_ids': (handles, Field(default_factory=list)),
++        'contrary_fact_ids': (handles, Field(default_factory=list)),
++        'contrary_evidence': (ReferencedConflict | None, None),
++    }
++    if kind == 'gap':
++        return {**common, 'fact_ids': (handles, Field(default_factory=list, description='Facts describing the gap or source coverage.'))}
++    claim = create_model('FactClaim', __base__=Contract, statement=(Text,...), fact_ids=(handles,...))
++    adjustment = create_model('AdjustmentClaim', __base__=claim, direction=(Literal['higher','lower'],...))
++    frequency = create_model('EventFrequency', __base__=Contract, fact_id=(handle,...),
++        event_count=(int,Field(ge=0,strict=True)), period_years=(float,Field(gt=0,allow_inf_nan=False)))
++    count = create_model('InvestigationCount', __base__=Contract, fact_id=(handle,...),
++        purpose=(Literal['survey_section_count','borehole_count','test_pit_count','geophysical_point_count'],...), count=(int,Field(ge=0,strict=True)))
++    common.update(grade_claim=(claim, Field(description='Proposition establishing or provisionally supporting the grade, with its fact handles.')),
++        external_support=(ExternalSupport | None,None),
++        adjustment_claim=(adjustment | None,Field(default=None,description='Separate directional basis for a within-band departure.')),
++        event_frequency=(frequency | None, Field(default=None,description='For direct frequency: select the event observation and its own count and time interval.')),
++        investigation_counts=(list[count],Field(default_factory=list,description='Each survey count asserted for this object, including zero.')),
++        question_effect=(Literal['information_only','in_band_value','grade'] | None,None))
++    if kind=='assumption':
++        basis=create_model('AssumptionBasis', __base__=claim, relationship=(Text,...), narrowing=(Text,...))
++        common['assumption_basis']=(basis,Field(description='Positive fact, its relationship to this object, and how it narrows the proposed alternatives.'))
++    return common
++
++
++def _refuse(detail):
++    raise ActionRejected('WRITER_CLAIM_UNSUPPORTED: '+detail+
++        ' Use save_gap to record the missing support and a specific review question.',
++        diagnostic={'reason':detail,'recommended_tool':'save_gap'})
++
++
++# These are types of observations required by the indicator definitions, independent of object ID and prose.
++_GRADE_PURPOSES = {
++    'X21': {'material','weathering'}, 'X22': {'slope_structure'}, 'X23': {'groundwater_condition'},
++    'X32': {'hazard_frequency'}, 'X41': {'engineering_measure'}, 'X42': {'facility_presence'},
++    'X51': {'survey_section_count','borehole_count','test_pit_count','geophysical_point_count'}, 'X52': {'design_file_coverage','drawing_contents'},
++}
++
++
++def _facility_band(facts, grade):
++    limits = {'very_high': (0.5,1.0), 'high': (1.0,1.5), 'moderate': (1.5,2.0)}
++    if grade == 'low':
++        surveyed = any(f['state']=='explicit_absence' and f.get('value')==0
++            and (f.get('survey_extent') or {}).get('upslope_h',0)>=1.5
++            and (f.get('survey_extent') or {}).get('downslope_h',0)>=2 for f in facts)
++        if not surveyed:
++            _refuse('The low facility band requires a negative inventory covering the method survey envelope.')
++    closest = []
++    for f in facts:
++        loc = f.get('facility_location') or {}
++        if loc:
++            side = 0 if loc['side']=='upslope' else 1
++            closest.append(next((g for g,pair in limits.items() if loc['distance_h']<=pair[side]),'low'))
++    order = [*limits,'low']
++    if closest and min(closest,key=order.index) != grade or grade!='low' and not closest:
++        _refuse('The measured facility distance must support the selected band for the slope side.')
++
++
++def _investigation_band(counts, grade):
++    sections = counts.get('survey_section_count')
++    holes = counts.get('borehole_count')
++    pits = counts.get('test_pit_count',0)
++    if sections is None:
++        _refuse('State the documented section count as well as the investigation points for a direct survey grade.')
++    if sections>1:
++        _refuse('Object totals do not establish the investigation points in each section.')
++    total_known = all(k in counts for k in ('borehole_count','test_pit_count','geophysical_point_count'))
++    points = (holes or 0) + pits + counts.get('geophysical_point_count',0)
++    valid = {
++        'very_high': total_known and ((sections==0 and points==0) or (sections==1 and points<=1)),
++        'high': total_known and sections==1 and points==2,
++        'moderate': sections==1 and points==3,
++        'low': sections>=1 and (holes or 0)>0 and pits>0 and holes+pits>=3,
++    }
++    if not valid.get(grade):
++        _refuse('The stated section and investigation-point counts do not establish the selected method band.')
++
++
++def _season_overlap(facts):
++    months = {m for f in facts if f['purpose']=='hazard_season' for m in (f.get('months') or [])}
++    for f in facts:
++        if f['purpose']=='construction_date':
++            try:
++                if date.fromisoformat(f['value']).month in months:
++                    return True
++            except (ValueError,TypeError):
++                continue
++    return False
++
++
++def apply_claims(value, *, indicator_id, subject, attestations, midpoint, grade_id, registered_excerpts=()):
++    """Validate the model's propositions and return the effective row and a separate audit record."""
++    facts = {f['fact_id']: f for f in attestations}
++    value = dict(value)
++    checks = {'review_flags': [], 'semantic_review_required': value['kind']!='gap'}
++    attached = []
++    def selected(ids, *, attach=True):
++        if any(i not in facts for i in ids):
++            _refuse('Unknown or unoffered fact handle.')
++        resolved = [facts[i] for i in ids]
++        if attach:
++            attached.extend(f['quote'] for f in resolved)
++        return resolved
++
++    def usable(f, *, offsite=False):
++        if f['state'] not in ('known','explicit_absence') or indicator_id not in f['indicator_ids']:
++            return False
++        if f['purpose']=='drawing_contents' and not f.get('visual_verified'):
++            return False
++        if f['state']=='explicit_absence' and (f['subject']!=subject or f['coverage']!='object'):
++            return False
++        return subject in f['applies_to'] or (offsite and subject in f['related_to'])
++
++    def normalized(text):
++        return ''.join(normalize('NFKC', text).casefold().split())
++
++    excerpts = {normalized(q) for q in [*(f['quote'] for f in attestations), *registered_excerpts] if q.strip()}
++    external = value.get('external_support') or {}
++    supplied_quotes = [*value.get('quotes', []), *external.get('quotes', [])]
++    for q in map(normalized, supplied_quotes):
++        if any(q in excerpt or excerpt in q for excerpt in excerpts):
++            _refuse('Select the registered fact_id for this quotation using the appropriate claim or context field.')
++
++    selected(value.get('context_fact_ids', []))
++    contrary = selected(value.get('contrary_fact_ids', []))
++    if issue := value.get('contrary_evidence'):
++        value['contrary_evidence'] = {**issue,'quotes':list(dict.fromkeys([*issue.get('quotes',[]),*(f['quote'] for f in contrary)]))}
++    if value['kind'] == 'gap':
++        checks['semantic_review_required'] = True
++        checks['review_flags'].append('GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW')
++        if value.get('question'):
++            checks['review_flags'].append('QUESTION_REQUIRES_SEMANTIC_REVIEW')
++        selected(value.get('fact_ids', []))
++        value['quotes'] = list(dict.fromkeys([*value.get('quotes',[]),*attached]))
++        return value, checks
++
++    assumption = value['kind'] == 'assumption'
++    grade_facts = selected(value['grade_claim']['fact_ids'])
++    basis_facts = selected(value['assumption_basis']['fact_ids']) if assumption else []
++    purposes = _GRADE_PURPOSES[indicator_id]
++    if assumption and indicator_id=='X32':
++        purposes = purposes | {'hazard_event'}
++    def supports_grade(f):
++        if f['purpose'] not in purposes or not usable(f,offsite=assumption and f['purpose']=='hazard_event'):
++            return False
++        if indicator_id in ('X42','X51','X52') and subject != f['subject']:
++            return False
++        if indicator_id in ('X42','X51') and f['coverage']!='object':
++            return False
++        return True
++    if external:
++        if external['subject'] != subject:
++            _refuse('External evidence must concern the assessed object.')
++        attached.extend(external['quotes'])
++        checks['review_flags'].append('EXTERNAL_SCOPE_REQUIRES_CRITICAL_REVIEW')
++    external_can_support = external and indicator_id in ('X21','X22','X41')
++    def validate_decisive(rows, label):
++        anchors = [f for f in rows if supports_grade(f)]
++        if not anchors and not external_can_support:
++            _refuse(label+' requires applicable '+', '.join(sorted(purposes))+' evidence.')
++        for f in rows:
++            if f in anchors:
++                continue
++            related_location = (assumption and indicator_id=='X32' and f['purpose']=='location' and usable(f,offsite=True)
++                and any(a['purpose']=='hazard_event' and a.get('document')==f.get('document')
++                        and a.get('page')==f.get('page') for a in anchors))
++            if not related_location:
++                _refuse('The decisive '+label+' handle '+f['fact_id']+' is contextual or concerns another subject.')
++    validate_decisive(grade_facts,'grade')
++    if assumption:
++        validate_decisive(basis_facts,'assumption basis')
++    if indicator_id=='X42' and not assumption:
++        _facility_band(grade_facts,grade_id)
++    if not assumption and indicator_id=='X23' and any(f['state']=='explicit_absence' for f in grade_facts):
++        checks['review_flags'].append('ABSENCE_GRADE_REQUIRES_CRITICAL_REVIEW')
++
++    if indicator_id=='X32' and (not assumption or value.get('event_frequency')):
++        observed = value.get('event_frequency') or {}
++        fact = facts.get(observed.get('fact_id'))
++        if (not fact or fact not in grade_facts or fact['purpose']!='hazard_frequency'
++                or not usable(fact) or fact.get('event_count') is None or fact.get('period_years') is None
++                or observed.get('event_count') != fact['event_count'] or observed.get('period_years') != fact['period_years']):
++            _refuse('A direct frequency claim needs the event count and observation period from the same applicable event history.')
++        if not assumption and fact['event_count']==0 and grade_id!='low':
++            _refuse('Zero observed events cannot establish a positive event frequency in this period.')
++        if not assumption and fact['event_count']>0:
++            checks['review_flags'].append('FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW')
++    if indicator_id=='X51':
++        counts = value.get('investigation_counts', [])
++        if not counts:
++            _refuse('Identify the documented investigation counts for the assessed object.')
++        quantities = {}
++        for count in counts:
++            fact = facts.get(count['fact_id'])
++            if (not fact or fact not in grade_facts or not supports_grade(fact) or fact['purpose'] != count['purpose']
++                    or fact.get('value') != count['count']):
++                _refuse('Every investigation count, including zero, needs an explicit value for this object and investigation type.')
++            if count['purpose'] in quantities and quantities[count['purpose']]!=count['count']:
++                _refuse('Conflicting count values cannot establish the same decisive observation.')
++            quantities[count['purpose']] = count['count']
++        if {f['fact_id'] for f in grade_facts} != {c['fact_id'] for c in counts}:
++            _refuse('Every decisive investigation count must be spelled out with its typed observation.')
++        if not assumption:
++            _investigation_band(quantities,grade_id)
++    if assumption:
++        checks['review_flags'].append('ASSUMPTION_REQUIRES_SEMANTIC_REVIEW')
++    if value.get('question'):
++        checks['review_flags'].append('QUESTION_REQUIRES_SEMANTIC_REVIEW')
++        if indicator_id=='X32':
++            checks['seasonal_adjustment_target'] = 'in_band_value'
++            if value.get('question_effect')=='grade':
++                checks['review_flags'].append('QUESTION_EFFECT_CONFLICT')
++
++    if Decimal(value['value']) != midpoint:
++        proposed, reason = value['value'], value.get('value_reason')
++        adjustment = value.get('adjustment_claim')
++        refs = selected(adjustment['fact_ids'],attach=False) if adjustment else []
++        direction = 'higher' if Decimal(proposed)>midpoint else 'lower'
++        supports_direction = adjustment and reason and adjustment['direction']==direction
++        if indicator_id=='X51':
++            quality = 'limited' if direction=='higher' else 'adequate'
++            adequate = bool(refs) and all(usable(f) and f['purpose']=='survey_investigation_quality'
++                                          and f.get('value')==quality for f in refs)
++        elif indicator_id=='X32':
++            if direction=='higher':
++                adequate = all(usable(f) and f['purpose'] in ('hazard_season','construction_date') for f in refs) and _season_overlap(refs)
++            else:
++                events = [f for f in refs if f['purpose']=='hazard_event' and subject in f['related_to'] and usable(f,offsite=True)]
++                adequate = bool(events) and all(f in events or (f['purpose']=='location' and usable(f,offsite=True)
++                    and any(f.get('document')==e.get('document') and f.get('page')==e.get('page') for e in events)) for f in refs)
++        else:
++            # Other method factors have no independently typed directional observation in this pilot.
++            adequate = False
++        if supports_direction and adequate:
++            attached.extend(f['quote'] for f in refs)
++            checks['review_flags'].append('ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW')
++        else:
++            checks['adjustment'] = {'status':'refused_midpoint_retained', 'proposed_value':proposed,
++                'proposed_reason':reason,'proposed_claim':adjustment,'retained_value':str(midpoint),
++                'reason':'No applicable fact supporting the proposed within-band direction.'}
++            checks['adjustment']['original_rationale'] = value['rationale']
++            value['rationale'] = value['grade_claim']['statement']+' The system retained the midpoint; the proposed adjustment was refused.'
++            value['value'] = str(midpoint)
++            value.pop('value_reason',None)
++            value.pop('adjustment_claim',None)
++            checks['review_flags'].append('UNSUPPORTED_ADJUSTMENT_RETAINED_MIDPOINT')
++    value['quotes'] = list(dict.fromkeys([*value.get('quotes',[]),*attached]))
++    return value, checks
+diff --git a/tests/fake_data/mini_commission_04/README.md b/tests/fake_data/mini_commission_04/README.md
+new file mode 100644
+index 0000000..b798cdb
+--- /dev/null
++++ b/tests/fake_data/mini_commission_04/README.md
+@@ -0,0 +1,7 @@
++# Fake04 evidence controls
++
++The four synthetic PDFs describe North and South. The survey names a search area, a measured facility, borehole and pit counts, and a groundwater observation with a depth and date. Separate hazard histories give explicit counts and periods for the two sites. A design inventory, a sheet reference and a checked drawing supply different levels of information about the design.
++
++Each entry in `attestations.json` identifies its source page, exact quote, subject and scope. The original pages are in `inputs/`. The file contains observations and source limitations. The expected acceptance or refusal of a claim is kept in `tests/test_fake04_claim_controls.py`, outside the source materials.
++
++This fixture exercises the claim validator offline. It does not supply an approved commission plan or a complete engineering assessment.
+diff --git a/tests/fake_data/mini_commission_04/attestations.json b/tests/fake_data/mini_commission_04/attestations.json
+new file mode 100644
+index 0000000..93c42e2
+--- /dev/null
++++ b/tests/fake_data/mini_commission_04/attestations.json
+@@ -0,0 +1,330 @@
++[
++  {
++    "fact_id": "F04-N-FREQUENCY",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "regional",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Complete North work-area event log for the stated five calendar years",
++    "purpose": "hazard_frequency",
++    "indicator_ids": [
++      "X32"
++    ],
++    "document": "01_hazard_register.pdf",
++    "page": 1,
++    "quote": "North work area: three rockfalls recorded from 2021-01-01 through 2025-12-31.",
++    "value": "rockfall",
++    "event_count": 3,
++    "period_years": 5
++  },
++  {
++    "fact_id": "F04-N-SEASON",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "regional",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "North log explicitly relates July to its three reported rockfalls",
++    "purpose": "hazard_season",
++    "indicator_ids": [
++      "X32"
++    ],
++    "document": "01_hazard_register.pdf",
++    "page": 1,
++    "quote": "All three North events took place in July, during the local rockfall season.",
++    "value": "July",
++    "months": [
++      7
++    ]
++  },
++  {
++    "fact_id": "F04-N-START",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "North construction start",
++    "purpose": "construction_date",
++    "indicator_ids": [
++      "X31",
++      "X32"
++    ],
++    "document": "03_design_review.pdf",
++    "page": 1,
++    "quote": "North excavation begins on 2026-07-05.",
++    "value": "2026-07-05"
++  },
++  {
++    "fact_id": "F04-S-FREQUENCY",
++    "subject": "South",
++    "applies_to": [
++      "South"
++    ],
++    "source_class": "regional",
++    "state": "explicit_absence",
++    "coverage": "object",
++    "coverage_detail": "Complete South work-area rockfall log for five calendar years",
++    "purpose": "hazard_frequency",
++    "indicator_ids": [
++      "X32"
++    ],
++    "document": "01_hazard_register.pdf",
++    "page": 2,
++    "quote": "South work area: zero rockfalls recorded from 2021-01-01 through 2025-12-31.",
++    "value": "rockfall",
++    "event_count": 0,
++    "period_years": 5
++  },
++  {
++    "fact_id": "F04-N-FACILITIES",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "survey",
++    "state": "explicit_absence",
++    "coverage": "object",
++    "coverage_detail": "Survey within 2.0H above the crest and 2.0H below the road",
++    "purpose": "facility_presence",
++    "indicator_ids": [
++      "X42"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 1,
++    "quote": "North: no surveyed facilities within 2.0H above the crest or 2.0H below the road.",
++    "value": 0,
++    "unit": "facilities",
++    "survey_extent": {
++      "upslope_h": 2.0,
++      "downslope_h": 2.0
++    }
++  },
++  {
++    "fact_id": "F04-N-BOREHOLES",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Boreholes in North section N1",
++    "purpose": "borehole_count",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 1,
++    "quote": "North section N1: three boreholes; zero test pits; no geophysics performed.",
++    "value": 3
++  },
++  {
++    "fact_id": "F04-N-PITS",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "survey",
++    "state": "explicit_absence",
++    "coverage": "object",
++    "coverage_detail": "Explicit zero test pits in North section N1",
++    "purpose": "test_pit_count",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 1,
++    "quote": "North section N1: three boreholes; zero test pits; no geophysics performed.",
++    "value": 0
++  },
++  {
++    "fact_id": "F04-N-SECTIONS",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "North investigation sections",
++    "purpose": "survey_section_count",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 1,
++    "quote": "North: N1 is the only investigation section.",
++    "value": 1
++  },
++  {
++    "fact_id": "F04-N-INVESTIGATION",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Field report assessment for North",
++    "purpose": "survey_investigation_quality",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 1,
++    "quote": "North: investigation of geology and groundwater is adequate to select calculation parameters.",
++    "value": "adequate"
++  },
++  {
++    "fact_id": "F04-N-GROUNDWATER",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "survey",
++    "state": "explicit_absence",
++    "coverage": "object",
++    "coverage_detail": "N1 borings to 15 m on 2026-03-21; does not characterize all depths",
++    "purpose": "groundwater_condition",
++    "indicator_ids": [
++      "X23"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 1,
++    "quote": "No groundwater was encountered in the North N1 boreholes down to 15 m on 2026-03-21.",
++    "value": "not encountered"
++  },
++  {
++    "fact_id": "F04-S-PARTIAL-ZERO",
++    "subject": "South",
++    "applies_to": [
++      "South"
++    ],
++    "source_class": "survey",
++    "state": "explicit_absence",
++    "coverage": "object",
++    "coverage_detail": "Partial survey confined to 0.2H upper and lower limits",
++    "purpose": "facility_presence",
++    "indicator_ids": [
++      "X42"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 2,
++    "quote": "South: no facilities found within 0.2H above the cut crest and 0.2H below the road.",
++    "value": 0,
++    "unit": "facilities",
++    "survey_extent": {
++      "upslope_h": 0.2,
++      "downslope_h": 0.2
++    }
++  },
++  {
++    "fact_id": "F04-S-FACILITY",
++    "subject": "South",
++    "applies_to": [
++      "South"
++    ],
++    "source_class": "survey",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Surveyed facility, measured from South upper excavation limit",
++    "purpose": "facility_presence",
++    "indicator_ids": [
++      "X42"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 2,
++    "quote": "South: field survey located a water tank 0.4H upslope from the cut crest.",
++    "value": "water tank at 0.4H upslope",
++    "facility_location": {
++      "side": "upslope",
++      "distance_h": 0.4
++    }
++  },
++  {
++    "fact_id": "F04-S-SURVEY-RECORD",
++    "subject": "South",
++    "applies_to": [
++      "South"
++    ],
++    "source_class": "survey",
++    "state": "unknown",
++    "coverage": "document",
++    "coverage_detail": "Missing South investigation record; counts unknown",
++    "purpose": "survey_coverage",
++    "indicator_ids": [
++      "X51"
++    ],
++    "document": "02_field_survey.pdf",
++    "page": 2,
++    "quote": "South: survey of investigation sections and exploration point counts is unavailable.",
++    "value": null
++  },
++  {
++    "fact_id": "F04-N-INDEX",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "document",
++    "coverage_detail": "Reviewed drawing inventory; completeness only for the five stated sheet types",
++    "purpose": "design_file_coverage",
++    "indicator_ids": [
++      "X52"
++    ],
++    "document": "03_design_review.pdf",
++    "page": 1,
++    "quote": "North: checked drawing index lists plan, elevation, cross-section, structure and detail sheets.",
++    "value": "plan, elevation, cross-section, structure, details"
++  },
++  {
++    "fact_id": "F04-S-REF",
++    "subject": "South",
++    "applies_to": [
++      "South"
++    ],
++    "source_class": "design",
++    "state": "known",
++    "coverage": "document",
++    "coverage_detail": "South sheet index reference only; S-8 not visually verified",
++    "purpose": "drawing_reference",
++    "indicator_ids": [
++      "X11",
++      "X52"
++    ],
++    "document": "03_design_review.pdf",
++    "page": 1,
++    "quote": "South: bench dimensions are referenced to sheet S-8; its image was not provided for review.",
++    "value": "S-8"
++  },
++  {
++    "fact_id": "F04-N-DRAWING",
++    "subject": "North",
++    "applies_to": [
++      "North"
++    ],
++    "source_class": "drawing",
++    "state": "known",
++    "coverage": "object",
++    "coverage_detail": "Synthetic drawing N-1; visually checked upper bench only",
++    "purpose": "drawing_contents",
++    "indicator_ids": [
++      "X52"
++    ],
++    "document": "04_checked_section.pdf",
++    "page": 1,
++    "quote": "North: verified drawing N-1 shows a bench width of 4 m below the upper cut.",
++    "value": "bench width 4 m",
++    "visual_verified": true
++  }
++]
+diff --git a/tests/fake_data/mini_commission_04/inputs/01_hazard_register.pdf b/tests/fake_data/mini_commission_04/inputs/01_hazard_register.pdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..b96b1462f6d9621d0be37b0590c277ca89a5df0f
+GIT binary patch
+literal 1729
+zcmds2O;6iE5WVlOm`fy(YP@U5PN)!4p+x;|1in=WE%rDuF}u<3Iwkzc9{La3Khjwf
+zLgLU%B`&p`$R5qUdGq$|xHo<~3dBLodcS`E_{jut(APKY=!k{ca*hz5N+)YQVc}R#
+z&_YBB=j`~Hp(=c$f8Sov=CSZpH_Ac8!jDy9;Tyz$A*Aj9<pzL{?*g#!9Ib9lP9;5;
+zktVSAK|tSQcm%q`&sbFQMBh;be!$ybDk2yhMsVpl8}uyN6+}rndbM!)h_GtHBW`o>
+z^;me(T)S2TFNI*?iL}@<3EyG8Kv(5*qmyI<<rAujn?f85pJ1IqdCN{R2uA{lURFY%
+z!yrx}D`0OVXUO|tm&#2&DBz+hP~`{#aB(%2_tF$s1}BwuXec<RtpKqP*$pWpsGY22
+z9D-;_aBT03HdOk%HZ!31<!f+Lg9t|Fvr^Wz1%tUZ1r|^meG3tfM8N&+6LmA0`cM*x
+zD2T;DTjUA*O<k|x9;)D?71U`xgLy59a;4xyQ!igZ(U?k2C>x>HxvbX&z@oHTb)i>)
+zcez|hS7`;;)UdKZPsAq;_#oiP!=kgy+i#`nY7f1$w)fB*@nwB9==jLLKXO<(Kn&9t
+zb3pVr2VCf8+X44z^jiOaFu-$y4>y_}8(lOxd2?^RoEPQ(#;NdUt)odaID9cp{*P0^
+zo)i4epg-n<GrqncO_Df)64o(6W5{2io?<BtxK2z&v@xAnl+yU`#At%;#0G+fb|-Jx
+z->ED3kOuE|o)FOno-?wl(X?Nii|U?c8m9xRwFCbhI%nZ~Rci1?Yv;Xn(zsRy(N6^H
+J_0GPI*dI+`;+_Bi
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/fake_data/mini_commission_04/inputs/02_field_survey.pdf b/tests/fake_data/mini_commission_04/inputs/02_field_survey.pdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..d3cb842df3b7b48e6d2c9d1a41b8cdf5191c09a6
+GIT binary patch
+literal 2133
+zcmeHJL6g!-5Wdf^=*w2E2S_p@u&kDcRjGaTp1QTm&9bZ^>A+~n<jqWA@lSg2ALt*k
+zdk8DA=*^ocpqNh2*PZ^p?#bEB%SkWkr{e6}_b*>X0x_7`NAc{Lh^CtcA$p;_s?1zO
+zH)@U!BstuQ=g$S!1v~Qka6|AD(F@bo9;Ar=)rEt1kn%<thTr#l0BnB@Afj7zrnNbR
+z<Xk3(z`~yd28_W7^od?$q1BbSrwDOB4&PxSVKkQTo^!UyS%e*wQtfH!Alo5y55b6s
+zIdD7?-L*3xiom5vM0BMbhD@SstXAlCuJ)dUQFkc+VLkT?$OZ#;aNeR?imNF^lLRQe
+zX$gZEM(Gfy1)NXRCyWQ+Hnm?cDBwyLSmy{mh~<Y;V^w@`tzF@UEDiAh$rG4<q_QM1
+zCNL30PhJp~IDccTUtB_MV7mbeC{?a2?KPEht^GpRAp7w(sF_(IP(;WrIuFKf?K7;*
+zI@qmIMLz^O!Uu=B*QSOy$t8JOM3@<i3sa$c3ZKy$@C?~#Pix9$j;2{`oX#CIXiH<4
+zcpCYVAVIqj-qh6wbiE=ZJy#)K7x!dRmq)&)<gg^&4XC<+xg|jsYvs{$09D}sEiJ%P
+zrLdysfm~I2TWte1%Bm%juX`Np0BWrq5LGO8v{Y=WE|)aWz|Znf7bwh{?ioljSOV2f
+z#&Xz;)1FMWAzn?nr#h*0!sK?@Now1U++BaRImSoLG1|+aleHX;|BS5VuVj5^T9$Qa
+zg-+Q}nVbkLK*5$(uj)@U00!64Hm))>yh>}9fsVW-dRgViY<9R^bCG0D>W$<=3c~xQ
+zGPcu)(KJ^A?T+Qt)@r46rDhfWn$3&7O5Rvgv^i<<yxBBG`DAa7FabN#yMm{q(cgmq
+zzTiJcRL3ceoxRCda`*4%U)+}m^KYk)Ky$cxY6zZc(0hwKeUn(k4;KuxEX|;V2OG6~
+zxC`}9+mH?&zV>X1B<hcBa!5z=ku6Oh+s2Y+#i3skXQa3zTYB->HjvcgJ3ntp$7sVF
+rz@7d~M@>xg#uyL$Zg4B2f9lczOF5ju&MWIf6_SfA6K7|y-cH01rR{cX
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/fake_data/mini_commission_04/inputs/03_design_review.pdf b/tests/fake_data/mini_commission_04/inputs/03_design_review.pdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..8765401ef1dd0c324bb84617ce8a59dbc5247daf
+GIT binary patch
+literal 1373
+zcmeHHO-~y!5WV|Xyh|jIy6hL(gcfmt61D0VN^+|zWY&|!5bVhIlF&cdL;pehM>^gR
+z2t+;gT1zXfN1pfI%p1FN@ph2p2c_uz`u*dl$dSQbU5n#mk&f>dg!D`XIk!`hUdSnV
+z6ntPPPEG_F6%WS!^Mv-CNY89z0&<al(8}X0%9x06Td6U!n<~;FdE2;}$)bvZWtjFS
+z$Ki&Y`O{CNv^=#d#?B71_N(#&y`zFzSgj*YT+3xKCh*pyw?TN29}%Bxh<qX)HCLf6
+zKQ@7jIF+7SCFwhw-%-%D+^VFzh4PWiG|W(DNAZ9Uj^wR49U~p&V0q&S4m0%13S))6
+zfxMyY5dPkTSp)^$X+@?cB*@B3MP5(MrQ;|qIkaF4kndxB&3(yn#AqTzQuG;2?0vQ_
+z%wD6OQGG)S%E_fRQ)r`Tg}L@z{$ei8E6|+oWYCs>YiGSrJk{$h%Wdk=ID#~cKtbv`
+z{ER60gO>J*ZDgCscExIEQ2LgPXG9O~I~+}j+h4PaVAuH=CH*(htU=$#Dwfj2*nowz
+zv1Embb(|LqT{E4J<A^=<@4>BVtIrqCs-`A~y~X`PP4>6!h$e4L-PlnT|Lyn}JD!Yh
+z#|*Tp<$8#C1g4sew+2O4R7uuLvhLqKT=8)5(Dp_4xKMSwWfv1X#&W(<alt&rD!!{P
+zVtK)D$ctFf-OVkF-B{J%jrEExj^KFs$+b`6NPj1moDMCIY<we!B7JWr7I7lm=g<e~
+QLR(v&mp#$xoPQaJKP4lNeE<Le
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/fake_data/mini_commission_04/inputs/04_checked_section.pdf b/tests/fake_data/mini_commission_04/inputs/04_checked_section.pdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..55c3524ca59b88fbb43aa8471e79e389d03c108b
+GIT binary patch
+literal 1371
+zcmds1+iu!G5PjdTm=`4S0DJL`R8byCgIcvs5x7rP6&ZWLPKejC*CF&L`_MmVf26Zp
+zOt}0&RZB+p;mpjLIpgh3-%bW{=&|0f-#>mb2?F%ufn8lO9&alIev_DFtyhdslNC0g
+zh%jT<*9^<d67BnOfa5WKqubJeWc)*sHSiTY8wlSHLM?J0%J>W$-PS1;vnnQ<(zpi+
+zepj68^G}!+$ymQoZZQ<@4yA(VQc)FBTO$Sjl}lnuL$3`)U51@}oAFqKt;hJhT^QHC
+z9Rf8mP8xJd_&Z!bqbbtlpp)Pr%SS9%CI`=xme80QlP5Ngflnlmym$$|fXE9W&Y(X@
+z9#QzvY)g~dq=3&whGmK{0O8-KIi`=8-8Yz;LYD+qWCF+wh#zP&5-uqp6EILCO2_(l
+zx;FV6c*eR|7MMX+C!3;N!QDVYlj}_bx<s1d6D+7mPQPot0V)k`RbdTjYlbfOZA`{)
+zAX1=4g6K*Jk}Y5jD(aqm5kR0q!sbj21EM>YlpUXX-0@$Z=wHh}nuk(8_`dH3LfWhV
+zpsF+`JEAY0GKZ5ea&9-(ormGU^ryAX+LT)9SKBIEUL2TYt?#Vfn>6|tO-gq5Y>JFF
+zNz=wS$NmSeUTU-pJ7QvgK^O#H087|olD;Q<LHUY>^rfC)Qqc)=f~nv<)>G$LBxoH@
+zVk4h6sl!a26l<*AK{zkIBT42nt?5LgHJUO0zFcaso97P0#w4|Iy-Dc>tk=8!JYjzT
+DEFfp5
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/fixtures/fake03_run06_saved_inputs.json b/tests/fixtures/fake03_run06_saved_inputs.json
+new file mode 100644
+index 0000000..3a5fbed
+--- /dev/null
++++ b/tests/fixtures/fake03_run06_saved_inputs.json
+@@ -0,0 +1,270 @@
++{
++  "run_id": "mini-qualitative-20261107-06",
++  "candidate": "459110c3ca7d73acafbf4ba1fd8d32a33c1e70b0",
++  "receipt_sha256": "52e38f115281232ac126a74456de34f3bb5fc080d9417043314c342aea1cd0f9",
++  "rows": {
++    "A/X21": {
++      "basis_kind": "direct_evidence",
++      "contrary_evidence": null,
++      "grade": "强风化层基岩 [25–49]",
++      "kind": "evidence",
++      "missing": "",
++      "plausible_grades": [],
++      "question": "",
++      "quotes": [
++        "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
++        "坡段 A：实测坡率为 1:1.0。",
++        "坡段 A 有一个勘察断面，断面设置三个钻孔。"
++      ],
++      "rationale": "设计资料（04_design，按委托约定设计优先）明确坡段 A 为岩质边坡且\"整体风化程度为强风化\"，即属基岩的强风化层，与等级\"强风化层基岩 [25–49]\"直接对应。地勘记录（05_survey）仅含实测坡率与钻孔布置，未给出岩组或岩性描述，不能补充或否定设计分类；各资料中无任何将坡段 A 归入煤系地层、泥质岩岩组、残积层或第四系重力堆积层（易滑及软弱地层）的表述。限制说明：具体岩石名称与地层分布复杂程度未见描述，故不据此调整分值；设计明示整体强风化，该缺失细节不改变按设计得到的等级。无偏离中点的具体事实，按中点取值 37。",
++      "value": "37"
++    },
++    "A/X22": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段A坡体结构面的产状（倾向/倾角与坡向的夹角β）、性质（软弱或硬性）、贯通性与发育程度，以及结构面组合体的发育情况均未提供。设计说明仅有\"岩质，整体风化程度为强风化\"，地质调查记录仅有实测坡率和钻孔布置，均不涉及结构面；06_drawing横断面图文本通道无任何文字，不能据以判断图上是否表达结构面信息。",
++      "plausible_grades": [],
++      "question": "请补充坡段A的结构面（及组合面）产状、间距/发育程度、延伸贯通性及充填性质（软弱或硬性）等调查数据，例如钻孔柱状图或横断面图上的结构面统计，以便按贯通性与发育程度为X22选级。",
++      "quotes": [
++        "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
++        "坡段 A 有一个勘察断面，断面设置三个钻孔。",
++        "坡段 A：实测坡率为 1:1.0。"
++      ],
++      "rationale": "",
++      "value": null
++    },
++    "A/X23": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 A 的地下水分布信息缺失：无地下水出露位置（相对坡高 H=18 m 的范围）、地下水位、地下水类型（基岩承压水/裂隙水/孔隙潜水）及储水构造的任何记录。设计文件仅提及地表截排水沟，地勘记录无钻孔水位或地下水描述；横断面图（06_drawing）未在文字通道核读，图像内容无法由本文字审核员验证。",
++      "plausible_grades": [],
++      "question": "请提供坡段 A 勘察断面三个钻孔的地下水位/地下水出露位置（相对坡高 H=18 m 的高度范围）及地下水类型资料，或确认横断面图中是否标示地下水线；以便按地下水出露高度区间（下部 0.25H / 中下部 0.25～0.5H / 中上部 0.5～0.75H / 上部 0.75～1.0H）确定 X23 等级。",
++      "quotes": [
++        "坡段 A 有一个勘察断面，断面设置三个钻孔。",
++        "防护采用锚杆框架梁，设置截排水沟。",
++        "本页仅记录坡段 A。"
++      ],
++      "rationale": "所有四个等级均以地下水出露的坡高范围（0.25H 至 1.0H）为判据，而现有资料（01初始、02更正、04设计、05地勘、07区域）均无坡段 A 的地下水水位、出露或类型信息；设计截排水沟为地表排水措施，不能证明坡体内无地下水或其分布范围。06 横断面图未核读且本审核为文字通道，无法确认图面是否含地下水线。依据委托约定“无法确定的事项保留待核；存在指标缺口时不出总体分值或等级”，本指标保留待核。",
++      "value": null
++    },
++    "A/X32": {
++      "basis_kind": "indirect_assumption",
++      "contrary_evidence": null,
++      "grade": "自然灾害偶发 [25–49]",
++      "kind": "assumption",
++      "missing": "",
++      "plausible_grades": [
++        "自然灾害偶发 [25–49]",
++        "自然灾害很少 [0–24]"
++      ],
++      "question": "本区域是否存在暴雨集中季节、洪水/泥石流/滑坡等其他灾害记录，以及 2026-04-15 开始的施工期是否落在该灾害多发季节？若为灾害多发季节施工，按约定应取大值，本指标需上调至相应等级。",
++      "quotes": [
++        "坡段 A、B 所在区域过去五年年均降雨量为 720 mm。",
++        "距坡段 A 约 2 km 处有一次小型落石记录。",
++        "该记录的位置在坡段 A 以外。"
++      ],
++      "rationale": "区域资料仅记载两类事实：过去五年年均降雨量 720 mm（中等偏低），以及距坡段 A 约 2 km 处的一次小型落石记录（且位置在坡段 A 以外）。无洪水、泥石流、滑坡、崩塌等其他灾害记录，亦无资料表明施工期（2026-04-15 起）处于暴雨或灾害多发季节。据此灾害活动水平低但存在一次记录事件，不能排除为\"很少\"，也不能排除为\"偶发\"两个等级。暂按\"偶发\"评级，因存在明确的邻近灾害事件记录且坡段 A 为强风化岩质边坡（04_design：\"整体风化程度为强风化\"），对落石、崩塌类灾害具有一定敏感性。取区间低值 27 而非中点，理由是该唯一记录事件规模为\"小型\"、距坡段 2 km 且明确位于坡段 A 以外，直接对本坡段构成的自然灾害威胁证据很弱。",
++      "value": "27",
++      "value_reason": "唯一灾害记录为小型落石，距坡段 A 约 2 km 且位于坡段 A 以外，对本坡段的直接影响弱；年均降雨量 720 mm 属中等水平，无暴雨集中或洪水、泥石流、滑坡记录，故在\"偶发\"区间内取接近下限的 27 分。"
++    },
++    "A/X41": {
++      "basis_kind": "direct_evidence",
++      "contrary_evidence": null,
++      "grade": "锚固工程 [50–74]",
++      "kind": "evidence",
++      "missing": "",
++      "plausible_grades": [],
++      "question": "",
++      "quotes": [
++        "防护采用锚杆框架梁，设置截排水沟。"
++      ],
++      "rationale": "施工图设计说明明确坡段 A 的防护工程措施为\"锚杆框架梁\"，属锚固工程类型，符合等级\"锚固工程 [50–74]\"。截排水沟为配套排水设施而非边坡处治的支挡加固措施，本指标按单一工程措施锚杆框架梁计，不适用多种措施提高取值的规定。按设计优先约定采用设计资料；地勘（05_survey）仅记录坡率与钻孔，未提出不同措施，无冲突。等级区间为 50–74，按委托的定性指标中点约定取算术中点 62。该判定基于文字设计说明，未核读横断面图（06_drawing 为图像通道），若图纸另示其他措施需复核，但设计说明文字已明确防护类型，故不影响本判定。",
++      "value": "62"
++    },
++    "A/X42": {
++      "basis_kind": "direct_evidence",
++      "contrary_evidence": null,
++      "grade": "设施位于上述范围以外 [0–24]",
++      "kind": "evidence",
++      "missing": "",
++      "plausible_grades": [],
++      "question": "",
++      "quotes": [
++        "距坡段 A 约 2 km 处有一次小型落石记录。",
++        "该记录的位置在坡段 A 以外。",
++        "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。"
++      ],
++      "rationale": "坡段 A 坡高 H=18 m，各判别半径为：坡顶开挖线外 0.5H=9 m、1.0H=18 m、1.5H=27 m，路基下方 1.0H=18 m、1.5H=27 m、2.0H=36 m。逐页核读 04_design 与 07_region，并对照 01_initial、02_revision、03_requirements、05_survey 的既有摘录：全部文字资料均未记录坡段 A 附近存在地表建筑物、地下埋藏物、高压线塔或水体设施。唯一给出距离信息的周边事项是区域资料中的小型落石记录，位于坡段 A 以外约 2 km（2000 m），远超出最大判别半径 2.0H=36 m，且该记录属于灾害记录而非本指标所列设施。按委托约定\"仅依据所给资料\"评价，所给资料未显示任何设施落在任一判别范围内，故取最低档\"设施位于上述范围以外\"，数值取该档算术中点 12。局限性说明：06_drawing 横断面图本次文字通道未核读，图中可能表示的邻近设施未能验证；文本资料对设施只字未提不构成设施确实不存在的物证。若后续核读图纸或补充管线调查发现 36 m 范围内的设施，本项取值应上调。",
++      "value": "12"
++    },
++    "A/X51": {
++      "basis_kind": "direct_evidence",
++      "contrary_evidence": null,
++      "grade": "每个高边坡工点至少有一个勘察断面，每个断面有3个勘探点（钻探、挖探、物探） [25–49]",
++      "kind": "evidence",
++      "missing": "",
++      "plausible_grades": [],
++      "question": "",
++      "quotes": [
++        "坡段 A 有一个勘察断面，断面设置三个钻孔。",
++        "本页仅记录坡段 A。"
++      ],
++      "rationale": "地勘记录（05_survey）明确：坡段 A 有一个勘察断面，断面设置三个钻孔，直接满足\"每个高边坡工点至少有一个勘察断面，每个断面有3个勘探点（钻探、挖探、物探）\"的 [25–49] 等级（钻孔属于钻探勘探点）。不满足 [0–24] 等级，因该等级要求\"每个断面至少有3个钻探和挖探点\"，而资料未记录任何挖探点；也不满足 [50–74]（要求断面有 2 个勘探点）或 [75–100]（仅 1 个或没有勘探点）。指标说明规定\"调查分析不太清楚、依据欠充分的取大值\"：地勘仅钻探一种手段，无挖探、物探记录，地下水调查记录未确认（所给资料未确认），水文地质条件不清楚，故取该等级区间的大值。未提交的其他勘察资料不证明勘察不足，此判断仅基于已记录的正面证据。",
++      "value": "49",
++      "value_reason": "按指标说明\"调查分析不太清楚、依据欠充分的取大值\"：本断面勘探点全部为钻探（三个钻孔），无挖探、物探记录，且地下水调查记录在所给资料中未确认，水文地质条件调查分析不清楚，故取该等级 [25–49] 的大值 49。若后续补充挖探/物探或水文地质调查资料，可回落至中点或更小值。"
++    },
++    "A/X52": {
++      "basis_kind": "indirect_assumption",
++      "contrary_evidence": null,
++      "grade": "一坡一图一说明图件较完整 [50–74]",
++      "kind": "assumption",
++      "missing": "",
++      "plausible_grades": [
++        "一坡一图一说明图件较完整 [50–74]",
++        "一坡一图一说明图件不完整 [75–100]"
++      ],
++      "question": "请提供 06_drawing 横断面图的核读结果：是否包含坡段 A 的断面图及破裂面位置、计算参数，以及本坡段是否存在平面图、立面图、结构图及大样图等其他图件？",
++      "quotes": [
++        "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
++        "设计坡率为 1:0.75，分三级开挖。",
++        "防护采用锚杆框架梁，设置截排水沟。",
++        "坡段 B 位于 K0+380，分级情况见横断面图。"
++      ],
++      "rationale": "一坡一图一说明的基本要素存在：04_design 对坡段 A 有专门的设计说明，含位置、岩性风化程度、设计坡率 1:0.75、分三级开挖、锚杆框架梁防护及截排水沟等实质内容；且提交资料中存在 06_drawing 横断面图（坡段 B 说明亦引用该图）。设计说明中未见计算参数、滑坡推力等边坡破坏力大小、破裂面位置、工程措施抗滑力及施工安全工况、施工风险分析等内容，且所给图件仅有横断面图一类，未见平面图、立面图、结构图及大样图，故不能评为\"完整\"等级（25–49 及以下）。鉴于说明内容相对充实且有一张断面图支撑，暂按\"较完整 [50–74]\"取值，采用中点 62。局限：06_drawing 为图像文件，本次文字通道未能核读其内容，若该图不含坡段 A 断面或其内容缺失，则应降为\"不完整 [75–100]\"。依据审核要求\"仅依据所给资料；资料不足时保留待核事项\"，该图内容需保留待核。",
++      "value": "62"
++    },
++    "B/X21": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 B（K0+380）的地层岩性事实：未判明其为易滑及软弱地层（煤系、泥质岩、残积层、重力堆积层）还是基岩及其风化程度（全/强/弱风化）。设计说明未载 B 段岩性；地勘记录明示仅覆盖坡段 A；横断面图仅以图像表达且文字通道无法核读；A 段岩性无地层连续性依据不可转用。",
++      "plausible_grades": [],
++      "question": "请补充坡段 B 的设计或地勘地层资料（岩土类型、岩性岩组、风化程度及依据的钻孔断面），或提供可核读的横断面图（图中地层岩性标注），以确定坡段 B 的地层岩性等级。",
++      "quotes": [
++        "坡段 B 位于 K0+380，分级情况见横断面图。",
++        "本页仅记录坡段 A。",
++        "坡段 B：坡高 25 米；边坡长度 80 米。",
++        "仅依据所给资料；资料不足时保留待核事项。"
++      ],
++      "rationale": "设计说明对 B 段仅有位置与分级情况引用，无岩性与风化描述；地勘记录明确限定于坡段 A；横断面图（06）文字层为空，属\"图像未核读\"而非\"信息不存在\"。资料间不存在可将 A 段\"岩质、强风化\"转用于 B 段的地层连续性依据。因此四项等级（易滑及软弱地层/全风化/强风化/弱风化基岩）均有可能，无法按可辩护依据收窄，按委托约定保留待核、不赋分。",
++      "value": null
++    },
++    "B/X22": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 B 的坡体结构证据：结构面的倾向与边坡倾向夹角（是否顺坡向）、倾角是否小于坡角（是否缓倾）、软弱或硬性结构面性质、贯通性与发育程度均无文字资料记载；设计说明仅载明位置并指向横断面图，地勘调查记录明确\"本页仅记录坡段 A\"。",
++      "plausible_grades": [],
++      "question": "请补充坡段 B 的结构面产状（倾向、倾角与坡向夹角）、结构面性质（软弱或硬性）及其贯通性和发育程度的调查或设计数据（例如核读横断面图或专项地质调查记录），以便判定坡体结构等级。",
++      "quotes": [
++        "坡段 B 位于 K0+380，分级情况见横断面图。",
++        "本页仅记录坡段 A。",
++        "未提供地下水调查记录"
++      ],
++      "rationale": "X22（坡体结构）需要结构面方向、倾角、性质、贯通性和发育程度的事实才能判级。坡段 B 在设计（04_design）中仅有桩号与\"分级情况见横断面图\"一句，坡率与结构面信息缺失；地勘记录（05_survey）仅覆盖坡段 A，未含坡段 B 的任何钻孔或断面结构面资料；横断面图（06_drawing）为图像内容，本文字通道无法核读，不能确认其中是否含结构面证据。同时坡段 B 的岩性/材料类型（岩质或土质）亦未知。按业主约定第 4 条\"无法确定的事项保留待核\"，本指标记为缺口，不赋分。",
++      "value": null
++    },
++    "B/X23": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 B 的地下水存在情况、地下水类型及其在边坡高度上的分布位置（0.25H～1.0H）均未知；且坡段 B 是否设置排水措施亦无资料确认。",
++      "plausible_grades": [],
++      "question": "请补充坡段 B 的地下水调查记录（含水层位置、地下水类型及出露高度范围），并说明设计是否为坡段 B 设置排水措施，以便按等级表评定 X23。",
++      "quotes": [
++        "现场调查：未提供地下水调查记录。",
++        "坡段 B：坡高 25 米；边坡长度 80 米。",
++        "坡段 B 位于 K0+380，分级情况见横断面图。",
++        "本页仅记录坡段 A。"
++      ],
++      "rationale": "初始资料明确未提供坡段 B 的地下水调查记录；工程地质调查记录（05_survey）仅覆盖坡段 A（“本页仅记录坡段 A”），未含坡段 B 的含水层或钻孔水位信息；设计说明（04_design）对坡段 B 仅给出位置与分级参照，未述及地下水或排水措施；横断面图在本次文字通道未核读。X23 的四个等级均以“在边坡某一高度范围内有地下水”为前提，而坡段 B 是否存在地下水、其类型（基岩承压水/裂隙水/土层孔隙潜水）及出露范围均无法确定，所有等级区间（0–100）均可能适用，无法按可辩护依据收窄，故按委托约定保留待核、不赋分。",
++      "value": null
++    },
++    "B/X32": {
++      "basis_kind": "direct_evidence",
++      "contrary_evidence": null,
++      "grade": "自然灾害偶发 [25–49]",
++      "kind": "evidence",
++      "missing": "",
++      "plausible_grades": [],
++      "question": "",
++      "quotes": [
++        "坡段 A、B 所在区域过去五年年均降雨量为 720 mm。",
++        "距坡段 A 约 2 km 处有一次小型落石记录。",
++        "该记录的位置在坡段 A 以外。",
++        "更正：施工开始日期由 2026-03-01 改为 2026-04-15。"
++      ],
++      "rationale": "X32（坡段 B，自然灾害的影响）依据区域资料评定：所在区域过去五年年均降雨量为 720 mm，属中等偏低雨量，未见暴雨频发或洪水、泥石流、崩塌、滑坡等灾害记录；区域仅有一次小型落石记录，且该记录位置在坡段 A 以外、距坡段 A 约 2 km（与 B 的距离未给出），五年内仅此一次，符合\"自然灾害偶发\"的定性。施工开始日期经更正为 2026-04-15，资料未提供该区域灾害多发季节信息，无法认定施工期落在多发季节，故不按\"多发季节施工取大值\"上调。按委托中点约定取该等级区间算术中点 37。局限：该落石与坡段 B 的距离及关联未证实，若补充资料表明 B 邻近落石源或位于灾害多发季节，等级可能上调。",
++      "value": "37"
++    },
++    "B/X41": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 B 的边坡处治工程措施类型（抗滑桩、锚固工程、注浆类工程或挡土墙工程）未见任何文字证据。设计说明中坡段 B 仅给出桩号与分级情况，未列防护或支挡措施；地勘记录明确仅覆盖坡段 A。措施类型可能标注于横断面图（06_drawing），但本次文字通道无法核读图像。",
++      "plausible_grades": [],
++      "question": "请提供坡段 B（K0+380）横断面图或设计说明中明确的处治工程措施类型；若采用多种措施，请说明各措施内容，以便按\"施工难度较大者并酌情提高取值\"评分。",
++      "quotes": [
++        "坡段 B 位于 K0+380，分级情况见横断面图。",
++        "本页仅记录坡段 A。",
++        "仅依据所给资料；资料不足时保留待核事项。"
++      ],
++      "rationale": "按源优先规则\"设计缺失时以地勘补充\"，设计说明（04_design）对坡段 B 未列出任何工程措施，地勘记录（05_survey）明确\"本页仅记录坡段 A\"，两者均无法确定措施类型。设计将分级情况指向横断面图（06_drawing），但该图为图像资料，文字通道无法核读，不能视为已确认证据或已缺失。初始资料与更正通知亦无措施信息。依据业主约定\"资料缺口不赋分\"，本指标保留待核，不出分值。",
++      "value": null
++    },
++    "B/X42": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 B 周边（坡顶开挖线以外各倍坡高及路基下方范围内）是否存在地表建筑物、地下埋藏物、高压线塔、水体等设施的资料。初始资料、施工图设计说明均未记载任何周边设施信息，横断面图（06_drawing）在本文字通道无法核读，缺失资料亦不得解释为设施不存在。",
++      "plausible_grades": [],
++      "question": "请提供坡段 B（K0+380，坡高 25 米、坡长 80 米）周边环境调查资料：坡顶开挖线以外 0.5H/1.0H/1.5H（约 12.5 m/25 m/37.5 m）及路基下方 1.0H/1.5H/2.0H 范围内有无地表建筑物、地下埋藏物、高压线塔、水体等设施及其与边坡的水平距离，或提供经核读的横断面图周边环境标注。",
++      "quotes": [],
++      "rationale": "X42 依据周边设施与边坡的相对距离分档（0.5H/1.0H/1.5H 等）赋分。已核读 01_initial 第 2 页与 04_design 第 1 页：初始资料仅列坡高、坡长并注明未提供地下水调查记录；设计说明仅给出桩号 K0+380 及\"分级情况见横断面图\"，均未涉及地表建筑物、地下埋藏物、高压线塔或水体。区域资料 07_region 中\"距坡段 A 约 2 km 处有一次小型落石记录\"仅与坡段 A 相关且属地质灾害记录而非设施，无法支持任何档次。横断面图因文字通道限制无法核读，图上可能的周边环境标注未经证实。因此无法在任何有据基础上区分 0–24 至 75–100 各档，只能按委托约定（无法确定的事项保留待核，指标缺口不赋分）记录缺口。",
++      "value": null
++    },
++    "B/X51": {
++      "basis_kind": "direct_evidence",
++      "contrary_evidence": null,
++      "grade": "每个高边坡工点有一个或没有勘察断面，每个断面仅有1个或没有勘探点（钻探、挖探、物探） [75–100]",
++      "kind": "evidence",
++      "missing": "",
++      "plausible_grades": [],
++      "question": "",
++      "quotes": [
++        "本页仅记录坡段 A。",
++        "坡段 A 有一个勘察断面，断面设置三个钻孔。",
++        "现场调查：未提供地下水调查记录。",
++        "缺失资料不得解释为地下水不存在。"
++      ],
++      "rationale": "对坡段 B：唯一的工程地质调查记录（05_survey）明确声明\"本页仅记录坡段 A\"，即调查资料来源直接陈述了坡段 B 未被调查记录覆盖，坡段 B 无勘察断面、无任何勘探点（钻探、挖探、物探）；04_design（施工图设计说明）仅给出桩号 K0+380 及\"分级情况见横断面图\"，不含勘察断面或勘探点信息；01_initial 对坡段 B 也仅提供坡高、坡长，并注明\"未提供地下水调查记录\"。依据documentation_note，本例属于\"来源明确陈述缺失\"的情形（05_survey 明示仅记录坡段 A），故可作为坡段 B 缺乏调查分析的正面缺失证据赋分，而非仅凭资料未提交推断。按等级描述，坡段 B 属\"没有勘察断面且没有勘探点\"，落入最高档 75–100；按指标说明\"缺乏调查分析、无依据的提高一档赋值，最高分为100\"亦指向最高档。按midpoint_convention取该等级区间算术中点 87.5，未偏离中点。限制：地下水缺失一句本身仅针对地下水条件，不等于地质调查整体不存在，故坡段 B 地质资料缺失的结论主要以 05_survey 的\"本页仅记录坡段 A\"为准；若业主能补充坡段 B 的勘察断面或勘探点记录，本指标应重新评估。",
++      "value": "87.5"
++    },
++    "B/X52": {
++      "basis_kind": null,
++      "contrary_evidence": null,
++      "grade": null,
++      "kind": "gap",
++      "missing": "坡段 B（K0+380）\"一坡一图一说明\"的实际完整性无法建立：设计说明文字对坡段 B 仅给出桩号并指向横断面图，未含任何坡率、分级、计算参数、边坡破坏力（如滑坡推力）、破裂面位置或工程措施内容；而其指向的横断面图（06_drawing）经文字通道无文字层、图像内容未核读，图件所含的平面/立面/断面/结构/大样及可能的计算参数、破裂面位置等内容既不能证实也不能证伪。",
++      "plausible_grades": [],
++      "question": "请核读并提供坡段 B（K0+380）横断面图的实际内容（是否含平面图、立面图、断面图、结构图及大样图，及计算参数、破裂面位置、滑坡推力、工程措施抗滑力等），并确认设计说明是否另有坡段 B 专项章节，以判定 X52 的等级。",
++      "quotes": [
++        "坡段 B 位于 K0+380，分级情况见横断面图。",
++        "坡段 A 位于 K0+120，岩质，整体风化程度为强风化。",
++        "设计坡率为 1:0.75，分三级开挖。",
++        "防护采用锚杆框架梁，设置截排水沟。"
++      ],
++      "rationale": "04_design 第 1 页对坡段 B 仅陈述位置并转引横断面图，未如坡段 A 那样给出坡率、分级、防护与排水等设计内容，说明部分可证实的只有位置信息；06_drawing 第 1 页无文字层，其图件完整性属于未核读而非缺失，按 documentation_note 不能以未提交证明设计缺陷，也不能以未核读证明完整。图件内容的可能取值横跨 75–100（图件不完整）、50–74（较完整）乃至 25–49（完整并含参数、破坏力、破裂面位置）多个等级区间，现有事实无法在可辩护的基础上收窄，故保留待核。",
++      "value": null
++    }
++  }
++}
+diff --git a/tests/test_fake03_qualitative_steps.py b/tests/test_fake03_qualitative_steps.py
+index 1af8b6c..bf0687d 100644
+--- a/tests/test_fake03_qualitative_steps.py
++++ b/tests/test_fake03_qualitative_steps.py
+@@ -49,6 +49,10 @@ async def test_fresh_profile_and_verified_qualitative_authority_must_agree(mini)
+ @pytest.mark.parametrize('interrupt',[False,True])
+ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_scoring(mini, interrupt):
+     ws, binding, profile = mini
++    # This historical routing/arithmetic driver proposes synthetic grades. Replay its original
++    # untyped contract; test_run06_claim_replay exercises the current native scored contract.
++    for assigned in profile['facts'].values():
++        assigned.pop('attestations', None)
+     ws.store.set('fake03_qualitative_profile', profile)
+     cs=ContentStore(ws.store)
+     plan=cs.read(binding.plan_ref)['payload']
+diff --git a/tests/test_fake04_claim_controls.py b/tests/test_fake04_claim_controls.py
+new file mode 100644
+index 0000000..f71aa2b
+--- /dev/null
++++ b/tests/test_fake04_claim_controls.py
+@@ -0,0 +1,96 @@
++"""Acceptance and refusal pairs through the production claim validator on real PDF-backed facts."""
++from decimal import Decimal
++from pathlib import Path
++import pytest
++
++from report_agent.errors import ActionRejected
++from report_agent.fake03_fact_register import attestations_for, load_attestations
++from report_agent.writer_claims import apply_claims
++
++FACTS=load_attestations(Path(__file__).parent/'fake_data/mini_commission_04/attestations.json')
++N_FREQ='F04-N-FREQUENCY'
++N_SEASON='F04-N-SEASON'
++N_START='F04-N-START'
++S_FREQ='F04-S-FREQUENCY'
++
++
++def check(indicator, subject, ids, **fields):
++    # The storage path checks grade bounds; use that band's midpoint here too.
++    grade = fields.pop('grade_id','moderate')
++    midpoint = Decimal({'low':12,'moderate':37,'high':62,'very_high':87}[grade])
++    value={'kind':'evidence','value':str(midpoint),'grade_claim':{'statement':'Grounded test proposition.',
++           'fact_ids':ids},'quotes':[],'rationale':'The saved observation supports this grade.',**fields}
++    return apply_claims(value,indicator_id=indicator,subject=subject,attestations=attestations_for(FACTS,subject),
++                        midpoint=midpoint,grade_id=grade)
++
++
++def frequency(fid,count,years):
++    return {'grade_id':'low' if count==0 else 'moderate', 'event_frequency':{'fact_id':fid,'event_count':count,'period_years':years}}
++
++
++def count(fid,purpose,n):
++    return {'investigation_counts':[{'fact_id':fid,'purpose':purpose,'count':n}]}
++
++
++SURVEY_IDS=['F04-N-SECTIONS','F04-N-BOREHOLES','F04-N-PITS']
++SURVEY_COUNTS=[
++    {'fact_id':'F04-N-SECTIONS','purpose':'survey_section_count','count':1},
++    {'fact_id':'F04-N-BOREHOLES','purpose':'borehole_count','count':3},
++    {'fact_id':'F04-N-PITS','purpose':'test_pit_count','count':0},
++]
++
++
++@pytest.mark.parametrize('subject,indicator,valid,valid_fields,invalid,invalid_fields',[
++    pytest.param('North','X32',[N_FREQ],frequency(N_FREQ,3,5),[N_FREQ],frequency(N_FREQ,3,1),id='event-specific-period'),
++    pytest.param('South','X32',[S_FREQ],frequency(S_FREQ,0,5),[S_FREQ],frequency(S_FREQ,3,5),id='true-zero-not-an-invented-count'),
++    pytest.param('North','X32',[N_FREQ],frequency(N_FREQ,3,5),[N_SEASON,N_START],{},id='season-and-start-cannot-set-frequency-grade'),
++    pytest.param('North','X42',['F04-N-FACILITIES'],{'grade_id':'low'},['F04-N-GROUNDWATER'],{'grade_id':'low'},id='zero-facilities-vs-absence-of-groundwater'),
++    pytest.param('South','X42',['F04-S-FACILITY'],{'grade_id':'very_high'},['F04-N-FACILITIES'],{'grade_id':'low'},id='survey-applies-to-own-object'),
++    pytest.param('North','X51',SURVEY_IDS,{'investigation_counts':SURVEY_COUNTS},
++                 SURVEY_IDS,{'investigation_counts':[*SURVEY_COUNTS[:2],
++                 {'fact_id':'F04-N-BOREHOLES','purpose':'test_pit_count','count':0}]},id='zero-vs-unrecorded-investigation-type'),
++    pytest.param('North','X51',SURVEY_IDS,{'investigation_counts':SURVEY_COUNTS},
++                 ['F04-N-SECTIONS','F04-S-SURVEY-RECORD'],{'investigation_counts':[
++                 SURVEY_COUNTS[0],{'fact_id':'F04-S-SURVEY-RECORD','purpose':'borehole_count','count':0}]},
++                 id='object-count-vs-page-coverage'),
++    pytest.param('North','X52',['F04-N-INDEX'],{},['F04-S-REF'],{},id='verified-file-inventory-vs-drawing-reference'),
++    pytest.param('North','X52',['F04-N-INDEX','F04-N-DRAWING'],{},['F04-S-REF'],{},id='verified-drawing-contents-vs-unread-reference'),
++    pytest.param('North','X23',['F04-N-GROUNDWATER'],{'grade_id':'low'},['F04-N-FACILITIES'],{'grade_id':'low'},id='groundwater-absence-vs-facility-absence'),
++])
++def test_supported_grade_and_paired_refusal(subject,indicator,valid,valid_fields,invalid,invalid_fields):
++    row,checks=check(indicator,subject,valid,**valid_fields)
++    assert row['quotes']
++    if indicator=='X23':
++        assert checks['semantic_review_required']
++        assert 'ABSENCE_GRADE_REQUIRES_CRITICAL_REVIEW' in checks['review_flags']
++    with pytest.raises(ActionRejected,match='save_gap'):
++        check(indicator,subject,invalid,**invalid_fields)
++
++
++@pytest.mark.parametrize('indicator,valid_grade,grade_fields,value,direction,valid_ids,invalid_ids',[
++    ('X32',[N_FREQ],frequency(N_FREQ,3,5),'42','higher',[N_SEASON,N_START],[N_START]),
++    ('X51',SURVEY_IDS,{'investigation_counts':SURVEY_COUNTS},
++     '32','lower',['F04-N-INVESTIGATION'],['F04-N-BOREHOLES']),
++])
++def test_within_band_adjustment_and_paired_midpoint(indicator,valid_grade,grade_fields,value,direction,valid_ids,invalid_ids):
++    def run(ids):
++        return check(indicator,'North',valid_grade,**grade_fields,value=value,
++                     value_reason='Separate directional evidence.',
++                     adjustment_claim={'statement':'Within-band proposition.','fact_ids':ids,'direction':direction})
++    row,checks=run(valid_ids)
++    assert row['value']==value and 'ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW' in checks['review_flags']
++    row,checks=run(invalid_ids)
++    assert row['value']=='37' and checks['adjustment']['status']=='refused_midpoint_retained'
++
++
++@pytest.mark.parametrize('subject,indicator,ids,fields',[
++    ('South','X52',['F04-S-REF'],{}),
++    ('South','X51',['F04-S-SURVEY-RECORD'],count('F04-S-SURVEY-RECORD','survey_section_count',0)),
++    ('South','X32',[S_FREQ],frequency(N_FREQ,3,5)),
++    ('South','X42',['F04-S-PARTIAL-ZERO'],{'grade_id':'low'}),
++    ('North','X42',['F04-N-FACILITIES','F04-N-GROUNDWATER'],{'grade_id':'low'}),
++    ('North','X51',['F04-N-PITS'],count('F04-N-PITS','test_pit_count',0)),
++])
++def test_own_reference_own_missing_coverage_and_foreign_frequency_are_insufficient(subject,indicator,ids,fields):
++    with pytest.raises(ActionRejected,match='save_gap'):
++        check(indicator,subject,ids,**fields)
+diff --git a/tests/test_fake_attestation_register.py b/tests/test_fake_attestation_register.py
+new file mode 100644
+index 0000000..66b2b0c
+--- /dev/null
++++ b/tests/test_fake_attestation_register.py
+@@ -0,0 +1,56 @@
++"""Typed fact boundaries are checked against the actual synthetic source pages."""
++import hashlib
++import json
++from pathlib import Path
++from pypdf import PdfReader
++import pytest
++
++from report_agent.fake03_fact_register import (
++    REGISTER, TYPED_REGISTER, load_attestations, attestations_for, qualitative_profile)
++
++DATA=Path(__file__).parent/'fake_data'
++FAKE04=DATA/'mini_commission_04'
++ORIGINAL_REGISTER='2815c134887ae9e3fe12ae6c3ef130a3d53a94a6d8205778bc493ee669915fa1'
++
++
++@pytest.mark.parametrize('register,sources',[
++    (TYPED_REGISTER,DATA/'mini_commission'/'inputs'),
++    (FAKE04/'attestations.json',FAKE04/'inputs')])
++def test_attestations_bind_exact_source_page_quote_and_unique_id(register,sources):
++    rows=load_attestations(register)
++    assert rows and len({r['fact_id'] for r in rows})==len(rows)
++    pages={}
++    for row in rows:
++        doc=row['document']
++        if doc not in pages:
++            pages[doc]=[p.extract_text() for p in PdfReader(sources/doc).pages]
++        assert row['quote'] in pages[doc][row['page']-1], row['fact_id']
++
++
++def test_fake03_provenance_and_visibility():
++    assert hashlib.sha256(REGISTER.read_bytes()).hexdigest()==ORIGINAL_REGISTER
++    per=qualitative_profile(ORIGINAL_REGISTER)['facts']
++    a={r['purpose']:r for r in per['A']['attestations']}
++    b={r['purpose']:r for r in per['B']['attestations']}
++    assert a['borehole_count']['value']==3 and 'borehole_count' not in b
++    assert b['groundwater_survey_coverage']['state']=='unknown'
++    assert b['drawing_reference']['visual_verified'] is False
++    assert a['drawing_reference']['applies_to']==['B']
++    assert b['survey_coverage']['applies_to']==['A']
++    assert 'facility_presence' not in a and 'facility_presence' not in b
++    assert a['rainfall']['period_years']==5 and a['rainfall']['event_count'] is None
++    assert b['hazard_event']['applies_to']==[] and b['hazard_event']['related_to']==['A']
++    assert b['hazard_event']['period_years'] is None and 'hazard_frequency' not in b
++
++
++def test_fake04_preserves_true_zero_and_measured_coverage():
++    rows=load_attestations(FAKE04/'attestations.json')
++    north={r['purpose']:r for r in attestations_for(rows,'North')}
++    south={r['purpose']:r for r in attestations_for(rows,'South')}
++    assert (north['hazard_frequency']['event_count'],north['hazard_frequency']['period_years'])==(3,5)
++    assert (south['hazard_frequency']['event_count'],south['hazard_frequency']['period_years'])==(0,5)
++    assert north['facility_presence']['state']=='explicit_absence'
++    assert south['facility_presence']['state']=='known' and south['facility_presence']['coverage_detail']
++    assert north['test_pit_count']['value']==0 and south['survey_coverage']['state']=='unknown'
++    assert north['drawing_contents']['visual_verified'] and not south['drawing_reference']['visual_verified']
++    assert north['design_file_coverage']['coverage']=='document'
+diff --git a/tests/test_qualitative_review_view.py b/tests/test_qualitative_review_view.py
+new file mode 100644
+index 0000000..8b1c15e
+--- /dev/null
++++ b/tests/test_qualitative_review_view.py
+@@ -0,0 +1,117 @@
++"""Offline Reviewer boundary over immutable snapshots of native Writer drafts."""
++import pytest
++
++from report_agent.content_store import ContentStore
++from report_agent.errors import ActionForbidden, ActionRejected
++from report_agent.store import digest
++from report_agent.writer_runtime import writer_session
++from report_agent.writer_assessment import _assignment
++from test_fake03_qualitative_steps import mini
++
++
++def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(mini):
++    from report_agent.qualitative_review import qualitative_reviewer_session
++    ws, binding, profile = mini
++    ws.store.set('fake03_qualitative_profile', profile)
++    cs = ContentStore(ws.store)
++    with writer_session(ws, '坡段 A', None, assessment_only=True, indicator_steps=True,
++                        section_id=binding.assessment_section_id) as writer:
++        ws.store.set('fake03_qualitative_actor:' + writer.actor.id,
++                     dict(plan_ref=binding.plan_ref, object_id='A', profile_digest=digest(profile)))
++        with ws.store.connect() as db:
++            scope = _assignment(cs, db, writer.actor)
++        from report_agent.writer_assessment import read_indicator_step, save_indicator_outcome
++        step = read_indicator_step(cs, writer.actor)
++        ind = step['indicator_id']
++        question = 'Which rock subtype is documented?'
++        outcome = {'kind':'gap', 'question':question, 'missing':'Rock subtype'}
++        save_indicator_outcome(cs, writer.actor, 'writer-save', ind, outcome)
++    key = 'writer_indicator_steps:' + scope['assignment_digest']
++    draft = ws.store.get(key)
++    row = draft['rows'][ind]
++    from report_agent.hierarchical_tools import content_tools
++    from report_agent.deep_runtime import business_tools
++    cached_runtime = business_tools(ws, 'reviewer', None, None)
++    cached_runtime_handles = business_tools(ws, 'reviewer', None, None, reviewer_handles=True)
++    assert 'read_source_page' in {t.__name__ for t in cached_runtime}
++    from langchain_core.tools import StructuredTool
++    from report_agent.hierarchical_tools import general_reviewer_tool
++    from report_agent.native_operation_tools import MessageTool
++    from pydantic import BaseModel
++
++    class Input(BaseModel):
++        subject: str
++
++    def read_subject(subject: str) -> str:
++        """Example read with a native V4 schema."""
++        return subject
++
++    structured = StructuredTool.from_function(read_subject, args_schema=Input)
++    message = MessageTool.from_function(read_subject, args_schema=Input, message_model=Input)
++    guarded_sdk_tools = []
++    for original in (structured, message):
++        guarded = general_reviewer_tool(original)
++        assert type(guarded) is type(original)
++        assert guarded.args_schema is original.args_schema
++        assert guarded.tool_call_schema.model_json_schema() == original.tool_call_schema.model_json_schema()
++        assert guarded.invoke({'subject':'A'}) == 'A'
++        guarded_sdk_tools.append(guarded)
++    cached = content_tools(ws, 'reviewer')
++    cached_handles = content_tools(ws, 'reviewer', reviewer_handles=True)
++    with qualitative_reviewer_session(ws, scope['task_ref']) as tools:
++        # The runtime may construct normal report tools before native delegation.
++        # The scope check must precede parameter validation, reads, and writes.
++        import inspect
++        import asyncio
++        for guarded in guarded_sdk_tools:
++            with pytest.raises(ActionForbidden, match='QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN'):
++                guarded.invoke({'subject':'B'})
++            with pytest.raises(ActionForbidden, match='QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN'):
++                asyncio.run(guarded.ainvoke({'subject':'B'}))
++        for handles in (False, True):
++            live = business_tools(ws, 'reviewer', None, None, reviewer_handles=handles)
++            assert {tool.__name__ for tool in live} == set(tools)
++        for tool in [*cached, *cached_handles, *cached_runtime, *cached_runtime_handles]:
++            with pytest.raises(ActionForbidden, match='QUALITATIVE_REVIEW_GENERAL_TOOL_FORBIDDEN'):
++                if inspect.iscoroutinefunction(tool):
++                    asyncio.run(tool())
++                else:
++                    tool()
++
++        assert set(tools) == {'read_qualitative_row', 'record_qualitative_finding'}
++        read = tools['read_qualitative_row']
++        index = read()
++        view = read(ind)
++        assert view['saved_row'] == row and view['indicator_method']['id'] == ind
++        assert view['saved_row']['input']['question'] == question
++        assert view['object_facts'] == profile['facts']['A']
++        assert view['provenance']['plan_ref'] == binding.plan_ref
++        assert view['provenance']['source_versions']
++        assert view['provenance']['fact_digest'] == digest(profile['facts']['A'])
++        assert index['rows'] == {ind: view['row_digest']}
++        with pytest.raises(ActionRejected, match='ROW_OUTSIDE'):
++            read('B/'+ind)
++        write = tools['record_qualitative_finding']
++        with pytest.raises(ActionRejected, match='ROW_DIGEST'):
++            write('wrong-digest',ind,'bad','Period is open.')
++        saved = write('record',ind,view['row_digest'],'Period is open.')
++        assert ws.store.get(key) == draft
++        assert write('record',ind,view['row_digest'],'Period is open.')['result'] == saved['result']
++        assert cs.read(saved['result']['finding_ref'])['payload']['row_digest'] == view['row_digest']
++        from report_agent.hierarchical_tools import content_tools
++        ws.store.set('fake03_qualitative_profile', None)
++        assert {t.__name__ for t in content_tools(ws,'reviewer')} == set(tools)
++        assert view == read(ind)
++        # Later Writer work cannot change what this Reviewer was assigned.
++        ws.store.set(key, {**draft, 'rows': {}})
++        assert read(ind) == view
++        assert not cs.list_objects('Assessment')
++    with pytest.raises(ActionForbidden):
++        read(ind)
++    ws.store.set('fake03_qualitative_profile', profile)
++    foreign = {'source_ref':{'type':'SourceArtifact','id':'elsewhere','version':1},
++               'locator':'p. 1','quote':'unauthorized'}
++    ws.store.set(key, {**draft, 'rows':{ind:{**row, 'sources':[foreign]}}})
++    with pytest.raises(ActionForbidden, match='SOURCE_OUTSIDE'):
++        with qualitative_reviewer_session(ws, scope['task_ref']):
++            pytest.fail('a foreign source was accepted')
+diff --git a/tests/test_run06_claim_replay.py b/tests/test_run06_claim_replay.py
+new file mode 100644
+index 0000000..da86c11
+--- /dev/null
++++ b/tests/test_run06_claim_replay.py
+@@ -0,0 +1,183 @@
++"""Replay the real saved business fields. Only the new claim-to-register links are annotated."""
++from collections import Counter
++from copy import deepcopy
++import hashlib
++import json
++import os
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++from langchain_core.messages import HumanMessage
++
++from report_agent import fake_verification
++from report_agent.fake03_fact_register import REGISTER, qualitative_profile
++from report_agent.mini_commission import prepare_mini_commission
++from report_agent.qualitative_review import qualitative_reviewer_session
++from report_agent.store import Store, digest
++from report_agent.workspace import Workspace
++from report_agent.writer_indicator_steps import run_mini_assessment
++from test_deep_runtime import Driver
++from test_writer_five_slopes import action
++
++FIXTURE = Path(__file__).parent / 'fixtures/fake03_run06_saved_inputs.json'
++REFUSE = {
++    'A/X42': 'Provide observed facility locations or a survey covering the required distances.',
++    'A/X52': 'Confirm which A-specific drawings were inspected and what their coverage establishes.',
++    'B/X32': 'Provide a hazard history covering B with a defined observation period.',
++    'B/X51': 'Provide counts or an explicit zero finding from an investigation covering B.',
++}
++# Map each historical proposition to the observations it actually relied upon.
++# These are replay inputs, never expected outcomes or runtime configuration.
++GRADE = {
++    'A/X21': ('Strongly weathered rock', ['A-WEATHERING']),
++    'A/X32': ('Occasional local hazards are provisionally plausible', ['OFFSITE-ROCKFALL']),
++    'A/X41': ('The frame-beam anchorage is an anchor treatment', ['A-PROTECTION']),
++    'A/X42': ('All listed facilities are outside the distance thresholds', ['ROCKFALL-LOCATION','A-MATERIAL']),
++    'A/X51': ('One section and three investigation points are documented', ['A-SURVEY-SECTIONS','A-BOREHOLES']),
++    'A/X52': ('A has a relatively complete drawing set', ['A-PROTECTION','B-DRAWING-REFERENCE']),
++    'B/X32': ('Only one rockfall in five years in the area of B', ['OFFSITE-ROCKFALL','REGIONAL-RAIN']),
++    'B/X51': ('Zero investigation sections and points on B', ['SURVEY-COVERAGE','B-WATER-RECORD']),
++}
++
++
++def claim(statement, ids):
++    return {'statement': statement, 'fact_ids': ['F03-' + value for value in ids]}
++
++
++def submission(label, original, facts):
++    keep = {'question', 'rationale', 'quotes'}
++    if original['kind'] == 'gap':
++        keep.add('missing')
++    else:
++        keep.update(('grade', 'value'))
++        if original['kind'] == 'assumption':
++            keep.add('plausible_grades')
++        else:
++            keep.add('basis_kind')
++        if original.get('value_reason'):
++            keep.add('value_reason')
++    payload = {k:deepcopy(original[k]) for k in keep if k in original and original[k] != ''}
++    ids, external = [], []
++    for quote in payload.pop('quotes', []):
++        matches = [f['fact_id'] for f in facts if f.get('quote') and quote in f['quote']]
++        if matches:
++            ids.extend(matches)
++        else:
++            external.append(quote)
++    if external:
++        payload['quotes'] = external
++    if original['kind'] == 'gap':
++        payload['fact_ids'] = list(dict.fromkeys(ids))
++        return payload
++    payload['context_fact_ids'] = list(dict.fromkeys(ids))
++    payload['grade_claim'] = claim(*GRADE[label])
++    if label in ('A/X32','A/X52'):
++        event = label == 'A/X32'
++        payload['assumption_basis'] = {
++            **claim('Use the nearby offsite event as a provisional proxy.' if event else 'Assume this drawing also supports A.',
++                    ['OFFSITE-ROCKFALL','ROCKFALL-LOCATION'] if event else ['B-DRAWING-REFERENCE','A-PROTECTION']),
++            'relationship': 'Small event outside A, about 2 km away.' if event else 'The same package contains a B cross-section reference.',
++            'narrowing': 'Rare or occasional remain plausible.' if event else 'The file list omits other drawings, leaving the two least complete bands.',
++        }
++    if label in ('A/X32','A/X51'):
++        payload['adjustment_claim'] = {**claim(original['value_reason'],
++            ['OFFSITE-ROCKFALL','ROCKFALL-LOCATION'] if label=='A/X32' else ['A-BOREHOLES','SURVEY-COVERAGE']),
++            'direction':'lower' if label=='A/X32' else 'higher'}
++    if label == 'A/X32':
++        payload['question_effect'] = 'grade'  # The original question explicitly requests raising the grade.
++    if label == 'B/X32':
++        payload['event_frequency'] = {'fact_id':'F03-REGIONAL-RAIN','event_count':1,'period_years':5}
++    if label in ('A/X51','B/X51'):
++        items = [('A-SURVEY-SECTIONS','survey_section_count',1),('A-BOREHOLES','borehole_count',3)] if label=='A/X51' else [
++            ('SURVEY-COVERAGE','survey_section_count',0),('SURVEY-COVERAGE','borehole_count',0)]
++        payload['investigation_counts'] = [{'fact_id':'F03-'+fid,'purpose':p,'count':n} for fid,p,n in items]
++    return payload
++
++
++@pytest.mark.asyncio
++async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
++    baseline = json.loads(FIXTURE.read_bytes())
++    original = baseline['rows']
++    case = tmp_path/'case'
++    prepared = prepare_mini_commission(REGISTER.parent/'inputs', case)
++    ws = Workspace(Store(case))
++    profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
++    ws.store.set('fake03_qualitative_profile', profile)
++    binding = SimpleNamespace(plan_ref=prepared['plan_ref'], assessment_section_id=prepared['assessment_section_id'],
++                              qualitative_only=True)
++    def verify_binding(obj, workspace):
++        assert obj is binding and workspace is ws
++    monkeypatch.setattr(fake_verification, 'assert_active_fake_run', verify_binding)
++    attempts = Counter()
++    annotations = {}
++    diagnostics = {}
++    def choose(messages):
++        packet = json.loads(next(m.content for m in messages if isinstance(m, HumanMessage)))
++        oid = next(o for o in ('A','B') if packet['object_facts'] == profile['facts'][o])
++        label = oid + '/' + packet['indicator_id']
++        attempts[label] += 1
++        if attempts[label] == 1:
++            facts = [*packet['object_facts']['attestations'], *packet.get('other_context_facts', [])]
++            payload = submission(label, original[label], facts)
++            annotations[label] = deepcopy(payload)
++            return action('save_'+original[label]['kind'], label+'-original', **payload)
++        assert label in REFUSE and attempts[label]==2, (label, str(messages[-1].content)[:650])
++        diagnostics[label] = json.loads(messages[-1].content)
++        return action('save_gap', label+'-offline-followup',
++                      missing=REFUSE[label], question=REFUSE[label])
++    result = await run_mini_assessment(ws, Driver(writer=[choose]*24)('writer'), verified_run=binding)
++    assert result['status']=='qualitative_rows_saved', result
++    assert set(attempts) == set(original)
++    assert {label for label,n in attempts.items() if n==2} == set(REFUSE)
++    for label, diagnostic in diagnostics.items():
++        assert 'save_gap' in json.dumps(diagnostic), (label, diagnostic)
++    report = {'source_run':baseline['run_id'], 'receipt_sha256':baseline['receipt_sha256'],
++              'register_sha256':profile['register_sha256'], 'rows':{},'writer_task_refs':{}}
++    report['reviewer_views'] = {}
++    with ws.store.connect() as db:
++        tasks = [json.loads(v) for v, in db.execute("SELECT data FROM content_versions WHERE type='DelegatedTask' AND version=1")]
++    for task in tasks:
++        oid = task['payload']['assessment_object_id']
++        report['writer_task_refs'][oid] = task['ref']
++        with qualitative_reviewer_session(ws, task['ref']) as tools:
++            assert set(tools) == {'read_qualitative_row', 'record_qualitative_finding'}
++            index = tools['read_qualitative_row']()
++            assert index['object_id'] == oid and len(index['rows']) == 8
++            for ind, row_digest in index['rows'].items():
++                view = tools['read_qualitative_row'](ind)
++                e = view['saved_row']
++                assert digest(e) == view['row_digest'] == row_digest
++                assert view['object_facts'] == profile['facts'][oid]
++                report['reviewer_views'][oid+'/'+ind] = view
++                label=oid+'/'+ind
++                checks=e.get('claim_checks',{})
++                after=e['input']
++                if label in REFUSE:
++                    assert after['kind']=='gap' and 'WRITER_CLAIM_UNSUPPORTED' in json.dumps(diagnostics[label]), label
++                    disposition='original refused; scripted gap saved'
++                elif label=='A/X51':
++                    assert after['grade']==original[label]['grade'] and after['value']=='37'
++                    assert str(checks['adjustment']['proposed_value'])=='49'
++                    disposition='grade preserved; original override refused; midpoint 37 saved'
++                elif label=='A/X32':
++                    assert after['kind']=='assumption' and after['grade']==original[label]['grade']
++                    assert 'QUESTION_EFFECT_CONFLICT' in json.dumps(checks), checks
++                    assert after['question']==original[label]['question']
++                    disposition='assumption preserved; original question flagged'
++                else:
++                    assert all(after[k]==original[label][k] for k in ('kind','grade','value','rationale','question','missing')), label
++                    disposition='control retained'
++                report['rows'][label]={'disposition':disposition,'old':original[label], 'annotations':annotations[label],
++                                     'stored_input':after,'claim_checks':checks,'rejection':diagnostics.get(label),
++                                     'saved_row_digest':digest(e)}
++            if oid == 'A':
++                before = tools['read_qualitative_row']('X32')
++                finding = tools['record_qualitative_finding'](
++                    'offline-A-X32', 'X32', before['row_digest'],
++                    'Offline scripted finding. The question raises the grade, but season affects the value within the band.')
++                assert tools['read_qualitative_row']('X32') == before
++                report['scripted_finding'] = finding['result']
++    assert len(report['rows']) == len(report['reviewer_views']) == 16
++    if dest:=os.environ.get('FAKE03_OFFLINE_REPLAY_RECORD'):
++        Path(dest).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+diff --git a/tests/test_writer_typed_claims.py b/tests/test_writer_typed_claims.py
+new file mode 100644
+index 0000000..e8cbf83
+--- /dev/null
++++ b/tests/test_writer_typed_claims.py
+@@ -0,0 +1,176 @@
++"""Canonical save guards for typed grade support in a disposable qualitative pilot."""
++from pathlib import Path
++from types import SimpleNamespace
++import hashlib
++import pytest
++
++from report_agent import writer_assessment as api
++from report_agent.content_store import ContentStore
++from report_agent.errors import ActionRejected
++from report_agent.fake03_fact_register import REGISTER, qualitative_profile
++from report_agent.mini_commission import prepare_mini_commission
++from report_agent.store import Store, digest
++from report_agent.workspace import Workspace
++from report_agent.writer_runtime import writer_session
++
++
++def fact(fid, purpose, quote, obj='A', **kwargs):
++    return {'fact_id':fid,'purpose':purpose,'state':'known','subject':obj,'applies_to':[obj],
++            'indicator_ids':['X32','X42','X51','X52'],'related_to':[],'quote':quote,'coverage':'object','coverage_detail':'','visual_verified':False,
++            **kwargs}
++
++
++@pytest.fixture
++def fixture(tmp_path):
++    record = prepare_mini_commission(Path(__file__).parent/'fake_data'/'mini_commission'/'inputs',tmp_path/'case')
++    ws = Workspace(Store(tmp_path/'case'))
++    cs = ContentStore(ws.store)
++    profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
++    quote = '坡段 A 有一个勘察断面，断面设置三个钻孔。'
++    event_quote = '距坡段 A 约 2 km 处有一次小型落石记录。'
++    test_facts = [fact('sec','survey_section_count',quote,value=1), fact('holes','borehole_count',quote,value=3),
++        fact('only','survey_coverage','本页仅记录坡段 A。',coverage='document'),
++        fact('rain','rainfall','坡段 A、B 所在区域过去五年年均降雨量为 720 mm。',applies_to=['A','B'],period_years=5),
++        fact('event','hazard_event',event_quote,obj='Region',applies_to=[],related_to=['A'],event_count=1)]
++    for obj in ['A','B']:
++        profile['facts'][obj]['attestations'] = test_facts
++    ws.store.set('fake03_qualitative_profile',profile)
++    return SimpleNamespace(ws=ws,cs=cs,profile=profile, plan=record['plan_ref'])
++
++
++from contextlib import contextmanager
++@contextmanager
++def at(f, oid, indicator):
++    label = next(o['label'] for o in f.cs.read(f.plan)['payload']['objects'] if o['object_id']==oid)
++    with writer_session(f.ws,label,None,assessment_only=True,indicator_steps=True,section_id='3') as session:
++        actor = session.actor
++        f.ws.store.set('fake03_qualitative_actor:'+actor.id, {'plan_ref':f.plan,'object_id':oid,'profile_digest':digest(f.profile)})
++        while True:
++            step=api.read_indicator_step(f.cs,actor)
++            if step['indicator_id']==indicator:
++                yield actor, step
++                return
++            api.save_indicator_outcome(f.cs,actor,'skip-'+step['indicator_id'],step['indicator_id'],
++                {'kind':'gap','missing':'Synthetic traversal','question':'Supply the documents?'})
++
++
++def claim(*refs):
++    return {'statement':'Synthetic proposition under test.','fact_ids':list(refs)}
++
++
++def scored(step, grade='moderate', **kwargs):
++    choices = {g['min_value']:g['choice'] for g in step['grades']}
++    return {'kind':'evidence','grade':choices[{'moderate':'25','very_high':'75','low':'0'}[grade]],
++            'rationale':'Synthetic rationale.','basis_kind':'direct_evidence',**kwargs}
++
++
++@pytest.mark.parametrize('oid,indicator,fields',[('B','X32',{'grade_claim':claim('rain','event'),
++    'event_frequency':{'fact_id':'rain','event_count':1,'period_years':5}}),
++    ('A','X42',{'grade_claim':claim('event')}),
++    ('A','X52',{'grade_claim':claim('only')}),
++    ('B','X51',{'grade_claim':claim('only'),'investigation_counts':[{'fact_id':'only','purpose':'survey_section_count','count':0}]})])
++def test_external_quote_cannot_bypass_typed_decisive_fact(fixture,oid,indicator,fields):
++    with at(fixture,oid,indicator) as (actor,step):
++        value=scored(step,quotes=['Additional outside-register source.'],**fields)
++        with pytest.raises(ActionRejected,match='save_gap'):
++            api.save_indicator_outcome(fixture.cs,actor,'bad',indicator,value)
++        assert api.read_indicator_step(fixture.cs,actor)['indicator_id']==indicator
++
++
++def test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no_quality_basis(fixture):
++    with at(fixture,'A','X51') as (actor,step):
++        value=scored(step,grade_claim=claim('sec','holes'),investigation_counts=[
++            {'fact_id':'sec','purpose':'survey_section_count','count':1},{'fact_id':'holes','purpose':'borehole_count','count':3}],
++            value='49',value_reason='Other types were not mentioned.',adjustment_claim={**claim('holes'),'direction':'higher'})
++        value['rationale'] = 'Use 49 because the other types were not mentioned.'
++        receipt=api.save_indicator_outcome(fixture.cs,actor,'save','X51',value)['result']
++        draft=fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X51']
++        assert draft['judgment']['value']=='37' and draft['judgment']['grade_id']=='moderate'
++        assert len(draft['judgment']['sources'])==1
++        adjustment=receipt['claim_checks']['adjustment']
++        assert adjustment==draft['claim_checks']['adjustment'] and adjustment['proposed_value']=='49'
++        assert adjustment['status']=='refused_midpoint_retained' and adjustment['retained_value']=='37'
++        assert adjustment['original_rationale']==value['rationale']
++        assert '49' not in draft['judgment']['rationale']
++
++
++def test_offsite_assumption_survives_and_question_is_flagged(fixture):
++    with at(fixture,'A','X32') as (actor,step):
++        value=scored(step,grade_claim=claim('event'))
++        del value['basis_kind']
++        value.update(kind='assumption',assumption_basis={**claim('event'),'relationship':'Nearby event outside A.',
++                      'narrowing':'Nearby rockfall supports the low/moderate provisional range.'},
++                     plausible_grades=[g['choice'] for g in step['grades'] if g['min_value'] in ['0','25']],
++                     question='Would work in that season raise the frequency grade?',question_effect='grade',
++                     value='27',value_reason='The event was off site.',adjustment_claim={**claim('event'),'direction':'lower'})
++        result=api.save_indicator_outcome(fixture.cs,actor,'save','X32',value)['result']
++        draft=fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X32']
++        assert draft['kind']=='assumption' and draft['judgment']['value']=='27'
++        assert 'QUESTION_EFFECT_CONFLICT' in result['claim_checks']['review_flags']
++
++
++@pytest.mark.parametrize('kind', ['evidence', 'gap'])
++def test_registered_subquote_must_use_fact_handle_before_native_save(fixture, kind):
++    with at(fixture,'A','X51') as (actor,step):
++        value = scored(step, grade_claim=claim('sec','holes'), investigation_counts=[
++            {'fact_id':'sec','purpose':'survey_section_count','count':1},
++            {'fact_id':'holes','purpose':'borehole_count','count':3}]) if kind=='evidence' else {
++            'kind':'gap','question':'Is additional documentation available?', 'missing':'Other investigation points.'}
++        value['quotes'] = ['断面设置 三个钻孔']
++        with pytest.raises(ActionRejected, match='fact_id'):
++            api.save_indicator_outcome(fixture.cs,actor,'registered-subquote','X51',value)
++        assert api.read_indicator_step(fixture.cs,actor)['indicator_id']=='X51'
++
++
++
++def test_object_totals_do_not_establish_per_section_count():
++    from decimal import Decimal
++    from report_agent.writer_claims import apply_claims
++
++    facts = [fact('sections','survey_section_count','Two sections.',value=2),
++             fact('holes','borehole_count','Three holes in the whole survey.',value=3)]
++    value = {'kind':'evidence','value':'37','grade_claim':claim('sections','holes'),
++             'investigation_counts':[{'fact_id':f['fact_id'],'purpose':f['purpose'],'count':f['value']} for f in facts]}
++    with pytest.raises(ActionRejected, match='section'):
++        apply_claims(value, indicator_id='X51', subject='A', attestations=facts, midpoint=Decimal(37), grade_id='moderate')
++
++
++def test_gap_question_always_has_semantic_review_even_when_writer_claims_no_issue():
++    from report_agent.writer_claims import apply_claims
++    original = {'kind':'gap','missing':'Groundwater investigation is missing.',
++                'question':'When did all the known wells dry up?'}
++    row, checks = apply_claims(original, indicator_id='X23', subject='B', attestations=[], midpoint=None,grade_id=None)
++    assert row['question']==original['question']
++    assert 'QUESTION_REQUIRES_SEMANTIC_REVIEW' in checks['review_flags']
++    assert checks['semantic_review_required']
++
++
++def test_upper_bound_cannot_assume_unknown_geophysical_or_test_pit_count_is_zero():
++    from decimal import Decimal
++    from report_agent.writer_claims import apply_claims
++    facts = [fact('sec','survey_section_count','One section.',value=1),
++             fact('holes','borehole_count','Two boreholes.',value=2)]
++    value = {'kind':'evidence','value':'62','grade_claim':claim('sec','holes'),
++             'investigation_counts':[{'fact_id':f['fact_id'],'purpose':f['purpose'],'count':f['value']} for f in facts]}
++    with pytest.raises(ActionRejected, match='count'):
++        apply_claims(value, indicator_id='X51', subject='A', attestations=facts, midpoint=Decimal(62), grade_id='high')
++
++
++
++def test_external_evidence_has_native_source_check_and_critical_scope_review(fixture):
++    # Simulate a register that has not catalogued one real sentence of the synthetic design PDF.
++    quote = '防护采用锚杆框架梁，设置截排水沟。'
++    for obj in fixture.profile['facts'].values():
++        obj['observations'] = [f for f in obj['observations'] if f['quote']!=quote]
++    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
++    with at(fixture,'A','X41') as (actor,step):
++        support = {'statement':'The drawing describes an anchored frame.', 'subject':'A',
++                   'scope':'Design notes for A', 'quotes':['No such sentence in any attached source.']}
++        value = scored(step, grade_claim=claim(), external_support=support)
++        with pytest.raises(ActionRejected, match='QUOTE_NOT_FOUND'):
++            api.save_indicator_outcome(fixture.cs,actor,'fabricated-external','X41',value)
++        support['quotes'] = [quote]
++        receipt = api.save_indicator_outcome(fixture.cs,actor,'real-external','X41',value)
++        assert 'EXTERNAL_SCOPE_REQUIRES_CRITICAL_REVIEW' in receipt['result']['claim_checks']['review_flags']
++        draft = fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X41']
++        assert len(draft['judgment']['sources'])==1

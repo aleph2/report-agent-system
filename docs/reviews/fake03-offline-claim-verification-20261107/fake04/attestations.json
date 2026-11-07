@@ -1,0 +1,330 @@
+[
+  {
+    "fact_id": "F04-N-FREQUENCY",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "regional",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Complete North work-area event log for the stated five calendar years",
+    "purpose": "hazard_frequency",
+    "indicator_ids": [
+      "X32"
+    ],
+    "document": "01_hazard_register.pdf",
+    "page": 1,
+    "quote": "North work area: three rockfalls recorded from 2021-01-01 through 2025-12-31.",
+    "value": "rockfall",
+    "event_count": 3,
+    "period_years": 5
+  },
+  {
+    "fact_id": "F04-N-SEASON",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "regional",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "North log explicitly relates July to its three reported rockfalls",
+    "purpose": "hazard_season",
+    "indicator_ids": [
+      "X32"
+    ],
+    "document": "01_hazard_register.pdf",
+    "page": 1,
+    "quote": "All three North events took place in July, during the local rockfall season.",
+    "value": "July",
+    "months": [
+      7
+    ]
+  },
+  {
+    "fact_id": "F04-N-START",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "North construction start",
+    "purpose": "construction_date",
+    "indicator_ids": [
+      "X31",
+      "X32"
+    ],
+    "document": "03_design_review.pdf",
+    "page": 1,
+    "quote": "North excavation begins on 2026-07-05.",
+    "value": "2026-07-05"
+  },
+  {
+    "fact_id": "F04-S-FREQUENCY",
+    "subject": "South",
+    "applies_to": [
+      "South"
+    ],
+    "source_class": "regional",
+    "state": "explicit_absence",
+    "coverage": "object",
+    "coverage_detail": "Complete South work-area rockfall log for five calendar years",
+    "purpose": "hazard_frequency",
+    "indicator_ids": [
+      "X32"
+    ],
+    "document": "01_hazard_register.pdf",
+    "page": 2,
+    "quote": "South work area: zero rockfalls recorded from 2021-01-01 through 2025-12-31.",
+    "value": "rockfall",
+    "event_count": 0,
+    "period_years": 5
+  },
+  {
+    "fact_id": "F04-N-FACILITIES",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "survey",
+    "state": "explicit_absence",
+    "coverage": "object",
+    "coverage_detail": "Survey within 2.0H above the crest and 2.0H below the road",
+    "purpose": "facility_presence",
+    "indicator_ids": [
+      "X42"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 1,
+    "quote": "North: no surveyed facilities within 2.0H above the crest or 2.0H below the road.",
+    "value": 0,
+    "unit": "facilities",
+    "survey_extent": {
+      "upslope_h": 2.0,
+      "downslope_h": 2.0
+    }
+  },
+  {
+    "fact_id": "F04-N-BOREHOLES",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Boreholes in North section N1",
+    "purpose": "borehole_count",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 1,
+    "quote": "North section N1: three boreholes; zero test pits; no geophysics performed.",
+    "value": 3
+  },
+  {
+    "fact_id": "F04-N-PITS",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "survey",
+    "state": "explicit_absence",
+    "coverage": "object",
+    "coverage_detail": "Explicit zero test pits in North section N1",
+    "purpose": "test_pit_count",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 1,
+    "quote": "North section N1: three boreholes; zero test pits; no geophysics performed.",
+    "value": 0
+  },
+  {
+    "fact_id": "F04-N-SECTIONS",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "North investigation sections",
+    "purpose": "survey_section_count",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 1,
+    "quote": "North: N1 is the only investigation section.",
+    "value": 1
+  },
+  {
+    "fact_id": "F04-N-INVESTIGATION",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Field report assessment for North",
+    "purpose": "survey_investigation_quality",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 1,
+    "quote": "North: investigation of geology and groundwater is adequate to select calculation parameters.",
+    "value": "adequate"
+  },
+  {
+    "fact_id": "F04-N-GROUNDWATER",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "survey",
+    "state": "explicit_absence",
+    "coverage": "object",
+    "coverage_detail": "N1 borings to 15 m on 2026-03-21; does not characterize all depths",
+    "purpose": "groundwater_condition",
+    "indicator_ids": [
+      "X23"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 1,
+    "quote": "No groundwater was encountered in the North N1 boreholes down to 15 m on 2026-03-21.",
+    "value": "not encountered"
+  },
+  {
+    "fact_id": "F04-S-PARTIAL-ZERO",
+    "subject": "South",
+    "applies_to": [
+      "South"
+    ],
+    "source_class": "survey",
+    "state": "explicit_absence",
+    "coverage": "object",
+    "coverage_detail": "Partial survey confined to 0.2H upper and lower limits",
+    "purpose": "facility_presence",
+    "indicator_ids": [
+      "X42"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 2,
+    "quote": "South: no facilities found within 0.2H above the cut crest and 0.2H below the road.",
+    "value": 0,
+    "unit": "facilities",
+    "survey_extent": {
+      "upslope_h": 0.2,
+      "downslope_h": 0.2
+    }
+  },
+  {
+    "fact_id": "F04-S-FACILITY",
+    "subject": "South",
+    "applies_to": [
+      "South"
+    ],
+    "source_class": "survey",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Surveyed facility, measured from South upper excavation limit",
+    "purpose": "facility_presence",
+    "indicator_ids": [
+      "X42"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 2,
+    "quote": "South: field survey located a water tank 0.4H upslope from the cut crest.",
+    "value": "water tank at 0.4H upslope",
+    "facility_location": {
+      "side": "upslope",
+      "distance_h": 0.4
+    }
+  },
+  {
+    "fact_id": "F04-S-SURVEY-RECORD",
+    "subject": "South",
+    "applies_to": [
+      "South"
+    ],
+    "source_class": "survey",
+    "state": "unknown",
+    "coverage": "document",
+    "coverage_detail": "Missing South investigation record; counts unknown",
+    "purpose": "survey_coverage",
+    "indicator_ids": [
+      "X51"
+    ],
+    "document": "02_field_survey.pdf",
+    "page": 2,
+    "quote": "South: survey of investigation sections and exploration point counts is unavailable.",
+    "value": null
+  },
+  {
+    "fact_id": "F04-N-INDEX",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "document",
+    "coverage_detail": "Reviewed drawing inventory; completeness only for the five stated sheet types",
+    "purpose": "design_file_coverage",
+    "indicator_ids": [
+      "X52"
+    ],
+    "document": "03_design_review.pdf",
+    "page": 1,
+    "quote": "North: checked drawing index lists plan, elevation, cross-section, structure and detail sheets.",
+    "value": "plan, elevation, cross-section, structure, details"
+  },
+  {
+    "fact_id": "F04-S-REF",
+    "subject": "South",
+    "applies_to": [
+      "South"
+    ],
+    "source_class": "design",
+    "state": "known",
+    "coverage": "document",
+    "coverage_detail": "South sheet index reference only; S-8 not visually verified",
+    "purpose": "drawing_reference",
+    "indicator_ids": [
+      "X11",
+      "X52"
+    ],
+    "document": "03_design_review.pdf",
+    "page": 1,
+    "quote": "South: bench dimensions are referenced to sheet S-8; its image was not provided for review.",
+    "value": "S-8"
+  },
+  {
+    "fact_id": "F04-N-DRAWING",
+    "subject": "North",
+    "applies_to": [
+      "North"
+    ],
+    "source_class": "drawing",
+    "state": "known",
+    "coverage": "object",
+    "coverage_detail": "Synthetic drawing N-1; visually checked upper bench only",
+    "purpose": "drawing_contents",
+    "indicator_ids": [
+      "X52"
+    ],
+    "document": "04_checked_section.pdf",
+    "page": 1,
+    "quote": "North: verified drawing N-1 shows a bench width of 4 m below the upper cut.",
+    "value": "bench width 4 m",
+    "visual_verified": true
+  }
+]
