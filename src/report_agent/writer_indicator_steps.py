@@ -19,7 +19,9 @@ PAGE_LIMIT = 3
 
 class IndicatorBoundary(AgentMiddleware):
     """BusinessBoundary serializes tool execution, including calls in one model batch."""
-    def __init__(self):
+    def __init__(self, *, one_request=False):
+        self.one_request = one_request
+        self.requested = False
         self.reads = 0
         self.locations = []
         self.issue_saved = False
@@ -31,6 +33,9 @@ class IndicatorBoundary(AgentMiddleware):
             name in SAVES or name==READ and self.reads<PAGE_LIMIT or name==ISSUE and not self.issue_saved)
 
     async def awrap_model_call(self, request, handler):
+        if self.one_request and self.requested:
+            raise ActionRejected('WRITER_CONTINUATION_REQUEST_USED')
+        self.requested = True
         request = append_declared_system(request,
             f'Page read attempts left for this indicator: {PAGE_LIMIT-self.reads}.',
             'indicator_step/reading_allowance')
@@ -53,7 +58,7 @@ class IndicatorBoundary(AgentMiddleware):
 
     @hook_config(can_jump_to=['end'])
     async def abefore_model(self, state, runtime):
-        if self.saved or len(self.save_refusals)==2:
+        if self.saved or len(self.save_refusals)==2 or (self.one_request and self.requested):
             return {'jump_to':'end'}
 
 
@@ -131,7 +136,7 @@ class IndicatorRun:
     def _record_progress(self, status):
         self.progress = {k:status[k] for k in ('progress','assessment_ref','gap_indicators','interrupted_indicators')}
 
-    async def run(self):
+    async def run(self, *, continuation=None):
         from .writer_assessment import (read_indicator_step, save_indicator_outcome, step_outcome_schema,
                                         interrupt_indicator_step)
         cs = ContentStore(self.workspace.store)
@@ -139,7 +144,13 @@ class IndicatorRun:
         self._record_progress(step)
         while not step['complete']:
             indicator_id = step['indicator_id']
-            boundary = IndicatorBoundary()
+            boundary = IndicatorBoundary(one_request=continuation is not None)
+            if continuation is not None:
+                original_step, prior_reads = continuation
+                if original_step != step or len(prior_reads) != PAGE_LIMIT:
+                    raise ActionRejected('WRITER_CONTINUATION_STEP_MISMATCH')
+                boundary.locations = [r['location'] for r in prior_reads]
+                boundary.reads = len(prior_reads)
             self.receipts.boundary = boundary
             def save_tool(kind):
                 schema = step_outcome_schema(cs, self.actor, indicator_id, kind)
@@ -168,12 +179,18 @@ class IndicatorRun:
                 'metadata':{'report_runtime_version_ref':record_runtime_version(self.workspace.store),
                     'report_operation_identity_profile':'native-tool-runtime-v1'}}
             message = HumanMessage(content=json.dumps(step,ensure_ascii=False))
-            await agent.ainvoke({'messages':[message]},config)
+            messages = [message]
+            if continuation is not None:
+                messages.append(HumanMessage(content=json.dumps(
+                    {'prior_page_read_results_for_this_indicator':prior_reads},ensure_ascii=False)))
+            await agent.ainvoke({'messages':messages},config)
             if len(boundary.save_refusals)==2 and not boundary.saved:
                 receipt=interrupt_indicator_step(cs,self.actor,indicator_id,list(boundary.save_refusals.values()))
                 self._record_progress(receipt['result'])
-            elif not boundary.saved:
+            elif not boundary.saved and continuation is None:
                 raise ActionRejected('PROBE_INDICATOR_STEP_INTERRUPTED')
+            if continuation is not None:
+                return self.progress
             next_step = read_indicator_step(cs, self.actor)
             if (next_step['progress']['recorded']+len(next_step['interrupted_indicators'])
                     != step['progress']['recorded']+len(step['interrupted_indicators'])+1):

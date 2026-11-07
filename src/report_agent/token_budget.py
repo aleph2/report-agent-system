@@ -180,6 +180,9 @@ class TokenBudget:
     def reserve(self,model):
         return self._reserve(model, self.model_bounds.get(model))
 
+    def _reservation_id(self, db, model, bound):
+        return str(uuid4())
+
     def _reserve(self, model, bound):
         if model not in self.model_bounds:raise RequestBudgetExceeded('MODEL_TOKEN_BOUND_NOT_VERIFIED')
         if type(bound) is not int or not 0 < bound <= self.model_bounds[model]:
@@ -189,7 +192,7 @@ class TokenBudget:
             used,held=self.totals(db)
             if used+held+bound>self.maximum:raise RequestBudgetExceeded('AUTHORIZED_TOKEN_BUDGET_REACHED')
             if db.execute("SELECT 1 FROM attempts WHERE state='bound_violation'").fetchone():raise RequestBudgetExceeded('TOKEN_BOUND_VIOLATION_REQUIRES_DIAGNOSIS')
-            identity=str(uuid4())
+            identity=self._reservation_id(db, model, bound)
             db.execute('INSERT INTO attempts VALUES (?,?,?,NULL,\'reserved\',NULL,NULL,?)',
                        (identity,model,bound,datetime.now(timezone.utc).isoformat()))
         return identity

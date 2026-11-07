@@ -18,6 +18,27 @@ _RUN_COSTS = f"""SELECT {_USAGE} FROM attempts a
     JOIN fake_run_attempts r ON r.attempt_id = a.id WHERE r.run_id = ?"""
 
 
+_RESERVATION_TRIGGER = f"""CREATE TRIGGER fake_reservation AFTER INSERT ON attempts BEGIN
+                    SELECT CASE WHEN EXISTS(
+                        SELECT 1 FROM attempts WHERE id <> NEW.id AND state IN ('reserved','unknown')
+                    ) THEN RAISE(ABORT, 'FAKE_REQUEST_PENDING') END;
+                    INSERT INTO fake_run_attempts VALUES (NEW.id, fake_run_id());
+                    SELECT CASE WHEN (
+                        SELECT SUM(COALESCE(a.used, 0) +
+                            CASE WHEN a.state IN ('reserved','unknown') THEN a.reserved ELSE 0 END)
+                        FROM attempts a JOIN fake_run_attempts r ON r.attempt_id = a.id
+                        WHERE r.run_id = fake_run_id()
+                    ) > {RUN_LIMIT} THEN RAISE(ABORT, 'FAKE_RUN_TOKEN_LIMIT') END;
+                END;"""
+_CONTINUATION_TRIGGER = _RESERVATION_TRIGGER.replace(
+    "id <> NEW.id",
+    """id <> NEW.id AND NOT EXISTS (
+        SELECT 1 FROM fake_continuations c WHERE c.previous_id=attempts.id
+        AND c.retry_id=NEW.id AND c.run_id=fake_run_id()
+    )""",
+)
+
+
 class FakeVerificationBudget(TokenBudget):
     """Run ids come from the trusted host and stay the same when inspecting a retry."""
 
@@ -37,18 +58,7 @@ class FakeVerificationBudget(TokenBudget):
                     attempt_id TEXT PRIMARY KEY, run_id TEXT NOT NULL
                 );
                 CREATE INDEX fake_run_attempts_by_run ON fake_run_attempts(run_id);
-                CREATE TRIGGER fake_reservation AFTER INSERT ON attempts BEGIN
-                    SELECT CASE WHEN EXISTS(
-                        SELECT 1 FROM attempts WHERE id <> NEW.id AND state IN ('reserved','unknown')
-                    ) THEN RAISE(ABORT, 'FAKE_REQUEST_PENDING') END;
-                    INSERT INTO fake_run_attempts VALUES (NEW.id, fake_run_id());
-                    SELECT CASE WHEN (
-                        SELECT SUM(COALESCE(a.used, 0) +
-                            CASE WHEN a.state IN ('reserved','unknown') THEN a.reserved ELSE 0 END)
-                        FROM attempts a JOIN fake_run_attempts r ON r.attempt_id = a.id
-                        WHERE r.run_id = fake_run_id()
-                    ) > {RUN_LIMIT} THEN RAISE(ABORT, 'FAKE_RUN_TOKEN_LIMIT') END;
-                END;
+                {_RESERVATION_TRIGGER}
                 PRAGMA application_id={_APPLICATION_ID};
                 COMMIT;
             """)
@@ -87,6 +97,43 @@ class FakeVerificationBudget(TokenBudget):
         with closing(self.connect()) as db:
             used, held = db.execute(_RUN_COSTS, (self.run_id,)).fetchone()
         return {'maximum_tokens': RUN_LIMIT, 'settled': used, 'held': held}
+
+
+
+
+class FakeContinuationBudget(FakeVerificationBudget):
+    """One fresh reservation beside one named unresolved attempt in the same run."""
+
+    def __init__(self, grant_dir, run_id, previous_attempt):
+        super().__init__(grant_dir, run_id)
+        self.previous_attempt = previous_attempt
+
+    def _reservation_id(self, db, model, bound):
+        # TokenBudget holds BEGIN IMMEDIATE, and already checked total campaign exposure.
+        pending = db.execute("""
+            SELECT a.id, r.run_id, a.model, a.reserved
+            FROM attempts a LEFT JOIN fake_run_attempts r ON r.attempt_id=a.id
+            WHERE a.state IN ('reserved','unknown')
+        """).fetchall()
+        if pending != [(self.previous_attempt,self.run_id,model,bound)]:
+            raise RequestBudgetExceeded('FAKE_CONTINUATION_HOLD_MISMATCH')
+        db.execute("""CREATE TABLE IF NOT EXISTS fake_continuations (
+            previous_id TEXT PRIMARY KEY, retry_id TEXT UNIQUE NOT NULL, run_id TEXT NOT NULL
+        )""")
+        # Upgrade only the known guard. Ordinary attempts have no matching permit.
+        current = db.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='fake_reservation'").fetchone()
+        normalize = lambda sql: ' '.join(sql.rstrip(';').split())
+        if current and normalize(current[0]) == normalize(_RESERVATION_TRIGGER):
+            db.execute('DROP TRIGGER fake_reservation')
+            db.execute(_CONTINUATION_TRIGGER)
+        elif not current or normalize(current[0]) != normalize(_CONTINUATION_TRIGGER):
+            raise RequestBudgetExceeded('FAKE_CONTINUATION_GUARD_MISMATCH')
+        if db.execute('SELECT 1 FROM fake_continuations WHERE previous_id=? OR retry_id=?',
+                      (self.previous_attempt,self.previous_attempt)).fetchone():
+            raise RequestBudgetExceeded('FAKE_CONTINUATION_ALREADY_USED')
+        retry_id = super()._reservation_id(db,model,bound)
+        db.execute('INSERT INTO fake_continuations VALUES (?,?,?)',(self.previous_attempt,retry_id,self.run_id))
+        return retry_id
 
 
 @contextmanager
