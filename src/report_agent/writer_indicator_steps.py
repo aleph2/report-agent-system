@@ -142,7 +142,10 @@ class IndicatorRun:
             boundary = IndicatorBoundary()
             self.receipts.boundary = boundary
             def save_tool(kind):
+                schema = step_outcome_schema(cs, self.actor, indicator_id, kind)
                 def save(operation_id: str, **outcome) -> dict:
+                    # Native tools pass nested Pydantic objects. Hash the supplied JSON fields.
+                    outcome = schema.model_validate(outcome).model_dump(mode='json', exclude_unset=True)
                     receipt = save_indicator_outcome(cs,self.actor,operation_id,indicator_id,
                         {**outcome,'kind':kind},read_locations=boundary.locations)
                     self._record_progress(receipt['result'])
@@ -153,7 +156,7 @@ class IndicatorRun:
                     'evidence':'Save a supported grade, numeric value, rationale and exact evidence quotes.',
                     'assumption':'Save a supported assumption, rationale, plausible grades and a review question.',
                     'gap':'Record missing information, a review question and optional rationale without a score.'}[kind]
-                save.message_model=step_outcome_schema(cs,self.actor,indicator_id,kind)
+                save.message_model=schema
                 return _native_write(self.workspace,'writer',save)
             tools=[*self.tools,*(save_tool(k) for k in ('evidence','assumption','gap'))]
             agent = create_agent(self.model,tools,system_prompt=load_prompt('writer-indicator-step'),
@@ -226,6 +229,15 @@ async def run_mini_assessment(workspace, model, *, verified_run):
             code = str(exc)
             if re.fullmatch(r'(WRITER|FAKE|PROBE|SCOPED|COMMISSION|REQUEST|TOKEN)_[A-Z0-9_]{1,140}',code):
                 slope['stop_code'] = code
+            else:
+                trace = exc.__traceback__
+                while trace is not None:
+                    frame = trace.tb_frame
+                    module = frame.f_globals.get('__name__', '')
+                    if module.startswith('report_agent.'):
+                        slope['error_location'] = {'module': module, 'function': frame.f_code.co_name,
+                                                   'line': trace.tb_lineno}
+                    trace = trace.tb_next
             result['status'] = 'interrupted'
             return result
     if any(s['status']=='incomplete' for s in result['slopes']):

@@ -101,3 +101,34 @@ def test_applied_guideline_uses_visible_approved_rule_and_requires_both_source_k
                                      {**value,'quotes':basic['quotes']+[rule_quote]})
         assert result['result']['saved_indicator']=='X11'
         assert read_indicator_step(cs,session.actor)['progress']['recorded']==1
+
+
+@pytest.mark.asyncio
+async def test_native_save_gap_with_structured_conflict_commits_issue(tmp_path, monkeypatch):
+    case=tmp_path/'case'
+    prepare_mini_commission(FIXTURES/'fake_data/mini_commission/inputs',case)
+    ws=Workspace(Store(case))
+    height={k:CALLS['48'][k] for k in ('grade','value','basis_kind','quotes','rationale')}
+    conflict=dict(basis='设计坡率 1:0.75，地勘实测坡率 1:1.0。',
+        adopted_value='采用设计坡率 1:0.75，设计优先。',
+        quotes=['设计坡率为 1:0.75，分三级开挖。','坡段 A：实测坡率为 1:1.0。'],
+        question='请核对设计与调查坡率差异。',affects_level=True)
+    def decide(turn,body):
+        if turn==1:return reply([('height','save_evidence',height)])
+        assert turn==2
+        return reply([('angles','save_gap',dict(missing='自然坡角',question='自然坡角是多少？',
+                                                contrary_evidence=conflict))])
+    model,_=glm_model(SimpleNamespace(ws=ws),monkeypatch,decide,stop_at=3)
+    try:
+        with writer_session(ws,'坡段 A',model,section_id='3',assessment_only=True,indicator_steps=True) as session:
+            with pytest.raises(RequestBudgetExceeded):await session.run()
+            cs=ContentStore(ws.store)
+            step=read_indicator_step(cs,session.actor)
+            assert step['indicator_id']=='X21' and step['gap_indicators']==['X12']
+            with cs.store.connect() as db:
+                issues=[json.loads(raw) for raw, in db.execute(
+                    "SELECT value FROM state WHERE key LIKE 'g6_issue_record:%'")]
+            assert len(issues)==1
+            assert issues[0]['issue']['adopted_value']==conflict['adopted_value']
+            assert {s['quote'] for s in issues[0]['source_citations']}==set(conflict['quotes'])
+    finally:await close(model)
