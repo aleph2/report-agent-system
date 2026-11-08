@@ -1157,3 +1157,11 @@ The owner accepted M2 at `bac73ea`. M3 moves assessment receipts to immutable ca
 M3 is ready for owner review. The offline Fake03 checkpoint restored 16 judgments and both unscored slope results. The complete suite passed 6,077 tests with nine conditional skips. [M3 verification and operator handoff](../docs/verification/stage1-m3/README.md).
 
 The owner accepted M3 at `76d835b`. O3 at `0f495a2` governs the vocabulary, action catalog and SQL checks. [Dated S2 amendment log](../docs/reviews/s2-amendments.json). Run `python scripts/check_s2_contract.py` for all three file hashes. Before M4, run it with `--require-acknowledged` after recording the owner's direct acknowledgment of the M1, M2 and M3 vocabulary changes. S3's role-classification helper is listed for byte-level history. The engineering lead's criteria review continues alongside M4. Section 9a still assigns X11, X12 and X31 to the calculator before the paid Fake03 run. X31 arithmetic currently remains with the Writer.
+
+### M4 start and section 9a follow-up, 2026-11-08
+
+The owner acknowledged the M1, M2 and M3 S2 amendments and directed the team to start M4. The accepted M3 tag remains the baseline. Begin with the shared confirmed-plan fixture and the current-plan query. Preserve the dispatcher, historical cases and the owner's exclusive authority to confirm a proposed version.
+
+**Reviewer instruction effective now.** When a source observation uses a date, compare the meaning of the date against its exact quote and any bound source metadata. A publication or issue date alone does not establish when the observation took place. If the meaning is ambiguous, flag the observation date for review and keep it unknown until resolved.
+
+**Section 9a, before paid Fake03.** During quoted-value extraction, the extracting agent should state what each date denotes (observation, survey, issue or publication) for the Reviewer to inspect. The Reviewer should check this alongside the value and qualifiers. Include a case where the quote contains a publication date and the observation date is unknown. The existing vocabulary and M1 timestamp rules apply throughout M4. The M1–M3 acknowledgment covers only the three logged amendments.

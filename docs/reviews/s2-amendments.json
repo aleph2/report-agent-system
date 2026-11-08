@@ -27,8 +27,8 @@
       "before_sha256": "b58db956b74f4ac95cea8107a2efef5beb42f4f8d6ad642a985a50b911dc7d5d",
       "after_sha256": "10e8bac157059d6407008f9847a3e781abd93c9c3d0d65028946f5397862bf3d",
       "summary": "m1-source-time-1 permits a source observation timestamp, calendar date, or unknown. recorded_at remains a timezone-aware timestamp. Older envelopes retain their timestamp requirement.",
-      "owner_record": null,
-      "status": "pending"
+      "owner_record": "Owner chat, 2026-11-08, following the source observation date discussion: “Acknowledge M1, M2 and M3; start M4.”",
+      "status": "acknowledged"
     },
     {
       "id": "M2",
@@ -39,8 +39,8 @@
       "before_sha256": "10e8bac157059d6407008f9847a3e781abd93c9c3d0d65028946f5397862bf3d",
       "after_sha256": "9fb7d703ec89922cce081f461b9c45e51db5116cfcee6b98a34f56477958384e",
       "summary": "A judgment may carry submission_receipt, a 64-character lowercase hexadecimal digest. It is omitted when absent. Existing judgments keep their original envelope version.",
-      "owner_record": null,
-      "status": "pending"
+      "owner_record": "Owner chat, 2026-11-08, following the source observation date discussion: “Acknowledge M1, M2 and M3; start M4.”",
+      "status": "acknowledged"
     },
     {
       "id": "M3",
@@ -51,8 +51,8 @@
       "before_sha256": "9fb7d703ec89922cce081f461b9c45e51db5116cfcee6b98a34f56477958384e",
       "after_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
       "summary": "m3-assessment-1 binds the typed calculator assessment to a derived assertion. Scored, pending-review and unscored results distinguish adopted scores from draft arithmetic and carry bounds, robustness, missing or interrupted inputs and the projection digest. Empty inputs are valid only for an unscored assessment naming missing indicators.",
-      "owner_record": null,
-      "status": "pending"
+      "owner_record": "Owner chat, 2026-11-08, following the source observation date discussion: “Acknowledge M1, M2 and M3; start M4.”",
+      "status": "acknowledged"
     }
   ]
 }
