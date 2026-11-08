@@ -1,2 +1,5 @@
 # PDF offsets and frozen fixture hashes depend on exact bytes.
 *.pdf binary
+
+# Keep the project plan stable across Windows and WSL checkouts.
+tasks/plan.md text eol=lf
