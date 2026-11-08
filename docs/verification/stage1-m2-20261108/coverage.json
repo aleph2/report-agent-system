@@ -1,0 +1,367 @@
+{
+  "affected_modules": {
+    "src/report_agent/assertion_host.py": {
+      "m1": {
+        "covered_lines": 128,
+        "num_statements": 134,
+        "percent_covered": 95.5223880597015
+      },
+      "first_m2": {
+        "covered_lines": 132,
+        "num_statements": 138,
+        "percent_covered": 95.65217391304348
+      },
+      "tagged_m2": {
+        "covered_lines": 132,
+        "num_statements": 138,
+        "percent_covered": 95.65217391304348
+      }
+    },
+    "src/report_agent/assertions/actions.py": {
+      "m1": {
+        "covered_lines": 99,
+        "num_statements": 107,
+        "percent_covered": 92.5233644859813
+      },
+      "first_m2": {
+        "covered_lines": 120,
+        "num_statements": 129,
+        "percent_covered": 93.02325581395348
+      },
+      "tagged_m2": {
+        "covered_lines": 120,
+        "num_statements": 129,
+        "percent_covered": 93.02325581395348
+      }
+    },
+    "src/report_agent/assertions/export.py": {
+      "m1": {
+        "covered_lines": 111,
+        "num_statements": 127,
+        "percent_covered": 87.4015748031496
+      },
+      "first_m2": {
+        "covered_lines": 131,
+        "num_statements": 149,
+        "percent_covered": 87.91946308724832
+      },
+      "tagged_m2": {
+        "covered_lines": 131,
+        "num_statements": 149,
+        "percent_covered": 87.91946308724832
+      }
+    },
+    "src/report_agent/assertions/launch.py": {
+      "m1": {
+        "covered_lines": 51,
+        "num_statements": 52,
+        "percent_covered": 98.07692307692308
+      },
+      "first_m2": {
+        "covered_lines": 53,
+        "num_statements": 54,
+        "percent_covered": 98.14814814814815
+      },
+      "tagged_m2": {
+        "covered_lines": 53,
+        "num_statements": 54,
+        "percent_covered": 98.14814814814815
+      }
+    },
+    "src/report_agent/assertions/queries.py": {
+      "m1": {
+        "covered_lines": 229,
+        "num_statements": 243,
+        "percent_covered": 94.23868312757202
+      },
+      "first_m2": {
+        "covered_lines": 231,
+        "num_statements": 243,
+        "percent_covered": 95.06172839506173
+      },
+      "tagged_m2": {
+        "covered_lines": 231,
+        "num_statements": 243,
+        "percent_covered": 95.06172839506173
+      }
+    },
+    "src/report_agent/assertions/schema/kinds.py": {
+      "m1": {
+        "covered_lines": 164,
+        "num_statements": 176,
+        "percent_covered": 93.18181818181819
+      },
+      "first_m2": {
+        "covered_lines": 165,
+        "num_statements": 177,
+        "percent_covered": 93.22033898305085
+      },
+      "tagged_m2": {
+        "covered_lines": 165,
+        "num_statements": 177,
+        "percent_covered": 93.22033898305085
+      }
+    },
+    "src/report_agent/assertions/store.py": {
+      "m1": {
+        "covered_lines": 73,
+        "num_statements": 82,
+        "percent_covered": 89.02439024390245
+      },
+      "first_m2": {
+        "covered_lines": 85,
+        "num_statements": 95,
+        "percent_covered": 89.47368421052632
+      },
+      "tagged_m2": {
+        "covered_lines": 85,
+        "num_statements": 95,
+        "percent_covered": 89.47368421052632
+      }
+    },
+    "src/report_agent/fake_indicator_retry.py": {
+      "m0": {
+        "covered_lines": 0,
+        "num_statements": 141,
+        "percent_covered": 0.0
+      },
+      "m1": {
+        "covered_lines": 0,
+        "num_statements": 142,
+        "percent_covered": 0.0
+      },
+      "first_m2": {
+        "covered_lines": 0,
+        "num_statements": 150,
+        "percent_covered": 0.0
+      },
+      "tagged_m2": {
+        "covered_lines": 0,
+        "num_statements": 150,
+        "percent_covered": 0.0
+      }
+    },
+    "src/report_agent/legacy_state.py": {
+      "m1": {
+        "covered_lines": 165,
+        "num_statements": 167,
+        "percent_covered": 98.80239520958084
+      },
+      "first_m2": {
+        "covered_lines": 159,
+        "num_statements": 161,
+        "percent_covered": 98.75776397515529
+      },
+      "tagged_m2": {
+        "covered_lines": 159,
+        "num_statements": 161,
+        "percent_covered": 98.75776397515529
+      }
+    },
+    "src/report_agent/operation_identity.py": {
+      "m0": {
+        "covered_lines": 36,
+        "num_statements": 38,
+        "percent_covered": 94.73684210526316
+      },
+      "m1": {
+        "covered_lines": 38,
+        "num_statements": 40,
+        "percent_covered": 95.0
+      },
+      "first_m2": {
+        "covered_lines": 38,
+        "num_statements": 40,
+        "percent_covered": 95.0
+      },
+      "tagged_m2": {
+        "covered_lines": 38,
+        "num_statements": 40,
+        "percent_covered": 95.0
+      }
+    },
+    "src/report_agent/qualitative_review.py": {
+      "m0": {
+        "covered_lines": 79,
+        "num_statements": 87,
+        "percent_covered": 90.80459770114942
+      },
+      "m1": {
+        "covered_lines": 79,
+        "num_statements": 87,
+        "percent_covered": 90.80459770114942
+      },
+      "first_m2": {
+        "covered_lines": 79,
+        "num_statements": 87,
+        "percent_covered": 90.80459770114942
+      },
+      "tagged_m2": {
+        "covered_lines": 79,
+        "num_statements": 87,
+        "percent_covered": 90.80459770114942
+      }
+    },
+    "src/report_agent/scripted_fact_import.py": {
+      "m1": {
+        "covered_lines": 103,
+        "num_statements": 107,
+        "percent_covered": 96.26168224299066
+      },
+      "first_m2": {
+        "covered_lines": 112,
+        "num_statements": 116,
+        "percent_covered": 96.55172413793103
+      },
+      "tagged_m2": {
+        "covered_lines": 112,
+        "num_statements": 116,
+        "percent_covered": 96.55172413793103
+      }
+    },
+    "src/report_agent/writer_assessment.py": {
+      "m0": {
+        "covered_lines": 355,
+        "num_statements": 368,
+        "percent_covered": 96.46739130434783
+      },
+      "m1": {
+        "covered_lines": 346,
+        "num_statements": 359,
+        "percent_covered": 96.37883008356546
+      },
+      "first_m2": {
+        "covered_lines": 284,
+        "num_statements": 300,
+        "percent_covered": 94.66666666666667
+      },
+      "tagged_m2": {
+        "covered_lines": 295,
+        "num_statements": 300,
+        "percent_covered": 98.33333333333333
+      }
+    },
+    "src/report_agent/writer_assignments.py": {
+      "m0": {
+        "covered_lines": 213,
+        "num_statements": 226,
+        "percent_covered": 94.24778761061947
+      },
+      "m1": {
+        "covered_lines": 214,
+        "num_statements": 227,
+        "percent_covered": 94.27312775330397
+      },
+      "first_m2": {
+        "covered_lines": 238,
+        "num_statements": 262,
+        "percent_covered": 90.83969465648855
+      },
+      "tagged_m2": {
+        "covered_lines": 254,
+        "num_statements": 262,
+        "percent_covered": 96.94656488549619
+      }
+    },
+    "src/report_agent/writer_indicator_steps.py": {
+      "m0": {
+        "covered_lines": 215,
+        "num_statements": 228,
+        "percent_covered": 94.29824561403508
+      },
+      "m1": {
+        "covered_lines": 211,
+        "num_statements": 223,
+        "percent_covered": 94.61883408071749
+      },
+      "first_m2": {
+        "covered_lines": 214,
+        "num_statements": 226,
+        "percent_covered": 94.69026548672566
+      },
+      "tagged_m2": {
+        "covered_lines": 214,
+        "num_statements": 226,
+        "percent_covered": 94.69026548672566
+      }
+    },
+    "src/report_agent/writer_judgment_authority.py": {
+      "first_m2": {
+        "covered_lines": 230,
+        "num_statements": 249,
+        "percent_covered": 92.36947791164658
+      },
+      "tagged_m2": {
+        "covered_lines": 230,
+        "num_statements": 249,
+        "percent_covered": 92.36947791164658
+      }
+    },
+    "src/report_agent/writer_judgments.py": {
+      "first_m2": {
+        "covered_lines": 124,
+        "num_statements": 133,
+        "percent_covered": 93.23308270676692
+      },
+      "tagged_m2": {
+        "covered_lines": 125,
+        "num_statements": 133,
+        "percent_covered": 93.98496240601504
+      }
+    },
+    "src/report_agent/writer_probe.py": {
+      "m0": {
+        "covered_lines": 155,
+        "num_statements": 182,
+        "percent_covered": 85.16483516483517
+      },
+      "m1": {
+        "covered_lines": 155,
+        "num_statements": 182,
+        "percent_covered": 85.16483516483517
+      },
+      "first_m2": {
+        "covered_lines": 149,
+        "num_statements": 178,
+        "percent_covered": 83.70786516853933
+      },
+      "tagged_m2": {
+        "covered_lines": 164,
+        "num_statements": 178,
+        "percent_covered": 92.13483146067416
+      }
+    },
+    "src/report_agent/writer_runtime.py": {
+      "m0": {
+        "covered_lines": 138,
+        "num_statements": 139,
+        "percent_covered": 99.28057553956835
+      },
+      "m1": {
+        "covered_lines": 144,
+        "num_statements": 145,
+        "percent_covered": 99.3103448275862
+      },
+      "first_m2": {
+        "covered_lines": 85,
+        "num_statements": 86,
+        "percent_covered": 98.83720930232558
+      },
+      "tagged_m2": {
+        "covered_lines": 86,
+        "num_statements": 86,
+        "percent_covered": 100.0
+      }
+    }
+  },
+  "m0_baseline_sha256": "94a438dc287f7b5cfbb8e9d4823adca183fb27f28bf2bf04b7b710ab187102a0",
+  "per_file_floor_checked": 8,
+  "below_m0": [],
+  "package_percent": {
+    "m0": 90.35180328985457,
+    "m1": 90.54433042258907,
+    "first_m2": 90.49163805864382,
+    "tagged_m2": 90.6365153853422
+  },
+  "source_tree_sha_equal": true
+}

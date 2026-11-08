@@ -1,0 +1,235 @@
+{
+  "revision": "7ca4e18f45dff06ae2edcddfee2364e5d0d5850d",
+  "route": "offline guarded Run 06 saved inputs -> normal per-indicator saves -> frozen task-scoped Reviewer views",
+  "source_receipt_sha256": "52e38f115281232ac126a74456de34f3bb5fc080d9417043314c342aea1cd0f9",
+  "register_sha256": "2815c134887ae9e3fe12ae6c3ef130a3d53a94a6d8205778bc493ee669915fa1",
+  "full_local_replay_record_sha256": "d5eac7e66bfedf9cb56271140300a2bf36f785fc12422548a056de57820a609f",
+  "retained_controls": 10,
+  "rows": {
+    "A/X21": {
+      "outcome": "control retained",
+      "basis": "evidence",
+      "classification": "moderate",
+      "value": "37",
+      "conditional_grades": [],
+      "has_question": false,
+      "flags": [],
+      "reviewed_row_sha256": "2b7c74e55c885df37fb60ecb3829c85bda2a3707b1d045c60bd49a663e8aa79c"
+    },
+    "A/X22": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "33e92ecfeb5d3cc937bd2ddc26259d887ecba709984b762fd39e74ee0cfd24c4"
+    },
+    "A/X23": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "f9a7fd49c6f59d4e3ff29226e31b30477d134404dd0ae2163c9742956953c837"
+    },
+    "A/X32": {
+      "outcome": "assumption preserved; original question flagged",
+      "basis": "assumption",
+      "classification": "moderate",
+      "value": "27",
+      "conditional_grades": [
+        "moderate",
+        "low"
+      ],
+      "has_question": true,
+      "flags": [
+        "ASSUMPTION_REQUIRES_SEMANTIC_REVIEW",
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "QUESTION_EFFECT_CONFLICT",
+        "ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "3dbc055b3acbb49fcade2976a0fee3cb570bb05c83c63a107f4c46ad01687a65"
+    },
+    "A/X41": {
+      "outcome": "control retained",
+      "basis": "evidence",
+      "classification": "high",
+      "value": "62",
+      "conditional_grades": [],
+      "has_question": false,
+      "flags": [],
+      "reviewed_row_sha256": "20051621c01281cb5d29063236a0a30fa4af0190e758549be749e187d3a7cc3d"
+    },
+    "A/X42": {
+      "outcome": "original refused; scripted gap saved",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "02bdc6420475de081b71034daf78039cd7f262de396f2bae5e689da2d828ca6b"
+    },
+    "A/X51": {
+      "outcome": "owner-deferred unscored gap with conditional low and moderate",
+      "basis": "conditional",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [
+        "low",
+        "moderate"
+      ],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "84858dc9be217d3f576a80ac7b515e763f50d46bdd17d87f5b63c02a558a23f5"
+    },
+    "A/X52": {
+      "outcome": "original refused; scripted gap saved",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "88e38b7bf115d9aef340601701e6a1164f874e76aa51d95bdd7efc0c5bcbda53"
+    },
+    "B/X21": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "9569f44780d21e678bd13aa89b8a4a500f0117b07314a3c7efbae192e378dfc3"
+    },
+    "B/X22": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "182a421690034cc26edf48e4354d53a17481ca4ef9eb7431848fdb73c8f36624"
+    },
+    "B/X23": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "2f2ca1911e8280e9b6e11a1593718a0322f5ae825d1d981140d730e822cce07a"
+    },
+    "B/X32": {
+      "outcome": "original refused; scripted gap saved",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "QUESTION_EFFECT_CONFLICT",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "554fb348ea95086e3732e715c1454b1e4abd088ad5f1ddada8e424572fd5a7dc"
+    },
+    "B/X41": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "83dd69736ddd4e07f9a839b62cbb432f6dc9d3a44ba3edf63c8d648568152d97"
+    },
+    "B/X42": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "ef572ba598d12094592b3f4aed736415adbd8827634376fbb51ad5f28ee818d4"
+    },
+    "B/X51": {
+      "outcome": "original refused; scripted gap saved",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "e9f9435b0acf89cd0ba3c427575c04476957579df29b4d8dbfeb1b8c2fbb77fe"
+    },
+    "B/X52": {
+      "outcome": "control retained",
+      "basis": "gap",
+      "classification": null,
+      "value": null,
+      "conditional_grades": [],
+      "has_question": true,
+      "flags": [
+        "QUESTION_REQUIRES_SEMANTIC_REVIEW",
+        "GAP_RATIONALE_REQUIRES_SEMANTIC_REVIEW"
+      ],
+      "reviewed_row_sha256": "d95e4f60b5c9991b733747456b752a30ca1bc2ab96ae67b8c4ce00df9dfed227"
+    }
+  },
+  "historical_A_X51": {
+    "route": "separate prior-policy regression in tests/assertions/test_production_fake03.py",
+    "classification": "moderate",
+    "proposed_value": "49",
+    "effective_value": "37"
+  },
+  "model_calls": 0,
+  "cold_restore": {
+    "rows": 16,
+    "version": 3,
+    "sha256": "20e46c8e4fad85580561a170cb8017e1ebf59e4e5c5dd7e78ac6ec90e867c3c2",
+    "reexport_byte_identical": true,
+    "original_grants_copied": false,
+    "task_db_copied": false
+  }
+}
