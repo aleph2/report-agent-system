@@ -1,9 +1,10 @@
 """Audited prose-only rescue projection; original authors and records are immutable."""
+from . import legacy_state as legacy
 from copy import deepcopy
 import json
 import re
 
-from .commission_plan import _confirmed, _set, _state
+from .commission_plan import _confirmed
 from .content_layout import STRUCTURAL
 from .content_models import ContentNode, Ref
 from .errors import ActionForbidden, ActionRejected
@@ -176,9 +177,9 @@ def _project(cs, db, source, section, dispositions, required):
                 body = saved['payload'].get('body', {})
                 task = cs._read(db, {'type': 'DelegatedTask', 'id': source['task_id'], 'version': 1})
                 plan_ref = task['payload']['commission_plan_ref']
-                planned = _state(db, 'planned_section_receipt:' + digest(replacement))
+                planned = legacy.get_planned_section_receipt(db, digest(replacement))
                 assessment = body.get('assessment_ref')
-                scored = _state(db, 'assessment_receipt:' + digest(assessment)) if assessment else None
+                scored = legacy.get_assessment_receipt(db, digest(assessment)) if assessment else None
                 valid_planned = (planned and planned.get('node_ref') == replacement and
                     planned.get('commission_plan_ref') == plan_ref and
                     (planned.get('body_digest') == digest(body) or planned.get('text_digest') == digest(body.get('text'))))
@@ -211,7 +212,7 @@ def _assessment_replacement(cs, db, source, section, plan, assessment_ref):
     if assessment_ref.get('type') != 'Assessment':
         raise ActionRejected('RESCUE_ASSESSMENT_REF_REQUIRED')
     saved = cs._read(db, assessment_ref)['payload']
-    receipt = _state(db, 'assessment_receipt:' + digest(assessment_ref))
+    receipt = legacy.get_assessment_receipt(db, digest(assessment_ref))
     if (not receipt or receipt.get('assessment_ref') != assessment_ref or
             saved.get('commission_plan_ref') != plan['ref'] or saved.get('object_id') != obj['object_id']):
         raise ActionRejected('RESCUE_ASSESSMENT_PLAN_OBJECT_RECEIPT_REQUIRED')
@@ -220,7 +221,7 @@ def _assessment_replacement(cs, db, source, section, plan, assessment_ref):
         raise ActionRejected('RESCUE_ASSESSMENT_SECTION_MISMATCH')
     checked = validate_outcome(cs, db, plan, obj['object_id'], receipt['evaluation_ref'],
         receipt['level_ref'], [receipt['evidence_ref']], [])
-    current = _state(db, 'g6_assessment:' + digest([plan['ref'], obj['object_id']]))
+    current = legacy.get_g6_assessment(db, digest([plan['ref'], obj['object_id']]))
     if checked != assessment_ref or current is not None and current != assessment_ref:
         raise ActionRejected('RESCUE_ASSESSMENT_CANONICAL_REF_MISMATCH')
     pattern = r'本边坡综合得分F＝[0-9]+\.[0-9]{2}，风险等级(?:Ⅲ级，需|Ⅱ级，不需)开展专项施工安全风险评估。'
@@ -281,7 +282,7 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
                 'qualifier_accounting': accounting, 'qualifier_dispositions': deepcopy(dispositions)}
             if replacement is not None:
                 receipt['assessment_replacement'] = replacement
-            _set(db, 'rescue_projection:' + digest(ref), receipt)
+            legacy.set_rescue_projection(db, digest(ref), receipt)
             output[sid].append(ref); receipts.append(receipt)
         return {'section_bindings': output, 'projection_receipts': receipts,
                 'refs': {str(i): ref for i, ref in enumerate(r for refs in output.values() for r in refs)}}
@@ -291,7 +292,7 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
 
 def verify_projection(cs, db, record, sid, plan, co_actor):
     """Verify the exact derived copy and original assignment; never adopt producer identity."""
-    receipt = _state(db, 'rescue_projection:' + digest(record['ref']))
+    receipt = legacy.get_rescue_projection(db, digest(record['ref']))
     if (not receipt or receipt.get('contract') != CONTRACT or receipt.get('projection_ref') != record['ref'] or
             record.get('owner_id') != co_actor.id or record.get('created_by') != co_actor.id or
             receipt.get('section_id') != sid or receipt.get('commission_plan_ref') != plan['ref']):

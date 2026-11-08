@@ -1,5 +1,6 @@
 """Requirement-derived acceptance versions; storage facts are not semantic approval."""
 from __future__ import annotations
+from . import legacy_state as legacy
 
 import hashlib
 import json
@@ -98,7 +99,7 @@ def requirement_basis(workspace):
         "operator_decisions": [
             {key: entry.get(key) for key in
              ("id", "category", "description", "source_ids", "decision", "resolved")}
-            for entry in store.get("report_issues", [])
+            for entry in legacy.get_report_issues(store, [])
             if entry.get("decision_origin") == "operator"
         ],
     }

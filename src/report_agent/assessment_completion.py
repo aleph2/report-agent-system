@@ -1,4 +1,5 @@
 """Trusted one-shot Writer assessment recovery; never resumes a stopped report host."""
+from . import legacy_state as legacy
 import argparse
 import asyncio
 from contextlib import AsyncExitStack, closing
@@ -129,11 +130,11 @@ def selected_tools(tools):
 def saved_assessments(contents, plan_ref, object_ids, owner_id):
     result = {}
     for object_id in object_ids:
-        ref = contents.store.get('g6_assessment:' + digest([plan_ref, object_id]))
+        ref = legacy.get_g6_assessment(contents.store, digest([plan_ref, object_id]))
         if ref is None:
             continue
         record = contents.read(ref)
-        receipt = contents.store.get('assessment_receipt:' + digest(ref))
+        receipt = legacy.get_assessment_receipt(contents.store, digest(ref))
         if (ref.get('type') != 'Assessment' or record['payload'].get('commission_plan_ref') != plan_ref
                 or record['payload'].get('object_id') != object_id or record['owner_id'] != owner_id
                 or not receipt or receipt.get('assessment_ref') != ref):

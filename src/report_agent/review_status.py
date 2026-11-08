@@ -3,6 +3,7 @@
 Persisted ReviewRecord/ReviewReuse/HandlingRecord remain the source of truth.
 The inventory describes existing scopes; it does not invent acceptance requirements.
 """
+from . import legacy_state as legacy
 from collections import defaultdict
 
 from .content_delivery import current_delivery
@@ -28,7 +29,7 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
     records = contents.list_objects()
     by_key = {_key(r["ref"]): r for r in records}
     members = {_key(r) for r in [snapshot_ref, *snapshot["payload"]["refs"]]}
-    selected = contents.store.get("content_delivery")
+    selected = legacy.get_content_delivery(contents.store)
 
     def artifact_export(ref):
         record = contents.read(ref)

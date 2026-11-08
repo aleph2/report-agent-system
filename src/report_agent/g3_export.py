@@ -1,4 +1,5 @@
 """G3 snapshot preflight and source-bound application of the reviewed format."""
+from . import legacy_state as legacy
 from copy import deepcopy
 import re
 
@@ -132,7 +133,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             assessment = outcome['payload'].get('assessment_ref')
             if assessment:
                 selected_assessments.add(_key(assessment))
-                receipt = cs.store.get('assessment_receipt:' + digest(assessment))
+                receipt = legacy.get_assessment_receipt(cs.store, digest(assessment))
                 if not receipt or any(_key(receipt[name]) not in selected for name in ('ranking_ref', 'evaluation_ref', 'level_ref')):
                     problems.append(outcome_ref['id'] + ': frozen outcome requires all three generated assessment nodes')
     if plan.get('format_source'):
@@ -153,7 +154,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 and body.get('columns') == ['指标', '重要性排序', '权重', '排序理由']):
             problems.append(location + ': legacy ranking reasons require regeneration from saved assessment')
         if body.get('source_views'):
-            receipt = cs.store.get('planned_section_receipt:' + digest(records[key]['ref'])) if cs is not None else None
+            receipt = legacy.get_planned_section_receipt(cs.store, digest(records[key]['ref'])) if cs is not None else None
             section = sections.get(body.get('section_id'), {})
             if (node['kind'] != 'block' or section.get('kind') != 'fixed' or not receipt
                     or receipt.get('node_ref') != records[key]['ref']
@@ -198,7 +199,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             continue
         assessment = body.get('assessment_ref')
         if cs is not None and assessment:
-            receipt = cs.store.get('assessment_receipt:' + digest(assessment))
+            receipt = legacy.get_assessment_receipt(cs.store, digest(assessment))
             part = body.get('assessment_part')
             if (not receipt or part not in {'ranking', 'evaluation', 'level'}
                     or receipt.get(part + '_ref') != records[key]['ref']):
@@ -206,7 +207,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             if outcomes and _key(assessment) not in selected_assessments:
                 problems.append(location + ': assessment not selected by frozen outcomes')
         if cs is not None and section['kind'] == 'derived':
-            receipt = cs.store.get('planned_section_receipt:' + digest(records[key]['ref']))
+            receipt = legacy.get_planned_section_receipt(cs.store, digest(records[key]['ref']))
             if (not receipt or receipt.get('node_ref') != records[key]['ref']
                     or receipt.get('commission_plan_ref') != snapshot['payload']['commission_plan_ref']
                     or receipt.get('section_id') != sid
@@ -221,7 +222,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                             or receipt.get('decision_digest') != digest(saved['payload'])):
                         problems.append(location + ': derived template decision receipt mismatch')
                 composition_groups[sid].add(digest(receipt.get('group_ref')))
-                group = cs.store.get('planned_section_receipt:' + digest(receipt.get('group_ref')))
+                group = legacy.get_planned_section_receipt(cs.store, digest(receipt.get('group_ref')))
                 expected = [_key(r) for r in (group or {}).get('node_refs', [])]
                 if not expected or any(k not in selected for k in expected) or [k for k in ordered if k in expected] != expected:
                     problems.append(location + ': derived composition incomplete or reordered')

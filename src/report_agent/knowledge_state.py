@@ -1,4 +1,5 @@
 """Read-only freshness projection; graph content is never duplicated in SQL."""
+from . import legacy_state as legacy
 from datetime import datetime, timezone
 
 from .deep_models import error_data
@@ -57,8 +58,8 @@ def project_state(workspace, knowledge=None):
         projection = current_delivery(workspace.store)
         state.update(content_contract="hierarchical-review-v1",
                      content_current_review=projection,
-                     content_delivery=workspace.store.get("content_delivery"),
-                     content_final_review=workspace.store.get("content_final_review"),
+                     content_delivery=legacy.get_content_delivery(workspace.store),
+                     content_final_review=legacy.get_content_final_review(workspace.store),
                      content_execution_decision=workspace.store.get("content_execution_decision"),
                      content_execution_limitation=workspace.store.get("content_execution_limitation"))
         state["execution_status"] = workspace.store.get("report_status", state["status"])

@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from dotenv import dotenv_values
 
+from report_agent import legacy_state as legacy
 from report_agent.content_export import export_snapshot, render_export
 from report_agent.content_store import ContentStore
 from report_agent.deep_runtime import run_report
@@ -91,7 +92,7 @@ def prepare(baseline, destination):
     instruction = ("本次为现有完整报告的独立审核实测。审核所选快照与成品，保留原文和既有标准，"
                    "自主调查并记录问题、覆盖缺口及后续建议；本轮保留未解决结果，不改写或重生成报告，"
                    "不要把阶段性稿件当成已验收。审核不需要等待用户确认启动；没有预置错误答案。")
-    store.set("content_delivery", {"snapshot_ref": snap, "export_ref": export, "ending_reason": "preserve_unresolved", "trial_instruction": instruction})
+    legacy.set_content_delivery(store, {"snapshot_ref": snap, "export_ref": export, "ending_reason": "preserve_unresolved", "trial_instruction": instruction})
     store.set("knowledge_enabled", False)
     before = [(r["ref"]["type"], r["payload"]) for r in objects if r["ref"]["type"] == "ContentNode"]
     after = [(r["ref"]["type"], r["payload"]) for r in cs.list_objects("ContentNode")]

@@ -1,4 +1,5 @@
 """Small Writer judgments; scope, source references and output positions are host-owned."""
+from . import legacy_state as legacy
 import json
 import re
 from typing import Literal
@@ -118,7 +119,7 @@ def save_indicator_conflict(cs, db, actor, operation_id, bound, payload):
 
 
 def _write_issue(cs, db, actor, operation_id, bound, value):
-    from .commission_plan import _confirmed, _set, _state
+    from .commission_plan import _confirmed, _state
     citations = _sources(cs, db, actor, bound, value)
     issue = {k: getattr(value, k) for k in ('kind', 'basis', 'adopted_value', 'question', 'affects_level')}
     issue.update(object_label=bound['object']['label'], sources=_readable_sources(cs, db, citations),
@@ -134,8 +135,7 @@ def _write_issue(cs, db, actor, operation_id, bound, value):
         raise ActionRejected('REQUIRED_MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
     if not matches:
         # Reuse historical IDs even when their source order differed; never rewrite old keys.
-        for _, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<?",
-                                 ('g6_issue_record:', 'g6_issue_record;')):
+        for _, raw in legacy.iter_g6_issue_record(db):
             previous = json.loads(raw)
             if (previous.get('writer_task_ref') == bound['task_ref']
                     and previous.get('commission_plan_ref') == bound['plan']['ref']
@@ -154,11 +154,11 @@ def _write_issue(cs, db, actor, operation_id, bound, value):
         'commission_plan_ref': bound['plan']['ref'], 'binding': _binding(bound, value.kind),
         'source_citations': citations, 'receipt_id': operation_id}
     key = digest([bound['plan']['ref'], issue['id']])
-    old = _state(db, 'g6_issue_record:' + key)
+    old = legacy.get_g6_issue_record(db, key)
     if old and old.get('writer_task_ref') != bound['task_ref']:
         raise ActionForbidden('FORBIDDEN: material issue proposal owner')
-    _set(db, 'g6_issue_record:' + key, proposal)
-    _set(db, 'g6_issue_binding:' + key, proposal['binding'])
+    legacy.set_g6_issue_record(db, key, proposal)
+    legacy.set_g6_issue_binding(db, key, proposal['binding'])
     return {'issue_id': issue['id'], 'binding': proposal['binding'], 'proposal_digest': digest(proposal)}
 
 

@@ -4,6 +4,7 @@ The pinned harness owns invocation, checkpoints and feedback routing. Its legacy
 boolean contract cannot represent unexecuted work, so that projection is not used.
 """
 from __future__ import annotations
+from . import legacy_state as legacy
 
 from inspect import iscoroutinefunction
 
@@ -122,7 +123,7 @@ class HierarchicalRubric(RubricMiddleware):
         data = {"target": self.target, **summary, **saved["result"], "runtime_identity": self.identity,
                 "explanation": graded.explanation, "execution_result": result, "native_run_id": grading_run_id}
         data["evidence_revision"] = self.evidence_revision()
-        self.workspace.store.set("content_final_review", data)
+        legacy.set_content_final_review(self.workspace.store, data)
         self.workspace.store.event("content_native_review_completed", data)
         return {"grading_run_id": grading_run_id, "iteration": iteration, "result": result,
             "explanation": graded.explanation, "criteria": [{"name": i["criterion_ref"]["id"], **i} for i in review["items"]],
@@ -168,13 +169,13 @@ class HierarchicalRubric(RubricMiddleware):
     async def aafter_agent(self, state, runtime):
         if state.get("rubric_terminal_handoff"):
             return {"rubric_terminal_handoff": False}
-        self.target = self.workspace.store.get("content_delivery")
+        self.target = legacy.get_content_delivery(self.workspace.store)
         if not self.target:
             self.workspace.store.set("report_status", "needs_attention")
             return None
         snapshot = self.contents.read(self.target["snapshot_ref"])
         self.required = obligations(self.contents, self.target["snapshot_ref"])
-        previous = self.workspace.store.get("content_final_review")
+        previous = legacy.get_content_final_review(self.workspace.store)
         # No automatic repetition of the same evidence/target. Explicit new runs
         # can investigate again, with the retained findings available as feedback.
         if (previous and previous["target"]["snapshot_ref"] == self.target["snapshot_ref"]
@@ -188,7 +189,7 @@ class HierarchicalRubric(RubricMiddleware):
         if update and update.get("_rubric_status") not in {"satisfied", "needs_revision"}:
             return {**update, "rubric_terminal_handoff": True, "jump_to": "model",
                 "messages": [HumanMessage(content="Final review ended without satisfaction. Preserve actual verdicts, coverage and unresolved work; explain the current delivery. "
-                    + encode(self.workspace.store.get("content_final_review") or {"execution_state": "blocked", "verdict": None}), name="content_terminal_feedback")]}
+                    + encode(legacy.get_content_final_review(self.workspace.store) or {"execution_state": "blocked", "verdict": None}), name="content_terminal_feedback")]}
         return update
 
 

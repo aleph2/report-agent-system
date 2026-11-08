@@ -1,4 +1,5 @@
 """Offline, scripted Coordinator and owner for the hash-pinned synthetic Writer verification case."""
+from . import legacy_state as legacy
 import hashlib
 import json
 import re
@@ -86,14 +87,14 @@ def prepare_mini_commission(inputs, destination):
         ids[METHOD_SOURCE_NAME] = 'system-method'
         captured = cs.import_inputs(co,'mini-capture',list(ids.values()))['result']['source_refs']
         refs = {name:ref for name,ref in zip(ids,captured,strict=True)}
-        store.set('commission_source_roles', {n:{'id':sid,'purpose':'commission' if n=='00_scope.md'
+        legacy.set_commission_source_roles(store, {n:{'id':sid,'purpose':'commission' if n=='00_scope.md'
                   else 'template' if n=='08_template.docx' else 'source_or_applicable_standard'} for n,sid in ids.items()})
         plan, requirements_ref = _plan(ws, cs, co, ids, refs, catalog, method)
         plan_ref = save_plan(cs,co,'mini-scripted-plan',plan)['result']['plan_ref']
         checkpoint = request_checkpoint(ws)
         reply(ws,checkpoint['issue_id'],{'plan_ref':plan_ref,'requirements_ref':requirements_ref,'approved':True,
               'corrections':'','reductions':[{'object_id':'C','reason':'中心桩号 K0+620 超出委托界线 K0+500。'}]})
-        decision_ref = store.get('commission_confirmation')
+        decision_ref = legacy.get_commission_confirmation(store)
         if destination.exists():
             raise FileExistsError(destination)
         case.rename(destination)

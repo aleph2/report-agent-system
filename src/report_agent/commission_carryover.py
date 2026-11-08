@@ -1,4 +1,5 @@
 """Import source-bound judgments as proposals; prior approvals never cross runs."""
+from . import legacy_state as legacy
 from copy import deepcopy
 from typing import Literal
 from pydantic import Field
@@ -87,7 +88,7 @@ def gaps(cs, db, plan):
 
 
 def install_carryover(cs, package, source_refs):
-    from .commission_planning import DRAFT, _assemble
+    from .commission_planning import _assemble
     from .content_models import InventoryObject
     from .commission_plan import Reconciliation
     from .hierarchical_tools import actor_for
@@ -127,7 +128,7 @@ def install_carryover(cs, package, source_refs):
             if previous['digest'] != fingerprint:
                 raise ActionRejected('CARRYOVER_PACKAGE_IMMUTABLE')
             return fingerprint
-        if not _state(db, 'commission_skeleton') or _state(db, DRAFT, {}).get('revision') or _state(db, 'commission_plan') or _state(db, 'commission_confirmation'):
+        if not legacy.get_commission_skeleton(db) or legacy.get_commission_planning_draft(db, {}).get('revision') or legacy.get_commission_plan(db) or legacy.get_commission_confirmation(db):
             raise ActionRejected('CARRYOVER_FRESH_SKELETON_REQUIRED')
         _validate_sources(cs, db, actor_for('coordinator'), mapped)
         items, proposals = {}, []
@@ -151,7 +152,7 @@ def install_carryover(cs, package, source_refs):
             question = PlanningQuestion.model_validate({'question_id':'carryover-'+str(i+1),'text':value,'resolved':False}).model_dump(mode='json')
             add('question', question['question_id'], question)
             items.setdefault('question', {})[question['question_id']] = question
-        skeleton = {s['section_id']:s for s in _state(db,'commission_skeleton')['sections']}
+        skeleton = {s['section_id']:s for s in legacy.get_commission_skeleton(db)['sections']}
         for value in mapped['section_source_choices']:
             if set(value) != {'section_id','sources','examples','rule'} or value['section_id'] not in skeleton:
                 raise ActionRejected('CARRYOVER_SECTION_JUDGMENT_INVALID')
@@ -159,7 +160,7 @@ def install_carryover(cs, package, source_refs):
             section = skeleton[value['section_id']]
             if section['kind'] == 'extracted' and not section.get('extraction'):
                 items.setdefault('section_judgment',{})[value['section_id']] = {k:value[k] for k in ('section_id','sources','examples')}
-        _set(db, DRAFT, {'revision':1,'items':items})
+        legacy.set_commission_planning_draft(db, {'revision':1,'items':items})
         _, _, plan = _assemble(cs,db)
         for item in proposals:
             item['initial_digest'] = digest(_value(item,plan))
@@ -170,7 +171,7 @@ def install_carryover(cs, package, source_refs):
 
 
 def review_carried_items(cs, actor, operation_id, reviews):
-    from .commission_planning import _assemble, DRAFT
+    from .commission_planning import _assemble
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: carryover review belongs to coordinator')
     reviews = [CarriedReview.model_validate(r).model_dump(mode='json') for r in reviews]
@@ -191,6 +192,6 @@ def review_carried_items(cs, actor, operation_id, reviews):
             registry['reviews'][review['item_id']] = review
         _set(db,KEY,registry)
         draft['revision'] += 1
-        _set(db,DRAFT,draft)
+        legacy.set_commission_planning_draft(db,draft)
         return {'reviewed':len(reviews),'revision':draft['revision']}
     return cs.operation(actor,operation_id,{'reviews':reviews},save)

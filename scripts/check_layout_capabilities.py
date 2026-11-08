@@ -1,6 +1,7 @@
 """Exercise native directory refresh on a prepared private real-report database copy."""
 import json
 from pathlib import Path
+from report_agent import legacy_state as legacy
 from report_agent.store import Store, encode
 from report_agent.content_store import ContentStore
 from report_agent.workspace import Workspace
@@ -9,7 +10,7 @@ from report_agent.content_export import export_snapshot, render_export
 
 store=Store(Path('.analysis/layout-capabilities-v3'))
 cs=ContentStore(store)
-selected=store.get('content_delivery')
+selected=legacy.get_content_delivery(store)
 options=cs.read(selected['export_ref'])['payload']['export_config']['layout']
 options['refresh_toc']=True
 for item in options['nodes']:

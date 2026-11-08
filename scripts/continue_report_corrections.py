@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import sqlite3
 
+from report_agent import legacy_state as legacy
 from report_agent.store import Store, encode
 from report_agent.workspace import Workspace
 from report_agent.model_config import load_mixed_services
@@ -43,8 +44,14 @@ async def main(args):
             if (source/directory).exists():
                 shutil.copytree(source/directory, target/directory)
     store = Store(target)
-    baseline = {key: store.get(key) for key in ('manifest', 'content_delivery',
-        'content_execution_decision', 'report_status', 'agent_summary', 'role_model_services')}
+    baseline = {
+        'manifest': store.get('manifest'),
+        'content_delivery': legacy.get_content_delivery(store),
+        'content_execution_decision': store.get('content_execution_decision'),
+        'report_status': store.get('report_status'),
+        'agent_summary': store.get('agent_summary'),
+        'role_model_services': store.get('role_model_services'),
+    }
     intent = {'at': datetime.now(timezone.utc).isoformat(), 'source': str(source),
         'authorization': 'User approved continuation and subsequently excluded engineering drawing review.',
         'instruction': INSTRUCTION, 'settings': settings, 'baseline': baseline,
@@ -57,13 +64,19 @@ async def main(args):
                     'content_execution_decision'):
             db.execute('DELETE FROM state WHERE key=?', (key,))
     store.set('manifest', {**store.manifest, 'goal': INSTRUCTION, 'scope_instruction': INSTRUCTION})
-    store.set('content_delivery', {**baseline['content_delivery'], 'trial_instruction': INSTRUCTION})
+    legacy.set_content_delivery(store, {**baseline['content_delivery'], 'trial_instruction': INSTRUCTION})
     store.set('knowledge_enabled', False)
     store.event('operator_content_correction_authorized', {'source': str(source), 'instruction': INSTRUCTION})
     print(encode({'state': 'starting', 'project': str(target), 'settings': settings}), flush=True)
     await run_report(Workspace(store))
-    result = {key: store.get(key) for key in ('report_status', 'report_error', 'content_delivery',
-              'content_execution_decision', 'content_final_review', 'agent_summary')}
+    result = {
+        'report_status': store.get('report_status'),
+        'report_error': store.get('report_error'),
+        'content_delivery': legacy.get_content_delivery(store),
+        'content_execution_decision': store.get('content_execution_decision'),
+        'content_final_review': legacy.get_content_final_review(store),
+        'agent_summary': store.get('agent_summary'),
+    }
     (target/'correction-result.json').write_text(encode(result), encoding='utf-8')
     print(encode({'status': result['report_status'], 'error': result['report_error']}), flush=True)
 

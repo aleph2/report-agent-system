@@ -6,6 +6,11 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import sys
+
+# This operator script also runs directly from a source checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from report_agent import legacy_state as legacy
 
 
 def audit(project: Path, after_sequence: int = 0):
@@ -20,11 +25,7 @@ def audit(project: Path, after_sequence: int = 0):
         rows = db.execute("SELECT sequence,at,kind,data FROM events WHERE sequence>? AND kind IN ("
                           + ",".join("?" for _ in kinds) + ") ORDER BY sequence",
                           (after_sequence, *kinds)).fetchall()
-        keys = ("delivery", "report_status", "rubric_reviews", "rubric_status", "report_error",
-                "checkpoint_resume", "native_interrupts", "knowledge_project_id", "knowledge_enabled", "report_issues",
-                "active_rubric_hash", "active_reviewer_prompt_hash", "manifest")
-        state = {k: json.loads(v) for k, v in db.execute(
-            "SELECT key,value FROM state WHERE key IN (" + ",".join("?" for _ in keys) + ")", keys)}
+        state = legacy.read_review_trial_state(db)
         results = [json.loads(r[0]) for r in db.execute("SELECT data FROM results ORDER BY rowid")]
         blocks = db.execute("SELECT source_id,ordinal,locator,text FROM source_blocks ORDER BY source_id,ordinal").fetchall()
     events = [(seq, at, kind, json.loads(data)) for seq, at, kind, data in rows]

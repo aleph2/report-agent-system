@@ -1,4 +1,5 @@
 """Small, exact decision-state projections; no model, scheduler or semantic judge."""
+from . import legacy_state as legacy
 import json
 from copy import deepcopy
 from typing import Annotated
@@ -14,7 +15,7 @@ def completion_state_token(db):
     return digest({
         'heads':db.execute('SELECT type,id,version FROM content_heads ORDER BY type,id').fetchall(),
         'observations':db.execute('SELECT count(*),max(rowid) FROM content_observations').fetchone(),
-        'authority':db.execute("SELECT key,value FROM state WHERE key IN ('manifest','content_delivery') ORDER BY key").fetchall(),
+        'authority':legacy.read_completion_authority_rows(db),
         'sources':db.execute('SELECT id,operation FROM source_versions ORDER BY id').fetchall()
             if db.execute("SELECT 1 FROM sqlite_master WHERE name='source_versions'").fetchone() else [],
     })
@@ -27,7 +28,7 @@ def execution_evidence(contents):
     Assigned completion never supplies whole-report or engineering acceptance.
     """
     from .task_supervision import reconcile
-    selected = contents.store.get('content_delivery')
+    selected = legacy.get_content_delivery(contents.store)
     # Filter immutable task records before reconciliation. Older snapshots remain
     # available but need not repeatedly expand every historical review here.
     assigned = [t for t in contents.list_objects('DelegatedTask')
@@ -123,7 +124,7 @@ def assigned_structure(contents, snapshot_ref, targets):
 def snapshot_assignment_inventory(contents):
     """Current saved assignment metadata, never a selection or semantic judgment."""
     from .task_supervision import obligation_coverage
-    selected = contents.store.get('content_delivery')
+    selected = legacy.get_content_delivery(contents.store)
     if selected:
         refs = [selected['snapshot_ref']]
         total = 1

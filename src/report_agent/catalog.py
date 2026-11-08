@@ -1,4 +1,5 @@
 from __future__ import annotations
+from . import legacy_state as legacy
 
 from .errors import ActionRejected
 
@@ -91,10 +92,9 @@ class Catalog:
                       "original_blob": BlobStore(self.store.root).put(data, mimetypes.guess_type(filename)[0] or 'application/octet-stream')}
             db.execute("INSERT INTO source_versions VALUES (?, ?, ?, ?)", (source_id, operation, encode(source), b''))
             self._blocks(db, source_id, parsed["blocks"])
-            row = db.execute("SELECT value FROM state WHERE key='source_changes'").fetchone()
-            changes = json.loads(row[0]) if row else []
+            changes = legacy.get_source_changes(db, [])
             changes.append({"id": str(uuid4()), "source_id": source_id, "replaces_id": replaces_id, "assessment": None})
-            db.execute("INSERT OR REPLACE INTO state VALUES ('source_changes', ?)", (encode(changes),))
+            legacy.set_source_changes(db, changes)
             db.execute("INSERT INTO events(kind,data) VALUES ('source_imported', ?)",
                        (encode({"source_id": source_id, "replaces_id": replaces_id, "operation": operation}),))
         return {"source": {k: v for k, v in source.items() if k != "content"}, "reused": False}

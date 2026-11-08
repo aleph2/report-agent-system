@@ -1,5 +1,6 @@
 """Business tools bound by the server to a project and a responsible actor."""
 from __future__ import annotations
+from . import legacy_state as legacy
 
 from pathlib import Path
 from typing import Annotated, Literal
@@ -106,7 +107,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         types, owners, versions and relations use read_object_index, even before a snapshot exists.
         """
         return {"actor": actor().__dict__, "objects": [{k: r[k] for k in ("ref", "previous_ref", "owner_id", "task_id", "payload_digest")} for r in contents.list_objects()],
-                "delivery": workspace.store.get("content_delivery"), "final_review": workspace.store.get("content_final_review"),
+                "delivery": legacy.get_content_delivery(workspace.store), "final_review": legacy.get_content_final_review(workspace.store),
                 "current_review": current_delivery(workspace.store),
                 "execution_decision": workspace.store.get("content_execution_decision"),
                 "goal": bound_manifest(workspace.store)["goal"], "scope_instruction": bound_manifest(workspace.store).get("scope_instruction"),
@@ -599,7 +600,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
                         'expected_snapshot_ref': snap['ref'], 'workbook_snapshot_ref': payload.get('snapshot_ref'),
                         'workbook_report_export_ref': payload.get('export_config', {}).get('report_export_ref')})
                 delivery['workbook_export_ref'] = workbook['ref']
-            db.execute("INSERT OR REPLACE INTO state VALUES ('content_delivery', ?)", (encode(delivery),))
+            legacy.set_content_delivery(db, delivery)
             # Retain historical final evidence; applicability is checked against the
             # exact selected snapshot/export. Reselecting cannot erase a known defect.
             return delivery
@@ -644,12 +645,12 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
                 raise ActionRejected('DECISION_STATE_CHANGED: Refresh current state before a new completion declaration.')
             if claims_assigned_checks_complete and not decision_evidence['assigned_checks_complete']:
                 raise ActionRejected('ASSIGNED_CHECKS_NOT_COMPLETE: ' + encode(decision_evidence))
-            row = db.execute("SELECT value FROM state WHERE key='content_delivery'").fetchone()
+            delivery = legacy.get_content_delivery(db)
             value = {"decision": decision, "reason": reason, "evidence": evidence,
                      "unresolved": unresolved, "task_supervision_remaining": remaining,
                      "claims_assigned_checks_complete": claims_assigned_checks_complete,
                      "execution_evidence": decision_evidence,
-                     "delivery": json.loads(row[0]) if row else None}
+                     "delivery": delivery}
             db.execute("INSERT OR REPLACE INTO state VALUES ('content_execution_decision', ?)", (encode(value),))
             return value
         from .task_supervision import task_status

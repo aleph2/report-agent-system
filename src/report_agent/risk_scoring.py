@@ -1,4 +1,5 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
+from . import legacy_state as legacy
 from typing import Literal
 
 from pydantic import Field, ValidationError
@@ -246,11 +247,11 @@ def validate_indicator_judgment(pack, row):
 
 def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
     """Use the canonical source, permission and role checks for an indicator draft."""
-    from .commission_plan import _validate_sources, _state
+    from .commission_plan import _validate_sources
     from .content_models import Ref
     pack = plan['payload']['method_pack']
     _validate_sources(cs, db, actor, {'indicators': rows})
-    roles = _state(db, 'commission_source_roles', {})
+    roles = legacy.get_commission_source_roles(db, {})
     templates = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
     template_refs = {Ref.model_validate(c['source_ref']).key() for s in plan['payload']['sections'] if s['kind'] == 'fixed' for c in s['sources']}
     factual_refs = {Ref.model_validate(c['source_ref']).key() for s in plan['payload']['sections'] if s['section_id'] == section_id for c in s['sources']}
@@ -288,7 +289,7 @@ def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
 
 def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
     """Canonical save inside the caller's already-held transaction."""
-    from .commission_plan import assert_writing_allowed, _validate_sources, _state, _set, _confirmed, outside_boundary
+    from .commission_plan import assert_writing_allowed, _validate_sources, _confirmed, outside_boundary
     from .content_models import ContentNode, Ref
     from .store import digest
 
@@ -330,8 +331,8 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
         raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(problems))
     validate_indicator_sources(cs, db, actor, plan, section_id, candidate['indicators'])
     if task.get('assessment_object_id') is not None:
-        producer_key = 'g6_assessment_producer:' + digest([plan['ref'], candidate['object_id']])
-        producer = _state(db, producer_key) or _state(db, 'g6_assessment:' + digest([plan['ref'], candidate['object_id']]))
+        producer_key = digest([plan['ref'], candidate['object_id']])
+        producer = legacy.get_g6_assessment_producer(db, producer_key) or legacy.get_g6_assessment(db, digest([plan['ref'], candidate['object_id']]))
         if producer and cs._read(db, producer)['owner_id'] != actor.id:
             raise ActionForbidden('FORBIDDEN: assessment producer ownership')
     index = plan['payload']['objects'].index(obj) + 1
@@ -412,12 +413,12 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
         'refs': dict(zip(['assessment', 'evidence', 'ranking', 'evaluation', 'level',
                          *['relation' + str(n) for n in range(len(relations))]],
                         [assessment_ref, evidence_ref, *generated, *relations]))}
-    _set(db, 'assessment_receipt:' + digest(assessment_ref), receipt)
+    legacy.set_assessment_receipt(db, digest(assessment_ref), receipt)
     if task.get('assessment_object_id') is not None:
-        _set(db, producer_key, producer or assessment_ref)
+        legacy.set_g6_assessment_producer(db, producer_key, producer or assessment_ref)
     from .section_writing import enabled as system_writing
     if system_writing(cs.store):
-        _set(db, 'g6_assessment:' + digest([plan['ref'], candidate['object_id']]), assessment_ref)
+        legacy.set_g6_assessment(db, digest([plan['ref'], candidate['object_id']]), assessment_ref)
     return receipt
 
 
@@ -430,10 +431,9 @@ def save_assessment(cs, actor, operation_id, assessment):
 
 
 def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved):
-    from .commission_plan import _state
     from .store import digest
     assessment_ref = cs._read(db, score_ref)['payload']['body'].get('assessment_ref')
-    receipt = _state(db, 'assessment_receipt:' + digest(assessment_ref)) if assessment_ref else None
+    receipt = legacy.get_assessment_receipt(db, digest(assessment_ref)) if assessment_ref else None
     if (not receipt or receipt['evaluation_ref'] != score_ref or receipt['level_ref'] != level_ref
             or receipt['evidence_ref'] not in basis_refs or unresolved):
         raise ActionRejected('COMMISSION_OUTCOME_SYSTEM_ASSESSMENT_REQUIRED')
@@ -460,7 +460,7 @@ def create_planned_section(cs, actor, operation_id, section_id, assessment_refs=
 
 def create_planned_section_in_transaction(cs, db, actor, plan, section_id, assessment_refs=(), *, positional_anchors=False):
     """Trusted assembler and writer API share the same validated projection."""
-    from .commission_plan import fixed_section_text, fixed_source_views, _state, _confirmed, outside_boundary
+    from .commission_plan import fixed_section_text, fixed_source_views, _confirmed, outside_boundary
     from .content_models import ContentNode
     from .store import digest
     if not plan or not plan['payload'].get('method_pack'):
@@ -479,7 +479,7 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         obj = record['payload']['object_id']
         if obj in bound:
             raise ActionRejected('PLANNED_SECTION_DUPLICATE_ASSESSMENT')
-        receipt = _state(db, 'assessment_receipt:' + digest(ref))
+        receipt = legacy.get_assessment_receipt(db, digest(ref))
         if not receipt:
             raise ActionRejected('PLANNED_SECTION_SYSTEM_RECEIPT_REQUIRED')
         bound[obj] = record['payload']['result']
@@ -500,7 +500,6 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
             raise ActionRejected('PLANNED_SECTION_UNKNOWN_LEVEL')
     if section.get('result_composition'):
         from .commission_results import composed_nodes
-        from .commission_plan import _set
         nodes = composed_nodes(plan['payload'], section, bound,
             [c for c in decision['payload'].get('template_decisions', []) if c['section_id'] in {p['section_id'] for p in section['result_composition']}],
             decision['payload'].get('required_material_issues', []), positional_anchors=positional_anchors)
@@ -518,7 +517,7 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
                 'group_ref': refs[0], 'commission_confirmation_ref': decision['ref'], 'decision_digest': digest(decision['payload'])}
             if ref == refs[0]:
                 receipt['node_refs'] = refs
-            _set(db, 'planned_section_receipt:' + digest(ref), receipt)
+            legacy.set_planned_section_receipt(db, digest(ref), receipt)
         return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
             **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
     if section['kind'] == 'fixed' and (slots or assessment_refs):
@@ -551,6 +550,5 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
                'section_id': section_id, 'text_digest': digest(text)}
     if views:
         receipt['source_views_digest'] = digest(views)
-    from .commission_plan import _set
-    _set(db, 'planned_section_receipt:' + digest(ref), receipt)
+    legacy.set_planned_section_receipt(db, digest(ref), receipt)
     return {'node_ref': ref, 'refs': {'section': ref}, 'assessment_refs': list(assessment_refs)}

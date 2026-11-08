@@ -1,4 +1,5 @@
 """Persistent planning rejection containment on native middleware boundaries."""
+from . import legacy_state as legacy
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
@@ -17,7 +18,8 @@ KEY = 'commission_planning_rejections'
 
 def fingerprint(workspace):
     with workspace.store.connect() as db:
-        return [_state(db, key) for key in ('commission_requirements', 'commission_plan', 'commission_planning_draft')]
+        return [legacy.get_commission_requirements(db), legacy.get_commission_plan(db),
+                legacy.get_commission_planning_draft(db)]
 
 
 def record_planning_result(workspace, role, tool_name, native_call_id, *, rejected, error_code=None, changed=False):
@@ -42,7 +44,7 @@ def record_planning_result(workspace, role, tool_name, native_call_id, *, reject
                 issue = {'id': identity, 'category': 'requirement', 'description':
                     'Planning paused after five consecutive rejected submissions. Review the preserved errors and explicitly resume this planning wait.',
                     'source_ids': [], 'resolved': False}
-                _set(db, 'report_issues', [*_state(db, 'report_issues', []), issue])
+                legacy.set_report_issues(db, [*legacy.get_report_issues(db, []), issue])
                 _set(db, 'report_status', 'waiting_for_human')
                 _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
                 state.update(waiting=True, issue_id=identity)
@@ -77,7 +79,7 @@ def resume_planning(workspace, issue_id, decision):
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         state = _state(db, KEY, {})
-        issues = _state(db, 'report_issues', [])
+        issues = legacy.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         answer = encode(decision)
         if not issue or state.get('issue_id') != issue_id:
@@ -89,7 +91,7 @@ def resume_planning(workspace, issue_id, decision):
         issue.update(decision=answer, decision_origin='operator', resolved=True)
         state.update(waiting=False, consecutive_rejections=0)
         _set(db, KEY, state)
-        _set(db, 'report_issues', issues)
+        legacy.set_report_issues(db, issues)
         _set(db, 'report_status', 'ready')
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('planning_operator_resume', encode({'issue_id': issue_id, 'note': decision['note']})))
@@ -151,7 +153,7 @@ class PlanningGuard(AgentMiddleware):
         interrupt({'issue_id': waiting['issue_id'], 'category': 'requirement',
             'kind': 'planning_completion', 'description': 'Planning ended without a confirmed plan or a blocking pause. Owner guidance is required.',
             **waiting['gaps']})
-        issue = next((i for i in self.workspace.store.get('report_issues', []) if i['id'] == waiting['issue_id']), {})
+        issue = next((i for i in legacy.get_report_issues(self.workspace.store, []) if i['id'] == waiting['issue_id']), {})
         if issue.get('decision_origin') != 'operator' or not issue.get('decision', '').strip():
             raise ActionRejected('PLANNING_COMPLETION_OPERATOR_DECISION_REQUIRED')
         # Resume guidance is not a replacement for the original report goal.

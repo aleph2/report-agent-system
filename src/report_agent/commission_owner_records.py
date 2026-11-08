@@ -1,4 +1,5 @@
 """Immutable pre-run owner authority, separate from proposals and plan approval."""
+from . import legacy_state as legacy
 from copy import deepcopy
 from hashlib import sha256
 from typing import Literal
@@ -6,9 +7,9 @@ from pydantic import Field, ValidationError
 from .content_models import Contract, SourceCitation, InventoryObject, Ref
 from .errors import ActionRejected
 from .store import digest, encode
-from .commission_plan import _state, _set, _validate_sources, _citations, SourceSubstitution
+from .commission_plan import _validate_sources, _citations, SourceSubstitution
 
-KEY = 'commission_owner_records'
+KEY = legacy.COMMISSION_OWNER_RECORDS_KEY
 
 
 def refuse(section, field, item, reason):
@@ -120,22 +121,22 @@ def install_owner_records(cs, bundle, source_refs):
     fingerprint = digest(entry)
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        previous = _state(db, KEY)
+        previous = legacy.get_commission_owner_records(db)
         if previous:
             if previous['digest'] != fingerprint:
                 refuse(None, 'registry', fingerprint, 'owner records are immutable')
             return fingerprint
-        if _state(db, 'commission_skeleton') or _state(db, 'commission_plan') or _state(db, 'commission_confirmation') or _state(db, 'commission_planning_draft', {}).get('revision'):
+        if legacy.get_commission_skeleton(db) or legacy.get_commission_plan(db) or legacy.get_commission_confirmation(db) or legacy.get_commission_planning_draft(db, {}).get('revision'):
             refuse(None, 'registry', fingerprint, 'fresh preparation required')
         from .hierarchical_tools import actor_for
         _validate_sources(cs, db, actor_for('coordinator'), bundle)
-        _set(db, KEY, {**entry, 'digest': fingerprint})
+        legacy.set_commission_owner_records(db, {**entry, 'digest': fingerprint})
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('owner_records_installed', encode({'digest': fingerprint, 'approved': False})))
     return fingerprint
 
 
 def _registry(cs, db):
-    record = _state(db, KEY)
+    record = legacy.get_commission_owner_records(db)
     if record:
         if digest({k: record[k] for k in ('bundle', 'source_pins')}) != record['digest']:
             refuse(None, 'registry', record['digest'], 'registry changed')
@@ -154,7 +155,7 @@ def _documents(bundle, section_id, skeleton=None):
 def decorate_plan(cs, db, plan):
     record = _registry(cs, db)
     if not record:
-        skeleton = _state(db, 'commission_skeleton')
+        skeleton = legacy.get_commission_skeleton(db)
         if skeleton:
             plan = deepcopy(plan)
             for section in plan.get('sections', []):
@@ -169,7 +170,7 @@ def decorate_plan(cs, db, plan):
         sid = section['section_id']
         section['notes'] = list(dict.fromkeys([*section.get('notes', []), *section.get('pending_sources', [])]))
         section['pending_sources'] = []
-        section['missing_documents'] = _documents(bundle, sid, _state(db, 'commission_skeleton'))
+        section['missing_documents'] = _documents(bundle, sid, legacy.get_commission_skeleton(db))
         # Historical string-keyed replacements are history, never authority in the new contract.
         current = {s['document_id']: s for s in section.get('source_substitutions', []) if s.get('document_id')}
         current.update({s['document_id']: {k: deepcopy(v) for k, v in s.items() if k != 'section_id'}
@@ -186,7 +187,7 @@ def validate_owner_records(cs, db, plan):
     registry = _registry(cs, db)
     typed = plan.get('owner_records_digest') or plan.get('owner_records') or any(s.get('missing_documents') for s in plan.get('sections', []))
     if not registry:
-        if typed and not (_state(db, 'commission_skeleton') and not plan.get('owner_records_digest') and not plan.get('owner_records')):
+        if typed and not (legacy.get_commission_skeleton(db) and not plan.get('owner_records_digest') and not plan.get('owner_records')):
             refuse(None, 'owner_records', 'unbound', 'trusted registry required')
         return
     bundle = registry['bundle']
@@ -194,10 +195,10 @@ def validate_owner_records(cs, db, plan):
         refuse(None, 'owner_records', registry['digest'], 'binding mismatch')
     sections = {s['section_id']: s for s in plan.get('sections', [])}
     for sid, section in sections.items():
-        if section.get('missing_documents', []) != _documents(bundle, sid, _state(db, 'commission_skeleton')) or section.get('pending_sources'):
+        if section.get('missing_documents', []) != _documents(bundle, sid, legacy.get_commission_skeleton(db)) or section.get('pending_sources'):
             refuse(sid, 'missing_documents', 'registry', 'retain ID-based documents; legacy text belongs in notes')
         for sub in section.get('source_substitutions', []):
-            if not sub.get('document_id') or sub['document_id'] not in {d['id'] for d in _documents(bundle, sid, _state(db, 'commission_skeleton'))}:
+            if not sub.get('document_id') or sub['document_id'] not in {d['id'] for d in _documents(bundle, sid, legacy.get_commission_skeleton(db))}:
                 refuse(sid, 'source_substitutions', sub.get('document_id') or sub['requested_source'], 'registered document ID required')
     objects = {o['object_id']: o for o in plan.get('objects', [])}
     for record in bundle['records']:

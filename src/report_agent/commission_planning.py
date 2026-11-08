@@ -1,4 +1,5 @@
 """Source-bound planning steps; reviewed data stays on the server."""
+from . import legacy_state as legacy
 from copy import deepcopy
 import re
 from typing import Annotated, Literal
@@ -18,7 +19,7 @@ from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventory
 
 CATALOG = 'commission_reviewed_entries'
 CONTRACT = 'commission-planning-v1'
-DRAFT = 'commission_planning_draft'
+DRAFT = legacy.COMMISSION_PLANNING_DRAFT_KEY
 
 
 def enabled(store):
@@ -58,11 +59,11 @@ def install_text_profile(cs, profile):
         db.execute('BEGIN IMMEDIATE')
         if cs._read(db, profile['source_ref'])['payload']['file_digest'] != profile['file_digest']:
             raise ActionRejected('TEXT_PROFILE_SOURCE_CHANGED')
-        profiles = _state(db, 'commission_text_profiles', {})
+        profiles = legacy.get_commission_text_profiles(db, {})
         if profile['id'] in profiles and profiles[profile['id']] != profile:
             raise ActionRejected('TEXT_PROFILE_IMMUTABLE')
         profiles[profile['id']] = profile
-        _set(db, 'commission_text_profiles', profiles)
+        legacy.set_commission_text_profiles(db, profiles)
     return profile
 
 
@@ -72,10 +73,10 @@ def resolve_source_span(cs, selection):
         raise ActionRejected('SOURCE_SPAN_PAGE_ORDER')
     from .document_tools import physical_page_number
     with cs.store.connect() as db:
-        profile = _state(db, 'commission_text_profiles', {}).get(selection['profile_id'])
+        profile = legacy.get_commission_text_profiles(db, {}).get(selection['profile_id'])
         if not profile or profile['source_ref'] != selection['source_ref']:
             reject('source_span.profile_id', 'SOURCE_SPAN_PROFILE_REQUIRED',
-                   [key for key, item in _state(db, 'commission_text_profiles', {}).items() if item['source_ref'] == selection['source_ref']],
+                   [key for key, item in legacy.get_commission_text_profiles(db, {}).items() if item['source_ref'] == selection['source_ref']],
                    related_fields=['source_span.source_ref'],
                    message='Choose a reviewed profile bound to this exact source. For an extracted section, use sources citations and omit source_span; a fixed section requires a reviewed template profile. Do not reuse a template profile for a design source.')
         source = cs._read(db, selection['source_ref'])['payload']
@@ -195,7 +196,7 @@ def _classifications(cs, db, record, values, note):
 
 def install_classifications(cs, classifications, review_note):
     """Trusted review of this immutable source-anchor set; no model tool."""
-    from .commission_requirements import read_requirements, KEY
+    from .commission_requirements import read_requirements
     from .content_store import Actor
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -213,7 +214,7 @@ def install_classifications(cs, classifications, review_note):
         ref = cs._insert(db, Actor('host', 'host', 'commission-classification'), 'CommissionRequirements',
                          {**record['payload'], 'classifications': existing}, id=record['ref']['id'],
                          version=record['ref']['version'] + 1, previous_ref=record['ref'])
-        _set(db, KEY, ref)
+        legacy.set_commission_requirements(db, ref)
         return ref
 
 
@@ -345,7 +346,7 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     def save(db):
-        if _state(db, 'commission_skeleton'):
+        if legacy.get_commission_skeleton(db):
             raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         items = deepcopy(previous['payload']['items'])
@@ -427,7 +428,7 @@ def _assemble(cs, db):
     from .commission_requirements import read_requirements
     from .commission_plan import CommissionPlan
     requirements = read_requirements(cs, db=db)
-    draft = _state(db, DRAFT, {'revision': 0, 'items': {}})
+    draft = legacy.get_commission_planning_draft(db, {'revision': 0, 'items': {}})
     items = draft['items']
     plan = {key: list(items.get(kind, {}).values()) for kind, key in
             [('section', 'sections'), ('object', 'objects'), ('reconciliation', 'reconciliations'), ('question', 'open_questions')]}
@@ -503,7 +504,7 @@ def _gaps(cs, plan, db):
                 for f in fields] or [{'anchor_id': None, 'path': 'plan', 'code': 'PLAN_INCOMPLETE', 'message': str(error)}]
     for question in plan.get('skeleton_questions', []):
         gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + question['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': question['reason']})
-    draft = _state(db, DRAFT, {'items': {}})
+    draft = legacy.get_commission_planning_draft(db, {'items': {}})
     for value in draft['items'].get('substitution', {}).values():
         if value['section_id'] not in {s['section_id'] for s in plan['sections']}:
             gaps.append({'anchor_id': None, 'path': 'substitutions.' + value['section_id'],
@@ -534,7 +535,7 @@ def read_draft(cs, actor):
                 'entries': [{'id': e['id'], 'kind': e['kind'], 'label': e['label'],
                              'capabilities': entry_obligations(e)[0], 'table_roles': entry_obligations(e)[1]}
                             for e in _state(db, CATALOG, {}).values()],
-                'text_profiles': list(_state(db, 'commission_text_profiles', {}).values()), 'gaps': _gaps(cs, plan, db)}
+                'text_profiles': list(legacy.get_commission_text_profiles(db, {}).values()), 'gaps': _gaps(cs, plan, db)}
 
 
 
@@ -566,7 +567,7 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
             'entries': [(e['id'], {'id': e['id'], 'kind': e['kind'], 'label': e['label'],
                 'capabilities': entry_obligations(e)[0], 'table_roles': entry_obligations(e)[1]})
                 for e in _state(db, CATALOG, {}).values()],
-            'text_profiles': list(_state(db, 'commission_text_profiles', {}).items()),
+            'text_profiles': list(legacy.get_commission_text_profiles(db, {}).items()),
             'gaps': [(str(i), g) for i, g in enumerate(gaps)],
         }
         from .commission_carryover import rows
@@ -632,14 +633,14 @@ def save_item(cs, actor, operation_id, kind, item):
     request = {'kind': kind, 'item': deepcopy(item)}
     def save(db):
         value = deepcopy(item)
-        if _state(db, 'commission_skeleton') and kind in ('section', 'details'):
+        if legacy.get_commission_skeleton(db) and kind in ('section', 'details'):
             raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
-        if kind in ('section_judgment', 'disposition') and not _state(db, 'commission_skeleton'):
+        if kind in ('section_judgment', 'disposition') and not legacy.get_commission_skeleton(db):
             raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
         if kind == 'section_judgment':
             if set(value) - {'section_id', 'sources', 'examples', 'notes'}:
                 raise ActionRejected('SKELETON_JUDGMENT_FIELDS_ONLY')
-            original = next((s for s in _state(db, 'commission_skeleton')['sections'] if s['section_id'] == value.get('section_id')), None)
+            original = next((s for s in legacy.get_commission_skeleton(db)['sections'] if s['section_id'] == value.get('section_id')), None)
             if not original or original['kind'] == 'fixed' or original.get('extraction'):
                 raise ActionRejected('SKELETON_JUDGMENT_SECTION_INVALID')
         if kind == 'disposition':
@@ -675,8 +676,8 @@ def save_item(cs, actor, operation_id, kind, item):
             boundary['customer_basis'] = deepcopy(basis)
             basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
             value = boundary
-        from .commission_owner_records import KEY, decorate_plan, refuse
-        if _state(db, KEY):
+        from .commission_owner_records import decorate_plan, refuse
+        if legacy.get_commission_owner_records(db):
             if kind == 'section':
                 value = decorate_plan(cs, db, {'sections': [value], 'objects': []})['sections'][0]
             if kind == 'substitution' and not value.get('substitution', {}).get('document_id'):
@@ -697,13 +698,13 @@ def save_item(cs, actor, operation_id, kind, item):
                kind if kind in ('details', 'boundary') else
                value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
                value['question_id'] if kind == 'question' else value['reconciliation_id'])
-        draft = _state(db, DRAFT, {'revision': 0, 'items': {}})
+        draft = legacy.get_commission_planning_draft(db, {'revision': 0, 'items': {}})
         previous = draft['items'].setdefault(kind, {}).get(key)
         changed = previous != value
         if changed:
             draft['items'][kind][key] = value
             draft['revision'] += 1
-            _set(db, DRAFT, draft)
+            legacy.set_commission_planning_draft(db, draft)
         return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions, 'customer_basis_binding': basis_binding}
     return cs.operation(actor, operation_id, request, save)
 
@@ -769,15 +770,15 @@ def request_requirements_checkpoint(workspace, operation_id=None, actor=None):
         relative = 'outputs/requirements-checkpoint-' + digest(record['ref']) + '.md'
         description = 'Resolve commission requirements ' + digest(record['ref']) + '. Brief: ' + relative
         source_ids = [cs._read(db, p['ref'])['payload']['source_id'] for p in record['payload']['source_pins']]
-        issues = _state(db, 'report_issues', [])
+        issues = legacy.get_report_issues(db, [])
         issue = next((i for i in issues if i['category'] == 'requirement' and i['description'] == description and i['source_ids'] == source_ids), None)
         if issue is None:
             issue = {'id': str(uuid4()), 'category': 'requirement', 'description': description, 'source_ids': source_ids, 'resolved': False}
-            _set(db, 'report_issues', [*issues, issue])
+            legacy.set_report_issues(db, [*issues, issue])
             _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
             db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('issue_recorded', encode({'issue_id': issue['id'], 'category': 'requirement'})))
         checkpoint = {'requirements_ref': record['ref'], 'anchor_ids': pending, 'brief_path': relative}
-        _set(db, 'commission_requirements_checkpoint:' + issue['id'], checkpoint)
+        legacy.set_commission_requirements_checkpoint(db, issue['id'], checkpoint)
         return {'issue_id': issue['id'], **checkpoint, 'description': description, 'source_ids': source_ids}
     checkpoint = cs.operation(actor, operation_id, {}, create)['result']
     record = read_requirements(cs, checkpoint['requirements_ref'])
@@ -823,14 +824,14 @@ class RequirementDecision(Contract):
 def reply_requirements(workspace, issue_id, decision):
     """Trusted operator CLI only. A requirement decision never grants writing authority."""
     from .content_store import ContentStore, Actor
-    from .commission_requirements import read_requirements, KEY
+    from .commission_requirements import read_requirements
     from .store import encode
     decision = RequirementDecision.model_validate(decision).model_dump(mode='json')
     cs = ContentStore(workspace.store)
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        checkpoint = _state(db, 'commission_requirements_checkpoint:' + issue_id)
-        issues = _state(db, 'report_issues', [])
+        checkpoint = legacy.get_commission_requirements_checkpoint(db, issue_id)
+        issues = legacy.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if not issue or not checkpoint or checkpoint['requirements_ref'] != decision['requirements_ref']:
             raise ActionRejected('REQUIREMENTS_CHECKPOINT_REPLY_STALE')
@@ -862,9 +863,9 @@ def reply_requirements(workspace, issue_id, decision):
                 payload.setdefault('classifications', {})[identity] = {**value, 'origin': 'operator', 'issue_id': issue_id, 'note': note}
         ref = cs._insert(db, Actor('operator', 'operator', 'requirements-checkpoint:' + issue_id), 'CommissionRequirements', payload,
                          id=record['ref']['id'], version=record['ref']['version'] + 1, previous_ref=record['ref'])
-        _set(db, KEY, ref)
+        legacy.set_commission_requirements(db, ref)
         issue.update(decision=answer, decision_origin='operator', resolved=True, requirements_result_ref=ref)
-        _set(db, 'report_issues', issues)
+        legacy.set_report_issues(db, issues)
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         _set(db, 'report_status', 'ready')
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('commission_requirement_decision', encode({'issue_id': issue_id, 'requirements_ref': ref})))
@@ -976,7 +977,7 @@ def planning_tools(cs, actor):
         from .commission_carryover import review_carried_items as review
         return review(cs, actor(), operation_id, [r.model_dump(mode='json') for r in reviews])
 
-    if cs.store.get('commission_skeleton'):
+    if legacy.get_commission_skeleton(cs.store):
         return [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
             set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question, review_carried_items]]
     return [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from . import legacy_state as legacy
 
 import asyncio
 import os
@@ -120,7 +121,7 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
         from .content_store import ContentStore
         from .review_status import read_status
         from .errors import ActionRejected
-        selected = ws.store.get("content_delivery")
+        selected = legacy.get_content_delivery(ws.store)
         if not selected:
             raise HTTPException(404, "NO_CONTENT_DELIVERY")
         try:
@@ -133,7 +134,7 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
     def content_delivery_file(companion: bool = False, expected_export_id: str | None = None):
         from .content_store import ContentStore
         from .content_export import _bytes
-        selected = ws.store.get("content_delivery")
+        selected = legacy.get_content_delivery(ws.store)
         if not selected:
             raise HTTPException(404, "NO_CONTENT_DELIVERY")
         if expected_export_id is not None and expected_export_id != selected['export_ref']['id']:

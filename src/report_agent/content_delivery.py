@@ -1,4 +1,5 @@
 """Live projection of a selected delivery; saved verdicts are immutable evidence."""
+from . import legacy_state as legacy
 from .content_models import Ref, aggregate, delivery_aggregate
 from .content_store import ContentStore
 
@@ -9,7 +10,7 @@ def obligations(contents, snapshot_ref):
 
 
 def _legacy_current_delivery(store):
-    selected, final = store.get("content_delivery"), store.get("content_final_review")
+    selected, final = legacy.get_content_delivery(store), legacy.get_content_final_review(store)
     if not selected:
         return {"status": "needs_attention", "overall_verdict": None, "final_review_current": False}
     cs = ContentStore(store)
@@ -49,7 +50,7 @@ def current_delivery(store):
     if enabled(store):
         from .review_coverage import commission_completion
         cs = ContentStore(store)
-        selected = store.get('content_delivery')
+        selected = legacy.get_content_delivery(store)
         coverage = commission_completion(cs, cs.read(selected['snapshot_ref']) if selected else None)
         result['commission_coverage'] = coverage
         if not coverage['complete']:
@@ -59,12 +60,12 @@ def current_delivery(store):
 
 def _current_delivery(store):
     """Expose evidence without inventing a snapshot acceptance task or verdict."""
-    selected = store.get('content_delivery')
+    selected = legacy.get_content_delivery(store)
     if selected and selected.get('review_interface_profile') == 'review-interfaces-v4':
         return _v4_delivery(store, selected)
     if store.manifest.get("review_entrypoint") == "native-rubric-v1":
         return _legacy_current_delivery(store)
-    selected = store.get("content_delivery")
+    selected = legacy.get_content_delivery(store)
     result = {"status": "not_assessed", "overall_verdict": None, "coverage_complete": None,
               "final_review_current": False, "items": [], "delivery_checks": [],
               "confirmed_violations": [], "delivery_violations": [], "needs_recheck": [],

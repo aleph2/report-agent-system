@@ -1,11 +1,12 @@
 """Source-derived, host-owned plan structure; coordinator answers bounded ambiguities."""
+from . import legacy_state as legacy
 from copy import deepcopy
 import re
 from .store import digest, encode
-from .commission_plan import _state, _set, SectionPlan
+from .commission_plan import SectionPlan
 from .errors import ActionRejected, ActionForbidden
 
-KEY = 'commission_skeleton'
+KEY = legacy.COMMISSION_SKELETON_KEY
 PROTECTED = ('section_id', 'title', 'kind', 'outline', 'derived_from', 'rule', 'result_bindings', 'result_composition', 'replacements', 'source_views')
 FIXED = ('sources', 'text', 'extraction')
 
@@ -20,14 +21,14 @@ def requirement_digest(record):
 
 
 def _current(cs, db):
-    value = _state(db, KEY)
+    value = legacy.get_commission_skeleton(db)
     if not value:
         return None
     if digest({k: v for k, v in value.items() if k != 'digest'}) != value['digest']:
         fail('plan', 'skeleton_digest', 'registry', 'REGISTRY_CHANGED')
-    if value['requirements_ref'] != _state(db, 'commission_requirements'):
+    if value['requirements_ref'] != legacy.get_commission_requirements(db):
         fail('plan', 'requirements_ref', 'registry', 'REQUIREMENTS_CHANGED')
-    if value['profiles'] != _state(db, 'commission_text_profiles', {}):
+    if value['profiles'] != legacy.get_commission_text_profiles(db, {}):
         fail('plan', 'profiles', 'registry', 'PROFILES_CHANGED')
     for pin in value['source_pins']:
         if cs._read(db, pin['ref'])['payload']['file_digest'] != pin['file_digest']:
@@ -126,17 +127,17 @@ def prepare_skeleton(cs, source_refs, spec=None):
     if any(Ref.model_validate(a['source']['source_ref']).key() not in allowed for a in record['payload']['anchors']):
         fail('plan', 'source_refs', 'outline', 'SOURCE_NOT_ENROLLED')
     with cs.store.connect() as db:
-        profiles = _state(db, 'commission_text_profiles', {})
+        profiles = legacy.get_commission_text_profiles(db, {})
         if any(Ref.model_validate(p['source_ref']).key() not in allowed for p in profiles.values()):
             fail('plan', 'source_refs', 'template', 'SOURCE_NOT_ENROLLED')
-        if _state(db, KEY):
+        if legacy.get_commission_skeleton(db):
             current = _current(cs, db)
             if current['spec_digest'] != digest(spec):
                 fail('plan', 'spec', 'registry', 'SPEC_IMMUTABLE')
             return deepcopy(current)
-        if _state(db, 'commission_plan') or _state(db, 'commission_planning_draft', {}).get('revision'):
+        if legacy.get_commission_plan(db) or legacy.get_commission_planning_draft(db, {}).get('revision'):
             fail('plan', 'state', 'registry', 'FRESH_PREPARATION_REQUIRED')
-        bundle = _state(db, 'commission_owner_records', {}).get('bundle', {})
+        bundle = legacy.get_commission_owner_records(db, {}).get('bundle', {})
         classifications = record['payload'].get('classifications', {})
         items = []
         for anchor in record['payload']['anchors']:
@@ -225,7 +226,7 @@ def prepare_skeleton(cs, source_refs, spec=None):
             'requirements_ref': current['ref'], 'profiles': profiles, 'source_pins': [{'ref': r, 'file_digest': cs._read(db,r)['payload']['file_digest']} for r in source_refs],
             'spec_digest': digest(spec), 'inventory_attributes': spec['inventory_attributes'], 'heading_titles': heading_titles, 'version': 1}
         value['digest'] = digest(value)
-        _set(db, KEY, value)
+        legacy.set_commission_skeleton(db, value)
     return value
 
 
@@ -269,7 +270,7 @@ def validate_skeleton(cs, db, plan):
     if [s['section_id'] for s in plan.get('sections', [])] != [s['section_id'] for s in assembled['sections']]:
         fail('plan', 'sections', 'order', 'STRUCTURE_CHANGED')
     from .commission_owner_records import _documents
-    bundle = _state(db, 'commission_owner_records', {}).get('bundle', {'records': [], 'documents': []})
+    bundle = legacy.get_commission_owner_records(db, {}).get('bundle', {'records': [], 'documents': []})
     for actual, expected in zip(plan['sections'], registry['sections']):
         for field in (*PROTECTED, *(FIXED if expected.get('extraction') else ())):
             if actual.get(field) != expected.get(field):
@@ -313,16 +314,16 @@ def resolve_skeleton_question(cs, actor, operation_id, question_id, expected_dig
         value['questions'] = [q for q in value['questions'] if q['question_id'] != question_id]
         value['version'] += 1
         value.pop('digest');value['digest'] = digest(value)
-        _set(db, KEY, value)
+        legacy.set_commission_skeleton(db, value)
         return {'digest': value['digest'], 'remaining_questions': len(value['questions'])}
     return cs.operation(actor, operation_id, {'question_id': question_id, 'expected_digest': expected_digest, 'choice_id': choice_id, 'selection': selection}, save)
 
 
 def apply_dispositions(cs, db, plan):
-    if not _state(db, KEY):
+    if not legacy.get_commission_skeleton(db):
         return plan
     result = deepcopy(plan)
-    dispositions = deepcopy(list(_state(db, 'commission_planning_draft', {}).get('items', {}).get('disposition', {}).values()))
+    dispositions = deepcopy(list(legacy.get_commission_planning_draft(db, {}).get('items', {}).get('disposition', {}).values()))
     owners = {r['target']: r for r in result.get('owner_records', []) if r['kind'] == 'scope_exclusion'}
     dispositions = [d for d in dispositions if d['object_id'] not in owners]
     dispositions += [{'object_id': identity, 'status': 'owner_excluded', 'owner_record_id': r['id'], 'reason': r['reason']}
@@ -338,7 +339,7 @@ def apply_dispositions(cs, db, plan):
 
 
 def disposition_gaps(cs, db, plan):
-    if not _state(db, KEY):
+    if not legacy.get_commission_skeleton(db):
         return []
     gaps = []
     def gap(identity, field, reason):

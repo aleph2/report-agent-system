@@ -11,6 +11,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from report_agent import legacy_state as legacy
 from report_agent.store import Store
 from report_agent.workspace import Workspace
 from report_agent.deep_runtime import run_report
@@ -31,7 +32,7 @@ async def main():
     for folder in ('sources','content-assets'):
         shutil.copytree(OLD/folder,ROOT/folder)
     store = Store(ROOT)
-    prior = store.get('content_delivery')
+    prior = legacy.get_content_delivery(store)
     inputs = json.loads(Path('.runs/learning-real-report-pilot-20261004/input/runtime-input.json').read_text(encoding='utf-8'))
     reference = next(s for s in inputs['manifest']['sources'] if s['id'].startswith('pilot-human'))
     source_file = Path('.runs/learning-real-report-pilot-20261004/baseline')/reference['copied_path']
@@ -51,8 +52,8 @@ async def main():
         '本轮所有异步模型HTTP请求共用60次硬上限（含视觉和重试），最多15分钟；优先形成可交付完整版本。')
     store.set('manifest',manifest)
     store.set('reference_alignment_parent',{'project':str(OLD),'delivery':prior,'original_review_preserved':True})
-    store.set('content_delivery',None)
-    store.set('content_final_review',None)
+    legacy.set_content_delivery(store,None)
+    legacy.set_content_final_review(store,None)
     store.set('checkpoint_resume',False)
     store.set('agent_summary',None)
     store.set('knowledge_enabled',False)
@@ -84,7 +85,7 @@ async def main():
         result.update(state='interrupted_or_failed',error=error_data(exc))
     finally:
         result.update(finished_at=datetime.now(timezone.utc).isoformat(),http_request_attempts=budget.count,
-                      delivery=store.get('content_delivery'),summary=store.get('agent_summary'))
+                      delivery=legacy.get_content_delivery(store),summary=store.get('agent_summary'))
         path.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False))
 

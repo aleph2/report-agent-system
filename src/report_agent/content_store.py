@@ -1,5 +1,6 @@
 """Project-local immutable objects and append-only review/handling records."""
 from __future__ import annotations
+from . import legacy_state as legacy
 
 import json
 from dataclasses import dataclass
@@ -825,7 +826,7 @@ class ContentStore:
                 final = {"target": {"snapshot_ref": data["snapshot_ref"], "export_ref": delivery_export_ref},
                          "review_ref": review_ref, "runtime_identity": runtime_identity,
                          "entrypoint": "delegated-reviewer-v1"}
-                db.execute("INSERT OR REPLACE INTO state VALUES ('content_final_review', ?)", (encode(final),))
+                legacy.set_content_final_review(db, final)
             return {"review_ref": review_ref, **step_result}
         request = {"submit_review": submission, "runtime_identity": runtime_identity}
         if review_message_binding is not None:

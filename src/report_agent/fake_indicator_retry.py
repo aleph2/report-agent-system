@@ -1,4 +1,5 @@
 """Trusted one-request continuation of a frozen fake Writer indicator."""
+from . import legacy_state as legacy
 import argparse
 import asyncio
 from contextlib import closing
@@ -34,7 +35,7 @@ def pinned_json(path, expected):
 
 
 def prior_rows(store, assignment):
-    return store.get('writer_indicator_steps:' + assignment)['rows']
+    return legacy.get_writer_indicator_steps(store, assignment)['rows']
 
 
 def rows_hash(rows):
@@ -156,7 +157,7 @@ async def launch(authority_path, authority_sha):
     store=Store(run/'case')
     with store.run_lock(), token_budget(budget), request_token_bound(bound):
         require(not load_recovery_policy(store),'RETRY_RECOVERY_DISABLED_REQUIRED')
-        require(store.get('commission_plan')==old['plan_ref'] and store.get('commission_confirmation')==old['decision_ref'],
+        require(legacy.get_commission_plan(store)==old['plan_ref'] and legacy.get_commission_confirmation(store)==old['decision_ref'],
                 'RETRY_PLAN_CHANGED')
         with closing(budget.connect()) as db:
             held=db.execute('SELECT id,reserved,used,state FROM attempts WHERE id=?',(budget.previous_attempt,)).fetchone()

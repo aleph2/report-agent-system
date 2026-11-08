@@ -1,4 +1,5 @@
 """System-bound slope pages; navigation candidates do not establish engineering relevance."""
+from . import legacy_state as legacy
 import base64
 from copy import deepcopy
 from decimal import Decimal
@@ -223,7 +224,7 @@ def read_assigned_page(cs, actor, source_handle, page, *, include_image=True):
         current = bound_assignment(cs, db, actor)
         if current['assignment_digest'] != bound['assignment_digest']:
             raise ActionRejected('WRITER_ASSIGNMENT_CHANGED_DURING_READ')
-        _set(db, 'writer_page_read:' + handle, receipt)
+        legacy.set_writer_page_read(db, handle, receipt)
     return {**result, 'page_handle': handle, 'image_sha256': image_sha256,
             'image_data_url': 'data:image/png;base64,' + base64.b64encode(pixels).decode('ascii')}
 
@@ -231,7 +232,7 @@ def read_assigned_page(cs, actor, source_handle, page, *, include_image=True):
 def _page_receipt(cs, db, actor, handle):
     from .commission_plan import _state
     bound = bound_assignment(cs, db, actor)
-    receipt = _state(db, 'writer_page_read:' + handle)
+    receipt = legacy.get_writer_page_read(db, handle)
     if (not receipt or receipt.get('actor') != actor.__dict__
             or receipt.get('assignment_digest') != bound['assignment_digest']):
         raise ActionForbidden('FORBIDDEN: writer visual page receipt')
@@ -248,7 +249,7 @@ def mark_visual_page_delivered(cs, actor, page_handle, image_sha256):
         receipt = _page_receipt(cs, db, actor, page_handle)
         if receipt['image_sha256'] != image_sha256:
             raise ActionRejected('WRITER_VISUAL_IMAGE_DIGEST_MISMATCH')
-        _set(db, 'writer_page_read:' + page_handle, {**receipt, 'image_delivered': True})
+        legacy.set_writer_page_read(db, page_handle, {**receipt, 'image_delivered': True})
 
 
 def resolve_visual_pages(cs, db, actor, handles):

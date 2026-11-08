@@ -1,4 +1,5 @@
 """Host-owned, finite indicator steps for the explicitly selected assessment workflow."""
+from . import legacy_state as legacy
 import json
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, hook_config
@@ -230,7 +231,7 @@ async def run_mini_assessment(workspace, model, *, verified_run):
     from .writer_assessment import FAKE03_QUALITATIVE_INDICATORS
     from .store import digest
     qualitative = getattr(verified_run, 'qualitative_only', False)
-    profile = workspace.store.get('fake03_qualitative_profile')
+    profile = legacy.get_fake03_qualitative_profile(workspace.store)
     if qualitative != (profile is not None):
         raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
     if qualitative and (set(ids) != FAKE03_QUALITATIVE_INDICATORS | {'X11','X12','X31'}
@@ -249,7 +250,7 @@ async def run_mini_assessment(workspace, model, *, verified_run):
                                 indicator_steps=True,section_id=verified_run.assessment_section_id) as session:
                 slope['writer_actor'] = session.actor.id
                 if qualitative:
-                    workspace.store.set('fake03_qualitative_actor:' + session.actor.id, {
+                    legacy.set_fake03_qualitative_actor(workspace.store, session.actor.id, {
                         'object_id': object_id, 'plan_ref': plan['ref'], 'profile_digest': digest(profile)})
                 try:
                     await session.run()

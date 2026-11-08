@@ -1,4 +1,5 @@
 """Source-owned commission anchors and one authority check, independent of plans."""
+from . import legacy_state as legacy
 from io import BytesIO
 import re
 from typing import Literal
@@ -11,7 +12,7 @@ from .errors import ActionForbidden, ActionRejected
 from .store import digest
 
 CONTRACT = 'commission-requirements-v1'
-KEY = 'commission_requirements'
+KEY = legacy.COMMISSION_REQUIREMENTS_KEY
 Capability = Literal['method_pack', 'weight_binding', 'table_specs', 'scope_boundary',
     'inventory_reconciliation', 'section', 'fixed_text', 'result_bindings', 'inventory',
     'deliverables', 'material_issues', 'source_priority', 'assumptions']
@@ -202,7 +203,7 @@ def read_requirements(cs, ref=None, *, db=None):
     if db is None:
         with cs.store.connect() as connection:
             return read_requirements(cs, ref, db=connection)
-    ref = ref or _state(db, KEY)
+    ref = ref or legacy.get_commission_requirements(db)
     if not ref:
         raise ActionRejected('COMMISSION_REQUIREMENTS_REQUIRED')
     if Ref.model_validate(ref).type != 'CommissionRequirements':
@@ -218,7 +219,7 @@ def install_requirements(cs, scope_ref, outline_ref):
     pins = [{'ref': r, 'file_digest': _source(cs, r)['file_digest']} for r in refs]
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        old = _state(db, KEY)
+        old = legacy.get_commission_requirements(db)
         if old:
             payload = cs._read(db, old)['payload']
             if payload['source_pins'] != pins or payload['anchors'] != anchors:
@@ -228,7 +229,7 @@ def install_requirements(cs, scope_ref, outline_ref):
             'items': [{'anchor_id': a['id'], 'status': 'unresolved',
                        'interpretation': 'Awaiting source-linked interpretation', 'capabilities': []} for a in anchors]}
         ref = cs._insert(db, Actor('host', 'host', 'commission-requirements'), 'CommissionRequirements', payload)
-        _set(db, KEY, ref)
+        legacy.set_commission_requirements(db, ref)
         _set(db, 'manifest', {**_state(db, 'manifest'), 'commission_requirements_contract': CONTRACT})
         return ref
 
@@ -237,7 +238,7 @@ def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
     from .commission_plan import _state, _set
     from .commission_planning import classified_item, enabled as planning_enabled
     requirements_ref = previous['ref']
-    if _state(db, KEY) != requirements_ref:
+    if legacy.get_commission_requirements(db) != requirements_ref:
         raise ActionRejected('COMMISSION_REQUIREMENTS_VERSION_STALE')
     items = [RequirementItem.model_validate(i).model_dump() for i in items]
     old = {i['anchor_id']: i for i in previous['payload']['items']}
@@ -270,7 +271,7 @@ def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
     payload = {**previous['payload'], 'items': items}
     ref = cs._insert(db, actor, 'CommissionRequirements', payload, id=requirements_ref['id'],
                      version=requirements_ref['version'] + 1, previous_ref=requirements_ref)
-    _set(db, KEY, ref)
+    legacy.set_commission_requirements(db, ref)
     return ref
 
 
@@ -300,7 +301,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
     items = {i['anchor_id']: i for i in record['payload']['items']}
     from .commission_carryover import gaps as carryover_gaps
     gaps = disposition_gaps(cs, db, plan) + carryover_gaps(cs, db, plan)
-    for q in (_state(db, 'commission_skeleton') or {}).get('questions', []):
+    for q in (legacy.get_commission_skeleton(db) or {}).get('questions', []):
         gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + q['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': q['reason']})
     def gap(anchor, path, code, message):
         gaps.append({'anchor_id': anchor['id'], 'path': path, 'code': code, 'message': message})
@@ -310,7 +311,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
             for anchor in anchors:
                 if anchor['source']['source_ref'] == pin['ref']:
                     gap(anchor, 'source_pins', 'SOURCE_PIN_MISMATCH', 'Requirement source version no longer matches its frozen hash')
-    if (record['ref'] != _state(db, KEY) or plan.get('requirements_ref') != record['ref']):
+    if (record['ref'] != legacy.get_commission_requirements(db) or plan.get('requirements_ref') != record['ref']):
         gap(anchors[0], 'requirements_ref', 'REQUIREMENTS_VERSION', 'Use the current complete requirement record')
     sections = {s.get('section_id'): s for s in plan.get('sections', [])}
     for section in sections.values():
@@ -386,7 +387,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                                or not set(section.get('derived_from', [])) <= sections.keys()
                                or identity in section.get('derived_from', []))
                 if capability in ('fixed_text', 'result_bindings'):
-                    roles = _state(db, 'commission_source_roles', {})
+                    roles = legacy.get_commission_source_roles(db, {})
                     templates = {r['id'] for r in roles.values() if r.get('purpose') == 'template'}
                     sources = section.get('sources', [])
                     missing = (missing or not sources or any(

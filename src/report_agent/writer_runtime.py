@@ -1,4 +1,5 @@
 """Fresh, compact native Writer tasks; no model selection, launch command or paid call."""
+from . import legacy_state as legacy
 from contextlib import contextmanager
 from dataclasses import dataclass
 import json
@@ -170,7 +171,7 @@ def writer_session(workspace, object_label, model, *, assessment_only=False, ind
             from .assessment_completion import AssessmentCompletionStop
             from .store import digest
             def completed():
-                ref = workspace.store.get('g6_assessment:' + digest([plan['ref'], matches[0]['object_id']]))
+                ref = legacy.get_g6_assessment(workspace.store, digest([plan['ref'], matches[0]['object_id']]))
                 return bool(ref and cs.read(ref)['owner_id'] == actor.id)
             middleware.insert(0, AssessmentCompletionStop(completed))
         agent=create_agent(model,tools,system_prompt=load_prompt('writer-judgments'),

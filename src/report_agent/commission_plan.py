@@ -1,4 +1,5 @@
 """Versioned commission proposals; only operator replies authorize writing or reductions."""
+from . import legacy_state as legacy
 from pathlib import Path
 import json
 import re
@@ -462,11 +463,11 @@ def unresolved_sources(section):
 def read_plan(store):
     cs = ContentStore(store)
     with store.connect() as db:
-        ref = _state(db, 'commission_plan')
+        ref = legacy.get_commission_plan(db)
         if not ref:
             return None
         record = cs._read(db, ref)
-        confirmation = _state(db, 'commission_confirmation')
+        confirmation = legacy.get_commission_confirmation(db)
         if confirmation:
             decision = cs._read(db, confirmation)
             if (decision['owner_id'] == 'operator' and decision['payload'].get('approved') is True
@@ -628,7 +629,7 @@ def save_plan(cs, actor, operation_id, plan):
     def save(db):
         require_complete(cs, plan, db=db)
         _validate_sources(cs, db, actor, plan)
-        roles = _state(db, 'commission_source_roles', {})
+        roles = legacy.get_commission_source_roles(db, {})
         customer_sources = {r['id'] for r in (roles or {}).values() if r['purpose'] == 'commission'}
         if order := plan.get('indicator_rank_order'):
             if cs._read(db, order['source']['source_ref'])['payload']['source_id'] not in customer_sources:
@@ -694,7 +695,7 @@ def save_plan(cs, actor, operation_id, plan):
             if any(cs._read(db, c['source']['source_ref'])['payload']['source_id'] not in customer_sources
                    for c in plan['conventions']):
                 raise ActionRejected('COMMISSION_CONVENTION_REQUIRES_CUSTOMER_SOURCE')
-        old_ref = _state(db, 'commission_plan')
+        old_ref = legacy.get_commission_plan(db)
         old = cs._read(db, old_ref) if old_ref else None
         current_sections = {s['section_id']: s for s in plan['sections']}
         for section in old['payload']['sections'] if old else []:
@@ -720,14 +721,14 @@ def save_plan(cs, actor, operation_id, plan):
         ref = cs._insert(db, actor, 'CommissionPlan', {**plan, 'inventory_refs': inventory,
             **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})},
             **({'id': old_ref['id'], 'version': old_ref['version'] + 1, 'previous_ref': old_ref} if old_ref else {}))
-        _set(db, 'commission_plan', ref)
+        legacy.set_commission_plan(db, ref)
         return {'plan_ref': ref, 'inventory_refs': inventory}
     return cs.operation(actor, operation_id, {'commission_plan': plan}, save)
 
 
 def _confirmed(cs, db):
-    ref = _state(db, 'commission_plan')
-    confirmation = _state(db, 'commission_confirmation')
+    ref = legacy.get_commission_plan(db)
+    confirmation = legacy.get_commission_confirmation(db)
     if not ref or not confirmation:
         raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED')
     decision = cs._read(db, confirmation)
@@ -909,7 +910,7 @@ def request_checkpoint(workspace):
     source_ids = list(dict.fromkeys(cs.read(c['source_ref'])['payload']['source_id'] for c in _citations(plan)))
     issue = workspace.issue('requirement', description, source_ids)
     requirement_binding = {'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}
-    workspace.store.set('commission_checkpoint:' + issue['id'], {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)), **brief_artifacts})
+    legacy.set_commission_checkpoint(workspace.store, issue['id'], {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)), **brief_artifacts})
     path.with_suffix('.json').write_text(json.dumps({'issue_id': issue['id'], 'plan_ref': ref, 'source_access': access,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
         **brief_artifacts, 'plan_sha256': digest(plan),
@@ -935,7 +936,7 @@ def _checklist_path(confirmation):
 
 
 def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
-    ref = _state(db, 'commission_confirmation')
+    ref = legacy.get_commission_confirmation(db)
     decision = cs._read(db, ref)
     if decision['owner_id'] != 'operator' or decision['payload'].get('approved') is not True:
         return
@@ -986,7 +987,7 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
     temporary.replace(path)
     issue['confirmation_checklist_path'] = relative
     checkpoint['confirmation_checklist_path'] = relative
-    _set(db, 'commission_checkpoint:' + issue['id'], checkpoint)
+    legacy.set_commission_checkpoint(db, issue['id'], checkpoint)
 
 
 def reply(workspace, issue_id, decision):
@@ -1004,11 +1005,11 @@ def reply(workspace, issue_id, decision):
     cs = ContentStore(workspace.store)
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        checkpoint = _state(db, 'commission_checkpoint:' + issue_id)
+        checkpoint = legacy.get_commission_checkpoint(db, issue_id)
         if (not checkpoint or checkpoint['plan_ref'] != decision['plan_ref']
-                or _state(db, 'commission_plan') != decision['plan_ref']):
+                or legacy.get_commission_plan(db) != decision['plan_ref']):
             raise ActionRejected('COMMISSION_CHECKPOINT_REPLY_STALE')
-        issues = _state(db, 'report_issues', [])
+        issues = legacy.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if issue is None:
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
@@ -1026,7 +1027,7 @@ def reply(workspace, issue_id, decision):
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
             if decision['approved']:
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
-                _set(db, 'report_issues', issues)
+                legacy.set_report_issues(db, issues)
             return issue
         pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
         if decision['approved'] and pending:
@@ -1047,8 +1048,8 @@ def reply(workspace, issue_id, decision):
             cs, db, decision['plan_ref'], plan, decision.get('template_decisions', [])), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
         ref = cs._insert(db, owner, 'CommissionDecision', accepted)
         issue.update(decision=answer, decision_origin='operator', resolved=True)
-        _set(db, 'commission_confirmation', ref)
-        _set(db, 'report_issues', issues)
+        legacy.set_commission_confirmation(db, ref)
+        legacy.set_report_issues(db, issues)
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         _set(db, 'report_status', 'ready')
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('commission_owner_decision', encode({'issue_id': issue_id, 'decision_ref': ref})))
@@ -1056,7 +1057,7 @@ def reply(workspace, issue_id, decision):
             # Commit authority first; a failed file projection can be regenerated by the same reply.
             db.commit()
             _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
-            _set(db, 'report_issues', issues)
+            legacy.set_report_issues(db, issues)
         return issue
 
 
@@ -1084,9 +1085,8 @@ def snapshot_outcomes(cs, db, plan_ref, refs):
     for obj in cs._read(db, plan_ref)['payload']['objects']:
         if outside_boundary(cs._read(db, plan_ref)['payload'], obj):
             continue
-        prefix = 'commission_outcome:' + digest([plan_ref, obj['object_id']]) + ':'
         matches = []
-        for (value,) in db.execute('SELECT value FROM state WHERE key>=? AND key<? ORDER BY key', (prefix, prefix[:-1] + ';')):
+        for (value,) in legacy.iter_commission_outcomes(db, digest([plan_ref, obj['object_id']])):
             ref = json.loads(value)
             outcome = cs._read(db, ref)['payload']
             dependencies = [outcome['object_ref'], outcome['section_ref'], outcome['score_ref'],
@@ -1125,7 +1125,7 @@ def record_outcome(cs, actor, operation_id, object_id, section_ref, score_ref, l
         ref = cs._insert(db, actor, 'CommissionOutcome', {**request,
             'commission_plan_ref': plan['ref'], 'object_ref': object_ref,
             **({'assessment_ref': assessment_ref} if assessment_ref else {})})
-        _set(db, 'commission_outcome:' + digest([plan['ref'], object_id]) + ':' + digest(actor.id), ref)
+        legacy.set_commission_outcome(db, digest([plan['ref'], object_id]) + ':' + digest(actor.id), ref)
         return {'outcome_ref': ref}
     from .commission_requirements import enabled as requirements_enabled
     binding = (lambda db, result: _confirmed(cs, db)[0]['ref']) if requirements_enabled(cs.store) else None

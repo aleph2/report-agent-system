@@ -1,8 +1,9 @@
 """Trusted, deterministic assembly of frozen producer records; no model calls."""
+from . import legacy_state as legacy
 from copy import deepcopy
 import json
 
-from .commission_plan import _confirmed, _set, _state, outside_boundary
+from .commission_plan import _confirmed, _state, outside_boundary
 from .content_models import ContentNode, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
 from .store import digest
@@ -40,13 +41,12 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
     typed_proposals, proposal_errors = [], []
     if current:
         from .writer_issues import verify_issue_proposal
-        for key, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<?",
-                                   ('g6_issue_record:', 'g6_issue_record;')):
+        for key, raw in legacy.iter_g6_issue_record(db):
             proposal = json.loads(raw)
             if 'writer_task_ref' not in proposal:
                 continue
             issue_id = proposal.get('issue', {}).get('id')
-            if key != 'g6_issue_record:' + digest([plan['ref'], issue_id]):
+            if key != legacy.issue_record_key(digest([plan['ref'], issue_id])):
                 continue
             try:
                 typed_proposals.append(verify_issue_proposal(cs, db, proposal, plan, actor))
@@ -57,7 +57,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                  *[r for refs in prose_bindings.values() for r in refs]]
         seeds.extend(c['source_ref'] for p in typed_proposals for c in p['source_citations'])
         for ref in assessment_refs:
-            receipt = _state(db, 'assessment_receipt:' + digest(ref))
+            receipt = legacy.get_assessment_receipt(db, digest(ref))
             if receipt:
                 seeds.extend(receipt['refs'].values())
         members = _closure(cs, db, seeds)
@@ -84,11 +84,10 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
         problems.append({'code': code, **where})
     if current:
         from .material_issues import MaterialIssue
-        for key, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<?",
-                                  ('g6_issue_record:', 'g6_issue_record;')):
+        for key, raw in legacy.iter_g6_issue_record(db):
             proposal = json.loads(raw)
             issue = proposal.get('issue', {})
-            if key != 'g6_issue_record:' + digest([plan['ref'], issue.get('id')]):
+            if key != legacy.issue_record_key(digest([plan['ref'], issue.get('id')])):
                 continue
             if 'writer_task_ref' in proposal:
                 continue
@@ -181,7 +180,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             problem('assessment_not_frozen', ref=ref)
             continue
         p = record['payload']; obj = p['object_id']
-        receipt = _state(db, 'assessment_receipt:' + digest(ref))
+        receipt = legacy.get_assessment_receipt(db, digest(ref))
         if p.get('commission_plan_ref') != plan['ref'] or obj not in expected_objects or obj in assessments:
             problem('assessment_binding_invalid', ref=ref, object_id=obj)
             continue
@@ -328,7 +327,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
         elif issue_id not in template_ids:
             routes[issue_id] = binding
     for issue_id in required.keys() - routes.keys() - template_ids - inventory_ids:
-        saved = _state(db, 'g6_issue_route:' + digest([plan['ref'], issue_id]))
+        saved = legacy.get_g6_issue_route(db, digest([plan['ref'], issue_id]))
         if saved is not None:
             if (saved.get('reviewed_by') != 'operator' or not saved.get('reason', '').strip() or
                     saved.get('commission_plan_ref', plan['ref']) != plan['ref']):
@@ -479,7 +478,7 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
             'section_ref': object_heads[obj], 'score_ref': receipt['evaluation_ref'], 'level_ref': receipt['level_ref'],
             'basis_refs': [receipt['evidence_ref']], 'unresolved': [], 'commission_plan_ref': plan['ref'],
             'object_ref': object_ref, 'assessment_ref': assessment_ref})
-        _set(db, 'commission_outcome:' + digest([plan['ref'], obj]) + ':' + digest([actor.id, root]), outcome)
+        legacy.set_commission_outcome(db, digest([plan['ref'], obj]) + ':' + digest([actor.id, root]), outcome)
         outcomes.append(outcome)
     closed = _closure(cs, db, refs)
     result = cs._freeze_in_transaction(db, actor, root, closed, [])
@@ -489,7 +488,7 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
     actual_issues = rendered_issues(records, root)
     validate_required_issues(cs, db, snapshot, records, actual_issues)
     issue_targets = {issue.id: node_ref for node_ref, issue in actual_issues}
-    _set(db, 'assembly_receipt:' + digest(result['snapshot_ref']), {
+    legacy.set_assembly_receipt(db, digest(result['snapshot_ref']), {
         'contract': CONTRACT, 'snapshot_ref': result['snapshot_ref'], 'manifest_digest': result['manifest_digest'],
         'source_snapshot_ref': request['source_snapshot_ref'], 'source_manifest_digest': source['payload']['manifest_digest'],
         'source_kind': 'current-selections' if current else 'frozen-snapshot',
@@ -499,7 +498,7 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
         'commission_plan_ref': plan['ref'], 'commission_confirmation_ref': decision['ref'],
         'bindings_digest': digest(request), 'resolved_issue_bindings': issue_bindings,
         'operator_issue_routes': {i: saved for i in issue_bindings
-            if (saved := _state(db, 'g6_issue_route:' + digest([plan['ref'], i]))) is not None},
+            if (saved := legacy.get_g6_issue_route(db, digest([plan['ref'], i]))) is not None},
         'prose_copies': copies, 'assessment_refs': list(request['assessment_refs']),
         'issue_targets': issue_targets, 'outcome_refs': outcomes,
         'records_digest': digest([cs._read(db, r) for r in snapshot['payload']['refs']])})
@@ -529,18 +528,17 @@ def _current_selections(cs, db):
             if selected is not None:
                 prose.setdefault(sid, []).extend(selected if isinstance(selected, list) else [selected])
     for obj in plan['payload']['objects']:
-        selected = _state(db, 'g6_assessment:' + digest([plan['ref'], obj['object_id']]))
+        selected = legacy.get_g6_assessment(db, digest([plan['ref'], obj['object_id']]))
         if selected is not None:
             assessments.append(selected)
     issue_ids = {i['id'] for i in decision['payload'].get('required_material_issues', [])}
-    for key, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<?",
-                               ('g6_issue_record:', 'g6_issue_record;')):
+    for key, raw in legacy.iter_g6_issue_record(db):
         proposal = json.loads(raw)
         issue_id = proposal.get('issue', {}).get('id')
-        if key == 'g6_issue_record:' + digest([plan['ref'], issue_id]):
+        if key == legacy.issue_record_key(digest([plan['ref'], issue_id])):
             issue_ids.add(issue_id)
     for issue_id in sorted(issue_ids):
-        selected = _state(db, 'g6_issue_binding:' + digest([plan['ref'], issue_id]))
+        selected = legacy.get_g6_issue_binding(db, digest([plan['ref'], issue_id]))
         if selected is not None:
             bindings[issue_id] = selected
     return dict(source_snapshot_ref=None, prose_bindings=prose, assessment_refs=assessments, issue_bindings=bindings)
@@ -549,13 +547,11 @@ def _current_selections(cs, db):
 def _current_identity(cs, db):
     plan, _ = _confirmed(cs, db)
     proposals = []
-    for key, raw in db.execute("SELECT key,value FROM state WHERE key>=? AND key<? ORDER BY key",
-                              ('g6_issue_record:', 'g6_issue_record;')):
+    for key, raw in legacy.iter_g6_issue_record_ordered(db):
         proposal = json.loads(raw)
-        if key == 'g6_issue_record:' + digest([plan['ref'], proposal.get('issue', {}).get('id')]):
+        if key == legacy.issue_record_key(digest([plan['ref'], proposal.get('issue', {}).get('id')])):
             proposals.append(proposal)
-    routes = [(key, json.loads(raw)) for key, raw in db.execute(
-        "SELECT key,value FROM state WHERE key>=? AND key<? ORDER BY key", ('g6_issue_route:', 'g6_issue_route;'))]
+    routes = [(key, json.loads(raw)) for key, raw in legacy.iter_g6_issue_route_ordered(db)]
     return digest([_current_selections(cs, db), proposals, routes])
 
 
@@ -568,7 +564,7 @@ def assemble_current_report(cs, actor, operation_id):
 
 def require_assembled(cs, db, snapshot, records=None):
     """Verify assembly provenance without changing legacy export behavior."""
-    receipt = _state(db, 'assembly_receipt:' + digest(snapshot['ref']))
+    receipt = legacy.get_assembly_receipt(db, digest(snapshot['ref']))
     from .section_writing import enabled as system_writing
     if receipt is None and not system_writing(cs.store):
         return None
@@ -613,7 +609,7 @@ def record_issue_routes(cs, actor, operation_id, routes, *, note):
                     ('object_id' in route and route['object_id'] not in objects) or not route.get('reason', '').strip()):
                 raise ActionRejected('ASSEMBLY_OPERATOR_ROUTE_INVALID: ' + str(issue_id))
         for issue_id, route in routes.items():
-            _set(db, 'g6_issue_route:' + digest([plan['ref'], issue_id]), {
+            legacy.set_g6_issue_route(db, digest([plan['ref'], issue_id]), {
                 **route, 'commission_plan_ref': plan['ref'], 'reviewed_by': 'operator', 'note': note})
         return {'commission_plan_ref': plan['ref'], 'routed_issue_ids': sorted(routes)}
     return cs.operation(actor, operation_id, {'assembly_issue_routes': routes, 'note': note}, execute,

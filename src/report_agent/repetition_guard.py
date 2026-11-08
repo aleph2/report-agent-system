@@ -3,6 +3,7 @@
 This is an invocation-local middleware helper, not a semantic progress judge,
 retry loop, call quota, or persistent authorization record.
 """
+from . import legacy_state as legacy
 from .prompt_sources import load_prompt
 import json
 
@@ -51,11 +52,7 @@ class KnownWriteRepetition:
                 return None
             heads = db.execute("SELECT h.type,h.id,h.version,v.data FROM content_heads h JOIN content_versions v "
                 "ON v.type=h.type AND v.id=h.id AND v.version=h.version ORDER BY h.type,h.id").fetchall()
-            state = db.execute("SELECT key,value FROM state WHERE key IN "
-                "('manifest','feedback','report_issues','issues','context_revision','source_changes','corrections',"
-                "'content_delivery','content_execution_decision','context_policy','knowledge_enabled',"
-                "'acceptance_mode','acceptance_default','active_rubric_hash','decision_observation') "
-                "OR key LIKE 'operator_%' ORDER BY key").fetchall()
+            state = legacy.read_repetition_state_rows(db)
             sources = db.execute("SELECT data FROM source_versions ORDER BY rowid").fetchall()
         return digest({"heads": heads, "state": state, "sources": sources})
 

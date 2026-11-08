@@ -4,6 +4,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from report_agent import legacy_state as legacy
 from report_agent.store import Store
 from report_agent.workspace import Workspace
 from report_agent.deep_runtime import run_report
@@ -49,7 +50,7 @@ async def main():
     finally:
         result.update(state=store.get('report_status'),error=store.get('report_error'),
                       finished_at=datetime.now(timezone.utc).isoformat(),
-                      delivery=store.get('content_delivery'),summary=store.get('agent_summary'))
+                      delivery=legacy.get_content_delivery(store),summary=store.get('agent_summary'))
         output.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False))
 

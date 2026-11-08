@@ -10,17 +10,12 @@ import tempfile
 from .blob_store import BlobStore
 from .catalog import Catalog
 from .content_models import refs_in
+from . import legacy_state as legacy
 from .content_store import ContentStore
 from .store import Store, digest, encode
 from .workspace import Workspace
 
-BUSINESS_STATE = frozenset({
-    'manifest', 'acceptance_default', 'acceptance_mode',
-    'commission_plan', 'commission_confirmation', 'commission_requirements',
-    'commission_owner_records', 'commission_skeleton', 'commission_source_roles',
-    'commission_text_profiles', 'commission_reviewed_entries', 'commission_carryover',
-    'source_use_authority_binding',
-})
+BUSINESS_STATE = legacy.BUSINESS_STATE
 BUSINESS_TYPES = frozenset({
     'CommissionPlan', 'CommissionDecision', 'CommissionRequirements', 'Requirement', 'SourceArtifact',
 })
@@ -85,8 +80,7 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
             original.backup(frozen)
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
-            state = {k: json.loads(v) for k, v in frozen.execute('SELECT key,value FROM state')
-                     if k in BUSINESS_STATE or k.startswith('reviewed_method_pack:')}
+            state = legacy.read_probe_business_state(frozen)
             if (state.get('commission_plan') != expected_plan_ref
                     or state.get('commission_confirmation') != expected_decision_ref):
                 raise ValueError('PROBE_APPROVED_PIN_MISMATCH')
@@ -108,7 +102,7 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
         output.mkdir(parents=True, exist_ok=False)
         store = Store(output)
         with store.connect() as db:
-            db.executemany('INSERT INTO state VALUES (?,?)', [(k, encode(v)) for k, v in state.items()])
+            legacy.insert_probe_business_state(db, state)
         Workspace(store)
         Catalog(store)
         cs = ContentStore(store)

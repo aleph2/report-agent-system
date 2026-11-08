@@ -1,4 +1,5 @@
 """Host-owned planning stop-loss and grant accounting; no ledger mutation."""
+from . import legacy_state as legacy
 import asyncio
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -87,8 +88,8 @@ def approvable_plan(workspace):
         require_complete(cs,plan)
         if any(unresolved_sources(s) for s in plan['sections']) or method_questions(plan):
             return False
-        for issue in workspace.store.get('report_issues',[]):
-            checkpoint = workspace.store.get('commission_checkpoint:' + issue['id'])
+        for issue in legacy.get_report_issues(workspace.store,[]):
+            checkpoint = legacy.get_commission_checkpoint(workspace.store, issue['id'])
             if not checkpoint or checkpoint['plan_ref'] != record['ref'] or checkpoint.get('requirements_ref') != plan.get('requirements_ref'):
                 continue
             if not (workspace.store.root / checkpoint['brief_path']).is_file():

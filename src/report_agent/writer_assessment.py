@@ -1,4 +1,5 @@
 """Incremental judgments for one host-assigned Writer; all identities stay server-owned."""
+from . import legacy_state as legacy
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
@@ -7,7 +8,6 @@ from typing import Annotated, Literal
 from pydantic import Field, create_model, model_validator
 from pydantic_core import PydanticCustomError
 
-from .commission_plan import _set, _state
 from .content_models import Contract, Ref
 from .errors import ActionRejected
 from .planning_inputs import quote_locations, reject, resolve_citations
@@ -58,9 +58,9 @@ def _assignment(cs, db, actor):
     from .writer_assignments import bound_assignment
     scope = bound_assignment(cs, db, actor)
     _layout(scope['plan']['payload']['method_pack'])
-    binding = _state(db, 'fake03_qualitative_actor:' + actor.id)
+    binding = legacy.get_fake03_qualitative_actor(db, actor.id)
     if binding is not None:
-        profile = _state(db, 'fake03_qualitative_profile')
+        profile = legacy.get_fake03_qualitative_profile(db)
         if (binding['plan_ref'] != scope['plan']['ref'] or binding['object_id'] != scope['object']['object_id']
                 or binding['profile_digest'] != digest(profile)):
             raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
@@ -75,11 +75,11 @@ def indicator_schema(cs, actor):
 
 
 def _key(scope, actor):
-    return 'writer_assessment_draft:' + digest([actor.id, scope['task_ref'], scope['plan']['ref'], scope['object']['object_id']])
+    return digest([actor.id, scope['task_ref'], scope['plan']['ref'], scope['object']['object_id']])
 
 
 def _draft(db, scope, actor):
-    draft = _state(db, _key(scope, actor))
+    draft = legacy.get_writer_assessment_draft(db, _key(scope, actor))
     if draft is None:
         return {'assignment_digest': scope['assignment_digest'], 'rows': {}}
     if draft.get('assignment_digest') != scope['assignment_digest']:
@@ -217,13 +217,13 @@ def set_indicator(cs, actor, operation_id, judgment):
         draft = deepcopy(_draft(db, current, actor)); entry = {'input': deepcopy(value), 'judgment': row}
         changed = draft['rows'].get(rule['id']) != entry
         draft['rows'][rule['id']] = entry
-        _set(db, _key(current, actor), draft)
-        selected_key = 'g6_assessment:' + digest([current['plan']['ref'], current['object']['object_id']])
-        selected = _state(db, selected_key)
+        legacy.set_writer_assessment_draft(db, _key(current, actor), draft)
+        selected_key = digest([current['plan']['ref'], current['object']['object_id']])
+        selected = legacy.get_g6_assessment(db, selected_key)
         if changed and selected:
             previous = cs._read(db, selected)
             if previous['owner_id'] == actor.id and previous.get('task_id') == actor.task_id:
-                _set(db, selected_key, None)
+                legacy.set_g6_assessment(db, selected_key, None)
         return {'saved_indicator': value['indicator'], **_status(current, draft)}
     return cs.operation(actor, operation_id, {'writer_indicator': value}, save,
         binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])
@@ -283,11 +283,11 @@ def _step_state(db, scope, actor):
     order = scope['plan']['payload'].get('indicator_rank_order')
     if not order:
         raise ActionRejected('WRITER_CONFIRMED_RANK_ORDER_REQUIRED')
-    key = 'writer_indicator_steps:' + scope['assignment_digest']
-    draft = _state(db, key)
+    key = scope['assignment_digest']
+    draft = legacy.get_writer_indicator_steps(db, key)
     if draft is None:
-        selected = 'g6_assessment:' + digest([scope['plan']['ref'], scope['object']['object_id']])
-        if _state(db, selected) or _draft(db, scope, actor)['rows']:
+        selected = digest([scope['plan']['ref'], scope['object']['object_id']])
+        if legacy.get_g6_assessment(db, selected) or _draft(db, scope, actor)['rows']:
             raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
         draft = {'rows': {}, 'assessment_ref': None, 'interrupted_indicators': {}}
     rules = scope['plan']['payload']['method_pack']['indicators']
@@ -507,13 +507,13 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
             issue_receipt = save_indicator_conflict(cs,db,actor,operation_id,scope,value['contrary_evidence'])
             entry.update(issue_receipt)
         draft['rows'][indicator_id] = entry
-        _set(db, key, draft)
+        legacy.set_writer_indicator_steps(db, key, draft)
         _, _, _, status = _step_state(db, scope, actor)
         if (status['complete'] and 'qualitative_profile' not in scope
                 and not status['gap_indicators'] and not status['interrupted_indicators']):
             receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
             draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']
-            _set(db, key, draft)
+            legacy.set_writer_indicator_steps(db, key, draft)
         return {**status, 'saved_indicator':indicator_id, **issue_receipt, **claim_receipt}
     return cs.operation(actor, operation_id,
         {'indicator_step':indicator_id,'outcome':outcome,'read_locations':list(read_locations)}, save,
@@ -537,7 +537,7 @@ def interrupt_indicator_step(cs, actor, indicator_id, refusals):
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
         draft.setdefault('interrupted_indicators',{})[indicator_id] = {
             'status':'interrupted: save rejected','refusals':deepcopy(refusals)}
-        _set(db,key,draft)
+        legacy.set_writer_indicator_steps(db, key,draft)
         return _step_state(db,current,actor)[3]
     return cs.operation(actor,operation,{'indicator':indicator_id,'refusals':refusals},record,
         binding_identity=lambda db,result:_assignment(cs,db,actor)['assignment_digest'])

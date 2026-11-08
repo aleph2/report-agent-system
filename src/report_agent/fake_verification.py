@@ -5,6 +5,7 @@ check and (only with launch authority) run. Supply the trusted authority digest
 separately. init-grant is a one-time action for the entire verification campaign.
 Each preparation owns GRANT/runs/RUN_ID/case, prepared.json, and result.json.
 """
+from . import legacy_state as legacy
 import argparse
 import asyncio
 from contextlib import closing
@@ -171,7 +172,7 @@ def prepare(approval_file, approval_sha256):
     if 'qualitative_pilot' in authority:
         from .store import Store
         from .workspace import Workspace
-        Workspace(Store(case)).store.set('fake03_qualitative_profile', profile)
+        legacy.set_fake03_qualitative_profile(Workspace(Store(case)).store, profile)
         result['qualitative_pilot'] = authority['qualitative_pilot']
     receipt = {**result, 'case_path': str(case), 'authority_sha256': approval_sha256, **identify(),
                'case_seal':_seal(case)}
@@ -198,16 +199,17 @@ def check_prepared(approval_file, approval_sha256, prepared_sha256):
         db.execute('PRAGMA query_only=ON')
         if db.execute("SELECT 1 FROM content_versions WHERE type IN ('DelegatedTask','Assessment') LIMIT 1").fetchone():
             raise ValueError('FAKE_FRESH_CASE_REQUIRED')
-        raw=db.execute("SELECT key,value FROM state WHERE key IN ('commission_plan','commission_confirmation')").fetchall()
+        raw=legacy.read_probe_plan_pin_rows(db)
         pins={k:json.loads(v) for k,v in raw}
         if pins!={'commission_plan':receipt['plan_ref'],'commission_confirmation':receipt['decision_ref']}:
             raise ValueError('FAKE_CONFIRMED_PLAN_CHANGED')
-        stored = db.execute("SELECT value FROM state WHERE key='fake03_qualitative_profile'").fetchone()
+        missing = object()
+        stored = legacy.get_fake03_qualitative_profile(db, missing)
         if 'qualitative_pilot' in authority:
             from .fake03_fact_register import qualitative_profile
-            if stored is None or json.loads(stored[0])!=qualitative_profile(authority['qualitative_pilot']['register_sha256']):
+            if stored is missing or stored!=qualitative_profile(authority['qualitative_pilot']['register_sha256']):
                 raise ValueError('FAKE_QUALITATIVE_PROFILE_CHANGED')
-        elif stored is not None:
+        elif stored is not missing:
             raise ValueError('FAKE_QUALITATIVE_AUTHORITY_REQUIRED')
     return receipt
 

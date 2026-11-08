@@ -1,4 +1,5 @@
 """Frozen, slope-scoped Reviewer assignments over saved qualitative Writer rows."""
+from . import legacy_state as legacy
 from contextlib import contextmanager
 from uuid import uuid4
 
@@ -19,7 +20,7 @@ def freeze_writer_rows(cs, db, writer_ref):
     writer = Actor('content:writer:' + writer_ref['id'], 'writer', writer_ref['id'])
     scope = _assignment(cs, db, writer)
     profile = scope.get('qualitative_profile')
-    draft = _state(db, 'writer_indicator_steps:' + scope['assignment_digest'])
+    draft = legacy.get_writer_indicator_steps(db, scope['assignment_digest'])
     if not profile or not draft or not draft['rows']:
         raise ActionRejected('QUALITATIVE_REVIEW_SAVED_ROWS_REQUIRED')
     oid = scope['object']['object_id']

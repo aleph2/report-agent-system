@@ -1,5 +1,6 @@
 """Native DeepAgents runtime with project-bound business tools, not a stage engine."""
 from __future__ import annotations
+from . import legacy_state
 from .prompt_sources import load_prompt
 
 import asyncio
@@ -192,7 +193,7 @@ class BusinessBoundary(InvalidToolFeedback):
                     'message': str(exc), 'retryable': bool((exc.diagnostic or {}).get('retryable')),
                     'diagnostic': exc.diagnostic}), tool_call_id=request.tool_call['id'],
                     name=request.tool_call['name'], status='error'))
-            if self.workspace.store.get('decision_observation'):
+            if legacy_state.get_decision_observation(self.workspace.store):
                 raise
             return self._record_tool_result(request, ToolMessage(encode({'ok': False, 'code': str(exc).split(':')[0],
                 'message': str(exc), 'retryable': bool((exc.diagnostic or {}).get('retryable')),
@@ -238,7 +239,7 @@ class BusinessBoundary(InvalidToolFeedback):
             if self.role == 'coordinator' and call['name'] in TOOLS and planning_enabled(self.workspace.store):
                 self.planning_before[call['id']] = fingerprint(self.workspace)
             store = self.workspace.store
-            if store.get("decision_observation"):
+            if legacy_state.get_decision_observation(store):
                 raise ActionRejected("DECISION_OBSERVATION_TERMINAL_USE_NEW_ISOLATED_CASE")
             if self.decision_only and call["name"] in {
                     "process_report_content", "perform_assigned_review", "perform_assigned_artifact_review",
@@ -246,7 +247,7 @@ class BusinessBoundary(InvalidToolFeedback):
                 observed = {"kind": "unexecuted_text_work_intent", "role": self.role,
                             "tool_call": call, "executed": False,
                             "text_output_or_correctness_verified": False}
-                store.set("decision_observation", observed)
+                legacy_state.set_decision_observation(store, observed)
                 interrupt(observed)
                 # Observation runs are terminal measurements, never deferred paid work.
                 raise ActionRejected("DECISION_OBSERVATION_CANNOT_DISPATCH_OR_RESUME_TEXT_WORK")
@@ -489,9 +490,9 @@ def project_view(workspace):
     state = project_state(workspace)
     state["presentation_references"] = workspace.store.manifest.get("presentation_references", [])
     if workspace.store.manifest.get('commission_checkpoint_required'):
-        state['commission_source_roles'] = workspace.store.get('commission_source_roles', {})
-        state['commission_checkpoint'] = {'plan_ref': workspace.store.get('commission_plan'),
-            'confirmation_ref': workspace.store.get('commission_confirmation'),
+        state['commission_source_roles'] = legacy_state.get_commission_source_roles(workspace.store, {})
+        state['commission_checkpoint'] = {'plan_ref': legacy_state.get_commission_plan(workspace.store),
+            'confirmation_ref': legacy_state.get_commission_confirmation(workspace.store),
             'writing_requires_current_owner_confirmation': True}
     # Submission bookkeeping is not an agent plan or a saved report.
     state.pop("tasks", None)
@@ -504,8 +505,8 @@ def project_view(workspace):
     from .hierarchical_tools import enabled as content_enabled
     if content_enabled(workspace):
         state["content_contract"] = "hierarchical-review-v1"
-        state["content_delivery"] = workspace.store.get("content_delivery")
-        state["content_final_review"] = workspace.store.get("content_final_review")
+        state["content_delivery"] = legacy_state.get_content_delivery(workspace.store)
+        state["content_final_review"] = legacy_state.get_content_final_review(workspace.store)
     return state
 
 
@@ -1021,7 +1022,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
 def require_native_runtime(workspace):
     """Reject retired execution before locks, status changes or checkpoint setup."""
     from .hierarchical_tools import enabled
-    if workspace.store.get("decision_observation"):
+    if legacy_state.get_decision_observation(workspace.store):
         raise ActionRejected("DECISION_OBSERVATION_TERMINAL_USE_NEW_ISOLATED_CASE")
     from .prompt_sources import delegation_profile, validate_review_interface_profile, validate_report_prompt_profile
     delegation_profile(workspace.store)
@@ -1184,7 +1185,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
     require_native_runtime(workspace)
     if type(decision_only) is not bool:
         raise ActionRejected("DECISION_OBSERVATION_MODE_MUST_BE_BOOLEAN")
-    if workspace.store.get("decision_observation"):
+    if legacy_state.get_decision_observation(workspace.store):
         raise ActionRejected("DECISION_OBSERVATION_TERMINAL_USE_NEW_ISOLATED_CASE")
     with workspace.store.run_lock():
         from .operator_instructions import sync_operator_instructions
@@ -1259,7 +1260,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 store.set("checkpoint_resume", bool(snapshot.next))
                 interrupts = snapshot.interrupts
                 if interrupts:
-                    issues = {i["id"]: i for i in store.get("report_issues", [])}
+                    issues = {i["id"]: i for i in legacy_state.get_report_issues(store, [])}
                     answers = {}
                     for pending in interrupts:
                         from .execution_progress import KIND as PROGRESS_KIND, resume_answer as progress_answer
@@ -1338,7 +1339,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                     from .execution_progress import KIND as PROGRESS_KIND
                     status = ("needs_attention" if any(i.value.get("kind") in {KIND,PROGRESS_KIND} for i in snapshot.interrupts)
                               else "needs_human")
-                    store.set("report_status", "decision_observed" if store.get("decision_observation") else status)
+                    store.set("report_status", "decision_observed" if legacy_state.get_decision_observation(store) else status)
                     if any(i.value.get('kind')==PROGRESS_KIND for i in snapshot.interrupts):
                         store.set('report_error',{'failure_kind':'execution_progress_attention','automatic_resume':False})
                 elif store.get("report_status") == "running":
@@ -1391,6 +1392,6 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 own_knowledge.close()
         state = project_state(workspace)
         if hierarchical:
-            state.update(content_delivery=store.get("content_delivery"), content_final_review=store.get("content_final_review"),
+            state.update(content_delivery=legacy_state.get_content_delivery(store), content_final_review=legacy_state.get_content_final_review(store),
                          content_execution_decision=store.get("content_execution_decision"))
         return state

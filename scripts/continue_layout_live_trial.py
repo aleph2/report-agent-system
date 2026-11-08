@@ -4,6 +4,7 @@ import asyncio
 import json
 from pathlib import Path
 
+from report_agent import legacy_state as legacy
 from report_agent.store import Store, encode
 from report_agent.content_store import ContentStore, Actor
 from report_agent.workspace import Workspace
@@ -20,7 +21,7 @@ async def main(args):
     if intent.exists():
         raise RuntimeError('CONTINUATION_ALREADY_STARTED')
     settings=load_mixed_services(args.env_file)
-    cs=ContentStore(store); delivery=store.get('content_delivery')
+    cs=ContentStore(store); delivery=legacy.get_content_delivery(store)
     snapshot=cs.read(delivery['snapshot_ref'])
     before={encode(r):cs.read(r)['payload_digest'] for r in snapshot['payload']['refs']}
     cap=capabilities()
@@ -38,13 +39,13 @@ async def main(args):
     manifest=store.manifest
     manifest.update(goal=instruction,scope_instruction=instruction)
     store.set('manifest',manifest)
-    store.set('content_delivery',{**delivery,'trial_instruction':instruction})
+    legacy.set_content_delivery(store,{**delivery,'trial_instruction':instruction})
     store.event('layout_capability_continuation',{'capability_version':cap['engine_digest'],'feedback':receipt})
     print(encode({'state':'starting','capability':cap['version'],'native_directory_available':cap['directory_refresh']}),flush=True)
     await run_report(Workspace(store))
     after={encode(r):cs.read(r)['payload_digest'] for r in snapshot['payload']['refs']}
     result={'status':store.get('report_status'),'error':store.get('report_error'),
-        'content_unchanged':before==after,'delivery':store.get('content_delivery'),
+        'content_unchanged':before==after,'delivery':legacy.get_content_delivery(store),
         'decision':store.get('content_execution_decision'),'summary':store.get('agent_summary')}
     (args.project/'layout-capability-continuation-result.json').write_text(encode(result),encoding='utf-8')
     print(encode({'status':result['status'],'content_unchanged':result['content_unchanged']}),flush=True)

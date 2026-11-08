@@ -1,4 +1,5 @@
 """Assigned prose and issue proposals; document structure remains system-owned."""
+from . import legacy_state as legacy
 from typing import Literal
 from pydantic import Field
 from .material_issues import StrictRecord, IssueSource
@@ -68,7 +69,7 @@ def validate_prose(cs, db, actor, node, previous_ref=None):
     expected = {Ref.model_validate(x['source_ref']).key() for x in section['sources']}
     if not actual.intersection(expected):
         spans.append({'reason': 'planned_citation_missing', 'field': 'text', 'start': 0, 'end': len(text)})
-    roles = _state(db, 'commission_source_roles', {})
+    roles = legacy.get_commission_source_roles(db, {})
     template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
     for citation in node.get('citations', []):
         source = cs._read(db, citation['source_ref'])['payload']
@@ -91,7 +92,7 @@ def save_section_prose(cs, actor, operation_id, section_id, text, citations, pre
 
 def propose_material_issue(cs, actor, operation_id, node_ref, issue):
     """Record engineering facts for an owned current node; assign position in system code."""
-    from .commission_plan import assert_writing_allowed, _confirmed, _state, _set
+    from .commission_plan import assert_writing_allowed, _confirmed, _state
     from .material_issues import MaterialIssue
     if not enabled(cs.store):
         raise ActionRejected('SYSTEM_ASSEMBLER_CONTRACT_REQUIRED')
@@ -111,10 +112,10 @@ def propose_material_issue(cs, actor, operation_id, node_ref, issue):
         if expected and any(value.get(k) != expected[k] for k in ('id', 'kind', 'object_label', 'basis', 'sources', 'question')):
             raise ActionRejected('REQUIRED_MATERIAL_ISSUE_MISMATCH: ' + value['id'])
         key = digest([plan['ref'], value['id']])
-        old = _state(db, 'g6_issue_record:' + key)
+        old = legacy.get_g6_issue_record(db, key)
         if old and (not old.get('node_ref') or cs._read(db, old['node_ref'])['owner_id'] != actor.id):
             raise ActionForbidden('FORBIDDEN: material issue proposal owner')
-        _set(db, 'g6_issue_record:' + key, {'node_ref': node_ref, 'issue': value})
-        _set(db, 'g6_issue_binding:' + key, {'section_id': sid})
+        legacy.set_g6_issue_record(db, key, {'node_ref': node_ref, 'issue': value})
+        legacy.set_g6_issue_binding(db, key, {'section_id': sid})
         return {'issue_id': value['id'], 'node_ref': node_ref, 'section_id': sid}
     return cs.operation(actor, operation_id, {'propose_material_issue': {'node_ref': node_ref, 'issue': issue}}, save)

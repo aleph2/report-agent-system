@@ -7,6 +7,7 @@ import shutil
 import sqlite3
 from pathlib import Path
 
+from report_agent import legacy_state as legacy
 from report_agent.store import Store, encode
 from report_agent.workspace import Workspace
 from report_agent.content_store import ContentStore
@@ -35,7 +36,7 @@ async def main(args):
             shutil.copytree(source/directory, target/directory)
     store = Store(target)
     cs = ContentStore(store)
-    selected = store.get('content_delivery')
+    selected = legacy.get_content_delivery(store)
     frozen = cs.read(selected['snapshot_ref'])
     before = {encode(r): cs.read(r)['payload_digest'] for r in frozen['payload']['refs']}
     instruction = '''本次唯一任务是对现有真实报告进行排版专家闭环实测。原报告内容和评估结论冻结，不重新生成报告，不修复评分，不调用 writer，不新增或修改 ContentNode、Criterion、Relation 或 DocumentSnapshot。
@@ -52,7 +53,7 @@ async def main(args):
     manifest['review_entrypoint'] = 'delegated-reviewer-v1'
     store.set('manifest', manifest)
     store.set('knowledge_enabled', False)
-    store.set('content_delivery', {**selected, 'trial_instruction':instruction})
+    legacy.set_content_delivery(store, {**selected, 'trial_instruction':instruction})
     settings['layout'] = settings['writer']
     intent = {'scope':'real model layout-only feedback loop', 'source':str(source),
         'snapshot_ref':selected['snapshot_ref'], 'baseline_export_ref':selected['export_ref'],
@@ -65,7 +66,7 @@ async def main(args):
     after = {encode(r):cs.read(r)['payload_digest'] for r in frozen['payload']['refs']}
     summary = {'status':store.get('report_status'),'error':store.get('report_error'),
         'frozen_objects_unchanged':before==after,'frozen_object_count':len(before),
-        'delivery':store.get('content_delivery'),'final_review':store.get('content_final_review'),
+        'delivery':legacy.get_content_delivery(store),'final_review':legacy.get_content_final_review(store),
         'agent_summary':store.get('agent_summary')}
     (target/'layout-live-result.json').write_text(encode(summary),encoding='utf-8')
     print(encode({k:v for k,v in summary.items() if k not in {'agent_summary','final_review'}}),flush=True)

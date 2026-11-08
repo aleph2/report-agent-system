@@ -1,4 +1,5 @@
 from __future__ import annotations
+from . import legacy_state as legacy
 
 from .errors import ActionForbidden, ActionRejected
 
@@ -167,7 +168,7 @@ class Workspace:
         sources = set(source_replacements)
         results, tasks = self.results(), self.tasks()
         stale = {r["id"] for r in results if sources & self._source_refs(r)}
-        changes = self.store.get("source_changes", [])
+        changes = legacy.get_source_changes(self.store, [])
         for change in changes:
             stale.update(change.get("affected_result_ids", []))
         while True:
@@ -178,7 +179,7 @@ class Workspace:
             stale.update(added)
         # Each producer assesses its own outcome. An upstream judgment does not
         # silently validate downstream work, and superseded results stay historical.
-        assessments = self.store.get("result_impact_assessments", {})
+        assessments = legacy.get_result_impact_assessments(self.store, {})
         assessed, unchanged = set(), set()
         for result in results:
             result_id = result["id"]
@@ -238,8 +239,8 @@ class Workspace:
                 raise ActionRejected("REVISION_REQUIRES_CURRENT_RESULT")
             inputs = sorted({self._current_id(i, impact["replacements"])
                              for i in self._result_refs(previous)})
-            row = db.execute("SELECT value FROM state WHERE key='corrections'").fetchone()
-            corrections = [c for c in (json.loads(row[0]) if row else [])
+            saved = legacy.get_corrections(db, [])
+            corrections = [c for c in saved
                            if self._current_id(c["result_id"], impact["replacements"]) == result_id
                            and c.get("status", "pending") == "pending"]
             feedback = [description] + [c["description"] for c in corrections if c["description"] != description]
@@ -405,12 +406,11 @@ class Workspace:
         pending_result = {**data, "id": ""}
         data["dependency_snapshot"] = self._dependency_snapshot(
             "", self.results() + [pending_result], impact["replacements"],
-            impact["source_replacements"], self.store.get("source_changes", []))
+            impact["source_replacements"], legacy.get_source_changes(self.store, []))
         result = self._insert_result(db, data)
         if replaces_id:
             db.execute("INSERT INTO result_replacements VALUES (?, ?, ?)", (replaces_id, result["id"], task_id))
-            row = db.execute("SELECT value FROM state WHERE key='corrections'").fetchone()
-            corrections = json.loads(row[0]) if row else []
+            corrections = legacy.get_corrections(db, [])
             for correction in corrections:
                 correction_id = correction.get("id", digest({"result_id": correction["result_id"],
                                                               "description": correction["description"]}))
@@ -422,7 +422,7 @@ class Workspace:
                                       resolution="replacement_committed_pending_review")
                     db.execute("INSERT INTO events(kind,data) VALUES ('correction_addressed', ?)",
                                (encode(correction),))
-            db.execute("INSERT OR REPLACE INTO state VALUES ('corrections', ?)", (encode(corrections),))
+            legacy.set_corrections(db, corrections)
             db.execute("INSERT INTO events(kind,data) VALUES ('result_replaced', ?)",
                        (encode({"replaces_id": replaces_id, "result_id": result["id"], "task_id": task_id}),))
         task.update(status="completed", result_id=result["id"], error=None,
@@ -439,17 +439,16 @@ class Workspace:
         correction_id = digest({"result_id": result_id, "description": description})
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT value FROM state WHERE key='corrections'").fetchone()
-            corrections = json.loads(row[0]) if row else []
+            corrections = legacy.get_corrections(db, [])
             for old in corrections:
                 if old["result_id"] == result_id and old["description"] == description:
                     if "id" not in old:
                         old.update(id=correction_id, status="pending", resolved=False)
-                        db.execute("INSERT OR REPLACE INTO state VALUES ('corrections', ?)", (encode(corrections),))
+                        legacy.set_corrections(db, corrections)
                     return {"recorded": True, **old}
             item = {"id": correction_id, "result_id": result_id, "owner": result["owner"],
                     "description": description, "status": "pending", "resolved": False}
-            db.execute("INSERT OR REPLACE INTO state VALUES ('corrections', ?)", (encode(corrections + [item]),))
+            legacy.set_corrections(db, corrections + [item])
             db.execute("INSERT INTO events(kind,data) VALUES ('correction_requested', ?)", (encode(item),))
         return {"recorded": True, **item}
 
@@ -462,8 +461,7 @@ class Workspace:
             self.result(result_id)
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT value FROM state WHERE key='source_changes'").fetchone()
-            changes = json.loads(row[0]) if row else []
+            changes = legacy.get_source_changes(db, [])
             change = next((c for c in changes if c["id"] == change_id), None)
             if change is None:
                 raise ActionRejected("SOURCE_CHANGE_NOT_IN_PROJECT")
@@ -474,7 +472,7 @@ class Workspace:
             change["assessment"] = assessment
             # Acknowledging a change again cannot validate previously affected work.
             change["affected_result_ids"] = sorted(set(change.get("affected_result_ids", [])) | set(affected))
-            db.execute("INSERT OR REPLACE INTO state VALUES ('source_changes', ?)", (encode(changes),))
+            legacy.set_source_changes(db, changes)
             db.execute("INSERT INTO events(kind,data) VALUES ('source_change_assessed', ?)", (encode(change),))
         return change
 
@@ -496,15 +494,14 @@ class Workspace:
                 raise ActionRejected("ASSESSMENT_REQUIRES_CURRENT_RESULT")
             snapshot = self._dependency_snapshot(result_id, self.results(), impact["replacements"],
                                                  impact["source_replacements"],
-                                                 self.store.get("source_changes", []))
+                                                 legacy.get_source_changes(self.store, []))
             assessment = {"result_id": result_id, "actor": actor, "description": description,
                           "meaning": "still_usable", "snapshot": snapshot}
-            assessments = self.store.get("result_impact_assessments", {})
+            assessments = legacy.get_result_impact_assessments(self.store, {})
             if assessments.get(result_id) == assessment:
                 return assessment
             assessments[result_id] = assessment
-            db.execute("INSERT OR REPLACE INTO state VALUES ('result_impact_assessments', ?)",
-                       (encode(assessments),))
+            legacy.set_result_impact_assessments(db, assessments)
             db.execute("INSERT INTO events(kind,data) VALUES ('result_impact_assessed', ?)",
                        (encode(assessment),))
         return assessment
@@ -513,29 +510,31 @@ class Workspace:
         if category not in {"source_missing", "source_conflict", "system_failure", "requirement"} or not description.strip():
             raise ActionRejected("INVALID_ISSUE")
         self.store.sources(source_ids)
-        issues = self.store.get("report_issues", [])
+        issues = legacy.get_report_issues(self.store, [])
         for item in issues:
             if (item["category"], item["description"], item["source_ids"]) == (category, description, source_ids):
                 return item
         item = {"id": str(uuid4()), "category": category, "description": description,
                 "source_ids": source_ids, "resolved": False}
-        self._context_change({"report_issues": issues + [item]}, "issue_recorded",
+        self._issue_change(issues + [item], "issue_recorded",
                              {"issue_id": item["id"], "category": category})
         return item
 
-    def _context_change(self, values, event_kind, event_data):
+    def _issue_change(self, issues, event_kind, event_data, *, report_status=None):
         with self.store.connect() as db:
             row = db.execute("SELECT value FROM state WHERE key='context_revision'").fetchone()
-            values = {**values, "context_revision": (json.loads(row[0]) if row else 0) + 1}
-            for key, value in values.items():
-                db.execute("INSERT OR REPLACE INTO state VALUES (?, ?)", (key, encode(value)))
+            revision = (json.loads(row[0]) if row else 0) + 1
+            legacy.set_report_issues(db, issues)
+            if report_status is not None:
+                db.execute("INSERT OR REPLACE INTO state VALUES ('report_status', ?)", (encode(report_status),))
+            db.execute("INSERT OR REPLACE INTO state VALUES ('context_revision', ?)", (encode(revision),))
             db.execute("INSERT INTO events(kind,data) VALUES (?, ?)", (event_kind, encode(event_data)))
 
     def decide_issue(self, issue_id, message, resolved=False):
         if not message.strip():
             raise ActionRejected("HUMAN_DECISION_REQUIRED")
         with self.store.run_lock():
-            issues = self.store.get("report_issues", [])
+            issues = legacy.get_report_issues(self.store, [])
             issue = next((i for i in issues if i["id"] == issue_id), None)
             if issue is None:
                 raise ActionRejected("ISSUE_NOT_IN_PROJECT")
@@ -543,8 +542,8 @@ class Workspace:
                 return issue
             issue.update(decision=message, resolved=resolved, decision_origin="operator")
             # A recorded decision is input for the producer, not automatic validation.
-            self._context_change({"report_issues": issues, "report_status": "ready"},
-                                 "human_decision", {"issue_id": issue_id, "message": message, "resolved": resolved})
+            self._issue_change(issues,
+                                 "human_decision", {"issue_id": issue_id, "message": message, "resolved": resolved}, report_status="ready")
         return issue
 
     def delivery(self, draft_id, review_id=""):
@@ -574,19 +573,19 @@ class Workspace:
             if not added:
                 break
             dependencies.update(added)
-        corrections = [c for c in self.store.get("corrections", [])
+        corrections = [c for c in legacy.get_corrections(self.store, [])
                        if self._current_id(c["result_id"], impact["replacements"]) in dependencies
                        and not c.get("resolved", False)]
         if any(c.get("status", "pending") == "pending" for c in corrections):
             status = "changes_required"
-        pending = [i for i in self.store.get("report_issues", []) if not i["resolved"]]
+        pending = [i for i in legacy.get_report_issues(self.store, []) if not i["resolved"]]
         if any(i["category"] in {"source_conflict", "source_missing"} for i in pending):
             status = "needs_human"
         elif any(i["category"] == "system_failure" for i in pending):
             status = "system_error"
         sources = {s for r in results if r["id"] in dependencies for s in self._source_refs(r)}
         changes = {**self._input_changes(dependencies, sources, impact),
-                   "source_changes": self.store.get("source_changes", []),
+                   "source_changes": legacy.get_source_changes(self.store, []),
                    "context_revision": self.store.get("context_revision", 0),
                    "review_context_revision": review.get("context_revision", 0) if review else None,
                    "pending_corrections": corrections, "pending_issues": pending}
@@ -624,9 +623,9 @@ class Workspace:
         task_error = next((t["error"] for t in reversed(tasks) if t.get("error")), None)
         return {"goal": self.store.manifest["goal"], "name": self.store.manifest.get("name") or self.store.root.name, "status": status,
                 "activity": self.store.get("report_activity", ""), "last_error": self.store.get("report_error") or task_error,
-                "tasks": tasks, "results": results, "corrections": self.store.get("corrections", []),
+                "tasks": tasks, "results": results, "corrections": legacy.get_corrections(self.store, []),
                 "sources": self.store.source_catalog(), "impact": impact,
-                "source_changes": self.store.get("source_changes", []),
-                "result_impact_assessments": self.store.get("result_impact_assessments", {}),
-                "issues": self.store.get("report_issues", []), "delivery": delivery,
+                "source_changes": legacy.get_source_changes(self.store, []),
+                "result_impact_assessments": legacy.get_result_impact_assessments(self.store, {}),
+                "issues": legacy.get_report_issues(self.store, []), "delivery": delivery,
                 "feedback": self.store.get("feedback", [])}

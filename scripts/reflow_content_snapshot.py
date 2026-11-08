@@ -7,6 +7,7 @@ import shutil
 import sqlite3
 from pathlib import Path
 
+from report_agent import legacy_state as legacy
 from report_agent.store import Store
 from report_agent.workspace import Workspace
 from report_agent.content_store import ContentStore
@@ -27,7 +28,7 @@ def main():
             original.backup(copy)
     store = Store(args.output)
     workspace, contents = Workspace(store), ContentStore(store)
-    snap = store.get('content_delivery')['snapshot_ref']
+    snap = legacy.get_content_delivery(store)['snapshot_ref']
     snapshot = contents.read(snap)
     options = {'nodes': []}
     before = {tuple(ref.values()): contents.read(ref)['payload_digest'] for ref in snapshot['payload']['refs']}

@@ -1,3 +1,4 @@
+from . import legacy_state as legacy
 import argparse
 import asyncio
 import json
@@ -125,7 +126,7 @@ def main():
         from .content_store import ContentStore
         from .content_export import _bytes
         from .content_delivery import current_delivery
-        selected = store.get("content_delivery")
+        selected = legacy.get_content_delivery(store)
         if not selected:
             parser.error("No versioned content delivery has been selected")
         artifact = ContentStore(store).read(selected["export_ref"])["payload"]
@@ -136,7 +137,7 @@ def main():
             path.write_bytes(data)
         result = {"path": str(path.resolve()), "delivery": selected,
                   "current_review": current_delivery(store),
-                  "review": store.get("content_final_review"), "note": "Saved document; see actual review and unresolved scope."}
+                  "review": legacy.get_content_final_review(store), "note": "Saved document; see actual review and unresolved scope."}
     elif args.command == "export":
         from .exporting import export_docx
         if not args.draft_id:
@@ -161,7 +162,7 @@ def main():
     if args.command == "report-run":
         if result.get('status') == 'incomplete':
             return 2
-        if args.decision_only and store.get("decision_observation"):
+        if args.decision_only and legacy.get_decision_observation(store):
             return 0
         if result.get("execution_status") is not None and store.manifest.get("review_entrypoint") != "native-rubric-v1":
             return 0 if result["execution_status"] == "completed" and not result.get("last_error") else 2
