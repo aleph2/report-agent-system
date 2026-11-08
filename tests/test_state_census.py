@@ -49,6 +49,26 @@ def save(workspace, db, suffix):
                      ('read', 'rubric_reviews,rubric_targets')}
 
 
+def test_sql_batches_keep_all_keys_and_expose_unresolved_rows(tmp_path):
+    scanner = _scanner()
+    source = tmp_path / 'batch.py'
+    source.write_text("""
+def save(db, dynamic, suffix):
+    rows = [('source_search_view', 'not_a_key'), ('source_search_binding', 'not_a_key'),
+            ('other:' + suffix, 'not_a_key'), (dynamic, 'not_a_key')]
+    db.executemany('INSERT INTO state(key,value) VALUES (?,?)', rows)
+    db.executemany('UPDATE state SET value=? WHERE key=?',
+                   [('not_a_key', 'first'), ('not_a_key', 'second')])
+    db.executemany('INSERT INTO state(value,key) VALUES (?,?)', [('not_a_key', 'reversed')])
+    db.executemany("INSERT INTO state(key,value) VALUES ('fixed',?)", [('not_a_key',)])
+""", encoding='utf-8')
+    module = scanner['Module'](source)
+    module.row.__globals__['ROOT'] = tmp_path
+    facts = [row[6] for row in module.rows({})]
+    assert facts == ['?,other:*,source_search_binding,source_search_view', 'first,second',
+                     'reversed', 'fixed']
+
+
 def test_state_surface_has_a_reviewed_classification_and_no_new_access_sites():
     import csv
     from collections import Counter
@@ -67,7 +87,7 @@ def test_state_surface_has_a_reviewed_classification_and_no_new_access_sites():
     assert Counter(map(signature, rows)) == Counter(map(signature, recorded))
     with (data / 'm0-state-families.tsv').open(encoding='utf-8') as source:
         catalog = {r['family']:r for r in csv.DictReader(source, delimiter='\t')}
-    meta = {'@accessor', '@all', '@helper', '@scan', '@schema'}
+    meta = {'@accessor', '@all', '@helper', '@scan', '@schema', '@empty'}
     for *_, families in rows:
         assert set(families.split(',')) <= catalog.keys() | meta
     assert all(r['classification'] in {'assertion','mixed','runtime','legacy'}

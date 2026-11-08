@@ -481,11 +481,11 @@ src/report_agent/execution_progress.py	414	_condition	store	read	'tool_observati
 src/report_agent/execution_progress.py	435	authorize_recovery	store	read	EPISODES + episode_id	execution_progress_episode:*
 src/report_agent/execution_progress.py	445	authorize_recovery	sql	read	key	execution_progress_recovery:*
 src/report_agent/execution_progress.py	448	authorize_recovery	sql	read	EPISODES + episode_id	execution_progress_episode:*
-src/report_agent/execution_progress.py	449	authorize_recovery	sql	read	episode.get('recovery_key', '')	execution_progress_recovery:*
+src/report_agent/execution_progress.py	449	authorize_recovery	sql	read	episode.get('recovery_key', '')	@empty,execution_progress_recovery:*
 src/report_agent/execution_progress.py	453	authorize_recovery	sql	write	key	execution_progress_recovery:*
 src/report_agent/execution_progress.py	455	authorize_recovery	sql	write	EPISODES + episode_id	execution_progress_episode:*
 src/report_agent/execution_progress.py	462	resume_answer	store	read	EPISODES + event['episode_id']	execution_progress_episode:*
-src/report_agent/execution_progress.py	463	resume_answer	store	read	episode.get('recovery_key', '')	execution_progress_recovery:*
+src/report_agent/execution_progress.py	463	resume_answer	store	read	episode.get('recovery_key', '')	@empty,execution_progress_recovery:*
 src/report_agent/execution_progress.py	475	consume_recovery	sql	read	EPISODES + episode_id	execution_progress_episode:*
 src/report_agent/execution_progress.py	476	consume_recovery	sql	read	episode['recovery_key']	execution_progress_recovery:*
 src/report_agent/execution_progress.py	485	consume_recovery	sql	read	control_key	execution_progress:*
@@ -503,8 +503,8 @@ src/report_agent/exporting.py	449	export_docx	property	read	workspace.store.mani
 src/report_agent/exporting.py	471	export_docx	property	read	workspace.store.manifest	manifest
 src/report_agent/exporting.py	496	export_docx	store	read	'model_mode'	model_mode
 src/report_agent/exporting.py	498	export_docx	property	read	workspace.store.manifest	manifest
-src/report_agent/extraction_probe.py	102	_inputs	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/extraction_probe.py	103	_inputs	accessor	read	get_commission_plan	commission_plan
+src/report_agent/extraction_probe.py	103	_inputs	accessor	read	get_commission_planning_draft	commission_planning_draft
+src/report_agent/extraction_probe.py	104	_inputs	accessor	read	get_commission_plan	commission_plan
 src/report_agent/fake_indicator_retry.py	38	prior_rows	accessor	read	get_writer_indicator_steps	writer_indicator_steps:*
 src/report_agent/fake_indicator_retry.py	160	launch	accessor	read	get_commission_confirmation	commission_confirmation
 src/report_agent/fake_indicator_retry.py	160	launch	accessor	read	get_commission_plan	commission_plan
@@ -707,8 +707,8 @@ src/report_agent/operator_instructions.py	118	sync_operator_instructions	store	r
 src/report_agent/operator_instructions.py	123	sync_operator_instructions	store	read	KEY	prompt_instruction_registry
 src/report_agent/operator_instructions.py	132	sync_operator_instructions	store	write	'operator_instruction_binding'	operator_instruction_binding
 src/report_agent/operator_instructions.py	134	sync_operator_instructions	store	write	'operator_instruction_sync_intent'	operator_instruction_sync_intent
-src/report_agent/planning_assertions.py	21	_issuer	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/planning_assertions.py	23	_issuer	accessor	read	get_commission_plan	commission_plan
+src/report_agent/planning_assertions.py	22	_issuer	accessor	read	get_commission_planning_draft	commission_planning_draft
+src/report_agent/planning_assertions.py	24	_issuer	accessor	read	get_commission_plan	commission_plan
 src/report_agent/planning_budget.py	91	approvable_plan	accessor	read	get_report_issues	report_issues
 src/report_agent/planning_budget.py	92	approvable_plan	accessor	read	get_commission_checkpoint	commission_checkpoint:*
 src/report_agent/planning_guard.py	21	fingerprint	accessor	read	get_commission_plan	commission_plan
@@ -913,7 +913,7 @@ src/report_agent/source_search.py	50	configure_source_search	store	read	'checkpo
 src/report_agent/source_search.py	50	configure_source_search	store	read	'runtime'	runtime
 src/report_agent/source_search.py	51	configure_source_search	store	read	'task006_call_intent'	task006_call_intent
 src/report_agent/source_search.py	54	configure_source_search	store	read	'delivery'	delivery
-src/report_agent/source_search.py	65	configure_source_search	sql	write	(CONFIG_KEY, encode(selected))	source_search_view
+src/report_agent/source_search.py	65	configure_source_search	sql	write	batch keys: CONFIG_KEY, BINDING_KEY	source_search_binding,source_search_view
 src/report_agent/source_use.py	38	_policy	store	read	'source_use_authority:' + ref	source_use_authority:*
 src/report_agent/source_use.py	48	configure_source_use	store	read	'source_use_authority_binding'	source_use_authority_binding
 src/report_agent/source_use.py	66	configure_source_use	sql	read	SELECT value FROM state WHERE key='source_use_authority_binding'	source_use_authority_binding

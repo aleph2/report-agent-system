@@ -146,7 +146,7 @@ class Module:
                     yield self.row(scope, call, kind, op, spelling(expr), self.keys(expr, scope, modules))
 
     def row(self, scope, call, kind, op, expr, keys):
-        families = {k.partition(':')[0] + (':*' if ':' in k else '') for k in keys if KEY.fullmatch(k) or k.endswith('_%')}
+        families = {k.partition(':')[0] + (':*' if ':' in k else '') for k in keys if KEY.fullmatch(k) or k.endswith('_%') or k == '?'}
         return (str(self.path.relative_to(ROOT)), call.lineno, getattr(scope, 'name', '<module>'),
                 kind, op, expr, ','.join(sorted(families)) or '?')
 
@@ -156,6 +156,42 @@ class Module:
         keys = set()
         expr = None
         params = call.args[1] if len(call.args) > 1 else None
+        if isinstance(call.func, ast.Attribute) and call.func.attr == 'executemany' and params:
+            batches = [params]
+            if isinstance(params, ast.Name):
+                batches = self.bindings.get(scope, {}).get(params.id, []) or self.bindings[self.tree].get(params.id, [])
+            if any(isinstance(batch, (ast.List, ast.Tuple)) for batch in batches):
+                # Each parameter row has its own key; JSON/value operands can also be strings.
+                if verb in ('insert', 'replace'):
+                    insert = re.search(r"\bstate\s*(?:\(([^)]*)\))?\s*values\s*\(([^)]*)\)", sql, re.I)
+                    columns = (insert[1] or 'key,value').lower().replace(' ', '').split(',') if insert else []
+                    values = insert[2].split(',') if insert else []
+                    if 'key' not in columns or len(columns) != len(values):
+                        return self.row(scope, call, 'sql', op, spelling(params), {'?'})
+                    key_column = columns.index('key')
+                    token = values[key_column].strip()
+                    if token != '?':
+                        fixed = re.fullmatch(r"'((?:''|[^'])*)'", token)
+                        return self.row(scope, call, 'sql', op, token, {fixed[1] if fixed else '?'})
+                    index = sum(value.count('?') for value in values[:key_column])
+                else:
+                    bound_key = re.search(r"\bkey\s*=\s*(\?)", sql, re.I)
+                    if not bound_key:
+                        return self.row(scope, call, 'sql', op, spelling(params), {'?'})
+                    index = sql[:bound_key.start(1)].count('?')
+                operands = []
+                for batch in batches:
+                    if not isinstance(batch, (ast.List, ast.Tuple)):
+                        keys.add('?')
+                        continue
+                    for row in batch.elts:
+                        if not isinstance(row, (ast.List, ast.Tuple)) or len(row.elts) <= index:
+                            keys.add('?')
+                            continue
+                        key = row.elts[index]
+                        operands.append(spelling(key))
+                        keys.update(self.keys(key, scope, modules) or {'?'})
+                return self.row(scope, call, 'sql', op, 'batch keys: ' + ', '.join(operands), keys)
         if verb in ('insert', 'replace'):
             match = re.search(r"values\s*\(\s*'([^']+)'", sql, re.I)
             if params and isinstance(params,(ast.Tuple, ast.List)) and not match:

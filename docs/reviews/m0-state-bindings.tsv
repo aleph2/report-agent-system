@@ -17,13 +17,13 @@ src/report_agent/evidence_analysis.py	analyze_evidence_packet	[parent_reservatio
 src/report_agent/evidence_analysis.py	analyze_evidence_packet	reservations	artifact_text_work:*,bounded_review_attempt:*,text_work:*	evidence_analysis appends parent_reservation to its own bounded_review_attempt before recording linked denial.
 src/report_agent/execution_progress.py	_response	role	prompt_capture:*	Events.capture_key links to prompt_provenance._capture output.
 src/report_agent/execution_progress.py	_zero_send_model	call_key	model_recovery_call:*	model_recovery._transition attaches report_local_admission_key to the exception.
-src/report_agent/execution_progress.py	authorize_recovery	episode.get('recovery_key', '')	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	authorize_recovery	episode.get('recovery_key', '')	@empty,execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key. If missing, the key expression probes the empty string for an absent prior grant.
 src/report_agent/execution_progress.py	awrap_model_call	getattr(messages[0], 'id', None)	prompt_capture:*	Events.capture_key links to prompt_provenance._capture output.
 src/report_agent/execution_progress.py	consume_recovery	episode['recovery_key']	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
 src/report_agent/execution_progress.py	limited_model_resume_keys	boundary['recovery_key']	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
 src/report_agent/execution_progress.py	mark_observation_limit	key	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
 src/report_agent/execution_progress.py	reserve_recovery_request	key	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
-src/report_agent/execution_progress.py	resume_answer	episode.get('recovery_key', '')	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	resume_answer	episode.get('recovery_key', '')	@empty,execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key. If missing, the key expression probes the empty string for an absent prior grant.
 src/report_agent/execution_progress.py	save	key	execution_progress:*	control returns PREFIX + actor/task digest; save receives its result.
 src/report_agent/fake_verification.py	check_prepared	read_probe_plan_pin_rows	commission_confirmation,commission_plan	Named legacy_state.read_probe_plan_pin_rows SQL operands.
 src/report_agent/legacy_state.py	_get	key	@accessor	Private _get/_set accept keys supplied by the named accessors.

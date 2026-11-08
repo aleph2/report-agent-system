@@ -181,7 +181,7 @@ def test_module_cli_prepares_checks_runs_and_rejects_duplicate_launch(tmp_path):
     snapshot = tmp_path/'snapshot'
     shutil.copytree(root/'src/report_agent', snapshot/'src/report_agent',
                     ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
-    shutil.copytree(operator.INPUTS, snapshot/'tests/fake_data/mini_commission/inputs')
+    shutil.copytree(operator.INPUTS.parent, snapshot/'tests/fake_data/mini_commission')
     shutil.copyfile(root/'pyproject.toml', snapshot/'pyproject.toml')
     for git_args in (
         ['init','-q'], ['add','--','src','tests','pyproject.toml'],

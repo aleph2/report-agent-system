@@ -14,6 +14,7 @@ from test_m1_g4_planning_steps import (method_commission, anchored, required_cas
 STEP_NAMES = {'read_planning_draft', 'set_requirement_status', 'link_convention',
               'set_scope_boundary', 'set_planning_details', 'add_object', 'add_section',
               'add_substitution', 'add_reconciliation', 'add_question'}
+ASSERTION_STEPS = {'assert_source', 'record_conflict', 'ask'}
 
 
 def tools(f):
@@ -58,7 +59,7 @@ def assert_fields(error):
 @pytest.mark.parametrize('name', sorted(STEP_NAMES))
 def test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed(draft_case, name):
     offered = tools(draft_case)
-    assert set(offered) == STEP_NAMES
+    assert set(offered) == STEP_NAMES | ASSERTION_STEPS
     tool = offered[name]
     arguments = inputs(draft_case)[name]
     schema = convert_to_openai_tool(tool)['function']['parameters']
@@ -72,6 +73,61 @@ def test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed(draft_ca
         payload = json.loads(result.content)
         assert isinstance(payload, dict)
         assert payload.get('ok', True), payload
+
+
+async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal(draft_case):
+    from uuid import NAMESPACE_URL, uuid5
+    from langchain_core.messages import AIMessage
+    from langgraph.graph import StateGraph, MessagesState, START, END
+    from langgraph.prebuilt import ToolNode
+    from report_agent.assertion_host import AssertionHost
+    from report_agent.catalog import Catalog
+    from report_agent.operation_identity import bound_native_id
+    from test_ingestion import pdf_bytes
+
+    f = draft_case
+    offered = tools(f)
+    graph = StateGraph(MessagesState)
+    graph.add_node('tools', ToolNode([offered[name] for name in ASSERTION_STEPS], handle_tool_errors=True))
+    graph.add_edge(START, 'tools')
+    graph.add_edge('tools', END)
+    runner = graph.compile()
+    subject = f.plan['objects'][0]['object_id']
+    planning.save_item(f.cs, f.co, 'parity-subject', 'object', f.plan['objects'][0])
+    source = Catalog(f.ws.store).import_file('surveys.pdf', pdf_bytes(['Height 18 m.', 'Height 19 m.']))
+    principal = str(uuid5(NAMESPACE_URL, f.co.id))
+    host = AssertionHost(f.ws.store.root)
+
+    async def submit(name, native_id, args, *, refusal=None):
+        schema = convert_to_openai_tool(offered[name])['function']['parameters']
+        assert not {'runtime', 'actor', 'task', 'packet', 'operation_id'} & schema['properties'].keys()
+        Draft202012Validator(schema).validate(args)
+        call = {'name': name, 'args': args, 'id': native_id, 'type': 'tool_call'}
+        result = await runner.ainvoke({'messages': [AIMessage('', tool_calls=[call])]})
+        reply = result['messages'][-1]
+        receipt = host.recover_receipt(bound_native_id(principal, name, native_id))
+        if refusal:
+            assert reply.status == 'error' and refusal in reply.content
+            assert receipt is None
+            return
+        assert reply.status == 'success', reply.content
+        saved = json.loads(reply.content)
+        assert receipt['result'] == saved and saved['was_generated_by'] == f.co.task_id
+        return saved['id']
+
+    facts = []
+    for page, height in enumerate((18, 19), start=1):
+        args = dict(subject=subject, predicate='height', state='value', coverage='slope', value=height,
+                    unit='m', source_id=source['source']['id'], page=page, quote=f'Height {height} m.')
+        facts.append(await submit('assert_source', f'height-{page}', args))
+    await submit('assert_source', 'wrong-quote', {**args, 'quote': 'Height 20 m.'}, refusal='C2')
+    await submit('record_conflict', 'compare', dict(subject=subject, observations=facts))
+    await submit('record_conflict', 'foreign', dict(subject=subject, observations=[facts[0], 'outside']),
+                 refusal='PLANNING_CONFLICT_REQUIRES_OWN_SUBJECT_OBSERVATIONS')
+    question = dict(subject=subject, text='Which survey applies?', affects='value')
+    await submit('ask', 'question', question)
+    await submit('ask', 'outside-scope', {**question, 'subject': 'outside inventory'},
+                 refusal='PLANNING_ASSERTION_INVENTORY_SUBJECT_REQUIRED')
 
 
 @pytest.mark.parametrize('name', ['set_requirement_status', 'link_convention', 'set_scope_boundary',
