@@ -1,0 +1,61 @@
+{
+  "baseline": "a1e2d4bf989cc9b2757ff72c5793fc53ffc5b27a",
+  "candidate": "b96e8fcb148ec08131b3d8ea3cea5b388d62f617",
+  "before": 6023,
+  "after": 6044,
+  "common_node_ids": 6021,
+  "removed": [
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[fake03_qualitative_actor:]",
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[fake03_qualitative_profile]"
+  ],
+  "added": [
+    "tests/assertions/test_m1_host_contract.py::test_issue_once_is_atomic_and_cannot_reactivate_a_revoked_native_call",
+    "tests/assertions/test_m1_host_contract.py::test_old_tagged_archive_roundtrips_without_rewriting_legacy_times",
+    "tests/assertions/test_m1_host_contract.py::test_produced_ids_are_narrowed_by_issuer_task_subject_and_kind",
+    "tests/assertions/test_m1_host_contract.py::test_recover_after_revocation_is_read_only_and_case_scoped",
+    "tests/assertions/test_m1_host_contract.py::test_source_time_preserves_unknown_date_or_material_timestamp[2025-04-19T14:15:00+02:00-argument2-2025-04-19T14:15:00+02:00]",
+    "tests/assertions/test_m1_host_contract.py::test_source_time_preserves_unknown_date_or_material_timestamp[None-argument0-None]",
+    "tests/assertions/test_m1_host_contract.py::test_source_time_preserves_unknown_date_or_material_timestamp[None-argument1-2025-04-19]",
+    "tests/assertions/test_m1_host_contract.py::test_unbound_or_imprecise_observation_time_refused_without_commit[2025-04-18]",
+    "tests/assertions/test_m1_host_contract.py::test_unbound_or_imprecise_observation_time_refused_without_commit[2025-04-19T09:00:00]",
+    "tests/assertions/test_m1_host_contract.py::test_unbound_or_imprecise_observation_time_refused_without_commit[2025-04-1]",
+    "tests/assertions/test_m1_host_contract.py::test_unbound_or_imprecise_observation_time_refused_without_commit[2025-04]",
+    "tests/test_coordinator_planning_assertions.py::test_planning_assertions_follow_real_page_read_and_reopen",
+    "tests/test_coordinator_planning_assertions.py::test_planning_tool_closure_cannot_escalate_from_delegated_task",
+    "tests/test_fake03_fact_register.py::test_fixture_publishes_confirmed_records_and_revoked_writer_cannot_downgrade",
+    "tests/test_m1_g4_h32_parity.py::test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal",
+    "tests/test_o6_budget.py::test_campaign_total_admits_no_request_beyond_100m_even_for_new_run",
+    "tests/test_o6_budget.py::test_one_o6_shares_verification_ledger_and_stops_before_exceeding_its_cap",
+    "tests/test_o6_budget.py::test_unknown_preserves_reservation_across_restart_and_blocks_fresh_requests",
+    "tests/test_o6_extraction_probe.py::test_scoped_extraction_refuses_other_pages_and_never_restarts",
+    "tests/test_state_census.py::test_child_sqlite_writes_are_redacted_and_rolled_back_attempts_are_seen",
+    "tests/test_state_census.py::test_sql_batches_keep_all_keys_and_expose_unresolved_rows",
+    "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites",
+    "tests/test_state_census.py::test_static_census_follows_store_alias_and_grouped_sql"
+  ],
+  "retained_existing_test_functions_with_changed_bodies": [
+    "tests/test_fake03_qualitative_steps.py::test_fresh_profile_and_verified_qualitative_authority_must_agree",
+    "tests/test_fake03_qualitative_steps.py::test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_scoring",
+    "tests/test_fake_qualitative_launch.py::test_qualitative_operator_cli_seals_profile_and_verifies_fresh_binding",
+    "tests/test_fake_verification_launcher.py::test_module_cli_prepares_checks_runs_and_rejects_duplicate_launch",
+    "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed",
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback",
+    "tests/test_no_legacy_state.py::test_legacy_state_ownership",
+    "tests/test_qualitative_review_view.py::test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings",
+    "tests/test_run06_claim_replay.py::test_all_run06_rows_through_native_tools",
+    "tests/test_s2_assertion_contract.py::test_method_provenance_and_all_eleven_criteria",
+    "tests/test_writer_typed_claims.py::test_external_evidence_has_native_source_check_and_critical_scope_review",
+    "tests/test_writer_typed_claims.py::test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no_quality_basis",
+    "tests/test_writer_typed_claims.py::test_registered_subquote_must_use_fact_handle_before_native_save"
+  ],
+  "other_changed_test_modules_with_unchanged_test_bodies": [
+    "tests/assertions/test_production_fake03.py",
+    "tests/test_fake04_claim_controls.py",
+    "tests/test_fake_attestation_register.py"
+  ],
+  "covers_removed_storage_cases": [
+    "tests/test_fake03_fact_register.py::test_fixture_publishes_confirmed_records_and_revoked_writer_cannot_downgrade",
+    "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites",
+    "tests/test_run06_claim_replay.py"
+  ]
+}

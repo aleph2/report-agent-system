@@ -1,0 +1,47 @@
+{
+  "expected": 6044,
+  "outcomes": {
+    "passed": 6035,
+    "skipped": 9
+  },
+  "failed": [],
+  "missing": [],
+  "duplicates": [],
+  "unexpected": [],
+  "collection_errors": [],
+  "exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "coverage_exit": 0,
+  "revision": "b96e8fcb148ec08131b3d8ea3cea5b388d62f617",
+  "covered_lines": 28411,
+  "statements": 31378,
+  "coverage_percent": 90.54433042258907,
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "gate_sha256": "337735be9cee3b518fad0a77ae98f938ed0e858cabcbe2960da83dab3c09eb75",
+  "net_type_diagnostics": {
+    "s3": 726,
+    "m1": 727,
+    "assertion_and_o6_target_errors": 0,
+    "target_files": 18,
+    "note": "Two additional occurrences of existing progress type diagnostics and one removed .id diagnostic in writer_indicator_steps.py. The indicator-step branch yields IndicatorRun and initializes progress before its normal return. O6 does not use the Writer."
+  },
+  "offline_report_model_calls": 0
+}

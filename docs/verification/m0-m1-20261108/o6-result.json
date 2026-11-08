@@ -1,0 +1,40 @@
+{
+  "code": "b96e8fcb148ec08131b3d8ea3cea5b388d62f617",
+  "start": "2026-11-08T14:34:10.447715+00:00",
+  "elapsed_seconds": 117.35569,
+  "status": "interrupted_at_reservation_admission",
+  "stop_code": "O6_RUN_LIMIT",
+  "approved_scope": "HP02; six design pages and one survey page; text only",
+  "logical_model_starts": 11,
+  "settled_transport_requests": 10,
+  "pre_send_refusals": 1,
+  "tool_attempts": 10,
+  "tool_refusals": [
+    {
+      "action": "assert_source",
+      "code": "PLANNING_ASSERTION_INVENTORY_SUBJECT_REQUIRED"
+    }
+  ],
+  "successful_tools": 9,
+  "source_assertions": 9,
+  "questions": 0,
+  "conflicts": 0,
+  "exact_quotes": 9,
+  "distinct_cited_pages": 1,
+  "verification_budget": {
+    "origin": "authorized_persistent_transport_token_ledger",
+    "maximum_tokens": 100000000,
+    "recorded_tokens": 208805,
+    "reserved_or_unknown_upper_bounds": 0,
+    "remaining_for_new_reservations": 99791195,
+    "attempt_states": {
+      "settled": 10
+    },
+    "note": "All current authorization cases share this ledger. Cached tokens are included once. Unknown results retain conservative reservations; this does not authorize extra work."
+  },
+  "run_hard_cap": 2200000,
+  "reservation_per_request": 2000000,
+  "operator_result_sha256": "3f27b17d465312cbbbf542df10f72bfc85fd3e3e3a30e3ef3f7575b3fcfd8174",
+  "owner_review": "pending",
+  "launched_real_report": false
+}

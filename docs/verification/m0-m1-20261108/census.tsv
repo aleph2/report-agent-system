@@ -1,0 +1,188 @@
+family_or_observation	classification	slice_or_retention	candidate_static_operations	candidate_full_observed_operations	tagged_scoped_observed_operations	reconciliation
+<opaque:05e390f7d2c7>	observer or test predicate	test observation	-	read	-	tests/test_summary_prompt_unknown.py:121 (LIKE 'summary_%', SHA-256 prefix)
+<opaque:6ec87ec37f42>	test-only	test observation	-	read,write	-	tests/test_m1_g1_reliability.py uses commit-effect for a commit retry fault.
+<opaque:8a8fc728443b>	test-only	test observation	-	read,write	-	tests/test_probe_case.py seeds unused-test-key and checks probe filtering.
+<opaque:9e4551600341>	test-only	test observation	-	write	-	Synthetic post-prepare-drift key in tests/test_pilot_m1_preparation.py:441; digest matches and older group-3 test DB confirmed it.
+<opaque:db429df8385f>	test-only	test observation	-	read,write	-	tests/test_m1_g1_reliability.py uses callback-effect for a callback retry fault.
+<opaque:e1bbcae0d8b5>	test-only	test observation	-	read,write	-	tests/test_m1_g1_reliability.py uses local-effect for a local retry fault.
+<opaque:e3b0c44298fc>	runtime lookup sentinel	runtime	read (@empty)	read	-	Empty recovery-key lookup. execution_progress.py:449,463 reads the empty string when the episode has no prior grant; it stores no empty-key row. The corrected static binding records @empty.
+<opaque:e750a02b3fc7>	observer or test predicate	test observation	-	read	-	tests/test_native_review_structure_and_source.py:139 (LIKE 'source_material%', SHA-256 prefix)
+<scan>	observer or test predicate	all-row / predicate reads	read (@scan and grouped SQL)	read	read	Observer reports any SELECT on state without a recognized explicit key filter, including ranges/substr, whole-table scans and event-key joins. SQL sites and reviewed indirect bindings remain in the static ledger.
+<unresolved>	observer or test predicate	test observation	-	delete,write	-	Marker shared across operations. Write: tests/test_assessment_completion_unknown_continuation.py:105 updates every row of a one-row synthetic state table seeded with model_recovery_call:old on line 31. Delete: tests/test_live_review_message.py:272 and tests/test_vision_admission.py:62 delete by LIKE on message_call:* and vision_attempt:*. See census.md for reproduction.
+acceptance_default	runtime	runtime	read,write	delete,read,write	read,write	tests/test_acceptance.py:192 deletes the default for the historical-mode case.
+acceptance_limitation	mixed	M9	read,write	read,write	read	Matched.
+acceptance_mode	runtime	runtime	read,write	read,write	read,write	Matched.
+active_reviewer_prompt_hash	runtime	runtime	read,write	read,write	read,write	Matched.
+active_rubric_hash	runtime	runtime	read,write	read,write	read,write	Matched.
+agent_summary	mixed	M9	delete,read,write	delete,read,write	write	Matched.
+artifact_text_work:*	mixed	M8	read,write	read,write	read,write	Matched.
+assembly_receipt:*	mixed	M7	read,write	read,write	read,write	Matched.
+assessment_receipt:*	assertion	M3	read,write	read,write	read,write	Matched.
+bounded_review_attempt:*	runtime	runtime	read,write	read,write	read,write	Matched.
+bounded_review_completed:*	mixed	M8	read,write	read,write	-	Matched.
+bounded_review_result:*	mixed	M8	read,write	read,write	-	Matched.
+checkpoint_resume	runtime	runtime	delete,read,write	read,write	read,write	Matched.
+clean_import	legacy	O4/O5	read,write	read,write	-	Matched.
+commission_carryover	mixed	M4	read,write	read,write	read	Matched.
+commission_checkpoint:*	assertion	M5	read,write	read,write	read,write	Matched.
+commission_confirmation	assertion	M4	read,write	read,write	read,write	Matched.
+commission_outcome:*	mixed	M7	read,write	read,write	read,write	Matched.
+commission_owner_records	assertion	M5	read,write	read,write	read,write	Matched.
+commission_plan	assertion	M4	read,write	read,write	read,write	Matched.
+commission_planning_completion_wait	runtime	runtime	read,write	read,write	-	Matched.
+commission_planning_draft	mixed	M4	read,write	read,write	read,write	Matched.
+commission_planning_rejections	runtime	runtime	read,write	read,write	read	Matched.
+commission_requirements	assertion	M5	read,write	read,write	read,write	Matched.
+commission_requirements_checkpoint:*	assertion	M5	read,write	read,write	read,write	Matched.
+commission_reviewed_entries	assertion	M4	read,write	read,write	-	Matched.
+commission_skeleton	assertion	M4	read,write	read,write	read,write	Matched.
+commission_source_roles	assertion	M5	read,write	read,write	read,write	Matched.
+commission_text_profiles	assertion	M4	read,write	read,write	read,write	Matched.
+content_delivery	mixed	M8	read,write	read,write	read,write	Matched.
+content_execution_decision	mixed	M9	delete,read,write	read,write	read	Matched.
+content_execution_limitation	mixed	M9	read,write	read	read	Static write site not observed as a write in this run.
+content_final_review	mixed	M8	read,write	read,write	read,write	Matched.
+content_revision_exceptions	mixed	M9	read	read,write	-	tests/test_content_revision_exception.py:20,46 seeds grants and tampered grants.
+content_revision_limit	runtime	runtime	read,write	read,write	read	Matched.
+content_task_followup:*	runtime	runtime	read,write	read,write	read	Matched.
+content_task_supervision:*	runtime	runtime	write	write	-	Matched.
+context_policy	runtime	runtime	read,write	read,write	read	Matched.
+context_projection_binding	runtime	runtime	read,write	read,write	read	Matched.
+context_revision	runtime	runtime	read,write	read,write	read,write	Matched.
+corrections	mixed	M9	read,write	read,write	read,write	Matched.
+counter	test-only	test observation	-	read,write	-	tests/test_m1_g1_reliability.py:60 (WAL snapshot isolation and retries)
+decision_data_binding	runtime	runtime	read,write	read,write	read	Matched.
+decision_observation	mixed	M9	read,write	read,write	read,write	Matched.
+deepseek_wire_schema:*	runtime	runtime	read,write	read,write	-	Matched.
+delivery	mixed	M8	read,write	read,write	read,write	Matched.
+delivery_export_rejections	runtime	runtime	read,write	read,write	read,write	Matched.
+effect	test-only	test observation	-	read,write	-	tests/test_m1_g1_reliability.py:96 (no operation replay on busy commit)
+evidence_analysis_attempts	test-only	test observation	-	read	-	tests/test_required_source_spans.py:181 (assert absent after missing source span)
+execution_progress:*	runtime	runtime	read,write	read,write	-	Matched.
+execution_progress_episode:*	runtime	runtime	read,write	read,write	read	Matched.
+execution_progress_recovery:*	runtime	runtime	read,write	read,write	-	Matched.
+fake03_qualitative_actor:*	runtime	M1	-	-	read,write	M1 family retired from application state.
+fake03_qualitative_profile	assertion	M1	-	-	read,write	M1 family retired from application state.
+feedback	mixed	M9	read,write	read,write	read	Matched.
+g6_assessment:*	assertion	M3	read,write	read,write	read,write	Matched.
+g6_assessment_producer:*	runtime	M3	read,write	read,write	read,write	Matched.
+g6_issue_binding:*	assertion	M6	read,write	read,write	read,write	Matched.
+g6_issue_record:*	assertion	M6	read,write	read,write	read,write	Matched.
+g6_issue_route:*	assertion	M6	read,write	read,write	read,write	Matched.
+g6_object_prose:*	mixed	M7	read,write	read,write	read,write	Matched.
+g6_section_prose:*	mixed	M7	read,write	read,write	read,write	Matched.
+grader_model_trial	legacy	O4/O5	read,write	read,write	-	Matched.
+guidance_experiment	legacy	O4/O5	read,write	read,write	-	Matched.
+guidance_experiment:*	legacy	O4/O5	write	write	-	Matched.
+issues	assertion	M6	read,write	read	-	Static write site not observed as a write in this run.
+knowledge_enabled	runtime	runtime	read,write	read,write	read	Matched.
+knowledge_project_id	runtime	runtime	delete,read,write	delete,read,write	-	Matched.
+last_error	runtime	runtime	read,write	read	-	Static write site not observed as a write in this run.
+last_message	runtime	runtime	write	-	-	Source-reachable only in this run.
+layout_revision_limit	runtime	runtime	read	read,write	read	tests/test_layout_revision_limit.py:13,52 sets the config and historical null; production reads it.
+learning_active_feedback	mixed	M9	read,write	read,write	-	Matched.
+learning_analysis:*	mixed	M9	read,write	read,write	-	Matched.
+learning_config	runtime	runtime	read,write	read,write	read	Matched.
+learning_evaluation	mixed	M9	read,write	write	-	Matched.
+learning_execution_limits	runtime	runtime	read	read,write	-	tests/test_learning_worker.py:118 configures host limits; learning_runtime.py:225 consumes them.
+learning_job	runtime	runtime	read,write	read,write	-	Matched.
+learning_job:*	runtime	runtime	write	write	-	Matched.
+live_attempt_registered	legacy	O4/O5	read,write	-	-	Source-reachable only in this run.
+live_trial_intent	legacy	O4/O5	read,write	-	-	Source-reachable only in this run.
+manifest	mixed	M5	read,write	delete,read,write	read,write	tests/test_native_render_identity.py:148 deletes the manifest to check identity rejection.
+message_call:*	runtime	runtime	read,write	delete,read,write	-	tests/support/review_message_entry.py:131,133 deliberately removes the current call link.
+message_offer:*	runtime	runtime	read,write	read,write	-	Matched.
+model_mode	runtime	runtime	read,write	read,write	-	Matched.
+model_recovery_call:*	runtime	runtime	read,write	read,write	-	Matched.
+model_recovery_policy	runtime	runtime	read,write	read,write	-	Matched.
+model_recovery_usage	runtime	runtime	read,write	read,write	-	Matched.
+native_delegation:*	runtime	runtime	read,write	read,write	-	Matched.
+native_interrupts	runtime	runtime	delete,read,write	delete,read,write	write	Matched.
+native_trace_thread_id	runtime	runtime	read,write	read,write	write	Matched.
+new1	test-only	test observation	-	read,write	-	tests/test_not_dispatched_recovery.py:68 (dummy replacement reservation)
+new2	test-only	test observation	-	write	-	tests/test_not_dispatched_recovery.py:68 (dummy replacement reservation)
+observations:*	mixed	M9	read,write	read,write	read,write	Matched.
+old	test-only	test observation	-	read,write	-	tests/test_not_dispatched_recovery.py:63 (dummy linked reservation)
+operator_%	runtime	runtime	read	read	-	Matched.
+operator_instruction_binding	runtime	runtime	read,write	read,write	read	Matched.
+operator_instruction_sync_intent	runtime	runtime	read,write	read,write	-	Matched.
+planned_section_receipt:*	mixed	M7	read,write	read,write	read,write	Matched.
+prompt_capture:*	runtime	runtime	read,write	read,write	read,write	Matched.
+prompt_context_snapshot:*	runtime	runtime	write	read,write	-	tests/test_host_delivery_bindings.py:225 and tests/test_prompt_instructions.py:83 inspect saved captures.
+prompt_instruction_config	runtime	runtime	read,write	read,write	read	Matched.
+prompt_instruction_registry	runtime	runtime	read,write	read,write	-	Matched.
+prompt_runtime_binding	test-only	test observation	-	write	-	tests/test_prompt_native_sdk_inputs.py:277 (obsolete dummy global pointer)
+prompt_runtime_version:*	runtime	runtime	read,write	read,write	read,write	Matched.
+prompt_source:*	runtime	runtime	read,write	read,write	read,write	Matched.
+protected_candidate_import	legacy	O4/O5	write	write	-	Matched.
+qualitative_reviewer_snapshot:*	mixed	M8	read,write	read,write	-	Matched.
+reference_alignment_parent	legacy	O4/O5	write	-	-	Source-reachable only in this run.
+report_activity	runtime	runtime	delete,read,write	delete,read,write	read,write	Matched.
+report_delivery	test-only	test observation	-	read	-	tests/test_vision.py:44 (compare legacy field around vision tool calls)
+report_error	runtime	runtime	delete,read,write	delete,read,write	read,write	Matched.
+report_issues	assertion	M6	read,write	read,write	read,write	Matched.
+report_status	runtime	runtime	read,write	read,write	read,write	Matched.
+rescue_projection:*	mixed	M7	read,write	read,write	read,write	Matched.
+result_impact_assessments	mixed	M9	read,write	read,write	read,write	Matched.
+review_check:*	assertion	M8	read,write	read,write	-	Matched.
+review_content_handles:*	runtime	runtime	read,write	read,write	-	Matched.
+review_context_binding	legacy	O4/O5	read,write	read,write	read	Matched.
+review_context_experiment	legacy	O4/O5	read,write	read,write	read	Matched.
+review_context_snapshots	mixed	M9	read,write	read,write	-	Matched.
+review_draft:*	assertion	M8	read,write	read,write	-	Matched.
+review_evidence_handles:*	runtime	runtime	read,write	read,write	read,write	Matched.
+review_finding_locations:*	assertion	M8	read,write	read,write	-	Matched.
+review_finished:*	assertion	M8	read,write	read,write	-	Matched.
+review_import017	legacy	O4/O5	read,write	read,write	-	Matched.
+review_input_capacity	runtime	runtime	read,write	read,write	-	Matched.
+review_material_handles:*	runtime	runtime	read,write	read,write	-	Matched.
+review_message_binding:*	runtime	runtime	read,write	read,write	-	Matched.
+review_message_latest:*	runtime	runtime	read,write	read,write	-	Matched.
+review_plan_contract_binding	runtime	runtime	read,write	read,write	read	Matched.
+review_submission_contract_binding	runtime	runtime	read,write	read,write	read	Matched.
+reviewed_method_identity:*	runtime	runtime	read,write	read,write	read,write	Matched.
+reviewed_method_pack:*	assertion	M4	read,write	read,write	read,write	Matched.
+revision_import	legacy	O4/O5	write	write	-	Matched.
+role_generation	runtime	runtime	read,write	read,write	-	Matched.
+role_model_services	runtime	runtime	delete,read,write	read,write	read	Matched.
+rubric_reviews	assertion	M8	delete,read,write	delete,read,write	read,write	Matched.
+rubric_status	mixed	M8	delete,read,write	delete,write	write	Matched.
+rubric_targets	mixed	M8	delete,read,write	delete,read,write	read,write	Matched.
+run_request_error	runtime	runtime	read,write	read,write	-	Matched.
+runtime	runtime	runtime	read,write	read,write	read,write	Matched.
+selected_artifact	mixed	M7	read,write	read,write	-	Matched.
+selected_draft	test-only	test observation	-	read,write	-	tests/test_revision_import.py:34,48 (old selection seeded; new case must omit it); tests/test_clean_import.py:34
+source_changes	mixed	M9	read,write	read,write	read,write	Matched.
+source_material:*	runtime	runtime	read,write	read,write	read,write	Matched.
+source_material_observation:*	runtime	runtime	read,write	read,write	read,write	Matched.
+source_search_binding	runtime	runtime	read,write	read,write	read	Matched.
+source_search_view	runtime	runtime	read,write	read,write	read	Matched.
+source_use_authority:*	assertion	M5	read,write	read,write	-	Matched.
+source_use_authority_binding	runtime	runtime	read,write	read,write	read	Matched.
+source_use_task_binding:*	runtime	runtime	read,write	read,write	read	Matched.
+status	runtime	runtime	read,write	read,write	write	Matched.
+step0_saved_prior_message	test-only	test observation	-	read,write	-	tests/test_offer_protocol_projection.py:154 (test-local saved model message)
+summary_failure_scope:*	runtime	runtime	read,write	read,write	-	Matched.
+summary_observation_index:*	runtime	runtime	read,write	read,write	-	Matched.
+summary_original:*	mixed	M9	read,write	read,write	-	Matched.
+summary_policy_failure:*	runtime	runtime	read,write	delete,read,write	-	tests/test_summary_prompt_unknown.py:80 deletes the bound target during a history-corruption test.
+task006_call_intent	legacy	O4/O5	delete,read,write	delete,read,write	-	Matched.
+task_state_frame:*	runtime	runtime	read,write	read,write	-	Matched.
+text_work:*	mixed	M8	read,write	read,write	-	Matched.
+text_work_disposition:*	runtime	runtime	read,write	read,write	-	Matched.
+text_work_interrupt:*	runtime	runtime	read,write	read,write	-	Matched.
+text_work_receipt:*	mixed	M8	read,write	delete,read,write	-	tests/test_text_completed_schema_replay.py:99 deletes the receipt to exercise schema replay.
+tool_observation:*	runtime	runtime	read,write	read,write	read,write	Matched.
+tool_selection_offer:*	runtime	runtime	read,write	read,write	-	Matched.
+unknown	test-only	test observation	-	read,write	-	tests/test_not_dispatched_recovery.py:53 (dummy unknown reservation)
+verified_source_import	runtime	runtime	read,write	read,write	-	Matched.
+vision_attempt:*	runtime	runtime	read,write	read,write	-	Matched.
+vision_interrupt:*	runtime	runtime	read,write	read,write	-	Matched.
+vision_request	test-only	test observation	-	read	-	tests/test_source_use_authority.py:262 (absence check; request events are stored as events)
+visual_page_exclusions	test-only	test observation	-	read,write	-	tests/test_decision_state.py:205,207 (test-only context exclusion); tests/test_document_tools.py:212
+wal_fixture	test-only	test observation	-	write	-	tests/test_source_observation_probe.py:75 (fixture exercises WAL evidence)
+word_layout_revision_count	test-only	test observation	-	write	-	tests/test_decision_state.py:98 (synthetic revision counter)
+writer_assessment_draft:*	mixed	M2	read,write	read,write	read,write	Matched.
+writer_assignment_pages:*	runtime	M2	read,write	read,write	read,write	Matched.
+writer_indicator_steps:*	mixed	M2	read,write	read,write	read,write	Matched.
+writer_page_read:*	runtime	M2	read,write	read,write	read,write	Matched.
