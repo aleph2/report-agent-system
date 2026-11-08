@@ -3,6 +3,7 @@ import argparse
 from hashlib import file_digest, sha256
 import json
 from pathlib import Path
+from typing import TypedDict
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import wrap_tool_call
@@ -123,7 +124,21 @@ def _inputs(case):
     return cs, co, packet
 
 
-async def extract(case, bound_model):
+class ExtractionReceipt(TypedDict):
+    subject: str
+    allowed_tools: tuple[str, ...]
+    stop: str
+    model_invocations: int
+    tool_attempts: list[dict]
+    financial_attempts_source: str
+    limitations: str
+    final_message: str | list[str | dict] | None
+    assertions: list[dict]
+    archive_sha256: str
+    owner_comparison: str
+
+
+async def extract(case, bound_model) -> ExtractionReceipt:
     """Run the Coordinator on selected text only. The caller owns transport budget and accounting."""
     case = Path(case).resolve(strict=True)
     cs, co, pages = _inputs(case)
@@ -132,7 +147,8 @@ async def extract(case, bound_model):
         raise ValueError('O6_UNEXPECTED_ACTION_SCOPE')
     line = ('按来源明示的事实使用工具保存可追溯记录，注意桩号、左右侧和工程对象。'
             '保留资料分歧，资料不足时说明具体未知项，完成提取后结束。' + LIMIT)
-    message = HumanMessage(GOAL + line + '\n' + encode(pages))
+    prompt = GOAL + line + '\n' + encode(pages)
+    message = HumanMessage(prompt)
     attempts = []
 
     @wrap_tool_call
@@ -159,7 +175,7 @@ async def extract(case, bound_model):
     count = Calls()
     # Exclusive claim also survives a crash or unknown provider outcome.
     with (case / 'o6-extraction-started.json').open('x', encoding='utf-8') as mark:
-        mark.write(encode(dict(subject=SUBJECT, input_sha256=sha256(message.content.encode()).hexdigest())))
+        mark.write(encode(dict(subject=SUBJECT, input_sha256=sha256(prompt.encode()).hexdigest())))
     host = AssertionHost(case)
     stopped = 'interrupted'
     final_message = None
@@ -175,7 +191,7 @@ async def extract(case, bound_model):
         host.commission.export(archive)
         actions = [row for line in archive.read_text().splitlines()
                    if 'assertion' in (row := json.loads(line))]
-        receipt = dict(subject=SUBJECT, allowed_tools=ACTIONS, stop=stopped, model_invocations=count.count,
+        receipt = ExtractionReceipt(subject=SUBJECT, allowed_tools=ACTIONS, stop=stopped, model_invocations=count.count,
                        tool_attempts=attempts, financial_attempts_source='operator transport ledger', limitations=LIMIT,
                        final_message=final_message, assertions=[r['assertion'] for r in actions],
                        archive_sha256=sha256(archive.read_bytes()).hexdigest(), owner_comparison='pending')

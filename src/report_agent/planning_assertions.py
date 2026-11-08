@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, uuid5
 
 from langchain.tools import ToolRuntime
+from langchain_core.tools import InjectedToolArg
 from pydantic import Field
 
 from . import assertions, legacy_state as legacy
@@ -43,6 +44,10 @@ def read_source_index(cs, actor, subject, page, page_size, view_ref):
                 view_ref=current, next_page=page + 1 if end < len(ids) else None)
 
 
+# ToolRuntime remains optional for direct calls, and absent from the model-facing schema.
+NativeRuntime = Annotated[ToolRuntime | None, InjectedToolArg]
+
+
 def planning_assertion_tools(cs, get_actor):
     def save(name, subject, claim, runtime, *, source_id=None, observed_at=None):
         actor = get_actor()
@@ -64,7 +69,7 @@ def planning_assertion_tools(cs, get_actor):
         # The top-level planning work item has no separately issued task attempt.
         # Its native call scopes this grant, including exact replay and revocation.
         grant = Grant(principal, actor.role, actor.task_id, 'native-call:' + runtime.tool_call_id,
-                      _commission(cs.store), {subject}, packet, {name}, resources=resources)
+                      _commission(cs.store), frozenset({subject}), frozenset(packet), frozenset({name}), resources=resources)
         try:
             ctx = host.issue_once(grant, name, runtime.tool_call_id)
             if name == 'assert_source':
@@ -77,7 +82,7 @@ def planning_assertion_tools(cs, get_actor):
                       coverage: str, value: str | int | float | bool | None = None,
                       unit: str | None = None, period: str | None = None, source_id: str | None = None,
                       page: Annotated[int | None, Field(ge=1)] = None, quote: str | None = None,
-                      observed_at: str | None = None, runtime: ToolRuntime = None) -> dict:
+                      observed_at: str | None = None, runtime: NativeRuntime = None) -> dict:
         """Propose a sourced fact for a planning inventory object. Cite the source ID, physical page and exact frozen text. Explicit absence needs a citation; silence allows only unknown. Set observed_at only for an explicit observation date/time in the quote (ISO date or zoned timestamp)."""
         citation = None
         if any(x is not None for x in (source_id, page, quote)):
@@ -88,12 +93,12 @@ def planning_assertion_tools(cs, get_actor):
                      unit=unit, period=period, citation=citation)
         return save('assert_source', subject, claim, runtime, source_id=source_id, observed_at=observed_at)
 
-    def record_conflict(subject: str, observations: list[str], runtime: ToolRuntime = None) -> dict:
+    def record_conflict(subject: str, observations: list[str], runtime: NativeRuntime = None) -> dict:
         """Record disagreement between distinct source assertion IDs for this inventory object; both observations remain visible."""
         return save('record_conflict', subject, dict(kind='conflict', observations=observations), runtime)
 
     def ask(subject: str, text: str, affects: Literal['classification','value','presentation','other'],
-            runtime: ToolRuntime = None) -> dict:
+            runtime: NativeRuntime = None) -> dict:
         """Record an open question about an inventory object and what depends on its answer."""
         return save('ask', subject, dict(kind='question', text=text, affects=affects), runtime)
 

@@ -38,8 +38,8 @@ async def run(args):
     checkout = Path(__file__).resolve().parents[1]
     revision = verify_gate(args.gate, checkout)
     from importlib.util import find_spec
-    implementation = Path(find_spec("report_agent.extraction_probe").origin).resolve()
-    if not implementation.is_relative_to(checkout / "src"):
+    spec = find_spec("report_agent.extraction_probe")
+    if spec is None or not spec.origin or not Path(spec.origin).resolve().is_relative_to(checkout / "src"):
         raise ValueError("O6_IMPORT_CHECKOUT_MISMATCH")
     if subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain",
                                 "--", "src", "scripts/run_o6_extraction.py"]).strip():
