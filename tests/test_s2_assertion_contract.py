@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from report_agent.assertions.schema.kinds import Assertion
+from report_agent.assertions.schema.kinds import Assertion, is_canonical_id
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src/report_agent"
@@ -21,12 +21,13 @@ def envelope(claim, grounds=()):
     return dict(id="r1", subject="A", claim=claim, grounds=list(grounds),
                 was_attributed_to="agent-1", was_generated_by="task-1", operation_id="op-1",
                 observed_at="2026-11-07T12:00:00Z", recorded_at="2026-11-07T12:00:01Z",
-                schema_version="s2-proposal-1", check_version="s2-proposal-1")
+                schema_version="s2-proposal-1", check_version="s2-proposal-2")
 
 
 def check(row, ctx):
     valid = Assertion.model_validate(row)
     with sqlite3.connect(":memory:") as conn:
+        conn.create_function("is_canonical_id", 1, is_canonical_id, deterministic=True)
         conn.create_function("decimal_between", 3, lambda x, lo, hi: lo is not None and
                              hi is not None and Decimal(str(lo)) <= Decimal(str(x)) <= Decimal(str(hi)))
         return {code for code, _ in conn.execute(SQL, dict(row=valid.model_dump_json(),
@@ -106,15 +107,57 @@ def test_ambiguous_evidence_assumptions_and_weak_inputs():
 def release():
     slots = [f"slot-{n}" for n in range(22)]
     members = [dict(slot=s, id=f"r-{s}", stale=False, status="endorsed", kind="judgment",
-                    open_grade_questions=0) for s in slots]
+                    producer="writer-1", open_grade_questions=0) for s in slots]
     ids = [m["id"] for m in members]
     pair = dict(snapshot="s1", records=ids, word_sha256="a"*64, excel_sha256="b"*64)
     row = envelope(dict(kind="decision",effect="release",reason="Reviewed pair",target="outputs",pair=pair))
     return row, dict(action="release",role="coordinator",packet=["outputs","s1",*ids],
         required_list_owner_confirmed=True,scope_id="outputs",required_slots=slots,snapshot=dict(id="s1",members=members,
         word_sha256="a"*64,excel_sha256="b"*64),reviews=[dict(snapshot="s1",record=i,stale=False,
-        passed=True) for i in ids],satisfied_authority_conditions=["frozen_pair","release_delegation"],
+        passed=True, action="endorse", role="reviewer", actor="reviewer-1") for i in ids],satisfied_authority_conditions=["frozen_pair","release_delegation"],
         delegation=dict(active=True,actor="agent-1",subject="A",action="release"))
+
+
+@pytest.mark.parametrize(("status", "action"), [
+    ("confirmed", "record_finding"), ("confirmed", "endorse"), ("endorsed", "endorse"),
+])
+def test_release_accepts_an_independent_reviewer(status, action):
+    row, ctx = release()
+    ctx["snapshot"]["members"][0]["status"] = status
+    ctx["reviews"][0]["action"] = action
+    assert check(row, ctx) == set()
+
+
+@pytest.mark.parametrize(("action", "role", "actor", "producer"), [
+    ("endorse", "coordinator", "agent-1", "writer-1"),
+    ("endorse", "coordinator", "other-coordinator", "writer-1"),
+    ("record_finding", "reviewer", "writer-1", "writer-1"),
+    ("endorse", "reviewer", "agent-1", "writer-1"),
+    ("record_finding", "reviewer", "", "writer-1"),
+    ("record_finding", "reviewer", "reviewer-1", None),
+    ("sign_off", "reviewer", "reviewer-1", "writer-1"),
+    ("endorse", "reviewer", " agent-1 ", "writer-1"),
+    ("record_finding", "reviewer", "writer-1", "\u3000writer-1\u3000"),
+    ("record_finding", "reviewer", "\t", "writer-1"),
+])
+def test_release_requires_independent_review_on_every_record(action, role, actor, producer):
+    row, ctx = release()
+    member = ctx["snapshot"]["members"][0]
+    member["producer"] = producer
+    if action != "endorse":
+        member["status"] = "confirmed"
+    ctx["reviews"][0].update(action=action, role=role, actor=actor)
+    assert check(row, ctx) == {"C12"}
+
+
+def test_coordinator_endorsement_does_not_establish_endorsed_status_for_release():
+    row, ctx = release()
+    endorsement = ctx["reviews"][0]
+    ctx["reviews"].append(dict(endorsement, action="record_finding"))
+    endorsement.update(actor="agent-1", role="coordinator")
+    assert check(row, ctx) == {"C12"}
+    ctx["snapshot"]["members"][0]["status"] = "confirmed"
+    assert check(row, ctx) == set()
 
 
 @pytest.mark.parametrize("change", ["omit","review","digest","stale","question","contested","source_endorsement","duplicate"])

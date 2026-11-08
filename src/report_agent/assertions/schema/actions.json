@@ -1,5 +1,5 @@
 {
-  "version": "s2-proposal-1",
+  "version": "s2-proposal-2",
   "roles": [
     "coordinator",
     "writer",
@@ -180,7 +180,14 @@
         "frozen_pair",
         "release_delegation",
         "C12"
-      ]
+      ],
+      "qualifying_review": {
+        "role": "reviewer",
+        "actions": [
+          "record_finding",
+          "endorse"
+        ]
+      }
     },
     "sign_off": {
       "roles": [

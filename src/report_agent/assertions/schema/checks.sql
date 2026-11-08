@@ -48,7 +48,15 @@ bands AS (
 readings AS (SELECT value AS outcome FROM request, json_each(c, '$.applicable_readings')),
 required AS (SELECT value AS slot FROM request, json_each(c, '$.required_slots')),
 members AS (SELECT value AS m FROM request, json_each(c, '$.snapshot.members')),
-reviewed AS (SELECT value AS review FROM request, json_each(c, '$.reviews')),
+reviewed AS (
+ SELECT j.value AS review FROM request, json_each(c, '$.reviews') j
+ WHERE j.value ->> '$.role' = :catalog ->> '$.actions.release.qualifying_review.role'
+ AND j.value ->> '$.action' IN (SELECT value FROM json_each(:catalog,'$.actions.release.qualifying_review.actions'))
+ AND json_type(j.value,'$.actor')='text' AND is_canonical_id(j.value ->> '$.actor')=1
+ AND j.value ->> '$.actor' <> r ->> '$.was_attributed_to'
+ AND j.value ->> '$.snapshot'=claim ->> '$.pair.snapshot'
+ AND j.value ->> '$.stale'=0 AND j.value ->> '$.passed'=1
+),
 service AS (
  SELECT request.*, a.value AS spec FROM request LEFT JOIN json_each(:catalog, '$.actions') a ON a.key=action
 ),
@@ -190,7 +198,9 @@ bad(code, reason) AS (
  OR EXISTS(SELECT 1 FROM members WHERE m ->> '$.stale' IS NOT 0 OR m ->> '$.open_grade_questions' IS NOT 0
  OR (m ->> '$.status' IS NOT 'confirmed' AND (m ->> '$.status' IS NOT 'endorsed' OR NOT EXISTS(
  SELECT 1 FROM json_each(:catalog,'$.endorsement_suffices_for') WHERE value=m ->> '$.kind')))
- OR NOT EXISTS(SELECT 1 FROM reviewed WHERE review ->> '$.snapshot'=claim ->> '$.pair.snapshot'
- AND review ->> '$.record'=m ->> '$.id' AND review ->> '$.stale'=0 AND review ->> '$.passed'=1)))
+ OR NOT EXISTS(SELECT 1 FROM reviewed WHERE review ->> '$.record'=m ->> '$.id'
+ AND json_type(m,'$.producer')='text' AND is_canonical_id(m ->> '$.producer')=1
+ AND review ->> '$.actor' <> m ->> '$.producer'
+ AND (m ->> '$.status'='confirmed' OR review ->> '$.action'='endorse'))))
 )
 SELECT DISTINCT code,reason FROM bad ORDER BY code;

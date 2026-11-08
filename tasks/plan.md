@@ -1132,3 +1132,10 @@ Scope: centralize legacy state access (M0), prove the chosen SQLite/Pydantic sem
 **Skills and evidence.** Skill selection and scoped implementation guided the parallel work. TDD reproduced recovery and accessor failures. Code-review and Git-workflow checks covered the independent findings, narrow diff, unrelated files and publication. [M0 regression and coverage](../docs/reviews/migration-m0-baseline.md) · [S1 proof](../docs/reviews/assertion-store-s1.md) · [S2 design and review files](../docs/design/assertion-schema.md).
 
 **Next gate.** Review the published S2 code. S3 is the production implementation. M1's small real-source extraction check still needs confirmation of the slope and cap. The Fake03 replay follows M3. Full real-report delivery follows M10.
+
+
+## Tagged review correction · S2 formal release and M0 census
+
+Review of `b81e0b5` reopened conditional O3. F2 (P2) gated S3 because same-snapshot pass flags lacked Reviewer provenance. Main reproduced the Coordinator-only release and added per-record independence checks and catalog policy. A separate alignment reviewer reproduced whitespace identity bypasses in the first fix, then rechecked the final contract through 17 independent SQLite cases. The guarded runner passed 105 tests covering S2 (33), S1 plus native replay (31), and the M0 guardian (41). The previously published full regression applies to the original tag. The correction touches the offline contract; S3 must derive the projection inside its transaction and compute and verify assertion IDs at the host. The revised S2 contract is ready for owner reconfirmation. S3 awaits that decision.
+
+F1 (P1) keeps M0 open until a static and observed-write census classifies every state key and assigns the additional assertion families to migration slices and the guardian. It does not gate S3. For O6 after M1, the reviewed plan gives selection criteria; the team still owes the owner a named real slope and a hard cap estimated from its source pages before any paid run.

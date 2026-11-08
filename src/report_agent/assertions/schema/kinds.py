@@ -11,6 +11,11 @@ JudgmentKind = Literal["evidence", "assumption", "conditional", "gap"]
 Purpose = Literal["classification", "assumption", "adjustment", "context", "input"]
 
 
+def is_canonical_id(value: object) -> bool:
+    """SQLite predicate for IDs in trusted projection rows, which bypass Shape validation."""
+    return isinstance(value, str) and bool(value) and value == value.strip()
+
+
 class Shape(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
 
@@ -206,4 +211,4 @@ class Assertion(Shape):
     observed_at: AwareDatetime
     recorded_at: AwareDatetime
     schema_version: Literal["s2-proposal-1"]
-    check_version: Literal["s2-proposal-1"]
+    check_version: Literal["s2-proposal-2"]

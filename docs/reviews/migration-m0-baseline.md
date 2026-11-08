@@ -43,6 +43,10 @@ Counts are source files containing the exact key or key prefix as text, includin
 
 The tagged assessment save reads and writes `g6_assessment_producer:` in `risk_scoring.py`. It rejects an actor other than the first producer for the plan and slope. The M3 check needs two valid packets as well as the separate missing-slope refusal. `writer_page_read:` carries host delivery and identity checks. Keep these operational checks executable during migration.
 
+## Scope correction after tagged review
+
+M0 remains open. The 32 inventoried families describe the original accessor migration. The review identified further writes, including `g6_section_prose:*`, `g6_object_prose:*`, `rubric_reviews` and `rubric_status`. Closing M0 requires a census of static and runtime state writes during offline regression, classification of each family, and migration-slice and guardian coverage for assertion-bearing families. This P1 finding gates M0 closure independently of the S3 decision.
+
 ## Access paths and retained routes
 
 The baseline scan found 57 candidate files in 161 Python and JavaScript sources. The migration changed 41 existing package modules and 11 operator scripts. Each of the 32 families now has named getters and setters. Ordered prefix scans, multi-key reads, probe imports and transaction writes have separate accessors where their original SQL semantics matter. The 32-case storage test uses the real Store and a caller-owned SQLite transaction. It checks raw keys, Unicode suffixes, missing defaults, JSON null, read-your-write and rollback.
