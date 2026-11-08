@@ -64,6 +64,13 @@ def test_native_derivation_keeps_draft_distinct_and_recomputes_from_immutable_su
     with f.cs.store.connect() as db:
         scope = bound_assignment(f.cs, db, f.actor)
         draft = read_progress(f.cs.store, scope['assignment_digest'], db)
+    with f.cs.store.connect() as db:
+        with pytest.raises(ActionRejected, match='ASSESSMENT_INPUT_MODE_MISMATCH'):
+            save_assessment_in_transaction(f.cs, db, f.actor, 'mixed-inputs', bulk, scope=scope, draft=draft)
+        with pytest.raises(ActionRejected, match='ASSESSMENT_ASSIGNMENT_CHANGED'):
+            save_assessment_in_transaction(f.cs, db, f.actor, 'stale-assignment',
+                                           scope={**scope, 'assignment_digest': 'old-assignment'}, draft=draft)
+    assert [r['ref'] for r in f.cs.list_objects('Assessment')] == [final['assessment_ref']]
     ids = [draft['rows'][key]['assertion_id'] for key in ('A', 'B', 'C', 'D')]
     assert claim['inputs'] == ids
     assert claim['assessment']['low'] == claim['assessment']['high'] == projected['result']['adopted']
@@ -109,6 +116,9 @@ def test_raw_first_system_writer_keeps_a_draft_without_selecting_or_qualifying_a
         ref = raw['assessment_ref']
         assert selected_assessment(db, f.plan_ref, 'S1') is None
         assert score_blocker(assessment_receipt(db, ref)) == 'legacy_draft'
+        from report_agent.risk_scoring import create_planned_section_in_transaction
+        with pytest.raises(ActionRejected, match='PLANNED_SECTION_REVIEWED_SCORE_REQUIRED: legacy_draft'):
+            create_planned_section_in_transaction(f.cs, db, f.actor, plan, '5', [ref])
         with pytest.raises(ActionRejected, match='REVIEWED_SCORE_REQUIRED'):
             validate_outcome(f.cs, db, plan, 'S1', raw['evaluation_ref'], raw['level_ref'], [raw['evidence_ref']], [])
         from report_agent.store import encode

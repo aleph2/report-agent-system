@@ -9,6 +9,8 @@ from report_agent.store import digest
 from report_agent.rescue_projection import project_rescue_prose, verify_projection
 from test_m1_commission_plan import approve, save, writer
 from test_m1_g3_integration import method_commission, section_plan
+from test_section_writing import reviewed_writing
+from test_writer_indicator_outcomes import ranked
 
 
 @pytest.fixture
@@ -180,7 +182,7 @@ def site_projection(method_commission):
     return f
 
 
-def frozen_site(f, text, ancestor='4 Assessment', body_sid=None):
+def frozen_site(f, text, ancestor='4 Assessment', body_sid=None, qualifiers=None):
     def insert(db):
         def node(kind, text):
             return f.cs._insert(db, f.actor, 'ContentNode', {'kind': kind, 'body': {'text': text},
@@ -188,7 +190,7 @@ def frozen_site(f, text, ancestor='4 Assessment', body_sid=None):
         root = node('report', 'Synthetic report')
         heading = node('chapter', ancestor)
         object_heading = node('chapter', '4.2 HP-01')
-        payload = {'kind': 'block', 'body': {'text': text}, 'qualifiers': {},
+        payload = {'kind': 'block', 'body': {'text': text}, 'qualifiers': qualifiers or {},
             'citations': [f.cite('design')], 'claim_kind': 'fact'}
         if body_sid is not None:
             payload['body']['section_id'] = body_sid
@@ -200,7 +202,13 @@ def frozen_site(f, text, ancestor='4 Assessment', body_sid=None):
                 'provenance_kind': 'adopted_during_generation'})
         return refs
     refs = f.cs.operation(f.actor, 'site-source', {}, insert)['result']
-    snapshot = f.cs.freeze(f.co, 'site-snapshot', refs['root'], list(refs.values()))['result']['snapshot_ref']
+    from report_agent.section_writing import enabled
+    if enabled(f.cs.store):
+        # Materialize the archived input in the system-owned snapshot format used by the assembler.
+        with f.cs.store.connect() as db:
+            snapshot = f.cs._freeze_in_transaction(db, f.co, refs['root'], list(refs.values()), [])['snapshot_ref']
+    else:
+        snapshot = f.cs.freeze(f.co, 'site-snapshot', refs['root'], list(refs.values()))['result']['snapshot_ref']
     return refs['prose'], dict(source_snapshot_ref=snapshot, bindings={'4': [refs['prose']]},
         qualifier_dispositions={})
 
@@ -308,3 +316,39 @@ def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection
             _set(db, 'rescue_projection:' + digest(projected['ref']), receipt)
         with pytest.raises(ActionRejected, match='(ASSESSMENT|OUTCOME)'):
             verify_projection(f.cs, db, projected, '4', f.plan, f.co)
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_stale_generated_level_cannot_replace_a_generation_record(reviewed_writing):
+    from report_agent.assessment_projection import assessment_receipt, selected_assessment
+    from report_agent.assertion_host import AssertionHost
+    from test_assessment_refresh import act
+    f = reviewed_writing
+    prose, args = frozen_site(f, 'S1 design height is 30 metres.', body_sid='4',
+                              qualifiers={'generation_state': 'Prior evaluation was provisional.'})
+    with f.cs.store.connect() as db:
+        receipt = assessment_receipt(db, selected_assessment(db, f.plan_ref, 'S1'))
+    host = AssertionHost(f.cs.store.root)
+    derived = host.recover_receipt(receipt['derive_operation_id'])['result']
+    act(host, f.plan_ref, 'S1', derived['claim']['inputs'][0], 'retract')
+    args['qualifier_dispositions'] = {prose['id']: {'generation_state': [
+        dict(kind='generation_record', classification='superseded', replacement_ref=receipt['level_ref'],
+             rationale='Replace preliminary text with the calculated level.', evidence='Frozen assessment output.')]}}
+    before = f.cs.list_objects()
+    with pytest.raises(ActionRejected, match='RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: stale'):
+        project_rescue_prose(f.cs, f.co, 'stale-replacement', **args)
+    assert f.cs.list_objects() == before
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_unscored_canonical_result_cannot_replace_a_site_score(ranked):
+    from report_agent.writer_assessment import save_indicator_outcome
+    f = ranked
+    for indicator in 'ABCD':
+        receipt = save_indicator_outcome(f.cs, f.actor, 'gap-' + indicator, indicator,
+                                         dict(kind='gap', missing='Site survey', question='Which site survey?'))
+    ref = receipt['result']['assessment_ref']
+    prose, args = frozen_site(f, 'S1 设计高度30m。本边坡综合得分F＝56.32，风险等级Ⅲ级，需开展专项施工安全风险评估。', body_sid='4')
+    before = f.cs.list_objects()
+    with pytest.raises(ActionRejected, match='RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: unscored'):
+        project_rescue_prose(f.cs, f.co, 'unscored-replacement', **args, assessment_replacements={prose['id']:ref})
+    assert f.cs.list_objects() == before

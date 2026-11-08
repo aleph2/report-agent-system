@@ -4,6 +4,8 @@ from copy import deepcopy
 import pytest
 
 from report_agent.errors import ActionRejected
+from test_m1_g3_integration import method_commission
+from test_section_writing import reviewed_writing
 
 
 def ref(kind, identifier):
@@ -462,3 +464,27 @@ def test_real_export_single_newline_frontmatter_before_toc(tmp_path):
     assert texts[:4] == ['项目甲', '风险报告', '机构甲', '2026年']
     assert not any('source_id' in text or 'working_notes' in text for text in texts)
     assert 'Source copy' not in '\n'.join(texts)
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_export_after_input_withdrawal_identifies_generated_and_derived_section_scores(reviewed_writing):
+    from report_agent.assessment_projection import assessment_receipt, selected_assessment
+    from report_agent.assertion_host import AssertionHost
+    from report_agent.content_export import export_snapshot
+    from report_agent.section_writing import save_section_prose
+    from report_agent.system_assembler import assemble_current_report
+    from test_assessment_refresh import act
+
+    f = reviewed_writing
+    save_section_prose(f.cs, f.writer, 'prose', '4', 'S1 design height is 30 metres.', [f.cite('design')])
+    snapshot = assemble_current_report(f.cs, f.co, 'assemble')['result']['snapshot_ref']
+    with f.cs.store.connect() as db:
+        receipt = assessment_receipt(db, selected_assessment(db, f.plan_ref, 'S1'))
+    host = AssertionHost(f.cs.store.root)
+    old = host.recover_receipt(receipt['derive_operation_id'])['result']
+    act(host, f.plan_ref, 'S1', old['claim']['inputs'][0], 'retract')
+    with pytest.raises(ActionRejected, match='G3_EXPORT_PREFLIGHT') as error:
+        export_snapshot(f.cs, f.co, 'export-after-withdrawal', snapshot, {'toc':False})
+    assert receipt['level_ref']['id'] + ': assessment score unavailable: stale' in str(error.value)
+    assert 'derived section assessment score unavailable: stale' in str(error.value)
+    assert not f.cs.list_objects('ExportArtifact')

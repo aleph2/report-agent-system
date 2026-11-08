@@ -157,7 +157,7 @@ def _validate_references(row, records, resources):
                     if item["subject"] != row.subject or item.get("stale") or item["status"] not in (
                         "proposed", "confirmed", "endorsed"
                     ):
-                        raise ValueError("C10: assessment input is stale, contested, or outside its slope")
+                        raise ValueError("C10: assessment input is stale, contested, or belongs to a different subject")
             if claim.rule_version in records:
                 rule = records[claim.rule_version]
                 if rule["kind"] not in ("source", "convention") or not _active(rule):
