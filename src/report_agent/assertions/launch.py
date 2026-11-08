@@ -43,6 +43,10 @@ class Commission:
                     "digest": row["digest"], "result": json.loads(row["result"]),
                     "created_at": row["created_at"]}
 
+    def submission_receipt(self, judgment_id):
+        """Read the immutable submission supporting a committed judgment for host-side projection."""
+        return self._store.submission_receipt(judgment_id)
+
     def produced_ids(self, *, actor, task, subject, kind):
         """IDs available to reissue in this producer's task packet."""
         with self._store.reader() as db:

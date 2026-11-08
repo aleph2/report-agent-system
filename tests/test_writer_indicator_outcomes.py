@@ -20,8 +20,19 @@ def attach_ranks(f):
 
 def make_assignment(f):
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
+    from report_agent.catalog import Catalog
+    from test_ingestion import pdf_bytes
+    from support.judgment_inputs import install_test_judgment_inputs
+    f.evidence_quote = 'S1 survey records the synthetic observation.'
+    source = Catalog(f.ws.store).import_file('S1-survey.pdf', pdf_bytes([f.evidence_quote]))['source']
+    ref, = f.cs.capture_sources(f.co, 'survey-capture', [source['id']])['result']['source_refs']
+    citation = dict(source_ref=ref, locator='page 1', quote=f.evidence_quote)
+    f.plan['sections'][0]['sources'].append(citation)
+    f.plan['objects'][0]['sources'].append(citation)
     saved = save(f)
     approve(f, saved)
+    f.plan_ref = saved['plan_ref']
+    install_test_judgment_inputs(f, 'S1', source['id'], 1, f.evidence_quote)
     prior = writer(f, saved, section_ids=['4'])
     task = deepcopy(f.cs.read({'type': 'DelegatedTask', 'id': prior.task_id, 'version': 1})['payload'])
     task['assessment_object_id'] = 'S1'
@@ -39,7 +50,7 @@ def ranked(method_commission):
 def evidence(f, step):
     return {'kind':'evidence', 'grade':step['grades'][1]['choice'],
             'value':'40', 'basis_kind':'direct_evidence', 'rationale':'The supplied design records S1.',
-            'quotes':[f.cite('design')['quote']]}
+            'quotes':[f.evidence_quote]}
 
 
 def test_rankless_plan_refused_before_first_step(assigned):
@@ -68,7 +79,7 @@ def test_evidence_then_gap_persist_and_no_score(ranked):
     done = api.read_indicator_step(f.cs, f.actor)
     assert done['complete'] and done['gap_indicators'] == ['B','C','D']
     assert done['assessment_ref'] is None and f.cs.list_objects('Assessment') == []
-    assert done['outcomes']['A']['judgment']['sources'][0]['quote'] == f.cite('design')['quote']
+    assert done['outcomes']['A']['judgment']['sources'][0]['quote'] == f.evidence_quote
     assert done['outcomes']['B']['input']['missing'] == 'Survey unavailable'
 
 
@@ -157,3 +168,21 @@ def test_refused_step_is_durable_and_no_scorable_row_is_created(ranked):
     done=api.read_indicator_step(f.cs,f.actor)
     assert done['complete'] and done['progress']=={'recorded':3,'total':4}
     assert 'B' not in done['outcomes'] and not done['assessment_ref'] and not f.cs.list_objects('Assessment')
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_historical_rows_remain_readable_without_becoming_score_authority(ranked):
+    f = ranked
+    first = api.read_indicator_step(f.cs, f.actor)
+    old = {'kind':'evidence','rank':first['rank'],'input':{'kind':'evidence','value':'40'}}
+    # Reproduce a partial working draft recorded before the migration.
+    f.ws.store.set('writer_indicator_steps:' + first['assignment_digest'],
+                   dict(rows={'A':old}, assessment_ref=None))
+    for indicator in ('B','C','D'):
+        step = api.read_indicator_step(f.cs,f.actor)
+        assert step['indicator_id'] == indicator
+        api.save_indicator_outcome(f.cs,f.actor,'native-'+indicator,indicator,evidence(f,step))
+    result = api.read_indicator_step(f.cs,f.actor)
+    assert result['complete'] and result['outcomes']['A'] == old
+    assert result['assessment_ref'] is None and f.cs.list_objects('Assessment') == []
+    assert all(result['outcomes'][indicator]['assertion_id'] for indicator in ('B','C','D'))

@@ -10,6 +10,14 @@ from functools import partial
 
 from .operation_identity import bound_native_id
 from .assertions import launch
+from .assertions.ids import assertion_id
+
+resource_digest = launch.request_digest
+
+
+def question_id(ctx, subject, claim):
+    """Compute a question reference before atomically recording its judgment."""
+    return assertion_id(subject, claim, (), ctx.binding["actor"], ctx.binding["task"], ctx.operation_id)
 
 
 @dataclass(frozen=True)

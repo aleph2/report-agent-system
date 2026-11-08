@@ -1,5 +1,6 @@
 """System-bound slope pages; navigation candidates do not establish engineering relevance."""
-from . import legacy_state as legacy
+from .writer_judgments import page_receipt, remember_page
+from .source_use import immutable_version_digest
 import base64
 from copy import deepcopy
 from decimal import Decimal
@@ -191,7 +192,6 @@ def _prepared(cs, db, actor):
 
 
 def read_assigned_page(cs, actor, source_handle, page, *, include_image=True):
-    from .commission_plan import _set
     from .document_tools import source_page_info, source_page_png
     from .workspace import Workspace
     prepare_assignment_pages(cs, actor)
@@ -219,44 +219,91 @@ def read_assigned_page(cs, actor, source_handle, page, *, include_image=True):
     handle = 'page-' + uuid4().hex
     receipt = {'actor': actor.__dict__, 'assignment_digest': bound['assignment_digest'],
                'source_ref': source['source_ref'], 'source_pin': pin, 'page': page,
+               'source_handle':source_handle, 'source_version':immutable_version_digest(record['payload']),
+               'modality':'image',
                'image_sha256': image_sha256, 'image_delivered': False}
     with cs.store.connect() as db:
         current = bound_assignment(cs, db, actor)
         if current['assignment_digest'] != bound['assignment_digest']:
             raise ActionRejected('WRITER_ASSIGNMENT_CHANGED_DURING_READ')
-        legacy.set_writer_page_read(db, handle, receipt)
+        remember_page(db, handle, receipt)
     return {**result, 'page_handle': handle, 'image_sha256': image_sha256,
             'image_data_url': 'data:image/png;base64,' + base64.b64encode(pixels).decode('ascii')}
 
 
 def _page_receipt(cs, db, actor, handle):
-    from .commission_plan import _state
     bound = bound_assignment(cs, db, actor)
-    receipt = legacy.get_writer_page_read(db, handle)
+    receipt = page_receipt(db, handle)
     if (not receipt or receipt.get('actor') != actor.__dict__
             or receipt.get('assignment_digest') != bound['assignment_digest']):
         raise ActionForbidden('FORBIDDEN: writer visual page receipt')
-    _, pin = _pin(cs, db, receipt['source_ref'])
+    record, pin = _pin(cs, db, receipt['source_ref'])
     if pin != receipt['source_pin']:
         raise ActionRejected('WRITER_SOURCE_CHANGED')
+    if 'modality' not in receipt:
+        # Historical receipts have the immutable source ref, pin and actual image digest.
+        _, index = _prepared(cs, db, actor)
+        source = next((s for s in index['sources'] if s['source_pin'] == pin), None)
+        if not source or not receipt.get('image_sha256'):
+            raise ActionRejected('WRITER_VISUAL_PAGE_RECEIPT_INVALID')
+        receipt = {**receipt, 'source_handle': source['source_handle'], 'modality': 'image',
+                   'source_version': immutable_version_digest(record['payload'])}
     return receipt
 
 
 def mark_visual_page_delivered(cs, actor, page_handle, image_sha256):
     """Host-only: native wrapper calls after constructing an actual image block, not a JSON reference."""
-    from .commission_plan import _set
     with cs.store.connect() as db:
         receipt = _page_receipt(cs, db, actor, page_handle)
         if receipt['image_sha256'] != image_sha256:
             raise ActionRejected('WRITER_VISUAL_IMAGE_DIGEST_MISMATCH')
-        legacy.set_writer_page_read(db, page_handle, {**receipt, 'image_delivered': True})
+        remember_page(db, page_handle, {**receipt, 'image_delivered': True})
+
+
+def mark_text_page_delivered(cs, actor, source_handle, page, projected):
+    """Record the exact text/table view wrapped for this actor. Text never grants visual credit."""
+    with cs.store.connect() as db:
+        scope, index = _prepared(cs, db, actor)
+        source = next((s for s in index['sources'] if s['source_handle'] == source_handle), None)
+        if not source or projected.get('page') != page or projected.get('source_handle') != source_handle:
+            raise ActionRejected('WRITER_PAGE_DELIVERY_MISMATCH')
+        record, pin = _pin(cs, db, source['source_ref'])
+        receipt = dict(actor=actor.__dict__, assignment_digest=scope['assignment_digest'], modality='text',
+                       source_ref=source['source_ref'], source_version=immutable_version_digest(record['payload']),
+                       source_pin=pin, source_handle=source_handle, page=page, view_digest=digest(projected))
+        handle = 'text-' + digest(receipt)
+        remember_page(db, handle, receipt)
+        return handle
+
+
+def evidence_deliveries(cs, db, actor, scope, citations, read_locations, visual_pages):
+    from .document_tools import physical_page_number
+    used = {(digest(c['source_ref']), physical_page_number(c['locator'])) for c in citations}
+    locations = {r["delivery"]:(r["source_handle"], r["page"]) for r in read_locations if r.get("delivery")}
+    matched = []
+    for handle in dict.fromkeys([*visual_pages, *locations]):
+        receipt = page_receipt(db, handle)
+        if receipt and 'modality' not in receipt:
+            receipt = _page_receipt(cs, db, actor, handle)
+        if (not receipt or receipt['actor'] != actor.__dict__ or receipt['assignment_digest'] != scope['assignment_digest']
+                or (receipt['modality'] == 'image' and not receipt['image_delivered'])):
+            raise ActionForbidden('WRITER_PAGE_RECEIPT_NOT_DELIVERED')
+        if handle in locations and locations[handle] != (receipt['source_handle'], receipt['page']):
+            raise ActionRejected('WRITER_PAGE_DELIVERY_MISMATCH')
+        if (digest(receipt['source_ref']), receipt['page']) not in used:
+            continue
+        _, pin = _pin(cs, db, receipt['source_ref'])
+        if pin != receipt['source_pin']:
+            raise ActionRejected('WRITER_SOURCE_CHANGED')
+        matched.append({'id':handle, **receipt})
+    return matched
 
 
 def resolve_visual_pages(cs, db, actor, handles):
     citations = []
     for handle in dict.fromkeys(handles):
         receipt = _page_receipt(cs, db, actor, handle)
-        if not receipt['image_delivered']:
+        if not receipt.get('image_delivered'):
             raise ActionRejected('WRITER_VISUAL_PAGE_NOT_DELIVERED')
         citations.append({'source_ref': receipt['source_ref'], 'locator': 'page ' + str(receipt['page']), 'quote': ''})
     return citations

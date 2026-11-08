@@ -59,7 +59,9 @@ async def test_third_read_retains_all_pages_and_still_offers_one_issue(assigned,
             result=await run.run()
         assert len(wires)==5 and result['progress']['recorded']==2
         assert [s[0] for s in steps]==['X0','X1']
-        assert steps[0][2]==[{'source_handle':'source-1','page':p} for p in (2,3,4)]
+        assert [{k:r[k] for k in ('source_handle','page')} for r in steps[0][2]] == [
+            {'source_handle':'source-1','page':p} for p in (2,3,4)]
+        assert len({r['delivery'] for r in steps[0][2]}) == 3
         assert len(issues)==1 and not steps[1][2]
         assert [row['tool_call_id'] for row in run.refusals]==['extra-issue','extra-read']
     finally:

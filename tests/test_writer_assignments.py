@@ -40,6 +40,9 @@ def assigned(method_commission, request):
         with f.ws.store.connect() as db:
             alias_guide = f.cs._insert(db, f.co, 'SourceArtifact', guide)
         f.plan['objects'][0]['sources'].append({**f.cite('guideline'), 'source_ref': alias_guide})
+    if "Owner rank order: B, A, D, C." in f.cs.read(f.sources['scope'])['payload']['content']:
+        from test_writer_indicator_outcomes import attach_ranks
+        attach_ranks(f)
     saved = save(f); approve(f, saved)
     def register(db):
         return f.cs._insert(db, f.co, 'DelegatedTask', {
@@ -137,7 +140,8 @@ def test_invalid_pages_do_not_create_a_read_receipt(assigned, page):
     with pytest.raises(ActionRejected):
         api.read_assigned_page(f.cs, f.actor, source['source_handle'], page)
     with f.ws.store.connect() as db:
-        assert not db.execute("SELECT key FROM state WHERE key LIKE 'writer_page_read:%'").fetchall()
+        from report_agent.writer_judgments import delivered_pages
+        assert not delivered_pages(db)
 
 
 def test_visual_citation_requires_actual_pixels_and_exact_actor_receipt(assigned):
@@ -222,7 +226,8 @@ def test_text_page_does_not_render_pixels_or_issue_visual_credit(assigned, monke
     assert not {'page_handle', 'image_data_url', 'image_sha256'} & result.keys()
     assert result['table_view']['page'] == 3
     with f.ws.store.connect() as db:
-        assert not db.execute("SELECT key FROM state WHERE key LIKE 'writer_page_read:%'").fetchall()
+        from report_agent.writer_judgments import delivered_pages
+        assert not delivered_pages(db)
 
 
 def projected_page():

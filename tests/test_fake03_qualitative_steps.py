@@ -1,6 +1,5 @@
-"""Offline routing and host-owned arithmetic on the restricted fake03 qualitative run."""
+"""Offline scope, recovery and rank checks on the restricted fake03 qualitative run."""
 import hashlib
-from decimal import Decimal
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -50,17 +49,11 @@ async def test_fresh_profile_and_verified_qualitative_authority_must_agree(mini)
 @pytest.mark.parametrize('interrupt',[False,True])
 async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_scoring(mini, interrupt):
     ws, binding, profile = mini
-    # This historical routing/arithmetic driver proposes synthetic grades. Replay its original
-    # untyped contract; test_run06_claim_replay exercises the current native scored contract.
-    for assigned in profile['facts'].values():
-        assigned.pop('attestations', None)
-        assigned.pop('engineering_reviews', None)  # This fixture replays the pre-deferral routing contract.
     install(ws, binding.plan_ref, profile)
     cs=ContentStore(ws.store)
     plan=cs.read(binding.plan_ref)['payload']
     rank_order=plan['indicator_rank_order']['indicator_ids']
     seen=[]
-    expected={}
     count={}
     labels={o['label']:o['object_id'] for o in plan['objects']}
     def choose(messages):
@@ -74,18 +67,10 @@ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_
         token=(oid,ind)
         count[token]=count.get(token,0)+1
         seen.append(token)
-        band=packet['grades'][(len(set(seen))-1)%4]
-        midpoint=(Decimal(band['min_value'])+Decimal(band['max_value']))/2
-        quote=next(a['values'][0]['source']['quote'] for a in packet['inventory_facts'] if a['name']=='坡高（m）')
-        judgment=dict(grade=band['choice'],quotes=[quote],basis_kind='direct_evidence',rationale='Synthetic routing exercise.')
-        if ind=='X21' and oid=='A':
-            judgment['value']=str(midpoint+1)
-            if not interrupt and count[token]==2:
-                judgment['value_reason']='The recorded condition is more severe within the adopted band.'
-            expected[token]=midpoint+1
-        else:
-            expected[token]=midpoint
-        return action('save_evidence',f'test-{len(seen)}',**judgment)
+        outcome = dict(missing='Site-specific investigation is incomplete.')
+        if token != ('A','X21') or (not interrupt and count[token] == 2):
+            outcome['question'] = 'Which site records answer this indicator?'
+        return action('save_gap',f'test-{len(seen)}',**outcome)
     result=await run_mini_assessment(ws, Driver(writer=[choose]*25)('writer'), verified_run=binding)
     assert result['scope']=='qualitative_writer_only'
     assert result['status']==('incomplete' if interrupt else 'qualitative_rows_saved'), result['slopes'][0]['indicator_steps']['interrupted_indicators'].get('X22')
@@ -97,14 +82,15 @@ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_
         partial=interrupt and oid=='A'
         assert slope['indicator_steps']['progress']=={'recorded':7 if partial else 8,'total':8}
         assert set(slope['indicator_steps']['interrupted_indicators'])==({'X21'} if partial else set())
-        assert slope['indicator_steps']['assessment_ref'] is None and not slope['indicator_steps']['gap_indicators']
+        assert slope['indicator_steps']['assessment_ref'] is None
+        assert set(slope['indicator_steps']['gap_indicators']) == expected_ids - ({'X21'} if partial else set())
+    from report_agent.writer_judgments import read_progress
     with cs.store.connect() as db:
-        drafts=[json.loads(x[0]) for x in db.execute("SELECT value FROM state WHERE key LIKE 'writer_indicator_steps:%' ORDER BY rowid")]
+        keys = [k for k, in db.execute("SELECT assignment FROM writer_step_receipts GROUP BY assignment ORDER BY min(rowid)")]
+        drafts = [read_progress(ws.store,k,db) for k in keys]
     assert len(drafts)==2
     for oid,draft in zip(('A','B'),drafts,strict=True):
         for ind,row in draft['rows'].items():
-            assert Decimal(row['input']['value'])==expected[oid,ind]
+            assert row['input']['value'] is None and row['kind']=='gap'
             assert row['rank']==rank_order.index(ind)+1
-        if oid=='A' and not interrupt:
-            assert draft['rows']['X21']['input']['value_reason'].startswith('The recorded condition')
     assert not cs.list_objects('Assessment')

@@ -1,6 +1,6 @@
 """Incremental judgments for one host-assigned Writer; all identities stay server-owned."""
 from . import legacy_state as legacy
-from collections import defaultdict
+from . import writer_judgments as judgments
 from copy import deepcopy
 from functools import lru_cache
 from typing import Annotated, Literal
@@ -9,7 +9,7 @@ from pydantic import Field, create_model, model_validator
 from pydantic_core import PydanticCustomError
 
 from .content_models import Contract, Ref
-from .errors import ActionRejected
+from .errors import ActionForbidden, ActionRejected, LocalStorageBusy
 from .planning_inputs import quote_locations, reject, resolve_citations
 from .store import digest
 
@@ -22,85 +22,19 @@ def _grade(grade):
     return grade['description'] + ' [' + grade['min_value'] + '–' + grade['max_value'] + ']'
 
 
-def _layout(pack):
+def _validate_labels(pack):
     labels = [_label(rule) for rule in pack['indicators']]
     if len(set(labels)) != len(labels):
         raise ActionRejected('WRITER_ASSESSMENT_DUPLICATE_INDICATOR_LABEL')
-    return tuple((label, tuple(_grade(g) for g in rule['grades']))
-        for label, rule in zip(labels, pack['indicators']))
-
-
-@lru_cache(maxsize=32)
-def _input_model(layout):
-    choices = dict(layout)
-    grades = tuple(dict.fromkeys(g for _, offered in layout for g in offered))
-    @model_validator(mode='after')
-    def offered_choices(self):
-        if self.grade not in choices[self.indicator] or any(g not in choices[self.indicator] for g in self.plausible_grades):
-            raise ValueError('Choose grades offered for the selected indicator label.')
-        return self
-    return create_model('WriterIndicatorInput', __base__=Contract,
-        __validators__={'offered_choices': offered_choices},
-        indicator=(Literal[tuple(choices)], ...), grade=(Literal[grades], ...),
-        rank=(int, Field(strict=True, ge=1, le=len(layout))), value=(str, ...),
-        basis_kind=(Literal['direct_evidence','applied_guideline','indirect_assumption','no_evidence_assumption'], ...),
-        rationale=(str, Field(min_length=1)), rank_reason=(str, Field(min_length=1)),
-        quotes=(list[str], Field(default_factory=list)), visual_pages=(list[str], Field(default_factory=list)),
-        question=(str, ''), low=(str | None, None), high=(str | None, None),
-        plausible_grades=(list[Literal[grades]], Field(default_factory=list)))
 
 
 def _assignment(cs, db, actor):
     from .writer_assignments import bound_assignment
     from .writer_fact_packet import assigned_facts
     scope = bound_assignment(cs, db, actor)
-    _layout(scope['plan']['payload']['method_pack'])
+    _validate_labels(scope['plan']['payload']['method_pack'])
     scope.update(assigned_facts(cs, db, actor, scope))
     return scope
-
-
-def indicator_schema(cs, actor):
-    with cs.store.connect() as db:
-        scope = _assignment(cs, db, actor)
-    return _input_model(_layout(scope['plan']['payload']['method_pack']))
-
-
-def _key(scope, actor):
-    return digest([actor.id, scope['task_ref'], scope['plan']['ref'], scope['object']['object_id']])
-
-
-def _draft(db, scope, actor):
-    draft = legacy.get_writer_assessment_draft(db, _key(scope, actor))
-    if draft is None:
-        return {'assignment_digest': scope['assignment_digest'], 'rows': {}}
-    if draft.get('assignment_digest') != scope['assignment_digest']:
-        raise ActionRejected('WRITER_ASSESSMENT_DRAFT_STALE')
-    return draft
-
-
-def _status(scope, draft):
-    rules = scope['plan']['payload']['method_pack']['indicators']
-    names = {r['id']: _label(r) for r in rules}
-    ranks = defaultdict(list)
-    for rule in rules:
-        saved = draft['rows'].get(rule['id'])
-        if saved:
-            ranks[saved['judgment']['rank']].append(names[rule['id']])
-    return {'missing_indicators': [names[r['id']] for r in rules if r['id'] not in draft['rows']],
-        'rank_collisions': [{'rank': rank, 'indicators': labels} for rank, labels in sorted(ranks.items()) if len(labels) > 1]}
-
-
-def _public_rows(scope, draft):
-    result = []
-    for rule in scope['plan']['payload']['method_pack']['indicators']:
-        saved = draft['rows'].get(rule['id'])
-        if saved:
-            labels = {g['id']: _grade(g) for g in rule['grades']}
-            row = deepcopy(saved['input']); normalized = saved['judgment']
-            row.update(low=normalized['low'], high=normalized['high'],
-                plausible_grades=[labels[g] for g in normalized['plausible_grades']])
-            result.append(row)
-    return result
 
 
 def _assignment_context(cs, db, scope):
@@ -130,21 +64,6 @@ def _assignment_context(cs, db, scope):
         'approved_method': {'indicator_count': len(pack['indicators']),
             'weight_rule': {'interpretation': choice['interpretation'], 'status': choice['status'],
                 'source': citation(choice['source'])}, 'rank_weights': weights}}
-
-
-def read_assignment(cs, actor):
-    from .writer_assignments import read_assignment_pages
-    with cs.store.connect() as db:
-        scope = _assignment(cs, db, actor); draft = _draft(db, scope, actor)
-        pack = scope['plan']['payload']['method_pack']
-        packet = {'assignment_digest': scope['assignment_digest'], 'object_label': scope['object']['label'],
-            'indicators': [{'indicator': _label(rule), 'notes': rule['notes'],
-                'grades': [{'choice': _grade(g), 'description': g['description'], 'min_value': g['min_value'],
-                    'max_value': g['max_value']} for g in rule['grades']]} for rule in pack['indicators']],
-            'draft': _public_rows(scope, draft), **_status(scope, draft), **_assignment_context(cs, db, scope)}
-    pages = read_assignment_pages(cs, actor)
-    return {**packet, 'sources': pages['sources'], 'page_index_digest': pages['index_digest'],
-        'limitations': pages.get('limitations', [])}
 
 
 def resolve_judgment_sources(cs, db, actor, context, quotes, visual_pages=()):
@@ -193,33 +112,6 @@ def _validated_judgment(cs, db, actor, current, rule, value):
     return row
 
 
-def set_indicator(cs, actor, operation_id, judgment):
-    with cs.store.connect() as db:
-        scope = _assignment(cs, db, actor)
-    model = _input_model(_layout(scope['plan']['payload']['method_pack']))
-    value = model.model_validate(judgment).model_dump(mode='json')
-    def save(db):
-        current = _assignment(cs, db, actor)
-        if current['assignment_digest'] != scope['assignment_digest']:
-            raise ActionRejected('WRITER_ASSESSMENT_ASSIGNMENT_CHANGED')
-        pack = current['plan']['payload']['method_pack']
-        rule = next(r for r in pack['indicators'] if _label(r) == value['indicator'])
-        row = _validated_judgment(cs, db, actor, current, rule, value)
-        draft = deepcopy(_draft(db, current, actor)); entry = {'input': deepcopy(value), 'judgment': row}
-        changed = draft['rows'].get(rule['id']) != entry
-        draft['rows'][rule['id']] = entry
-        legacy.set_writer_assessment_draft(db, _key(current, actor), draft)
-        selected_key = digest([current['plan']['ref'], current['object']['object_id']])
-        selected = legacy.get_g6_assessment(db, selected_key)
-        if changed and selected:
-            previous = cs._read(db, selected)
-            if previous['owner_id'] == actor.id and previous.get('task_id') == actor.task_id:
-                legacy.set_g6_assessment(db, selected_key, None)
-        return {'saved_indicator': value['indicator'], **_status(current, draft)}
-    return cs.operation(actor, operation_id, {'writer_indicator': value}, save,
-        binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])
-
-
 def _score_saved_rows(cs, db, actor, operation_id, current, draft):
     from .risk_scoring import save_assessment_in_transaction
     pack = current['plan']['payload']['method_pack']
@@ -232,55 +124,18 @@ def _score_saved_rows(cs, db, actor, operation_id, current, draft):
     return save_assessment_in_transaction(cs, db, actor, operation_id, assessment)
 
 
-def submit_assessment(cs, actor, operation_id):
-    with cs.store.connect() as db:
-        scope = _assignment(cs, db, actor)
-    def submit(db):
-        current = _assignment(cs, db, actor); draft = _draft(db, current, actor)
-        status = _status(current, draft)
-        if status['missing_indicators'] or status['rank_collisions']:
-            return {'accepted': False, **status}
-        receipt = _score_saved_rows(cs, db, actor, operation_id, current, draft)
-        return {'accepted': True, **receipt, **status}
-    def binding(db, result):
-        current = _assignment(cs, db, actor)
-        return [current['assignment_digest'], digest(_draft(db, current, actor))]
-    return cs.operation(actor, operation_id, {'writer_assessment_submit': scope['assignment_digest']}, submit,
-        binding_identity=binding)
-
-
-def tool_functions(cs, actor):
-    """Main applies existing native_write_tools; the same model validates tool and backend."""
-    model = indicator_schema(cs, actor())
-    def read_tool() -> dict:
-        """Read the assigned slope, offered choices, saved rows and remaining problems."""
-        return read_assignment(cs, actor())
-    def set_tool(operation_id: str, **judgment) -> dict:
-        """Save one professional judgment using an offered indicator/grade label and exact source quotes."""
-        return set_indicator(cs, actor(), operation_id, judgment)
-    def submit_tool(operation_id: str) -> dict:
-        """Submit saved rows; missing indicators or rank collisions remain incomplete."""
-        return submit_assessment(cs, actor(), operation_id)
-    read_tool.__name__ = 'read_assignment'
-    set_tool.__name__ = 'set_indicator'
-    submit_tool.__name__ = 'submit_assessment'
-    set_tool.message_model = model
-    submit_tool.message_model = create_model('WriterAssessmentSubmitInput', __base__=Contract)
-    return [read_tool, set_tool, submit_tool]
-
-
-# The bounded route uses its own draft so an old free-form save cannot complete a step.
-def _step_state(db, scope, actor):
+def _step_state(cs, db, scope, actor):
     order = scope['plan']['payload'].get('indicator_rank_order')
     if not order:
         raise ActionRejected('WRITER_CONFIRMED_RANK_ORDER_REQUIRED')
     key = scope['assignment_digest']
-    draft = legacy.get_writer_indicator_steps(db, key)
-    if draft is None:
+    draft = judgments.read_progress(cs.store, key, db)
+    if not (draft['rows'] or draft['interrupted_indicators']):
         selected = digest([scope['plan']['ref'], scope['object']['object_id']])
-        if legacy.get_g6_assessment(db, selected) or _draft(db, scope, actor)['rows']:
+        old_key = digest([actor.id, scope['task_ref'], scope['plan']['ref'], scope['object']['object_id']])
+        old = legacy.get_writer_assessment_draft(db, old_key, {})
+        if legacy.get_g6_assessment(db, selected) or old.get('rows'):
             raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
-        draft = {'rows': {}, 'assessment_ref': None, 'interrupted_indicators': {}}
     rules = scope['plan']['payload']['method_pack']['indicators']
     if 'assigned_indicators' in scope:
         selected = set(scope['assigned_indicators'])
@@ -307,14 +162,24 @@ def _source_priority(cs, db, plan):
             if i['status'] == 'required' and 'source_priority' in i['capabilities']]
 
 
+def _reconcile(cs, actor):
+    with cs.store.connect() as db:
+        scope = _assignment(cs, db, actor)
+        missing = judgments.pending(cs, db, actor, scope)
+    for row, sub in missing:
+        _save_indicator_outcome(cs, actor, sub["operation"], sub["indicator"], sub["original"],
+                                read_locations=sub["read_locations"], committed=(row, sub))
+
+
 def read_indicator_step(cs, actor):
     """Prepare just the next judgment, bound to the owner-confirmed plan and method."""
+    _reconcile(cs, actor)
     from .method_pack import CATEGORY_DOCUMENTATION_NOTES
     from .writer_assignments import read_assignment_pages
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
-        _, draft, rule, status = _step_state(db, scope, actor)
-        if status['complete']:
+        _, draft, rule, status = _step_state(cs, db, scope, actor)
+        if rule is None:
             return {**status, 'outcomes': draft['rows']}
         order = scope['plan']['payload']['indicator_rank_order']
         packet = {**status, 'assignment_digest': scope['assignment_digest'],
@@ -334,7 +199,7 @@ def read_indicator_step(cs, actor):
             if 'attestations' in packet['object_facts']:
                 assigned_ids = {f['fact_id'] for f in packet['object_facts']['attestations']}
                 packet['other_context_facts'] = [{k:f[k] for k in ('fact_id','subject','purpose','quote')}
-                    for f in scope.get('attested_facts') if f['fact_id'] not in assigned_ids]
+                    for f in scope['attested_facts'] if f['fact_id'] not in assigned_ids]
                 packet['claim_instructions'] = (
                     'Select the fact handles that support each distinct claim. State what establishes the grade, '
                     'how an assumption relates to this object and narrows alternatives, and the direction and basis '
@@ -359,6 +224,8 @@ def _step_schema(choices, kind, qualitative=False, fact_ids=None):
     grade = Literal[choices]
     nonblank = Annotated[str, Field(min_length=1, pattern=r'\S')]
     common = {
+        'visual_pages':(list[nonblank],Field(default_factory=list,
+            description='Handles of actual page images delivered to this Writer and used for this judgment.')),
         'quotes':(list[nonblank],Field(default_factory=list,
             description='Exact source quotations. The system resolves unique source locations.')),
         'contrary_evidence':(IndicatorConflict | None, Field(default=None,
@@ -417,7 +284,7 @@ def _fact_ids(facts):
 def step_outcome_schema(cs, actor, indicator_id, kind):
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
-        _, _, rule, _ = _step_state(db, scope, actor)
+        _, _, rule, _ = _step_state(cs, db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
         return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'midpoint_convention' in scope,_fact_ids(scope.get('attested_facts')))
@@ -431,6 +298,8 @@ def _step_value(rule, outcome, *, qualitative=False, facts=None):
     if kind == 'assumption' and data.get('basis_kind') == 'indirect_assumption':
         data.pop('basis_kind')
     value = validate_message(_step_schema(tuple(_grade(g) for g in rule['grades']),kind,qualitative,_fact_ids(facts)),data).model_dump(mode='json')
+    if not value.get('visual_pages'):
+        value.pop('visual_pages', None)
     if qualitative and kind in ('evidence','assumption'):
         from .method_pack import number
         band = next(g for g in rule['grades'] if _grade(g) == value['grade'])
@@ -448,61 +317,111 @@ def _step_value(rule, outcome, *, qualitative=False, facts=None):
 
 def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, read_locations=()):
     """Atomically record one step, and score the last one only when every row supports it."""
+    _reconcile(cs, actor)
+    return _save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, read_locations=read_locations)
+
+
+def _prepare_entry(cs, db, actor, operation_id, indicator_id, outcome, read_locations, scope, rule):
+    object_facts = scope.get('object_facts', {})
+    decision = object_facts.get('engineering_reviews', {}).get(indicator_id)
+    if decision and outcome.get('kind') != 'gap':
+        raise ActionRejected('WRITER_ENGINEERING_REVIEW_PENDING: use save_gap. '+decision['reason'])
+    facts = scope.get('attested_facts')
+    value = _step_value(rule, outcome, qualitative='midpoint_convention' in scope, facts=facts)
+    claim_receipt = {}
+    if facts is not None:
+        from .method_pack import number
+        from .writer_claims import apply_claims
+        band = next((g for g in rule['grades'] if _grade(g)==value['grade']),None)
+        midpoint = (number(band['min_value'])+number(band['max_value']))/2 if band else None
+        if band and not number(band['min_value']) <= number(value['value']) <= number(band['max_value']):
+            raise ActionRejected('WRITER_VALUE_OUTSIDE_CHOSEN_GRADE')
+        value, checks = apply_claims(value, indicator_id=indicator_id, subject=scope['object']['object_id'],
+                                     attestations=facts, midpoint=midpoint, grade_id=band['id'] if band else None,
+                                     registered_excerpts=scope['registered_excerpts'])
+        claim_receipt = {'claim_checks': checks}
+    if decision:
+        claim_receipt.setdefault('claim_checks', {}).update(engineering_review=decision, semantic_review_required=True)
+    order = scope['plan']['payload']['indicator_rank_order']
+    rank = order['indicator_ids'].index(indicator_id) + 1
+    entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations), **claim_receipt}
+    if value['kind'] == 'gap':
+        entry['sources'] = resolve_judgment_sources(cs, db, actor, scope, value['quotes'], value.get('visual_pages', []))
+    else:
+        bound = {**value, 'rank':rank, 'rank_reason':order['source']['quote'], 'low':None, 'high':None,
+                 'visual_pages':value.get('visual_pages', [])}
+        entry['judgment'] = _validated_judgment(cs, db, actor, scope, rule, bound)
+    from .writer_assignments import evidence_deliveries
+    cited = entry.get('sources', entry.get('judgment', {}).get('sources', []))
+    entry['evidence_receipts'] = evidence_deliveries(cs, db, actor, scope, cited, read_locations,
+                                                    value.get('visual_pages', []))
+    issue_receipt = {}
+    if value['contrary_evidence']:
+        from .writer_issues import save_indicator_conflict
+        issue_receipt = save_indicator_conflict(cs,db,actor,operation_id,scope,value['contrary_evidence'])
+        entry.update(issue_receipt)
+    return entry
+
+
+def _save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, read_locations, committed=None):
+    assignment_digest = None
     def save(db):
+        nonlocal assignment_digest
         scope = _assignment(cs, db, actor)
-        key, draft, rule, _ = _step_state(db, scope, actor)
+        assignment_digest = scope['assignment_digest']
+        _, draft, rule, _ = _step_state(cs, db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        object_facts = scope.get('object_facts', {})
-        decision = object_facts.get('engineering_reviews', {}).get(indicator_id)
-        if decision and outcome.get('kind') != 'gap':
-            raise ActionRejected('WRITER_ENGINEERING_REVIEW_PENDING: use save_gap. '+decision['reason'])
-        facts = scope.get('attested_facts')
-        value = _step_value(rule, outcome, qualitative='midpoint_convention' in scope, facts=facts)
-        claim_receipt = {}
-        if facts is not None:
-            from .method_pack import number
-            from .writer_claims import apply_claims
-            band = next((g for g in rule['grades'] if _grade(g)==value['grade']),None)
-            midpoint = (number(band['min_value'])+number(band['max_value']))/2 if band else None
-            if band and not number(band['min_value']) <= number(value['value']) <= number(band['max_value']):
-                raise ActionRejected('WRITER_VALUE_OUTSIDE_CHOSEN_GRADE')
-            value, checks = apply_claims(value, indicator_id=indicator_id, subject=scope['object']['object_id'],
-                                         attestations=facts, midpoint=midpoint, grade_id=band['id'] if band else None,
-                                         registered_excerpts=scope['registered_excerpts'])
-            claim_receipt = {'claim_checks': checks}
-        if decision:
-            claim_receipt.setdefault('claim_checks', {}).update(engineering_review=decision, semantic_review_required=True)
-        order = scope['plan']['payload']['indicator_rank_order']
-        rank = order['indicator_ids'].index(indicator_id) + 1
-        entry = {'kind':value['kind'], 'input':value, 'rank':rank, 'read_locations':list(read_locations), **claim_receipt}
-        if value['kind'] == 'gap':
-            entry['sources'] = resolve_judgment_sources(cs, db, actor, scope, value['quotes'])
+        if committed is None:
+            entry = _prepare_entry(cs, db, actor, operation_id, indicator_id, outcome, read_locations, scope, rule)
         else:
-            bound = {**value, 'rank':rank, 'rank_reason':order['source']['quote'],
-                     'low':None, 'high':None, 'visual_pages':[]}
-            entry['judgment'] = _validated_judgment(cs, db, actor, scope, rule, bound)
-        issue_receipt = {}
-        if value['contrary_evidence']:
-            from .writer_issues import save_indicator_conflict
-            issue_receipt = save_indicator_conflict(cs,db,actor,operation_id,scope,value['contrary_evidence'])
-            entry.update(issue_receipt)
+            row, submission = committed
+            entry = judgments.project(row, submission)
+            if conflict := entry['input'].get('contrary_evidence'):
+                from .writer_issues import save_indicator_conflict
+                replayed = save_indicator_conflict(cs, db, actor, operation_id, scope, conflict)
+                if any(entry[k] != v for k,v in replayed.items()):
+                    raise RuntimeError('WRITER_COMMITTED_ISSUE_RECEIPT_MISMATCH')
         draft['rows'][indicator_id] = entry
-        legacy.set_writer_indicator_steps(db, key, draft)
-        _, _, _, status = _step_state(db, scope, actor)
-        if (status['complete'] and len(draft['rows']) == len(scope['plan']['payload']['method_pack']['indicators'])
-                and not status['gap_indicators'] and not status['interrupted_indicators']):
-            receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
-            draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']
-            legacy.set_writer_indicator_steps(db, key, draft)
-        return {**status, 'saved_indicator':indicator_id, **issue_receipt, **claim_receipt}
+        total = len(scope['plan']['payload']['method_pack']['indicators'])
+        score = (len(draft['rows']) == total and not draft['interrupted_indicators']
+                 and all(r['kind'] != 'gap' for r in draft['rows'].values())
+                 and judgments.native_saved_count(db, assignment_digest) == total - 1)
+        if committed is None:
+            if score:
+                # Reject an unusable calculator input before publishing an irreversible judgment.
+                db.execute("SAVEPOINT score_preview")
+                _score_saved_rows(cs, db, actor, operation_id, scope, draft)
+                db.execute("ROLLBACK TO score_preview")
+                db.execute("RELEASE score_preview")
+            row, entry = judgments.commit(cs, db, actor, scope, rule, operation_id, outcome, entry)
+        # A local projection failure after the native commit must not cache a permanent failed
+        # operation. The next bound read reconstructs it from the exact immutable submission.
+        try:
+            draft['rows'][indicator_id] = entry
+            assessment = _score_saved_rows(cs, db, actor, operation_id, scope, draft)['assessment_ref'] if score else None
+            judgments.record_save(db, scope, indicator_id, row, assessment)
+            _, _, _, status = _step_state(cs, db, scope, actor)
+        except (ActionForbidden, ActionRejected) as exc:
+            raise LocalStorageBusy('WRITER_COMMITTED_PROJECTION_PENDING', diagnostic={
+                'retryable':True, 'local_transaction':'rolled_back', 'assertion_id':row['id'],
+                'operation':operation_id, 'reason':str(exc)}) from exc
+        review = {k:entry[k] for k in ('issue_id','binding','proposal_digest','claim_checks') if k in entry}
+        return {**status, 'saved_indicator':indicator_id, **review}
+    def binding_identity(db, result):
+        # A cached operation still verifies today's binding. After a new commit the digest
+        # belongs to the exact allocation already checked within this task transaction.
+        if assignment_digest is not None:
+            return assignment_digest
+        return _assignment(cs, db, actor)['assignment_digest']
     return cs.operation(actor, operation_id,
         {'indicator_step':indicator_id,'outcome':outcome,'read_locations':list(read_locations)}, save,
-        binding_identity=lambda db, result: _assignment(cs, db, actor)['assignment_digest'])
+        binding_identity=binding_identity)
 
 
 def interrupt_indicator_step(cs, actor, indicator_id, refusals):
     """Trusted host records two distinct refused saves without inventing an engineering outcome."""
+    _reconcile(cs, actor)
     names = {'save_evidence','save_assumption','save_gap'}
     if (len(refusals)!=2 or any(r.get('tool') not in names or not r.get('code') or not r.get('tool_call_id')
                                for r in refusals)
@@ -513,12 +432,10 @@ def interrupt_indicator_step(cs, actor, indicator_id, refusals):
     operation = 'indicator-interruption:' + digest([actor.id,scope['assignment_digest'],indicator_id,refusals])
     def record(db):
         current = _assignment(cs,db,actor)
-        key,draft,rule,_ = _step_state(db,current,actor)
+        _,_,rule,_ = _step_state(cs,db,current,actor)
         if not rule or rule['id']!=indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        draft.setdefault('interrupted_indicators',{})[indicator_id] = {
-            'status':'interrupted: save rejected','refusals':deepcopy(refusals)}
-        legacy.set_writer_indicator_steps(db, key,draft)
-        return _step_state(db,current,actor)[3]
+        judgments.record_interruption(db, current, indicator_id, operation, refusals)
+        return _step_state(cs,db,current,actor)[3]
     return cs.operation(actor,operation,{'indicator':indicator_id,'refusals':refusals},record,
         binding_identity=lambda db,result:_assignment(cs,db,actor)['assignment_digest'])

@@ -52,7 +52,10 @@ class IndicatorBoundary(AgentMiddleware):
         result = await handler(request)
         if isinstance(result, ToolMessage) and result.status == 'success':
             if name == READ:
-                self.locations.append({k:call['args'][k] for k in ('source_handle','page')})
+                location = {k:call['args'][k] for k in ('source_handle','page')}
+                if isinstance(result.artifact, dict) and result.artifact.get('writer_page_delivery'):
+                    location['delivery'] = result.artifact['writer_page_delivery']
+                self.locations.append(location)
             elif name == ISSUE:
                 self.issue_saved = True
         return result
@@ -236,7 +239,7 @@ async def run_mini_assessment(workspace, model, *, verified_run):
     result = {'status':'running','scope':'qualitative_writer_only' if qualitative else 'assessment_writer_only','plan_ref':plan['ref'],
               'decision_ref':decision['ref'],'slopes':[],'engineering_acceptance':False}
     for object_id in ('A','B'):
-        slope = {'object_id':object_id}
+        slope: dict = {'object_id':object_id}
         result['slopes'].append(slope)
         try:
             with writer_session(workspace,objects[object_id]['label'],model,assessment_only=True,

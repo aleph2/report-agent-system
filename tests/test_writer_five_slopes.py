@@ -10,17 +10,20 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from report_agent.catalog import Catalog
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.hierarchical_tools import actor_for
 from report_agent.method_pack import register_reviewed_method_pack
 from report_agent.store import Store, digest
 from report_agent.workspace import Workspace
-from report_agent.writer_assessment import read_assignment, set_indicator, submit_assessment
+from report_agent.writer_assessment import read_indicator_step
 from report_agent.writer_runtime import writer_session
-from test_deep_runtime import Driver, call, observation
+from support.judgment_inputs import install_test_judgment_inputs
+from test_deep_runtime import Driver, call
+from test_ingestion import pdf_bytes
 from test_m1_commission_plan import save, approve
 from test_m1_g3_method_pack import pack_data
 
@@ -41,7 +44,7 @@ def five(tmp_path, monkeypatch, request):
         'outline':'Section 4 assesses each commissioned slope. Section 5 summarizes section 4.',
         'guideline':'Synthetic eleven-indicator method and explicit rank-weight row for acceptance tests.',
         'design':' '.join(f'Slope {i} has synthetic evidence.' for i in range(1,6))}
-    ranked = getattr(request, 'param', None) == 'with-owner-ranks'
+    ranked = getattr(request, 'param', None) in {'with-owner-ranks','sensitivity'}
     ids = [f'I{i:02d}' for i in range(1,12)]
     rank_quote = 'Owner rank order: ' + ', '.join(ids) + '.'
     if ranked:
@@ -49,11 +52,13 @@ def five(tmp_path, monkeypatch, request):
     store = Store(tmp_path)
     store.initialize({'goal':texts['scope'],'content_contract':'hierarchical-review-v1',
         'commission_checkpoint_required':True,'coverage_contract':'object-coverage-v1',
-        'sources':[{'id':name,'title':name,'content':text,'coverage':'complete'} for name,text in texts.items()]})
+        'sources':[{'id':name,'title':name,'content':text,'coverage':'complete'} for name,text in texts.items() if name != 'design']})
     ws, co = Workspace(store), actor_for('coordinator'); cs = ContentStore(store)
-    imported = cs.import_inputs(co,'five-inputs',list(texts))['result']['source_refs']
+    pdf_id = Catalog(store).import_file('design.pdf', pdf_bytes([texts['design']]))['source']['id']
+    imported = cs.import_inputs(co,'five-inputs',[pdf_id if name=='design' else name for name in texts])['result']['source_refs']
     sources = {cs.read(ref)['payload']['source_id']:ref for ref in imported}
-    def cite(name):return {'source_ref':sources[name],'locator':'manifest text','quote':texts[name]}
+    sources['design'] = sources.pop(pdf_id)
+    def cite(name):return {'source_ref':sources[name],'locator':'page 1' if name=='design' else 'manifest text','quote':texts[name]}
     pack = pack_data(); pack['method_id']='synthetic-eleven-five-slope-acceptance'
     prototype = deepcopy(pack['indicators'][0])
     pack['indicators']=[{**deepcopy(prototype),'id':f'I{i:02d}','label':f'Synthetic indicator {i:02d}'} for i in range(1,12)]
@@ -80,22 +85,15 @@ def five(tmp_path, monkeypatch, request):
     f=SimpleNamespace(ws=ws,cs=cs,co=co,plan=plan,sources=sources)
     saved=save(f);approve(f,saved);f.plan_ref=saved['plan_ref']
     store.set('manifest',{**store.manifest,'assembly_contract':'system-assembler-v1'})
+    if ranked:
+        last = pack['indicators'][-1]
+        classifications = {rule['id']:rule['grades'][1]['id'] for rule in pack['indicators']}
+        if request.param=='sensitivity':
+            classifications[last['id']] = last['grades'][3]['id']
+        for i in range(1,6):
+            install_test_judgment_inputs(f, f'S{i}', pdf_id, 1, f'Slope {i} has synthetic evidence.',
+                                         classifications=classifications)
     return f
-
-
-def judgment(packet, slope, index):
-    indicator=packet['indicators'][index]
-    choices=indicator['grades']
-    row={'indicator':indicator['indicator'],'grade':choices[1]['choice'],'rank':index+1,'value':'40',
-        'basis_kind':'direct_evidence','rationale':'Synthetic fixture basis, not an engineering judgment.',
-        'rank_reason':f'Synthetic explicit rank {index+1}.','quotes':[f'Slope {slope} has synthetic evidence.']}
-    if index==0:
-        row.update(basis_kind='indirect_assumption',question='Confirm synthetic first-indicator range.',
-            plausible_grades=[choices[0]['choice'],choices[1]['choice'],choices[3]['choice']])
-    elif index==10:
-        row.update(grade=choices[3]['choice'],value='100',basis_kind='no_evidence_assumption',quotes=[],
-            question='Confirm the synthetic unknown final indicator.')
-    return row
 
 
 def action(name, identity, **args):
@@ -106,51 +104,46 @@ def encoded(value):
     return json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
 
 
-
-
 @pytest.mark.asyncio
+@pytest.mark.parametrize('five',['sensitivity'],indirect=True)
 async def test_five_native_writers_complete_eleven_durable_rows_without_cross_scope_or_replacement(five):
     f=five; captures=[]; task_ids=[]; refs=[]
     for slope in range(1,6):
-        holder={}
-        def choose(index, *, invalid=False):
-            def next_action(messages):
-                packet=observation(messages,'read_assignment')
-                if index and not invalid:
-                    previous=next(m for m in reversed(messages) if isinstance(m,ToolMessage))
-                    assert previous.status!='error', previous.content
-                if index==10:
-                    current=read_assignment(f.cs,holder['session'].actor)
-                    assert len(current['draft'])==10
-                    if invalid:holder['before_bad']=deepcopy(current['draft'])
-                row=judgment(packet,slope,index)
-                if invalid:row['value']='1000'
-                return action('set_indicator',f'slope-{slope}-row-{index}-'+('bad' if invalid else 'valid'),**row)
-            return next_action
-        def corrected(messages):
-            failed=next(m for m in reversed(messages) if isinstance(m,ToolMessage))
-            assert failed.status=='error' and 'ASSESSMENT_INVALID' in str(failed.content)
-            assert read_assignment(f.cs,holder['session'].actor)['draft']==holder['before_bad']
-            return action('set_indicator',f'slope-{slope}-row-10-valid',**judgment(observation(messages,'read_assignment'),slope,10))
-        def submit(messages):
-            assert len(read_assignment(f.cs,holder['session'].actor)['draft'])==11
-            return action('submit_assessment',f'slope-{slope}-submit')
-        marker=f'ONLY_SLOPE_{slope}_PRIVATE_END'
-        script=[action('read_assignment',f'slope-{slope}-read'),*[choose(i) for i in range(10)],
-            choose(10,invalid=True),corrected,submit,AIMessage(content=marker)]
-        driver=Driver(writer=script)
-        with writer_session(f.ws,f'Slope {slope}',driver('writer')) as session:
-            holder['session']=session
-            result=await session.agent.ainvoke({'messages':[session.initial_message]},
-                {**session.config,'recursion_limit':100})
-            assert result['messages'][-1].content==marker
+        def choose(messages):
+            packet=json.loads(next(m.content for m in messages if isinstance(m,HumanMessage)))
+            rank=packet['rank']
+            prior=next((m for m in reversed(messages) if isinstance(m,ToolMessage)),None)
+            if prior and rank!=11:
+                raise AssertionError(str(prior.content))
+            grades=[g['choice'] for g in packet['grades']]
+            data={'grade':grades[1], 'value':'40', 'rationale':f'ONLY_SLOPE_{slope}_PRIVATE_END',
+                  'quotes':[f'Slope {slope} has synthetic evidence.']}
+            name='save_evidence'
+            if rank in (1,11):
+                name='save_assumption'
+                data.update(question='Confirm the applicable synthetic grade.',
+                            plausible_grades=[grades[0],grades[1],grades[3]])
+                if rank==11:
+                    data.update(value='100',grade=grades[3])
+            else:
+                data['basis_kind']='direct_evidence'
+            tag='valid'
+            if rank==11:
+                if not any(isinstance(m,ToolMessage) for m in messages):
+                    data['value']='1000'; tag='invalid'
+                else:
+                    assert next(m for m in reversed(messages) if isinstance(m,ToolMessage)).status=='error'
+                    assert read_indicator_step(f.cs,session.actor)['progress']['recorded']==10
+            return action(name,f'slope-{slope}-row-{rank}-{tag}',**data)
+
+        driver=Driver(writer=[choose,choose])
+        with writer_session(f.ws,f'Slope {slope}',driver('writer'),assessment_only=True,indicator_steps=True) as session:
+            receipt=await session.run()
+            assert receipt['progress']=={'recorded':11,'total':11} and not receipt['interrupted_indicators']
+            assert len(driver.calls)==12
             task_ids.append(session.actor.task_id)
             task=f.cs.read({'type':'DelegatedTask','id':session.actor.task_id,'version':1})['payload']
             assert task['assessment_object_id']==f'S{slope}' and task['section_ids']==['4']
-            packet=read_assignment(f.cs,session.actor)
-            assert len(packet['draft'])==11 and not packet['missing_indicators'] and not packet['rank_collisions']
-            receipt=observation(driver.calls[-1][2],'submit_assessment')['result']
-            assert receipt['accepted'] is True
             saved=f.cs.read(receipt['assessment_ref']);refs.append(receipt['assessment_ref'])
             assert saved['owner_id']==session.actor.id and saved['task_id']==session.actor.task_id
             assert saved['payload']['object_id']==f'S{slope}' and saved['payload']['commission_plan_ref']==f.plan_ref
@@ -186,11 +179,12 @@ async def test_five_native_writers_complete_eleven_durable_rows_without_cross_sc
     assert len(set(task_ids))==5 and len(f.cs.list_objects('Assessment'))==5
     # A fresh producer may draft, but cannot overwrite another producer's selected canonical result.
     original=deepcopy(f.cs.read(refs[0]))
-    with writer_session(f.ws,'Slope 1',Driver(writer=[])('writer')) as replacement:
-        packet=read_assignment(f.cs,replacement.actor)
-        for index in range(11):set_indicator(f.cs,replacement.actor,f'replacement-{index}',judgment(packet,1,index))
+    with writer_session(f.ws,'Slope 1',Driver(writer=[])('writer'),assessment_only=True,indicator_steps=True) as replacement:
+        from report_agent.risk_scoring import save_assessment
+        original_input={key:deepcopy(original['payload'][key]) for key in
+                        ('object_id','section_id','method_id','method_version','weight_strategy_id','indicators')}
         with pytest.raises(ActionForbidden,match='assessment producer ownership'):
-            submit_assessment(f.cs,replacement.actor,'replace-other-producer')
+            save_assessment(f.cs,replacement.actor,'replace-other-producer',original_input)
     assert f.cs.read(refs[0])==original
     assert f.ws.store.get('g6_assessment:'+digest([f.plan_ref,'S1']))==refs[0]
     assert len(f.cs.list_objects('Assessment'))==5

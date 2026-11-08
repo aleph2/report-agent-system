@@ -97,6 +97,7 @@ class ValueProposal(Shape):
 class Judgment(Shape):
     kind: Literal["judgment"]
     basis: JudgmentKind
+    submission_receipt: Digest | None = Field(default=None, exclude_if=lambda value: value is None)
     warrant: Warrant
     classification: Id | None = None
     value: Decimal | None = None

@@ -51,7 +51,7 @@ def refusal_rows(messages):
         if not isinstance(message,ToolMessage) or message.status != 'error':
             continue
         try:
-            body = json.loads(message.content)
+            body = json.loads(message.content) if isinstance(message.content, str) else {}
         except (TypeError,ValueError):
             body = {}
         code = body.get('code') if isinstance(body,dict) else None
@@ -76,7 +76,7 @@ def _fresh_import(case, inputs):
     return receipt
 
 
-async def _run_probe_locked(case, evidence, env):
+async def run_probe(case, evidence, env):
     """One exclusive launch; every terminal outcome requires owner review, never replay."""
     case,evidence,env = (Path(p).resolve() for p in (case,evidence,env))
     if case.parent != evidence.parent or case == evidence:
@@ -95,8 +95,18 @@ async def _run_probe_locked(case, evidence, env):
             or authority.get('no_other_slopes_cleanup_export_or_model_tests') is not True):
         raise ValueError('PROBE_OWNER_AUTHORITY_REQUIRED')
     workflow = inputs.get('writer_workflow')
-    if workflow != authority.get('writer_workflow') or workflow not in (None,'indicator-steps-v1'):
+    if workflow != authority.get('writer_workflow') or workflow != 'indicator-steps-v1':
         raise ValueError('PROBE_WORKFLOW_AUTHORITY_REQUIRED')
+    import fcntl
+    with (evidence/'probe-run.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if launch_path.exists():
+            raise FileExistsError('PROBE_ALREADY_LAUNCHED_INSPECT_ORIGINAL_OUTCOME')
+        return await _run_probe_locked(case, inputs, authority, env, launch_path)
+
+
+async def _run_probe_locked(case, inputs, authority, env, launch_path):
+    evidence = launch_path.parent
     imported = _fresh_import(case, inputs)
     ledger = Path(inputs['ledger']).resolve()
     now = read_finance(ledger)
@@ -152,8 +162,7 @@ async def _run_probe_locked(case, evidence, env):
         'process_start_ticks':Path('/proc/self/stat').read_text().rpartition(')')[2].split()[19],
         'automatic_continuation':False,'engineering_acceptance':False,
         'visual_verification':'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'}
-    if workflow:
-        result['writer_workflow'] = workflow
+    result['writer_workflow'] = inputs['writer_workflow']
     claim_launch(launch_path,result)
     session = None
     try:
@@ -173,15 +182,11 @@ async def _run_probe_locked(case, evidence, env):
             with (token_budget(budget),request_token_bound(bound),
                   request_reservation_observer(guard.check,observation=guard.observation),
                   writer_session(Workspace(store),selected[0]['label'],model,assessment_only=True,
-                                 indicator_steps=bool(workflow)) as session):
+                                 indicator_steps=True) as session):
                 result['writer_actor'] = session.actor.__dict__
-                result['tools'] = session.tool_names if workflow else [t.name for t in session.tools]
+                result['tools'] = session.tool_names
                 _save(launch_path,result)
-                if workflow:
-                    result['indicator_steps'] = await session.run()
-                else:
-                    config = {**session.config,'recursion_limit':200}
-                    await session.agent.ainvoke({'messages':[session.initial_message]},config)
+                result['indicator_steps'] = await session.run()
                 guard.check()
                 result['status'] = 'returned'
     except BaseException as error:
@@ -206,19 +211,16 @@ async def _run_probe_locked(case, evidence, env):
             if session is not None:
                 refs = saved_assessments(contents,plan['ref'],[object_id],session.actor.id)
                 result['assessment_refs'] = refs
-                if workflow:
-                    result['refusals'] = session.refusals
-                    result['refusal_count'] = len(session.refusals)
-                    result['indicator_steps'] = session.progress
-                    if result['status'] == 'stopped':
-                        result['step_status'] = 'interrupted'
-                    elif result['indicator_steps']['interrupted_indicators']:
-                        result['status'] = 'incomplete'
-                    elif result['indicator_steps']['gap_indicators']:
-                        result['status'] = 'closed_with_gaps'
-                else:
-                    state = await session.agent.aget_state(session.config)
-                    result['refusals'] = refusal_rows(state.values.get('messages',[]))
+                result['refusals'] = session.refusals
+                result['refusal_count'] = len(session.refusals)
+                progress = session.progress
+                result['indicator_steps'] = progress
+                if result['status'] == 'stopped':
+                    result['step_status'] = 'interrupted'
+                elif progress is None or progress['interrupted_indicators']:
+                    result['status'] = 'incomplete'
+                elif progress['gap_indicators']:
+                    result['status'] = 'closed_with_gaps'
                 if refs and result['status'] == 'returned':
                     result['status'] = 'assessment_saved'
             from .runtime_metrics import summarize
@@ -229,14 +231,6 @@ async def _run_probe_locked(case, evidence, env):
         result['next_action'] = 'Owner review of HP02 only; no further stages authorized by this launch.'
         _save(launch_path,result)
     return result
-
-
-async def run_probe(case, evidence, env):
-    import fcntl
-    evidence = Path(evidence).resolve()
-    with (evidence/'probe-run.lock').open('a') as lock:
-        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        return await _run_probe_locked(case,evidence,env)
 
 
 def main():

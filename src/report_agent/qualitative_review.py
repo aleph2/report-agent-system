@@ -1,5 +1,5 @@
 """Frozen, slope-scoped Reviewer assignments over saved qualitative Writer rows."""
-from . import legacy_state as legacy
+from .writer_judgments import read_progress
 from contextlib import contextmanager
 from uuid import uuid4
 
@@ -19,7 +19,7 @@ def freeze_writer_rows(cs, db, writer_ref):
         raise ActionForbidden('QUALITATIVE_REVIEW_WRITER_TASK_REQUIRED')
     writer = Actor('content:writer:' + writer_ref['id'], 'writer', writer_ref['id'])
     scope = _assignment(cs, db, writer)
-    draft = legacy.get_writer_indicator_steps(db, scope['assignment_digest'])
+    draft = read_progress(cs.store, scope['assignment_digest'], db)
     if 'object_facts' not in scope or not draft or not draft['rows']:
         raise ActionRejected('QUALITATIVE_REVIEW_SAVED_ROWS_REQUIRED')
     oid = scope['object']['object_id']

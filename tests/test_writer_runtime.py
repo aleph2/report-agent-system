@@ -10,44 +10,48 @@ from test_deep_runtime import Driver, invoke
 @pytest.fixture
 def ready(method_commission):
     f=method_commission
+    if 'Owner rank order:' in f.ws.store.manifest['goal']:
+        from test_writer_indicator_outcomes import attach_ranks
+        attach_ranks(f)
     saved=save(f,section_plan(f));approve(f,saved)
     f.ws.store.set('manifest',{**f.ws.store.manifest,'assembly_contract':'system-assembler-v1'})
     return f
 
 def test_fresh_assignment_is_host_scoped_and_public_tools_have_no_ids(ready):
     f=ready;driver=Driver(writer=[])
-    with writer_session(f.ws,'Slope 1',driver('writer')) as session:
+    with writer_session(f.ws,'Slope 1',driver('writer'), assessment_only=True, indicator_steps=True) as session:
         task=f.cs.read({'type':'DelegatedTask','id':session.actor.task_id,'version':1})['payload']
         assert task['assessment_object_id']=='S1' and task['section_ids']==['4']
-        assert session.initial_message.content=='Assess the assigned slope using the bound assignment.'
-        names={t.name for t in session.tools}
-        assert {'read_assignment','read_assigned_page','set_indicator','submit_assessment','save_section_prose','propose_material_issue'}<=names
+        names=set(session.tool_names)
+        assert {'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue'}==names
         assert not names&{'calculate_assessment','task','write_file','grep','commit_objects','freeze_snapshot'}
         for tool in session.tools:
             schema=tool.tool_call_schema.model_json_schema()
             assert not {'operation_id','method_id','method_version','object_id','indicator_id','source_ref','node_ref','locator'}&schema.get('properties',{}).keys()
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('method_commission',['with-owner-ranks'],indirect=True)
 async def test_native_context_is_fresh_small_and_pins_exact_new_prompt(ready):
     f=ready
     for marker in ['FIRST_PRIVATE_HISTORY','SECOND_FRESH_HISTORY']:
-        driver=Driver(writer=[invoke('read_assignment'),AIMessage(content=marker)])
-        with writer_session(f.ws,'Slope 1',driver('writer')) as session:
-            result=await session.agent.ainvoke({'messages':[session.initial_message]},session.config)
-            assert result['messages'][-1].content==marker
+        driver=Driver(writer=[AIMessage(content=marker)])
+        with writer_session(f.ws,'Slope 1',driver('writer'),assessment_only=True,indicator_steps=True) as session:
+            with pytest.raises(ActionRejected,match='PROBE_INDICATOR_STEP_INTERRUPTED'):
+                await session.run()
             first=driver.calls[0][2]
             assert not any(isinstance(m,(AIMessage,ToolMessage)) for m in first)
             assert not any('FIRST_PRIVATE_HISTORY' in str(m.content) for m in first)
             assert sum(len(str(m.content).encode()) for m in first)<60000
-            assert any('one assigned slope' in str(m.content) for m in first)
+            assert any('indicator_id' in str(m.content) for m in first)
         with f.ws.store.connect() as db:
             captured=[json.loads(r[0]) for r in db.execute("SELECT data FROM events WHERE kind='prompt_model_input'")]
         assert captured and all(v['status']=='exact' for v in captured)
 
+
 def test_assigned_writer_cannot_save_another_slope(ready):
     from report_agent.risk_scoring import save_assessment
     f=ready
-    with writer_session(f.ws,'Slope 1',Driver(writer=[])('writer')) as session:
+    with writer_session(f.ws,'Slope 1',Driver(writer=[])('writer'), assessment_only=True, indicator_steps=True) as session:
         payload=persistence_input(f);payload['object_id']='S2'
         with pytest.raises(ActionRejected):save_assessment(f.cs,session.actor,'foreign-object',payload)
     assert not f.cs.list_objects('Assessment')
@@ -61,18 +65,19 @@ from test_writer_assignments import assigned
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('method_commission',['with-owner-ranks'],indirect=True)
 async def test_original_page_pixels_reach_the_next_native_request(assigned):
     from report_agent.writer_assignments import resolve_visual_pages
-    from test_deep_runtime import observation
     f = assigned
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     def choose_page(messages):
-        sources = observation(messages, 'read_assignment')['sources']
+        sources = json.loads(next(m.content for m in messages if isinstance(m, HumanMessage)))['sources']
         source = next(s for s in sources if s['title'] == 'design')
         return invoke('read_assigned_page', source_handle=source['source_handle'], page=2)
-    driver = Driver(writer=[invoke('read_assignment'), choose_page, AIMessage(content='read image')])
-    with writer_session(f.ws, f.plan['objects'][0]['label'], driver('writer')) as session:
-        await session.agent.ainvoke({'messages': [session.initial_message]}, session.config)
+    driver = Driver(writer=[choose_page, AIMessage(content='read image')])
+    with writer_session(f.ws, f.plan['objects'][0]['label'], driver('writer'), assessment_only=True, indicator_steps=True) as session:
+        with pytest.raises(ActionRejected,match='PROBE_INDICATOR_STEP_INTERRUPTED'):
+            await session.run()
         page = next(m for m in driver.calls[-1][2] if isinstance(m, ToolMessage) and m.name == 'read_assigned_page')
         assert isinstance(page.content, list)
         pixels = next(b for b in page.content if b['type'] == 'image_url')
@@ -85,67 +90,26 @@ async def test_original_page_pixels_reach_the_next_native_request(assigned):
 
 
 @pytest.mark.asyncio
-async def test_text_windows_remain_navigable_without_hidden_truncation(ready):
-    from test_deep_runtime import observation
-    f = ready
-    def first_window(messages):
-        source = next(s for s in observation(messages, 'read_assignment')['sources'] if s['title'] == 'design')
-        return invoke('read_assigned_text', source_handle=source['source_handle'], characters=15)
-    def next_window(messages):
-        result = observation(messages, 'read_assigned_text')
-        assert result['next_offset'] == 15 and result['offset'] == 0
-        return invoke('read_assigned_text', source_handle=result['source_handle'], offset=15, characters=20000)
-    driver = Driver(writer=[invoke('read_assignment'), first_window, next_window, AIMessage(content='read text')])
-    with writer_session(f.ws, 'Slope 1', driver('writer')) as session:
-        await session.agent.ainvoke({'messages': [session.initial_message]}, session.config)
-    replies = [json.loads(m.content) for m in driver.calls[-1][2]
-        if isinstance(m, ToolMessage) and m.name == 'read_assigned_text']
-    assert ''.join(r['text'] for r in replies) == f.cs.read(f.sources['design'])['payload']['content']
-    assert replies[-1]['next_offset'] is None
-    assert replies[-1]['total_characters'] == len(''.join(r['text'] for r in replies))
-
-
-@pytest.mark.asyncio
+@pytest.mark.parametrize('method_commission',['with-owner-ranks'],indirect=True)
 async def test_text_only_model_receives_page_text_without_visual_read_credit(assigned):
-    from test_deep_runtime import observation
     f = assigned
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     def choose_page(messages):
-        source = next(s for s in observation(messages, 'read_assignment')['sources'] if s['title'] == 'design')
+        source = next(s for s in json.loads(next(m.content for m in messages if isinstance(m, HumanMessage)))['sources'] if s['title'] == 'design')
         return invoke('read_assigned_page', source_handle=source['source_handle'], page=3, view='native_text')
-    driver = Driver(writer=[invoke('read_assignment'), choose_page, AIMessage(content='Text only; no visual verification.')])
+    driver = Driver(writer=[choose_page, AIMessage(content='Text only; no visual verification.')])
     model = driver('writer'); model.profile = {'image_inputs': False, 'image_tool_message': False}
-    with writer_session(f.ws, f.plan['objects'][0]['label'], model) as session:
-        assert 'text-only' in session.initial_message.content
-        await session.agent.ainvoke({'messages': [session.initial_message]}, session.config)
+    with writer_session(f.ws, f.plan['objects'][0]['label'], model,assessment_only=True,indicator_steps=True) as session:
+        with pytest.raises(ActionRejected,match='PROBE_INDICATOR_STEP_INTERRUPTED'):
+            await session.run()
     page = next(m for m in driver.calls[-1][2] if isinstance(m, ToolMessage) and m.name == 'read_assigned_page')
     assert [block['type'] for block in page.content] == ['text']
     view = json.loads(page.content[0]['text'])
     assert view['native_text'] == 'Drawing K1p250'
     assert view['visual_evidence'] == 'SYSTEM_VISUAL_CAPABILITY_UNAVAILABLE'
     assert 'page_handle' not in view
+    from report_agent.writer_judgments import delivered_pages
     with f.ws.store.connect() as db:
-        assert not db.execute("SELECT key FROM state WHERE key LIKE 'writer_page_read:%'").fetchall()
-
-
-@pytest.mark.asyncio
-async def test_assessment_only_session_stops_after_canonical_save_without_extra_model_call(ready):
-    from report_agent import writer_assessment as api
-    from test_writer_assessment import input_row
-    from test_deep_runtime import call
-    f = ready
-    script = [invoke('read_assignment')]
-    for index in range(4):
-        def row(messages, index=index):
-            return AIMessage(content='', tool_calls=[call('set_indicator', input_row(f, api, index), 'row-' + str(index))])
-        script.append(row)
-    script.append(invoke('submit_assessment'))
-    driver = Driver(writer=script)
-    with writer_session(f.ws, 'Slope 1', driver('writer'), assessment_only=True) as session:
-        f.actor = session.actor
-        assert 'save_section_prose' not in {tool.name for tool in session.tools}
-        assert 'prose' in session.initial_message.content
-        result = await session.agent.ainvoke({'messages': [session.initial_message]}, {**session.config, 'recursion_limit': 100})
-        assert result['messages'][-1].name == 'submit_assessment'
-        assert len(driver.calls) == 6
-        assert len(f.cs.list_objects('Assessment')) == 1
+        deliveries = [r for _,r in delivered_pages(db) if r['actor']['id']==session.actor.id]
+    assert [(r['page'],r['modality']) for r in deliveries] == [(3,'text')]
+    assert not any(r.get('image_delivered') for r in deliveries)

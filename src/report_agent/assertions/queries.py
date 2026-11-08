@@ -153,7 +153,7 @@ def _readable_body(body, permitted):
         for ground in body["grounds"] if ground["assertion_id"] in permitted
     ]
     claim = dict(body["claim"])
-    for field in ("target", "successor", "precedence_convention", "question", "rule_version", "snapshot"):
+    for field in ("target", "successor", "precedence_convention", "question", "rule_version", "snapshot", "submission_receipt"):
         if claim.get(field) and claim[field] not in permitted:
             claim.pop(field)
     for field in ("observations", "inputs", "disclosed_gaps", "evidence_receipts"):

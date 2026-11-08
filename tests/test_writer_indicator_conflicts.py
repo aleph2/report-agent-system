@@ -1,8 +1,10 @@
 """Bounded Writer conflict provenance must survive the same transaction as the row."""
 from pathlib import Path
+from types import SimpleNamespace
 import pytest
 from report_agent.content_store import ContentStore
-from report_agent.content_tasks import delegated_task
+from report_agent.writer_runtime import writer_session
+from support.mini_judgments import advance_to_rainfall, gap_input, install_rainfall
 from report_agent.mini_commission import prepare_mini_commission
 from report_agent.store import Store, digest
 from report_agent.workspace import Workspace
@@ -21,19 +23,20 @@ def test_conflict_in_an_outcome_reaches_verifiable_issue_once(tmp_path, kind, ex
     receipt = prepare_mini_commission(INPUTS,case)
     ws = Workspace(Store(case))
     cs = ContentStore(ws.store)
-    call = {'name':'task','id':'assign','args':{'subagent_type':'writer',
-            'description':'Check slope A.', 'section_ids':['3'],'assessment_object_id':'A'}}
+    if kind == "evidence":
+        install_rainfall(ws, receipt["plan_ref"])
     conflict = dict(basis='设计坡率 1:0.75，地勘实测坡率 1:1.0。',
         adopted_value='采用设计坡率 1:0.75，设计优先。',
         quotes=['设计坡率为 1:0.75，分三级开挖。','坡段 A：实测坡率为 1:1.0。'],
         question='请核对设计与调查坡率差异。',affects_level=True)
-    with delegated_task(ws,'coordinator',call) as (_, actor):
-        first=read_indicator_step(cs,actor)
-        row=dict(kind='evidence',grade=first['grades'][-1]['choice'],value='18',
-            basis_kind='direct_evidence',rationale='18 m height', quotes=['坡段 A：坡高 18 米；边坡长度 120 米。'])
-        if kind=='gap':
-            save_indicator_outcome(cs,actor,'height','X11',row)
-            row=dict(kind='gap',missing='自然坡角',question='自然坡角是多少？')
+    with writer_session(ws, "坡段 A", SimpleNamespace(profile={"image_inputs": False}),
+                        section_id="3", assessment_only=True, indicator_steps=True) as session:
+        actor=session.actor
+        if kind=="evidence":
+            row={**advance_to_rainfall(cs,actor), "basis_kind":"direct_evidence"}
+        else:
+            save_indicator_outcome(cs,actor,"height","X11",{"kind":"gap", **gap_input("X11")})
+            row={"kind":"gap", **gap_input("X12")}
         iid=read_indicator_step(cs,actor)['indicator_id']
         row['contrary_evidence']=conflict
         separate={**conflict,'quotes':list(reversed(conflict['quotes']))} if reverse_quotes else conflict
@@ -106,13 +109,10 @@ def test_rejected_conflict_rolls_back_indicator_row_and_issue(tmp_path):
     prepare_mini_commission(INPUTS,case)
     ws=Workspace(Store(case))
     cs=ContentStore(ws.store)
-    call={'name':'task','id':'assign','args':{'subagent_type':'writer',
-          'description':'Check slope A.','section_ids':['3'],'assessment_object_id':'A'}}
-    with delegated_task(ws,'coordinator',call) as (_,actor):
-        first=read_indicator_step(cs,actor)
-        row=dict(kind='evidence',grade=first['grades'][-1]['choice'],value='18',
-                 basis_kind='direct_evidence',rationale='18 m height',
-                 quotes=['坡段 A：坡高 18 米；边坡长度 120 米。'],
+    with writer_session(ws, "坡段 A", SimpleNamespace(profile={"image_inputs": False}),
+                        section_id="3", assessment_only=True, indicator_steps=True) as session:
+        actor = session.actor
+        row=dict(kind="gap", **gap_input("X11"),
                  contrary_evidence=dict(basis='Conflicting facts',adopted_value='Design prevails',
                      quotes=['设计坡率为 1:0.75，分三级开挖。','This quote does not exist.'],
                      question='Check conflict',affects_level=True))

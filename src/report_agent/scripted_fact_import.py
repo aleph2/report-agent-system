@@ -112,6 +112,18 @@ def install_facts(store, plan_ref, section_id, register, typed, reviews, selecti
         conflicts.setdefault(oid, []).extend([key, precedence])
         precedences[precedence] = dict(rule=register["scope"], scope=boundary, resolves=key, preferred=preferred)
 
+    # Only the fixture operator supplies these object/purpose bindings, separately from any Writer.
+    transfers = {}
+    for binding in selection.get("transfers", []):
+        source, target = binding["source"], binding["target"]
+        version = digest(binding)
+        rule = binding["proposition"]
+        boundary = source+" to "+target
+        key = confirmed("record_convention",target,dict(kind="convention",rule=rule,scope=boundary,
+                                                       criterion_version=version))
+        transfers[key] = {"from":source,"to":target,"rule":rule,"scope":boundary,"version":version,
+                          "proposition":rule,"purposes":binding["purposes"]}
+
     indexes = {}
     for oid, unknowns in register["unresolved"].items():
         own_obs = (assigned_observations[oid] if assigned_observations is not None else
@@ -135,14 +147,15 @@ def install_facts(store, plan_ref, section_id, register, typed, reviews, selecti
     excerpts = list(dict.fromkeys(k for ix in indexes.values() for k in ix["observations"]))
     for oid,index in indexes.items():
         principal, role, task, attempt = packet_key(plan_ref, oid, section_id)
-        ids = {scope, midpoint, *indicators, *roles.values(), *index["unknowns"], *all_typed, *excerpts,
+        transfer_bindings = {k:v for k,v in transfers.items() if v["to"]==oid}
+        ids = {scope, midpoint, *transfer_bindings, *indicators, *roles.values(), *index["unknowns"], *all_typed, *excerpts,
                *conflicts.get(oid, ())}
         for review in (index["reviews"] or {}).values():
             ids.update([review["question"], *review["grades"]])
-        index.update(all_typed=all_typed, excerpts=excerpts, records=sorted(ids),
+        index.update(criteria=selection.get("criteria",{}), all_typed=all_typed, excerpts=excerpts, records=sorted(ids),
                      documents={v:k for k,v in versions.items()})
         receipts = {typed_receipts[k]:resources["receipts"][typed_receipts[k]] for k in all_typed}
         host.authorize(Grant(principal,role,task,attempt,plan,frozenset(subjects),
                        frozenset(ids | set(receipts) | set(versions.values())),frozenset(),
                        resources={"scopes":{task:index}, "receipts":receipts,
-                                  "conventions":{k:v for k,v in precedences.items() if k in ids}}))
+                                  "conventions":{**{k:v for k,v in precedences.items() if k in ids}, **transfer_bindings}}))

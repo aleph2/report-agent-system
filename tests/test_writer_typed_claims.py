@@ -12,6 +12,7 @@ from report_agent.mini_commission import prepare_mini_commission
 from report_agent.store import Store, digest
 from report_agent.workspace import Workspace
 from report_agent.writer_runtime import writer_session
+from report_agent.writer_judgments import read_progress
 
 
 def fact(fid, purpose, quote, obj='A', **kwargs):
@@ -28,7 +29,7 @@ def fixture(tmp_path):
     profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
     actual = {r['fact_id']:r for obj in profile['facts'].values() for r in obj['attestations']}
     names = {'F03-A-SURVEY-SECTIONS':'sec','F03-A-BOREHOLES':'holes','F03-SURVEY-COVERAGE':'only',
-             'F03-REGIONAL-RAIN':'rain','F03-OFFSITE-ROCKFALL':'event'}
+             'F03-REGIONAL-RAIN':'rain','F03-OFFSITE-ROCKFALL':'event','F03-ROCKFALL-LOCATION':'loc'}
     records = [{**actual[key], 'fact_id':name} for key,name in names.items()]
     for obj in ['A','B']:
         profile['facts'][obj]['attestations'] = records
@@ -83,7 +84,7 @@ def test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no
             value='49',value_reason='Other types were not mentioned.',adjustment_claim={**claim('holes'),'direction':'higher'})
         value['rationale'] = 'Use 49 because the other types were not mentioned.'
         receipt=api.save_indicator_outcome(fixture.cs,actor,'save','X51',value)['result']
-        draft=fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X51']
+        draft=read_progress(fixture.ws.store, step['assignment_digest'])['rows']['X51']
         assert draft['judgment']['value']=='37' and draft['judgment']['grade_id']=='moderate'
         assert len(draft['judgment']['sources'])==1
         adjustment=receipt['claim_checks']['adjustment']
@@ -111,13 +112,15 @@ def test_owner_deferred_row_stays_unscored_for_reviewer(fixture):
         receipt = api.save_indicator_outcome(fixture.cs,actor,'defer','X51',{
             'kind':'gap','missing':'X51 interpretation and remaining per-section counts.',
             'question':'Which reading applies, and were test pits or geophysical points recorded?'})['result']
-        row = fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X51']
+        row = read_progress(fixture.ws.store, step['assignment_digest'])['rows']['X51']
         assert row['kind']=='gap' and 'judgment' not in row
         assert row['input']['grade'] is None and row['input']['value'] is None
         assert row['claim_checks']['engineering_review'] == receipt['claim_checks']['engineering_review'] == decision
 
 
-def test_offsite_assumption_survives_and_question_is_flagged(fixture):
+@pytest.mark.parametrize(('supports','effective','disposition'), [
+    (('event','loc'), '27', 'accepted_with_flag'), (('event',), '37', 'refused_midpoint_retained')])
+def test_offsite_assumption_survives_and_question_is_flagged(fixture, supports, effective, disposition):
     with at(fixture,'A','X32') as (actor,step):
         value=scored(step,grade_claim=claim('event'))
         del value['basis_kind']
@@ -125,11 +128,26 @@ def test_offsite_assumption_survives_and_question_is_flagged(fixture):
                       'narrowing':'Nearby rockfall supports the low/moderate provisional range.'},
                      plausible_grades=[g['choice'] for g in step['grades'] if g['min_value'] in ['0','25']],
                      question='Would work in that season raise the frequency grade?',question_effect='grade',
-                     value='27',value_reason='The event was off site.',adjustment_claim={**claim('event'),'direction':'lower'})
+                     value='27',value_reason='The event was off site.',adjustment_claim={**claim(*supports),'direction':'lower'})
         result=api.save_indicator_outcome(fixture.cs,actor,'save','X32',value)['result']
-        draft=fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X32']
-        assert draft['kind']=='assumption' and draft['judgment']['value']=='27'
+        draft=read_progress(fixture.ws.store, step['assignment_digest'])['rows']['X32']
+        assert draft['kind']=='assumption' and draft['judgment']['value']==effective
+        assert draft['claim']['adjustment']['disposition']==disposition
+        assert draft['claim']['adjustment']['proposed']=='27'
         assert 'QUESTION_EFFECT_CONFLICT' in result['claim_checks']['review_flags']
+        writer_ref = {'type':'DelegatedTask','id':actor.task_id,'version':1}
+    from report_agent.qualitative_review import qualitative_reviewer_session
+    with qualitative_reviewer_session(fixture.ws, writer_ref) as tools:
+        frozen = tools['read_qualitative_row']('X32')['saved_row']
+    assert frozen == draft
+    assert {g['assertion_id'] for g in frozen['ground_details']} == {g['assertion_id'] for g in frozen['grounds']}
+    event = next(g for g in frozen['ground_details'] if g['qualifiers']['fact_id']=='event')
+    assert frozen['criterion_authority']['plan_ref'] == fixture.plan and frozen['criterion_authority']['rule_id'] == 'X32'
+    assert event['status']=='confirmed' and event['strength_rank']==2
+    assert event['subject']=='Region' and event['claim']['coverage']=='region'
+    assert event['qualifiers']['event_count']==1
+    assert 'no observation period' in event['qualifiers']['coverage_detail']
+    assert not event['qualifiers'].get('period_years')
 
 
 @pytest.mark.parametrize('kind', ['evidence', 'gap'])
@@ -193,7 +211,8 @@ def test_external_evidence_has_native_source_check_and_critical_scope_review(fix
         with pytest.raises(ActionRejected, match='QUOTE_NOT_FOUND'):
             api.save_indicator_outcome(fixture.cs,actor,'fabricated-external','X41',value)
         support['quotes'] = [quote]
-        receipt = api.save_indicator_outcome(fixture.cs,actor,'real-external','X41',value)
-        assert 'EXTERNAL_SCOPE_REQUIRES_CRITICAL_REVIEW' in receipt['result']['claim_checks']['review_flags']
-        draft = fixture.ws.store.get('writer_indicator_steps:'+step['assignment_digest'])['rows']['X41']
-        assert len(draft['judgment']['sources'])==1
+        # Resolving a real quote proves its origin. A scored verdict also requires a confirmed
+        # observation and an applicable classification rule for that object.
+        with pytest.raises(ActionRejected, match="C3"):
+            api.save_indicator_outcome(fixture.cs,actor,'real-external','X41',value)
+        assert 'X41' not in read_progress(fixture.ws.store, step['assignment_digest'])['rows']

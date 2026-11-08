@@ -7,10 +7,11 @@ from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.store import digest
 from report_agent.writer_runtime import writer_session
 from report_agent.writer_assessment import _assignment
+from report_agent.writer_judgments import read_progress
 from test_fake03_qualitative_steps import mini
 
 
-def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(mini):
+def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(mini, monkeypatch):
     from report_agent.qualitative_review import qualitative_reviewer_session
     ws, binding, profile = mini
     install(ws, binding.plan_ref, profile)
@@ -25,8 +26,8 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         question = 'Which rock subtype is documented?'
         outcome = {'kind':'gap', 'question':question, 'missing':'Rock subtype'}
         save_indicator_outcome(cs, writer.actor, 'writer-save', ind, outcome)
-    key = 'writer_indicator_steps:' + scope['assignment_digest']
-    draft = ws.store.get(key)
+    key = scope['assignment_digest']
+    draft = read_progress(ws.store, key)
     row = draft['rows'][ind]
     from report_agent.hierarchical_tools import content_tools
     from report_agent.deep_runtime import business_tools
@@ -94,7 +95,7 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         with pytest.raises(ActionRejected, match='ROW_DIGEST'):
             write('wrong-digest',ind,'bad','Period is open.')
         saved = write('record',ind,view['row_digest'],'Period is open.')
-        assert ws.store.get(key) == draft
+        assert read_progress(ws.store, key) == draft
         assert write('record',ind,view['row_digest'],'Period is open.')['result'] == saved['result']
         assert cs.read(saved['result']['finding_ref'])['payload']['row_digest'] == view['row_digest']
         from report_agent.hierarchical_tools import content_tools
@@ -106,7 +107,9 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         assert {t.__name__ for t in content_tools(ws,'reviewer')} == set(tools)
         assert view == read(ind)
         # Later Writer work cannot change what this Reviewer was assigned.
-        ws.store.set(key, {**draft, 'rows': {}})
+        with ws.store.connect() as db:
+            original = db.execute("SELECT * FROM writer_step_receipts WHERE assignment=?", (key,)).fetchone()
+            db.execute("DELETE FROM writer_step_receipts WHERE assignment=?", (key,))
         assert read(ind) == view
         assert not cs.list_objects('Assessment')
     with pytest.raises(ActionForbidden):
@@ -114,7 +117,12 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
     host.authorize(grant)
     foreign = {'source_ref':{'type':'SourceArtifact','id':'elsewhere','version':1},
                'locator':'p. 1','quote':'unauthorized'}
-    ws.store.set(key, {**draft, 'rows':{ind:{**row, 'sources':[foreign]}}})
+    with ws.store.connect() as db:
+        db.execute("INSERT INTO writer_step_receipts VALUES(?,?,?,?,?,?)", original)
+    # The scoped Reviewer still rejects a corrupt upstream citation before freezing the published view.
+    from report_agent import qualitative_review
+    monkeypatch.setattr(qualitative_review, 'read_progress', lambda *args:
+                        {**draft, 'rows':{ind:{**row, 'sources':[foreign]}}})
     with pytest.raises(ActionForbidden, match='SOURCE_OUTSIDE'):
         with qualitative_reviewer_session(ws, scope['task_ref']):
             pytest.fail('a foreign source was accepted')

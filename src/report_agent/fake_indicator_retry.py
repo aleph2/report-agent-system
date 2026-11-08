@@ -35,7 +35,8 @@ def pinned_json(path, expected):
 
 
 def prior_rows(store, assignment):
-    return legacy.get_writer_indicator_steps(store, assignment)['rows']
+    from .writer_judgments import read_progress
+    return read_progress(store, assignment)['rows']
 
 
 def rows_hash(rows):
@@ -90,6 +91,13 @@ async def retry(run, authority, old_receipt, model, budget):
         with delegated_task(ws,'coordinator',call) as (_,actor):
             require(actor.task_id==task and cs.read(old_receipt['plan_ref'])['ref']==old_receipt['plan_ref'],
                     'RETRY_TASK_OR_PLAN_CHANGED')
+            from .writer_assignments import bound_assignment
+            from .writer_fact_packet import bind_writer_facts
+            from .writer_judgment_authority import provision_criteria
+            with ws.store.connect() as db:
+                scope = bound_assignment(cs, db, actor)
+            bind_writer_facts(cs, actor, scope)
+            provision_criteria(cs, scope)
             tools=writer_tools(ws,actor,include_images=False,assessment_only=True)
             session=IndicatorRun(ws,actor,model,tools)
             await session.run(continuation=(step,reads))

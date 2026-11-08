@@ -140,7 +140,23 @@ def test_new_family_literals_require_review():
     assert violations == []
 
 
-@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED))
+HISTORICAL_READERS = {"writer_assessment_draft:", "writer_indicator_steps:", "writer_page_read:"}
+
+
+@pytest.mark.parametrize("family", sorted(HISTORICAL_READERS))
+def test_old_writer_keys_are_readable_without_a_write_accessor(tmp_path, family):
+    from report_agent import legacy_state
+    from report_agent.store import Store
+
+    store = Store(tmp_path)
+    name = family.rstrip(":")
+    assert not hasattr(legacy_state, "set_" + name)
+    # Create the exact state a pre-M2 case would already contain.
+    store.set(family + "old-id", {"v": 1})
+    assert getattr(legacy_state, "get_" + name)(store, "old-id") == {"v": 1}
+
+
+@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

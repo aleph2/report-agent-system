@@ -93,6 +93,24 @@ async def test_launch_claim_is_single_use_and_accounts_at_real_client_boundary(p
     }
     pin = write_json(path, data)
     FakeVerificationBudget.initialize(Path(data['grant_dir']), {operator.MODEL:operator.BOUND})
+    from types import SimpleNamespace
+    from report_agent import mini_commission
+    from report_agent.content_store import ContentStore
+    from report_agent.store import Store
+    from support.judgment_inputs import install_test_judgment_inputs
+    original_prepare = mini_commission.prepare_mini_commission
+    def prepare_with_confirmed_observations(inputs, case):
+        result = original_prepare(inputs, case)
+        cs = ContentStore(Store(case))
+        plan_ref = result['plan_ref']
+        fixture = SimpleNamespace(cs=cs, plan_ref=plan_ref, plan=cs.read(plan_ref)['payload'])
+        source, = [s for s in cs.store.source_catalog() if s['filename']=='01_initial.pdf']
+        # This test exercises native transport with a synthetic X11 rule; engineering uncertainty is tested separately.
+        for oid, page, quote, grade in [('A',1,'坡段 A：坡高 18 米','low'), ('B',2,'坡段 B：坡高 25 米','moderate')]:
+            install_test_judgment_inputs(fixture, oid, source['id'], page, quote,
+                                         classifications={'X11':grade}, section_id='3')
+        return result
+    monkeypatch.setattr(mini_commission, 'prepare_mini_commission', prepare_with_confirmed_observations)
     prepared = operator.prepare(path, pin)
     for key, value in {'REPORT_CONNECT_RETRIES':'2','REPORT_SDK_RETRIES':'0',
                        'REPORT_REASONING_EFFORT':'high', 'REPORT_WRITER_MODEL':'glm-5.3',
@@ -157,8 +175,11 @@ async def test_launch_claim_is_single_use_and_accounts_at_real_client_boundary(p
         db_path = Path(prepared['case_path'])/'state.db'
         with closing(sqlite3.connect(db_path.as_uri()+'?mode=ro',uri=True)) as db:
             db.execute('PRAGMA query_only=ON')
-            drafts = [json.loads(v)['rows'] for (v,) in db.execute(
-                "SELECT value FROM state WHERE key LIKE 'writer_indicator_steps:%'")]
+            from report_agent.store import Store
+            from report_agent.writer_judgments import read_progress
+            store = Store(Path(prepared['case_path']))
+            keys = [k for k, in db.execute("SELECT DISTINCT assignment FROM writer_step_receipts")]
+            drafts = [read_progress(store,k,db)['rows'] for k in keys]
         assert len(drafts)==2 and all(len(d)==11 for d in drafts)
         first_rows = {d['X11']['kind']:d['X11'] for d in drafts}
         assert first_rows['evidence']['judgment']['grade_id']=='low'

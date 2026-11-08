@@ -47,5 +47,205 @@
       "A, B",
       "Region"
     ]
-  }
+  },
+  "criteria": {
+    "X21": {
+      "rule_digest": "e94864b66eac48c7ba8c06c735cf805676ffe7fe9ece98855543a5c66c7a183f",
+      "purposes": {
+        "classification": [
+          "material",
+          "weathering"
+        ],
+        "assumption": [
+          "material",
+          "weathering"
+        ]
+      },
+      "readings": [
+        [
+          {
+            "classification": "moderate",
+            "when": [
+              {
+                "predicate": "weathering",
+                "value": "强风化"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "X22": {
+      "rule_digest": "f1bef659055af01586486f897a38f7750ae65a8eacc2c0ea132ea6a9145d0eaa",
+      "purposes": {
+        "classification": [
+          "slope_structure"
+        ],
+        "assumption": [
+          "slope_structure"
+        ]
+      }
+    },
+    "X23": {
+      "rule_digest": "f661317e1d27d36341ce1c549080ba4f25de03f3370c281d18fea87aa101a4b0",
+      "purposes": {
+        "classification": [
+          "groundwater_condition"
+        ],
+        "assumption": [
+          "groundwater_condition"
+        ]
+      }
+    },
+    "X32": {
+      "rule_digest": "467383dee0edc644b21afc969936709d3eee9a1a01eac84ae4b892ad77fa4feb",
+      "purposes": {
+        "classification": [
+          "hazard_frequency",
+          "hazard_event"
+        ],
+        "assumption": [
+          "hazard_event",
+          "location"
+        ]
+      },
+      "adjustments": [
+        {
+          "direction": "lower",
+          "when": [
+            {
+              "predicate": "hazard_event",
+              "coverage": "region"
+            },
+            {
+              "predicate": "location",
+              "coverage": "region"
+            }
+          ]
+        }
+      ],
+      "question_effect": "value"
+    },
+    "X41": {
+      "rule_digest": "4911992b08846be4d86c7df9e1c9618bc6afbbe81297ca7ffd7a1ee8e2ad985d",
+      "purposes": {
+        "classification": [
+          "engineering_measure"
+        ],
+        "assumption": [
+          "engineering_measure"
+        ]
+      },
+      "readings": [
+        [
+          {
+            "classification": "high",
+            "when": [
+              {
+                "predicate": "engineering_measure",
+                "value": "锚杆框架梁"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "X42": {
+      "rule_digest": "dea84455bdd12350927a20fe3a0c1a7c483b0109ca59a123ce0b3741732efb69",
+      "purposes": {
+        "classification": [
+          "facility_presence"
+        ],
+        "assumption": [
+          "facility_presence"
+        ]
+      }
+    },
+    "X51": {
+      "rule_digest": "cb73d5412f78fca2d48eddd493ef448d29afd5e02d8c633f9de7bdf210ab3375",
+      "purposes": {
+        "classification": [
+          "borehole_count",
+          "geophysical_point_count",
+          "survey_section_count",
+          "test_pit_count"
+        ],
+        "assumption": [
+          "borehole_count",
+          "geophysical_point_count",
+          "survey_section_count",
+          "test_pit_count"
+        ]
+      },
+      "readings": [
+        [
+          {
+            "classification": "moderate",
+            "when": [
+              {
+                "predicate": "survey_section_count",
+                "value": 1
+              },
+              {
+                "predicate": "borehole_count",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "X52": {
+      "rule_digest": "33a8232d10f543d64d62c8adb3897e2848ecd95b4719182ffadd6b40bcfa45ef",
+      "purposes": {
+        "classification": [
+          "design_file_coverage",
+          "drawing_contents"
+        ],
+        "assumption": [
+          "design_file_coverage",
+          "drawing_contents"
+        ]
+      }
+    }
+  },
+  "transfers": [
+    {
+      "source": "Region",
+      "target": "A",
+      "proposition": "hazard_event",
+      "purposes": [
+        "classification",
+        "assumption",
+        "adjustment",
+        "context"
+      ]
+    },
+    {
+      "source": "Region",
+      "target": "A",
+      "proposition": "location",
+      "purposes": [
+        "assumption",
+        "adjustment",
+        "context"
+      ]
+    },
+    {
+      "source": "A",
+      "target": "B",
+      "proposition": "document_scope_context",
+      "purposes": [
+        "context"
+      ]
+    },
+    {
+      "source": "Project",
+      "target": "B",
+      "proposition": "document_scope_context",
+      "purposes": [
+        "context"
+      ]
+    }
+  ]
 }

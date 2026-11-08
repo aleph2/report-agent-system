@@ -157,7 +157,7 @@ tool_selection_offer:*	runtime	runtime	Task status, admission/recovery, limit, s
 verified_source_import	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
 vision_attempt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
 vision_interrupt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
-writer_assessment_draft:*	mixed	M2	Separate editable indicator judgments and draft assessment from progress and retry state.
-writer_assignment_pages:*	runtime	M2	Host-issued page index, access and delivery evidence tied to the writer assignment.
-writer_indicator_steps:*	mixed	M2	Separate editable indicator judgments and draft assessment from progress and retry state.
-writer_page_read:*	runtime	M2	Host-issued page index, access and delivery evidence tied to the writer assignment.
+writer_assessment_draft:*	mixed	M2	Pre-M2 cases retain a read-only accessor. New judgments use save_judgment and new step progress uses runtime receipts.
+writer_assignment_pages:*	runtime	M2	New delivery evidence is a runtime receipt bound to the Writer assignment. Pre-M2 page handles use a read-only accessor.
+writer_indicator_steps:*	mixed	M2	Pre-M2 cases retain a read-only accessor. New judgments use save_judgment and new step progress uses runtime receipts.
+writer_page_read:*	runtime	M2	New delivery evidence is a runtime receipt bound to the Writer assignment. Pre-M2 page handles use a read-only accessor.

@@ -12,7 +12,6 @@ from report_agent.workspace import Workspace
 from report_agent.content_store import ContentStore
 from report_agent.commission_plan import _confirmed
 from report_agent.writer_runtime import writer_session
-from report_agent.writer_assessment import read_assignment
 from report_agent.writer_assignments import read_assignment_pages, read_assigned_page
 from test_writer_assignments import assigned, method_commission
 from test_deep_runtime import Driver
@@ -99,9 +98,9 @@ def test_import_is_runtime_independent_when_source_no_longer_exists(assigned, ta
     monkeypatch.setattr(Path, 'open', guarded_open)
     monkeypatch.setattr(sqlite3, 'connect', guarded_connect)
     store = Store(target); ws = Workspace(store); cs = ContentStore(store)
-    with writer_session(ws, f.plan['objects'][0]['label'], Driver(writer=[])('writer')) as session:
-        packet = read_assignment(cs, session.actor)
-        assert packet['object_label'] == f.plan['objects'][0]['label']
+    with writer_session(ws, f.plan['objects'][0]['label'], Driver(writer=[])('writer'), assessment_only=True, indicator_steps=True) as session:
+        task = cs.read({'type':'DelegatedTask', 'id':session.actor.task_id, 'version':1})
+        assert task['payload']['assessment_object_id'] == f.plan['objects'][0]['object_id']
         pages = read_assignment_pages(cs, session.actor)
         source_handle = next(s['source_handle'] for s in pages['sources'] if s['title'] == 'design')
         page = read_assigned_page(cs, session.actor, source_handle, 3, include_image=False)

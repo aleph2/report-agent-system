@@ -41,24 +41,12 @@ def get_writer_indicator_steps(storage, suffix, default=_MISSING):
     return _get(storage, 'writer_indicator_steps:' + suffix, default)
 
 
-def set_writer_indicator_steps(storage, suffix, value):
-    _set(storage, 'writer_indicator_steps:' + suffix, value)
-
-
 def get_writer_page_read(storage, suffix, default=_MISSING):
     return _get(storage, 'writer_page_read:' + suffix, default)
 
 
-def set_writer_page_read(storage, suffix, value):
-    _set(storage, 'writer_page_read:' + suffix, value)
-
-
 def get_writer_assessment_draft(storage, suffix, default=_MISSING):
     return _get(storage, 'writer_assessment_draft:' + suffix, default)
-
-
-def set_writer_assessment_draft(storage, suffix, value):
-    _set(storage, 'writer_assessment_draft:' + suffix, value)
 
 
 def get_assessment_receipt(storage, suffix, default=_MISSING):

@@ -6,7 +6,7 @@ import re
 import sqlite3
 from time import monotonic, sleep
 
-from .ids import assertion_id, canonical_json
+from .ids import assertion_id, canonical_json, request_digest
 from .schema.kinds import Assertion, is_canonical_id
 
 FROZEN_FAMILIES = ("snapshots", "scopes", "criteria", "sources", "receipts", "conventions", "rules")
@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS operations(
 CREATE TABLE IF NOT EXISTS resource_pins(
     family TEXT NOT NULL, id TEXT NOT NULL, digest TEXT NOT NULL,
     PRIMARY KEY(family,id)
+);
+CREATE TABLE IF NOT EXISTS submission_receipts(
+    id TEXT PRIMARY KEY NOT NULL, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS producers(
     plan TEXT NOT NULL, subject TEXT NOT NULL, actor TEXT NOT NULL,
@@ -51,9 +54,9 @@ class Store:
             if mode != "wal":
                 raise OSError("Assertion store requires WAL journaling")
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version in (0, 1):
-                db.executescript("BEGIN IMMEDIATE;\n" + _SCHEMA + "\nPRAGMA user_version=2; COMMIT;")
-            elif version != 2:
+            if version in (0, 1, 2):
+                db.executescript("BEGIN IMMEDIATE;\n" + _SCHEMA + "\nPRAGMA user_version=3; COMMIT;")
+            elif version != 3:
                 raise ValueError(f"Unsupported assertion store schema version {version}")
 
     def _connect(self, readonly=False):
@@ -87,6 +90,27 @@ class Store:
                             (family, resource_id)).fetchone()[0]
         if actual != digest:
             raise ValueError("Frozen resource binding conflict")
+
+    @staticmethod
+    def store_submission(db, key, payload):
+        if not isinstance(payload, dict) or request_digest(payload) != key:
+            raise ValueError("Invalid immutable judgment submission")
+        # Multiple judgments may reference one immutable submission.
+        db.execute("INSERT INTO submission_receipts VALUES(?,?) ON CONFLICT(id) DO NOTHING",
+                   (key, canonical_json(payload)))
+
+    def submission_receipt(self, judgment_id):
+        with self.reader() as db:
+            row = db.execute("""
+                SELECT a.body ->> '$.claim.submission_receipt' AS id, r.body AS payload
+                FROM assertions a LEFT JOIN submission_receipts r ON r.id = a.body ->> '$.claim.submission_receipt'
+                WHERE a.id=? AND a.action='save_judgment'
+            """, (judgment_id,)).fetchone()
+            if row is None or row["id"] is None:
+                return None
+            if row["payload"] is None or request_digest(payload := json.loads(row["payload"])) != row["id"]:
+                raise ValueError("Missing or corrupt immutable judgment submission")
+            return payload
 
     @staticmethod
     def lookup(db, operation_id, binding, digest, can_read):
