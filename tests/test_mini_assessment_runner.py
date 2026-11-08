@@ -193,15 +193,16 @@ async def test_unexpected_writer_error_reports_only_deepest_project_location(tmp
     binding = SimpleNamespace(plan_ref=prepared['plan_ref'], assessment_section_id=prepared['assessment_section_id'])
     monkeypatch.setattr(fake_verification, 'assert_active_fake_run', lambda run, ws: None)
     secret = 'private-fixture-payload-MUST-NEVER-APPEAR'
+    call_sites = []
     def fail(*args):
+        call_sites.append(inspect.currentframe().f_back.f_lineno)
         raise TypeError(secret)
     monkeypatch.setattr(writer_assessment, '_step_state', fail)
 
     result = await run_mini_assessment(workspace, Driver(writer=[])('writer'), verified_run=binding)
     slope, = result['slopes']
     assert result['status'] == slope['status'] == 'interrupted' and slope['error_type'] == 'TypeError'
-    lines, start = inspect.getsourcelines(writer_assessment.read_indicator_step)
-    expected_line = start + next(i for i, line in enumerate(lines) if '= _step_state(' in line)
+    expected_line, = call_sites
     assert slope['error_location'] == {'module': 'report_agent.writer_assessment',
                                        'function': 'read_indicator_step', 'line': expected_line}
     assert secret not in json.dumps(result) and 'stop_code' not in slope

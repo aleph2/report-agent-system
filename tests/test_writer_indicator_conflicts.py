@@ -55,11 +55,12 @@ def test_conflict_in_an_outcome_reaches_verifiable_issue_once(tmp_path, kind, ex
         with cs.store.connect() as db:
             assert db.execute("SELECT count(*) FROM state WHERE key LIKE 'g6_issue_record:%'").fetchone()[0]==1
 
-from test_writer_issue_tools import writers
-from test_m1_g3_integration import method_commission, persist, persistence_input
+from test_writer_issue_tools import reviewed_writers
+from test_m1_g3_integration import method_commission
 
 
-def test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates(writers):
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates(reviewed_writers):
     from report_agent import writer_issues as api
     from report_agent.writer_assignments import bound_assignment
     from report_agent.system_assembler import assemble_current_report
@@ -68,7 +69,7 @@ def test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates(writ
     from xml.etree import ElementTree as ET
     from openpyxl import load_workbook
 
-    f = writers
+    f = reviewed_writers
     payload = dict(basis='Two supplied synthetic statements require reconciliation.',
         adopted_value='Adopt design height 30 metres.', question='Confirm the competing description.',
         affects_level=True, quotes=['S1 is a design object with a 30 metre height.',
@@ -78,8 +79,6 @@ def test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates(writ
     for index, actor in enumerate(f.actors):
         api.save_section_prose(f.cs,actor,'prose-'+str(index),
             dict(text='Slope '+str(index+1)+' context.',quotes=[payload['quotes'][0]]))
-        persist(f,actor,{**persistence_input(f),'object_id':('S1','S2')[index],'section_id':'4'},
-                operation='assessment-'+str(index))
 
     actor = f.actors[0]
     def save(db):

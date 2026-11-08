@@ -71,30 +71,15 @@ def test_g6_tools_expose_prose_not_snapshot_assembly(writing):
 
 @pytest.fixture
 def reviewed_writing(method_commission):
-    from uuid import NAMESPACE_URL, uuid5
-    from report_agent import assertions
-    from report_agent.assertion_host import AssertionHost, Grant
-    from report_agent.assessment_refresh import refresh_selected_assessment
-    from report_agent.writer_assessment import read_indicator_step, save_indicator_outcome
-    from test_writer_indicator_outcomes import attach_ranks, evidence, make_assignment
+    from support.judgment_inputs import save_reviewed_score
+    from test_writer_indicator_outcomes import attach_ranks, make_assignment
 
     f = method_commission
     f.plan = section_plan(f)
     attach_ranks(f)
     make_assignment(f)
     f.writer = writer(f, {'plan_ref': f.plan_ref}, section_ids=['4'])
-    host = AssertionHost(f.cs.store.root)
-    for key in 'ABCD':
-        step = read_indicator_step(f.cs, f.actor)
-        save_indicator_outcome(f.cs, f.actor, 'judge-' + key, key, evidence(f, step))
-    outcome = read_indicator_step(f.cs, f.actor)
-    for entry in outcome['outcomes'].values():
-        key = entry['assertion_id']
-        grant = Grant(str(uuid5(NAMESPACE_URL, 'test/owner')), 'owner', 'review', key,
-                      digest(f.plan_ref), {'S1'}, {key}, {'confirm'})
-        assertions.confirm(host.issue(grant, 'confirm', 'review-'+key), subject='S1',
-            claim=dict(kind='act', effect='confirm', target=key, reason='Verified synthetic input'))
-    assert refresh_selected_assessment(f.cs, 'S1')['status'] == 'scored'
+    save_reviewed_score(f, f.actor, 'S1', f.evidence_quote)
     return f
 
 

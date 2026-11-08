@@ -6,13 +6,24 @@ from report_agent import writer_issues as api
 from report_agent.content_store import Actor
 from report_agent.errors import ActionRejected
 from report_agent.store import digest
-from test_m1_g3_integration import method_commission, persist, persistence_input, section_plan
+from test_m1_g3_integration import method_commission, section_plan
 from test_m1_commission_plan import save, approve
 
 
 @pytest.fixture
 def writers(method_commission, request):
-    f = method_commission
+    return _writers(method_commission, getattr(request, 'param', None))
+
+
+@pytest.fixture
+def reviewed_writers(method_commission):
+    return _writers(method_commission, reviewed=True)
+
+
+def _writers(f, option=None, *, reviewed=False):
+    if reviewed:
+        from test_writer_indicator_outcomes import attach_ranks
+        attach_ranks(f)
     plan = section_plan(f)
     second = deepcopy(plan['objects'][0]); second.update(object_id='S2', label='Slope 2')
     plan['objects'].append(second)
@@ -20,10 +31,22 @@ def writers(method_commission, request):
     derived['sources'] = [f.cite('template', 'Objects {COUNT}; level II {II_COUNT}; level III {III_COUNT}.')]
     derived['result_bindings'] = [{'old':marker,'object_id':None,'field':field,**extra}
         for marker,field,extra in [('{COUNT}','object_count',{}),('{II_COUNT}','level_count',{'level':'II'}),('{III_COUNT}','level_count',{'level':'III'})]]
-    if getattr(request,'param',None)=='25-required':
+    if option=='25-required':
         plan['reconciliations'][0]['differences']=['Retained discrepancy '+str(n) for n in range(25)]
-    if getattr(request,'param',None)=='inventory-conflict':
+    if option=='inventory-conflict':
         plan['objects'][0]['attributes'][0]['values'].append({'value':'31 m','source':f.cite('design'),'reason':'Conflicting synthetic record.'})
+    if reviewed:
+        from report_agent.catalog import Catalog
+        from test_ingestion import pdf_bytes
+        from support.judgment_inputs import install_test_judgment_inputs, save_reviewed_score
+        quotes = {o['object_id']: o['object_id'] + ' survey records the synthetic observation.' for o in plan['objects']}
+        source = Catalog(f.ws.store).import_file('issue-survey.pdf', pdf_bytes([' '.join(quotes.values())]))['source']
+        ref, = f.cs.capture_sources(f.co, 'capture-issue-survey', [source['id']])['result']['source_refs']
+        section = next(s for s in plan['sections'] if s['section_id'] == '4')
+        for obj in plan['objects']:
+            citation = dict(source_ref=ref, locator='page 1', quote=quotes[obj['object_id']])
+            section['sources'].append(citation)
+            obj['sources'].append(citation)
     saved = save(f, plan); approve(f, saved)
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     f.plan_ref = saved['plan_ref']; f.actors = []
@@ -32,7 +55,11 @@ def writers(method_commission, request):
             ref = f.cs._insert(db, f.co, 'DelegatedTask', {'role':'writer', 'goal':'Write assigned slope',
                 'delegated_by':f.co.id, 'commission_plan_ref':f.plan_ref,
                 'section_ids':['4'], 'assessment_object_id':obj})
-        f.actors.append(Actor('content:writer:'+ref['id'], 'writer', ref['id']))
+        actor = Actor('content:writer:'+ref['id'], 'writer', ref['id'])
+        f.actors.append(actor)
+        if reviewed:
+            install_test_judgment_inputs(f, obj, source['id'], 1, quotes[obj])
+            save_reviewed_score(f, actor, obj, quotes[obj])
     return f
 
 
@@ -95,14 +122,14 @@ def test_typed_issue_receipt_tampering_blocks_assembly(writers):
     assert any(p['code']=='issue_proposal_invalid' for p in report['problems'])
 
 
-def test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair(writers):
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair(reviewed_writers):
     from report_agent.system_assembler import assemble_current_report
     from report_agent.content_export import export_snapshot
-    f=writers; ids=[]
+    f=reviewed_writers; ids=[]
     for n,actor in enumerate(f.actors):
         api.save_section_prose(f.cs,actor,'p'+str(n),dict(text='Slope '+str(n+1)+' unique prose.',
             quotes=['S1 is a design object with a 30 metre height.']))
-        persist(f,actor,{**persistence_input(f),'object_id':('S1','S2')[n],'section_id':'4'},operation='assessment-'+str(n))
         ids.append(api.propose_material_issue(f.cs,actor,'i'+str(n),issue(('conflict','missing')[n]))['result']['issue_id'])
     assembled=assemble_current_report(f.cs,f.co,'assembly')['result']
     records=[f.cs.read(ref) for ref in f.cs.read(assembled['snapshot_ref'])['payload']['refs']]

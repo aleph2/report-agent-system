@@ -45,3 +45,23 @@ def install_test_judgment_inputs(f, subject, source_id, page, quote, *, classifi
             "purposes": {"classification": [predicate], "assumption": [predicate]},
         }
     grant_judgment_inputs(f.cs.store, f.plan_ref, subject, section_id, [fact, version], criteria)
+
+
+def save_reviewed_score(f, actor, subject, quote):
+    """Use the synthetic four-indicator method and the survey already commissioned for this slope."""
+    from report_agent.assessment_refresh import refresh_selected_assessment
+    from report_agent.writer_assessment import read_indicator_step, save_indicator_outcome
+    host = AssertionHost(f.cs.store.root)
+    for indicator in ('A', 'B', 'C', 'D'):
+        step = read_indicator_step(f.cs, actor)
+        assert step['indicator_id'] == indicator
+        save_indicator_outcome(f.cs, actor, 'judge-' + subject + '-' + indicator, indicator, dict(
+            kind='evidence', grade=step['grades'][1]['choice'], value='40', basis_kind='direct_evidence',
+            rationale='The commissioned survey records the synthetic observation for ' + subject + '.', quotes=[quote]))
+    for entry in read_indicator_step(f.cs, actor)['outcomes'].values():
+        key = entry['assertion_id']
+        grant = Grant(str(uuid5(NAMESPACE_URL, 'test/owner')), 'owner', 'review', key,
+                      digest(f.plan_ref), {subject}, {key}, {'confirm'})
+        assertions.confirm(host.issue(grant, 'confirm', 'review-' + key), subject=subject,
+            claim=dict(kind='act', effect='confirm', target=key, reason='Verified synthetic input'))
+    assert refresh_selected_assessment(f.cs, subject)['status'] == 'scored'
