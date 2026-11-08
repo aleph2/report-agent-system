@@ -18,6 +18,29 @@ from test_task_supervision import ws
 from test_text_work import writer_call
 
 
+def arm_deadline_at_dispatch(monkeypatch):
+    from types import SimpleNamespace
+    import report_agent.model_invocation as invocation
+
+    timers = []
+    def prepare_timer(delay):
+        assert delay == .05
+        # Bound preparation as well, so a broken mock cannot hang the test.
+        timer = asyncio.timeout(10)
+        timers.append(timer)
+        return timer
+
+    scenario_asyncio = SimpleNamespace(**vars(asyncio))
+    scenario_asyncio.timeout = prepare_timer
+    monkeypatch.setattr(invocation, 'asyncio', scenario_asyncio)
+
+    def arm():
+        assert len(timers) == 1
+        timers[0].reschedule(asyncio.get_running_loop().time() + .05)
+
+    return arm
+
+
 def offline_model(ws, monkeypatch):
     monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', .05)
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
@@ -37,22 +60,10 @@ async def close_model(model):
 async def test_native_bounded_sdk_deadline_is_unknown_observation_with_reserved_budget(ws, monkeypatch, tmp_path, new_id):
     model = offline_model(ws, monkeypatch)
     dispatched, cancelled = [], []
-    from types import SimpleNamespace
-    import report_agent.model_invocation as invocation
-    deadlines = []
-    def timeout_when_dispatched(delay):
-        assert delay == .05
-        timer = asyncio.timeout(None)
-        deadlines.append(timer)
-        return timer
-    scenario_asyncio = SimpleNamespace(**vars(asyncio))
-    scenario_asyncio.timeout = timeout_when_dispatched
-    # Stage this in-flight fault after preparation without patching global asyncio.
-    monkeypatch.setattr(invocation, 'asyncio', scenario_asyncio)
+    arm_deadline = arm_deadline_at_dispatch(monkeypatch)
     async def handle(request):
         dispatched.append(request)
-        assert len(deadlines) == 1
-        deadlines[0].reschedule(asyncio.get_running_loop().time() + .05)
+        arm_deadline()
         try:
             await asyncio.Event().wait()
         except asyncio.CancelledError:

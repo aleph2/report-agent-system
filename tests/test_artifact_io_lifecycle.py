@@ -14,7 +14,7 @@ from report_agent.errors import ActionRejected
 from report_agent.request_budget import RequestBudgetExceeded
 from report_agent.token_budget import TokenBudget, token_budget
 from test_artifact_review import setup, visual
-from test_bounded_deadline import offline_model, close_model
+from test_bounded_deadline import arm_deadline_at_dispatch, offline_model, close_model
 from test_task_supervision import ws
 
 
@@ -39,10 +39,14 @@ async def test_artifact_replay_preserves_actual_dispatch_classification(ws, monk
     model = offline_model(ws, monkeypatch)
     if refused_locally:
         monkeypatch.setattr('report_agent.model_invocation.MODEL_REQUEST_DEADLINE_SECONDS', 600)
+    else:
+        arm_deadline = arm_deadline_at_dispatch(monkeypatch)
     sent = []
 
     async def transport(request):
         sent.append(request)
+        assert not refused_locally
+        arm_deadline()
         await asyncio.Event().wait()
 
     model.http_async_client._transport = httpx.MockTransport(transport)

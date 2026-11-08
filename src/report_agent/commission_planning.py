@@ -431,7 +431,7 @@ def _assemble(cs, db):
     draft = legacy.get_commission_planning_draft(db, {'revision': 0, 'items': {}})
     items = draft['items']
     plan = {key: list(items.get(kind, {}).values()) for kind, key in
-            [('section', 'sections'), ('object', 'objects'), ('reconciliation', 'reconciliations'), ('question', 'open_questions')]}
+            [('section', 'sections'), ('object', 'objects'), ('reconciliation', 'reconciliations'), ('question', 'open_questions')]}  # type: dict
     plan.update(items.get('details', {}).get('details', {}))
     plan['open_questions'] = [q['text'] for q in plan['open_questions'] if not q['resolved']]
     plan['reconciliations'] = [{k: v for k, v in r.items() if k != 'reconciliation_id'} for r in plan['reconciliations']]
