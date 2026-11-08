@@ -1,0 +1,58 @@
+{
+  "o3_revision": "0f495a237e14075608f5ad5602173073e45400bf",
+  "baseline_sha256": {
+    "actions.json": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54",
+    "checks.sql": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568",
+    "kinds.py": "d0da040f17566a16c113076f4f3ff489d4ad295693aad12fbe54a7687589bc0a"
+  },
+  "changes": [
+    {
+      "id": "S3",
+      "date": "2026-11-08",
+      "file": "kinds.py",
+      "category": "implementation",
+      "revision": "89f7f3be2801caa14fe6cfea871e3d3d54b3e104",
+      "before_sha256": "d0da040f17566a16c113076f4f3ff489d4ad295693aad12fbe54a7687589bc0a",
+      "after_sha256": "b58db956b74f4ac95cea8107a2efef5beb42f4f8d6ad642a985a50b911dc7d5d",
+      "summary": "Added the role-to-actor-class helper used when validating restored operations and updated the module description. The serialized shapes are identical.",
+      "owner_record": "Owner accepted stage1-s3-assertions-20261108 in chat; implementation history only.",
+      "status": "accepted_implementation"
+    },
+    {
+      "id": "M1",
+      "date": "2026-11-08",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "f90677262ef7ba387740dac96122990fef526c06",
+      "before_sha256": "b58db956b74f4ac95cea8107a2efef5beb42f4f8d6ad642a985a50b911dc7d5d",
+      "after_sha256": "10e8bac157059d6407008f9847a3e781abd93c9c3d0d65028946f5397862bf3d",
+      "summary": "m1-source-time-1 permits a source observation timestamp, calendar date, or unknown. recorded_at remains a timezone-aware timestamp. Older envelopes retain their timestamp requirement.",
+      "owner_record": null,
+      "status": "pending"
+    },
+    {
+      "id": "M2",
+      "date": "2026-11-08",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "5a2af9d11f1a9117ecf86e006fedc90006a84fb0",
+      "before_sha256": "10e8bac157059d6407008f9847a3e781abd93c9c3d0d65028946f5397862bf3d",
+      "after_sha256": "9fb7d703ec89922cce081f461b9c45e51db5116cfcee6b98a34f56477958384e",
+      "summary": "A judgment may carry submission_receipt, a 64-character lowercase hexadecimal digest. It is omitted when absent. Existing judgments keep their original envelope version.",
+      "owner_record": null,
+      "status": "pending"
+    },
+    {
+      "id": "M3",
+      "date": "2026-11-08",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "122b968f71d94c54d25e18439bcf077922af4f45",
+      "before_sha256": "9fb7d703ec89922cce081f461b9c45e51db5116cfcee6b98a34f56477958384e",
+      "after_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "summary": "m3-assessment-1 binds the typed calculator assessment to a derived assertion. Scored, pending-review and unscored results distinguish adopted scores from draft arithmetic and carry bounds, robustness, missing or interrupted inputs and the projection digest. Empty inputs are valid only for an unscored assessment naming missing indicators.",
+      "owner_record": null,
+      "status": "pending"
+    }
+  ]
+}

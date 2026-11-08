@@ -2,7 +2,7 @@
 
 The full offline regression exercised commit `1adc48fef5840782a877b031c425f6187d34a98d` with network access guarded and model credentials removed. It collected **6,086** cases. **6,077 passed and 9 conditional integrations skipped**. The skip IDs match M2. All test phases and collection groups completed without errors, missing cases or duplicate cases. The run took 28 minutes 20 seconds. The timing-sensitive planning module ran first, then seven groups ran in parallel. [Regression details](regression.json)
 
-Package statement coverage was **90.63%**. All 7 modified files with an M0 baseline met their individual floor. Basic Pyright reported 676 diagnostics across the package, compared with 683 at M2. The comparison by module, rule and message found zero added diagnostics. The six protected dispatcher/runtime files and both approved S2 contract files retain their M2 content hashes. [Coverage by file](coverage.json)
+Package statement coverage was **90.63%**. All 7 modified files with an M0 baseline met their individual floor. Basic Pyright reported 676 diagnostics across the package, compared with 683 at M2. The comparison by module, rule and message found zero added diagnostics. The six protected dispatcher/runtime files, the S2 action catalog and its SQL checks retain their M2 content hashes. The third S2 file, the vocabulary, changed. The [dated S2 amendment log](../../reviews/s2-amendments.json) accounts for changes since O3. [Coverage by file](coverage.json)
 
 ## Fake03 checkpoint
 
@@ -19,3 +19,9 @@ The initial full run at `122b968` recorded 6,069 passes, nine conditional skips 
 The M2-to-M3 inventory includes 6,043 identical collected node IDs, 43 additions and 7 renames or retirements, individually mapped. The earlier 55 M2 removals are also mapped to specific tests. [M3 inventory](test-migration.json) · [M2 mapping](m2-retired-tests.tsv)
 
 The engineering lead reviews all 11 real pilot criteria alongside M3/M4. The owner confirms the resulting project conventions before the real report starts. This offline gate records software behavior. The pilot interpretations and engineering sign-off are pending.
+
+## O3 amendment audit, 2026-11-08
+
+The owner accepted M3 at `76d835b`. The Main and independent alignment reviews traced all four vocabulary file edits from O3. S3 added an identity helper. M1, M2 and M3 changed the serialized vocabulary. The dated log lists each change, introducing commit and before/after hashes. A person recording an acknowledgment must check the owner's direct decision and cite it in the entry.
+
+The new three-file check matches the current files to the log. Its strict mode exits with status 1 and names M1, M2 and M3 pending owner acknowledgment. An independent review reproduced a case where merely entering a deferral reference could clear the initial check. The repaired check requires a positive status and decision reference. The focused offline run passed 193 tests across the new guard, S2 contract, assertion suites and domain-separation guard. Production code is identical to the accepted M3 tag.
