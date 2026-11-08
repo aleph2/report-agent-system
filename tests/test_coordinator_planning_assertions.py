@@ -35,7 +35,7 @@ async def test_planning_assertions_follow_real_page_read_and_reopen(draft_case):
         return AIMessage(content='', tool_calls=[call(name, args, native_id)])
 
     args = dict(subject=subject, predicate='height', state='value', coverage='slope',
-        value=18, unit='m', source_id=source_id, page=1, quote=quotes[0], observed_at='2025-05-06')
+        value=18, unit='m', source_id=source_id, page=1, quote=quotes[0])
     rows = []
 
     def last(messages):
@@ -56,10 +56,10 @@ async def test_planning_assertions_follow_real_page_read_and_reopen(draft_case):
         body = result(messages)
         assert body['was_attributed_to'] == principal and body['was_generated_by'] == f.co.task_id
         assert body['claim']['citation'] == dict(source_version=version, page=1, quote=quotes[0])
-        assert body['observed_at'] == '2025-05-06'
+        assert body['observed_at'] is None
         rows.append(body)
         return invoke('assert_source', 'observation-two', **{**args, 'page':2, 'quote':quotes[1],
-            'value':19, 'observed_at':None})
+            'value':19})
 
     def conflict(messages):
         body = result(messages)
@@ -84,6 +84,7 @@ async def test_planning_assertions_follow_real_page_read_and_reopen(draft_case):
     driver = await run(invoke('read_source_page', 'page', source_id=source_id, table_detail='references'),
                        first, second, conflict, question, stop)
     schemas = {s['name']:s for s in driver.bindings['coordinator'][0]}
+    assert 'observed_at' not in schemas['assert_source']['parameters']['properties']
     for name in ('assert_source', 'ask', 'record_conflict'):
         assert name in schemas['read_planning_draft']['description']
         assert not {'runtime', 'operation_id', 'actor', 'packet', 'task'} & schemas[name]['parameters']['properties'].keys()

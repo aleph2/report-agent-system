@@ -1,6 +1,5 @@
 """Named S3 actions. Only the host can supply an authenticated launch context."""
-from datetime import date, datetime, timezone
-import re
+from datetime import datetime, timezone
 from functools import partial
 
 from pydantic import TypeAdapter
@@ -32,30 +31,6 @@ def _check_packet(row, packet):
         raise ValueError("C4: a reference was outside the issued packet")
 
 
-def _observation_time(source, resources, proposed):
-    citation = source.citation
-    material = resources.get("sources", {}).get(citation.source_version, {}) if citation else {}
-    pinned = (material.get("observation_times", {}).get(str(citation.page), {}).get(citation.quote)
-              if citation else None)
-    if proposed is not None:
-        if not isinstance(proposed, str) or not citation:
-            raise ValueError("C2: material observation time needs an exact source citation")
-        matches = proposed == pinned if pinned is not None else proposed in citation.quote
-        if not matches:
-            raise ValueError("C2: observation time must match the quoted observation or its bound metadata")
-    value = pinned if pinned is not None else proposed
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        raise ValueError("C2: invalid material observation time")
-    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
-        return date.fromisoformat(value)
-    moment = datetime.fromisoformat(value)
-    if "T" not in value or moment.tzinfo is None:
-        raise ValueError("C2: supply a calendar date or an observation timestamp with a time zone")
-    return moment
-
-
 def _save(action, ctx, **request):
     with ctx.write() as (db, grant):
         return _save_locked(action, ctx, db, grant, **request)
@@ -65,6 +40,7 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None,
     if action != ctx.action:
         raise PermissionError("Native call belongs to a different action")
     request = dict(action=action, subject=subject, claim=claim, grounds=grounds, id=id)
+    # Exact retries of pre-M4 operations use their original request digest.
     if observed_at is not None:
         if action != "assert_source":
             raise ValueError("Only a source assertion accepts a material observation time")
@@ -84,19 +60,21 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None,
     if claim.kind != spec["kind"]:
         raise ValueError("C1: action does not produce this kind")
     stamp = datetime.now(timezone.utc)
+    schema_version = "s2-proposal-1"
+    if claim.kind == "source":
+        schema_version = "m1-source-time-1"
+    elif claim.kind == "derived" and claim.assessment:
+        schema_version = "m3-assessment-1"
     row = Assertion(id="pending", subject=subject, claim=claim, grounds=grounds,
                     was_attributed_to=grant.principal, was_generated_by=grant.task,
-                    operation_id=ctx.operation_id, observed_at=stamp, recorded_at=stamp,
-                    schema_version="m3-assessment-1" if claim.kind == "derived" and claim.assessment else "s2-proposal-1",
+                    operation_id=ctx.operation_id, observed_at=None if claim.kind == "source" else stamp, recorded_at=stamp,
+                    schema_version=schema_version,
                     check_version=CATALOG["version"])
     _check_packet(row, grant.packet)
     if receipt_id := getattr(claim, "submission_receipt", None):
         receipt = grant.resources.get("receipts", {}).get(receipt_id)
         if receipt is None or request_digest(receipt) != receipt_id:
             raise ValueError("C4: use the exact submission receipt bound to this assignment")
-    if claim.kind == "source":
-        row = row.model_copy(update={"observed_at": _observation_time(claim, grant.resources, observed_at),
-                                     "schema_version": "m1-source-time-1"})
     states = assertion_states(db)
     authority = authority_projection(db, grant, action, row, states)
     evidence = evidence_projection(db, row, grant.resources, states)

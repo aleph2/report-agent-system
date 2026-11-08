@@ -9,12 +9,10 @@ from report_agent import assertions
 from report_agent.assertion_host import AssertionHost, Grant
 
 
-def source_case(root, *, dates=None):
+def source_case(root):
     version = "edition"
     quote = "Observed on 2025-04-19. Height was 18 m."
     source = {"pages": {"1": quote}}
-    if dates:
-        source["observation_times"] = {"1": {quote: dates}}
     host = AssertionHost(root)
     grant = Grant(str(uuid4()), "coordinator", "t1", "try1", "p", {"A"}, {version},
                   {"assert_source"}, resources={"sources": {version: source}})
@@ -48,24 +46,14 @@ def test_produced_ids_are_narrowed_by_issuer_task_subject_and_kind(tmp_path):
         assert not host.commission.produced_ids(**(params | {k: "different"}))
 
 
-@pytest.mark.parametrize("metadata,argument,expected", [
-    (None, {}, None),
-    (None, {"observed_at": "2025-04-19"}, "2025-04-19"),
-    ("2025-04-19T14:15:00+02:00", {}, "2025-04-19T14:15:00+02:00"),
-])
-def test_source_time_preserves_unknown_date_or_material_timestamp(tmp_path, metadata, argument, expected):
-    host, _, ctx, claim = source_case(tmp_path, dates=metadata)
-    saved = assertions.assert_source(ctx, subject="A", claim=claim, **argument)
-    assert saved["observed_at"] == expected and saved["recorded_at"]
-    assert host.recover_receipt(ctx.operation_id)["result"] == saved
-
-
-@pytest.mark.parametrize("date", ["2025-04-18", "2025-04-19T09:00:00", "2025-04", "2025-04-1"])
-def test_unbound_or_imprecise_observation_time_refused_without_commit(tmp_path, date):
+def test_engineering_date_is_a_cited_value(tmp_path):
     host, _, ctx, claim = source_case(tmp_path)
-    with pytest.raises(ValueError):
-        assertions.assert_source(ctx, subject="A", claim=claim, observed_at=date)
-    assert host.recover_receipt(ctx.operation_id) is None
+    claim.update(predicate="survey_date", value="2025-04-19", unit=None)
+    saved = assertions.assert_source(ctx, subject="A", claim=claim)
+    assert saved["claim"]["value"] == "2025-04-19"
+    assert saved["claim"]["citation"] == claim["citation"]
+    assert saved["observed_at"] is None and saved["recorded_at"]
+    assert host.recover_receipt(ctx.operation_id)["result"] == saved
 
 
 def test_old_tagged_archive_roundtrips_without_rewriting_legacy_times(tmp_path):

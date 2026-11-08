@@ -49,7 +49,7 @@ NativeRuntime = Annotated[ToolRuntime | None, InjectedToolArg]
 
 
 def planning_assertion_tools(cs, get_actor):
-    def save(name, subject, claim, runtime, *, source_id=None, observed_at=None):
+    def save(name, subject, claim, runtime, *, source_id=None):
         actor = get_actor()
         principal = _issuer(cs, actor, subject)
         if runtime is None or not runtime.tool_call_id:
@@ -72,8 +72,6 @@ def planning_assertion_tools(cs, get_actor):
                       _commission(cs.store), frozenset({subject}), frozenset(packet), frozenset({name}), resources=resources)
         try:
             ctx = host.issue_once(grant, name, runtime.tool_call_id)
-            if name == 'assert_source':
-                return assertions.assert_source(ctx, subject=subject, claim=claim, observed_at=observed_at)
             return getattr(assertions, name)(ctx, subject=subject, claim=claim)
         except (ValueError, PermissionError) as error:
             raise ActionRejected(str(error)) from error
@@ -82,8 +80,8 @@ def planning_assertion_tools(cs, get_actor):
                       coverage: str, value: str | int | float | bool | None = None,
                       unit: str | None = None, period: str | None = None, source_id: str | None = None,
                       page: Annotated[int | None, Field(ge=1)] = None, quote: str | None = None,
-                      observed_at: str | None = None, runtime: NativeRuntime = None) -> dict:
-        """Propose a sourced fact for a planning inventory object. Cite the source ID, physical page and exact frozen text. Explicit absence needs a citation; silence allows only unknown. Set observed_at only for an explicit observation date/time in the quote (ISO date or zoned timestamp)."""
+                      runtime: NativeRuntime = None) -> dict:
+        """Propose a sourced fact for a planning inventory object. Cite the source ID, physical page and exact frozen text. Explicit absence needs a citation; silence allows only unknown."""
         citation = None
         if any(x is not None for x in (source_id, page, quote)):
             if not (source_id and page and quote and quote.strip()):
@@ -91,7 +89,7 @@ def planning_assertion_tools(cs, get_actor):
             citation = dict(page=page, quote=quote)
         claim = dict(kind='source', predicate=predicate, state=state, coverage=coverage, value=value,
                      unit=unit, period=period, citation=citation)
-        return save('assert_source', subject, claim, runtime, source_id=source_id, observed_at=observed_at)
+        return save('assert_source', subject, claim, runtime, source_id=source_id)
 
     def record_conflict(subject: str, observations: list[str], runtime: NativeRuntime = None) -> dict:
         """Record disagreement between distinct source assertion IDs for this inventory object; both observations remain visible."""
