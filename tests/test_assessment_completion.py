@@ -11,7 +11,8 @@ from report_agent.assessment_completion import (
     selected_tools, saved_assessments,
 )
 from report_agent.request_budget import RequestBudgetExceeded, account_request_sync, request_reservation_observer
-from report_agent.store import digest
+from report_agent.content_store import Actor, ContentStore
+from report_agent.store import Store, digest
 from report_agent.token_budget import TokenBudget, token_budget
 
 
@@ -98,29 +99,84 @@ def test_tools_exclude_all_other_model_and_business_writes():
     assert [t.name for t in selected_tools(offered)]==['read_context','search_sources','calculate_assessment']
 
 
-class Saved:
-    def __init__(self):self.values={};self.records={};self.store=self
-    def get(self,key,default=None):return self.values.get(key,default)
-    def read(self,ref):return self.records[digest(ref)]
-    def add(self,plan,obj,owner='writer'):
-        ref={'type':'Assessment','id':obj,'version':1}
-        self.values['g6_assessment:'+digest([plan,obj])]=ref
-        self.values['assessment_receipt:'+digest(ref)]={'assessment_ref':ref}
-        self.records[digest(ref)]={'ref':ref,'owner_id':owner,'payload':{'object_id':obj,'commission_plan_ref':plan}}
+@pytest.mark.asyncio
+@pytest.mark.parametrize('route', [None, 'extension_authority', 'continuation_authority'])
+async def test_paid_raw_only_recovery_refuses_before_any_launch_activity(tmp_path, monkeypatch, route):
+    from report_agent import assessment_completion as recovery
+    def unexpected(*args, **kwargs):
+        pytest.fail('Retired raw recovery must not inspect live cases or start a paid launch')
+    monkeypatch.setattr(recovery, '_load', unexpected)
+    monkeypatch.setattr(recovery, '_preflight', unexpected)
+    monkeypatch.setattr(recovery, '_run_completion_locked', unexpected)
+    options = {route:tmp_path/'authority.json'} if route else {}
+    with pytest.raises(ValueError, match='ASSESSMENT_COMPLETION_RAW_ONLY_CANNOT_SAVE_CANONICAL'):
+        await recovery.run_completion(tmp_path, tmp_path, tmp_path/'env', tmp_path/'grant', **options)
+    assert list(tmp_path.iterdir()) == []
+
+
+def add_archived_assessment(cs, plan, obj, owner='writer'):
+    from test_m1_g3_scoring import assessment_data, calculate
+    actor = Actor(owner, 'writer', owner)
+    candidate = {**assessment_data(), 'object_id':obj, 'commission_plan_ref':plan}
+    result = calculate()
+    with cs.store.connect() as db:
+        ref = cs._insert(db, actor, 'Assessment', {**candidate, 'result':result})
+        evidence = cs._insert(db, actor, 'Evidence', {'input_refs':[ref, plan], 'result':result})
+        evaluation = cs._insert(db, actor, 'ContentNode', {'kind':'table', 'body':{'assessment_ref':ref}})
+        level = cs._insert(db, actor, 'ContentNode', {'kind':'block', 'body':{'assessment_ref':ref}})
+    cs.store.set('g6_assessment:' + digest([plan, obj]), ref)
+    cs.store.set('assessment_receipt:' + digest(ref), {'assessment_ref':ref, 'result':result,
+                 'evidence_ref':evidence, 'evaluation_ref':evaluation, 'level_ref':level})
+    return ref
 
 
 @pytest.mark.parametrize('invalid',['plan','owner','receipt'])
-def test_only_current_plan_writer_canonical_receipts_count(invalid):
-    cs=Saved();plan={'type':'CommissionPlan','id':'approved','version':2};ids=['S'+str(i) for i in range(5)]
-    for obj in ids[:4]:cs.add(plan,obj)
-    assert len(saved_assessments(cs,plan,ids,'writer'))==4
-    cs.add(plan,ids[4]);assert len(saved_assessments(cs,plan,ids,'writer'))==5
-    first=cs.values['g6_assessment:'+digest([plan,ids[0]])]
-    if invalid=='plan':cs.records[digest(first)]['payload']['commission_plan_ref']={**plan,'version':1}
-    elif invalid=='owner':cs.records[digest(first)]['owner_id']='other-writer'
-    else:cs.values.pop('assessment_receipt:'+digest(first))
+def test_only_current_plan_writer_canonical_receipts_count(tmp_path, invalid):
+    cs = ContentStore(Store(tmp_path))
+    plan = {'type':'CommissionPlan','id':'approved','version':2}
+    ids = ['S'+str(i) for i in range(5)]
+    first, *_ = [add_archived_assessment(cs, plan, obj) for obj in ids[:4]]
+    assert len(saved_assessments(cs,plan,ids,'writer')) == 4
+    add_archived_assessment(cs, plan, ids[4])
+    assert len(saved_assessments(cs,plan,ids,'writer')) == 5
+    if invalid == 'plan':
+        wrong = add_archived_assessment(cs, {**plan,'version':1}, ids[0])
+        cs.store.set('g6_assessment:' + digest([plan,ids[0]]), wrong)
+    elif invalid == 'owner':
+        add_archived_assessment(cs, plan, ids[0], 'other-writer')
+    else:
+        cs.store.set('assessment_receipt:' + digest(first), None)
     with pytest.raises(ValueError,match='ASSESSMENT_COMPLETION_SELECTION_INVALID'):
         saved_assessments(cs,plan,ids,'writer')
+
+
+@pytest.mark.parametrize('status,has_draft,counted', [
+    ('pending_review', True, True), ('pending_review', False, False), ('stale', True, False), ('unscored', False, False)])
+def test_draft_arithmetic_and_invalidated_assessments_have_distinct_completion_status(tmp_path, monkeypatch, status, has_draft, counted):
+    from report_agent import assessment_completion
+    cs = ContentStore(Store(tmp_path))
+    plan = {'type':'CommissionPlan','id':'approved','version':2}
+    ref = add_archived_assessment(cs, plan, 'S1')
+    arithmetic = dict(status='scored', adopted=dict(total='40', level='II')) if has_draft else dict(status='unscored')
+    # Isolate count semantics; live confirmation and withdrawal use the native refresh tests.
+    def reviewed_receipt(db, selected):
+        assert selected == ref
+        return {'assessment_ref':ref, 'derivation_status':status, 'result':arithmetic}
+    monkeypatch.setattr(assessment_completion, 'assessment_receipt', reviewed_receipt)
+    statuses = {}
+    saved = saved_assessments(cs, plan, ['S1'], 'writer', statuses=statuses)
+    assert saved == ({'S1':ref} if counted else {})
+    assert statuses == {'S1':status}
+
+
+def test_archived_status_without_verified_result_cannot_complete_recovery(tmp_path):
+    cs = ContentStore(Store(tmp_path))
+    plan = {'type':'CommissionPlan','id':'approved','version':2}
+    ref = add_archived_assessment(cs, plan, 'S1')
+    cs.store.set('assessment_receipt:' + digest(ref), {'assessment_ref':ref, 'derivation_status':'scored'})
+    statuses = {}
+    assert not saved_assessments(cs, plan, ['S1'], 'writer', statuses=statuses)
+    assert statuses == {'S1':'unverified'}
 
 
 @pytest.mark.asyncio

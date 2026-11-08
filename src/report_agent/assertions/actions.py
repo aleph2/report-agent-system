@@ -87,7 +87,8 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None,
     row = Assertion(id="pending", subject=subject, claim=claim, grounds=grounds,
                     was_attributed_to=grant.principal, was_generated_by=grant.task,
                     operation_id=ctx.operation_id, observed_at=stamp, recorded_at=stamp,
-                    schema_version="s2-proposal-1", check_version=CATALOG["version"])
+                    schema_version="m3-assessment-1" if claim.kind == "derived" and claim.assessment else "s2-proposal-1",
+                    check_version=CATALOG["version"])
     _check_packet(row, grant.packet)
     if receipt_id := getattr(claim, "submission_receipt", None):
         receipt = grant.resources.get("receipts", {}).get(receipt_id)

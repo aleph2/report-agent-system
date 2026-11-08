@@ -1,5 +1,5 @@
 """Trusted one-shot Writer assessment recovery; never resumes a stopped report host."""
-from . import legacy_state as legacy
+from .assessment_projection import assessment_receipt, score_blocker, selected_assessment
 import argparse
 import asyncio
 from contextlib import AsyncExitStack, closing
@@ -22,6 +22,8 @@ LIMIT = 10_000_000
 GRANT_LIMIT = 200_000_000
 PRESERVED_ATTEMPT = '6e3df9b9-d8b8-459a-86c7-e3adada9a3e1'
 FRESH_OPERATION = 'owner-approved-assessment-completion-fresh-continuation'
+RECOVERY_WRITE_TOOLS = frozenset({'calculate_assessment'})
+RAW_ONLY_REFUSAL = 'ASSESSMENT_COMPLETION_RAW_ONLY_CANNOT_SAVE_CANONICAL'
 READ_TOOLS = frozenset({'project_status', 'read_source_page', 'search_sources', 'inspect_source_page',
     'read_result', 'content_status', 'read_object_index', 'read_context', 'read_content_index',
     'read_content_selection', 'observe_evidence', 'read_feedback', 'get_operation_receipt',
@@ -124,22 +126,31 @@ def require_writer_model(model, expected):
 
 def selected_tools(tools):
     return [tool for tool in tools if (getattr(tool, 'name', None) or getattr(tool, '__name__', None))
-            in READ_TOOLS | {'calculate_assessment'}]
+            in READ_TOOLS | RECOVERY_WRITE_TOOLS]
 
 
-def saved_assessments(contents, plan_ref, object_ids, owner_id):
+def saved_assessments(contents, plan_ref, object_ids, owner_id, *, statuses=None):
+    """Count complete Writer drafts, recording review and invalidation status separately."""
     result = {}
-    for object_id in object_ids:
-        ref = legacy.get_g6_assessment(contents.store, digest([plan_ref, object_id]))
-        if ref is None:
-            continue
-        record = contents.read(ref)
-        receipt = legacy.get_assessment_receipt(contents.store, digest(ref))
-        if (ref.get('type') != 'Assessment' or record['payload'].get('commission_plan_ref') != plan_ref
-                or record['payload'].get('object_id') != object_id or record['owner_id'] != owner_id
-                or not receipt or receipt.get('assessment_ref') != ref):
-            raise ValueError('ASSESSMENT_COMPLETION_SELECTION_INVALID')
-        result[object_id] = ref
+    with contents.store.connect() as db:
+        db.execute('BEGIN')
+        for object_id in object_ids:
+            ref = selected_assessment(db, plan_ref, object_id)
+            if ref is None:
+                continue
+            record = contents._read(db, ref)
+            receipt = assessment_receipt(db, ref)
+            if (ref.get('type') != 'Assessment' or record['payload'].get('commission_plan_ref') != plan_ref
+                    or record['payload'].get('object_id') != object_id or record['owner_id'] != owner_id
+                    or not receipt or receipt.get('assessment_ref') != ref):
+                raise ValueError('ASSESSMENT_COMPLETION_SELECTION_INVALID')
+            blocker = score_blocker(receipt)
+            if statuses is not None:
+                statuses[object_id] = blocker or ('scored' if 'derived_assertion_id' in receipt else 'legacy_saved')
+            arithmetic = receipt.get('result', {})
+            if blocker is None or (blocker == 'pending_review' and arithmetic.get('status') == 'scored'
+                                   and arithmetic.get('adopted')):
+                result[object_id] = ref
     return result
 
 
@@ -590,9 +601,13 @@ async def _run_completion_locked(case, evidence, env, grant_file, extension_auth
     finally:
         if actor is not None:
             try:
-                launch['assessment_refs'] = saved_assessments(contents, plan['ref'], ids, actor.id)
+                launch['assessment_statuses'] = {}
+                launch['assessment_refs'] = saved_assessments(contents, plan['ref'], ids, actor.id, statuses=launch['assessment_statuses'])
                 launch['missing_objects'] = sorted(set(ids) - launch['assessment_refs'].keys())
+                if launch['status'] != 'blocked':
+                    launch['status'] = 'incomplete' if launch['missing_objects'] else 'completed'
             except Exception as error:
+                launch['status'] = 'blocked'
                 launch['assessment_receipt_error_type'] = type(error).__name__
         launch['finished_at_utc'] = datetime.now(timezone.utc).isoformat()
         try:
@@ -649,6 +664,9 @@ def build_writer_agent(workspace, model, tools, complete, checkpointer, continua
 
 
 async def run_completion(case, evidence, env, grant_file, extension_authority=None, continuation_authority=None):
+    # Bulk calculation produces an unselected draft; it cannot fulfill the five-canonical-assessment stop condition.
+    if not {'save_evidence', 'save_assumption', 'save_gap'} <= RECOVERY_WRITE_TOOLS:
+        raise ValueError(RAW_ONLY_REFUSAL)
     import fcntl
     case, evidence = Path(case).resolve(), Path(evidence).resolve()
     working = _load(evidence / 'working-copy.json')
@@ -670,9 +688,12 @@ def main():
     try:
         result = asyncio.run(run_completion(args.case,args.evidence,args.env,args.grant_baseline,args.extension_authority,args.continuation_authority))
     except BaseException as error:
-        print(json.dumps({'status':'blocked','error_type':type(error).__name__}))
+        blocked = {'status':'blocked','error_type':type(error).__name__}
+        if str(error) == RAW_ONLY_REFUSAL:
+            blocked['code'] = RAW_ONLY_REFUSAL
+        print(json.dumps(blocked))
         return 1
-    print(json.dumps({k:result.get(k) for k in ('status','assessment_refs','missing_objects','budget')},ensure_ascii=False))
+    print(json.dumps({k:result.get(k) for k in ('status','assessment_refs','assessment_statuses','missing_objects','budget')},ensure_ascii=False))
     return 0 if result['status']=='completed' else 1
 
 

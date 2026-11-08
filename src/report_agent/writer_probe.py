@@ -209,7 +209,9 @@ async def _run_probe_locked(case, inputs, authority, env, launch_path):
                 'remaining':20_000_000-total-totalheld,
                 'preserved_hold_unchanged':next((r for r in final['rows'] if r[0]==inputs['preserved_hold'][0]),None)==inputs['preserved_hold']}
             if session is not None:
-                refs = saved_assessments(contents,plan['ref'],[object_id],session.actor.id)
+                result['assessment_statuses'] = {}
+                refs = saved_assessments(contents, plan['ref'], [object_id], session.actor.id,
+                                         statuses=result['assessment_statuses'])
                 result['assessment_refs'] = refs
                 result['refusals'] = session.refusals
                 result['refusal_count'] = len(session.refusals)

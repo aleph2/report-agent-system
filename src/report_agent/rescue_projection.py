@@ -1,5 +1,6 @@
 """Audited prose-only rescue projection; original authors and records are immutable."""
 from . import legacy_state as legacy
+from .assessment_projection import assessment_receipt, score_blocker, selected_assessment
 from copy import deepcopy
 import json
 import re
@@ -179,10 +180,12 @@ def _project(cs, db, source, section, dispositions, required):
                 plan_ref = task['payload']['commission_plan_ref']
                 planned = legacy.get_planned_section_receipt(db, digest(replacement))
                 assessment = body.get('assessment_ref')
-                scored = legacy.get_assessment_receipt(db, digest(assessment)) if assessment else None
+                scored = assessment_receipt(db, assessment) if assessment else None
                 valid_planned = (planned and planned.get('node_ref') == replacement and
                     planned.get('commission_plan_ref') == plan_ref and
                     (planned.get('body_digest') == digest(body) or planned.get('text_digest') == digest(body.get('text'))))
+                if scored and (blocker := score_blocker(scored)):
+                    raise ActionRejected('RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: ' + blocker)
                 valid_scored = (scored and scored.get(body.get('assessment_part', '') + '_ref') == replacement and
                     cs._read(db, assessment)['payload'].get('commission_plan_ref') == plan_ref)
                 if replacement['type'] != 'ContentNode' or not (valid_planned or valid_scored):
@@ -212,16 +215,19 @@ def _assessment_replacement(cs, db, source, section, plan, assessment_ref):
     if assessment_ref.get('type') != 'Assessment':
         raise ActionRejected('RESCUE_ASSESSMENT_REF_REQUIRED')
     saved = cs._read(db, assessment_ref)['payload']
-    receipt = legacy.get_assessment_receipt(db, digest(assessment_ref))
+    receipt = assessment_receipt(db, assessment_ref)
     if (not receipt or receipt.get('assessment_ref') != assessment_ref or
             saved.get('commission_plan_ref') != plan['ref'] or saved.get('object_id') != obj['object_id']):
         raise ActionRejected('RESCUE_ASSESSMENT_PLAN_OBJECT_RECEIPT_REQUIRED')
+    blocker = score_blocker(receipt)
+    if blocker:
+        raise ActionRejected('RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: ' + blocker)
     if any(cs._read(db, receipt[part + '_ref'])['payload']['body'].get('section_id') != section['section_id']
             for part in ('evaluation', 'level')):
         raise ActionRejected('RESCUE_ASSESSMENT_SECTION_MISMATCH')
     checked = validate_outcome(cs, db, plan, obj['object_id'], receipt['evaluation_ref'],
         receipt['level_ref'], [receipt['evidence_ref']], [])
-    current = legacy.get_g6_assessment(db, digest([plan['ref'], obj['object_id']]))
+    current = selected_assessment(db, plan['ref'], obj['object_id'])
     if checked != assessment_ref or current is not None and current != assessment_ref:
         raise ActionRejected('RESCUE_ASSESSMENT_CANONICAL_REF_MISMATCH')
     pattern = r'本边坡综合得分F＝[0-9]+\.[0-9]{2}，风险等级(?:Ⅲ级，需|Ⅱ级，不需)开展专项施工安全风险评估。'

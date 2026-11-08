@@ -56,7 +56,7 @@ async def test_two_mini_slopes_run_twenty_two_independent_assessment_steps(tmp_p
         assert result['slopes'][1]['status']=='closed_with_gaps'
     for ix,s in enumerate(result['slopes']):
         assert s['indicator_steps']['progress']=={'recorded':10 if interrupt_first and ix==0 else 11,'total':11}
-        assert s['indicator_steps']['assessment_ref'] is None
+        assert ContentStore(workspace.store).read(s['indicator_steps']['assessment_ref'])['payload']['result']['status'] == 'unscored'
         assert len(s['refusals'])==(2 if interrupt_first and ix==0 else 0)
         normalized=seen[1:] if interrupt_first else seen
         batch=normalized[11*ix:11*(ix+1)]
@@ -67,7 +67,7 @@ async def test_two_mini_slopes_run_twenty_two_independent_assessment_steps(tmp_p
         actor_id=slope['writer_actor'].split(':')[-1]
         task=cs.read({'type':'DelegatedTask','id':actor_id,'version':1})['payload']
         assert task['assessment_object_id']==slope['object_id'] and task['section_ids']==['3']
-    assert not cs.list_objects('Assessment')
+    assert len(cs.list_objects('Assessment')) == 2
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('pending_after_cutoff',[False,True])
@@ -138,7 +138,7 @@ async def test_sdk_malformed_save_refusals_preserve_committed_row_and_continue_b
     assert [r['tool_call_id'] for r in interrupted['refusals']]==['malformed-2','malformed-3']
     assert all(r['parser_diagnostic']['message'] for r in interrupted['refusals'])
     assert 'raw-test-data' not in json.dumps(refused) and 'raw-test-data' not in json.dumps(interrupted)
-    assert final['progress']['recorded']==10 and final['assessment_ref'] is None
+    assert final['progress']['recorded']==10 and ContentStore(workspace.store).read(final['assessment_ref'])['payload']['result']['status'] == 'unscored'
 
 
 @pytest.mark.asyncio

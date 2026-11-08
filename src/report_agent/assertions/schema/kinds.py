@@ -127,12 +127,50 @@ class Judgment(Shape):
         return self
 
 
+class ScorePoint(Shape):
+    total: Decimal
+    level: Id | None
+
+
+class AssessmentCalculation(Shape):
+    status: Literal["scored", "pending_review", "unscored"]
+    adopted: ScorePoint | None = Field(default=None, exclude_if=lambda v: v is None)
+    draft_arithmetic: ScorePoint | None = Field(default=None, exclude_if=lambda v: v is None)
+    low: ScorePoint | None = None
+    high: ScorePoint | None = None
+    level_robust: bool | None = None
+    missing_indicators: tuple[Id, ...] = ()
+    interrupted_indicators: tuple[Id, ...] = ()
+    projection_digest: Digest
+
+
 class Derived(Shape):
     kind: Literal["derived"]
     rule_version: Id
-    inputs: Refs
+    inputs: tuple[Id, ...]
+    assessment: AssessmentCalculation | None = Field(default=None, exclude_if=lambda v: v is None)
     strength: Literal["undetermined", "provisional", "determined"]
     value: Decimal | None = None
+
+
+    @model_validator(mode="after")
+    def check_assessment(self):
+        result = self.assessment
+        if not self.inputs and not (result and result.status == "unscored" and result.missing_indicators):
+            raise ValueError("Derived result requires inputs")
+        if result:
+            if len(self.inputs) != len(set(self.inputs)):
+                raise ValueError("Duplicate assessment input")
+            if (result.status == "scored") != (result.adopted is not None):
+                raise ValueError("Only a scored assessment can adopt a score")
+            if (result.status == "pending_review") != (result.draft_arithmetic is not None):
+                raise ValueError("Draft arithmetic requires pending review")
+            if result.status == "scored" and result.adopted:
+                if result.adopted.level is None or self.strength == "undetermined" or self.value != result.adopted.total:
+                    raise ValueError("Assessment strength or adopted score mismatch")
+            elif self.strength != "undetermined" or self.value is not None:
+                raise ValueError("An undetermined assessment must remain unscored")
+        return self
 
 
 class Recommendation(Shape):
@@ -220,11 +258,14 @@ class Assertion(Shape):
     operation_id: Id
     observed_at: AwareDatetime | date | None
     recorded_at: AwareDatetime
-    schema_version: Literal["s2-proposal-1", "m1-source-time-1"]
+    schema_version: Literal["s2-proposal-1", "m1-source-time-1", "m3-assessment-1"]
     check_version: Literal["s2-proposal-2"]
 
     @model_validator(mode="after")
     def check_observation_precision(self):
+        assessment = self.claim.kind == "derived" and self.claim.assessment is not None
+        if assessment != (self.schema_version == "m3-assessment-1"):
+            raise ValueError("Calculator assessment requires its versioned envelope")
         if self.schema_version == "m1-source-time-1":
             if self.claim.kind != "source":
                 raise ValueError("Material observation time applies to source assertions only")

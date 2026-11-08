@@ -115,11 +115,35 @@ def test_two_valid_writer_packets_cannot_choose_a_second_producer(mini, tmp_path
         save_indicator_outcome(cs, first.actor, "first-producer", step["indicator_id"], outcome)
     with writer_session(ws, "坡段 A", None, **args) as other:
         step = read_indicator_step(cs, other.actor)
-        with pytest.raises(ActionRejected, match="C11|producer"):
+        from report_agent.errors import ActionForbidden
+        with pytest.raises(ActionForbidden, match="assessment producer ownership"):
             save_indicator_outcome(cs, other.actor, "other-producer", step["indicator_id"], outcome)
         assert read_indicator_step(cs, other.actor)["progress"]["recorded"] == 0
     rows = records(host, tmp_path/"producers.jsonl")
     assert sum(r["claim"]["kind"] == "judgment" for r in rows) == 1
+
+
+def test_writer_packet_without_the_assigned_slope_cannot_reserve_production(mini):
+    from dataclasses import replace
+    from report_agent.errors import ActionRejected
+    from report_agent.store import digest
+    from report_agent.writer_assignments import bound_assignment
+    from report_agent.writer_fact_packet import _writer_key
+    ws, binding, _ = mini
+    install(ws, binding.plan_ref)
+    cs, host = ContentStore(ws.store), AssertionHost(ws.store.root)
+    with writer_session(ws, "坡段 A", None, assessment_only=True, indicator_steps=True, section_id="3") as writer:
+        with ws.store.connect() as db:
+            scope = bound_assignment(cs, db, writer.actor)
+        step = read_indicator_step(cs, writer.actor)
+        grant = host.lookup(_writer_key(writer.actor, scope))
+        host.authorize(replace(grant, subjects=frozenset({"B"})))
+        with pytest.raises(ActionRejected, match="WRITER_ASSIGNED_FACT_NO_LONGER_CONFIRMED"):
+            save_indicator_outcome(cs, writer.actor, "wrong-slope-packet", step["indicator_id"],
+                                   dict(kind="gap", missing="Rock subtype", question="Which subtype?"))
+        with ws.store.connect() as db:
+            assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='assessment_producers'").fetchone()
+        assert host.commission.producer(digest(scope["plan"]["ref"]), "A") is None
 
 
 @pytest.mark.parametrize("method_commission", ["with-owner-ranks"], indirect=True)

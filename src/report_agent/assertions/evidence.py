@@ -2,6 +2,7 @@
 import json
 from decimal import Decimal
 
+from .ids import request_digest
 from .schema.kinds import Assertion, Judgment, Source
 
 
@@ -147,6 +148,16 @@ def _validate_references(row, records, resources):
         for key in (claim.inputs if claim.kind == "derived" else claim.basis):
             require(key)
         if claim.kind == "derived":
+            if claim.assessment:
+                expected = dict(subject=row.subject, claim=claim.model_dump(mode="json"))
+                if resources.get("receipts", {}).get(request_digest(expected)) != expected:
+                    raise ValueError("C4: assessment requires the exact calculator-issued result")
+                for key in claim.inputs:
+                    item = require(key, "judgment")
+                    if item["subject"] != row.subject or item.get("stale") or item["status"] not in (
+                        "proposed", "confirmed", "endorsed"
+                    ):
+                        raise ValueError("C10: assessment input is stale, contested, or outside its slope")
             if claim.rule_version in records:
                 rule = records[claim.rule_version]
                 if rule["kind"] not in ("source", "convention") or not _active(rule):

@@ -7,7 +7,7 @@ active_rubric_hash	runtime	runtime	Configuration, version or prompt/reviewer int
 agent_summary	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
 artifact_text_work:*	mixed	M8	Produced text/evidence/analysis is retained along with task state or bound results; migrate adopted report claims and retain the task receipt.
 assembly_receipt:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
-assessment_receipt:*	assertion	M3	Scored assessment or receipt referring to the derived assessment.
+assessment_receipt:*	assertion	M3	Historical receipt lookup. Current calculator results identify their immutable judgment inputs and retain pinned rendering references.
 bounded_review_attempt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
 bounded_review_completed:*	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
 bounded_review_result:*	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
@@ -51,8 +51,8 @@ execution_progress_recovery:*	runtime	runtime	Task status, admission/recovery, l
 fake03_qualitative_actor:*	runtime	M1	Fake-only actor context/fixture binding retired with the keyed fixture.
 fake03_qualitative_profile	assertion	M1	Fixture-sourced facts and declared source precedence.
 feedback	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
-g6_assessment:*	assertion	M3	Scored assessment or receipt referring to the derived assessment.
-g6_assessment_producer:*	runtime	M3	First-producer binding protects the existing plan/slope producer.
+g6_assessment:*	assertion	M3	Historical plan and object selection. Current selections point to the calculator result.
+g6_assessment_producer:*	runtime	M3	Historical producer lookup. New ownership lives in runtime storage and each judgment save checks the plan and slope binding.
 g6_issue_binding:*	assertion	M6	Open issue or link locating a finding/issue in the report.
 g6_issue_record:*	assertion	M6	Open issue or link locating a finding/issue in the report.
 g6_issue_route:*	assertion	M6	Open issue or link locating a finding/issue in the report.

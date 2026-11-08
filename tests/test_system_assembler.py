@@ -317,3 +317,16 @@ def test_automatic_owner_routes_do_not_mutate_inputs_or_break_operation_retry(as
     assert assemble_report(f.cs, f.co, 'owner-idempotent', **f.inputs) == first
     receipt = f.ws.store.get('assembly_receipt:' + digest(first['result']['snapshot_ref']))
     assert receipt['resolved_issue_bindings'] == {f.required[0]['id']: {'section_id': '1.3'}}
+
+
+def test_current_assembly_retry_rechecks_later_score_withdrawal(assembly_input, monkeypatch):
+    from report_agent import system_assembler as assembly
+    f = assembly_input
+    select_current(f)
+    operation = 'selected-score-retry'
+    saved = assembly.assemble_current_report(f.cs, f.co, operation)
+    monkeypatch.setattr(assembly, 'assessment_receipt',
+                        lambda db, ref: {**f.assessment, 'derivation_status': 'stale'})
+    with pytest.raises(ActionRejected, match='CURRENT_SCORE_UNAVAILABLE: stale'):
+        assembly.assemble_current_report(f.cs, f.co, operation)
+    assert f.cs.receipt(f.co, operation)['response'] == saved

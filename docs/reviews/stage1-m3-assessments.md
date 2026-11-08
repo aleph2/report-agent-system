@@ -28,3 +28,21 @@ X11 requires both total-height and bench-height evidence for the larger-of rule.
 - Check the scoped assignment and the one-producer binding independently. Keep task receipts in runtime storage. A lost reply must recover the same result. Preserve historical reads and pinned selections.
 - Exercise the normal Writer-to-calculator entry point offline. Verify how an incomplete or unreviewed selection appears to downstream consumers. Keep the existing dispatcher and engineering authorities intact.
 - Map each removed test node individually to its covering test and explain any deliberately retired behavior. Compare per-file coverage to M0 and run the full offline regression before the review tag.
+
+
+## Recalculating a reviewed assessment
+
+The trusted case operator can select a new calculator result after the reviews of the saved inputs are complete. Run `python -m report_agent.assessment_refresh /path/to/existing/case SLOPE_OBJECT_ID` in the report environment. The command uses the current approved plan and the recorded Writer assignment. Its JSON result identifies the previous and current assessment and its status. Repeating it on a current scored assessment returns the same reference. A Word or Excel snapshot pinned to the earlier assessment continues to refer to that version.
+
+## Independent review findings
+
+| Severity | Observation and affected action | Disposition |
+| --- | --- | --- |
+| P1 | A fresh bulk submission could become the selected score before any Writer judgments existed. That would let an unverified number reach the assembled report. | Fresh raw input in the system-assembled route is a draft. The selector, chapter and export checks use the authenticated calculator result. Historical G3 reads retain their original scope. |
+| P1 | Review could confirm a draft’s inputs without giving the operator a supported way to obtain its score. | The explicit refresh command derives a successor from the reviewed inputs and preserves the draft. |
+| P2 | Changing the projection’s runtime marker could bypass the review check for a result whose immutable content identified it as native. | The reader verifies its identity against immutable content. Missing or inconsistent status cannot qualify a score. |
+| P2 | A fact retraction between the calculator commit and the rendering projection could make recovery fail. | An authorized exact retry uses the frozen operation receipt. Current eligibility still applies to new calculations and revoked assignments cannot recover the result. |
+
+The historical paid assessment-completion command advertises only the bulk scoring tool. Under system assembly this can produce drafts but cannot meet its own five-selected-results stop condition (P2). The launcher refuses this route before creating work or reserving tokens. Archived results remain available for inspection.
+
+The [individual test migration record](../verification/stage1-m3/m2-retired-tests.tsv) lists the 55 M2 removals or renamed test cases, their specific covering tests and the behavior deliberately retired.

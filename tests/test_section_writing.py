@@ -2,7 +2,7 @@ import pytest
 from report_agent.errors import ActionRejected, ActionForbidden
 from report_agent.store import digest
 from report_agent.section_writing import save_section_prose, propose_material_issue
-from test_m1_g3_integration import method_commission, section_plan, persist
+from test_m1_g3_integration import method_commission, section_plan
 from test_m1_commission_plan import save, approve, writer
 
 @pytest.fixture
@@ -69,28 +69,57 @@ def test_g6_tools_expose_prose_not_snapshot_assembly(writing):
     names={f.__name__ for f in content_tools(writing.ws,'coordinator')}
     assert 'request_system_delivery' in names
 
-def test_current_saved_work_assembles_and_exports_without_manual_snapshot(writing):
+@pytest.fixture
+def reviewed_writing(method_commission):
+    from uuid import NAMESPACE_URL, uuid5
+    from report_agent import assertions
+    from report_agent.assertion_host import AssertionHost, Grant
+    from report_agent.assessment_refresh import refresh_selected_assessment
+    from report_agent.writer_assessment import read_indicator_step, save_indicator_outcome
+    from test_writer_indicator_outcomes import attach_ranks, evidence, make_assignment
+
+    f = method_commission
+    f.plan = section_plan(f)
+    attach_ranks(f)
+    make_assignment(f)
+    f.writer = writer(f, {'plan_ref': f.plan_ref}, section_ids=['4'])
+    host = AssertionHost(f.cs.store.root)
+    for key in 'ABCD':
+        step = read_indicator_step(f.cs, f.actor)
+        save_indicator_outcome(f.cs, f.actor, 'judge-' + key, key, evidence(f, step))
+    outcome = read_indicator_step(f.cs, f.actor)
+    for entry in outcome['outcomes'].values():
+        key = entry['assertion_id']
+        grant = Grant(str(uuid5(NAMESPACE_URL, 'test/owner')), 'owner', 'review', key,
+                      digest(f.plan_ref), {'S1'}, {key}, {'confirm'})
+        assertions.confirm(host.issue(grant, 'confirm', 'review-'+key), subject='S1',
+            claim=dict(kind='act', effect='confirm', target=key, reason='Verified synthetic input'))
+    assert refresh_selected_assessment(f.cs, 'S1')['status'] == 'scored'
+    return f
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_current_saved_work_assembles_and_exports_without_manual_snapshot(reviewed_writing):
     from report_agent.system_assembler import assemble_current_report
     from report_agent.content_export import export_snapshot
-    f=writing
+    f=reviewed_writing
     save_section_prose(f.cs,f.writer,'p','4','S1 design height is 30 metres.',[f.cite('design')])
-    persist(f,f.writer)
     assembled=assemble_current_report(f.cs,f.co,'assembly')['result']
     exported=export_snapshot(f.cs,f.co,'export',assembled['snapshot_ref'],{'toc':False})['result']
     assert exported['file_ref'].endswith('.docx') and exported['workbook']['file_ref'].endswith('.xlsx')
 
 
 @pytest.mark.asyncio
-async def test_business_boundary_runs_delivery_and_counts_actual_new_pair(writing):
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+async def test_business_boundary_runs_delivery_and_counts_actual_new_pair(reviewed_writing):
     from types import SimpleNamespace
     from langchain_core.messages import ToolMessage
     from report_agent.deep_runtime import BusinessBoundary
     from report_agent.hierarchical_tools import content_tools
     from report_agent.delivery_guard import KEY
     from report_agent.store import encode
-    f=writing
+    f=reviewed_writing
     save_section_prose(f.cs,f.writer,'p','4','S1 design height is 30 metres.',[f.cite('design')])
-    persist(f,f.writer)
     tool=next(t for t in content_tools(f.ws,'coordinator') if t.__name__=='request_system_delivery')
     boundary=BusinessBoundary(f.ws,'coordinator')
     request=SimpleNamespace(tool=None,tool_call={'name':'request_system_delivery','id':'native-export','args':{'operation_id':'pair'}})

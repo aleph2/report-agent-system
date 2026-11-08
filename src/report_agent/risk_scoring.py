@@ -1,5 +1,7 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
 from . import legacy_state as legacy
+from .assessment_results import score_band
+from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker
 from typing import Literal
 
 from pydantic import Field, ValidationError
@@ -108,16 +110,12 @@ def calculate(pack: dict, assessment: dict) -> dict:
     if errors:
         raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(dict.fromkeys(errors)))
     ordered = sorted(rows, key=lambda r: list(definitions).index(r.indicator_id))
-    result = {'rows': []}
+    assert weights is not None  # The unavailable strategy is reported with other input errors above.
+    result: dict = {'rows': []}
     for mode in ('adopted', 'low', 'high'):
         values = [getattr(r, mode) if mode != 'adopted' and r.basis_kind.endswith('assumption') else r.value for r in ordered]
         arithmetic = sum_products([[v, weights[r.rank - 1]] for r, v in zip(ordered, values)])
-        total = number(arithmetic['total'])
-        bands = [b for b in method.risk_bands if (total >= number(b.lower) if b.lower_inclusive else total > number(b.lower))
-                 and (total <= number(b.upper) if b.upper_inclusive else total < number(b.upper))]
-        if len(bands) != 1:
-            raise ActionRejected('ASSESSMENT_INVALID: calculated total outside risk bands')
-        result[mode] = {'total': arithmetic['total'], 'level': bands[0].level}
+        result[mode] = score_band(method, arithmetic['total'])
     result['affects_level'] = len({result[m]['level'] for m in ('adopted', 'low', 'high')}) > 1
     for row in ordered:
         weight = weights[row.rank - 1]
@@ -287,11 +285,9 @@ def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
             if source['source_id'] in customer_ids:
                 raise ActionRejected('ASSESSMENT_COMMISSION_IS_NOT_FACTUAL_BASIS')
 
-def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
-    """Canonical save inside the caller's already-held transaction."""
-    from .commission_plan import assert_writing_allowed, _validate_sources, _confirmed, outside_boundary
-    from .content_models import ContentNode, Ref
-    from .store import digest
+def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
+    """Compatibility entry for historical raw-row callers."""
+    from .commission_plan import assert_writing_allowed, outside_boundary
 
     plan = assert_writing_allowed(cs, db, actor)
     if not plan or not plan['payload'].get('method_pack'):
@@ -312,12 +308,23 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
     section_id = assessment.get('section_id') or (assigned[0] if len(assigned) == 1 else None)
     if section_id not in assigned:
         raise ActionRejected('ASSESSMENT_REQUIRES_EXTRACTED_SECTION_ASSIGNMENT')
+    candidate, result = _prepare_complete(cs, db, actor, plan, section_id, assessment)
+    from .assessment_producers import bind_producer
+    from .section_writing import enabled as system_writing
+    draft_only = system_writing(cs.store)
+    bind_producer(cs, db, plan['ref'], obj['object_id'], actor, bulk=True, draft_only=draft_only)
+    result['status'] = 'legacy_draft' if draft_only else 'legacy_g3_scored'
+    # Bulk callers predate immutable indicator submissions. Preserve their historical provenance.
+    return _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, {})
+
+
+def _prepare_complete(cs, db, actor, plan, section_id, assessment):
+    pack = plan['payload']['method_pack']
     try:
         candidate = Assessment.model_validate(assessment).model_dump(mode='json')
     except ValidationError:
         calculate(pack, assessment)
         raise
-    definitions = {i['id']: i for i in pack['indicators']}
     problems = []
     for index, row in enumerate(candidate['indicators']):
         prepared, errors = _prepare_indicator(pack, row)
@@ -330,18 +337,90 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
     if problems:
         raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(problems))
     validate_indicator_sources(cs, db, actor, plan, section_id, candidate['indicators'])
-    if task.get('assessment_object_id') is not None:
-        producer_key = digest([plan['ref'], candidate['object_id']])
-        producer = legacy.get_g6_assessment_producer(db, producer_key) or legacy.get_g6_assessment(db, digest([plan['ref'], candidate['object_id']]))
-        if producer and cs._read(db, producer)['owner_id'] != actor.id:
-            raise ActionForbidden('FORBIDDEN: assessment producer ownership')
+    return candidate, result
+
+
+def _writer_input(scope, entries):
+    plan = scope['plan']['payload']
+    pack = plan['method_pack']
+    choices = [c for c in plan['method_conventions'] if c['key'] == 'weights']
+    if len(choices) != 1:
+        raise ActionRejected('WRITER_ASSESSMENT_WEIGHT_BINDING_REQUIRED')
+    ranks = plan['indicator_rank_order']['indicator_ids']
+    if set(entries) - set(ranks) or any(e['rank'] != ranks.index(i) + 1 for i, e in entries.items()):
+        raise ActionRejected('ASSESSMENT_CONFIRMED_RANK_MISMATCH')
+    return dict(object_id=scope['object']['object_id'], section_id=scope['section_id'],
+                method_id=pack['method_id'], method_version=pack['version'], weight_strategy_id=choices[0]['strategy_id'],
+                indicators=[entries[r['id']]['judgment'] for r in pack['indicators'] if entries.get(r['id'], {}).get('judgment')])
+
+
+def preview_writer_assessment(cs, db, actor, scope, draft):
+    candidate = _writer_input(scope, draft['rows'])
+    if len(candidate['indicators']) == len(scope['plan']['payload']['method_pack']['indicators']):
+        candidate, result = _prepare_complete(cs, db, actor, scope['plan'], scope['section_id'], candidate)
+        # Verify every rendering invariant before the last immutable judgment commits.
+        db.execute('SAVEPOINT assessment_preview')
+        try:
+            _project_scored(cs, db, actor, 'preview', scope['plan'], scope['object'], scope['section_id'],
+                            candidate, result, {})
+        finally:
+            db.execute('ROLLBACK TO assessment_preview')
+            db.execute('RELEASE assessment_preview')
+
+
+def save_assessment_in_transaction(cs, db, actor, operation_id, assessment=None, *, scope=None, draft=None, require_reviewed=False):
+    """Derive from immutable Writer inputs inside the caller's content transaction."""
+    from .assessment_producers import bind_producer
+    from .assessment_results import commit_derivation, immutable_entries, unscored_result
+    from .writer_assignments import bound_assignment
+
+    if scope is None and draft is None and assessment is not None:
+        return _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment)
+    if scope is None or draft is None or assessment is not None:
+        raise ActionRejected('ASSESSMENT_INPUT_MODE_MISMATCH')
+    current = bound_assignment(cs, db, actor)
+    if current['assignment_digest'] != scope['assignment_digest']:
+        raise ActionRejected('ASSESSMENT_ASSIGNMENT_CHANGED')
+    plan, obj, section = current['plan'], current['object'], current['section_id']
+    bind_producer(cs, db, plan['ref'], obj['object_id'], actor)
+    entries = immutable_entries(cs, db, actor, current, draft)
+    candidate = _writer_input(current, entries)
+    pack = plan['payload']['method_pack']
+    interruptions = draft.get('interrupted_indicators', {})
+    if set(interruptions) & set(entries) or set(interruptions) - {r['id'] for r in pack['indicators']}:
+        raise ActionRejected('ASSESSMENT_INTERRUPTION_SCOPE_MISMATCH')
+    if len(candidate['indicators']) == len(pack['indicators']):
+        candidate, result = _prepare_complete(cs, db, actor, plan, section, candidate)
+        result.update(status='scored', level_robust=not result['affects_level'])
+    else:
+        result = unscored_result(pack, candidate['weight_strategy_id'], plan['payload']['indicator_rank_order']['indicator_ids'],
+                                 entries, interruptions)
+    try:
+        assertion = commit_derivation(cs, current, operation_id, candidate['weight_strategy_id'], entries, result, require_reviewed=require_reviewed)
+    except (ValueError, PermissionError) as exc:
+        raise ActionRejected('ASSESSMENT_DERIVATION_REFUSED: ' + str(exc)) from exc
+    native = dict(derived_assertion_id=assertion['id'], derive_operation_id=assertion['operation_id'])
+    if result['status'] == 'scored':
+        return _project_scored(cs, db, actor, operation_id, plan, obj, section, candidate, result, native)
+    ref = cs._insert(db, actor, 'Assessment', {'commission_plan_ref': plan['ref'], **candidate, **native, 'result': result})
+    receipt = dict(assessment_ref=ref, refs={'assessment': ref}, result=result, **native)
+    from .section_writing import enabled
+    record_assessment_projection(db, plan['ref'], obj['object_id'], receipt, select=enabled(cs.store))
+    return receipt
+
+
+def _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, native):
+    from .content_models import ContentNode
+    from .store import digest
+    pack = plan['payload']['method_pack']
+    definitions = {i['id']: i for i in pack['indicators']}
     index = plan['payload']['objects'].index(obj) + 1
     parts = section_id.split('.')
     table_prefix = '.'.join((parts + ['2'])[:2] + [str(index)])
     table_records = (_table_records(pack, result, obj['label'], table_prefix)
                      if plan['payload'].get('table_specs') else None)
     assessment_ref = cs._insert(db, actor, 'Assessment', {'commission_plan_ref': plan['ref'], **candidate,
-        'result': result, **({'table_records': table_records} if table_records else {})})
+        'result': result, **native, **({'table_records': table_records} if table_records else {})})
     evidence_ref = cs._insert(db, actor, 'Evidence', {'source_refs': [], 'locator': 'system calculation',
         'excerpt': '', 'input_refs': [assessment_ref, plan['ref']], 'method': 'reviewed method table lookup and decimal sum_products',
         'tool_receipt': operation_id, 'result': result})
@@ -403,22 +482,23 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment):
     qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result['affects_level'] else ''
     level = (plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
              if table_records else result['adopted']['level'])
+    if result.get('status') == 'legacy_draft':
+        qualification = '批量录入的试算草稿，需按已确认的方法逐项复核。' + qualification
+    if result.get('review_status') == 'pending_review':
+        qualification = '指标判断待复核，当前评分及等级为试算结果。' + qualification
     level_ref = node('block', {'text': f"{obj['label']}：综合评分{result['adopted']['total']}，风险等级{level}。" + qualification,
         'assessment_part': 'level', 'level_qualification': qualification})
     generated = [ranking_ref, evaluation_ref, level_ref]
     relations = [cs._insert(db, actor, 'Relation', {'subject_ref': ref, 'object_ref': evidence_ref,
         'predicate': 'supported_by', 'provenance_kind': 'adopted_during_generation'}) for ref in generated]
-    receipt = {'assessment_ref': assessment_ref, 'evidence_ref': evidence_ref, 'ranking_ref': ranking_ref,
+    receipt = {**native, 'assessment_ref': assessment_ref, 'evidence_ref': evidence_ref, 'ranking_ref': ranking_ref,
         'evaluation_ref': evaluation_ref, 'level_ref': level_ref, 'result': result,
         'refs': dict(zip(['assessment', 'evidence', 'ranking', 'evaluation', 'level',
                          *['relation' + str(n) for n in range(len(relations))]],
                         [assessment_ref, evidence_ref, *generated, *relations]))}
-    legacy.set_assessment_receipt(db, digest(assessment_ref), receipt)
-    if task.get('assessment_object_id') is not None:
-        legacy.set_g6_assessment_producer(db, producer_key, producer or assessment_ref)
     from .section_writing import enabled as system_writing
-    if system_writing(cs.store):
-        legacy.set_g6_assessment(db, digest([plan['ref'], candidate['object_id']]), assessment_ref)
+    record_assessment_projection(db, plan['ref'], obj['object_id'], receipt,
+                                 select=bool(native) and system_writing(cs.store))
     return receipt
 
 
@@ -431,9 +511,10 @@ def save_assessment(cs, actor, operation_id, assessment):
 
 
 def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved):
-    from .store import digest
     assessment_ref = cs._read(db, score_ref)['payload']['body'].get('assessment_ref')
-    receipt = legacy.get_assessment_receipt(db, digest(assessment_ref)) if assessment_ref else None
+    receipt = assessment_receipt(db, assessment_ref) if assessment_ref else None
+    if receipt and (reason := score_blocker(receipt)):
+        raise ActionRejected('COMMISSION_OUTCOME_REVIEWED_SCORE_REQUIRED: ' + reason)
     if (not receipt or receipt['evaluation_ref'] != score_ref or receipt['level_ref'] != level_ref
             or receipt['evidence_ref'] not in basis_refs or unresolved):
         raise ActionRejected('COMMISSION_OUTCOME_SYSTEM_ASSESSMENT_REQUIRED')
@@ -479,7 +560,9 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         obj = record['payload']['object_id']
         if obj in bound:
             raise ActionRejected('PLANNED_SECTION_DUPLICATE_ASSESSMENT')
-        receipt = legacy.get_assessment_receipt(db, digest(ref))
+        receipt = assessment_receipt(db, ref)
+        if receipt and (reason := score_blocker(receipt)):
+            raise ActionRejected('PLANNED_SECTION_REVIEWED_SCORE_REQUIRED: ' + reason)
         if not receipt:
             raise ActionRejected('PLANNED_SECTION_SYSTEM_RECEIPT_REQUIRED')
         bound[obj] = record['payload']['result']

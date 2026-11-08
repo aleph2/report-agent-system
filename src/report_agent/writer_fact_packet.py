@@ -40,7 +40,7 @@ def bind_writer_facts(cs, actor, scope):
         host.issue_once(issued, "ask", "read-assigned-facts")
 
 
-def assigned_facts(cs, db, actor, scope):
+def assigned_facts(cs, db, actor, scope, *, exact_receipt=False):
     template = packet_grant(cs.store.root, scope["plan"]["ref"], scope["object"]["object_id"], scope["section_id"])
     if not (cs.store.root / "assertion-access.sqlite3").is_file():
         return {}
@@ -52,7 +52,7 @@ def assigned_facts(cs, db, actor, scope):
         raise ActionRejected("WRITER_ASSIGNED_FACT_PACKET_REQUIRED")
     allowed = {immutable_version_digest(cs._read(db, ref)["payload"]) for ref in scope["sources"]}
     ctx = host.bind(grant, native_call_id="read-assigned-facts", action="ask")
-    records = {row["id"]:row for row in packet(ctx, confirmed_only=True)}
+    records = {row["id"]:row for row in packet(ctx, confirmed_only=not exact_receipt)}
     index = grant.resources["scopes"][template.task]
     required = set(index["records"])
     if not required <= records.keys():

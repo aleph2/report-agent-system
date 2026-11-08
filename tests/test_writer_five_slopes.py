@@ -172,8 +172,10 @@ async def test_five_native_writers_complete_eleven_durable_rows_without_cross_sc
                 'native_fake_requests':len(driver.calls),'draft_rows':11,'invalid_row_preserved_prior_rows':True,
                 'canonical_ref':receipt['assessment_ref'],'total':'42.4','low':'30.4','high':'54.4','levels':['II','II','III']})
             foreign={key:deepcopy(saved['payload'][key]) for key in ('object_id','section_id','method_id','method_version','weight_strategy_id','indicators')}
-            foreign['object_id']=f'S{(slope%5)+1}'
             from report_agent.risk_scoring import save_assessment
+            with pytest.raises(ActionRejected, match='ASSESSMENT_NATIVE_INPUTS_REQUIRED'):
+                save_assessment(f.cs, session.actor, f'raw-over-native-{slope}', foreign)
+            foreign['object_id']=f'S{(slope%5)+1}'
             with pytest.raises(ActionRejected,match='ASSESSMENT_OBJECT_OUTSIDE_WRITER_ASSIGNMENT'):
                 save_assessment(f.cs,session.actor,f'cross-slope-{slope}',foreign)
     assert len(set(task_ids))==5 and len(f.cs.list_objects('Assessment'))==5
@@ -186,7 +188,9 @@ async def test_five_native_writers_complete_eleven_durable_rows_without_cross_sc
         with pytest.raises(ActionForbidden,match='assessment producer ownership'):
             save_assessment(f.cs,replacement.actor,'replace-other-producer',original_input)
     assert f.cs.read(refs[0])==original
-    assert f.ws.store.get('g6_assessment:'+digest([f.plan_ref,'S1']))==refs[0]
+    from report_agent.assessment_projection import selected_assessment
+    with f.ws.store.connect() as db:
+        assert selected_assessment(db, f.plan_ref, 'S1') == refs[0]
     assert len(f.cs.list_objects('Assessment'))==5
     if destination:=os.environ.get('W1_FIVE_EVIDENCE'):
         Path(destination).write_text(json.dumps({'offline':True,'synthetic':True,'network_denied':True,

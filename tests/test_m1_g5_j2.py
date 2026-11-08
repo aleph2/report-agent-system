@@ -918,11 +918,12 @@ def test_runtime_composition_rejects_extra_receipted_assessment(composed_runtime
     from report_agent.store import digest
     f = composed_runtime
     # Synthetic historical receipt tests the exact-set gate after receipt checks.
-    original = f.cs.read(f.assessment_receipt["assessment_ref"])["payload"]
+    original = deepcopy(f.cs.read(f.assessment_receipt["assessment_ref"])["payload"])
+    original["result"].pop("status")  # The archived G3 format predates explicit calculation statuses.
     with f.cs.store.connect() as db:
-        extra = f.cs._insert(db, f.co, "Assessment", {**deepcopy(original), "object_id": "EXTRA"})
+        extra = f.cs._insert(db, f.co, "Assessment", {**original, "object_id": "EXTRA"})
         api()._set(db, "assessment_receipt:" + digest(extra),
-                   {**deepcopy(f.assessment_receipt), "assessment_ref": extra})
+                   {**deepcopy(f.assessment_receipt), "assessment_ref": extra, "result": original["result"]})
     with pytest.raises(ActionRejected, match="ALL_COMMISSIONED_ASSESSMENTS"):
         materialize_composition(f, [f.assessment_receipt["assessment_ref"], extra])
 

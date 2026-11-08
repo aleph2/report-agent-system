@@ -123,6 +123,23 @@ def record_interruption(db, scope, indicator, operation, refusals):
                 encode(dict(status="interrupted: save rejected", refusals=refusals))))
 
 
+def unfinished_interruptions(db, assignment):
+    if not _has_table(db, "writer_step_receipts"):
+        return []
+    rows = db.execute("""SELECT s.operation, s.indicator, s.interruption, stage.response
+        FROM writer_step_receipts s JOIN content_operations stage ON stage.operation_id=s.operation || ':record'
+        LEFT JOIN content_operations done ON done.operation_id=s.operation
+        WHERE s.assignment=? AND s.interruption IS NOT NULL AND done.operation_id IS NULL ORDER BY s.rowid""",
+        (assignment,))
+    return [(op, indicator, json.loads(stop)['refusals'], json.loads(stage)['result'])
+            for op, indicator, stop, stage in rows]
+
+
+def link_interrupted_assessment(db, assignment, operation, ref):
+    db.execute("UPDATE writer_step_receipts SET assessment=? WHERE assignment=? AND operation=?",
+               (encode(ref), assignment, operation))
+
+
 def pending(cs, db, actor, scope):
     """Find an assertion committed just before the task-side receipt transaction was lost."""
     if not (cs.store.root / "assertions.sqlite3").is_file():

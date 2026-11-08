@@ -195,5 +195,29 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
                 assert tools['read_qualitative_row']('X32') == before
                 report['scripted_finding'] = finding['result']
     assert len(report['rows']) == len(report['reviewer_views']) == 16
+    from report_agent.assertions.launch import Commission
+    archive = tmp_path / "m3-fake03.jsonl"
+    Commission(case).export(archive)
+    records = [json.loads(line) for line in archive.read_bytes().splitlines()]
+    results = [entry["assertion"] for entry in records if entry.get("action") == "derive_result"
+               and entry["assertion"]["claim"].get("assessment")]
+    assert sorted(row["subject"] for row in results) == ["A", "B"]
+    report["derived_results"] = {}
+    for row in results:
+        subject, result_claim = row["subject"], row["claim"]
+        assessment = result_claim["assessment"]
+        observed = {view["saved_row"]["assertion_id"] for key, view in report["reviewer_views"].items()
+                    if key.startswith(subject + "/")}
+        assert len(observed) == len(result_claim["inputs"]) == 8
+        assert set(result_claim["inputs"]) == observed
+        assert assessment["status"] == "unscored" and assessment.get("adopted") is None
+        assert result_claim["value"] is None and result_claim["strength"] == "undetermined"
+        assert {"X11", "X12", "X31"} <= set(assessment["missing_indicators"])
+        report["derived_results"][subject] = {"assertion_id": row["id"], **result_claim}
+    cold = Commission(tmp_path / "restored-calculator")
+    cold.restore(archive)
+    restored = tmp_path / "restored.jsonl"
+    cold.export(restored)
+    assert restored.read_bytes() == archive.read_bytes()
     if dest:=os.environ.get('FAKE03_OFFLINE_REPLAY_RECORD'):
         Path(dest).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')

@@ -113,8 +113,7 @@ async def test_real_evidence_and_gap_steps_close_without_score(ranked,monkeypatc
             result=await run.run()
             durable=wa.read_indicator_step(f.cs,run.actor)
         assert len(wires)==4 and not run.refusals and durable['complete']
-        assert result['gap_indicators']==['B','C','D'] and result['assessment_ref'] is None
-        assert not f.cs.list_objects('Assessment')
+        assert result['gap_indicators']==['B','C','D'] and f.cs.read(result['assessment_ref'])['payload']['result']['status'] == 'unscored'
     finally:
         await close(model)
 
@@ -208,14 +207,14 @@ async def test_two_save_refusals_advance_but_failed_read_and_corrected_save_do_n
             durable=wa.read_indicator_step(f.cs,run.actor)
         assert len(wires)==7 and durable['complete']
         assert final['progress']=={'recorded':3,'total':4}
-        assert final['gap_indicators']==['B','C','D'] and final['assessment_ref'] is None
+        assert final['gap_indicators']==['B','C','D'] and f.cs.read(final['assessment_ref'])['payload']['result']['status'] == 'unscored'
         assert list(final['interrupted_indicators'])==['A']
         stop=final['interrupted_indicators']['A']
         assert stop['status']=='interrupted: save rejected'
         assert [row['tool_call_id'] for row in stop['refusals']]==['native-1','native-2']
         assert all(row.get('diagnostic') for row in stop['refusals'])
         assert durable['interrupted_indicators']==final['interrupted_indicators']
-        assert not f.cs.list_objects('Assessment')
+        assert len(f.cs.list_objects('Assessment')) == 1
     finally:
         await close(model)
 

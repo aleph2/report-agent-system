@@ -140,7 +140,8 @@ def test_new_family_literals_require_review():
     assert violations == []
 
 
-HISTORICAL_READERS = {"writer_assessment_draft:", "writer_indicator_steps:", "writer_page_read:"}
+HISTORICAL_READERS = {"writer_assessment_draft:", "writer_indicator_steps:", "writer_page_read:",
+                      "assessment_receipt:", "g6_assessment:", "g6_assessment_producer:"}
 
 
 @pytest.mark.parametrize("family", sorted(HISTORICAL_READERS))

@@ -3,6 +3,7 @@ from . import legacy_state as legacy
 from copy import deepcopy
 import json
 
+from .assessment_projection import assessment_receipt, score_blocker, selected_assessment
 from .commission_plan import _confirmed, _state, outside_boundary
 from .content_models import ContentNode, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
@@ -57,7 +58,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                  *[r for refs in prose_bindings.values() for r in refs]]
         seeds.extend(c['source_ref'] for p in typed_proposals for c in p['source_citations'])
         for ref in assessment_refs:
-            receipt = legacy.get_assessment_receipt(db, digest(ref))
+            receipt = assessment_receipt(db, ref)
             if receipt:
                 seeds.extend(receipt['refs'].values())
         members = _closure(cs, db, seeds)
@@ -180,12 +181,16 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             problem('assessment_not_frozen', ref=ref)
             continue
         p = record['payload']; obj = p['object_id']
-        receipt = legacy.get_assessment_receipt(db, digest(ref))
+        receipt = assessment_receipt(db, ref)
         if p.get('commission_plan_ref') != plan['ref'] or obj not in expected_objects or obj in assessments:
             problem('assessment_binding_invalid', ref=ref, object_id=obj)
             continue
         if not receipt or receipt.get('assessment_ref') != ref:
             problem('assessment_canonical_receipt_missing', ref=ref, object_id=obj)
+            continue
+        blocker = score_blocker(receipt)
+        if blocker:
+            problem('assessment_score_unavailable', ref=ref, object_id=obj, status=blocker)
             continue
         generated = [receipt.get(k) for k in ('ranking_ref', 'evaluation_ref', 'level_ref', 'evidence_ref')]
         if any(r is None or _key(r) not in records for r in generated):
@@ -513,7 +518,7 @@ def assemble_report(cs, actor, operation_id, *, source_snapshot_ref, prose_bindi
                         lambda db: _execute_assembly(cs, db, actor, request))
 
 
-def _current_selections(cs, db):
+def _current_selections(cs, db) -> dict:
     plan, decision = _confirmed(cs, db)
     prose, assessments, bindings = {}, [], {}
     for section in plan['payload']['sections']:
@@ -528,7 +533,7 @@ def _current_selections(cs, db):
             if selected is not None:
                 prose.setdefault(sid, []).extend(selected if isinstance(selected, list) else [selected])
     for obj in plan['payload']['objects']:
-        selected = legacy.get_g6_assessment(db, digest([plan['ref'], obj['object_id']]))
+        selected = selected_assessment(db, plan['ref'], obj['object_id'])
         if selected is not None:
             assessments.append(selected)
     issue_ids = {i['id'] for i in decision['payload'].get('required_material_issues', [])}
@@ -552,7 +557,12 @@ def _current_identity(cs, db):
         if key == legacy.issue_record_key(digest([plan['ref'], proposal.get('issue', {}).get('id')])):
             proposals.append(proposal)
     routes = [(key, json.loads(raw)) for key, raw in legacy.iter_g6_issue_route_ordered(db)]
-    return digest([_current_selections(cs, db), proposals, routes])
+    selections = _current_selections(cs, db)
+    for ref in selections['assessment_refs']:
+        receipt = assessment_receipt(db, ref)
+        if receipt and (reason := score_blocker(receipt)):
+            raise ActionRejected('ASSEMBLY_CURRENT_SCORE_UNAVAILABLE: ' + reason)
+    return digest([selections, proposals, routes])
 
 
 def assemble_current_report(cs, actor, operation_id):

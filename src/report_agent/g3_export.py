@@ -3,6 +3,7 @@ from . import legacy_state as legacy
 from copy import deepcopy
 import re
 
+from .assessment_projection import assessment_receipt, score_blocker
 from . import content_layout as layout
 from .content_models import Ref
 from .errors import ActionRejected
@@ -125,6 +126,15 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
     problems, sections = [], {s['section_id']: s for s in plan['sections']}
     texts = {s: [] for s in sections}
     selected_assessments = set()
+    receipts = {}
+
+    def pinned(ref):
+        key = _key(ref)
+        if key not in receipts:
+            with cs.store.connect() as db:
+                receipts[key] = assessment_receipt(db, ref)
+        return receipts[key]
+
     composition_groups = {sid: set() for sid, section in sections.items() if section.get('result_composition')}
     outcomes = snapshot['payload'].get('commission_outcome_refs', [])
     if cs is not None:
@@ -133,8 +143,10 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             assessment = outcome['payload'].get('assessment_ref')
             if assessment:
                 selected_assessments.add(_key(assessment))
-                receipt = legacy.get_assessment_receipt(cs.store, digest(assessment))
-                if not receipt or any(_key(receipt[name]) not in selected for name in ('ranking_ref', 'evaluation_ref', 'level_ref')):
+                receipt = pinned(assessment)
+                if receipt and (blocker := score_blocker(receipt)):
+                    problems.append(outcome_ref['id'] + ': assessment score unavailable: ' + blocker)
+                elif not receipt or any(not receipt.get(name) or _key(receipt[name]) not in selected for name in ('ranking_ref', 'evaluation_ref', 'level_ref')):
                     problems.append(outcome_ref['id'] + ': frozen outcome requires all three generated assessment nodes')
     if plan.get('format_source'):
         try:
@@ -199,7 +211,9 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             continue
         assessment = body.get('assessment_ref')
         if cs is not None and assessment:
-            receipt = legacy.get_assessment_receipt(cs.store, digest(assessment))
+            receipt = pinned(assessment)
+            if receipt and (blocker := score_blocker(receipt)):
+                problems.append(location + ': assessment score unavailable: ' + blocker)
             part = body.get('assessment_part')
             if (not receipt or part not in {'ranking', 'evaluation', 'level'}
                     or receipt.get(part + '_ref') != records[key]['ref']):
@@ -230,6 +244,13 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                     problems.append(location + ': derived assessment not selected by frozen outcomes')
             elif outcomes and any(_key(r) not in selected_assessments for r in receipt.get('assessment_refs', [])):
                 problems.append(location + ': derived assessment not selected by frozen outcomes')
+            if receipt:
+                for bound in receipt.get('assessment_refs', []):
+                    saved = pinned(bound)
+                    if not saved:
+                        problems.append(location + ': derived section assessment receipt missing')
+                    elif blocker := score_blocker(saved):
+                        problems.append(location + ': derived section assessment score unavailable: ' + blocker)
         if section['kind'] == 'fixed':
             if node['kind'] in {'table', 'figure'}:
                 problems.append(location + ': fixed section requires exact text spans')

@@ -165,3 +165,20 @@ def test_reversed_quotes_preserve_confirmed_issue_source_order(method_commission
     with f.cs.store.connect() as db:
         verify_issue_proposal(f.cs,db,proposal,f.cs._read(db,saved['plan_ref']),f.co)
     assert f.cs.read(original['ref'])==original
+
+
+def test_step_schema_rejects_another_indicators_grade_and_alternative():
+    from pydantic import ValidationError
+    from report_agent.writer_assessment import _step_schema
+
+    offered, foreign = 'Steep [50–100]', 'Dry [0–49]'
+    model = _step_schema((offered,), 'assumption')
+    valid = dict(grade=offered, plausible_grades=[offered], value='60',
+                 rationale='Survey suggests a steep face.', quotes=['steep face'],
+                 question='What is the measured angle?')
+    assert model.model_validate(valid).grade == offered
+    for change, field in [({'grade': foreign}, 'grade'),
+                          ({'plausible_grades': [offered, foreign]}, 'plausible_grades')]:
+        with pytest.raises(ValidationError) as error:
+            model.model_validate({**valid, **change})
+        assert error.value.errors()[0]['loc'][0] == field

@@ -53,24 +53,12 @@ def get_assessment_receipt(storage, suffix, default=_MISSING):
     return _get(storage, 'assessment_receipt:' + suffix, default)
 
 
-def set_assessment_receipt(storage, suffix, value):
-    _set(storage, 'assessment_receipt:' + suffix, value)
-
-
 def get_g6_assessment(storage, suffix, default=_MISSING):
     return _get(storage, 'g6_assessment:' + suffix, default)
 
 
-def set_g6_assessment(storage, suffix, value):
-    _set(storage, 'g6_assessment:' + suffix, value)
-
-
 def get_g6_assessment_producer(storage, suffix, default=_MISSING):
     return _get(storage, 'g6_assessment_producer:' + suffix, default)
-
-
-def set_g6_assessment_producer(storage, suffix, value):
-    _set(storage, 'g6_assessment_producer:' + suffix, value)
 
 
 def get_commission_plan(storage, default=_MISSING):

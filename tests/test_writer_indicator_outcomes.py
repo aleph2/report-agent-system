@@ -27,7 +27,7 @@ def make_assignment(f):
     source = Catalog(f.ws.store).import_file('S1-survey.pdf', pdf_bytes([f.evidence_quote]))['source']
     ref, = f.cs.capture_sources(f.co, 'survey-capture', [source['id']])['result']['source_refs']
     citation = dict(source_ref=ref, locator='page 1', quote=f.evidence_quote)
-    f.plan['sections'][0]['sources'].append(citation)
+    next(section for section in f.plan['sections'] if section['section_id'] == '4')['sources'].append(citation)
     f.plan['objects'][0]['sources'].append(citation)
     saved = save(f)
     approve(f, saved)
@@ -78,7 +78,11 @@ def test_evidence_then_gap_persist_and_no_score(ranked):
             'question':'Can a survey be supplied?'})
     done = api.read_indicator_step(f.cs, f.actor)
     assert done['complete'] and done['gap_indicators'] == ['B','C','D']
-    assert done['assessment_ref'] is None and f.cs.list_objects('Assessment') == []
+    assert f.cs.read(done['assessment_ref'])['payload']['result']['status'] == 'unscored'
+    from report_agent.assessment_completion import saved_assessments
+    statuses = {}
+    assert not saved_assessments(f.cs, f.plan_ref, ['S1'], f.actor.id, statuses=statuses)
+    assert statuses == {'S1': 'unscored'}
     assert done['outcomes']['A']['judgment']['sources'][0]['quote'] == f.evidence_quote
     assert done['outcomes']['B']['input']['missing'] == 'Survey unavailable'
 
@@ -99,6 +103,10 @@ def test_all_rows_can_score_under_approved_ranks(ranked):
     assert {row['indicator_id']:row['rank'] for row in payload['indicators']} == {'B':1,'A':2,'D':3,'C':4}
     assert float(payload['result']['adopted']['total']) == 40
     assert api.read_indicator_step(f.cs,f.actor)['assessment_ref'] == ref
+    from report_agent.assessment_completion import saved_assessments
+    statuses = {}
+    assert saved_assessments(f.cs, f.plan_ref, ['S1'], f.actor.id, statuses=statuses) == {'S1': ref}
+    assert statuses == {'S1': 'pending_review'}
 
 
 @pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
@@ -167,7 +175,8 @@ def test_refused_step_is_durable_and_no_scorable_row_is_created(ranked):
         api.save_indicator_outcome(f.cs,f.actor,identity,identity,evidence(f,step))
     done=api.read_indicator_step(f.cs,f.actor)
     assert done['complete'] and done['progress']=={'recorded':3,'total':4}
-    assert 'B' not in done['outcomes'] and not done['assessment_ref'] and not f.cs.list_objects('Assessment')
+    assert 'B' not in done['outcomes']
+    assert f.cs.read(done['assessment_ref'])['payload']['result']['status'] == 'unscored'
 
 
 @pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
@@ -186,3 +195,57 @@ def test_historical_rows_remain_readable_without_becoming_score_authority(ranked
     assert result['complete'] and result['outcomes']['A'] == old
     assert result['assessment_ref'] is None and f.cs.list_objects('Assessment') == []
     assert all(result['outcomes'][indicator]['assertion_id'] for indicator in ('B','C','D'))
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_terminal_interruption_persists_unscored_result_without_fabricating_judgments(ranked):
+    f = ranked
+    refusals = [dict(tool='save_gap', code='MESSAGE_FIELDS_INVALID', tool_call_id=str(i)) for i in (1, 2)]
+    for indicator in ('A','B','C','D'):
+        receipt = api.interrupt_indicator_step(f.cs, f.actor, indicator, refusals)
+    final = api.read_indicator_step(f.cs, f.actor)
+    assert receipt['result']['assessment_ref'] == final['assessment_ref']
+    assert final['complete'] and not final['outcomes']
+    assert set(final['interrupted_indicators']) == set('ABCD')
+    assert f.cs.read(final['assessment_ref'])['payload']['result']['status'] == 'unscored'
+    assert api.interrupt_indicator_step(f.cs, f.actor, 'D', refusals) == receipt
+    assert len(f.cs.list_objects('Assessment')) == 1
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_reopen_final_interruption_after_derivation_commit_repairs_the_original_receipt(ranked, monkeypatch):
+    from report_agent.assertion_host import AssertionHost
+    from report_agent.errors import LocalStorageBusy
+    f = ranked
+    for indicator in 'ABC':
+        api.save_indicator_outcome(f.cs, f.actor, 'gap-' + indicator, indicator,
+                                   dict(kind='gap', missing='survey', question='Which survey?'))
+    refusals = [dict(tool='save_gap', code='bad', tool_call_id=str(i)) for i in (1, 2)]
+    from report_agent import risk_scoring
+    original = risk_scoring.record_assessment_projection
+    with monkeypatch.context() as patch:
+        def fail_after_native(*args, **kwargs):
+            original(*args, **kwargs)
+            raise ActionRejected('simulated projection loss')
+        patch.setattr(risk_scoring, 'record_assessment_projection', fail_after_native)
+        with pytest.raises(LocalStorageBusy):
+            api.interrupt_indicator_step(f.cs, f.actor, 'D', refusals)
+    status = api.read_indicator_step(f.cs, f.actor)
+    assert status['complete'] and status['interrupted_indicators']['D']['refusals'] == refusals
+    assert f.cs.read(status['assessment_ref'])['payload']['result']['status'] == 'unscored'
+    assert api.interrupt_indicator_step(f.cs, f.actor, 'D', refusals)['result']['assessment_ref'] == status['assessment_ref']
+    archive = f.cs.store.root / 'terminal-archive.jsonl'
+    AssertionHost(f.cs.store.root).commission.export(archive)
+    import json
+    derived = [r for line in archive.read_text().splitlines() if (r := json.loads(line).get('assertion'))
+               and r['claim']['kind'] == 'derived']
+    assert len(derived) == len(f.cs.list_objects('Assessment')) == 1
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_archived_native_judgment_prevents_raw_replacement_after_lost_runtime_binding(ranked):
+    from report_agent.assessment_producers import bind_producer
+    f = ranked
+    first = api.read_indicator_step(f.cs, f.actor)
+    api.save_indicator_outcome(f.cs, f.actor, 'native-a', 'A', evidence(f, first))
+    with f.ws.store.connect() as db:
+        db.execute('DROP TABLE assessment_producers')
+    with f.ws.store.connect() as db, pytest.raises(ActionRejected, match='ASSESSMENT_NATIVE_INPUTS_REQUIRED'):
+        bind_producer(f.cs, db, f.plan_ref, 'S1', f.actor, bulk=True)

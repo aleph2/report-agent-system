@@ -150,7 +150,8 @@ def test_refused_second_producer_rolls_back_its_new_question(mini):
     with writer_session(ws, "坡段 A", None, **args) as second:
         with sqlite3.connect(ws.store.root / "assertions.sqlite3") as db:
             before = db.execute("SELECT id,body FROM assertions ORDER BY id").fetchall()
-        with pytest.raises(ActionRejected, match="C11|producer"):
+        from report_agent.errors import ActionForbidden
+        with pytest.raises(ActionForbidden, match="assessment producer ownership"):
             save_indicator_outcome(
                 cs,
                 second.actor,

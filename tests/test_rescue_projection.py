@@ -252,8 +252,9 @@ def test_result_replacement_requires_canonical_assessment_bound_to_source(site_p
     prose, args = frozen_site(f, 'HP-01 设计高度30m。本边坡综合得分F＝56.32，风险等级Ⅲ级，需开展专项施工安全风险评估。')
     ref = f.canonical['assessment_ref']
     if fault == 'missing_receipt':
+        from report_agent.store import encode
         with f.ws.store.connect() as db:
-            _set(db, 'assessment_receipt:' + digest(ref), None)
+            db.execute('DELETE FROM assessment_projections WHERE ref=?', (encode(ref),))
     elif fault == 'wrong_ref':
         ref = prose
     else:
@@ -298,7 +299,9 @@ def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection
             _set(db, 'g6_assessment:' + digest([f.plan['ref'], 'HP-01-K1p200-R']), prose)
         elif fault == 'outcome_link':
             invalid = {**f.canonical, 'level_ref': prose}
-            _set(db, 'assessment_receipt:' + digest(f.canonical['assessment_ref']), invalid)
+            from report_agent.store import encode
+            db.execute('UPDATE assessment_projections SET receipt=? WHERE ref=?',
+                       (encode(invalid), encode(f.canonical['assessment_ref'])))
         else:
             receipt = verify_projection(f.cs, db, projected, '4', f.plan, f.co)
             receipt['assessment_replacement']['removed_result_span']['start'] += 1

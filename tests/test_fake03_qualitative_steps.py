@@ -82,7 +82,7 @@ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_
         partial=interrupt and oid=='A'
         assert slope['indicator_steps']['progress']=={'recorded':7 if partial else 8,'total':8}
         assert set(slope['indicator_steps']['interrupted_indicators'])==({'X21'} if partial else set())
-        assert slope['indicator_steps']['assessment_ref'] is None
+        assert cs.read(slope['indicator_steps']['assessment_ref'])['payload']['result']['status'] == 'unscored'
         assert set(slope['indicator_steps']['gap_indicators']) == expected_ids - ({'X21'} if partial else set())
     from report_agent.writer_judgments import read_progress
     with cs.store.connect() as db:
@@ -93,4 +93,4 @@ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_
         for ind,row in draft['rows'].items():
             assert row['input']['value'] is None and row['kind']=='gap'
             assert row['rank']==rank_order.index(ind)+1
-    assert not cs.list_objects('Assessment')
+    assert len(cs.list_objects('Assessment')) == 2

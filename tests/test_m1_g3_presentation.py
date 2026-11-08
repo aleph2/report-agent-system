@@ -341,7 +341,7 @@ def test_source_views_cannot_hide_nonfixed_content_or_frontmatter():
             validate_export(*args)
 
 
-def test_assessment_receipt_requires_all_three_exact_selected_nodes():
+def test_assessment_receipt_requires_all_three_exact_selected_nodes(tmp_path):
     from types import SimpleNamespace
     from report_agent.g3_export import validate_export
     from report_agent.store import digest
@@ -351,7 +351,17 @@ def test_assessment_receipt_requires_all_three_exact_selected_nodes():
     args[1]['payload']['commission_outcome_refs'] = [outcome]
     args[2][('AssessmentOutcome', 'outcome', 1)] = {'ref': outcome, 'payload': {'assessment_ref': assessment}}
     receipt = {'ranking_ref': ref('ContentNode', 'ranking'), 'evaluation_ref': ref('ContentNode', 'evaluation'), 'level_ref': ref('ContentNode', 'extracted')}
-    args[0] = SimpleNamespace(store=SimpleNamespace(get=lambda key: receipt if key == 'assessment_receipt:' + digest(assessment) else None))
+    from report_agent.store import Store
+    store = Store(tmp_path)
+    from report_agent.content_store import Actor, ContentStore
+    cs = ContentStore(store)
+    result = dict(adopted=dict(total='40', level='II'))
+    with store.connect() as db:
+        cs._insert(db, Actor('archived-writer','writer','old-task'), 'Assessment',
+            dict(commission_plan_ref=ref('CommissionPlan','plan'), object_id='S1', result=result), id=assessment['id'])
+    receipt.update(assessment_ref=assessment, result=result, evidence_ref=ref('Evidence','old-calculation'))
+    store.set('assessment_receipt:' + digest(assessment), receipt)
+    args[0] = SimpleNamespace(store=store)
     node = args[2][('ContentNode', 'extracted', 1)]['payload']
     node['body'].update(assessment_ref=assessment, assessment_part='level')
     with pytest.raises(ActionRejected, match='three generated'):
@@ -359,6 +369,7 @@ def test_assessment_receipt_requires_all_three_exact_selected_nodes():
     args[3].update({('ContentNode', 'ranking', 1), ('ContentNode', 'evaluation', 1)})
     validate_export(*args)
     receipt['level_ref'] = {**receipt['level_ref'], 'version': 2}
+    store.set('assessment_receipt:' + digest(assessment), receipt)
     with pytest.raises(ActionRejected, match='receipt mismatch'):
         validate_export(*args)
 
