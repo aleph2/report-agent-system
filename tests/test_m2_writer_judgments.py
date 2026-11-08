@@ -46,6 +46,11 @@ def test_lost_task_commit_recovers_original_judgment_without_second_save(mini, t
     with writer_session(ws, "坡段 A", None, assessment_only=True, indicator_steps=True, section_id="3") as run:
         first = read_indicator_step(cs, run.actor)
         original = {"kind":"gap", "question":"Which lithology was recorded?", "missing":"Lithology"}
+        if domain_failure:
+            original["contrary_evidence"] = dict(
+                basis="Design and survey give different slope ratios.", adopted_value="Use the design ratio.",
+                quotes=['设计坡率为 1:0.75，分三级开挖。','坡段 A：实测坡率为 1:1.0。'],
+                question="Which slope ratio is current?", affects_level=True)
         def interrupt(*args):
             if domain_failure:
                 raise ActionRejected("projection failed after the assertion commit")
@@ -57,10 +62,24 @@ def test_lost_task_commit_recovers_original_judgment_without_second_save(mini, t
                 save_indicator_outcome(cs, run.actor, "save-lost", first["indicator_id"], original)
         before = records(host, tmp_path/"committed.jsonl")
         assert sum(r["claim"]["kind"] == "judgment" for r in before) == 1
+        if domain_failure:
+            from report_agent import writer_issues
+            write_conflict = writer_issues.save_indicator_conflict
+            def mismatched_receipt(*args):
+                return {**write_conflict(*args), "proposal_digest":"different-proposal"}
+            with monkeypatch.context() as patch:
+                patch.setattr(writer_issues, "save_indicator_conflict", mismatched_receipt)
+                with pytest.raises(RuntimeError, match="WRITER_COMMITTED_ISSUE_RECEIPT_MISMATCH"):
+                    read_indicator_step(cs, run.actor)
+            assert not journal.read_progress(ws.store, first["assignment_digest"])["rows"]
         next_step = read_indicator_step(cs, run.actor)
         assert next_step["progress"]["recorded"] == 1 and next_step["indicator_id"] != first["indicator_id"]
         replay = save_indicator_outcome(cs, run.actor, "save-lost", first["indicator_id"], original)
         assert replay["result"]["saved_indicator"] == first["indicator_id"]
+        if domain_failure:
+            assert replay["result"]["issue_id"]
+            with ws.store.connect() as db:
+                assert db.execute("SELECT count(*) FROM state WHERE key LIKE 'g6_issue_record:%'").fetchone()[0] == 1
         assert records(host, tmp_path/"recovered.jsonl") == before
 
 
@@ -182,3 +201,60 @@ from test_writer_assignments import assigned
 from test_m1_g3_integration import method_commission
 
 from test_writer_indicator_outcomes import ranked
+
+
+@pytest.mark.parametrize("method_commission", ["with-owner-ranks"], indirect=True)
+def test_stale_step_cannot_request_schema_save_or_interrupt_its_successor(ranked):
+    from report_agent.errors import ActionRejected
+    from report_agent.writer_assessment import step_outcome_schema
+    f = ranked
+    first = read_indicator_step(f.cs, f.actor)["indicator_id"]
+    outcome = dict(kind="gap", missing="Survey data", question="Which survey covers the object?")
+    saved = save_indicator_outcome(f.cs, f.actor, "accepted-first", first, outcome)
+    next_step = read_indicator_step(f.cs, f.actor)
+    assert next_step["indicator_id"] != first
+    refusals = [dict(tool="save_gap", code="invalid", tool_call_id=i) for i in ("call-1","call-2")]
+    with pytest.raises(ActionRejected, match="WRITER_INDICATOR_STEP_MISMATCH"):
+        step_outcome_schema(f.cs, f.actor, first, "gap")
+    with pytest.raises(ActionRejected, match="WRITER_INDICATOR_STEP_MISMATCH"):
+        save_indicator_outcome(f.cs, f.actor, "late-save", first, outcome)
+    with pytest.raises(ActionRejected, match="WRITER_INDICATOR_STEP_MISMATCH"):
+        interrupt_indicator_step(f.cs, f.actor, first, refusals)
+    with pytest.raises(ActionRejected, match="WRITER_TWO_DISTINCT_SAVE_REFUSALS_REQUIRED"):
+        interrupt_indicator_step(f.cs, f.actor, next_step["indicator_id"], [refusals[0], refusals[0]])
+    assert save_indicator_outcome(f.cs, f.actor, "accepted-first", first, outcome) == saved
+    assert read_indicator_step(f.cs, f.actor) == next_step
+
+
+@pytest.mark.parametrize("method_commission", ["with-owner-ranks"], indirect=True)
+def test_invalid_save_kind_and_excluded_adopted_grade_leave_assignment_open(ranked):
+    from report_agent.errors import ActionRejected
+    from test_writer_indicator_outcomes import evidence
+    f = ranked
+    step = read_indicator_step(f.cs, f.actor)
+    indicator = step["indicator_id"]
+    row = evidence(f, step)
+    with pytest.raises(ActionRejected, match="WRITER_INDICATOR_KIND_INVALID"):
+        save_indicator_outcome(f.cs, f.actor, "invalid-kind", indicator, {**row, "kind":"derived"})
+    row.update(kind="assumption", basis_kind="indirect_assumption", question="Can this grade be verified?",
+               plausible_grades=[step["grades"][0]["choice"]])
+    with pytest.raises(ActionRejected, match="MESSAGE_FIELDS_INVALID") as rejected:
+        save_indicator_outcome(f.cs, f.actor, "excluded-grade", indicator, row)
+    assert any(issue["reason"]=="adopted_grade_not_plausible" for issue in rejected.value.diagnostic["fields"])
+    assert read_indicator_step(f.cs, f.actor)==step
+
+
+@pytest.mark.parametrize("method_commission", ["with-owner-ranks"], indirect=True)
+def test_historical_whole_slope_draft_requires_new_indicator_assignment(ranked):
+    from report_agent.errors import ActionRejected
+    from report_agent.store import digest
+    from report_agent.writer_assignments import bound_assignment
+    f = ranked
+    with f.ws.store.connect() as db:
+        scope = bound_assignment(f.cs, db, f.actor)
+    old_key = digest([f.actor.id, scope["task_ref"], scope["plan"]["ref"], scope["object"]["object_id"]])
+    historical = {"rows":{"A":{"rationale":"Archived whole-slope working state."}}}
+    f.ws.store.set("writer_assessment_draft:"+old_key, historical)
+    with pytest.raises(ActionRejected, match="WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED"):
+        read_indicator_step(f.cs, f.actor)
+    assert f.ws.store.get("writer_assessment_draft:"+old_key)==historical

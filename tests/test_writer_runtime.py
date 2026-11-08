@@ -113,3 +113,9 @@ async def test_text_only_model_receives_page_text_without_visual_read_credit(ass
         deliveries = [r for _,r in delivered_pages(db) if r['actor']['id']==session.actor.id]
     assert [(r['page'],r['modality']) for r in deliveries] == [(3,'text')]
     assert not any(r.get('image_delivered') for r in deliveries)
+
+
+def test_indicator_session_requires_assessment_scope_before_opening_case():
+    with pytest.raises(ActionRejected, match='ASSESSMENT_ONLY_WORKFLOW_REQUIRED'):
+        with writer_session(None, 'Slope 1', None, indicator_steps=True):
+            pytest.fail('unscoped writer was launched')

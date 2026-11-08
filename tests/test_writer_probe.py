@@ -364,3 +364,48 @@ def test_omitted_writer_session_workflow_refused_before_opening_case():
     with pytest.raises(ValueError, match='WRITER_INDICATOR_WORKFLOW_REQUIRED'):
         with writer_session(None, 'slope', None):
             pytest.fail('writer was launched')
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_cli_returns_closed_with_gaps_after_all_assigned_indicators(prepared_probe, monkeypatch, capsys):
+    import sys
+    p = prepared_probe
+    replies = []
+    for indicator in ('A', 'B', 'C', 'D'):
+        response = sdk_reply(tool='save_gap', arguments={
+            'missing': f'No confirmed observation for {indicator}.',
+            'question': f'Can the owner supply the observation for {indicator}?',
+        })
+        response['choices'][0]['message']['tool_calls'][0]['id'] = f'gap-{indicator}'
+        replies.append(response)
+    install_probe_transport(monkeypatch, p, replies)
+    monkeypatch.setattr(sys, 'argv', ['writer_probe', '--case', str(p['case']),
+        '--evidence', str(p['evidence']), '--env', str(p['env'])])
+    assert probe.main() == 0
+    summary = json.loads(capsys.readouterr().out)
+    receipt = json.loads((p['evidence']/'probe-launch.json').read_text())
+    assert summary['status'] == receipt['status'] == 'closed_with_gaps'
+    assert summary['assessment_refs'] == receipt['assessment_refs'] == {}
+    assert receipt['indicator_steps']['progress'] == {'recorded':4,'total':4}
+    assert set(receipt['indicator_steps']['gap_indicators']) == {'A','B','C','D'}
+    assert receipt['indicator_steps']['interrupted_indicators'] == {}
+    assert len(p['wires']) == 4 and summary['budget']['recorded_tokens'] == 40
+    assert_probe_preserved(p,receipt)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('field,changed,expected', [
+    ('object_id', 'HP-03', 'PROBE_APPROVED_HP02_ID_REQUIRED'),
+    ('plan_ref', {'type':'CommissionPlan','id':'other-plan','version':1}, 'PROBE_APPROVED_BINDING_CHANGED'),
+    ('import_sha256', '0'*64, 'PROBE_FRESH_BUSINESS_IMPORT_REQUIRED'),
+])
+async def test_probe_rejects_changed_launch_inputs_before_model_or_charge(prepared_probe, monkeypatch, field, changed, expected):
+    p = prepared_probe
+    inputs = {**p['inputs'], field:changed}
+    (p['evidence']/'probe-inputs.json').write_text(json.dumps(inputs))
+    install_probe_transport(monkeypatch,p,[])
+    with pytest.raises(ValueError,match=expected):
+        await probe.run_probe(p['case'],p['evidence'],p['env'])
+    assert not (p['evidence']/'probe-launch.json').exists()
+    assert not p['models'] and not p['wires']
+    assert read_finance(p['ledger']) == p['inputs']['stage_baseline']

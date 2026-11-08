@@ -345,3 +345,87 @@ def test_page_view_rejects_unknown_mode_without_mutation():
     with pytest.raises(ActionRejected,match='PAGE_VIEW'):
         api.page_view(raw,'guessed-summary')
     assert raw==before
+
+
+def test_missing_catalog_source_or_malformed_cached_index_cannot_restore_access(assigned):
+    f = assigned
+    index = api.read_assignment_pages(f.cs, f.actor)
+    cache_key = 'writer_assignment_pages:' + index['assignment_digest']
+    cached = f.ws.store.get(cache_key)
+    del cached['sources'][0]['source_handle']
+    f.ws.store.set(cache_key, cached)
+    with pytest.raises(ActionRejected, match='WRITER_ASSIGNMENT_INDEX_CHANGED'):
+        api.read_assignment_pages(f.cs, f.actor)
+    with f.ws.store.connect() as db:
+        db.execute('DELETE FROM source_versions WHERE id=?', (f.pdf_source_id,))
+    with pytest.raises(ActionRejected, match='WRITER_SOURCE_NOT_IN_PROJECT'):
+        api.read_assignment_pages(f.cs, f.actor)
+
+
+def test_text_delivery_requires_prepared_index_and_matching_projected_page(assigned):
+    from report_agent.writer_judgments import delivered_pages
+
+    f = assigned
+    with pytest.raises(ActionRejected, match='WRITER_ASSIGNMENT_PAGE_INDEX_REQUIRED'):
+        api.mark_text_page_delivered(f.cs, f.actor, 'source-1', 3, {})
+    source = pdf_entry(f, api.read_assignment_pages(f.cs, f.actor))['source_handle']
+    result = api.read_assigned_page(f.cs, f.actor, source, 3, include_image=False)
+    view = api.page_view({**result, 'source_handle': source})
+    with pytest.raises(ActionRejected, match='WRITER_PAGE_DELIVERY_MISMATCH'):
+        api.mark_text_page_delivered(f.cs, f.actor, source, 4, view)
+    with f.ws.store.connect() as db:
+        assert delivered_pages(db) == []
+
+
+def test_historical_image_delivery_restores_only_the_original_pinned_page(assigned):
+    from report_agent.source_use import immutable_version_digest
+    from report_agent.writer_judgments import page_receipt
+
+    f = assigned
+    source = pdf_entry(f, api.read_assignment_pages(f.cs, f.actor))['source_handle']
+    image = api.read_assigned_page(f.cs, f.actor, source, 3)
+    with f.ws.store.connect() as db:
+        receipt = page_receipt(db, image['page_handle'])
+    legacy = {key:value for key,value in receipt.items() if key not in ('modality','source_handle','source_version')}
+    legacy['image_delivered'] = True
+    handle = 'historical-image'
+    f.ws.store.set('writer_page_read:' + handle, legacy)
+    with f.ws.store.connect() as db:
+        scope = api.bound_assignment(f.cs, db, f.actor)
+        citations = api.resolve_visual_pages(f.cs, db, f.actor, [handle])
+        proof, = api.evidence_deliveries(f.cs, db, f.actor, scope, citations, [], [handle, handle])
+    assert citations == [{'source_ref':f.pdf_ref, 'locator':'page 3', 'quote':''}]
+    assert (proof['id'], proof['source_handle'], proof['modality'], proof['image_sha256']) == (
+        handle, source, 'image', image['image_sha256'])
+    assert proof['source_version'] == immutable_version_digest(f.cs.read(f.pdf_ref)['payload'])
+    for damage, code in (({'source_pin':'bad'}, 'WRITER_SOURCE_CHANGED'),
+                         ({'image_sha256':None}, 'WRITER_VISUAL_PAGE_RECEIPT_INVALID')):
+        f.ws.store.set('writer_page_read:' + handle, {**legacy, **damage})
+        with f.ws.store.connect() as db, pytest.raises(ActionRejected, match=code):
+            api.resolve_visual_pages(f.cs, db, f.actor, [handle])
+
+
+def test_native_evidence_binds_delivery_to_cited_page_and_live_source_pin(assigned):
+    from report_agent.writer_judgments import page_receipt, remember_page
+
+    f = assigned
+    source = pdf_entry(f, api.read_assignment_pages(f.cs, f.actor))['source_handle']
+    image = api.read_assigned_page(f.cs, f.actor, source, 3)
+    handle = image['page_handle']
+    location = {'source_handle':source, 'page':3, 'delivery':handle}
+    with f.ws.store.connect() as db:
+        scope = api.bound_assignment(f.cs, db, f.actor)
+        def proof(page, read_location):
+            citation = {'source_ref':f.pdf_ref, 'locator':f'page {page}'}
+            return api.evidence_deliveries(f.cs, db, f.actor, scope, [citation], [read_location], [])
+        with pytest.raises(ActionForbidden, match='WRITER_PAGE_RECEIPT_NOT_DELIVERED'):
+            proof(3, location)
+        api.mark_visual_page_delivered(f.cs, f.actor, handle, image['image_sha256'])
+        with pytest.raises(ActionRejected, match='WRITER_PAGE_DELIVERY_MISMATCH'):
+            proof(4, {**location, 'page':4})
+        assert proof(4, location) == []
+        actual, = proof(3, location)
+        assert actual['id'] == handle and actual['page'] == 3 and actual['source_ref'] == f.pdf_ref
+        remember_page(db, handle, {**page_receipt(db, handle), 'source_pin':'damaged'})
+        with pytest.raises(ActionRejected, match='WRITER_SOURCE_CHANGED'):
+            proof(3, location)
