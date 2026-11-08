@@ -1153,3 +1153,5 @@ Writer indicator saves, submission provenance, recovery and runtime receipt migr
 ## Stage 1 M3: assessments
 
 The owner accepted M2 at `bac73ea`. M3 moves assessment receipts to immutable calculator results. The engineering lead reviews all eleven pilot criteria alongside M3/M4. The owner confirms the project conventions before the real report. Engineering sign-off is a separate named-human act. [M3 task and verification criteria](../docs/reviews/stage1-m3-assessments.md).
+
+M3 is ready for owner review. The offline Fake03 checkpoint restored 16 judgments and both unscored slope results. The complete suite passed 6,077 tests with nine conditional skips. [M3 verification and operator handoff](../docs/verification/stage1-m3/README.md).

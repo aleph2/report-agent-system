@@ -1,0 +1,82 @@
+{
+  "baseline": "bac73ea",
+  "tested_revision": "1adc48fef5840782a877b031c425f6187d34a98d",
+  "before": 6050,
+  "after": 6086,
+  "retained": 6043,
+  "added": [
+    "tests/test_assessment_completion.py::test_archived_status_without_verified_result_cannot_complete_recovery",
+    "tests/test_assessment_completion.py::test_draft_arithmetic_and_invalidated_assessments_have_distinct_completion_status[pending_review-False-False]",
+    "tests/test_assessment_completion.py::test_draft_arithmetic_and_invalidated_assessments_have_distinct_completion_status[pending_review-True-True]",
+    "tests/test_assessment_completion.py::test_draft_arithmetic_and_invalidated_assessments_have_distinct_completion_status[stale-True-False]",
+    "tests/test_assessment_completion.py::test_draft_arithmetic_and_invalidated_assessments_have_distinct_completion_status[unscored-False-False]",
+    "tests/test_assessment_completion.py::test_paid_raw_only_recovery_refuses_before_any_launch_activity[None]",
+    "tests/test_assessment_completion.py::test_paid_raw_only_recovery_refuses_before_any_launch_activity[continuation_authority]",
+    "tests/test_assessment_completion.py::test_paid_raw_only_recovery_refuses_before_any_launch_activity[extension_authority]",
+    "tests/test_assessment_projection.py::test_failed_projection_transaction_preserves_selection",
+    "tests/test_assessment_projection.py::test_old_and_new_receipts_and_current_selection_are_independent",
+    "tests/test_assessment_projection.py::test_pending_native_score_is_inspectable_and_can_become_stale[with-owner-ranks]",
+    "tests/test_assessment_projection.py::test_pinned_historical_receipt_loses_current_score_authority_after_native_judgment[with-owner-ranks]",
+    "tests/test_assessment_projection.py::test_unavailable_scores_refused_by_assembly_and_export[legacy_draft]",
+    "tests/test_assessment_projection.py::test_unavailable_scores_refused_by_assembly_and_export[pending_review]",
+    "tests/test_assessment_projection.py::test_unavailable_scores_refused_by_assembly_and_export[stale]",
+    "tests/test_assessment_projection.py::test_unavailable_scores_refused_by_assembly_and_export[superseded_by_native]",
+    "tests/test_assessment_projection.py::test_unavailable_scores_refused_by_assembly_and_export[unscored]",
+    "tests/test_assessment_projection.py::test_unavailable_scores_refused_by_assembly_and_export[unverified]",
+    "tests/test_assessment_refresh.py::test_committed_projection_recovers_after_a_packet_source_is_retracted",
+    "tests/test_assessment_refresh.py::test_committed_review_refresh_replays_as_stale_after_a_withdrawal[with-owner-ranks]",
+    "tests/test_assessment_refresh.py::test_reviewed_refresh_is_explicit_idempotent_and_preserves_draft[with-owner-ranks]",
+    "tests/test_m1_g3_presentation.py::test_export_after_input_withdrawal_identifies_generated_and_derived_section_scores[with-owner-ranks]",
+    "tests/test_m2_writer_judgments.py::test_writer_packet_without_the_assigned_slope_cannot_reserve_production",
+    "tests/test_m3_calculator.py::test_interrupted_position_uses_full_rule_domain_without_inventing_a_judgment",
+    "tests/test_m3_calculator.py::test_legacy_g3_score_cannot_be_promoted_by_switching_the_case_to_native_writing[with-owner-ranks]",
+    "tests/test_m3_calculator.py::test_missing_value_has_method_bounds_without_an_adopted_value",
+    "tests/test_m3_calculator.py::test_native_derivation_keeps_draft_distinct_and_recomputes_from_immutable_submissions[with-owner-ranks]",
+    "tests/test_m3_calculator.py::test_partial_envelope_outside_defined_risk_bands_preserves_bounds_without_claiming_robustness",
+    "tests/test_m3_calculator.py::test_raw_first_system_writer_keeps_a_draft_without_selecting_or_qualifying_a_score[with-owner-ranks]",
+    "tests/test_no_legacy_state.py::test_old_writer_keys_are_readable_without_a_write_accessor[assessment_receipt:]",
+    "tests/test_no_legacy_state.py::test_old_writer_keys_are_readable_without_a_write_accessor[g6_assessment:]",
+    "tests/test_no_legacy_state.py::test_old_writer_keys_are_readable_without_a_write_accessor[g6_assessment_producer:]",
+    "tests/test_rescue_projection.py::test_stale_generated_level_cannot_replace_a_generation_record[with-owner-ranks]",
+    "tests/test_rescue_projection.py::test_unscored_canonical_result_cannot_replace_a_site_score[with-owner-ranks]",
+    "tests/test_section_writing.py::test_business_boundary_runs_delivery_and_counts_actual_new_pair[with-owner-ranks]",
+    "tests/test_section_writing.py::test_current_saved_work_assembles_and_exports_without_manual_snapshot[with-owner-ranks]",
+    "tests/test_system_assembler.py::test_current_assembly_retry_rechecks_later_score_withdrawal",
+    "tests/test_writer_indicator_conflicts.py::test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates[with-owner-ranks]",
+    "tests/test_writer_indicator_conflicts.py::test_step_schema_rejects_another_indicators_grade_and_alternative",
+    "tests/test_writer_indicator_outcomes.py::test_archived_native_judgment_prevents_raw_replacement_after_lost_runtime_binding[with-owner-ranks]",
+    "tests/test_writer_indicator_outcomes.py::test_reopen_final_interruption_after_derivation_commit_repairs_the_original_receipt[with-owner-ranks]",
+    "tests/test_writer_indicator_outcomes.py::test_terminal_interruption_persists_unscored_result_without_fabricating_judgments[with-owner-ranks]",
+    "tests/test_writer_issue_tools.py::test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair[with-owner-ranks]"
+  ],
+  "retired": {
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[assessment_receipt:]": {
+      "replacement": "tests/test_no_legacy_state.py::test_old_writer_keys_are_readable_without_a_write_accessor[assessment_receipt:]",
+      "reason": "The legacy key is read-only. The replacement test reads archived data and checks that there is no setter."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[g6_assessment:]": {
+      "replacement": "tests/test_no_legacy_state.py::test_old_writer_keys_are_readable_without_a_write_accessor[g6_assessment:]",
+      "reason": "The legacy key is read-only. The replacement test reads archived data and checks that there is no setter."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[g6_assessment_producer:]": {
+      "replacement": "tests/test_no_legacy_state.py::test_old_writer_keys_are_readable_without_a_write_accessor[g6_assessment_producer:]",
+      "reason": "The legacy key is read-only. The replacement test reads archived data and checks that there is no setter."
+    },
+    "tests/test_section_writing.py::test_business_boundary_runs_delivery_and_counts_actual_new_pair": {
+      "replacement": "tests/test_section_writing.py::test_business_boundary_runs_delivery_and_counts_actual_new_pair[with-owner-ranks]",
+      "reason": "Same delivery assertion using actual native judgments and reviewed calculation inputs."
+    },
+    "tests/test_section_writing.py::test_current_saved_work_assembles_and_exports_without_manual_snapshot": {
+      "replacement": "tests/test_section_writing.py::test_current_saved_work_assembles_and_exports_without_manual_snapshot[with-owner-ranks]",
+      "reason": "Same delivery assertion using actual native judgments and reviewed calculation inputs."
+    },
+    "tests/test_writer_indicator_conflicts.py::test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates": {
+      "replacement": "tests/test_writer_indicator_conflicts.py::test_indicator_issue_uses_existing_word_excel_pipeline_and_deduplicates[with-owner-ranks]",
+      "reason": "Same delivery assertion using actual native judgments and reviewed calculation inputs."
+    },
+    "tests/test_writer_issue_tools.py::test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair": {
+      "replacement": "tests/test_writer_issue_tools.py::test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair[with-owner-ranks]",
+      "reason": "Same delivery assertion using actual native judgments and reviewed calculation inputs."
+    }
+  }
+}

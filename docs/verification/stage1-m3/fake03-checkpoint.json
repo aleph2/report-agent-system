@@ -1,0 +1,194 @@
+{
+  "source_run": "mini-qualitative-20261107-06",
+  "source_receipt_sha256": "52e38f115281232ac126a74456de34f3bb5fc080d9417043314c342aea1cd0f9",
+  "register_sha256": "2815c134887ae9e3fe12ae6c3ef130a3d53a94a6d8205778bc493ee669915fa1",
+  "rows": {
+    "A/X21": {
+      "disposition": "control retained",
+      "saved_row_digest": "e075cddcc77692f5e2d8364572986fc1bac7f0c2611cb12920c569e3c44fe25d",
+      "kind": "evidence",
+      "value": "37"
+    },
+    "A/X22": {
+      "disposition": "control retained",
+      "saved_row_digest": "55e9e9d0ef3599a517720a2aa9fe2ddb873d60fa00513dbff59785c28d4464c8",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X23": {
+      "disposition": "control retained",
+      "saved_row_digest": "0a9866709d245ea72ad8fccc3968271b29408ca1186b261003726c0a31852683",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X32": {
+      "disposition": "assumption preserved; original question flagged",
+      "saved_row_digest": "e700fe9f3535ce06ae910cfba732d798d8576c1ec542790ec519cf64f69eca78",
+      "kind": "assumption",
+      "value": "27"
+    },
+    "A/X41": {
+      "disposition": "control retained",
+      "saved_row_digest": "2b34f5e5097391c77d7b4af1b61788481e428399e692ca49794021082c3229a1",
+      "kind": "evidence",
+      "value": "62"
+    },
+    "A/X42": {
+      "disposition": "original refused; scripted gap saved",
+      "saved_row_digest": "b5253346305e79d898ce6d7d5171bb4ff2b2268643c9a88cd111e7ac23b48a94",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X51": {
+      "disposition": "owner-deferred unscored gap with conditional low and moderate",
+      "saved_row_digest": "a48e7eae4a1949b6a4dd1ccdd0b9175202d32113d8f3128ac9de2f8c45b2a91d",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X52": {
+      "disposition": "original refused; scripted gap saved",
+      "saved_row_digest": "3d3f96b7c91f909c9ffd6fa39ccd7ee8fa09abe79fe4acfa034231443898bf30",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X21": {
+      "disposition": "control retained",
+      "saved_row_digest": "8da62ec517dcbebe2ae7e84bcd70e0f14b539d681cf557ea45092e604ca73ea4",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X22": {
+      "disposition": "control retained",
+      "saved_row_digest": "717edbbfb3b52eb46ec46d41719829ca1d9770c05e69068e39f1bc1178a80d84",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X23": {
+      "disposition": "control retained",
+      "saved_row_digest": "3bf5ff841663ad58b5973928de9ba01c6c8fef020e345d83f3d21d37247bf5e5",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X32": {
+      "disposition": "original refused; scripted gap saved",
+      "saved_row_digest": "c989fd62f9d8d96222e407a20fe7f6b71c0f77c5de563bff28b764b0199489ca",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X41": {
+      "disposition": "control retained",
+      "saved_row_digest": "c0d0adf588c548117db1a31f7ccfd7d9996efa2a0e851ea0e0ee3476a88f43d3",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X42": {
+      "disposition": "control retained",
+      "saved_row_digest": "5a6f6b8f37196a9dd3c8ec75fd0b89de01ec8b4fe5b40c666898312b1fccc2e9",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X51": {
+      "disposition": "original refused; scripted gap saved",
+      "saved_row_digest": "07100b14f3d8b856b0a5d04d05b35d7631ad8427302548cb699eca5760d51d81",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X52": {
+      "disposition": "control retained",
+      "saved_row_digest": "3abb5264ddb8e2640ea316b6364b3673840c8a908580cad178e95e40c6aa9b80",
+      "kind": "gap",
+      "value": null
+    }
+  },
+  "derived_results": {
+    "A": {
+      "assertion_id": "f62a0a6473fc7601ca4569fc38a5f875f2a4e99b997f37ab312e268571756ed5",
+      "assessment": {
+        "high": {
+          "level": "IV",
+          "total": "83.29"
+        },
+        "interrupted_indicators": [],
+        "level_robust": false,
+        "low": {
+          "level": "I",
+          "total": "8.90"
+        },
+        "missing_indicators": [
+          "X11",
+          "X23",
+          "X22",
+          "X12",
+          "X31",
+          "X51",
+          "X52",
+          "X42"
+        ],
+        "projection_digest": "54bf4137a3a9459e7c228c392ab02163338b85339461cd82f87b96c06019e14e",
+        "status": "unscored"
+      },
+      "inputs": [
+        "352ecca7e544d4a78efb880b9368fccfec6932a36e430dbb8b36087b736ba2f6",
+        "1b11d048998401057b9677a87c6478d07d5df129c04712b695ca5380738589b4",
+        "b872893f7ff241971e7ece8ef1cb44a9894c01afab25e16eea40dfaa9ffbe66f",
+        "d7a86362b5c591470803396c3bb978d71ffb472bca60b62a809a3c6ea42fdad4",
+        "041d46f9db45f5cfcf4e2e33b4672ef9519b25b093d85812d5b517771bd5659e",
+        "3ae18d11507805486c75bb014f24872bdd3801760289e21e13fc087e4db19b3d",
+        "53155c3b4fec00b92dd1377f8c69bb3b279b96d6d6d58aa96fd8a7357cac6b9e",
+        "84efac8ff9203305ba1dc66a23ea9b5343657d986445821b2d9f575d50756786"
+      ],
+      "kind": "derived",
+      "rule_version": "fd4d49858a4ef69f51fe2b9373ab65f066b0284051649b70b8f90b0220231ee4",
+      "strength": "undetermined",
+      "value": null
+    },
+    "B": {
+      "assertion_id": "17bdde7216a2c1be2c98083805f9ba5d5b80f6558a1f9100c1b965da5dae9754",
+      "assessment": {
+        "high": {
+          "level": "IV",
+          "total": "100.00"
+        },
+        "interrupted_indicators": [],
+        "level_robust": false,
+        "low": {
+          "level": "I",
+          "total": "0.00"
+        },
+        "missing_indicators": [
+          "X11",
+          "X23",
+          "X21",
+          "X22",
+          "X12",
+          "X31",
+          "X32",
+          "X41",
+          "X51",
+          "X52",
+          "X42"
+        ],
+        "projection_digest": "c9550b1f06396e1f55a65b08466d6e86828980b8560175ee5b2ab43799038fc6",
+        "status": "unscored"
+      },
+      "inputs": [
+        "6959ce299a4759ac8be1b987eda7e69817270c7ead6b7694ced39dababb7cab3",
+        "6eae299bf4e6425be5235eabebb15ff9e0b4f96f962856d54f02eeb219d973d8",
+        "41a4fcefbc0e0e6ad361a7e9cd7764b56c9e74f536393f0246fb30a137dc7e32",
+        "06b71facc837bbd8138ea8efcb71c6153531dbc2fbe0c33a9c1df5fc4df4dd57",
+        "557538d5ca27544fb9e91d550d28090d2beca86d0f79b1a3e42ca208440d4ac6",
+        "9924b715b22cbd7cb39c2b9a20c9818a37ea4b50dc5951dae4a02d17366fef94",
+        "ab36858f38a598ba3ba135ca62a88c5a43b6552a5047a568ce6f6857448f7464",
+        "029b78ada5085ff345b9218f16d9d70af78ce3116c013a49f4fd70ba5fbdae46"
+      ],
+      "kind": "derived",
+      "rule_version": "fd4d49858a4ef69f51fe2b9373ab65f066b0284051649b70b8f90b0220231ee4",
+      "strength": "undetermined",
+      "value": null
+    }
+  },
+  "cold_restore_archive_byte_identical": true,
+  "reviewer_rows": 16,
+  "model_calls": 0,
+  "replay_record_sha256": "1016ff8e43d575ea547c9389e95e50db1b13495c5417abd558058341fa97260f"
+}
