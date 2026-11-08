@@ -7,7 +7,7 @@ import pytest
 from report_agent import writer_assessment as api
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionRejected
-from report_agent.fake03_fact_register import REGISTER, qualitative_profile
+from support.fake03 import REGISTER, qualitative_profile, install
 from report_agent.mini_commission import prepare_mini_commission
 from report_agent.store import Store, digest
 from report_agent.workspace import Workspace
@@ -26,15 +26,12 @@ def fixture(tmp_path):
     ws = Workspace(Store(tmp_path/'case'))
     cs = ContentStore(ws.store)
     profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
-    quote = '坡段 A 有一个勘察断面，断面设置三个钻孔。'
-    event_quote = '距坡段 A 约 2 km 处有一次小型落石记录。'
-    test_facts = [fact('sec','survey_section_count',quote,value=1), fact('holes','borehole_count',quote,value=3),
-        fact('only','survey_coverage','本页仅记录坡段 A。',coverage='document'),
-        fact('rain','rainfall','坡段 A、B 所在区域过去五年年均降雨量为 720 mm。',applies_to=['A','B'],period_years=5),
-        fact('event','hazard_event',event_quote,obj='Region',applies_to=[],related_to=['A'],event_count=1)]
+    actual = {r['fact_id']:r for obj in profile['facts'].values() for r in obj['attestations']}
+    names = {'F03-A-SURVEY-SECTIONS':'sec','F03-A-BOREHOLES':'holes','F03-SURVEY-COVERAGE':'only',
+             'F03-REGIONAL-RAIN':'rain','F03-OFFSITE-ROCKFALL':'event'}
+    records = [{**actual[key], 'fact_id':name} for key,name in names.items()]
     for obj in ['A','B']:
-        profile['facts'][obj]['attestations'] = test_facts
-    ws.store.set('fake03_qualitative_profile',profile)
+        profile['facts'][obj]['attestations'] = records
     return SimpleNamespace(ws=ws,cs=cs,profile=profile, plan=record['plan_ref'])
 
 
@@ -42,9 +39,9 @@ from contextlib import contextmanager
 @contextmanager
 def at(f, oid, indicator):
     label = next(o['label'] for o in f.cs.read(f.plan)['payload']['objects'] if o['object_id']==oid)
+    install(f.ws, f.plan, f.profile)
     with writer_session(f.ws,label,None,assessment_only=True,indicator_steps=True,section_id='3') as session:
         actor = session.actor
-        f.ws.store.set('fake03_qualitative_actor:'+actor.id, {'plan_ref':f.plan,'object_id':oid,'profile_digest':digest(f.profile)})
         while True:
             step=api.read_indicator_step(f.cs,actor)
             if step['indicator_id']==indicator:
@@ -80,7 +77,6 @@ def test_external_quote_cannot_bypass_typed_decisive_fact(fixture,oid,indicator,
 def test_positive_counts_keep_grade_with_midpoint_when_requested_override_has_no_quality_basis(fixture):
     # Exercise the general adjustment rule on a synthetic assignment without the pilot deferral.
     fixture.profile['facts']['A']['engineering_reviews'].clear()
-    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
     with at(fixture,'A','X51') as (actor,step):
         value=scored(step,grade_claim=claim('sec','holes'),investigation_counts=[
             {'fact_id':'sec','purpose':'survey_section_count','count':1},{'fact_id':'holes','purpose':'borehole_count','count':3}],
@@ -139,7 +135,6 @@ def test_offsite_assumption_survives_and_question_is_flagged(fixture):
 @pytest.mark.parametrize('kind', ['evidence', 'gap'])
 def test_registered_subquote_must_use_fact_handle_before_native_save(fixture, kind):
     fixture.profile['facts']['A']['engineering_reviews'].clear()
-    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
     with at(fixture,'A','X51') as (actor,step):
         value = scored(step, grade_claim=claim('sec','holes'), investigation_counts=[
             {'fact_id':'sec','purpose':'survey_section_count','count':1},
@@ -191,7 +186,6 @@ def test_external_evidence_has_native_source_check_and_critical_scope_review(fix
     quote = '防护采用锚杆框架梁，设置截排水沟。'
     for obj in fixture.profile['facts'].values():
         obj['observations'] = [f for f in obj['observations'] if f['quote']!=quote]
-    fixture.ws.store.set('fake03_qualitative_profile',fixture.profile)
     with at(fixture,'A','X41') as (actor,step):
         support = {'statement':'The drawing describes an anchored frame.', 'subject':'A',
                    'scope':'Design notes for A', 'quotes':['No such sentence in any attached source.']}

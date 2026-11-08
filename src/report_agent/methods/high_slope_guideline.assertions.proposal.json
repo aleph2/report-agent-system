@@ -848,22 +848,5 @@
       "source": "high_slope_guideline.json",
       "pointer": "/display_labels"
     }
-  },
-  "pilot_conventions": {
-    "adjustment_default": {
-      "scope": "fake03",
-      "rule": "band midpoint unless a supported directional adjustment is retained with its audit trail"
-    },
-    "A/X51": {
-      "scope": "fake03",
-      "authority_ref": "tests/fake_data/mini_commission/engineering-review.json#/A/X51",
-      "basis": "gap",
-      "possibilities": [
-        "low",
-        "moderate"
-      ],
-      "assigned_grade": null,
-      "value": null
-    }
   }
 }

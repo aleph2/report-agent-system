@@ -1,5 +1,6 @@
 """Named S3 actions. Only the host can supply an authenticated launch context."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import re
 from functools import partial
 
 from pydantic import TypeAdapter
@@ -30,10 +31,39 @@ def _check_packet(row, packet):
         raise ValueError("C4: a reference was outside the issued packet")
 
 
-def _save(action, ctx, *, subject, claim, grounds=(), id=None):
+def _observation_time(source, resources, proposed):
+    citation = source.citation
+    material = resources.get("sources", {}).get(citation.source_version, {}) if citation else {}
+    pinned = (material.get("observation_times", {}).get(str(citation.page), {}).get(citation.quote)
+              if citation else None)
+    if proposed is not None:
+        if not isinstance(proposed, str) or not citation:
+            raise ValueError("C2: material observation time needs an exact source citation")
+        matches = proposed == pinned if pinned is not None else proposed in citation.quote
+        if not matches:
+            raise ValueError("C2: observation time must match the quoted observation or its bound metadata")
+    value = pinned if pinned is not None else proposed
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("C2: invalid material observation time")
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        return date.fromisoformat(value)
+    moment = datetime.fromisoformat(value)
+    if "T" not in value or moment.tzinfo is None:
+        raise ValueError("C2: supply a calendar date or an observation timestamp with a time zone")
+    return moment
+
+
+def _save(action, ctx, *, subject, claim, grounds=(), id=None, observed_at=None):
     if action != ctx.action:
         raise PermissionError("Native call belongs to a different action")
-    digest = request_digest(dict(action=action, subject=subject, claim=claim, grounds=grounds, id=id))
+    request = dict(action=action, subject=subject, claim=claim, grounds=grounds, id=id)
+    if observed_at is not None:
+        if action != "assert_source":
+            raise ValueError("Only a source assertion accepts a material observation time")
+        request["observed_at"] = observed_at
+    digest = request_digest(request)
     with ctx.write() as (db, grant):
         store = ctx._store
         previous = store.lookup(db, ctx.operation_id, ctx.binding, digest, can_read=True)
@@ -54,6 +84,9 @@ def _save(action, ctx, *, subject, claim, grounds=(), id=None):
                         operation_id=ctx.operation_id, observed_at=stamp, recorded_at=stamp,
                         schema_version="s2-proposal-1", check_version=CATALOG["version"])
         _check_packet(row, grant.packet)
+        if claim.kind == "source":
+            row = row.model_copy(update={"observed_at": _observation_time(claim, grant.resources, observed_at),
+                                         "schema_version": "m1-source-time-1"})
         states = assertion_states(db)
         authority = authority_projection(db, grant, action, row, states)
         evidence = evidence_projection(db, row, grant.resources, states)

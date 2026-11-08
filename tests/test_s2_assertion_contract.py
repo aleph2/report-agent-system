@@ -217,7 +217,8 @@ def test_method_provenance_and_all_eleven_criteria():
             assert (assertion["grade"],assertion["min"],assertion["max"]) == (
                 band["id"], band["min_value"], band["max_value"])
             assert assertion["physical_pages"] == criterion["source_pages"]
-    deferred = proposal["pilot_conventions"]["A/X51"]
+    fixture = SRC.parents[1] / "tests/fake_data/mini_commission/writer-conventions.json"
+    deferred = json.loads(fixture.read_bytes())["method_conventions"]["A/X51"]
     assert deferred["basis"] == "gap" and deferred["value"] is None
     assert deferred["possibilities"] == ["low","moderate"]
 

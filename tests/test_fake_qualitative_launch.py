@@ -51,7 +51,7 @@ def test_qualitative_operator_cli_seals_profile_and_verifies_fresh_binding(pair,
     import hashlib
     import sys
     from report_agent import writer_indicator_steps
-    from report_agent.fake03_fact_register import REGISTER, qualitative_profile
+    from support.fake03 import REGISTER, qualitative_profile
     path,data,grant,c=pair
     register=host._sha(REGISTER)
     env=tmp_path/'services.env'
@@ -79,7 +79,9 @@ def test_qualitative_operator_cli_seals_profile_and_verifies_fresh_binding(pair,
     async def mock_runner(ws,model,*,verified_run):
         host.assert_active_fake_run(verified_run,ws)
         assert verified_run.qualitative_only
-        assert ws.store.get('fake03_qualitative_profile')==qualitative_profile(register)
+        from report_agent.writer_fact_packet import packet_grant
+        grant = packet_grant(ws.store.root, verified_run.plan_ref, 'A', verified_run.assessment_section_id)
+        assert grant.resources['scopes'][grant.task]['register_sha256'] == register
         assert model.profile['image_inputs'] is False
         budget=verified_run.budget
         budget.settle(budget.reserve(host.MODEL),{'total_tokens':100})

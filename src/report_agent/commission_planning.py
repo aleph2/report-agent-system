@@ -540,12 +540,15 @@ def read_draft(cs, actor):
 
 
 DRAFT_COLLECTIONS = Literal['summary', 'requirements', 'sections', 'objects', 'reconciliations',
-    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps', 'carried_items']
+    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps', 'carried_items', 'source_assertions']
 
 
 def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_id='',
                     offset=0, characters=3000, view_ref='', gap_page=1):
     """Bound model observations before platform eviction; retain canonical data server-side."""
+    if collection == 'source_assertions':
+        from .planning_assertions import read_source_index
+        return read_source_index(cs, actor, item_id, page, page_size, view_ref)
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     from .store import encode
@@ -874,6 +877,9 @@ def reply_requirements(workspace, issue_id, decision):
 
 def planning_tools(cs, actor):
     """Small independent judgments; prepared payloads and authority stay server-owned."""
+    from .planning_assertions import planning_assertion_tools
+    assertion_tools = planning_assertion_tools(cs, actor)
+
     def read_planning_draft(collection: DRAFT_COLLECTIONS = 'summary',
             page: Annotated[int, Field(ge=1)] = 1, page_size: Annotated[int, Field(ge=1, le=10)] = 5,
             item_id: str = '', offset: Annotated[int, Field(ge=0)] = 0,
@@ -886,7 +892,11 @@ def planning_tools(cs, actor):
         exact citations; settings contains methods, tables and boundary by their keys.
         Pages contain bounded JSON text: concatenate next_offset chunks before decoding.
         Use the returned view_ref on every continuation; changed drafts require a fresh
-        summary. next_gap_page explicitly continues large gap lists. No tool order is required.
+        summary. next_gap_page explicitly continues large gap lists.
+        Use assert_source for observations, record_conflict for disagreements, and ask
+        for unresolved questions about planning inventory objects. Read
+        source_assertions with the inventory object ID as item_id for your saved source
+        IDs; continue using its own view_ref. No tool order is required.
         """
         return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page)
 
@@ -978,9 +988,9 @@ def planning_tools(cs, actor):
         return review(cs, actor(), operation_id, [r.model_dump(mode='json') for r in reviews])
 
     if legacy.get_commission_skeleton(cs.store):
-        return [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
+        return assertion_tools + [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
             set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question, review_carried_items]]
-    return [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
+    return assertion_tools + [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
             add_object, add_section, add_substitution, add_reconciliation, add_question]]
 
 

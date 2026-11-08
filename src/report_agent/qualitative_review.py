@@ -11,7 +11,7 @@ from .store import digest, encode
 
 def freeze_writer_rows(cs, db, writer_ref):
     """Coordinator transaction: resolve the draft only through a verified Writer assignment."""
-    from .writer_assessment import _assignment, FAKE03_QUALITATIVE_INDICATORS
+    from .writer_assessment import _assignment
     if not isinstance(writer_ref, dict) or writer_ref.get('type') != 'DelegatedTask' or writer_ref.get('version') != 1:
         raise ActionRejected('QUALITATIVE_REVIEW_WRITER_TASK_REQUIRED')
     task = cs._read(db, writer_ref)
@@ -19,15 +19,14 @@ def freeze_writer_rows(cs, db, writer_ref):
         raise ActionForbidden('QUALITATIVE_REVIEW_WRITER_TASK_REQUIRED')
     writer = Actor('content:writer:' + writer_ref['id'], 'writer', writer_ref['id'])
     scope = _assignment(cs, db, writer)
-    profile = scope.get('qualitative_profile')
     draft = legacy.get_writer_indicator_steps(db, scope['assignment_digest'])
-    if not profile or not draft or not draft['rows']:
+    if 'object_facts' not in scope or not draft or not draft['rows']:
         raise ActionRejected('QUALITATIVE_REVIEW_SAVED_ROWS_REQUIRED')
     oid = scope['object']['object_id']
     plan = scope['plan']
     pack = plan['payload']['method_pack']
-    facts = profile['facts'][oid]
-    methods = {r['id']: r for r in pack['indicators'] if r['id'] in FAKE03_QUALITATIVE_INDICATORS}
+    facts = scope['object_facts']
+    methods = {r['id']: r for r in pack['indicators'] if r['id'] in scope['assigned_indicators']}
     if not set(draft['rows']).issubset(methods):
         raise ActionRejected('QUALITATIVE_REVIEW_ROW_OUTSIDE_SCOPE')
     from .commission_plan import _citations
@@ -46,11 +45,11 @@ def freeze_writer_rows(cs, db, writer_ref):
     provenance = {'writer_task_ref':writer_ref, 'assignment_digest':scope['assignment_digest'],
                   'plan_ref':plan['ref'], 'decision_ref':scope['decision']['ref'],
                   'requirements_ref':plan['payload'].get('requirements_ref'),
-                  'profile_digest':digest(profile),
-                  'method_digest':digest(pack), 'register_sha256':profile['register_sha256'],
+                  'profile_digest':digest([scope['assigned_indicators'], facts, scope['midpoint_convention']]),
+                  'method_digest':digest(pack), 'register_sha256':scope['register_sha256'],
                   'fact_digest':digest(facts), 'source_versions':sources}
     frozen = {'object_id':oid, 'provenance':provenance, 'object_facts':facts, 'methods':methods,
-              'midpoint_convention':profile['midpoint_convention'], 'rows':draft['rows']}
+              'midpoint_convention':scope['midpoint_convention'], 'rows':draft['rows']}
     pin = digest(frozen)
     db.execute('INSERT OR IGNORE INTO state(key,value) VALUES (?,?)',
                ('qualitative_reviewer_snapshot:'+pin, encode(frozen)))

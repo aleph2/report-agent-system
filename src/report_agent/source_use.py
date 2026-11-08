@@ -187,3 +187,22 @@ def verified_source_free_calculation(workspace, actor, record):
         row = db.execute('SELECT actor_id,data FROM content_observations WHERE id=?',
                          (value['receipt_id'],)).fetchone()
     return bool(row and row[0] == actor.id and json.loads(row[1]) == value['result'])
+
+
+def source_version_material(cs, source_id):
+    """Freeze all physically located text in this version; chunk offsets do not start new pages."""
+    from .document_tools import physical_page_number
+    source, = cs.store.sources([source_id])
+    version = immutable_version_digest(cs.source_payload(source))
+    pages = {}
+    with cs.store.connect() as db:
+        for locator, text in db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal',
+                                        (source_id,)):
+            page = physical_page_number(locator)
+            if page is not None:
+                chunks = pages.setdefault(str(page), [])
+                if chunks and ('; chars ' not in locator or '; chars 1-' in locator):
+                    chunks.append('\n')
+                chunks.append(text)
+    text = {page: ''.join(chunks) for page, chunks in pages.items()}
+    return version, {'pages': text, 'image_pages': [int(p) for p, value in text.items() if not value.strip()]}

@@ -17,6 +17,7 @@ planned_section_receipt: assembly_receipt: commission_outcome: rescue_projection
 content_delivery content_final_review corrections source_changes
 result_impact_assessments decision_observation
 """.split())
+RETIRED = {"fake03_qualitative_profile", "fake03_qualitative_actor:"}
 STATE_SQL = re.compile(r'\b(?:from|into|update|join)\s+["\x60\[]?state\b', re.I)
 SQL_KEY = re.compile(r"""['"]([a-z0-9_:]+)%?['"]""", re.I)
 
@@ -89,6 +90,7 @@ db.execute("SELECT 'corrections' FROM figures")
 def test_legacy_state_ownership():
     package = Path(__file__).resolve().parents[1] / "src/report_agent"
     assert len(FAMILIES) == 32
+    assert all(key not in (package / "legacy_state.py").read_text() for key in RETIRED)
     project = package.parents[1]
     files = sorted(package.rglob("*.py")) + sorted((project / "scripts").rglob("*.py"))
     violations = [(str(path.relative_to(project)), line, key)
@@ -138,7 +140,7 @@ def test_new_family_literals_require_review():
     assert violations == []
 
 
-@pytest.mark.parametrize("family", sorted(FAMILIES))
+@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

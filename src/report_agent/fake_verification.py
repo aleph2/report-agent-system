@@ -56,11 +56,16 @@ def _fixture():
 def _candidate_commit():
     def git(*args):
         return subprocess.check_output(['git', '-C', str(_REPO), *args], text=True)
-    paths = ['src', _FIXTURE, 'tests/fake_data/mini_commission/engineering-review.json', 'pyproject.toml']
+    paths = ['src', 'tests/fake_data/mini_commission', 'pyproject.toml']
     if git('status','--porcelain','--untracked-files=all','--',*paths):
         raise ValueError('FAKE_CANDIDATE_MUST_BE_COMMITTED')
     if set(git('ls-files',_FIXTURE).splitlines()) != {_FIXTURE+'/'+name for name in _NAMES}:
         raise ValueError('FAKE_FIXTURE_MUST_BE_TRACKED')
+    fixture_dir = Path(_FIXTURE).parent
+    register_files = [str(fixture_dir / name) for name in
+                      ('confirmed-facts.json', 'attestations.json', 'engineering-review.json', 'writer-conventions.json')]
+    if set(git('ls-files', '--', *register_files).splitlines()) != set(register_files):
+        raise ValueError('FAKE_REGISTER_MUST_BE_TRACKED')
     return git('rev-parse','HEAD').strip()
 
 
@@ -157,10 +162,10 @@ def prepare(approval_file, approval_sha256):
     from .mini_commission import prepare_mini_commission
     authority = preflight(approval_file, approval_sha256)
     run = Path(authority['grant_dir'])/'runs'/authority['run_id']
-    profile = None
+    facts = None
     if 'qualitative_pilot' in authority:
-        from .fake03_fact_register import qualitative_profile
-        profile = qualitative_profile(authority['qualitative_pilot']['register_sha256'])
+        from .scripted_fact_import import reviewed_register
+        facts = reviewed_register((_REPO / _FIXTURE).parent, authority['qualitative_pilot']['register_sha256'])
     run.mkdir(mode=0o700, parents=True, exist_ok=False)
     case = run/'case'
     result = prepare_mini_commission(INPUTS, case)
@@ -169,10 +174,11 @@ def prepare(approval_file, approval_sha256):
             or result['method_source_name']!='system-method-high-slope.txt'
             or result['plan_ref']['type']!='CommissionPlan' or result['decision_ref']['type']!='CommissionDecision'):
         raise ValueError('FAKE_PREPARED_HANDOFF_MISMATCH')
-    if 'qualitative_pilot' in authority:
+    if facts is not None:
+        from .scripted_fact_import import install_facts
         from .store import Store
-        from .workspace import Workspace
-        legacy.set_fake03_qualitative_profile(Workspace(Store(case)).store, profile)
+        install_facts(Store(case), result['plan_ref'], result['assessment_section_id'], *facts,
+                      authority['qualitative_pilot']['register_sha256'])
         result['qualitative_pilot'] = authority['qualitative_pilot']
     receipt = {**result, 'case_path': str(case), 'authority_sha256': approval_sha256, **identify(),
                'case_seal':_seal(case)}
@@ -203,13 +209,13 @@ def check_prepared(approval_file, approval_sha256, prepared_sha256):
         pins={k:json.loads(v) for k,v in raw}
         if pins!={'commission_plan':receipt['plan_ref'],'commission_confirmation':receipt['decision_ref']}:
             raise ValueError('FAKE_CONFIRMED_PLAN_CHANGED')
-        missing = object()
-        stored = legacy.get_fake03_qualitative_profile(db, missing)
+    from .writer_fact_packet import packet_grant
+    for oid in receipt['object_ids']:
+        grant = packet_grant(case, receipt['plan_ref'], oid, receipt['assessment_section_id'])
         if 'qualitative_pilot' in authority:
-            from .fake03_fact_register import qualitative_profile
-            if stored is missing or stored!=qualitative_profile(authority['qualitative_pilot']['register_sha256']):
+            if not grant or grant.resources['scopes'][grant.task]['register_sha256'] != authority['qualitative_pilot']['register_sha256']:
                 raise ValueError('FAKE_QUALITATIVE_PROFILE_CHANGED')
-        elif stored is not missing:
+        elif grant:
             raise ValueError('FAKE_QUALITATIVE_AUTHORITY_REQUIRED')
     return receipt
 

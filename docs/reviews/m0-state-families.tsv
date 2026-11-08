@@ -1,0 +1,163 @@
+family	classification	disposition	rationale
+acceptance_default	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+acceptance_limitation	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+acceptance_mode	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+active_reviewer_prompt_hash	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+active_rubric_hash	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+agent_summary	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+artifact_text_work:*	mixed	M8	Produced text/evidence/analysis is retained along with task state or bound results; migrate adopted report claims and retain the task receipt.
+assembly_receipt:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+assessment_receipt:*	assertion	M3	Scored assessment or receipt referring to the derived assessment.
+bounded_review_attempt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+bounded_review_completed:*	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+bounded_review_result:*	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+checkpoint_resume	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+clean_import	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+commission_carryover	mixed	M4	Plan draft or historical carryover combines business decisions with edit/import bookkeeping.
+commission_checkpoint:*	assertion	M5	Source/role, owner requirements, decision, authority or checkpoint evidence.
+commission_confirmation	assertion	M4	Current proposed/confirmed plan, reusable method or selected source interpretation.
+commission_outcome:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+commission_owner_records	assertion	M5	Source/role, owner requirements, decision, authority or checkpoint evidence.
+commission_plan	assertion	M4	Current proposed/confirmed plan, reusable method or selected source interpretation.
+commission_planning_completion_wait	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+commission_planning_draft	mixed	M4	Plan draft or historical carryover combines business decisions with edit/import bookkeeping.
+commission_planning_rejections	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+commission_requirements	assertion	M5	Source/role, owner requirements, decision, authority or checkpoint evidence.
+commission_requirements_checkpoint:*	assertion	M5	Source/role, owner requirements, decision, authority or checkpoint evidence.
+commission_reviewed_entries	assertion	M4	Current proposed/confirmed plan, reusable method or selected source interpretation.
+commission_skeleton	assertion	M4	Current proposed/confirmed plan, reusable method or selected source interpretation.
+commission_source_roles	assertion	M5	Source/role, owner requirements, decision, authority or checkpoint evidence.
+commission_text_profiles	assertion	M4	Current proposed/confirmed plan, reusable method or selected source interpretation.
+content_delivery	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+content_execution_decision	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+content_execution_limitation	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+content_final_review	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+content_revision_exceptions	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+content_revision_limit	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+content_task_followup:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+content_task_supervision:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+context_policy	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+context_projection_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+context_revision	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+corrections	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+decision_data_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+decision_observation	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+deepseek_wire_schema:*	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+delivery	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+delivery_export_rejections	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+execution_progress:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+execution_progress_episode:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+execution_progress_recovery:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+fake03_qualitative_actor:*	runtime	M1	Fake-only actor context/fixture binding retired with the keyed fixture.
+fake03_qualitative_profile	assertion	M1	Fixture-sourced facts and declared source precedence.
+feedback	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+g6_assessment:*	assertion	M3	Scored assessment or receipt referring to the derived assessment.
+g6_assessment_producer:*	runtime	M3	First-producer binding protects the existing plan/slope producer.
+g6_issue_binding:*	assertion	M6	Open issue or link locating a finding/issue in the report.
+g6_issue_record:*	assertion	M6	Open issue or link locating a finding/issue in the report.
+g6_issue_route:*	assertion	M6	Open issue or link locating a finding/issue in the report.
+g6_object_prose:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+g6_section_prose:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+grader_model_trial	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+guidance_experiment	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+guidance_experiment:*	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+issues	assertion	M6	Open issue or link locating a finding/issue in the report.
+knowledge_enabled	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+knowledge_project_id	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+last_error	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+last_message	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+layout_revision_limit	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+learning_active_feedback	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+learning_analysis:*	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+learning_config	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+learning_evaluation	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+learning_execution_limits	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+learning_job	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+learning_job:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+live_attempt_registered	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+live_trial_intent	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+manifest	mixed	M5	Input snapshot includes actual source text and commission scope/operational options; preserve source provenance when projecting report facts.
+message_call:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+message_offer:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+model_mode	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+model_recovery_call:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+model_recovery_policy	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+model_recovery_usage	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+native_delegation:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+native_interrupts	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+native_trace_thread_id	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+observations:*	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+operator_%	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+operator_instruction_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+operator_instruction_sync_intent	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+planned_section_receipt:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+prompt_capture:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+prompt_context_snapshot:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+prompt_instruction_config	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+prompt_instruction_registry	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+prompt_runtime_version:*	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+prompt_source:*	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+protected_candidate_import	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+qualitative_reviewer_snapshot:*	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+reference_alignment_parent	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+report_activity	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+report_error	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+report_issues	assertion	M6	Open issue or link locating a finding/issue in the report.
+report_status	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+rescue_projection:*	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+result_impact_assessments	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+review_check:*	assertion	M8	Reviewer conclusions, checks, pins or findings used by later report participants.
+review_content_handles:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+review_context_binding	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+review_context_experiment	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+review_context_snapshots	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+review_draft:*	assertion	M8	Reviewer conclusions, checks, pins or findings used by later report participants.
+review_evidence_handles:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+review_finding_locations:*	assertion	M8	Reviewer conclusions, checks, pins or findings used by later report participants.
+review_finished:*	assertion	M8	Reviewer conclusions, checks, pins or findings used by later report participants.
+review_import017	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+review_input_capacity	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+review_material_handles:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+review_message_binding:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+review_message_latest:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+review_plan_contract_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+review_submission_contract_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+reviewed_method_identity:*	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+reviewed_method_pack:*	assertion	M4	Current proposed/confirmed plan, reusable method or selected source interpretation.
+revision_import	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+role_generation	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+role_model_services	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+rubric_reviews	assertion	M8	Reviewer conclusions, checks, pins or findings used by later report participants.
+rubric_status	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+rubric_targets	mixed	M8	Old delivery/review path combines native task/target status with conclusions or approval. Preserve operational receipts, query review conclusions.
+run_request_error	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+runtime	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+selected_artifact	mixed	M7	Selected report node/version, receipt or outcome carries report meaning plus an artifact/dispatch binding. Preserve immutable report contents and move semantic selections to actions.
+source_changes	mixed	M9	Contains owner feedback, decision, exception, source-change or resulting assessment; separate report meaning from control fields.
+source_material:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+source_material_observation:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+source_search_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+source_search_view	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+source_use_authority:*	assertion	M5	Source/role, owner requirements, decision, authority or checkpoint evidence.
+source_use_authority_binding	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+source_use_task_binding:*	runtime	runtime	Configuration, version or prompt/reviewer interface binding.
+status	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+summary_failure_scope:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+summary_observation_index:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+summary_original:*	mixed	M9	Report or learning summaries/observations can contain quoted findings or decisions. Audit semantic use before retiring the legacy projection; training/trace data remain operational.
+summary_policy_failure:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+task006_call_intent	legacy	O4/O5	Historical probe/experiment wiring and frozen import receipts. Keep behind the retained route until a later owner decision.
+task_state_frame:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+text_work:*	mixed	M8	Produced text/evidence/analysis is retained along with task state or bound results; migrate adopted report claims and retain the task receipt.
+text_work_disposition:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+text_work_interrupt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+text_work_receipt:*	mixed	M8	Produced text/evidence/analysis is retained along with task state or bound results; migrate adopted report claims and retain the task receipt.
+tool_observation:*	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+tool_selection_offer:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+verified_source_import	runtime	runtime	Identity/access/audit evidence or a captured invocation. A report assertion using it must cite the receipt/source; retaining the receipt does not endorse its content.
+vision_attempt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+vision_interrupt:*	runtime	runtime	Task status, admission/recovery, limit, supervision, checkpoint, message or current-output pointer.
+writer_assessment_draft:*	mixed	M2	Separate editable indicator judgments and draft assessment from progress and retry state.
+writer_assignment_pages:*	runtime	M2	Host-issued page index, access and delivery evidence tied to the writer assignment.
+writer_indicator_steps:*	mixed	M2	Separate editable indicator judgments and draft assessment from progress and retry state.
+writer_page_read:*	runtime	M2	Host-issued page index, access and delivery evidence tied to the writer assignment.

@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from support.fake03 import install
 from langchain_core.messages import HumanMessage
 
 from report_agent.content_store import ContentStore
@@ -29,7 +30,7 @@ def mini(tmp_path, monkeypatch):
     def verify(run, workspace):
         assert run is binding and workspace is ws
     monkeypatch.setattr(fake_verification, 'assert_active_fake_run', verify)
-    from report_agent.fake03_fact_register import REGISTER, qualitative_profile
+    from support.fake03 import REGISTER, qualitative_profile
     profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
     return ws, binding, profile
 
@@ -39,7 +40,7 @@ async def test_fresh_profile_and_verified_qualitative_authority_must_agree(mini)
     ws, binding, profile = mini
     with pytest.raises(ActionRejected, match='FAKE_QUALITATIVE_PROFILE_MISMATCH'):
         await run_mini_assessment(ws, None, verified_run=binding)
-    ws.store.set('fake03_qualitative_profile',profile)
+    install(ws, binding.plan_ref, profile)
     binding.qualitative_only=False
     with pytest.raises(ActionRejected, match='FAKE_QUALITATIVE_PROFILE_MISMATCH'):
         await run_mini_assessment(ws, None, verified_run=binding)
@@ -54,7 +55,7 @@ async def test_verified_mini_saves_true_subset_and_preserves_full_ranks_without_
     for assigned in profile['facts'].values():
         assigned.pop('attestations', None)
         assigned.pop('engineering_reviews', None)  # This fixture replays the pre-deferral routing contract.
-    ws.store.set('fake03_qualitative_profile', profile)
+    install(ws, binding.plan_ref, profile)
     cs=ContentStore(ws.store)
     plan=cs.read(binding.plan_ref)['payload']
     rank_order=plan['indicator_rank_order']['indicator_ids']

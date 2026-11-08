@@ -1,4 +1,5 @@
 """Approved versioned assertion shapes and identity predicates."""
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -216,7 +217,16 @@ class Assertion(Shape):
     was_attributed_to: Id
     was_generated_by: Id
     operation_id: Id
-    observed_at: AwareDatetime
+    observed_at: AwareDatetime | date | None
     recorded_at: AwareDatetime
-    schema_version: Literal["s2-proposal-1"]
+    schema_version: Literal["s2-proposal-1", "m1-source-time-1"]
     check_version: Literal["s2-proposal-2"]
+
+    @model_validator(mode="after")
+    def check_observation_precision(self):
+        if self.schema_version == "m1-source-time-1":
+            if self.claim.kind != "source":
+                raise ValueError("Material observation time applies to source assertions only")
+        elif not isinstance(self.observed_at, datetime):
+            raise ValueError("The S2 envelope requires a timestamp")
+        return self

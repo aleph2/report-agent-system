@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from report_agent.errors import ActionRejected
-from report_agent.fake03_fact_register import attestations_for, load_attestations
+from support.fake03 import attestations_for, load_attestations
 from report_agent.writer_claims import apply_claims
 
 FACTS=load_attestations(Path(__file__).parent/'fake_data/mini_commission_04/attestations.json')

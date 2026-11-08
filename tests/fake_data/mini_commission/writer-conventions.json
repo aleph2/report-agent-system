@@ -1,0 +1,51 @@
+{
+  "indicators": [
+    "X21",
+    "X22",
+    "X23",
+    "X32",
+    "X41",
+    "X42",
+    "X51",
+    "X52"
+  ],
+  "conflicts": [
+    {
+      "subject": "A",
+      "observations": [
+        "F03-A-DESIGN-RATIO",
+        "F03-A-MEASURED-RATIO"
+      ],
+      "preferred": "F03-A-DESIGN-RATIO"
+    }
+  ],
+  "method_conventions": {
+    "adjustment_default": {
+      "scope": "fake03",
+      "rule": "band midpoint unless a supported directional adjustment is retained with its audit trail"
+    },
+    "A/X51": {
+      "scope": "fake03",
+      "authority_ref": "tests/fake_data/mini_commission/engineering-review.json#/A/X51",
+      "basis": "gap",
+      "possibilities": [
+        "low",
+        "moderate"
+      ],
+      "assigned_grade": null,
+      "value": null
+    }
+  },
+  "observation_subjects": {
+    "A": [
+      "A",
+      "A, B",
+      "Region"
+    ],
+    "B": [
+      "B",
+      "A, B",
+      "Region"
+    ]
+  }
+}

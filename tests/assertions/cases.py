@@ -5,8 +5,8 @@ from decimal import Decimal
 from importlib.resources import files
 
 from report_agent.errors import ActionRejected
-from report_agent.fake03_fact_register import REGISTER, qualitative_profile
-from report_agent.writer_assessment import _grade, _step_value, _typed_facts
+from support.fake03 import REGISTER, qualitative_profile
+from report_agent.writer_assessment import _grade, _step_value
 from report_agent.writer_claims import apply_claims
 from test_run06_claim_replay import FIXTURE, submission
 
@@ -40,7 +40,7 @@ ORIGINAL = json.loads(FIXTURE.read_bytes())['rows']
 
 
 def facts(slope):
-    return _typed_facts({'object': {'object_id': slope}, 'qualitative_profile': PROFILE})
+    return list({r['fact_id']:r for obj in PROFILE['facts'].values() for r in obj['attestations']}.values())
 
 
 def historical_action(label):

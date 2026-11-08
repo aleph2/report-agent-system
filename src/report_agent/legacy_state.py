@@ -37,22 +37,6 @@ def _set(storage: Store | sqlite3.Connection, key: str, value: Any) -> None:
         storage.set(key, value)
 
 
-def get_fake03_qualitative_profile(storage, default=_MISSING):
-    return _get(storage, 'fake03_qualitative_profile', default)
-
-
-def set_fake03_qualitative_profile(storage, value):
-    _set(storage, 'fake03_qualitative_profile', value)
-
-
-def get_fake03_qualitative_actor(storage, suffix, default=_MISSING):
-    return _get(storage, 'fake03_qualitative_actor:' + suffix, default)
-
-
-def set_fake03_qualitative_actor(storage, suffix, value):
-    _set(storage, 'fake03_qualitative_actor:' + suffix, value)
-
-
 def get_writer_indicator_steps(storage, suffix, default=_MISSING):
     return _get(storage, 'writer_indicator_steps:' + suffix, default)
 

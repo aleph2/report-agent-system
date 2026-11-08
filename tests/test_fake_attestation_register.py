@@ -5,7 +5,7 @@ from pathlib import Path
 from pypdf import PdfReader
 import pytest
 
-from report_agent.fake03_fact_register import (
+from support.fake03 import (
     REGISTER, TYPED_REGISTER, load_attestations, attestations_for, qualitative_profile)
 
 DATA=Path(__file__).parent/'fake_data'

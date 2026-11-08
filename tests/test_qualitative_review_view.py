@@ -1,5 +1,6 @@
 """Offline Reviewer boundary over immutable snapshots of native Writer drafts."""
 import pytest
+from support.fake03 import install
 
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
@@ -12,12 +13,10 @@ from test_fake03_qualitative_steps import mini
 def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(mini):
     from report_agent.qualitative_review import qualitative_reviewer_session
     ws, binding, profile = mini
-    ws.store.set('fake03_qualitative_profile', profile)
+    install(ws, binding.plan_ref, profile)
     cs = ContentStore(ws.store)
     with writer_session(ws, '坡段 A', None, assessment_only=True, indicator_steps=True,
                         section_id=binding.assessment_section_id) as writer:
-        ws.store.set('fake03_qualitative_actor:' + writer.actor.id,
-                     dict(plan_ref=binding.plan_ref, object_id='A', profile_digest=digest(profile)))
         with ws.store.connect() as db:
             scope = _assignment(cs, db, writer.actor)
         from report_agent.writer_assessment import read_indicator_step, save_indicator_outcome
@@ -99,7 +98,11 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         assert write('record',ind,view['row_digest'],'Period is open.')['result'] == saved['result']
         assert cs.read(saved['result']['finding_ref'])['payload']['row_digest'] == view['row_digest']
         from report_agent.hierarchical_tools import content_tools
-        ws.store.set('fake03_qualitative_profile', None)
+        from report_agent.assertion_host import AssertionHost
+        from report_agent.writer_fact_packet import packet_grant
+        host = AssertionHost(ws.store.root)
+        grant = packet_grant(ws.store.root, binding.plan_ref, 'A', binding.assessment_section_id)
+        host.revoke(grant)
         assert {t.__name__ for t in content_tools(ws,'reviewer')} == set(tools)
         assert view == read(ind)
         # Later Writer work cannot change what this Reviewer was assigned.
@@ -108,7 +111,7 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         assert not cs.list_objects('Assessment')
     with pytest.raises(ActionForbidden):
         read(ind)
-    ws.store.set('fake03_qualitative_profile', profile)
+    host.authorize(grant)
     foreign = {'source_ref':{'type':'SourceArtifact','id':'elsewhere','version':1},
                'locator':'p. 1','quote':'unauthorized'}
     ws.store.set(key, {**draft, 'rows':{ind:{**row, 'sources':[foreign]}}})

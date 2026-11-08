@@ -50,21 +50,12 @@ def _input_model(layout):
         plausible_grades=(list[Literal[grades]], Field(default_factory=list)))
 
 
-# Approved fake03 qualitative subset. Full-method grades, ranks and sources stay bound to the plan.
-FAKE03_QUALITATIVE_INDICATORS = frozenset(('X21','X22','X23','X32','X41','X42','X51','X52'))
-
-
 def _assignment(cs, db, actor):
     from .writer_assignments import bound_assignment
+    from .writer_fact_packet import assigned_facts
     scope = bound_assignment(cs, db, actor)
     _layout(scope['plan']['payload']['method_pack'])
-    binding = legacy.get_fake03_qualitative_actor(db, actor.id)
-    if binding is not None:
-        profile = legacy.get_fake03_qualitative_profile(db)
-        if (binding['plan_ref'] != scope['plan']['ref'] or binding['object_id'] != scope['object']['object_id']
-                or binding['profile_digest'] != digest(profile)):
-            raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
-        scope['qualitative_profile'] = profile
+    scope.update(assigned_facts(cs, db, actor, scope))
     return scope
 
 
@@ -291,8 +282,11 @@ def _step_state(db, scope, actor):
             raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
         draft = {'rows': {}, 'assessment_ref': None, 'interrupted_indicators': {}}
     rules = scope['plan']['payload']['method_pack']['indicators']
-    if 'qualitative_profile' in scope:
-        rules = [r for r in rules if r['id'] in FAKE03_QUALITATIVE_INDICATORS]
+    if 'assigned_indicators' in scope:
+        selected = set(scope['assigned_indicators'])
+        if not selected or selected - {r['id'] for r in rules}:
+            raise ActionRejected('WRITER_ASSIGNED_INDICATOR_OUTSIDE_METHOD')
+        rules = [r for r in rules if r['id'] in selected]
     interrupted = draft.get('interrupted_indicators', {})
     rule = next((r for r in rules if r['id'] not in draft['rows'] and r['id'] not in interrupted), None)
     status = {'complete': rule is None, 'progress': {'recorded': len(draft['rows']), 'total': len(rules)},
@@ -332,16 +326,15 @@ def read_indicator_step(cs, actor):
                   'grades': [{**{k:g[k] for k in ('description','min_value','max_value')},
                               'choice':_grade(g)} for g in rule['grades']],
                   **_assignment_context(cs, db, scope)}
-        if 'qualitative_profile' in scope:
-            profile = scope['qualitative_profile']
-            packet['object_facts'] = profile['facts'][scope['object']['object_id']]
+        if 'object_facts' in scope:
+            packet['object_facts'] = scope['object_facts']
             if decision := packet['object_facts'].get('engineering_reviews', {}).get(rule['id']):
                 packet['engineering_review'] = decision
-            packet['midpoint_convention'] = profile['midpoint_convention']
+            packet['midpoint_convention'] = scope['midpoint_convention']
             if 'attestations' in packet['object_facts']:
                 assigned_ids = {f['fact_id'] for f in packet['object_facts']['attestations']}
                 packet['other_context_facts'] = [{k:f[k] for k in ('fact_id','subject','purpose','quote')}
-                    for f in _typed_facts(scope) if f['fact_id'] not in assigned_ids]
+                    for f in scope.get('attested_facts') if f['fact_id'] not in assigned_ids]
                 packet['claim_instructions'] = (
                     'Select the fact handles that support each distinct claim. State what establishes the grade, '
                     'how an assumption relates to this object and narrows alternatives, and the direction and basis '
@@ -417,17 +410,6 @@ def _step_schema(choices, kind, qualitative=False, fact_ids=None):
         __base__=Contract,__validators__={'plausible':plausible},**scoring)
 
 
-def _typed_facts(scope):
-    profile = scope.get('qualitative_profile', {})
-    current = profile.get('facts', {}).get(scope['object']['object_id'], {})
-    if 'attestations' not in current:
-        return None
-    # A review question may cite a different object's source as context. Decisive support
-    # is restricted to the assessed object by the native claim validator.
-    return list({row['fact_id']:row for obj in profile['facts'].values()
-                 for row in obj.get('attestations', [])}.values())
-
-
 def _fact_ids(facts):
     return tuple(f['fact_id'] for f in facts) if facts is not None else None
 
@@ -438,7 +420,7 @@ def step_outcome_schema(cs, actor, indicator_id, kind):
         _, _, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'qualitative_profile' in scope,_fact_ids(_typed_facts(scope)))
+        return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'midpoint_convention' in scope,_fact_ids(scope.get('attested_facts')))
 
 
 def _step_value(rule, outcome, *, qualitative=False, facts=None):
@@ -471,12 +453,12 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
         key, draft, rule, _ = _step_state(db, scope, actor)
         if not rule or rule['id'] != indicator_id:
             raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
-        object_facts = scope.get('qualitative_profile', {}).get('facts', {}).get(scope['object']['object_id'], {})
+        object_facts = scope.get('object_facts', {})
         decision = object_facts.get('engineering_reviews', {}).get(indicator_id)
         if decision and outcome.get('kind') != 'gap':
             raise ActionRejected('WRITER_ENGINEERING_REVIEW_PENDING: use save_gap. '+decision['reason'])
-        facts = _typed_facts(scope)
-        value = _step_value(rule, outcome, qualitative='qualitative_profile' in scope, facts=facts)
+        facts = scope.get('attested_facts')
+        value = _step_value(rule, outcome, qualitative='midpoint_convention' in scope, facts=facts)
         claim_receipt = {}
         if facts is not None:
             from .method_pack import number
@@ -487,8 +469,7 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
                 raise ActionRejected('WRITER_VALUE_OUTSIDE_CHOSEN_GRADE')
             value, checks = apply_claims(value, indicator_id=indicator_id, subject=scope['object']['object_id'],
                                          attestations=facts, midpoint=midpoint, grade_id=band['id'] if band else None,
-                                         registered_excerpts=[r['quote'] for obj in scope['qualitative_profile']['facts'].values()
-                                            for r in [*obj.get('observations',[]), *obj.get('attestations',[])] if r.get('quote')])
+                                         registered_excerpts=scope['registered_excerpts'])
             claim_receipt = {'claim_checks': checks}
         if decision:
             claim_receipt.setdefault('claim_checks', {}).update(engineering_review=decision, semantic_review_required=True)
@@ -509,7 +490,7 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
         draft['rows'][indicator_id] = entry
         legacy.set_writer_indicator_steps(db, key, draft)
         _, _, _, status = _step_state(db, scope, actor)
-        if (status['complete'] and 'qualitative_profile' not in scope
+        if (status['complete'] and len(draft['rows']) == len(scope['plan']['payload']['method_pack']['indicators'])
                 and not status['gap_indicators'] and not status['interrupted_indicators']):
             receipt = _score_saved_rows(cs, db, actor, operation_id, scope, draft)
             draft['assessment_ref'] = status['assessment_ref'] = receipt['assessment_ref']

@@ -10,7 +10,7 @@ from pypdf import PdfReader
 
 from report_agent.assertion_host import AssertionHost, Grant
 from report_agent.assertions import actions, queries
-from report_agent.fake03_fact_register import REGISTER, TYPED_REGISTER, load_attestations
+from support.fake03 import REGISTER, TYPED_REGISTER, load_attestations
 from report_agent.mini_commission import INPUT_SHA256
 from report_agent.writer_assessment import _grade
 

@@ -155,6 +155,11 @@ def writer_session(workspace, object_label, model, *, assessment_only=False, ind
         'description':goal,
         'section_ids':[sections[0]['section_id']],'assessment_object_id':matches[0]['object_id']}}
     with delegated_task(workspace,'coordinator',call) as (native,actor):
+        if (workspace.store.root / "assertion-access.sqlite3").is_file():
+            from .writer_assignments import bound_assignment
+            from .writer_fact_packet import bind_writer_facts
+            with workspace.store.connect() as db:
+                bind_writer_facts(cs, actor, bound_assignment(cs, db, actor))
         prepare_assignment_pages(cs,actor)
         tools=writer_tools(workspace,actor,include_images=include_images,assessment_only=assessment_only)
         if indicator_steps:

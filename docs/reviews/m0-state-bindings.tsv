@@ -1,0 +1,68 @@
+file	scope	operand	families	binding evidence
+scripts/audit_report.py	audit	SELECT key,value FROM state	@scan	Operator reads SELECT key,value FROM state without a predicate.
+scripts/audit_review_trial017.py	audit	read_review_trial_state	active_reviewer_prompt_hash,active_rubric_hash,checkpoint_resume,delivery,knowledge_enabled,knowledge_project_id,manifest,native_interrupts,report_error,report_issues,report_status,rubric_reviews,rubric_status	Named legacy_state.read_review_trial_state SQL operands.
+scripts/prepare_completed_feedback_recovery.py	read_public_state	SELECT key,value FROM state	@scan	Operator reads SELECT key,value FROM state without a predicate.
+scripts/prepare_review_trial017.py	inspect_baseline	SELECT key,value FROM state	@scan	Operator reads SELECT key,value FROM state without a predicate.
+src/report_agent/assessment_completion.py	require_fresh_continuation	authority.get('recovery_state_key')	model_recovery_call:*	Host continuation authority.recovery_state_key, checked against the stored identity; test_assessment_completion_unknown_continuation.
+src/report_agent/bounded_operations.py	record_not_dispatched	key	artifact_text_work:*,bounded_review_attempt:*,text_work:*,vision_attempt:*	Linked denial can update bounded attempt and parent receipts from evidence_analysis or vision.
+src/report_agent/bounded_operations.py	record_outcome	key	bounded_review_attempt:*,vision_attempt:*	Calls in evidence_analysis and vision_admission bind the reservation by operation.
+src/report_agent/bounded_operations.py	reserve_once	key	bounded_review_attempt:*,vision_attempt:*	Calls in evidence_analysis and vision_admission bind the reservation by operation.
+src/report_agent/bounded_operations.py	reserve_once	parent_key	text_work:*	Only text_work allows parent readmission; artifact_review explicitly sets allow_parent_readmission=False.
+src/report_agent/commission_plan.py	_set	key	@helper	_state/_set forward argument 2; see helper call rows.
+src/report_agent/commission_plan.py	_state	key	@helper	_state/_set forward argument 2; see helper call rows.
+src/report_agent/commission_plan.py	snapshot_outcomes	iter_commission_outcomes	commission_outcome:*	Named legacy_state.iter_commission_outcomes SQL operands.
+src/report_agent/decision_state.py	completion_state_token	read_completion_authority_rows	content_delivery,manifest	Named legacy_state.read_completion_authority_rows SQL operands.
+src/report_agent/deep_runtime.py	run_report	key	execution_progress_recovery:*,grader_model_trial,review_import017,rubric_reviews,rubric_targets	run_report has a tuple of four grader keys and a separate loop over limited_model_resume_keys.
+src/report_agent/evidence_analysis.py	analyze_evidence_packet	[parent_reservation]	artifact_text_work:*,text_work:*	Parent bound by artifact_review.perform_assigned_artifact_review or text_work.produce.
+src/report_agent/evidence_analysis.py	analyze_evidence_packet	reservations	artifact_text_work:*,bounded_review_attempt:*,text_work:*	evidence_analysis appends parent_reservation to its own bounded_review_attempt before recording linked denial.
+src/report_agent/execution_progress.py	_response	role	prompt_capture:*	Events.capture_key links to prompt_provenance._capture output.
+src/report_agent/execution_progress.py	_zero_send_model	call_key	model_recovery_call:*	model_recovery._transition attaches report_local_admission_key to the exception.
+src/report_agent/execution_progress.py	authorize_recovery	episode.get('recovery_key', '')	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	awrap_model_call	getattr(messages[0], 'id', None)	prompt_capture:*	Events.capture_key links to prompt_provenance._capture output.
+src/report_agent/execution_progress.py	consume_recovery	episode['recovery_key']	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	limited_model_resume_keys	boundary['recovery_key']	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	mark_observation_limit	key	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	reserve_recovery_request	key	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	resume_answer	episode.get('recovery_key', '')	execution_progress_recovery:*	authorize_recovery sets episode.recovery_key; resume/reserve/consume follow that key.
+src/report_agent/execution_progress.py	save	key	execution_progress:*	control returns PREFIX + actor/task digest; save receives its result.
+src/report_agent/fake_verification.py	check_prepared	read_probe_plan_pin_rows	commission_confirmation,commission_plan	Named legacy_state.read_probe_plan_pin_rows SQL operands.
+src/report_agent/legacy_state.py	_get	key	@accessor	Private _get/_set accept keys supplied by the named accessors.
+src/report_agent/legacy_state.py	_set	key	@accessor	Private _get/_set accept keys supplied by the named accessors.
+src/report_agent/legacy_state.py	insert_probe_business_state	INSERT INTO state VALUES (?,?)	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority:*,source_use_authority_binding	legacy_state.BUSINESS_STATE plus reviewed_method_pack prefix. probe_case adds the source_use_authority row before import.
+src/report_agent/legacy_state.py	read_probe_business_state	SELECT key,value FROM state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority_binding	legacy_state.BUSINESS_STATE plus reviewed_method_pack prefix. probe_case adds the source_use_authority row before import.
+src/report_agent/live_messages.py	_once	key	message_call:*,message_offer:*,task_state_frame:*,tool_selection_offer:*	_once call sites in live_messages, task_state_delivery.persist_frame and tool_selection.select_tools.
+src/report_agent/live_messages.py	bind_response	key	tool_selection_offer:*	bind_response checks the report_tool_selection_offer prefix.
+src/report_agent/live_messages.py	tool_binding	link['offer']	message_offer:*	tool_binding follows message_call.offer and verifies the message_offer digest.
+src/report_agent/model_recovery.py	_claim	key	model_recovery_call:*	Recovery invocation forms PREFIX + identity and threads it through per-call transitions.
+src/report_agent/model_recovery.py	_get	key	model_recovery_call:*,model_recovery_policy,model_recovery_usage	_get reads a recovery call, policy or shared usage.
+src/report_agent/model_recovery.py	_load_call	key	model_recovery_call:*	Recovery invocation forms PREFIX + identity and threads it through per-call transitions.
+src/report_agent/model_recovery.py	_put	key	model_recovery_call:*,model_recovery_usage	_put writes per-call transitions and shared usage.
+src/report_agent/model_recovery.py	_transition	key	model_recovery_call:*	Recovery invocation forms PREFIX + identity and threads it through per-call transitions.
+src/report_agent/model_recovery.py	capture_response	key	model_recovery_call:*	Recovery invocation forms PREFIX + identity and threads it through per-call transitions.
+src/report_agent/probe_case.py	prepare_probe_case	insert_probe_business_state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority:*,source_use_authority_binding	legacy_state.BUSINESS_STATE plus reviewed_method_pack prefix. probe_case adds the source_use_authority row before import.
+src/report_agent/probe_case.py	prepare_probe_case	read_probe_business_state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority_binding	legacy_state.BUSINESS_STATE plus reviewed_method_pack prefix. probe_case adds the source_use_authority row before import.
+src/report_agent/prompt_provenance.py	progress_response_fact	key	prompt_capture:*	progress_response_fact follows final_captures appended by _capture.
+src/report_agent/repetition_guard.py	fingerprint	read_repetition_state_rows	acceptance_default,acceptance_mode,active_rubric_hash,content_delivery,content_execution_decision,context_policy,context_revision,corrections,decision_observation,feedback,issues,knowledge_enabled,manifest,operator_%,report_issues,source_changes	Named legacy_state.read_repetition_state_rows SQL operands.
+src/report_agent/review_steps.py	_get	key	review_check:*,review_draft:*,review_finding_locations:*,review_finished:*	Named review_steps callers pass task-scoped review draft/check/finalization and location keys.
+src/report_agent/review_steps.py	_put	key	review_check:*,review_draft:*,review_finding_locations:*,review_finished:*	Named review_steps callers pass task-scoped review draft/check/finalization and location keys.
+src/report_agent/store.py	__init__	CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS artifacts ( id TEXT PRIMARY KEY, operation TEXT UNIQUE NOT NULL, data TEXT 	@schema	CREATE TABLE defines storage; it produces no business row.
+src/report_agent/store.py	get	key	@all	Public Store.get/set forward the caller key unchanged.
+src/report_agent/store.py	set	key	@all	Public Store.get/set forward the caller key unchanged.
+src/report_agent/system_assembler.py	_current_identity	iter_g6_issue_record_ordered	g6_issue_record:*	Named legacy_state.iter_g6_issue_record_ordered SQL operands.
+src/report_agent/system_assembler.py	_current_identity	iter_g6_issue_route_ordered	g6_issue_route:*	Named legacy_state.iter_g6_issue_route_ordered SQL operands.
+src/report_agent/system_assembler.py	_current_selections	iter_g6_issue_record	g6_issue_record:*	Named legacy_state.iter_g6_issue_record SQL operands.
+src/report_agent/system_assembler.py	_prepare	iter_g6_issue_record	g6_issue_record:*	Named legacy_state.iter_g6_issue_record SQL operands.
+src/report_agent/task_state_delivery.py	persist_frame	message.additional_kwargs[FRAME]['receipt']	task_state_frame:*	_frame message contains the signed receipt derived in task_state_delivery; persist_frame passes it to _once.
+src/report_agent/task_state_delivery.py	verified_frame	key	task_state_frame:*	_frame message contains the signed receipt derived in task_state_delivery; persist_frame passes it to _once.
+src/report_agent/text_work_interrupts.py	admitted_call	key	text_work_interrupt:*	admitted_call binds exact_call_key; resume_answer follows the saved pending_key.
+src/report_agent/text_work_interrupts.py	resume_answer	event['pending_key']	text_work_interrupt:*	admitted_call binds exact_call_key; resume_answer follows the saved pending_key.
+src/report_agent/tool_selection.py	reject_unoffered	key	tool_selection_offer:*	reject_unoffered validates the report_tool_selection_offer prefix.
+src/report_agent/vision.py	_observe	[(attempt_key, {'operation': operation})]	vision_attempt:*	reserve_vision returns the operation key; _observe records its bounded outcome.
+src/report_agent/vision.py	_observe	attempt_key	vision_attempt:*	reserve_vision returns the operation key; _observe records its bounded outcome.
+src/report_agent/vision_admission.py	admitted_call	key	vision_interrupt:*	admitted_call binds exact_call_key with the vision_interrupt prefix.
+src/report_agent/vision_admission.py	check_new	material_identity	@scan	Scans rows by JSON value.kind=vision; historical keys are deliberately unconstrained.
+src/report_agent/vision_admission.py	check_new	operation	@scan	Scans rows by JSON value.kind=vision; historical keys are deliberately unconstrained.
+src/report_agent/working_summary.py	_acreate_summary	failure_key	summary_policy_failure:*	_failure_key hashes the active model, prompt, context and policy.
+src/report_agent/working_summary.py	_failure_state	failure_key	summary_policy_failure:*	_failure_key hashes the active model, prompt, context and policy.
+src/report_agent/workspace.py	select_delivery	key	delivery,report_status	select_delivery iterates literal (key,value) pairs inside one transaction.
+src/report_agent/writer_issues.py	_write_issue	iter_g6_issue_record	g6_issue_record:*	Named legacy_state.iter_g6_issue_record SQL operands.

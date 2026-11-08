@@ -1,5 +1,4 @@
 """Host-owned, finite indicator steps for the explicitly selected assessment workflow."""
-from . import legacy_state as legacy
 import json
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, hook_config
@@ -228,17 +227,11 @@ async def run_mini_assessment(workspace, model, *, verified_run):
     if (set(objects) != {'A','B'} or len({obj['label'] for obj in objects.values()}) != 2
             or len(ids) != 11 or len(order) != 11 or set(order) != set(ids)):
         raise ActionRejected('FAKE_TWO_SLOPE_RANKED_PLAN_REQUIRED')
-    from .writer_assessment import FAKE03_QUALITATIVE_INDICATORS
-    from .store import digest
+    from .writer_fact_packet import packet_grant
     qualitative = getattr(verified_run, 'qualitative_only', False)
-    profile = legacy.get_fake03_qualitative_profile(workspace.store)
-    if qualitative != (profile is not None):
-        raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
-    if qualitative and (set(ids) != FAKE03_QUALITATIVE_INDICATORS | {'X11','X12','X31'}
-            or not isinstance(profile,dict) or not isinstance(profile.get('facts'),dict)
-            or set(profile['facts']) != {'A','B'} or not all(isinstance(v,dict) for v in profile['facts'].values())
-            or not isinstance(profile.get('midpoint_convention'),str) or not profile['midpoint_convention'].strip()
-            or not re.fullmatch('[a-f0-9]{64}',str(profile.get('register_sha256','')))):
+    packets = {oid:packet_grant(workspace.store.root, plan['ref'], oid, verified_run.assessment_section_id)
+               for oid in objects}
+    if any((g is not None) != qualitative for g in packets.values()):
         raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
     result = {'status':'running','scope':'qualitative_writer_only' if qualitative else 'assessment_writer_only','plan_ref':plan['ref'],
               'decision_ref':decision['ref'],'slopes':[],'engineering_acceptance':False}
@@ -249,14 +242,11 @@ async def run_mini_assessment(workspace, model, *, verified_run):
             with writer_session(workspace,objects[object_id]['label'],model,assessment_only=True,
                                 indicator_steps=True,section_id=verified_run.assessment_section_id) as session:
                 slope['writer_actor'] = session.actor.id
-                if qualitative:
-                    legacy.set_fake03_qualitative_actor(workspace.store, session.actor.id, {
-                        'object_id': object_id, 'plan_ref': plan['ref'], 'profile_digest': digest(profile)})
                 try:
                     await session.run()
                     if session.progress['interrupted_indicators']:
                         slope['status'] = 'incomplete'
-                    elif qualitative and session.progress['progress'] == {'recorded':8, 'total':8}:
+                    elif qualitative and session.progress['progress']['recorded'] == session.progress['progress']['total']:
                         slope['status'] = 'qualitative_rows_saved'
                     elif session.progress['gap_indicators']:
                         slope['status'] = 'closed_with_gaps'

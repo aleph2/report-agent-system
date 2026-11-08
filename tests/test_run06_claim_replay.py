@@ -8,10 +8,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from support.fake03 import install
 from langchain_core.messages import HumanMessage
 
 from report_agent import fake_verification
-from report_agent.fake03_fact_register import REGISTER, qualitative_profile
+from support.fake03 import REGISTER, qualitative_profile
 from report_agent.mini_commission import prepare_mini_commission
 from report_agent.qualitative_review import qualitative_reviewer_session
 from report_agent.store import Store, digest
@@ -103,7 +104,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     prepared = prepare_mini_commission(REGISTER.parent/'inputs', case)
     ws = Workspace(Store(case))
     profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
-    ws.store.set('fake03_qualitative_profile', profile)
+    install(ws, prepared['plan_ref'], profile)
     binding = SimpleNamespace(plan_ref=prepared['plan_ref'], assessment_section_id=prepared['assessment_section_id'],
                               qualitative_only=True)
     def verify_binding(obj, workspace):
@@ -115,6 +116,12 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     def choose(messages):
         packet = json.loads(next(m.content for m in messages if isinstance(m, HumanMessage)))
         oid = next(o for o in ('A','B') if packet['object_facts'] == profile['facts'][o])
+        # Taken from the pre-M1 register projection at a1e2d4b, including the exact list order.
+        expected = {'A':'2685dffdc6ab29db0a1323e9ab7578a9666b59f3155c5f85dcadfe4c88f9c7a8',
+                    'B':'aba3e0d0cb876443eed59570a16d4971af51b8d418902d0cad5946661cb1d96a'}
+        content = json.dumps([packet['object_facts'], packet['midpoint_convention']],
+                             sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()
+        assert hashlib.sha256(content).hexdigest() == expected[oid]
         label = oid + '/' + packet['indicator_id']
         attempts[label] += 1
         if label == 'A/X51':

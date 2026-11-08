@@ -191,11 +191,14 @@ def status(ctx, assertion_id):
         return {"status": state["status"], "stale": state["stale"]}
 
 
-def packet(ctx):
+def packet(ctx, *, confirmed_only=False):
     with ctx.read() as (db, grant):
         projection = _Projection(db)
         visible = _visible(projection, grant)
         permitted = _read_set(projection, grant)
+        if confirmed_only:
+            visible = {key for key in visible if projection.states[key]["status"] == "confirmed"
+                       and not projection.states[key]["stale"]}
         return tuple(_readable_body(projection.bodies[key], permitted) for key in sorted(visible))
 
 
