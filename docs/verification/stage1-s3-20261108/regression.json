@@ -1,0 +1,60 @@
+{
+  "implementation": "89f7f3be2801caa14fe6cfea871e3d3d54b3e104",
+  "approved_contract": "0f495a2",
+  "expected": 6023,
+  "outcomes": {
+    "passed": 6014,
+    "skipped": 9
+  },
+  "failed": [],
+  "missing": [],
+  "duplicates": [],
+  "unexpected": [],
+  "collection_errors": [],
+  "exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "coverage_exit": 0,
+  "statement_coverage_percent": 90.48082538446565,
+  "fixture": {
+    "cases": {
+      "A/X21": "committed",
+      "A/X22": "committed",
+      "A/X23": "committed",
+      "A/X32": "flagged",
+      "A/X41": "committed",
+      "A/X42": "refused",
+      "A/X51": "deferred unscored",
+      "A/X52": "refused",
+      "B/X21": "committed",
+      "B/X22": "committed",
+      "B/X23": "committed",
+      "B/X32": "refused",
+      "B/X41": "committed",
+      "B/X42": "committed",
+      "B/X51": "refused",
+      "B/X52": "committed"
+    },
+    "size": 132623,
+    "sha256": "bcc6d9a753595858447d3e582de385401603e98d4254d32d71e360cdb6cea64d",
+    "roundtrip": "byte-identical"
+  },
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ]
+}
