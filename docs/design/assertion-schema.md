@@ -1,6 +1,6 @@
 # S2 assertion contract for owner review
 
-**O3 recheck, 2026-11-08.** The owner’s approval of the original contract was conditional. Review of tag `stage1-m0-s1-s2-20261108` found that a releasing Coordinator could satisfy C12 with their own endorsement. The revised catalog and checks are `s2-proposal-2`. The assertion shape remains `s2-proposal-1`. Owner reconfirmation of the revised contract precedes S3.
+**O3 recheck, 2026-11-08.** The owner’s approval of the original contract was conditional. Review of tag `stage1-m0-s1-s2-20261108` found that a releasing Coordinator could satisfy C12 with their own endorsement. The revised catalog and checks are `s2-proposal-2`. The assertion shape remains `s2-proposal-1`. The owner approved O3 for commit `0f495a2` on 2026-11-08 and authorized S3 with the dispatcher frozen.
 
 The owner confirmed that Stage 1 preserves the current dispatcher. The assertion contract governs actions on records. Task selection, dispatch order, retry scheduling and Coordinator wake-up belong to the later task-store phase.
 
@@ -51,7 +51,7 @@ Each assertion has an immutable ID, subject, typed claim, grounds, attributed ac
 
 The midpoint rule operates only where a confirmed convention selects it. An accepted departure must carry a review flag, authorized direction and value, and the exact entitled ground IDs. The host derives allowed adjustments from typed method data. A refused proposal may be kept on the judgment for the Reviewer together with its effective midpoint and audit flag. Calculation inputs, recommendation bases and competing observations with another subject require a grounded, scoped transfer even if the caller omits envelope grounds.
 
-The query consumes a validated record as `:row`, the versioned catalog as `:catalog` and a trusted host projection as `:ctx`. The caller may submit claim content. It cannot submit the projection, authority, support facts, checks, hashes or eligibility results. S3 must build that projection within the same transaction as the write and reject missing, stale or mismatched bindings. In particular:
+The query consumes a validated record as `:row`, the versioned catalog as `:catalog` and a trusted host projection as `:ctx`. The caller may submit claim content. It cannot submit the projection, authority, support facts, checks, hashes or eligibility results. S3 builds that projection within the same transaction as the write and reject missing, stale or mismatched bindings. In particular:
 
 - `packet` is the exact immutable authorized set. `records` resolves current assertions, their source/version, per-proposition entitlement, scopes, statuses, resolutions, typed quantities and dependency-derived strength.
 - `applicable_readings`, their exhaustiveness, and each permitted range come from the bound criterion and confirmed scoped conventions. S3 must evaluate the actual expressions on exact observations, including subject, units, coverage, observation periods and visual receipts. The SQL examples consume the resulting attestations. They do not establish engineering interpretation.

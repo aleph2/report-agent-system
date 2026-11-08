@@ -41,13 +41,18 @@ def native_id(tool_call_id):
 
 
 def write_id(actor_id, tool_name, tool_call_id):
-    from .store import digest
     if not isinstance(tool_call_id, str) or not tool_call_id.strip():
         raise ActionRejected('NATIVE_TOOL_CALL_ID_REQUIRED')
     if not isinstance(actor_id, str) or not actor_id.strip():
         raise ActionRejected('NATIVE_OPERATION_ACTOR_REQUIRED')
     if tool_name not in NATIVE_WRITES:
         raise ActionRejected('NATIVE_OPERATION_TOOL_REQUIRED')
+    return bound_native_id(actor_id, tool_name, tool_call_id)
+
+
+def bound_native_id(actor_id, tool_name, tool_call_id):
+    """Hash a tool call after the issuing host has validated its own allowlist."""
+    from .store import digest
     return 'native:' + tool_name + ':' + digest([actor_id, tool_name, tool_call_id])
 
 

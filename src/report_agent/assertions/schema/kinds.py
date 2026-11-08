@@ -1,4 +1,4 @@
-"""Proposed S2 contract. Production actions and stores do not import these types."""
+"""Approved versioned assertion shapes and identity predicates."""
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -9,6 +9,14 @@ Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 Refs = Annotated[tuple[Id, ...], Field(min_length=1)]
 JudgmentKind = Literal["evidence", "assumption", "conditional", "gap"]
 Purpose = Literal["classification", "assumption", "adjustment", "context", "input"]
+
+
+def actor_class_for(role: str) -> str:
+    if role in {"owner", "engineer"}:
+        return "person"
+    if role in {"calculator", "text_tool"}:
+        return "service"
+    return "agent"
 
 
 def is_canonical_id(value: object) -> bool:
