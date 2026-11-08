@@ -80,27 +80,42 @@ async def test_next_request_names_incorrect_fields_and_corrected_save_advances(s
     finally:await close(model)
 
 
-def test_applied_guideline_uses_visible_approved_rule_and_requires_both_source_kinds(tmp_path):
+@pytest.mark.asyncio
+async def test_applied_guideline_uses_visible_approved_rule_and_requires_both_source_kinds(tmp_path, monkeypatch):
     from report_agent.writer_assessment import save_indicator_outcome
     from report_agent.errors import ActionRejected
     case=tmp_path/'case'
     receipt=prepare_mini_commission(FIXTURES/'fake_data/mini_commission/inputs',case)
     ws=Workspace(Store(case)); cs=ContentStore(ws.store)
     install_rainfall(ws,receipt["plan_ref"])
-    with writer_session(ws,'坡段 A',SimpleNamespace(profile={'image_inputs':False}),
-                        section_id='3',assessment_only=True,indicator_steps=True) as session:
-        value={**advance_to_rainfall(cs,session.actor),'basis_kind':'applied_guideline'}
-        # The same approved X31 band appears in the assignment packet.
-        rule_quote=value['grade'].rsplit(' [',1)[0]
-        with pytest.raises(ActionRejected,match='GUIDELINE_RULE_SOURCE_REQUIRED'):
-            save_indicator_outcome(cs,session.actor,'missing-method','X31',value)
-        with pytest.raises(ActionRejected,match='FACTUAL_SOURCE_REQUIRED'):
-            save_indicator_outcome(cs,session.actor,'missing-fact','X31',{**value,'quotes':[rule_quote]})
-        assert read_indicator_step(cs,session.actor)['progress']['recorded']==5
-        result=save_indicator_outcome(cs,session.actor,'method-and-fact','X31',
-                                     {**value,'quotes':value['quotes']+[rule_quote]})
-        assert result['result']['saved_indicator']=='X31'
-        assert read_indicator_step(cs,session.actor)['progress']['recorded']==6
+
+    def decide(turn,body):
+        if turn==1:
+            return reply([('bad-value','save_evidence',{**native,'value':'64.4 with prose'})])
+        feedback=json.loads(tool_content(body,'bad-value'))
+        assert feedback['code']=='NATIVE_TOOL_VALIDATION_ERROR'
+        assert any(error['field']==['value'] for error in feedback['diagnostic']['fields'])
+        return reply([('method-and-fact','save_evidence',native)])
+
+    model,_=glm_model(SimpleNamespace(ws=ws),monkeypatch,decide,stop_at=3)
+    try:
+        with writer_session(ws,'坡段 A',model,section_id='3',assessment_only=True,indicator_steps=True) as session:
+            value={**advance_to_rainfall(cs,session.actor),'basis_kind':'applied_guideline'}
+            rule_quote=value['grade'].rsplit(' [',1)[0]
+            with pytest.raises(ActionRejected,match='GUIDELINE_RULE_SOURCE_REQUIRED'):
+                save_indicator_outcome(cs,session.actor,'missing-method','X31',value)
+            with pytest.raises(ActionRejected,match='FACTUAL_SOURCE_REQUIRED'):
+                save_indicator_outcome(cs,session.actor,'missing-fact','X31',{**value,'quotes':[rule_quote]})
+            assert read_indicator_step(cs,session.actor)['progress']['recorded']==5
+            native={k:v for k,v in value.items() if k!='kind'}
+            native['quotes']=value['quotes']+[rule_quote]
+            with pytest.raises(RequestBudgetExceeded):
+                await session.run()
+            step=read_indicator_step(cs,session.actor)
+            assert step['indicator_id']=='X32' and step['progress']['recorded']==6
+            assert step['gap_indicators']==['X11','X12','X21','X22','X23']
+    finally:
+        await close(model)
 
 
 @pytest.mark.asyncio
