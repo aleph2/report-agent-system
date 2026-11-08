@@ -1,6 +1,8 @@
 # S2 assertion contract for owner review
 
-**Decision requested (O3).** Approve the vocabulary, C1–C12 and action authority below, or identify a rule to revise. S2 is an offline candidate. S3 starts after O3. No application module imports the proposal.
+**O3 approval, 2026-11-08.** The owner approved the vocabulary, C1–C12 and action catalog on condition that there was no new S2 finding. Independent replay verified the corrections and 19 offline contract tests passed. No S2 finding remained open at acceptance. The approved executable contract files are the versions introduced in `63dbb0f`. Runtime implementation is S3.
+
+The owner confirmed that Stage 1 preserves the current dispatcher. The assertion contract governs actions on records. Task selection, dispatch order, retry scheduling and Coordinator wake-up belong to the later task-store phase.
 
 ## Review files
 
