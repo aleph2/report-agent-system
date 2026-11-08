@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from support.plan_fixture import approve, save
 from report_agent.content_store import Actor, ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.hierarchical_tools import actor_for
@@ -66,18 +67,6 @@ def commission(tmp_path):
             'result': 'Five design/layout objects retained.', 'differences': ['Survey omits S5; S2 height differs.']}],
         'open_questions': ['Confirm the five objects and section plan.']}
     return SimpleNamespace(ws=ws, cs=cs, co=co, plan=plan, sources=sources, cite=cite)
-
-
-def save(fixture, plan=None, operation='save-plan'):
-    return api().save_plan(fixture.cs, fixture.co, operation, plan or fixture.plan)['result']
-
-
-def approve(fixture, saved, *, reductions=()):
-    checkpoint = api().request_checkpoint(fixture.ws)
-    decision = {'plan_ref': saved['plan_ref'], 'approved': True, 'corrections': '',
-                'reductions': list(reductions)}
-    api().reply(fixture.ws, checkpoint['issue_id'], decision)
-    return checkpoint, decision
 
 
 def writer(fixture, saved, *, section_ids=None, operation='writer-task'):

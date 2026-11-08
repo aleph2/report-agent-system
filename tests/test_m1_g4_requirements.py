@@ -19,6 +19,7 @@ from report_agent.catalog import Catalog
 from report_agent.content_store import Actor, ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.store import digest, encode
+from support.plan_fixture import approve, confirmed_records, install_confirmed_plan
 from test_m1_commission_plan import api, save, writer
 from test_m1_g3_integration import method_commission, persist, persistence_input
 from test_m1_g3_followup import synthetic_pilot_plan
@@ -444,19 +445,14 @@ def test_all_five_authority_families_refuse_every_omission(required_case, fault,
 
 
 def confirm(fixture, saved, *, ref=None):
-    checkpoint = api().request_checkpoint(fixture.ws)
-    decision = {'plan_ref': saved['plan_ref'], 'requirements_ref': ref or fixture.requirements_ref,
-        'approved': True, 'corrections': '', 'reductions': []}
-    api().reply(fixture.ws, checkpoint['issue_id'], decision)
-    return checkpoint, decision
+    return approve(fixture, saved, requirements_ref=ref or fixture.requirements_ref)
 
 
 def test_complete_scoring_plan_confirms_exact_requirements_and_allows_calculation(required_case):
     fixture = required_case
-    saved = save(fixture)
-    checkpoint, _ = confirm(fixture, saved)
+    saved, checkpoint, _ = install_confirmed_plan(fixture, requirements_ref=fixture.requirements_ref)
     assert checkpoint['requirements_ref'] == fixture.requirements_ref
-    accepted = fixture.cs.read(fixture.ws.store.get('commission_confirmation'))
+    accepted = confirmed_records(fixture)[1]
     assert accepted['payload']['requirements_ref'] == fixture.requirements_ref
     actor = writer(fixture, saved)
     with fixture.cs.store.connect() as db:
@@ -612,7 +608,7 @@ Use the supplied record set; no engineering boundary calculation is commissioned
         api().assert_writing_allowed(fixture.cs, db, actor)
     checkpoint, _ = confirm(fixture, saved)
     assert checkpoint['requirements_ref'] == fixture.requirements_ref
-    accepted = fixture.cs.read(fixture.ws.store.get('commission_confirmation'))['payload']
+    accepted = confirmed_records(fixture)[1]['payload']
     assert accepted['requirements_ref'] == fixture.requirements_ref
     with fixture.cs.store.connect() as db:
         assert api().assert_writing_allowed(fixture.cs, db, actor)
