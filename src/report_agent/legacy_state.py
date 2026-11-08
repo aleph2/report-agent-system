@@ -5,8 +5,9 @@ operation in the caller's existing transaction.
 """
 import json
 import sqlite3
+from typing import Any
 
-from .store import encode
+from .store import Store, encode
 
 
 COMMISSION_REQUIREMENTS_KEY = 'commission_requirements'
@@ -15,14 +16,15 @@ COMMISSION_OWNER_RECORDS_KEY = 'commission_owner_records'
 COMMISSION_PLANNING_DRAFT_KEY = 'commission_planning_draft'
 
 
-def _get(storage, key, default):
+def _get(storage: Store | sqlite3.Connection, key: str, default: Any) -> Any:
+    # Legacy values are arbitrary persisted JSON, and callers choose the missing-key default.
     if isinstance(storage, sqlite3.Connection):
         row = storage.execute("SELECT value FROM state WHERE key=?", (key,)).fetchone()
         return json.loads(row[0]) if row else default
     return storage.get(key, default)
 
 
-def _set(storage, key, value):
+def _set(storage: Store | sqlite3.Connection, key: str, value: Any) -> None:
     if isinstance(storage, sqlite3.Connection):
         storage.execute("INSERT OR REPLACE INTO state VALUES (?, ?)", (key, encode(value)))
     else:

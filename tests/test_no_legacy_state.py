@@ -136,3 +136,25 @@ def test_new_family_literals_require_review():
             if node.value not in PUBLIC_USES.get(key, ()):
                 violations.append((str(path.relative_to(package)), node.lineno, node.value))
     assert violations == []
+
+
+@pytest.mark.parametrize("family", sorted(FAMILIES))
+def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
+    from report_agent import legacy_state
+    from report_agent.store import Store
+
+    store = Store(tmp_path)
+    suffix = ("审阅:1",) if family.endswith(":") else ()
+    raw_key = family + "".join(suffix)
+    read = getattr(legacy_state, "get_" + family.rstrip(":"))
+    write = getattr(legacy_state, "set_" + family.rstrip(":"))
+    missing = object()
+    assert read(store, *suffix, default=missing) is missing
+    write(store, *suffix, {"v": 1})
+    assert store.get(raw_key) == {"v": 1}
+    with store.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        write(db, *suffix, None)
+        assert read(db, *suffix, default=missing) is None
+        db.rollback()
+    assert read(store, *suffix) == {"v": 1}
