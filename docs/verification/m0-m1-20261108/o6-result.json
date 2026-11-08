@@ -35,6 +35,17 @@
   "run_hard_cap": 2200000,
   "reservation_per_request": 2000000,
   "operator_result_sha256": "3f27b17d465312cbbbf542df10f72bfc85fd3e3e3a30e3ef3f7575b3fcfd8174",
-  "owner_review": "pending",
-  "launched_real_report": false
+  "owner_review": "completed",
+  "launched_real_report": false,
+  "owner_disposition": {
+    "confirmed_as_saved": 7,
+    "corrected": 2,
+    "engineering_review": "page 115 applicability unresolved",
+    "private_record_sha256": "f98765de186c631868b410cdd614ff17a08b22895768f59c9ca60356a9dbc21f"
+  },
+  "checkpoint": {
+    "save_path": "passed",
+    "seven_page_coverage": "unproven",
+    "migration": "continue"
+  }
 }
