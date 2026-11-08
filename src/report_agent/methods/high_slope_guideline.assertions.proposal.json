@@ -1,0 +1,869 @@
+{
+  "status": "s2_owner_review_only",
+  "version": "s2-proposal-1",
+  "transcription_sha256": "a986b71512ca846cc5fc8e2edf030a9fcc83db472d6b7df1ae368d417db00931",
+  "source_pdf_sha256": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98",
+  "page_numbering": "one-based physical PDF pages; printed page = physical page minus 7",
+  "criteria": [
+    {
+      "id": "X11",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/0/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/0/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/0/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/0/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/0/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "total_height",
+          "bench_heights",
+          "material"
+        ],
+        "rule": "maximum_of_total_and_each_bench",
+        "incomplete_benches": "conditional_unscored"
+      }
+    },
+    {
+      "id": "X12",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/1/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/1/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/1/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            18
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/1/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/1/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "natural_slope_angle",
+          "design_slope_ratio"
+        ],
+        "precedence": "case_confirmed",
+        "missing_natural_angle": "unscored"
+      }
+    },
+    {
+      "id": "X21",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/2/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/2/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/2/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/2/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/2/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "material",
+          "weathering"
+        ]
+      }
+    },
+    {
+      "id": "X22",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/3/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/3/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/3/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            19
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/3/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/3/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "slope_structure"
+        ]
+      }
+    },
+    {
+      "id": "X23",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/4/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/4/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/4/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/4/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/4/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "groundwater_condition"
+        ]
+      }
+    },
+    {
+      "id": "X31",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20,
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/5/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20,
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/5/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20,
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/5/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            20,
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/5/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/5/notes"
+      },
+      "interpretation": {
+        "alternatives": [
+          "documented construction season and observed rain category",
+          "regional five-year mean rainfall, or permitted local annual substitute"
+        ],
+        "rule": "interpolate quantitative rainfall in the applicable printed interval"
+      }
+    },
+    {
+      "id": "X32",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/6/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/6/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/6/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/6/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/6/notes"
+      },
+      "interpretation": {
+        "frequency": [
+          "event_count",
+          "period_years"
+        ],
+        "same_observation_required": true,
+        "confirmed_zero": "low",
+        "positive_frequency": "semantic_review",
+        "adjustment": {
+          "higher": {
+            "month_of": "construction_date",
+            "in_months_of": "hazard_season",
+            "target": "in_band_value"
+          },
+          "lower": {
+            "related_event": "hazard_event",
+            "location_if_supplied": "same_document_and_page",
+            "target": "in_band_value"
+          }
+        },
+        "required_purposes": [
+          "hazard_frequency"
+        ]
+      }
+    },
+    {
+      "id": "X41",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/7/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/7/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/7/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/7/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/7/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "engineering_measure"
+        ]
+      }
+    },
+    {
+      "id": "X42",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21,
+            22
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/8/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21,
+            22
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/8/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21,
+            22
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/8/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            21,
+            22
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/8/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/8/notes"
+      },
+      "interpretation": {
+        "metric": "distance_h",
+        "unit": "slope_height",
+        "ordered_limits_inclusive": [
+          {
+            "class": "very_high",
+            "upslope": 0.5,
+            "downslope": 1.0
+          },
+          {
+            "class": "high",
+            "upslope": 1.0,
+            "downslope": 1.5
+          },
+          {
+            "class": "moderate",
+            "upslope": 1.5,
+            "downslope": 2.0
+          }
+        ],
+        "multiple": "most_severe",
+        "low_requires": {
+          "state": "explicit_absence",
+          "inventory_count": 0,
+          "minimum_extent_h": {
+            "upslope": 1.5,
+            "downslope": 2.0
+          }
+        },
+        "required_purposes": [
+          "facility_presence"
+        ]
+      }
+    },
+    {
+      "id": "X51",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            22,
+            23
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/9/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            22,
+            23
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/9/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            22,
+            23
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/9/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            22,
+            23
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/9/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/9/notes"
+      },
+      "interpretation": {
+        "point_types": [
+          "borehole_count",
+          "test_pit_count",
+          "geophysical_point_count"
+        ],
+        "unit_of_coverage": "per_section",
+        "unknown_counts": "remain_unknown",
+        "bands": {
+          "very_high": "0 sections / 0 points, or one section with at most one point",
+          "high": "at least one section and two documented points per section",
+          "moderate": "at least one section and three documented points per section",
+          "low_readings": [
+            "at least three drilling or pit points per section",
+            "at least three drilling and pit points per section with both types represented"
+          ]
+        },
+        "overlap": "requires_confirmed_engineering_interpretation",
+        "adjustment": {
+          "higher": "limited",
+          "lower": "adequate",
+          "purpose": "survey_investigation_quality"
+        },
+        "required_purposes": [
+          "borehole_count",
+          "geophysical_point_count",
+          "survey_section_count",
+          "test_pit_count"
+        ]
+      }
+    },
+    {
+      "id": "X52",
+      "source_assertions": [
+        {
+          "table": "3-2",
+          "physical_pages": [
+            23,
+            24
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/10/grades/0/description"
+          },
+          "grade": "very_high",
+          "min": "75",
+          "max": "100"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            23,
+            24
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/10/grades/1/description"
+          },
+          "grade": "high",
+          "min": "50",
+          "max": "74"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            23,
+            24
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/10/grades/2/description"
+          },
+          "grade": "moderate",
+          "min": "25",
+          "max": "49"
+        },
+        {
+          "table": "3-2",
+          "physical_pages": [
+            23,
+            24
+          ],
+          "description_at": {
+            "source": "high_slope_guideline.json",
+            "pointer": "/indicators/10/grades/3/description"
+          },
+          "grade": "low",
+          "min": "0",
+          "max": "24"
+        }
+      ],
+      "printed_notes": {
+        "source": "high_slope_guideline.json",
+        "pointer": "/indicators/10/notes"
+      },
+      "interpretation": {
+        "required_purposes": [
+          "design_file_coverage",
+          "drawing_contents"
+        ]
+      }
+    }
+  ],
+  "tables": {
+    "risk_bands": {
+      "source": "high_slope_guideline.json",
+      "pointer": "/risk_bands"
+    },
+    "weight_tables": {
+      "source": "high_slope_guideline.json",
+      "pointer": "/weight_tables"
+    },
+    "presentation_source": {
+      "source": "high_slope_guideline.json",
+      "pointer": "/presentation_source"
+    },
+    "display_labels": {
+      "source": "high_slope_guideline.json",
+      "pointer": "/display_labels"
+    }
+  },
+  "pilot_conventions": {
+    "adjustment_default": {
+      "scope": "fake03",
+      "rule": "band midpoint unless a supported directional adjustment is retained with its audit trail"
+    },
+    "A/X51": {
+      "scope": "fake03",
+      "authority_ref": "tests/fake_data/mini_commission/engineering-review.json#/A/X51",
+      "basis": "gap",
+      "possibilities": [
+        "low",
+        "moderate"
+      ],
+      "assigned_grade": null,
+      "value": null
+    }
+  }
+}

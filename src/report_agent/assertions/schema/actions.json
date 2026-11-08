@@ -1,0 +1,208 @@
+{
+  "version": "s2-proposal-1",
+  "roles": [
+    "coordinator",
+    "writer",
+    "reviewer",
+    "layout",
+    "text_tool",
+    "calculator",
+    "owner",
+    "engineer"
+  ],
+  "actions": {
+    "assert_source": {
+      "roles": [
+        "coordinator",
+        "owner"
+      ],
+      "kind": "source",
+      "conditions": []
+    },
+    "record_conflict": {
+      "roles": [
+        "coordinator",
+        "owner"
+      ],
+      "kind": "conflict",
+      "conditions": []
+    },
+    "record_convention": {
+      "roles": [
+        "coordinator"
+      ],
+      "kind": "convention",
+      "conditions": []
+    },
+    "save_judgment": {
+      "roles": [
+        "writer",
+        "calculator"
+      ],
+      "kind": "judgment",
+      "conditions": [
+        "calculator_determined",
+        "producer_binding"
+      ]
+    },
+    "derive_result": {
+      "roles": [
+        "calculator"
+      ],
+      "kind": "derived",
+      "conditions": []
+    },
+    "save_recommendation": {
+      "roles": [
+        "writer"
+      ],
+      "kind": "recommendation",
+      "conditions": []
+    },
+    "record_finding": {
+      "roles": [
+        "reviewer"
+      ],
+      "kind": "finding",
+      "conditions": []
+    },
+    "record_presentation_check": {
+      "roles": [
+        "layout",
+        "text_tool"
+      ],
+      "kind": "presentation_check",
+      "conditions": []
+    },
+    "ask": {
+      "roles": [
+        "@agent"
+      ],
+      "kind": "question",
+      "conditions": []
+    },
+    "decide": {
+      "roles": [
+        "owner",
+        "coordinator"
+      ],
+      "kind": "decision",
+      "conditions": [
+        "answer_or_dismiss",
+        "decision_scope"
+      ]
+    },
+    "endorse": {
+      "roles": [
+        "reviewer",
+        "coordinator"
+      ],
+      "kind": "act",
+      "conditions": [
+        "live_target"
+      ]
+    },
+    "challenge": {
+      "roles": [
+        "reviewer",
+        "coordinator"
+      ],
+      "kind": "act",
+      "conditions": [
+        "live_target"
+      ]
+    },
+    "confirm": {
+      "roles": [
+        "owner",
+        "engineer"
+      ],
+      "kind": "act",
+      "conditions": [
+        "live_target",
+        "human_authority",
+        "owner_for_conventions"
+      ]
+    },
+    "supersede": {
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer",
+        "layout",
+        "text_tool",
+        "calculator",
+        "owner",
+        "engineer"
+      ],
+      "kind": "act",
+      "conditions": [
+        "live_target",
+        "author_or_owner",
+        "challenge_resolution"
+      ]
+    },
+    "retract": {
+      "roles": [
+        "coordinator",
+        "writer",
+        "reviewer",
+        "layout",
+        "text_tool",
+        "calculator",
+        "owner",
+        "engineer"
+      ],
+      "kind": "act",
+      "conditions": [
+        "live_target",
+        "author_or_owner",
+        "challenge_resolution",
+        "release_owner"
+      ]
+    },
+    "deliver_draft": {
+      "roles": [
+        "coordinator"
+      ],
+      "kind": "decision",
+      "conditions": [
+        "frozen_pair",
+        "draft_disclosures"
+      ]
+    },
+    "release": {
+      "roles": [
+        "coordinator"
+      ],
+      "kind": "decision",
+      "conditions": [
+        "frozen_pair",
+        "release_delegation",
+        "C12"
+      ]
+    },
+    "sign_off": {
+      "roles": [
+        "engineer"
+      ],
+      "kind": "act",
+      "conditions": [
+        "named_engineer",
+        "live_release"
+      ]
+    }
+  },
+  "status_precedence": [
+    "retracted",
+    "superseded",
+    "contested",
+    "confirmed",
+    "endorsed",
+    "proposed"
+  ],
+  "endorsement_suffices_for": [
+    "judgment",
+    "finding"
+  ]
+}
