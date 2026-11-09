@@ -21,7 +21,7 @@ TOTAL_LIMIT=CONFIG.get("m1_token_limit",LIMIT)
 ROLE_MODELS=CONFIG["models"]
 MODEL_BOUNDS={model:CONFIG["reserved_tokens_per_attempt"] for model in set(ROLE_MODELS.values())}
 sys.path.insert(0,str(SOURCE/"src"))
-from report_agent import legacy_state as legacy
+from report_agent import issue_state
 
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 def load(p):return json.loads(Path(p).read_text(encoding="utf8"))
@@ -211,7 +211,7 @@ async def run_with_owner_checkpoint(workspace, runner):
    return workspace.status()
   ids={item['value']['issue_id'] for item in pending}
   while True:
-   issues={item['id']:item for item in legacy.get_report_issues(workspace.store,[])}
+   issues={item['id']:item for item in issue_state.get_report_issues(workspace.store,[])}
    if all(issues.get(key,{}).get('decision_origin')=='operator' for key in ids):break
    await asyncio.sleep(1)
 
