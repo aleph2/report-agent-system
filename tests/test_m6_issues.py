@@ -45,7 +45,7 @@ def test_historical_issue_read_does_not_create_native_tables(tmp_path):
         assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='content_versions'").fetchone()
 
 
-def test_human_reply_is_authoritative_before_projection_and_can_be_revised(tmp_path):
+def test_human_reply_is_authoritative_before_projection_and_can_be_revised(tmp_path, monkeypatch):
     from report_agent.issue_authority import record_answer
     from report_agent.assertions.launch import Commission
     store = Store(tmp_path)
@@ -54,10 +54,53 @@ def test_human_reply_is_authoritative_before_projection_and_can_be_revised(tmp_p
     first = record_answer(store, issue, 'A only', True)
     assert record_answer(store, issue, 'A only', True) == first
     assert issue_state.get_report_issues(store)[0]['decision'] == 'A only'
-    record_answer(store, issue, 'Reopen for B', False)
+    second = record_answer(store, issue, 'Reopen for B', False)
     assert not issue_state.get_report_issues(store)[0]['resolved']
     assert issue_state.get_report_issues(store)[0]['decision'] == 'Reopen for B'
-    assert len(Commission.issue_actions(store.root)) == 4
+    rows = Commission.issue_actions(store.root)
+    questions = [body for action, body, _ in rows if action == 'ask']
+    active = [body for action, body, state in rows if action == 'decide' and state['active']]
+    assert len(questions) == 1
+    assert [body['id'] for body in active] == [second['id']]
+    assert next(state for _, body, state in rows if body['id'] == first['id'])['status'] == 'retracted'
+    assert record_answer(store, issue, 'Reopen for B', False) == second
+    assert Commission.issue_actions(store.root) == rows
+    monkeypatch.setattr(Commission, 'issue_actions', lambda directory: list(reversed(rows)))
+    assert issue_state.get_report_issues(store)[0]['decision'] == 'Reopen for B'
+
+
+@pytest.mark.parametrize('after_commit', [False, True])
+def test_revision_redo_after_retraction_or_lost_reply(tmp_path, monkeypatch, after_commit):
+    from report_agent import issue_authority
+    from report_agent.assertions.launch import Commission
+    store = Store(tmp_path)
+    issue = dict(id='question', description='Which scope?', resolved=False)
+    issue_state.set_report_issues(store, [issue])
+    first = issue_authority.record_answer(store, issue, 'A only', True)
+    issue_state.set_report_issues(store, [{**issue, 'decision': 'A only',
+        'decision_origin': 'operator', 'resolved': True}])
+    decide = issue_authority.assertions.decide
+    def fail(*args, **kwargs):
+        if after_commit:
+            decide(*args, **kwargs)
+        raise RuntimeError('lost revised reply')
+    monkeypatch.setattr(issue_authority.assertions, 'decide', fail)
+    with pytest.raises(RuntimeError, match='lost revised reply'):
+        issue_authority.record_answer(store, issue, 'Reopen for B', False)
+    rows = Commission.issue_actions(store.root)
+    question = next(state for action, _, state in rows if action == 'ask')
+    assert question['open'] is not after_commit
+    view = issue_state.get_report_issues(store)[0]
+    assert not view['resolved']
+    assert view.get('decision') == ('Reopen for B' if after_commit else None)
+    monkeypatch.setattr(issue_authority.assertions, 'decide', decide)
+    second = issue_authority.record_answer(store, issue, 'Reopen for B', False)
+    rows = Commission.issue_actions(store.root)
+    assert len([1 for action, _, _ in rows if action == 'ask']) == 1
+    assert [body['id'] for action, body, state in rows if action == 'decide' and state['active']] == [second['id']]
+    assert next(state for _, body, state in rows if body['id'] == first['id'])['status'] == 'retracted'
+    assert issue_authority.record_answer(store, issue, 'Reopen for B', False) == second
+    assert Commission.issue_actions(store.root) == rows
 
 
 def test_crash_before_owner_assertion_leaves_wait_open_and_redo_finishes(tmp_path, monkeypatch):

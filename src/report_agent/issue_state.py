@@ -57,7 +57,13 @@ def get_report_issues(storage, default=None) -> Any:
     from .issue_authority import answers
     rows = get_wait_projection(storage, default)
     signed = answers(storage)
-    return [{**row, **signed.get(row.get('id'), {})} for row in rows] if rows is not None else rows
+    if rows is not None:
+        for row in rows:
+            if row.get('id') in signed:
+                for key in ('decision', 'decision_origin', 'resolved'):
+                    row.pop(key, None)
+                row.update(signed[row['id']] or {'resolved': False})
+    return rows
 
 
 def set_report_issues(storage, value):
