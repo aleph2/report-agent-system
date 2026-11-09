@@ -451,11 +451,12 @@ def require_snapshot(cs, db, snapshot):
     anchored = enabled(cs.store)
     payload = snapshot['payload']
     plan_ref, decision_ref = payload.get('commission_plan_ref'), payload.get('commission_confirmation_ref')
-    if not anchored and not plan_ref and not decision_ref:
-        return
-    if not plan_ref or not decision_ref:
+    plan = cs._read(db, plan_ref) if plan_ref else {}
+    decision = cs._read(db, decision_ref) if decision_ref else {}
+    if not anchored and 'plan_authority' not in plan and 'plan_authority' not in decision:
+        return  # Older snapshots use the existing material-issue and export checks.
+    if not plan or not decision:
         raise ActionRejected('COMMISSION_REQUIREMENTS_SNAPSHOT_BINDING_REQUIRED')
-    plan, decision = cs._read(db, plan_ref), cs._read(db, decision_ref)
     if anchored:
         require_complete(cs, plan['payload'], db=db)
     if (decision['owner_id'] != 'operator' or not decision['payload'].get('approved')
