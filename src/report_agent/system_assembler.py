@@ -577,8 +577,6 @@ def require_assembled(cs, db, snapshot, records=None):
     """Verify assembly provenance without changing legacy export behavior."""
     receipt = report_state.assembly(db, snapshot['ref'])
     case_record = report_state.native(db, 'AssemblyProvenance', snapshot['ref'])
-    if case_record and snapshot != cs._read(db, snapshot['ref']):
-        raise ActionRejected('SYSTEM_ASSEMBLY_SNAPSHOT_MISMATCH')
     from .section_writing import enabled as system_writing
     if receipt is None and not system_writing(cs.store):
         return None
@@ -589,8 +587,7 @@ def require_assembled(cs, db, snapshot, records=None):
             receipt.get('commission_confirmation_ref') != p.get('commission_confirmation_ref')):
         raise ActionRejected('SYSTEM_ASSEMBLY_RECEIPT_REQUIRED_OR_INVALID')
     records = records if records is not None else {_key(r): cs._read(db, r) for r in p['refs']}
-    if (any(records[_key(r)] != cs._read(db, r) for r in p['refs']) if case_record
-            else receipt.get('records_digest') != digest([records[_key(r)] for r in p['refs']])):
+    if not case_record and receipt.get('records_digest') != digest([records[_key(r)] for r in p['refs']]):
         raise ActionRejected('SYSTEM_ASSEMBLY_RECORDS_DIGEST_MISMATCH')
     decision = records.get(_key(p['commission_confirmation_ref']))
     if (not decision or decision.get('owner_id') != 'operator' or

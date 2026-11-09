@@ -288,7 +288,7 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
                 'removed_structural_span': removed, 'archived_qualifiers': deepcopy(source['payload']['qualifiers']),
                 'qualifier_accounting': accounting, 'qualifier_dispositions': deepcopy(dispositions)}
             if replacement is not None:
-                receipt['assessment_replacement'] = report_state.clean(replacement)
+                receipt['assessment_replacement'] = replacement
             report_state.record_projection(db, ref, receipt)
             output[sid].append(ref); receipts.append(receipt)
         return {'section_bindings': output, 'projection_receipts': receipts,
@@ -318,7 +318,7 @@ def verify_projection(cs, db, record, sid, plan, co_actor):
     replacement = receipt.get('assessment_replacement')
     if replacement is not None:
         checked = _assessment_replacement(cs, db, source, section, plan, replacement['assessment_ref'])
-        if replacement != (report_state.clean(checked) if native else checked):
+        if replacement != checked:
             raise ActionRejected('RESCUE_ASSESSMENT_REPLACEMENT_TRANSFORM_MISMATCH')
         expected['body']['text'] = expected['body']['text'][:-len(checked['removed_result_span']['text'])]
     if record['payload'] != expected:

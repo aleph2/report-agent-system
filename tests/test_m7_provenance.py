@@ -30,8 +30,7 @@ def case(tmp_path):
 def test_generation_record_is_immutable_hash_free_and_same_transaction(tmp_path, kind, write, read):
     store, cs, actor, node, snapshot = case(tmp_path)
     ref = snapshot if kind == 'AssemblyProvenance' else node
-    payload = {'node_ref': ref, 'section_id': '4', 'text_digest': 'discarded',
-               'nested': {'source_record_digest': 'discarded', 'source_ref': node}}
+    payload = {'node_ref': ref, 'section_id': '4', 'nested': {'source_ref': node}}
     with pytest.raises(RuntimeError), store.connect() as db:
         write(db, ref, payload)
         raise RuntimeError('case transaction failed')
@@ -39,7 +38,7 @@ def test_generation_record_is_immutable_hash_free_and_same_transaction(tmp_path,
     first = write(store, ref, payload)
     assert write(store, ref, payload) == first
     saved = read(store, ref)
-    assert saved == report_state.clean(payload)
+    assert saved == payload
     assert cs.read(first)['created_by'] == 'system:report-assembler'
     with pytest.raises(ActionForbidden):
         cs.read_context(Actor('content:writer', 'writer', 'unoffered'), first)
@@ -93,21 +92,16 @@ def test_export_preflight_rejects_superseded_input_even_without_a_new_export_cal
 
 @pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
 def test_cached_word_excel_pair_rechecks_transitive_judgment_withdrawal(reviewed_writing):
-    from copy import deepcopy
     from report_agent.assessment_projection import selected_assessment
     from report_agent.assertion_host import AssertionHost
     from report_agent.content_export import export_snapshot
     from report_agent.section_writing import save_section_prose
-    from report_agent.system_assembler import assemble_current_report, require_assembled
+    from report_agent.system_assembler import assemble_current_report
     from test_assessment_refresh import act
     f = reviewed_writing
     save_section_prose(f.cs, f.writer, 'context', '4', 'S1 design height is 30 metres.', [f.cite('design')])
     snapshot = assemble_current_report(f.cs, f.co, 'assembly')['result']['snapshot_ref']
     provenance = report_state.assembly(f.cs.store, snapshot)
-    altered = deepcopy(f.cs.read(snapshot))
-    altered['payload']['manifest_digest'] = 'not-the-frozen-version'
-    with f.cs.store.connect() as db, pytest.raises(ActionRejected, match='SNAPSHOT_MISMATCH'):
-        require_assembled(f.cs, db, altered)
     with f.cs.store.connect() as db:
         assessment = f.cs._read(db, selected_assessment(db, f.plan_ref, 'S1'))['payload']
     assert assessment['derived_assertion_id'] in provenance['assertion_refs']

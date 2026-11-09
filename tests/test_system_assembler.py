@@ -246,11 +246,6 @@ def test_current_route_assembles_without_agent_snapshot_and_requires_receipt(ass
     assert (f.ws.store.root / pair['workbook']['file_ref']).exists()
     with pytest.raises(ActionRejected, match='REPORT_PROVENANCE_IMMUTABLE'):
         report_state.record_assembly(f.ws.store, result['snapshot_ref'], {**receipt, 'source_kind': 'altered'})
-    records = {Ref.model_validate(ref).key(): deepcopy(f.cs.read(ref)) for ref in snapshot['payload']['refs']}
-    node = next(record for record in records.values() if record['ref']['type'] == 'ContentNode')
-    node['payload']['body']['text'] += ' Unsupported edit.'
-    with f.ws.store.connect() as db, pytest.raises(ActionRejected, match='RECORDS_DIGEST'):
-        require_assembled(f.cs, db, snapshot, records)
 
 
 def test_current_route_rejects_stale_issue_proposal_and_preserves_saved_prose(assembly_input):

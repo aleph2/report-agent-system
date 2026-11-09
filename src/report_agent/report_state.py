@@ -26,12 +26,6 @@ def _get(storage, kind, key):
     return record['payload'] if record else None
 
 
-def clean(value):
-    if isinstance(value, dict):
-        return {k: clean(v) for k, v in value.items() if k != 'digest' and not k.endswith('_digest')}
-    return [clean(v) for v in value] if isinstance(value, list) else value
-
-
 def _save(storage, kind, key, value, *, advance=False, actor=None):
     from .content_store import Actor, ContentStore
     if isinstance(storage, Store):
@@ -59,7 +53,7 @@ def native(storage, kind, ref):
 
 
 def record_section(storage, ref, value):
-    return _save(storage, 'SectionProvenance', _key(ref), clean(value))
+    return _save(storage, 'SectionProvenance', _key(ref), value)
 
 
 def planned_section(storage, ref):
@@ -69,7 +63,7 @@ def planned_section(storage, ref):
 
 
 def record_assembly(storage, ref, value):
-    return _save(storage, 'AssemblyProvenance', _key(ref), clean(value))
+    return _save(storage, 'AssemblyProvenance', _key(ref), value)
 
 
 def assembly(storage, ref):
@@ -77,7 +71,7 @@ def assembly(storage, ref):
 
 
 def record_projection(storage, ref, value):
-    return _save(storage, 'RescueProjection', _key(ref), clean(value))
+    return _save(storage, 'RescueProjection', _key(ref), value)
 
 
 def projection(storage, ref):
