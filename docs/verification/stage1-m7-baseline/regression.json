@@ -1,0 +1,99 @@
+{
+  "code_commit": "48fabae8606d25bd4ca20df219fc9968f2b07df4",
+  "purpose": "Owner-required full regression of accepted main before M7 application changes",
+  "gate": {
+    "expected": 6159,
+    "outcomes": {
+      "passed": 6150,
+      "skipped": 9
+    },
+    "failed": [],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-09T14:00:58.498487+00:00",
+    "finished_utc": "2026-11-09T14:31:46.746239+00:00",
+    "elapsed_seconds": 1848.2
+  },
+  "unchanged_conditional_skip_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "coverage_totals": {
+    "covered_lines": 30153,
+    "num_statements": 33217,
+    "percent_covered": 90.77580756841377,
+    "percent_covered_display": "91",
+    "missing_lines": 3064,
+    "excluded_lines": 4,
+    "percent_statements_covered": 90.77580756841377,
+    "percent_statements_covered_display": "91"
+  },
+  "cleanup": {
+    "policy": "failed",
+    "count": 1,
+    "explicit_basetemp": false,
+    "retained_passing_case_files_outside_caches": {
+      "tmp-collection": [],
+      "tmp-group-0": [],
+      "tmp-group-1": [],
+      "tmp-group-2": [],
+      "tmp-group-3": [],
+      "tmp-group-4": [],
+      "tmp-group-5": [],
+      "tmp-group-6": [],
+      "tmp-group-7": []
+    }
+  },
+  "historical_fixture_inputs": {
+    "count": 51,
+    "hash_verified_before_and_after": true,
+    "manifest_sha256": "ef29a6843a9eb7378f76b2451b61fe4cd6a0998faa5bdedae7d4a6c6055fc556"
+  },
+  "source_and_test_changes": false,
+  "fake03_offline_replay": {
+    "row_count": 16,
+    "dispositions": {
+      "control retained": 10,
+      "assumption preserved; original question flagged": 1,
+      "original refused; scripted gap saved": 4,
+      "owner-deferred unscored gap with conditional low and moderate": 1
+    },
+    "record_sha256": "465980e67f5ea1125a8a2aa6e8902e973d18b20f76503030ec207f5a9c9ce78d",
+    "limitation": "Recorded replay with scripted gap/review responses; not a paid/model-quality run"
+  },
+  "python": "/home/dysun/.venvs/report-agent-system-native/bin/python -B",
+  "linux_user": "dysun",
+  "offline_network_guard": "tests/support/run_offline_tests.py",
+  "model_calls": 0,
+  "independent_design_review": {
+    "agent": "/root/m6_review",
+    "scope": "M7 active/deferred families and minimal artifact_ref proposal only",
+    "implementation_review": false
+  },
+  "m7_application_changes": "Awaiting owner acknowledgment of proposed S2 amendment",
+  "limits": [
+    "Nine unchanged conditional external graph/vector tests skipped",
+    "No M7 implementation or type-check rerun in this baseline step",
+    "Engineering lead, pilot criteria and HP02 page 115 review remain pending"
+  ]
+}
