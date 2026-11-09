@@ -1,8 +1,16 @@
-# M6 issue migration: review candidate
+# M6 issue migration and reply revision fix
 
-The implementation is pinned at `5ea36cc3fc75daf7b1306864f73e7cb5ee361c36`, based on accepted M5 `64c9b4e`. The branch is `codex/stage1-m6`. Main remains at M5 pending owner review and acceptance.
+The original review candidate is pinned at `5ea36cc3fc75daf7b1306864f73e7cb5ee361c36`, based on accepted M5 `64c9b4e`. It was prepared on `codex/stage1-m6`; main remained at M5 during the review and correction.
 
-## Result
+## Owner review correction
+
+The owner conditionally accepted M6 after fixing revised human replies. The correction is pinned at `f68eba434012a159aec7d67cf74f9adf7b1cff5d`. It replaces the duplicate-question and last-row-wins behavior: the first reply records one fixed question operation for the issue; a revision retracts the previous answer as the authenticated owner, reopening that same question, and then answers it. Only the unique active answer supplies authority. The original answer and its retraction remain visible. The existing S2 contract already supports re-answer after retraction; no amendment or dispatcher change is needed.
+
+The regression first reproduced two questions for “A only” followed by “Reopen for B”. On the corrected commit, **302 surrounding offline tests passed**, including both revision interruption points, exact redo, reverse read order, stale runtime projection suppression, host resume, the S2 contract and Fake03 replays. The independent reviewer separately ran 17 tests, all passing. Changed-module coverage is 95% for `issue_authority.py` and 96.91% for `issue_state.py`; the type diagnostic set remains exactly the same 676 existing errors, zero added. Automatic cleanup left zero passing case files outside caches. No tests were retired, no model calls were made, and historical cases were not modified. [Correction and individual passing checks](reply-revision.json)
+
+The **6,148-test full run below predates this three-file correction**; it is retained as baseline evidence, not presented as a new full run of the fix. The correction's focused regression is separate. The conditional acceptance is satisfied, so the agreed closeout is a new tag, normal fast-forward of main, and deletion of the M6 branch. The original review tag remains unchanged.
+
+## Original full regression
 
 The fresh full offline regression at `5ea36cc` passed **6,148 tests**, with **9 unchanged conditional skips**, zero failures, zero missing or duplicate cases and no collection errors. It ran from 2026-11-09 12:21:08 UTC to 12:49:25 UTC (28 minutes 17 seconds). [Full result](regression.json)
 
