@@ -1,3 +1,4 @@
+from report_agent import report_state
 import sqlite3
 
 import pytest
@@ -169,7 +170,7 @@ async def test_completed_but_outdated_task_cannot_be_reported_as_reused(tmp_path
     assert cs.read(public["node_ref"]) == old_node and cs.read(public["old_source"]) == old_source
     assert store.get("text_work_receipt:" + public["text_work_id"]) == old_receipt
     assert Catalog(store).read("s", 0, 10)["blocks"] == old_blocks
-    assert second["status"] != "reviewed_draft" and not store.get("content_delivery")
+    assert second["status"] != "reviewed_draft" and not report_state.selected_delivery(store)
 
 
 def test_result_search_is_metadata_and_paged_read_is_observed(tmp_path):

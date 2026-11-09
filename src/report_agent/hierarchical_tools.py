@@ -1,6 +1,7 @@
 """Business tools bound by the server to a project and a responsible actor."""
 from __future__ import annotations
 from . import legacy_state as legacy
+from . import report_state
 
 from pathlib import Path
 from typing import Annotated, Literal
@@ -605,7 +606,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
                         'expected_snapshot_ref': snap['ref'], 'workbook_snapshot_ref': payload.get('snapshot_ref'),
                         'workbook_report_export_ref': payload.get('export_config', {}).get('report_export_ref')})
                 delivery['workbook_export_ref'] = workbook['ref']
-            legacy.set_content_delivery(db, delivery)
+            report_state.set_content_delivery(db, delivery, actor=actor())
             # Retain historical final evidence; applicability is checked against the
             # exact selected snapshot/export. Reselecting cannot erase a known defect.
             return delivery

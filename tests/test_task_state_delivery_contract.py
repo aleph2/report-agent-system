@@ -3,6 +3,7 @@
 The protocol below is a test contract, not a second context implementation.
 No test executes a model service or reads any real report data.
 """
+from report_agent import report_state
 from copy import deepcopy
 import json
 
@@ -96,7 +97,7 @@ async def test_state_first_delivery_then_unchanged_turn_does_not_append_again(ws
     assert all(not isinstance(m, SystemMessage) for m in captured[1].messages)
     assert user in captured[1].messages
     assert second[0] == user
-    assert not ws.store.get('content_delivery')
+    assert not report_state.selected_delivery(ws.store)
 
 
 async def test_delta_declares_changes_and_removal_without_repeating_full_state(ws):

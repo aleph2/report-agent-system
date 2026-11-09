@@ -1,4 +1,5 @@
 """The commission checkpoint must survive native tool and delegation boundaries."""
+from report_agent import report_state
 from report_agent import issue_state
 from copy import deepcopy
 import json
@@ -190,7 +191,7 @@ def test_project_state_cannot_project_four_of_five_objects_as_completed(commissi
     approve(commission, saved)
     _, _, snapshot = completed_objects(commission, saved)
     commission.ws.store.set('report_status', 'completed')
-    commission.ws.store.set('content_delivery', {'snapshot_ref': snapshot['ref'],
+    report_state.set_content_delivery(commission.ws.store, {'snapshot_ref': snapshot['ref'],
         'export_ref': {'type': 'ExportArtifact', 'id': 'unreviewed-export', 'version': 1}})
     projected = project_state(commission.ws)
     assert projected['status'] == projected['execution_status'] == 'incomplete'

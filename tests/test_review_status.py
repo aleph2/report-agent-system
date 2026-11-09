@@ -1,4 +1,5 @@
 """Version-scoped review inventory; synthetic verdicts test contracts, not quality."""
+from report_agent import report_state
 import pytest
 from langchain_core.messages import AIMessage
 
@@ -118,7 +119,7 @@ async def test_explicit_corrected_positive_is_read_without_repeating_generation_
     assert len(driver.calls) == 3
     assert (cs.list_objects(), ws.store.manifest, _bytes(ws.store, payload["file_ref"], payload["file_digest"])) == originals
     assert status(cs, snapshot, refs["claim"])["scopes"][0]["verdict"] == "satisfied"
-    assert not ws.store.get("content_final_review")
+    assert not report_state.selected_final_review(ws.store)
 
 
 def test_old_snapshot_needs_explicit_reuse_and_unchanged_target_is_not_never_reviewed(ws):
@@ -201,7 +202,7 @@ def test_artifact_reviews_are_bound_to_exact_export_and_render(ws):
     assert len(current_snapshot["scopes"]) == 1  # content only, not old file checks
     assert current_snapshot["needs_recheck"]
     assert read_status(cs, snapshot, export_ref=old)["export_ref"] == old
-    assert ws.store.get("content_delivery")["export_ref"] == new
+    assert report_state.selected_delivery(ws.store)["export_ref"] == new
 
 
 def test_status_has_no_observation_receipt_and_enforces_delegated_binding(ws):
@@ -238,4 +239,4 @@ async def test_native_grader_reads_inventory_then_submits_its_own_judgment(ws):
     assert current["delivery_review"]["final_review_current"]
     other_export = export_snapshot(cs, actor, "other-export", snapshot)["result"]["export_ref"]
     assert status(cs, snapshot, snapshot, export_ref=other_export)["overall_verdict"] is None
-    assert ws.store.get("content_delivery")["export_ref"] == export
+    assert report_state.selected_delivery(ws.store)["export_ref"] == export

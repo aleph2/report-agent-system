@@ -1,4 +1,5 @@
 """Real native graph with synthetic offline models; no claim of semantic quality."""
+from report_agent import report_state
 import json
 
 import httpx
@@ -147,7 +148,7 @@ def assert_native_access_result(ws, driver, captured, body):
     assert nodes[0]["owner_id"].startswith("content:writer:") and nodes[0]["payload"] == body
     assert captured["producer_observed"]
     assert sum(role == "text_tool" for role, _, _ in driver.calls) == 1
-    assert not cs.list_objects("ReviewRecord") and ws.store.get("content_delivery") is None
+    assert not cs.list_objects("ReviewRecord") and report_state.selected_delivery(ws.store) is None
     assert not any(role == "rubric_grader" for role, _, _ in driver.calls)
     assert ws.store.manifest["sources"][0]["content"] == "Daytime access only."
 

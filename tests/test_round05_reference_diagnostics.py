@@ -1,4 +1,5 @@
 """Precise rejection feedback without changing closure, basis or pair acceptance."""
+from report_agent import report_state
 from copy import deepcopy
 import pytest
 
@@ -61,7 +62,7 @@ def test_basis_feedback_identifies_only_authorized_conflicting_assignment(case):
     assert detail['provided_assignment_ref']==tasks[1]['ref']
     assert detail['expected_basis_digest']==tasks[0]['payload']['review_commission_basis']['digest']
     assert detail['provided_basis_digest']==tasks[1]['payload']['review_commission_basis']['digest']
-    assert cs.store.get('content_delivery') is None
+    assert report_state.selected_delivery(cs.store) is None
     with pytest.raises(ActionRejected) as cached:
         select('different-basis',Ref(**snapshot),Ref(**word),**args)
     assert cached.value.diagnostic==detail
@@ -72,7 +73,7 @@ def test_basis_feedback_identifies_only_authorized_conflicting_assignment(case):
 def test_companion_feedback_explains_exact_word_link_without_selecting_latest(ws):
     cs,actor,snapshot,old_word,workbook,select=selected_pair(ws)
     new_word=export_snapshot(cs,actor,'new-word',snapshot)['result']['export_ref']
-    before=deepcopy(cs.store.get('content_delivery'))
+    before=deepcopy(report_state.selected_delivery(cs.store))
     with pytest.raises(ActionRejected,match='^COMPANION_EXPORT_VERSION_MISMATCH$') as failed:
         select('stale-companion',Ref(**snapshot),Ref(**new_word),workbook_export_ref=Ref(**workbook))
     detail=failed.value.diagnostic
@@ -81,9 +82,9 @@ def test_companion_feedback_explains_exact_word_link_without_selecting_latest(ws
     assert detail['workbook_export_ref']==workbook
     assert detail['workbook_report_export_ref']==old_word
     assert detail['expected_snapshot_ref']==detail['workbook_snapshot_ref']==snapshot
-    assert cs.store.get('content_delivery')==before
+    assert report_state.selected_delivery(cs.store)==before
     with pytest.raises(ActionRejected) as cached:
         select('stale-companion',Ref(**snapshot),Ref(**new_word),workbook_export_ref=Ref(**workbook))
     assert cached.value.diagnostic==detail
     assert select('explicit-word-only',Ref(**snapshot),Ref(**new_word))['ok']
-    assert 'workbook_export_ref' not in cs.store.get('content_delivery')
+    assert 'workbook_export_ref' not in report_state.selected_delivery(cs.store)

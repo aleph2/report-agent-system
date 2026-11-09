@@ -1,4 +1,5 @@
 """Synthetic delivery evidence for protocol tests, never model quality evidence."""
+from report_agent import report_state
 from report_agent.content_export import read_export
 from report_agent.hierarchical_tools import actor_for
 
@@ -107,7 +108,7 @@ async def current_native_export_read_review(tmp_path):
     assert record["payload"]["items"][0]["observations"][0]["receipt_id"] == seen["receipt"]
     assert record["payload"]["items"][0]["verdict"] == "satisfied"
     assert cs.list_objects("ContentNode") == originals and not cs.list_objects("RenderArtifact")
-    assert not ws.store.get("content_final_review")
+    assert not report_state.selected_final_review(ws.store)
     reads = [e for e in events(ws, "deep_tool_start") if e["role"] == "reviewer" and e["tool"] == "read_content_export"]
     assert len(reads) == 1
     assert not any(e["role"] == "reviewer" and e["tool"] in {"read_result", "read_context"} for e in events(ws, "deep_tool_start"))
@@ -219,7 +220,7 @@ async def current_native_access_review(ws):
     assert not reviewer_tools.intersection({"save_acceptance_criteria", "commit_objects", "submit_review", "correct_own_review"})
     assert all(not binding for binding in driver.bindings.get("text_tool", []))
     assert ws.store.manifest["sources"][0]["content"] == "Daytime access only."
-    assert not ws.store.get("content_final_review")
+    assert not report_state.selected_final_review(ws.store)
     return cs, driver, captured, body, result
 
 

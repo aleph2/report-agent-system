@@ -7,7 +7,7 @@ from .errors import ActionRejected
 from .store import Store, digest, encode
 
 PRIVATE_TYPES = frozenset({'SectionProvenance', 'AssemblyProvenance', 'RescueProjection',
-                           'ProseSelection', 'OutcomeSelection'})
+                           'ProseSelection', 'OutcomeSelection', 'DeliverySelection', 'FinalReviewSelection'})
 
 
 def _head(db, kind, key):
@@ -18,12 +18,12 @@ def _head(db, kind, key):
     return ContentStore._read(db, dict(type=kind, id=key, version=row[0])) if row else None
 
 
-def _get(storage, kind, key):
+def _get(storage, kind, key, default=None):
     if isinstance(storage, Store):
         with storage.connect() as db:
-            return _get(db, kind, key)
+            return _get(db, kind, key, default)
     record = _head(storage, kind, key)
-    return record['payload'] if record else None
+    return record['payload'] if record else default
 
 
 def _save(storage, kind, key, value, *, advance=False, actor=None):
@@ -104,6 +104,31 @@ def outcomes(db, plan, obj):
             if row['plan_ref'] == plan and row['object_id'] == obj:
                 refs.append(row['outcome_ref'])
     return refs or [json.loads(raw) for raw, in legacy.iter_commission_outcomes(db, digest([plan, obj]))]
+
+
+_SELECTION_MISSING = object()
+
+
+def selected_delivery(storage, default=None):
+    value = _get(storage, 'DeliverySelection', 'selected', _SELECTION_MISSING)
+    return legacy.get_historical_content_delivery(storage, default) if value is _SELECTION_MISSING else value
+
+
+def selected_final_review(storage, default=None):
+    value = _get(storage, 'FinalReviewSelection', 'selected', _SELECTION_MISSING)
+    return legacy.get_historical_content_final_review(storage, default) if value is _SELECTION_MISSING else value
+
+
+def set_content_delivery(storage, value, *, actor=None):
+    from .content_store import Actor
+    return _save(storage, 'DeliverySelection', 'selected', value, advance=True,
+                 actor=actor or Actor('host', 'host', 'delivery-selection'))
+
+
+def set_content_final_review(storage, value, *, actor=None):
+    from .content_store import Actor
+    return _save(storage, 'FinalReviewSelection', 'selected', value, advance=True,
+                 actor=actor or Actor('host', 'host', 'review-selection'))
 
 
 def assertion_refs(db, refs, plan=None, decision=None):

@@ -1,4 +1,5 @@
 """Incremental evidence behavior; no simulated result claims model effectiveness."""
+from report_agent import report_state
 import pytest
 from pydantic import ValidationError
 
@@ -46,11 +47,11 @@ def test_multiple_node_records_are_visible_without_final_or_render_requirements(
     a["verdict"] = b["verdict"] = "satisfied"
     first = save(cs, snap, refs, [a], "a", export)
     second = save(cs, snap, refs, [b], "b")
-    ws.store.set("content_delivery", {"snapshot_ref": snap, "export_ref": export})
+    report_state.set_content_delivery(ws.store, {"snapshot_ref": snap, "export_ref": export})
     evidence = current_delivery(ws.store)
     assert {i["review_ref"]["id"] for i in evidence["items"]} == {first["id"], second["id"]}
     assert evidence["delivery_checks"] == [] and evidence["overall_verdict"] is None
-    assert evidence["coverage_complete"] is None and ws.store.get("content_final_review") is None
+    assert evidence["coverage_complete"] is None and report_state.selected_final_review(ws.store) is None
     tools = {t.__name__: t for t in content_tools(ws, "coordinator")}
     context = tools["read_delivery_review_context"](Ref.model_validate(snap), Ref.model_validate(export))
     assert "obligations" not in context and "delivery_check_kinds" not in context

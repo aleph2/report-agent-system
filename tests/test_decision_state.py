@@ -1,4 +1,5 @@
 """Offline state/permission regressions; no autonomy or semantic-quality claim."""
+from report_agent import report_state
 import json
 from types import SimpleNamespace
 
@@ -113,7 +114,7 @@ def test_decision_completion_checks_saved_gaps_and_keeps_idempotent_receipts(ws)
 
 def test_inventory_counts_only_current_full_paired_receipts(ws):
     cs,refs,snapshot,export,render,source,call=setup(ws,pages=28)
-    ws.store.set('content_delivery',{'snapshot_ref':snapshot,'export_ref':export})
+    report_state.set_content_delivery(ws.store,{'snapshot_ref':snapshot,'export_ref':export})
     with delegated_task(ws,'coordinator',call) as (_,reviewer):
         for page in range(1,10): visual(cs,reviewer,render,export,source,page)
         visual(cs,reviewer,render,export,source,10,crop=[0,0,10,10])

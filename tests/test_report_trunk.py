@@ -1,3 +1,4 @@
+from report_agent import report_state
 import json
 from pathlib import Path
 from typing import Any
@@ -259,7 +260,7 @@ async def test_report_protocol_trunk_and_completed_reuse(tmp_path):
     claim = cs.read(captured["saved"]["claim"])
     assert claim["payload"] == body and claim["owner_id"].startswith("content:writer:")
     assert sum(role == "text_tool" for role, _, _ in driver.calls) == 2
-    selected = deepcopy(ws.store.get("content_delivery"))
+    selected = deepcopy(report_state.selected_delivery(ws.store))
     saved_export = cs.read(selected["export_ref"])["payload"]
     word = _bytes(ws.store, saved_export["file_ref"], saved_export["file_digest"])
     assert body["body"]["text"] in "\n".join(p.text for p in Document(BytesIO(word)).paragraphs)
@@ -282,7 +283,7 @@ async def test_report_protocol_trunk_and_completed_reuse(tmp_path):
     second = await deep_runtime.run_report(Workspace(Store(ws.store.root)), reused)
     assert second["last_error"] is None, second
     assert all(role == "coordinator" for role, _, _ in reused.calls)
-    assert cs.list_objects() == objects and ws.store.get("content_delivery") == selected
+    assert cs.list_objects() == objects and report_state.selected_delivery(ws.store) == selected
     with ws.store.connect() as db:
         assert db.execute("SELECT * FROM content_operations ORDER BY actor_id, operation_id").fetchall() == operations
     assert _bytes(ws.store, saved_export["file_ref"], saved_export["file_digest"]) == word
@@ -413,7 +414,7 @@ async def test_configuration_failure_visible_without_paid_request(tmp_path, monk
     assert ws.store.get("report_error") == status["last_error"]
     assert any(event["kind"] == "deep_run_error" for event in ws.store.events())
     assert not sent and not ContentStore(ws.store).list_objects()
-    assert ws.store.get("content_delivery") is None
+    assert report_state.selected_delivery(ws.store) is None
     assert ws.store.manifest == before
 
 

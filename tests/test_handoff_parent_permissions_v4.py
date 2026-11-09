@@ -1,4 +1,5 @@
 """V4 draft/basis/layout choices retain the same parent and source boundary."""
+from report_agent import report_state
 import pytest
 
 from report_agent.content_store import Actor
@@ -36,7 +37,7 @@ def test_current_co_cannot_select_foreign_parent_export_with_or_without_basis(ca
     choose = next(t for t in content_tools(ws,'coordinator') if t.__name__=='select_content_delivery')
     with pytest.raises(ActionForbidden):
         choose('forbidden-selection',Ref(**snapshot),Ref(**exported),**kwargs)
-    assert cs.store.get('content_delivery') is None
+    assert report_state.selected_delivery(cs.store) is None
 
 
 def test_current_co_cannot_grant_layout_a_foreign_parent_snapshot(case):

@@ -1,4 +1,5 @@
 """Protocol and boundary checks; scripted decisions are not model-quality evidence."""
+from report_agent import report_state
 import json
 import httpx
 import pytest
@@ -45,8 +46,8 @@ def test_final_submission_atomic_idempotent_permissions_and_version(ws):
         result = cs.submit_review(reviewer, "final", data, {}, export)
         assert cs.submit_review(reviewer, "final", data, {}, export) == result
         assert len(cs.list_objects("ReviewRecord")) == 1
-        assert ws.store.get("content_final_review")["review_ref"] == result["result"]["review_ref"]
-        ws.store.set("content_delivery", {"snapshot_ref":snapshot,"export_ref":export})
+        assert report_state.selected_final_review(ws.store)["review_ref"] == result["result"]["review_ref"]
+        report_state.set_content_delivery(ws.store, {"snapshot_ref":snapshot,"export_ref":export})
         assert current_delivery(ws.store)["overall_verdict"] is None
         wrong = {**data,"target_ref":export}
         with pytest.raises(ActionRejected, match="REVIEW_TARGET_OUTSIDE_SNAPSHOT"):
@@ -119,7 +120,7 @@ async def test_final_text_and_termination_do_not_approve(ws):
     result=await deep_runtime.run_report(ws,driver)
     assert result["last_error"] is None
     assert current_delivery(ws.store)["overall_verdict"] is None
-    assert ws.store.get("content_final_review") is None
+    assert report_state.selected_final_review(ws.store) is None
 
 
 def test_role_service_bundles_do_not_mix_credentials(tmp_path,monkeypatch):
@@ -200,7 +201,7 @@ def test_final_positive_projection_invalidates_on_export_change_and_local_defect
     from hierarchical_fixtures import delivery_evidence
     cs,actor,refs,snapshot,_=seed(ws)
     export=export_snapshot(cs,actor,"export",snapshot)["result"]["export_ref"]
-    ws.store.set("content_delivery",{"snapshot_ref":snapshot,"export_ref":export})
+    report_state.set_content_delivery(ws.store,{"snapshot_ref":snapshot,"export_ref":export})
     with delegated_task(ws,"coordinator",call("task",{"subagent_type":"reviewer","description":"Final"},"final-task")) as (_, reviewer):
         receipt=cs.read_context(reviewer,snapshot)["receipt_id"]
         data=submission(snapshot,refs,review_item(snapshot,refs["k"],receipt,"satisfied"))
@@ -208,9 +209,9 @@ def test_final_positive_projection_invalidates_on_export_change_and_local_defect
         cs.submit_review(reviewer,"pass",data,{},export)
         assert current_delivery(ws.store)["overall_verdict"]=="satisfied"
         export2=export_snapshot(cs,actor,"export2",snapshot)["result"]["export_ref"]
-        ws.store.set("content_delivery",{"snapshot_ref":snapshot,"export_ref":export2})
+        report_state.set_content_delivery(ws.store,{"snapshot_ref":snapshot,"export_ref":export2})
         assert current_delivery(ws.store)["overall_verdict"] is None
-        ws.store.set("content_delivery",{"snapshot_ref":snapshot,"export_ref":export})
+        report_state.set_content_delivery(ws.store,{"snapshot_ref":snapshot,"export_ref":export})
         negative=submission(snapshot,refs,review_item(refs["claim"],refs["k"],receipt,"not_satisfied"))
         cs.submit_review(reviewer,"local-negative",negative,{})
         assert current_delivery(ws.store)["overall_verdict"]=="not_satisfied"

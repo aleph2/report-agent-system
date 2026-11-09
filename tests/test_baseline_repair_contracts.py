@@ -3,6 +3,7 @@
 Run only after the actual external test review. Existing source, scope, CAS,
 receipt, and recovery tests remain authoritative; these do not replace them.
 """
+from report_agent import report_state
 from copy import deepcopy
 import json
 import shutil
@@ -111,7 +112,7 @@ def test_one_saved_review_is_scoped_evidence_not_whole_report_acceptance(ws):
     cs.submit_review(actor_for('reviewer'), 'one-review', {
         'snapshot_ref': snapshot, 'target_ref': refs['claim'], 'scope': 'Only this claim',
         'criteria_refs': [refs['k']], 'dependency_refs': [], 'items': [item]}, {})
-    ws.store.set('content_delivery', {'snapshot_ref': snapshot, 'export_ref': exported})
+    report_state.set_content_delivery(ws.store, {'snapshot_ref': snapshot, 'export_ref': exported})
     ws.store.set('report_status', 'completed')
     evidence = current_delivery(ws.store)
     state = project_state(ws)

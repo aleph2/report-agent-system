@@ -1,4 +1,5 @@
 """Actual native task/tool channels with scripted decisions; no autonomy claim."""
+from report_agent import report_state
 import json
 from support.task_state_contract import current_task
 
@@ -76,7 +77,7 @@ async def test_native_review_feedback_correction_save_return_and_explicit_adopti
     destination.write_text(json.dumps({'synthetic_scripted_protocol_only':True,
         'native_intent':request['id'], 'review_ref':record['ref'], 'task_id':record['task_id'],
         'snapshot_ref':record['payload']['snapshot_ref'], 'basis_digest':assigned['review_commission_basis']['digest'],
-        'scope_id':assigned['review_requirements'][0]['scope_id'], 'delivery':cs.store.get('content_delivery'),
+        'scope_id':assigned['review_requirements'][0]['scope_id'], 'delivery':report_state.selected_delivery(cs.store),
         'reviewer_public_frames':[[{'type':m.type, 'content':m.content,
             **({'tool_calls':m.tool_calls} if isinstance(m,AIMessage) else {})} for m in batch]
             for role, _, batch in driver.calls if role=='reviewer'],

@@ -145,20 +145,22 @@ def get_rescue_projection(storage, suffix, default=_MISSING):
     return _get(storage, 'rescue_projection:' + suffix, default)
 
 
-def get_content_delivery(storage, default=_MISSING):
+def get_historical_content_delivery(storage, default=_MISSING):
     return _get(storage, 'content_delivery', default)
 
 
-def set_content_delivery(storage, value):
-    _set(storage, 'content_delivery', value)
-
-
-def get_content_final_review(storage, default=_MISSING):
+def get_historical_content_final_review(storage, default=_MISSING):
     return _get(storage, 'content_final_review', default)
 
 
-def set_content_final_review(storage, value):
-    _set(storage, 'content_final_review', value)
+def get_content_delivery(storage, default=_MISSING):
+    from .report_state import selected_delivery
+    return selected_delivery(storage, None if default is _MISSING else default)
+
+
+def get_content_final_review(storage, default=_MISSING):
+    from .report_state import selected_final_review
+    return selected_final_review(storage, None if default is _MISSING else default)
 
 
 def get_corrections(storage, default=_MISSING):

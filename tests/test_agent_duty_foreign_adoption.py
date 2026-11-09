@@ -3,6 +3,7 @@
 Only B's selected text_work_id changes at the adoption boundary. Honest scripted
 child/parent messages test delivery, not automatic detection of false claims.
 """
+from report_agent import report_state
 from copy import deepcopy
 import hashlib
 import json
@@ -197,4 +198,4 @@ async def test_writer_adopts_only_own_receipt_and_parent_observes_real_refs(ws, 
     assert all(cs.read(item['ref']) == item for item in originals)
     assert len(cs.list_objects('DelegatedTask')) == 2
     assert not cs.list_objects('ReviewRecord') and not cs.list_objects('ExportArtifact')
-    assert not ws.store.get('content_delivery')
+    assert not report_state.selected_delivery(ws.store)

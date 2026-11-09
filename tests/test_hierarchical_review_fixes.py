@@ -1,4 +1,5 @@
 """Counterexamples from the independent review; offline, isolated project storage."""
+from report_agent import report_state
 from copy import deepcopy
 from io import BytesIO
 import hashlib
@@ -80,7 +81,7 @@ async def test_new_selection_cannot_inherit_old_pass(ws):
 async def test_corrected_final_record_cannot_supply_positive_coverage(ws):
     cs, _, refs, snapshot, _, _, checks = await passed_delivery(ws)
     reviewer = actor_for("reviewer")
-    old = ws.store.get("content_final_review")["review_ref"]
+    old = report_state.selected_final_review(ws.store)["review_ref"]
     receipt = cs.read_context(reviewer, snapshot)["receipt_id"]
     replacement = {**submission(snapshot, refs, review_item(snapshot, refs["k"], receipt, "undetermined")),
                    "delivery_checks": checks}
@@ -173,7 +174,7 @@ async def test_content_pass_with_unperformed_delivery_is_not_final_pass(tmp_path
     result = await deep_runtime.run_report(ws, driver)
     assert result["last_error"] is None, result
     assert observed["status"]["snapshot_ref"] == snapshot
-    assert ws.store.get("content_final_review") is None
+    assert report_state.selected_final_review(ws.store) is None
     assert not cs.list_objects("RenderArtifact")
     assert len(cs.list_objects("ReviewRecord")) == 1
     assert sum(role == "text_tool" for role, _, _ in driver.calls) == 1

@@ -1,3 +1,4 @@
+from report_agent import report_state
 import pytest
 from report_agent.content_models import Ref
 from report_agent.content_tasks import delegated_task
@@ -28,4 +29,4 @@ def test_flat_text_tool_preserves_binding_ownership_and_versions(ws):
         with pytest.raises(ActionForbidden):
             tool(**{**args,'operation_id':'other'},previous_ref=Ref(**revised['result']['refs']['text']))
     assert 'save_text_node' not in {t.__name__ for t in content_tools(ws,'reviewer')}
-    assert ws.store.get('content_delivery') is None
+    assert report_state.selected_delivery(ws.store) is None

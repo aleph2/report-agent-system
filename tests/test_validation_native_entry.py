@@ -1,4 +1,5 @@
 """Frozen historical host admission and current native new-turn behavior; no semantic acceptance."""
+from report_agent import report_state
 import importlib
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -160,4 +161,4 @@ async def test_completed_real_graph_gets_new_project_view_without_losing_history
     assert feedback['id'] in str(actual) and 'existing authority remains unchanged' in str(actual)
     starts = [e['data'] for e in local.store.events() if e['kind'] == 'deep_run_started']
     assert starts[-1] == {'resume': False, 'native_checkpoint': True}
-    assert local.store.get('content_final_review') is None
+    assert report_state.selected_final_review(local.store) is None

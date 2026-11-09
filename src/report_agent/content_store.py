@@ -1,6 +1,7 @@
 """Project-local immutable objects and append-only review/handling records."""
 from __future__ import annotations
 from . import legacy_state as legacy
+from . import report_state
 
 import json
 from dataclasses import dataclass
@@ -332,7 +333,6 @@ class ContentStore:
                     _validate_sources(self, db, actor, payload['citations'])
                 self._insert(db, actor, ref["type"], payload, id=ref["id"], version=ref["version"], previous_ref=obj.get("previous_ref"))
                 if g6 and ref['type'] == 'ContentNode':
-                    from . import report_state
                     from .section_writing import prose_selection_key
                     report_state.select_prose(db, prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id']), ref, actor=actor)
             from .revision_authorization import record_use
@@ -853,7 +853,7 @@ class ContentStore:
                 final = {"target": {"snapshot_ref": data["snapshot_ref"], "export_ref": delivery_export_ref},
                          "review_ref": review_ref, "runtime_identity": runtime_identity,
                          "entrypoint": "delegated-reviewer-v1"}
-                legacy.set_content_final_review(db, final)
+                report_state.set_content_final_review(db, final, actor=actor)
             return {"review_ref": review_ref, **step_result}
         request = {"submit_review": submission, "runtime_identity": runtime_identity}
         if review_message_binding is not None:

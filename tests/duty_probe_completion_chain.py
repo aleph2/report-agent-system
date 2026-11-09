@@ -3,6 +3,7 @@
 The script is an I/O oracle, not a required system workflow or model decision test.
 A conflict remains in both variants; 'complete' only means B material is present.
 """
+from report_agent import report_state
 import hashlib
 import json
 from copy import deepcopy
@@ -262,7 +263,7 @@ async def run_completion_chain(ws, request, b_available, *, delivery_selector=No
             source_selections=[], content_selections=[]), reviewer_return], text_tool=[independent_text_service])
     result = await run_report(ws, driver)
     observed['runtime_result'] = result
-    observed['final_selected_state'] = ws.store.get('content_delivery')
+    observed['final_selected_state'] = report_state.selected_delivery(ws.store)
     observed['final_execution_decision'] = ws.store.get('content_execution_decision')
     save_evidence(request, ws, observed, driver)
     assert result['last_error'] is None, result
@@ -270,11 +271,11 @@ async def run_completion_chain(ws, request, b_available, *, delivery_selector=No
     assert observed.get('review') and observed.get('decision')
     assert ws.store.manifest['sources'] == original_sources
     assert observed['content_before_layout'] == {k: cs.read(r) for k, r in observed['refs'].items()}
-    selected = ws.store.get('content_delivery')
+    selected = report_state.selected_delivery(ws.store)
     assert selected['snapshot_ref'] == observed['snapshot'] and selected['export_ref'] == observed['word']['export_ref'], 'P22_SELECTED_CURRENT_REPORT_PAIR'
     assert selected['workbook_export_ref'] == observed['xlsx']['export_ref']
     assert cs.read(selected['workbook_export_ref'])['payload']['export_config']['report_export_ref'] == selected['export_ref']
     assert len([call for call in driver.calls if call[0] == 'text_tool']) == 2
     assert all(call[0] in {'coordinator', 'writer', 'layout', 'reviewer', 'text_tool'} for call in driver.calls)
-    assert ws.store.get('content_final_review') is None
+    assert report_state.selected_final_review(ws.store) is None
     return observed, driver

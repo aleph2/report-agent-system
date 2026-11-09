@@ -1,4 +1,5 @@
 """A clean live trial preserves located OCR without inheriting previous answers."""
+from report_agent import report_state
 import hashlib
 from pathlib import Path
 import sys
@@ -28,7 +29,7 @@ def baseline(tmp_path):
     with store.connect() as db:
         db.execute('DELETE FROM source_blocks')
         db.executemany('INSERT INTO source_blocks VALUES (?,?,?,?)', rows)
-    store.set('content_final_review', {'secret_old_answer': 'pass'})
+    report_state.set_content_final_review(store, {'secret_old_answer': 'pass'})
     store.set('rubric_reviews', [{'secret_old_answer': 'defect'}])
     store.event('deep_model_response', {'content': 'old model output'})
     return store, rows

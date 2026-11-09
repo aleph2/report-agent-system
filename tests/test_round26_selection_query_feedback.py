@@ -1,4 +1,5 @@
 """Status explains incomplete query scope without inferring or approving a pair."""
+from report_agent import report_state
 import json
 from collections import Counter
 
@@ -16,7 +17,7 @@ from test_selected_companion_reviews import pair, save_review
 def test_missing_explicit_pair_is_not_reported_as_proven_file_change(pair):
     ws, cs, _, snap, _, _, word, excel, select = pair
     ref, before = save_review(pair)
-    ws.store.set('content_delivery', None)
+    report_state.set_content_delivery(ws.store, None)
     status = read_status(cs, snap, word)
     item = status['objects'][0]
     assert not item['has_current_review']
@@ -31,7 +32,7 @@ def test_missing_explicit_pair_is_not_reported_as_proven_file_change(pair):
     assert context['selected_delivery_export_refs'] == []
     assert context['draft_selection_is_not_approval'] is True
     assert 'select_content_delivery' in context['note']
-    assert ws.store.get('content_delivery') is None
+    assert report_state.selected_delivery(ws.store) is None
     assert cs.read(ref) == before and len(cs.list_objects('ReviewRecord')) == 1
     select('intended-draft-pair', Ref.model_validate(snap), Ref.model_validate(word),
            workbook_export_ref=Ref.model_validate(excel))
@@ -78,7 +79,7 @@ async def test_native_sdk_first_bounded_status_preview_explains_draft_selection(
     ws, cs, _, snap, _, _, word, _, _ = pair
     for i in range(4):
         save_review(pair, op='long-history-'+str(i))
-    ws.store.set('content_delivery', None)
+    report_state.set_content_delivery(ws.store, None)
     native(ws)
     ws.store.set('manifest', {**ws.store.manifest, 'context_policy': 'stateful-tools-v2',
                              'context_projection': 'focused-v1'})
@@ -117,7 +118,7 @@ async def test_native_sdk_first_bounded_status_preview_explains_draft_selection(
         assert 'artifact_query_context' in feedback[0]['text']
         assert 'draft_selection_is_not_approval' in feedback[0]['text']
         assert 'select_content_delivery' in feedback[0]['text']
-        assert ws.store.get('content_delivery') is None
+        assert report_state.selected_delivery(ws.store) is None
     finally:
         for model in models.values():
             await model.root_async_client.close()

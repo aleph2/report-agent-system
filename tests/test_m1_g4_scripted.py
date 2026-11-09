@@ -1,4 +1,5 @@
 """A complete deterministic current-tool report path; not model/engineering acceptance."""
+from report_agent import report_state
 from io import BytesIO
 import json
 from pathlib import Path
@@ -243,7 +244,7 @@ async def test_complete_current_scripted_report_checkpoint_calculation_exports_r
     assert not errors, errors
     delivery = current_delivery(ws.store)
     assert delivery['commission_coverage']['complete'] is True
-    assert ws.store.get('content_delivery')['workbook_export_ref'] == seen['excel']['export_ref']
+    assert report_state.selected_delivery(ws.store)['workbook_export_ref'] == seen['excel']['export_ref']
     word_bytes = (ws.store.root / seen['word']['file_ref']).read_bytes()
     excel_bytes = (ws.store.root / seen['excel']['file_ref']).read_bytes()
     doc, book = Document(BytesIO(word_bytes)), load_workbook(BytesIO(excel_bytes))

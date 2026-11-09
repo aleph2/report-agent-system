@@ -247,9 +247,23 @@ def test_m7_historical_receipts_remain_read_only(tmp_path, family):
     assert not hasattr(legacy_state, 'set_' + name)
 
 
+M8_HISTORICAL_READERS = {'content_delivery', 'content_final_review'}
+
+
+@pytest.mark.parametrize('family', sorted(M8_HISTORICAL_READERS))
+def test_m8_historical_selections_remain_read_only(tmp_path, family):
+    from report_agent import legacy_state
+    from report_agent.store import Store
+    store = Store(tmp_path)
+    store.set(family, {'historical': True})
+    assert getattr(legacy_state, 'get_' + family)(store) == {'historical': True}
+    assert not hasattr(legacy_state, 'set_' + family)
+    assert not (tmp_path / 'assertions.sqlite3').exists()
+
+
 @pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS
                                           - M4_HISTORICAL_READERS - M5_HISTORICAL_READERS - M6_HISTORICAL_READERS
-                                          - M7_HISTORICAL_READERS - M7_PROSE_READERS))
+                                          - M7_HISTORICAL_READERS - M7_PROSE_READERS - M8_HISTORICAL_READERS))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

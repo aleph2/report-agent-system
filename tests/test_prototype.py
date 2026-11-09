@@ -1,3 +1,4 @@
+from report_agent import report_state
 import json
 import asyncio
 from pathlib import Path
@@ -167,7 +168,7 @@ async def test_adk_can_reuse_without_analysis(native_ws):
         snapshot_ref=snapshot, export_ref=export), AIMessage(content="Saved draft reused; unreviewed.")])
     result = await deep_runtime.run_report(native_ws, driver)
     assert result["last_error"] is None, result
-    selected = native_ws.store.get("content_delivery")
+    selected = report_state.selected_delivery(native_ws.store)
     assert selected["snapshot_ref"] == snapshot and selected["export_ref"] == export
     assert cs.list_objects() == objects and export_bytes() == data
     assert all(role == "coordinator" for role, _, _ in driver.calls)
@@ -220,7 +221,7 @@ async def test_adk_tool_loop_and_recovery_of_committed_work(native_ws):
     first = await deep_runtime.run_report(native_ws, driver)
     assert first["status"] == "failed" and first["last_error"]["message"] == "SYNTHETIC_POST_COMMIT_FAILURE"
     assert (await checkpoint(native_ws, driver)).next
-    cs, selected = ContentStore(native_ws.store), native_ws.store.get("content_delivery")
+    cs, selected = ContentStore(native_ws.store), report_state.selected_delivery(native_ws.store)
     export = cs.read(selected["export_ref"])["payload"]
     data = _bytes(native_ws.store, export["file_ref"], export["file_digest"])
     assert content()["body"]["text"] in "\n".join(p.text for p in Document(BytesIO(data)).paragraphs)
@@ -237,7 +238,7 @@ async def test_adk_tool_loop_and_recovery_of_committed_work(native_ws):
     assert [(role, step) for role, step, _ in resumed.calls] == [("coordinator", 5)]
     assert sum(role == "text_tool" for role, _, _ in driver.calls) == 1
     assert cs.list_objects() == objects and receipts() == saved_receipts
-    assert native_ws.store.get("content_delivery") == selected
+    assert report_state.selected_delivery(native_ws.store) == selected
     assert _bytes(native_ws.store, export["file_ref"], export["file_digest"]) == data
     assert not cs.list_objects("ReviewRecord")
 
@@ -254,7 +255,7 @@ async def test_final_text_alone_does_not_complete_task(native_ws):
     assert result["execution_status"] == "completed"
     cs = ContentStore(native_ws.store)
     assert not cs.list_objects()
-    assert native_ws.store.get("content_delivery") is None
+    assert report_state.selected_delivery(native_ws.store) is None
     assert current_delivery(native_ws.store)["overall_verdict"] is None
 
 
@@ -272,7 +273,7 @@ async def test_selected_result_survives_tail_failure_without_replay(native_ws):
     first = await deep_runtime.run_report(native_ws, driver)
     assert first["status"] == "failed" and first["last_error"]["type"] == "RuntimeError"
     assert "SYNTHETIC_POST_SELECTION_FAILURE" in first["last_error"]["message"]
-    selected = native_ws.store.get("content_delivery")
+    selected = report_state.selected_delivery(native_ws.store)
     assert selected["snapshot_ref"] == snapshot and selected["export_ref"] == export
     receipt = cs.receipt(actor, "select-saved")
     assert receipt["state"] == "known_success"
@@ -283,7 +284,7 @@ async def test_selected_result_survives_tail_failure_without_replay(native_ws):
     result = await deep_runtime.run_report(Workspace(Store(native_ws.store.root)), resumed)
     assert result["last_error"] is None, result
     assert [(role, step) for role, step, _ in resumed.calls] == [("coordinator", 1)]
-    assert native_ws.store.get("content_delivery") == selected
+    assert report_state.selected_delivery(native_ws.store) == selected
     assert cs.receipt(actor, "select-saved") == receipt
     assert cs.list_objects() == objects and export_bytes() == data
 
@@ -342,8 +343,8 @@ async def test_selected_result_survives_actual_task_cancellation(native_ws, monk
                     await asyncio.gather(signal_wait, return_exceptions=True)
             selection_receipt = cs.receipt(actor, 'select-saved')
             assert selection_receipt['state'] == 'known_success'
-            assert store.get('content_delivery')['snapshot_ref'] == snapshot
-            assert store.get('content_delivery')['export_ref'] == export
+            assert report_state.selected_delivery(store)['snapshot_ref'] == snapshot
+            assert report_state.selected_delivery(store)['export_ref'] == export
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
@@ -352,7 +353,7 @@ async def test_selected_result_survives_actual_task_cancellation(native_ws, monk
             await asyncio.gather(task, return_exceptions=True)
     assert store.get("report_status") == "interrupted"
     assert store.get("report_error")["type"] == "CancelledError"
-    selected = store.get("content_delivery")
+    selected = report_state.selected_delivery(store)
     assert selected["snapshot_ref"] == snapshot and selected["export_ref"] == export
     assert cs.list_objects() == saved_objects
     assert export_bytes() == saved_bytes
@@ -365,7 +366,7 @@ async def test_selected_result_survives_actual_task_cancellation(native_ws, monk
     assert result["last_error"] is None, result
     assert [(role, step) for role, step, _ in resumed.calls] == [("coordinator", 1)]
     assert not any(role in {"writer", "text_tool"} for role, _, _ in resumed.calls)
-    assert store.get("content_delivery") == selected
+    assert report_state.selected_delivery(store) == selected
     assert cs.receipt(actor, 'select-saved') == selection_receipt
     assert cs.list_objects() == saved_objects
     assert export_bytes() == saved_bytes
@@ -425,7 +426,7 @@ async def test_error_event_is_not_success(native_ws, monkeypatch, request):
     assert native_ws.store.get("report_error") == result["last_error"]
     assert len(sent) == 1 and sent[0]["model"] == "glm-5.3" and sent[0]["tools"]
     assert not unused.calls
-    assert not ContentStore(native_ws.store).list_objects() and native_ws.store.get("content_delivery") is None
+    assert not ContentStore(native_ws.store).list_objects() and report_state.selected_delivery(native_ws.store) is None
     events = native_ws.store.events()
     assert any(event["kind"] == "deep_run_error" for event in events)
     public = json.dumps({"result": result, "events": events})
@@ -589,7 +590,7 @@ async def test_explicit_feedback_reopens_without_mutating_saved_materials(tmp_pa
     assert store.get("text_work_receipt:" + seen["first_work"]) == old_receipt
     assert store.manifest["sources"] == original_sources
     assert sum(role == "text_tool" for driver in (first_driver, second_driver) for role, _, _ in driver.calls) == 2
-    assert not cs.list_objects("ReviewRecord") and store.get("content_delivery") is None
+    assert not cs.list_objects("ReviewRecord") and report_state.selected_delivery(store) is None
 
 
 def test_feedback_cannot_interrupt_active_worker(tmp_path):
@@ -634,7 +635,7 @@ def test_completed_result_does_not_require_provider_config(native_ws, monkeypatc
     cs, _, snapshot, export, export_bytes = saved_native_delivery(native_ws)
     tools = {t.__name__: t for t in content_tools(native_ws, "coordinator")}
     tools["select_content_delivery"]("select-existing", Ref.model_validate(snapshot), Ref.model_validate(export))
-    selected, objects, data = native_ws.store.get("content_delivery"), cs.list_objects(), export_bytes()
+    selected, objects, data = report_state.selected_delivery(native_ws.store), cs.list_objects(), export_bytes()
     clear_provider_configuration(monkeypatch)
     def forbidden(*args, **kwargs):
         pytest.fail("Read-only access must not construct a provider model")

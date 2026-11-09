@@ -4,6 +4,7 @@ These tests do not establish model autonomy, report quality or engineering appro
 No ADK imports, paid model calls, real project inputs or external graph writes.
 """
 from __future__ import annotations
+from report_agent import report_state
 
 import asyncio
 import json
@@ -397,7 +398,7 @@ async def test_root_draft_native_reviewer_delivery_without_mandatory_chain(tmp_p
     assert review["payload"]["items"][0]["verdict"] == "satisfied"
     assert review["payload"]["snapshot_ref"] == captured["snapshot"]
     assert cs.read(captured["snapshot"])["payload"]["root_ref"] == node["ref"]
-    selected = current.store.get("content_delivery")
+    selected = report_state.selected_delivery(current.store)
     assert selected["snapshot_ref"] == captured["snapshot"] and selected["export_ref"] == captured["export"]
     assert cs.read(selected["export_ref"])["payload"]["snapshot_ref"] == selected["snapshot_ref"]
     starts = events(current, "deep_tool_start")
@@ -746,7 +747,7 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
     assert events(reopened, "deep_run_started")[-1]["resume"] is True
     complete = await snapshot(reopened, fresh)
     assert not complete.next and not complete.interrupts
-    assert not reopened.results() and not reopened.store.get("content_final_review")
+    assert not reopened.results() and not report_state.selected_final_review(reopened.store)
 
 
 async def test_unknown_submit_outcome_replays_receipt_without_duplicate_commit(tmp_path, monkeypatch, failure_stacks):
@@ -954,7 +955,7 @@ async def test_reviewer_read_survives_child_interrupt_and_graph_rebuild(tmp_path
     assert sum(e["tool"] == "read_context" and e["role"] == "reviewer" for e in events(reopened, "deep_tool_start")) == 1
     assert sum(r == "text_tool" for r, _, _ in [*driver.calls, *fresh.calls]) == 1
     assert observed["checker_packet"]  # Automatic fresh material receipts are separate from retained manual receipt.
-    assert not reopened.store.get("content_final_review") and not reopened.results()
+    assert not report_state.selected_final_review(reopened.store) and not reopened.results()
 
 
 @pytest.mark.parametrize("same_turn", [False, True])
@@ -1048,4 +1049,4 @@ async def test_separate_reviewer_delegations_cannot_share_read_observations(tmp_
         and any(c["name"] == "task" for c in m.tool_calls)]
     assert parent_turns
     assert max(sum(c["name"] == "task" for c in m.tool_calls) for m in parent_turns) == (2 if same_turn else 1)
-    assert not ws.store.get("content_final_review") and not ws.results()
+    assert not report_state.selected_final_review(ws.store) and not ws.results()

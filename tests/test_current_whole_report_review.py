@@ -1,4 +1,5 @@
 """Current whole-root protocol evidence; scripted checks do not prove model quality."""
+from report_agent import report_state
 import json
 import hashlib
 from copy import deepcopy
@@ -192,10 +193,10 @@ async def test_independent_whole_requirement_checks_actual_root_and_all_bodies(t
         assert all(n["owner_id"].startswith("content:writer:") and n["owner_id"] != record["owner_id"] for n in seen["nodes"])
         saved = deepcopy(record)
         assert ContentStore(Store(store.root)).read(record["ref"]) == saved
-    delivery = store.get("content_delivery")
+    delivery = report_state.selected_delivery(store)
     assert delivery["snapshot_ref"] == seen["snapshot"] and delivery["export_ref"] == seen["export"]
     assert cs.read(seen["export"])["payload"]["snapshot_ref"] == seen["snapshot"]
-    assert not store.get("content_final_review")  # Whole assigned question is distinct from global final approval.
+    assert not report_state.selected_final_review(store)  # Whole assigned question is distinct from global final approval.
     final = await snapshot(ws, driver)
     assert not final.next and not final.interrupts
     assert not any(role == "rubric_grader" for role, _, _ in driver.calls)

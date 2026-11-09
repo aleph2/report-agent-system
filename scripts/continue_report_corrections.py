@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 
 from report_agent import legacy_state as legacy
+from report_agent import report_state
 from report_agent.store import Store, encode
 from report_agent.workspace import Workspace
 from report_agent.model_config import load_mixed_services
@@ -64,7 +65,7 @@ async def main(args):
                     'content_execution_decision'):
             db.execute('DELETE FROM state WHERE key=?', (key,))
     store.set('manifest', {**store.manifest, 'goal': INSTRUCTION, 'scope_instruction': INSTRUCTION})
-    legacy.set_content_delivery(store, {**baseline['content_delivery'], 'trial_instruction': INSTRUCTION})
+    report_state.set_content_delivery(store, {**baseline['content_delivery'], 'trial_instruction': INSTRUCTION})
     store.set('knowledge_enabled', False)
     store.event('operator_content_correction_authorized', {'source': str(source), 'instruction': INSTRUCTION})
     print(encode({'state': 'starting', 'project': str(target), 'settings': settings}), flush=True)

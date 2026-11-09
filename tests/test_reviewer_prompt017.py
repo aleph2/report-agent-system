@@ -1,4 +1,5 @@
 """Effective native prompt/entry/version tests, with no network or private inputs."""
+from report_agent import report_state
 from langchain_core.messages import AIMessage, SystemMessage
 from deepagents.middleware.rubric import GRADER_SYSTEM_PROMPT
 
@@ -94,7 +95,7 @@ async def test_effective_native_prompt_and_single_review_entry(tmp_path):
     assert identity["request_hash"] == digest({"input": observed["packet"], "model": identity["model"],
         "system": TOOL_PROMPT, "contract": "assigned-review-v6"})
     assert (cs.list_objects("ContentNode"), cs.list_objects("Criterion")) == originals
-    assert not ws.store.get("content_final_review")
+    assert not report_state.selected_final_review(ws.store)
 
 
 async def test_old_prompt_acceptance_is_historical_not_current_acceptance(tmp_path, monkeypatch):
@@ -204,7 +205,7 @@ async def test_disabled_graph_production_path_uses_saved_results_without_graph(t
     for bindings in driver.bindings.values():
         for schemas in bindings:
             assert not any(s["name"].startswith("knowledge_") for s in schemas)
-    assert not ws.store.get("content_final_review")
+    assert not report_state.selected_final_review(ws.store)
 
 
 def test_disabled_graph_does_not_erase_or_approve_existing_fact_dependencies(ws, monkeypatch):

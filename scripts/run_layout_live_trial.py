@@ -8,6 +8,7 @@ import sqlite3
 from pathlib import Path
 
 from report_agent import legacy_state as legacy
+from report_agent import report_state
 from report_agent.store import Store, encode
 from report_agent.workspace import Workspace
 from report_agent.content_store import ContentStore
@@ -53,7 +54,7 @@ async def main(args):
     manifest['review_entrypoint'] = 'delegated-reviewer-v1'
     store.set('manifest', manifest)
     store.set('knowledge_enabled', False)
-    legacy.set_content_delivery(store, {**selected, 'trial_instruction':instruction})
+    report_state.set_content_delivery(store, {**selected, 'trial_instruction':instruction})
     settings['layout'] = settings['writer']
     intent = {'scope':'real model layout-only feedback loop', 'source':str(source),
         'snapshot_ref':selected['snapshot_ref'], 'baseline_export_ref':selected['export_ref'],

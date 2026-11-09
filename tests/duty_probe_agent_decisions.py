@@ -6,6 +6,7 @@ including any independent text work or child role, uses the injected factory.
 The existing run_report graph executes model actions; this module has no loop,
 HTTP client, repair, fallback selection, or substitute completion action.
 """
+from report_agent import report_state
 import hashlib
 import json
 from copy import deepcopy
@@ -118,7 +119,7 @@ def prepare_fixture(ws, case):
             fixture['original_files'].append({'file_ref': record['payload']['file_ref'],
                 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
     fixture['initial_review_records'] = deepcopy(cs.list_objects('ReviewRecord'))
-    fixture['initial_final_review'] = deepcopy(ws.store.get('content_final_review'))
+    fixture['initial_final_review'] = deepcopy(report_state.selected_final_review(ws.store))
     activate(ws)
     return fixture
 
@@ -161,7 +162,7 @@ def evaluate_saved_state(ws, fixture):
                           for f in fixture['original_files'])
     result = {'original_records_preserved': preserved, 'original_files_preserved': files_preserved,
               'review_records': deepcopy(cs.list_objects('ReviewRecord')),
-              'final_review': deepcopy(ws.store.get('content_final_review')),
+              'final_review': deepcopy(report_state.selected_final_review(ws.store)),
               'semantic_limit': 'Finite order/version checks. Neo must also read actual model reasoning and limitations.'}
     result['review_state_unchanged'] = (result['review_records'] == fixture['initial_review_records'] and
                                        result['final_review'] == fixture['initial_final_review'])
@@ -200,7 +201,7 @@ def evaluate_saved_state(ws, fixture):
             result['status'] = 'finite_state_satisfied' if preserved and files_preserved and all(
                 audit[k] for k in ('both_original_refs_reachable', 'b_before_a', 'original_dependency_text_preserved')) else 'behavior_not_met'
     else:
-        result['selected_delivery'] = deepcopy(ws.store.get('content_delivery'))
+        result['selected_delivery'] = deepcopy(report_state.selected_delivery(ws.store))
         selected = result['selected_delivery']
         result['exact_current_b_pair'] = bool(selected) and all(selected.get(k) == v for k, v in fixture['b_pair'].items())
         result['execution_decision'] = deepcopy(ws.store.get('content_execution_decision'))
@@ -245,5 +246,5 @@ async def capture_agent_decision(ws, case, folder, model_factory):
             'limits': 'Fake preparation and fake controls are not autonomous behavior evidence.'}
         dump(folder / 'agent-decision-capture.json', capture)
         dump(folder / 'final-saved-state.json', {'objects': cs.list_objects() if (cs := ContentStore(ws.store)) else [],
-                                               'delivery': ws.store.get('content_delivery')})
+                                               'delivery': report_state.selected_delivery(ws.store)})
     return capture

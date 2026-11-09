@@ -1,4 +1,5 @@
 """Explicit current source/revision/whole-question migration of the old library trial."""
+from report_agent import report_state
 import hashlib
 import json
 from copy import deepcopy
@@ -236,7 +237,7 @@ async def current_library_revision_protocol(tmp_path):
     assert len(cs.list_objects("Criterion")) == 1 and len(cs.list_objects("DelegatedTask")) == 3
 
     unrelated = catalog.import_file("unrelated.txt", b"Synthetic unrelated meeting room inventory.")["source"]["id"]
-    before = deepcopy(cs.list_objects()), deepcopy(store.get("content_delivery"))
+    before = deepcopy(cs.list_objects()), deepcopy(report_state.selected_delivery(store))
     def retain(messages):
         assert "meeting room" in encode(observation(messages, "read_source_page"))
         return invoke("read_review_status", snapshot_ref=seen["snapshot"], target_ref=seen["refs"]["root"])
@@ -247,8 +248,8 @@ async def current_library_revision_protocol(tmp_path):
         invoke("read_source_page", source_id=unrelated, limit=1), retain, done])
     assert (await deep_runtime.run_report(ws, fresh))["last_error"] is None
     assert {role for role, _, _ in fresh.calls} == {"coordinator"}
-    assert (cs.list_objects(), store.get("content_delivery")) == before
-    assert not store.get("content_final_review")
+    assert (cs.list_objects(), report_state.selected_delivery(store)) == before
+    assert not report_state.selected_final_review(store)
     return ws
 
 

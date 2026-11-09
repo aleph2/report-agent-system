@@ -1,4 +1,5 @@
 """Native SDK admission/outcome contracts; no provider calls or report judgments."""
+from report_agent import report_state
 import asyncio
 import json
 
@@ -209,7 +210,7 @@ async def test_host_decision_timeout_is_recovery_needed_without_automatic_resume
     await run_report(Workspace(store), driver)
     assert store.get('report_status') == 'needs_attention'
     assert store.get('report_error')['automatic_resume'] is False
-    assert len(driver.calls) == 1 and store.get('content_final_review') is None
+    assert len(driver.calls) == 1 and report_state.selected_final_review(store) is None
 
 
 @pytest.mark.parametrize('lower,status', [(101, 'known_exceeds'), (99, 'uncertain')])

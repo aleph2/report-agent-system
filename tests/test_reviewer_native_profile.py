@@ -3,6 +3,7 @@
 These tests use actual task binding, tools, checkpointer and ContentStore. They
 must fail on the former organizer-only runtime, rather than mocking submit.
 """
+from report_agent import report_state
 import json
 
 import pytest
@@ -83,7 +84,7 @@ async def test_native_reviewer_uses_configured_role_and_direct_submission(ws):
     assert {'submit_review','correct_own_review','analyze_evidence'} <= tools
     assert not {'perform_assigned_review','perform_assigned_artifact_review','commit_objects','task'} & tools
     assert not any(role in {'text_tool','rubric_grader'} for role,_,_ in driver.calls)
-    assert not ws.store.get('content_final_review')
+    assert not report_state.selected_final_review(ws.store)
 
 
 def test_native_completed_check_cannot_skip_declared_body(ws):

@@ -1,4 +1,5 @@
 """Incomplete commissioned scope cannot become a successful CLI or native result."""
+from report_agent import report_state
 import sys
 
 import httpx
@@ -33,7 +34,7 @@ async def test_native_terminal_keeps_unassessed_object_incomplete(commission, mo
     saved = save(commission)
     approve(commission, saved)
     _, _, snapshot = completed_objects(commission, saved)
-    commission.ws.store.set('content_delivery', {'snapshot_ref': snapshot['ref'],
+    report_state.set_content_delivery(commission.ws.store, {'snapshot_ref': snapshot['ref'],
         'export_ref': {'type': 'ExportArtifact', 'id': 'unreviewed-export', 'version': 1}})
     driver = Driver(coordinator=[AIMessage(content='Finished; synthetic terminal only.')])
     result = await deep_runtime.run_report(commission.ws, driver)

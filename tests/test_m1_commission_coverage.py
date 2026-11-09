@@ -1,4 +1,5 @@
 """A commissioned object cannot disappear through snapshot or reviewer selection."""
+from report_agent import report_state
 from copy import deepcopy
 
 import pytest
@@ -99,7 +100,7 @@ def test_favorable_delivery_metadata_cannot_hide_missing_commission_object(commi
     _, _, snapshot = completed_objects(commission, saved)
     # Default delivery projection is scoped evidence; an optimistic execution flag is not reduction authority.
     commission.ws.store.set('content_execution_decision', {'decision': 'complete', 'reason': 'Agent says all done.'})
-    commission.ws.store.set('content_delivery', {'snapshot_ref': snapshot['ref'],
+    report_state.set_content_delivery(commission.ws.store, {'snapshot_ref': snapshot['ref'],
         'export_ref': {'type': 'ExportArtifact', 'id': 'unreviewed-export', 'version': 1}})
     result = current_delivery(commission.ws.store)
     assert result['status'] == 'incomplete'
@@ -130,7 +131,7 @@ def test_selected_snapshot_outcomes_do_not_change_when_another_writer_drafts_sam
     _, refs, snapshot = completed_objects(commission, saved, count=5)
     before = commission_completion(commission.cs, snapshot)
     assert before['complete'] is True
-    commission.ws.store.set('content_delivery', {'snapshot_ref': snapshot['ref'],
+    report_state.set_content_delivery(commission.ws.store, {'snapshot_ref': snapshot['ref'],
         'export_ref': {'type': 'ExportArtifact', 'id': 'selected-export', 'version': 1}})
     second_writer_s1(commission, saved, refs)
     unchanged = commission.cs.read(snapshot['ref'])

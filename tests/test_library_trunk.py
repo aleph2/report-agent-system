@@ -1,4 +1,5 @@
 """Scripted protocol exercise, not an evaluation of model autonomy or content quality."""
+from report_agent import report_state
 from io import BytesIO
 from typing import Any
 
@@ -202,6 +203,6 @@ async def test_rejected_tool_request_returns_observation_and_worker_can_continue
     assert [o for o in cs.list_objects() if o["ref"]["type"] != "DelegatedTask"] == before_objects
     assert len(cs.list_objects("DelegatedTask")) == 1
     assert not any(role in {"text_tool", "reviewer", "rubric_grader"} for role, _, _ in driver.calls)
-    assert ws.store.get("content_delivery") is None
+    assert report_state.selected_delivery(ws.store) is None
     assert ws.store.manifest == before_manifest and Catalog(ws.store).read("original") == before_blocks
     assert (tmp_path / "sources/original.pdf").read_bytes() == original_pdf

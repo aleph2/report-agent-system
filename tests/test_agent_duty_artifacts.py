@@ -1,4 +1,5 @@
 """Actual native Layout bytes, independently checked against declared controls."""
+from report_agent import report_state
 from io import BytesIO
 import json
 
@@ -202,7 +203,7 @@ async def test_p10_native_exact_pair_rejects_one_changed_binding_then_saves_corr
             expected = 'WORD_WORKBOOK_SNAPSHOT_MISMATCH' if fault == 'old_word_snapshot' else 'WORKBOOK_CHANNEL_SELECTION_MISMATCH'
             assert value['code'] == expected, value
             assert sorted(str(p) for p in (ws.store.root / 'content-assets').glob('*.xlsx')) == saved['xlsx_before_attempt']
-            assert ws.store.get('content_delivery') is None
+            assert report_state.selected_delivery(ws.store) is None
             saved['rejection'] = value
             return action('export_content_workbook', 'correct-xlsx', operation_id='p10-correct-xlsx',
                 snapshot_ref=saved['snapshot'], sheets=saved['sheets'], report_export_ref=saved['word']['export_ref'])
@@ -228,7 +229,7 @@ async def test_p10_native_exact_pair_rejects_one_changed_binding_then_saves_corr
         value = result_value(tool_reply(messages, 'select'))
         if fault == 'same_snapshot_other_word':
             assert value['ok'] is False and value['code'] == 'COMPANION_EXPORT_VERSION_MISMATCH', value
-            assert ws.store.get('content_delivery') is None
+            assert report_state.selected_delivery(ws.store) is None
             saved['rejection'] = value
             return action('select_content_delivery', 'select-correct', operation_id='p10-select-correct',
                 snapshot_ref=saved['snapshot'], export_ref=saved['word']['export_ref'],
@@ -268,7 +269,7 @@ async def test_p10_native_exact_pair_rejects_one_changed_binding_then_saves_corr
                        if (item := saved.get(key)) is not None]
     save_evidence(request, ws, saved, driver)
     assert result['last_error'] is None, result
-    actual = ws.store.get('content_delivery')
+    actual = report_state.selected_delivery(ws.store)
     assert actual['snapshot_ref'] == saved['snapshot'] and actual['export_ref'] == saved['word']['export_ref']
     assert actual['workbook_export_ref'] == saved['xlsx']['export_ref']
     assert actual['ending_reason'] == 'preserve_unresolved'

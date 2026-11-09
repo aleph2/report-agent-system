@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from report_agent import legacy_state as legacy
+from report_agent import report_state
 from report_agent.store import Store
 from report_agent.workspace import Workspace
 from report_agent.deep_runtime import run_report
@@ -52,8 +53,8 @@ async def main():
         '本轮所有异步模型HTTP请求共用60次硬上限（含视觉和重试），最多15分钟；优先形成可交付完整版本。')
     store.set('manifest',manifest)
     store.set('reference_alignment_parent',{'project':str(OLD),'delivery':prior,'original_review_preserved':True})
-    legacy.set_content_delivery(store,None)
-    legacy.set_content_final_review(store,None)
+    report_state.set_content_delivery(store,None)
+    report_state.set_content_final_review(store,None)
     store.set('checkpoint_resume',False)
     store.set('agent_summary',None)
     store.set('knowledge_enabled',False)

@@ -5,6 +5,7 @@ boolean contract cannot represent unexecuted work, so that projection is not use
 """
 from __future__ import annotations
 from . import legacy_state as legacy
+from . import report_state
 
 from inspect import iscoroutinefunction
 
@@ -123,7 +124,7 @@ class HierarchicalRubric(RubricMiddleware):
         data = {"target": self.target, **summary, **saved["result"], "runtime_identity": self.identity,
                 "explanation": graded.explanation, "execution_result": result, "native_run_id": grading_run_id}
         data["evidence_revision"] = self.evidence_revision()
-        legacy.set_content_final_review(self.workspace.store, data)
+        report_state.set_content_final_review(self.workspace.store, data, actor=self.actor)
         self.workspace.store.event("content_native_review_completed", data)
         return {"grading_run_id": grading_run_id, "iteration": iteration, "result": result,
             "explanation": graded.explanation, "criteria": [{"name": i["criterion_ref"]["id"], **i} for i in review["items"]],
@@ -140,7 +141,8 @@ class HierarchicalRubric(RubricMiddleware):
         # not just text changes. This is an observation of progress, not a call quota.
         with self.workspace.store.connect() as db:
             observations = db.execute("SELECT coalesce(max(rowid),0) FROM content_observations").fetchone()[0]
-            records = db.execute("SELECT coalesce(max(rowid),0) FROM content_versions").fetchone()[0]
+            records = db.execute("SELECT coalesce(max(rowid),0) FROM content_versions "
+                                 "WHERE type NOT IN ('DeliverySelection','FinalReviewSelection')").fetchone()[0]
         return {"observations": observations, "records": records}
 
     def _finalize_evaluation(self, graded, state, runtime, grading_run_id, iteration):

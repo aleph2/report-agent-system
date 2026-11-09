@@ -1,4 +1,5 @@
 """Actual temporary DOCX/XLSX and persisted reviews; no model/visual acceptance."""
+from report_agent import report_state
 import pytest
 
 from report_agent.content_delivery import current_delivery, obligations
@@ -137,7 +138,7 @@ def test_selected_renders_normalize_to_exact_pair_and_appear_in_inventory(pair):
 def test_no_selection_does_not_infer_pair_from_same_snapshot(pair):
     ws, cs, _, snap, _, _, word, excel, _ = pair
     _, record = save_review(pair)
-    ws.store.set('content_delivery', None)
+    report_state.set_content_delivery(ws.store, None)
     assert not cs.item_applies(record['payload']['items'][0], snap, word)
     assert not read_status(cs, snap, word)['objects'][0]['has_current_review']
     assert not current_delivery(ws.store)['items']

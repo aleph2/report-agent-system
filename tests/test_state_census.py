@@ -89,7 +89,8 @@ def test_state_surface_has_a_reviewed_classification_and_no_new_access_sites():
                'commission_owner_records', 'commission_source_roles', 'commission_checkpoint:*',
                'report_issues', 'g6_issue_record:*', 'g6_issue_binding:*', 'g6_issue_route:*',
                'planned_section_receipt:*', 'assembly_receipt:*', 'commission_outcome:*',
-               'rescue_projection:*', 'g6_section_prose:*', 'g6_object_prose:*'}
+               'rescue_projection:*', 'g6_section_prose:*', 'g6_object_prose:*',
+               'content_delivery', 'content_final_review'}
     assert all(not retired.intersection(row[-1].split(',')) for row in rows if row[4] in ('write', 'delete'))
     with (data / 'm0-state-families.tsv').open(encoding='utf-8') as source:
         catalog = {r['family']:r for r in csv.DictReader(source, delimiter='\t')}

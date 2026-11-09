@@ -1,4 +1,5 @@
 """Actual DeepAgents execution with offline scripted models, not quality evidence."""
+from report_agent import report_state
 import json
 
 import httpx
@@ -356,7 +357,7 @@ async def test_feedback_revision_recheck_runs_through_native_graph(tmp_path):
         assert expected["body"]["text"] in "\n".join(p.text for p in Document(BytesIO(data)).paragraphs)
     assert seen["exports"][0][0]["payload"]["snapshot_ref"] == reviews[0]["payload"]["snapshot_ref"]
     assert seen["exports"][1][0]["payload"]["snapshot_ref"] == reviews[1]["payload"]["snapshot_ref"]
-    assert ws.store.get("content_delivery")["export_ref"] == seen["exports"][1][0]["ref"]
+    assert report_state.selected_delivery(ws.store)["export_ref"] == seen["exports"][1][0]["ref"]
     assert current_delivery(ws.store)["overall_verdict"] != "satisfied"
 
 async def test_local_review_returns_feedback_without_finishing_or_revising(tmp_path):

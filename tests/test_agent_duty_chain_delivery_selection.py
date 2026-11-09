@@ -5,6 +5,7 @@ current producer/reviewer chain. Only the final selection's three references
 differ. The negative case calibrates the independent current-version oracle;
 it is not a claim that the program should infer the desired draft from prose.
 """
+from report_agent import report_state
 import ast
 from copy import deepcopy
 import hashlib
@@ -148,7 +149,7 @@ async def test_complete_chain_current_selection_oracle_detects_coherent_old_tupl
 
     observed = held['observed']
     cs = ContentStore(ws.store)
-    selected = ws.store.get('content_delivery')
+    selected = report_state.selected_delivery(ws.store)
     expected = history['late_pair']['tuple'] if selection == 'historical' else {
         'snapshot_ref': observed['snapshot'], 'export_ref': observed['word']['export_ref'],
         'workbook_export_ref': observed['xlsx']['export_ref']}
@@ -169,7 +170,7 @@ async def test_complete_chain_current_selection_oracle_detects_coherent_old_tupl
         assert selected['workbook_export_ref'] == observed['xlsx']['export_ref']
     assert cs.read(selected['workbook_export_ref'])['payload']['export_config']['report_export_ref'] == selected['export_ref']
     assert len(observed['checker_output']['items']) == 2
-    assert ws.store.get('content_final_review') is None
+    assert report_state.selected_final_review(ws.store) is None
     observed['selection_sensitivity_result'] = {'selection': selection, 'failure': failure,
         'selected': selected, 'coherent_pair_accepted': True,
         'historical_originals_unchanged': True, 'program_semantic_selection_guaranteed': False}

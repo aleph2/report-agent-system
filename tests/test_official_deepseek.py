@@ -1,3 +1,4 @@
+from report_agent import report_state
 import json
 
 import httpx
@@ -166,4 +167,4 @@ async def test_native_structured_grader_uses_supported_auto_then_persists_review
     assert len(tasks) == 1 and tasks[0]["payload"]["role"] == "reviewer"
     assert review["owner_id"] == "content:reviewer:" + tasks[0]["ref"]["id"]
     assert before == (cs.list_objects("ContentNode"), cs.list_objects("Criterion"))
-    assert not store.get("content_delivery") and result["status"] != "reviewed_draft"
+    assert not report_state.selected_delivery(store) and result["status"] != "reviewed_draft"

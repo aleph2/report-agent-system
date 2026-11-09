@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from report_agent import legacy_state as legacy
+from report_agent import report_state
 from report_agent.store import Store, encode
 from report_agent.content_store import ContentStore, Actor
 from report_agent.workspace import Workspace
@@ -39,7 +40,7 @@ async def main(args):
     manifest=store.manifest
     manifest.update(goal=instruction,scope_instruction=instruction)
     store.set('manifest',manifest)
-    legacy.set_content_delivery(store,{**delivery,'trial_instruction':instruction})
+    report_state.set_content_delivery(store,{**delivery,'trial_instruction':instruction})
     store.event('layout_capability_continuation',{'capability_version':cap['engine_digest'],'feedback':receipt})
     print(encode({'state':'starting','capability':cap['version'],'native_directory_available':cap['directory_refresh']}),flush=True)
     await run_report(Workspace(store))
