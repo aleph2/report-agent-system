@@ -1,0 +1,274 @@
+{
+  "expected": 6144,
+  "outcomes": {
+    "passed": 6135,
+    "skipped": 9
+  },
+  "failed": [],
+  "missing": [],
+  "duplicates": [],
+  "unexpected": [],
+  "collection_errors": [],
+  "exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "coverage_exit": 0,
+  "tested_revision": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+  "baseline": "b23238aed97662642d43d4737b13ec2a22a82c07",
+  "start_utc": "2026-11-09T09:08:45.427438+00:00",
+  "finished_utc": "2026-11-09T09:39:29.973736+00:00",
+  "elapsed_seconds": 1844.5,
+  "conditional_skips": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_match_accepted_m4": true,
+  "fake03_replay_mode": "offline fixture replay",
+  "paid_model_calls": 0,
+  "offline_runner_sha256": "d10190f84b39254081af14f11bff558adea646aa6371a2ee882f383d6056f3bf",
+  "offline_network_guard_sha256": "85f022c628a260c26fdfdb023ab4c82427692c8cd4458361cf93efb3f8315e6c",
+  "type_diagnostics": {
+    "baseline": {
+      "filesAnalyzed": 185,
+      "errorCount": 676,
+      "warningCount": 0,
+      "informationCount": 0,
+      "timeInSec": 20.831
+    },
+    "candidate": {
+      "filesAnalyzed": 187,
+      "errorCount": 676,
+      "warningCount": 0,
+      "informationCount": 0,
+      "timeInSec": 16.964
+    },
+    "comparison": "multiset of repository-relative file, severity, rule and full diagnostic text, ignoring line moves",
+    "added": [],
+    "resolved": 0
+  },
+  "protected_files": {
+    "src/report_agent/assertions/schema/actions.json": {
+      "before_sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54",
+      "tested_sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54",
+      "comparison": "byte-identical"
+    },
+    "src/report_agent/assertions/schema/checks.sql": {
+      "before_sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568",
+      "tested_sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568",
+      "comparison": "byte-identical"
+    },
+    "src/report_agent/assertions/schema/kinds.py": {
+      "before_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "tested_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "comparison": "byte-identical"
+    },
+    "src/report_agent/content_tasks.py": {
+      "before_sha256": "5af6de08b7319f089fba65de8af10e3c9adbe53d3d1c3f3702c8679355d73637",
+      "tested_sha256": "f089375105be2c69939d1a88e71ff4aadb60dc40057863806fdcd1b0c3105808",
+      "comparison": "V4 registration uses the source authority check's return value to bind the task to the selected policy.",
+      "changed_function_bodies": [
+        "_v4_task",
+        "_v4_task.register"
+      ],
+      "verified_edit_hunks": [
+        [
+          "-        import json",
+          "-        source_authority(cs, db, co, [])",
+          "-        policy_row = db.execute(\"SELECT value FROM state WHERE key='source_use_authority_binding'\").fetchone()",
+          "-        policy = json.loads(policy_row[0]) if policy_row else None",
+          "+        policy = source_authority(cs, db, co, [])"
+        ]
+      ]
+    },
+    "src/report_agent/deep_runtime.py": {
+      "before_sha256": "7be95d033377c8dfe3547ddadcacfc8336099a115941ce5e99dfa260c380b744",
+      "tested_sha256": "6c667763c0f4fb621e803b746e744a7434a27fd3e98416b60c7dc4e3396fc7db",
+      "comparison": "Raw page reads check the actor's source access; search applies the allowed source set before returning matches.",
+      "changed_function_bodies": [
+        "business_tools",
+        "business_tools.inspect_source_page",
+        "business_tools.read_source_page",
+        "business_tools.search_sources"
+      ],
+      "verified_edit_hunks": [
+        [
+          "+    from .source_use import check_source_read",
+          "+"
+        ],
+        [
+          "+        check_source_read(workspace, source_consumer_actor, [source_id])"
+        ],
+        [
+          "-        value = search_observation(workspace, catalog.search(query, offset, limit, source_id=source_id), table_detail)",
+          "+        allowed = check_source_read(workspace, source_consumer_actor, None if source_id is None else [source_id])",
+          "+        hits = catalog.search(query, offset, limit, source_id=source_id, allowed_source_ids=allowed)",
+          "+        value = search_observation(workspace, hits, table_detail)"
+        ],
+        [
+          "+        check_source_read(workspace, source_consumer_actor, [source_id])"
+        ]
+      ]
+    },
+    "src/report_agent/hierarchical_tools.py": {
+      "before_sha256": "ac3abfb12a8f18ad4d62969cb835a0be7683ccc0d241290ffbf4802a6985c428",
+      "tested_sha256": "80cc0458043802d03a6124108396fa63fac88bae8141ed62de0b0f02f12be860",
+      "comparison": "Three material-consumer tools check supplied or approved sources before returning content.",
+      "changed_function_bodies": [
+        "content_tools",
+        "content_tools.capture_review_sources",
+        "content_tools.import_source_versions",
+        "content_tools.observe_evidence"
+      ],
+      "verified_edit_hunks": [
+        [
+          "+    from .source_use import check_source_read",
+          "+"
+        ],
+        [
+          "+        check_source_read(workspace, actor, source_ids)"
+        ],
+        [
+          "+        check_source_read(workspace, actor, source_ids)"
+        ],
+        [
+          "+            check_source_read(workspace, actor, [source_id])"
+        ]
+      ]
+    },
+    "src/report_agent/task_context.py": {
+      "before_sha256": "9f21082b7ef6f0c05b7564dd543b3b5106ba6f20ca63927dfff1338efde928c2",
+      "tested_sha256": "9f21082b7ef6f0c05b7564dd543b3b5106ba6f20ca63927dfff1338efde928c2",
+      "comparison": "byte-identical"
+    },
+    "src/report_agent/task_supervision.py": {
+      "before_sha256": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d",
+      "tested_sha256": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d",
+      "comparison": "byte-identical"
+    }
+  },
+  "affected_file_sha256": {
+    "scripts/report_host.py": "e4c6f4e3213d27b68d26d5f842a9cb4cc1808a7496bcf823ce99761bc0e05d2f",
+    "src/report_agent/assertions/launch.py": "677296a0484005f713cd5a020c1ced953e960e7e5c08ac34b786801281691418",
+    "src/report_agent/catalog.py": "3d4c73d643d6d384f26fde648b2f14aa91e483adb0d628afd93eabe2902258cf",
+    "src/report_agent/commission_assertions.py": "a26d59d936b7077d40deb23bbced52a5cffdc72e094ad080701fa6d3ff5d8ea8",
+    "src/report_agent/commission_brief.py": "068aa390b13e6fc632013e1c67c6afacdb061292c6a742f0f2dc06c720c43105",
+    "src/report_agent/commission_carryover.py": "10e27ec1d46fcbec8caaf3158084e2c6199465fda9eaa13f146272e3cbabd24a",
+    "src/report_agent/commission_imports.py": "a90c6749f48f5c5f5339ce9ac7e3b12436d7e99017cb39c2dfed89734e841a8f",
+    "src/report_agent/commission_owner_records.py": "5e9565d4ab52b7333b63079444bb1f68beac759b398741862437078d1ede7940",
+    "src/report_agent/commission_plan.py": "1553fd7c47dc66a3a9f39cce189927e783bdbbbd3cbde05b2e96668ecdb78604",
+    "src/report_agent/commission_planning.py": "005943975f5694507d884982a23e3dd4361dee7804c2d134e5a3d3bc025ef135",
+    "src/report_agent/commission_requirements.py": "c0fd9426a612ce2a54669f461d3cda170e83bbff60aaa5eff6ec64c949f2e734",
+    "src/report_agent/commission_skeleton.py": "f813a08593c7dacdbb51b54d225409ced51952ea0e429c3c6070993c58f57fe1",
+    "src/report_agent/content_store.py": "61f6fbd3aa69db8261b601a5f9d397609a6595bc54f84866e14c0a7e2121d2bb",
+    "src/report_agent/content_tasks.py": "f089375105be2c69939d1a88e71ff4aadb60dc40057863806fdcd1b0c3105808",
+    "src/report_agent/deep_runtime.py": "6c667763c0f4fb621e803b746e744a7434a27fd3e98416b60c7dc4e3396fc7db",
+    "src/report_agent/deliverables.py": "768e0cfbc04a4bde99d1eb2bd89fa39a99f39033c2cfbc08a1838ee9c82f5268",
+    "src/report_agent/extraction_probe.py": "e32d3cc00a30f2fc536a56323663feaff18674407a75db052593f241dcac8f72",
+    "src/report_agent/hierarchical_tools.py": "80cc0458043802d03a6124108396fa63fac88bae8141ed62de0b0f02f12be860",
+    "src/report_agent/legacy_state.py": "a3ab9fa0e6b735dd2587d86473ed57133085b24a3807f223ed2f6d2b103fef70",
+    "src/report_agent/mini_commission.py": "c4d85fb56f8336f13ee2e3aa408cee0a0e502a874650de75abbbce9e8e62857a",
+    "src/report_agent/plan_authority.py": "4a3f51c652fd36a491f99dcd49ed489018646e18ae5f009425b506ef78c3d04b",
+    "src/report_agent/plan_inputs.py": "b3bc574167cabbb9b01fdb0d1c20dc51c9ce653bbe189c9bf14220bea6f2b6be",
+    "src/report_agent/planning_budget.py": "5afd9c608fdccf7b6ae5d4b26b1ff052541d6810a14912b4d45f8dc0adda9db0",
+    "src/report_agent/planning_guard.py": "3e1964f0fcbd65d3f035501528b331643475c82b1e9198a43bff035213f45392",
+    "src/report_agent/planning_inputs.py": "35dbd602c6a7ee033ef839326543d687351c9b5696033ca8de99d17fd2baab42",
+    "src/report_agent/probe_case.py": "0938db85a06ad97b3afe865ec5fb6864dac63c87b636776e6f012e61e6a58433",
+    "src/report_agent/source_use.py": "642a636800ab2780668c5d022b4bc46824179bf5e6ebded8d00d51c85993f246",
+    "src/report_agent/store.py": "e7875f70775ea9bc9d440edc7876f810cd3b8b9130f9f90b52bc92723d6fc48e",
+    "src/report_agent/workspace.py": "af9709a7d00776884bfa5a607808c018a3e8bc7cb6e1ea4fd1fd3df3b2f22403"
+  },
+  "private_fixture_manifest": {
+    "count": 51,
+    "sha256": "17305c4f1947920c1319c6bab71d62fc6402473110a324c2b9f7c01a77d9dfed"
+  },
+  "operator_checks": {
+    "tested_revision": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+    "fixture_identification": {
+      "candidate_commit": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+      "fixture_manifest_sha256": "8a95333142514b78846a13b5eea6f7230109d07b457c6a22ce7f62c4660bd3b6"
+    },
+    "historical_copy_checks": {
+      "historical": {
+        "test": "test_m4_historical_import.py::test_open_old_case",
+        "passed": true,
+        "test_sha256": "0025c0b5f763ea191c2e63c8f904ba7caa5856630a22f909acf57cc6f7306c0d",
+        "frozen_pins_sha256": "1122ee4c5dbc9feeeef69b16855657e8932d9d87e9c1d1654b8d0fce82f56a2c",
+        "coverage_sha256": "81cb8307d3964aa69d4b7f9297ffd46e6c5f7aeeefb619c112204064b7d74b94"
+      },
+      "profile": {
+        "test": "test_history.py::test_open_old_case",
+        "passed": true,
+        "test_sha256": "3a334502ecd9c0ec45840be9861f11f891bab6ed1c41baa3e150c2eb7006dfbb",
+        "frozen_pins_sha256": "62cfb453612ad04d8e382908560d7bebd88bfe1b8aa26f0ad53b50e21ee9bd0e",
+        "coverage_sha256": "e5b696fb047ede9d5eca8ca43d841183d37334036b9c9f0c4b0fc2c8e58ed581"
+      }
+    },
+    "fictional_case_preparation": {
+      "fixture_files": 9,
+      "additional_method_sources": 1,
+      "approved_objects": [
+        "A",
+        "B"
+      ],
+      "excluded_by_owner": [
+        "C"
+      ],
+      "source_policy_versions": 10,
+      "requirements_pinned": true,
+      "assessments_or_tasks_seeded": 0,
+      "coordinator_and_owner": "scripted_fixture",
+      "paid_model_calls": 0
+    },
+    "mini_probe_copy": {
+      "original_approval_verified": true,
+      "original_and_copy_requirements_equal": true,
+      "status": "failed_reproduced_in_accepted_m4",
+      "affected_path": "prepare_probe_case on the miniature commission with an owner-confirmed exclusion",
+      "code": "EXCLUSION_SOURCE_NOT_DIRECTLY_RETURNED",
+      "path": "objects.C.sources",
+      "page": 1,
+      "disposition": "The fresh copy omits the original planning page-delivery receipt. Re-checking the approved plan asks for that receipt despite the preserved owner decision for C.",
+      "comparison_commit": "b23238aed97662642d43d4737b13ec2a22a82c07",
+      "failed_experiment_coverage_included": false
+    },
+    "requirements_and_source_access_operator_checks": {
+      "passed": 3,
+      "scenarios": [
+        "test_writer_cannot_change_owner_scope_or_read_sources_by_claiming_planning",
+        "test_reclassification_cannot_rewrite_import_or_apply_owner_answer_to_a_new_version",
+        "test_owner_may_resolve_source_precedence_but_cannot_implicitly_approve_a_calculation"
+      ],
+      "observed": [
+        "Writer planning reads, requirement edits and source selection refused; the original owner question remained open until the genuine operator reply. Its resolution is in the rendered brief.",
+        "Repeating the same reviewed source classification preserves its version. Changing an existing classification was refused. After another source anchor was classified, the old checkpoint reply was refused and its question remained unanswered.",
+        "A source precedence decision could not double as a calculation rule or method approval. A corrected owner response saved once and a repeat returned the same result. No plan approval was granted."
+      ],
+      "source_sha256": "ef4c700dabf5514084f0d2a642756a67cbd0282ce9d5696a95328aa8300bde65",
+      "coverage_sha256": "2b1c9d9284edf95bceac55e37fbd81197e0c39582d6190de2a96a97b5c92fea7",
+      "entry_points": [
+        "commission_plan.reply",
+        "commission_planning.install_classifications",
+        "commission_planning.read_draft",
+        "commission_planning.request_requirements_checkpoint",
+        "commission_planning.set_requirement_status",
+        "deliverables.source_authority"
+      ],
+      "fixture": "fresh synthetic cases prepared from supplied scope and source documents using the existing resolution_case fixture",
+      "model_calls": 0
+    }
+  }
+}

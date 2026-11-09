@@ -1,0 +1,594 @@
+{
+  "tested_revision": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+  "affected_modules": {
+    "src/report_agent/assertions/launch.py": {
+      "m0": null,
+      "m4_suite": {
+        "covered_lines": 121,
+        "num_statements": 123,
+        "percent_covered": 98.3739837398374
+      },
+      "m5_suite": {
+        "covered_lines": 141,
+        "num_statements": 143,
+        "percent_covered": 98.6013986013986
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 141,
+        "num_statements": 143,
+        "percent_covered": 98.6013986013986
+      }
+    },
+    "src/report_agent/catalog.py": {
+      "m0": {
+        "covered_lines": 133,
+        "num_statements": 139,
+        "percent_covered": 95.68345323741008
+      },
+      "m4_suite": {
+        "covered_lines": 133,
+        "num_statements": 139,
+        "percent_covered": 95.68345323741008
+      },
+      "m5_suite": {
+        "covered_lines": 140,
+        "num_statements": 146,
+        "percent_covered": 95.89041095890411
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 140,
+        "num_statements": 146,
+        "percent_covered": 95.89041095890411
+      }
+    },
+    "src/report_agent/commission_assertions.py": {
+      "m0": null,
+      "m4_suite": null,
+      "m5_suite": {
+        "covered_lines": 119,
+        "num_statements": 126,
+        "percent_covered": 94.44444444444444
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 119,
+        "num_statements": 126,
+        "percent_covered": 94.44444444444444
+      }
+    },
+    "src/report_agent/commission_brief.py": {
+      "m0": {
+        "covered_lines": 89,
+        "num_statements": 112,
+        "percent_covered": 79.46428571428571
+      },
+      "m4_suite": {
+        "covered_lines": 89,
+        "num_statements": 112,
+        "percent_covered": 79.46428571428571
+      },
+      "m5_suite": {
+        "covered_lines": 89,
+        "num_statements": 112,
+        "percent_covered": 79.46428571428571
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 89,
+        "num_statements": 112,
+        "percent_covered": 79.46428571428571
+      }
+    },
+    "src/report_agent/commission_carryover.py": {
+      "m0": {
+        "covered_lines": 173,
+        "num_statements": 175,
+        "percent_covered": 98.85714285714286
+      },
+      "m4_suite": {
+        "covered_lines": 175,
+        "num_statements": 177,
+        "percent_covered": 98.87005649717514
+      },
+      "m5_suite": {
+        "covered_lines": 175,
+        "num_statements": 177,
+        "percent_covered": 98.87005649717514
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 175,
+        "num_statements": 177,
+        "percent_covered": 98.87005649717514
+      }
+    },
+    "src/report_agent/commission_imports.py": {
+      "m0": null,
+      "m4_suite": null,
+      "m5_suite": {
+        "covered_lines": 43,
+        "num_statements": 44,
+        "percent_covered": 97.72727272727273
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 43,
+        "num_statements": 44,
+        "percent_covered": 97.72727272727273
+      }
+    },
+    "src/report_agent/commission_owner_records.py": {
+      "m0": {
+        "covered_lines": 204,
+        "num_statements": 216,
+        "percent_covered": 94.44444444444444
+      },
+      "m4_suite": {
+        "covered_lines": 207,
+        "num_statements": 219,
+        "percent_covered": 94.52054794520548
+      },
+      "m5_suite": {
+        "covered_lines": 208,
+        "num_statements": 220,
+        "percent_covered": 94.54545454545455
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 208,
+        "num_statements": 220,
+        "percent_covered": 94.54545454545455
+      }
+    },
+    "src/report_agent/commission_plan.py": {
+      "m0": {
+        "covered_lines": 862,
+        "num_statements": 922,
+        "percent_covered": 93.49240780911063
+      },
+      "m4_suite": {
+        "covered_lines": 905,
+        "num_statements": 967,
+        "percent_covered": 93.58841778697001
+      },
+      "m5_suite": {
+        "covered_lines": 936,
+        "num_statements": 997,
+        "percent_covered": 93.88164493480441
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 936,
+        "num_statements": 997,
+        "percent_covered": 93.88164493480441
+      }
+    },
+    "src/report_agent/commission_planning.py": {
+      "m0": {
+        "covered_lines": 710,
+        "num_statements": 788,
+        "percent_covered": 90.1015228426396
+      },
+      "m4_suite": {
+        "covered_lines": 716,
+        "num_statements": 794,
+        "percent_covered": 90.17632241813602
+      },
+      "m5_suite": {
+        "covered_lines": 727,
+        "num_statements": 813,
+        "percent_covered": 89.42189421894219
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 736,
+        "num_statements": 813,
+        "percent_covered": 90.52890528905289
+      }
+    },
+    "src/report_agent/commission_requirements.py": {
+      "m0": {
+        "covered_lines": 351,
+        "num_statements": 384,
+        "percent_covered": 91.40625
+      },
+      "m4_suite": {
+        "covered_lines": 361,
+        "num_statements": 394,
+        "percent_covered": 91.6243654822335
+      },
+      "m5_suite": {
+        "covered_lines": 394,
+        "num_statements": 427,
+        "percent_covered": 92.27166276346604
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 394,
+        "num_statements": 427,
+        "percent_covered": 92.27166276346604
+      }
+    },
+    "src/report_agent/commission_skeleton.py": {
+      "m0": {
+        "covered_lines": 302,
+        "num_statements": 329,
+        "percent_covered": 91.79331306990882
+      },
+      "m4_suite": {
+        "covered_lines": 304,
+        "num_statements": 331,
+        "percent_covered": 91.8429003021148
+      },
+      "m5_suite": {
+        "covered_lines": 305,
+        "num_statements": 332,
+        "percent_covered": 91.86746987951807
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 305,
+        "num_statements": 332,
+        "percent_covered": 91.86746987951807
+      }
+    },
+    "src/report_agent/content_store.py": {
+      "m0": {
+        "covered_lines": 795,
+        "num_statements": 833,
+        "percent_covered": 95.43817527010805
+      },
+      "m4_suite": {
+        "covered_lines": 803,
+        "num_statements": 841,
+        "percent_covered": 95.48156956004756
+      },
+      "m5_suite": {
+        "covered_lines": 810,
+        "num_statements": 848,
+        "percent_covered": 95.51886792452831
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 810,
+        "num_statements": 848,
+        "percent_covered": 95.51886792452831
+      }
+    },
+    "src/report_agent/content_tasks.py": {
+      "m0": {
+        "covered_lines": 378,
+        "num_statements": 413,
+        "percent_covered": 91.52542372881356
+      },
+      "m4_suite": {
+        "covered_lines": 381,
+        "num_statements": 413,
+        "percent_covered": 92.25181598062954
+      },
+      "m5_suite": {
+        "covered_lines": 381,
+        "num_statements": 410,
+        "percent_covered": 92.92682926829268
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 381,
+        "num_statements": 410,
+        "percent_covered": 92.92682926829268
+      }
+    },
+    "src/report_agent/deep_runtime.py": {
+      "m0": {
+        "covered_lines": 868,
+        "num_statements": 931,
+        "percent_covered": 93.23308270676692
+      },
+      "m4_suite": {
+        "covered_lines": 869,
+        "num_statements": 932,
+        "percent_covered": 93.24034334763948
+      },
+      "m5_suite": {
+        "covered_lines": 874,
+        "num_statements": 937,
+        "percent_covered": 93.27641408751334
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 874,
+        "num_statements": 937,
+        "percent_covered": 93.27641408751334
+      }
+    },
+    "src/report_agent/deliverables.py": {
+      "m0": {
+        "covered_lines": 196,
+        "num_statements": 234,
+        "percent_covered": 83.76068376068376
+      },
+      "m4_suite": {
+        "covered_lines": 196,
+        "num_statements": 234,
+        "percent_covered": 83.76068376068376
+      },
+      "m5_suite": {
+        "covered_lines": 197,
+        "num_statements": 236,
+        "percent_covered": 83.47457627118644
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 198,
+        "num_statements": 236,
+        "percent_covered": 83.89830508474576
+      }
+    },
+    "src/report_agent/extraction_probe.py": {
+      "m0": null,
+      "m4_suite": {
+        "covered_lines": 146,
+        "num_statements": 161,
+        "percent_covered": 90.6832298136646
+      },
+      "m5_suite": {
+        "covered_lines": 147,
+        "num_statements": 162,
+        "percent_covered": 90.74074074074075
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 147,
+        "num_statements": 162,
+        "percent_covered": 90.74074074074075
+      }
+    },
+    "src/report_agent/hierarchical_tools.py": {
+      "m0": {
+        "covered_lines": 407,
+        "num_statements": 433,
+        "percent_covered": 93.99538106235566
+      },
+      "m4_suite": {
+        "covered_lines": 408,
+        "num_statements": 434,
+        "percent_covered": 94.00921658986175
+      },
+      "m5_suite": {
+        "covered_lines": 412,
+        "num_statements": 438,
+        "percent_covered": 94.06392694063926
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 412,
+        "num_statements": 438,
+        "percent_covered": 94.06392694063926
+      }
+    },
+    "src/report_agent/legacy_state.py": {
+      "m0": null,
+      "m4_suite": {
+        "covered_lines": 141,
+        "num_statements": 143,
+        "percent_covered": 98.6013986013986
+      },
+      "m5_suite": {
+        "covered_lines": 134,
+        "num_statements": 136,
+        "percent_covered": 98.52941176470588
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 134,
+        "num_statements": 136,
+        "percent_covered": 98.52941176470588
+      }
+    },
+    "src/report_agent/mini_commission.py": {
+      "m0": {
+        "covered_lines": 125,
+        "num_statements": 132,
+        "percent_covered": 94.6969696969697
+      },
+      "m4_suite": {
+        "covered_lines": 127,
+        "num_statements": 134,
+        "percent_covered": 94.77611940298507
+      },
+      "m5_suite": {
+        "covered_lines": 129,
+        "num_statements": 136,
+        "percent_covered": 94.8529411764706
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 129,
+        "num_statements": 136,
+        "percent_covered": 94.8529411764706
+      }
+    },
+    "src/report_agent/plan_authority.py": {
+      "m0": null,
+      "m4_suite": {
+        "covered_lines": 121,
+        "num_statements": 129,
+        "percent_covered": 93.7984496124031
+      },
+      "m5_suite": {
+        "covered_lines": 121,
+        "num_statements": 130,
+        "percent_covered": 93.07692307692308
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 121,
+        "num_statements": 130,
+        "percent_covered": 93.07692307692308
+      }
+    },
+    "src/report_agent/plan_inputs.py": {
+      "m0": null,
+      "m4_suite": {
+        "covered_lines": 42,
+        "num_statements": 42,
+        "percent_covered": 100.0
+      },
+      "m5_suite": {
+        "covered_lines": 43,
+        "num_statements": 43,
+        "percent_covered": 100.0
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 43,
+        "num_statements": 43,
+        "percent_covered": 100.0
+      }
+    },
+    "src/report_agent/planning_budget.py": {
+      "m0": {
+        "covered_lines": 95,
+        "num_statements": 98,
+        "percent_covered": 96.93877551020408
+      },
+      "m4_suite": {
+        "covered_lines": 96,
+        "num_statements": 99,
+        "percent_covered": 96.96969696969697
+      },
+      "m5_suite": {
+        "covered_lines": 97,
+        "num_statements": 100,
+        "percent_covered": 97.0
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 97,
+        "num_statements": 100,
+        "percent_covered": 97.0
+      }
+    },
+    "src/report_agent/planning_guard.py": {
+      "m0": {
+        "covered_lines": 117,
+        "num_statements": 122,
+        "percent_covered": 95.90163934426229
+      },
+      "m4_suite": {
+        "covered_lines": 120,
+        "num_statements": 125,
+        "percent_covered": 96.0
+      },
+      "m5_suite": {
+        "covered_lines": 121,
+        "num_statements": 126,
+        "percent_covered": 96.03174603174604
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 121,
+        "num_statements": 126,
+        "percent_covered": 96.03174603174604
+      }
+    },
+    "src/report_agent/planning_inputs.py": {
+      "m0": {
+        "covered_lines": 157,
+        "num_statements": 173,
+        "percent_covered": 90.7514450867052
+      },
+      "m4_suite": {
+        "covered_lines": 157,
+        "num_statements": 173,
+        "percent_covered": 90.7514450867052
+      },
+      "m5_suite": {
+        "covered_lines": 157,
+        "num_statements": 173,
+        "percent_covered": 90.7514450867052
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 157,
+        "num_statements": 173,
+        "percent_covered": 90.7514450867052
+      }
+    },
+    "src/report_agent/probe_case.py": {
+      "m0": {
+        "covered_lines": 117,
+        "num_statements": 132,
+        "percent_covered": 88.63636363636364
+      },
+      "m4_suite": {
+        "covered_lines": 129,
+        "num_statements": 148,
+        "percent_covered": 87.16216216216216
+      },
+      "m5_suite": {
+        "covered_lines": 152,
+        "num_statements": 171,
+        "percent_covered": 88.88888888888889
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 153,
+        "num_statements": 171,
+        "percent_covered": 89.47368421052632
+      }
+    },
+    "src/report_agent/source_use.py": {
+      "m0": {
+        "covered_lines": 115,
+        "num_statements": 138,
+        "percent_covered": 83.33333333333333
+      },
+      "m4_suite": {
+        "covered_lines": 129,
+        "num_statements": 153,
+        "percent_covered": 84.31372549019608
+      },
+      "m5_suite": {
+        "covered_lines": 213,
+        "num_statements": 240,
+        "percent_covered": 88.75
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 213,
+        "num_statements": 240,
+        "percent_covered": 88.75
+      }
+    },
+    "src/report_agent/store.py": {
+      "m0": {
+        "covered_lines": 188,
+        "num_statements": 201,
+        "percent_covered": 93.53233830845771
+      },
+      "m4_suite": {
+        "covered_lines": 188,
+        "num_statements": 201,
+        "percent_covered": 93.53233830845771
+      },
+      "m5_suite": {
+        "covered_lines": 197,
+        "num_statements": 210,
+        "percent_covered": 93.80952380952381
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 197,
+        "num_statements": 210,
+        "percent_covered": 93.80952380952381
+      }
+    },
+    "src/report_agent/workspace.py": {
+      "m0": {
+        "covered_lines": 432,
+        "num_statements": 445,
+        "percent_covered": 97.07865168539325
+      },
+      "m4_suite": {
+        "covered_lines": 432,
+        "num_statements": 445,
+        "percent_covered": 97.07865168539325
+      },
+      "m5_suite": {
+        "covered_lines": 435,
+        "num_statements": 448,
+        "percent_covered": 97.09821428571429
+      },
+      "m5_including_operator_checks": {
+        "covered_lines": 435,
+        "num_statements": 448,
+        "percent_covered": 97.09821428571429
+      }
+    }
+  },
+  "scope": "Changed surviving report_agent Python modules. M0 has no numeric floor for modules introduced later.",
+  "m0_baseline_sha256": "94a438dc287f7b5cfbb8e9d4823adca183fb27f28bf2bf04b7b710ab187102a0",
+  "suite_percent": 90.73939393939393,
+  "operator_coverage_included": true,
+  "suite_only_below_m0": [
+    "src/report_agent/commission_planning.py",
+    "src/report_agent/deliverables.py"
+  ],
+  "below_m0": []
+}

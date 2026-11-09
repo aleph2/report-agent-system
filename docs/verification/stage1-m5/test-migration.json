@@ -1,0 +1,152 @@
+{
+  "baseline": "b23238aed97662642d43d4737b13ec2a22a82c07",
+  "tested_revision": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+  "before": 6117,
+  "after": 6144,
+  "unchanged_ids": 6108,
+  "retired": {
+    "tests/test_m4_one_way_authority.py::test_old_unreadable_proposal_cannot_reactivate_pre_m4_approval": {
+      "covering_tests": [
+        "tests/test_m4_one_way_authority.py::test_new_proposal_requires_its_own_approval_in_a_pre_m4_case"
+      ],
+      "reason": "Owner retired the unaccepted M4 candidate format after the case inventory found no consumer. A fresh proposal still needs its own approval in a historical case."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_checkpoint:]": {
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_checkpoint:]"
+      ],
+      "reason": "Legacy write retired. The replacement checks the matching historical key through its real reader and the absence of a setter."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_owner_records]": {
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_owner_records]"
+      ],
+      "reason": "Legacy write retired. The replacement checks the matching historical key through its real reader and the absence of a setter."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_requirements]": {
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_requirements]"
+      ],
+      "reason": "Legacy write retired. The replacement checks the matching historical key through its real reader and the absence of a setter."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_requirements_checkpoint:]": {
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_requirements_checkpoint:]"
+      ],
+      "reason": "Legacy write retired. The replacement checks the matching historical key through its real reader and the absence of a setter."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_source_roles]": {
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_source_roles]"
+      ],
+      "reason": "Legacy write retired. The replacement checks the matching historical key through its real reader and the absence of a setter."
+    },
+    "tests/test_probe_case.py::test_copied_source_authority_remains_bound_and_never_inherits_old_task": {
+      "covering_tests": [
+        "tests/test_probe_case.py::test_approved_policy_crosses_as_an_exact_input_without_old_task_grants",
+        "tests/test_probe_case.py::test_pre_m5_import_retains_historical_requirements_and_roles_on_second_copy"
+      ],
+      "reason": "The isolated copy retains exact approved inputs. A second historical copy explicitly checks the original source grant."
+    },
+    "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[False]": {
+      "covering_tests": [
+        "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[False-True]",
+        "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[False-False]"
+      ],
+      "reason": "Historical unauthorized receipts remain blocked at artifact review. Fresh cases now refuse the source read before creating a receipt."
+    },
+    "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[True]": {
+      "covering_tests": [
+        "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[True-False]"
+      ],
+      "reason": "The same allowed current source receipt reaches artifact review."
+    }
+  },
+  "added": [
+    "tests/test_assessment_source_aliases.py::test_changed_title_is_a_different_frozen_source_version",
+    "tests/test_m1_g3_followup.py::test_owner_brief_names_planning_only_source_versions_and_report_scope",
+    "tests/test_m1_g3_followup.py::test_plan_question_is_durable_before_exposing_owner_wait",
+    "tests/test_m1_g4_planning_steps.py::test_requirements_owner_redo_after_case_save",
+    "tests/test_m1_g4_requirements.py::test_interpretation_recovers_prepared_version_without_promoting_it_early",
+    "tests/test_m4_one_way_authority.py::test_new_proposal_requires_its_own_approval_in_a_pre_m4_case",
+    "tests/test_m5_checkpoint_assertions.py::test_answer_is_bound_to_exact_checkpoint_and_owner[plan]",
+    "tests/test_m5_checkpoint_assertions.py::test_answer_is_bound_to_exact_checkpoint_and_owner[requirements]",
+    "tests/test_m5_checkpoint_assertions.py::test_clean_import_carries_only_selected_authenticated_chain",
+    "tests/test_m5_checkpoint_assertions.py::test_native_interpretation_requires_committed_coordinator_work",
+    "tests/test_m5_checkpoint_assertions.py::test_withdrawn_answer_is_never_revived_by_retry_or_clean_import",
+    "tests/test_m5_commission_imports.py::test_file_roles_keep_versioned_provenance_without_approving_a_plan",
+    "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[import_source_versions]",
+    "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[inspect_source_page]",
+    "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[observe_evidence]",
+    "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_context]",
+    "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_source_page]",
+    "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[search_sources]",
+    "tests/test_m5_planning_source_access.py::test_search_filters_before_pagination_and_allowed_sources_are_readable",
+    "tests/test_m5_source_use.py::test_implicit_planning_includes_enrolled_role_but_excludes_other_catalog_files",
+    "tests/test_m5_source_use.py::test_later_owner_approval_must_include_both_scope_and_source_policy",
+    "tests/test_m5_source_use.py::test_supplied_files_for_planning_and_exact_approved_policy_for_report",
+    "tests/test_m5_source_use.py::test_unfinished_declared_intake_cannot_widen_planning_or_frozen_scope",
+    "tests/test_m5_source_use.py::test_word_and_excel_enforce_source_selection_at_normal_export_entries",
+    "tests/test_no_legacy_state.py::test_host_input_records_are_private_in_direct_and_snapshot_reads",
+    "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_checkpoint:]",
+    "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_owner_records]",
+    "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_requirements]",
+    "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_requirements_checkpoint:]",
+    "tests/test_no_legacy_state.py::test_old_commission_key_is_readable_without_a_write_accessor[commission_source_roles]",
+    "tests/test_probe_case.py::test_approved_policy_crosses_as_an_exact_input_without_old_task_grants",
+    "tests/test_probe_case.py::test_pre_m5_import_retains_historical_requirements_and_roles_on_second_copy",
+    "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[False-False]",
+    "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[False-True]",
+    "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation[True-False]",
+    "tests/test_store_separation.py::test_only_assertion_package_opens_or_attaches_its_database"
+  ],
+  "rewritten_existing_test_functions": [
+    "tests/test_assessment_source_aliases.py::test_guideline_alias_does_not_expand_host_source_authorization",
+    "tests/test_assessment_source_aliases.py::test_irrelevant_capture_metadata_does_not_change_guideline_identity",
+    "tests/test_deliverable_authority_v4.py::test_source_policy_must_belong_to_the_actual_commission",
+    "tests/test_execution_progress.py::test_actor_received_material_outside_snapshot_is_not_new_condition",
+    "tests/test_execution_progress.py::test_host_material_condition_keeps_original_source_authority",
+    "tests/test_execution_progress.py::test_new_source_id_with_same_file_bytes_is_not_a_recovery_condition",
+    "tests/test_fake03_fact_register.py::test_fixture_publishes_confirmed_records_and_revoked_writer_cannot_downgrade",
+    "tests/test_m1_commission_boundaries.py::test_source_quote_cannot_impersonate_customer_convention",
+    "tests/test_m1_commission_plan.py::test_precheckpoint_text_work_refuses_before_helper_invocation",
+    "tests/test_m1_commission_plan.py::test_writing_requires_current_plan_and_operator_confirmation",
+    "tests/test_m1_commission_runtime.py::test_direct_content_commit_cannot_bypass_unanswered_checkpoint",
+    "tests/test_m1_commission_runtime.py::test_generic_operator_prose_is_not_structured_commission_approval",
+    "tests/test_m1_g3_followup.py::test_approved_confirmation_checklist_is_exact_durable_and_rules_only",
+    "tests/test_m1_g3_integration.py::test_assessment_persistence_enforces_authority_and_records_no_partial_result",
+    "tests/test_m1_g4_h3.py::test_checkpoint_lists_every_proposed_candidate_and_evidence_locations",
+    "tests/test_m1_g4_h32.py::test_boundary_membership_errors_identify_plan_fields_not_quote",
+    "tests/test_m1_g4_h32.py::test_current_anchor_pin_mismatch_is_refused",
+    "tests/test_m1_g4_h32.py::test_recorded_failure_shape_valid_primary_and_wrong_customer_locator",
+    "tests/test_m1_g4_h32.py::test_valid_boundary_membership_still_passes",
+    "tests/test_m1_g4_h32_parity.py::test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal",
+    "tests/test_m1_g4_h33_guard.py::test_old_owner_confirmation_cannot_finish_after_current_version_changes",
+    "tests/test_m1_g4_planning_steps.py::test_native_requirement_checkpoint_resume_keeps_original_issue_and_decision",
+    "tests/test_m1_g4_planning_steps.py::test_trusted_ordinary_required_convention_is_not_forced_to_nonapplicable",
+    "tests/test_m1_g5_budget.py::test_approvable_requires_current_submitted_complete_checkpoint",
+    "tests/test_m1_g5_carryover.py::test_only_current_direct_page_return_clears_carried_exclusion_read_gate",
+    "tests/test_m1_g5_j1.py::test_enrolled_but_omitted_source_ref_cannot_enter_owner_registry",
+    "tests/test_m1_g5_j1.py::test_host_prepares_separate_owner_file_without_treating_it_as_source_document",
+    "tests/test_m1_g5_j1.py::test_owner_registry_does_not_expand_source_permissions",
+    "tests/test_m1_g5_j1.py::test_owner_registry_refuses_unenrolled_cited_source_without_expanding_authority",
+    "tests/test_m1_g5_j2.py::test_fresh_plan_can_submit_through_judgment_tools_without_hidden_details",
+    "tests/test_m1_source_resolution_boundaries.py::test_customer_authority_missing_fails_closed",
+    "tests/test_m1_source_substitution.py::test_substitution_keeps_named_gap_and_source_basis_then_uses_existing_checkpoint",
+    "tests/test_m4_plan_authority.py::test_content_failure_rolls_back_native_proposal_and_owner_act",
+    "tests/test_m4_plan_authority.py::test_owner_confirmation_keeps_pinned_input_version",
+    "tests/test_m4_plan_authority.py::test_superseded_plan_copy_keeps_only_the_selected_approval",
+    "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation",
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback",
+    "tests/test_no_legacy_state.py::test_new_family_literals_require_review",
+    "tests/test_probe_case.py::test_current_requirements_and_previous_immutable_versions_survive",
+    "tests/test_reviewer_discovered_source_boundary.py::test_foreign_project_source_is_not_discoverable_or_capturable",
+    "tests/test_source_use_authority.py::test_artifact_checker_checks_actual_character_source_receipt_before_reservation",
+    "tests/test_source_use_authority.py::test_host_manifest_binding_invalid_declaration_and_reopen",
+    "tests/test_source_use_authority.py::test_new_tasks_pin_grant_legacy_replay_and_resume_do_not_inherit",
+    "tests/test_source_use_authority.py::test_same_declaration_after_replacement_never_reenrolls_new_version",
+    "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites",
+    "tests/test_writer_handoff_comparison.py::test_both_writer_routes_preserve_the_same_confirmed_customer_record",
+    "tests/test_writer_indicator_conflicts.py::test_reversed_quotes_preserve_confirmed_issue_source_order"
+  ]
+}

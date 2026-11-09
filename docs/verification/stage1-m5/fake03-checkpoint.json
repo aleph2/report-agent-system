@@ -1,0 +1,178 @@
+{
+  "tested_revision": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+  "judgments": {
+    "A/X21": {
+      "kind": "evidence",
+      "value": "37",
+      "disposition": "control retained",
+      "question": "",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X22": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请补充坡段A的结构面（及组合面）产状、间距/发育程度、延伸贯通性及充填性质（软弱或硬性）等调查数据，例如钻孔柱状图或横断面图上的结构面统计，以便按贯通性与发育程度为X22选级。",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X23": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请提供坡段 A 勘察断面三个钻孔的地下水位/地下水出露位置（相对坡高 H=18 m 的高度范围）及地下水类型资料，或确认横断面图中是否标示地下水线；以便按地下水出露高度区间（下部 0.25H / 中下部 0.25～0.5H / 中上部 0.5～0.75H / 上部 0.75～1.0H）确定 X23 等级。",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X32": {
+      "kind": "assumption",
+      "value": "27",
+      "disposition": "assumption preserved; original question flagged",
+      "question": "本区域是否存在暴雨集中季节、洪水/泥石流/滑坡等其他灾害记录，以及 2026-04-15 开始的施工期是否落在该灾害多发季节？若为灾害多发季节施工，按约定应取大值，本指标需上调至相应等级。",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X41": {
+      "kind": "evidence",
+      "value": "62",
+      "disposition": "control retained",
+      "question": "",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X42": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "original refused; scripted gap saved",
+      "question": "Provide observed facility locations or a survey covering the required distances.",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X51": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "owner-deferred unscored gap with conditional low and moderate",
+      "question": "Which low-band reading and overlap convention apply?",
+      "reviewer_saw_saved_input": true
+    },
+    "A/X52": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "original refused; scripted gap saved",
+      "question": "Confirm which A-specific drawings were inspected and what their coverage establishes.",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X21": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请补充坡段 B 的设计或地勘地层资料（岩土类型、岩性岩组、风化程度及依据的钻孔断面），或提供可核读的横断面图（图中地层岩性标注），以确定坡段 B 的地层岩性等级。",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X22": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请补充坡段 B 的结构面产状（倾向、倾角与坡向夹角）、结构面性质（软弱或硬性）及其贯通性和发育程度的调查或设计数据（例如核读横断面图或专项地质调查记录），以便判定坡体结构等级。",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X23": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请补充坡段 B 的地下水调查记录（含水层位置、地下水类型及出露高度范围），并说明设计是否为坡段 B 设置排水措施，以便按等级表评定 X23。",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X32": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "original refused; scripted gap saved",
+      "question": "Provide a hazard history covering B with a defined observation period.",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X41": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请提供坡段 B（K0+380）横断面图或设计说明中明确的处治工程措施类型；若采用多种措施，请说明各措施内容，以便按\"施工难度较大者并酌情提高取值\"评分。",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X42": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请提供坡段 B（K0+380，坡高 25 米、坡长 80 米）周边环境调查资料：坡顶开挖线以外 0.5H/1.0H/1.5H（约 12.5 m/25 m/37.5 m）及路基下方 1.0H/1.5H/2.0H 范围内有无地表建筑物、地下埋藏物、高压线塔、水体等设施及其与边坡的水平距离，或提供经核读的横断面图周边环境标注。",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X51": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "original refused; scripted gap saved",
+      "question": "Provide counts or an explicit zero finding from an investigation covering B.",
+      "reviewer_saw_saved_input": true
+    },
+    "B/X52": {
+      "kind": "gap",
+      "value": null,
+      "disposition": "control retained",
+      "question": "请核读并提供坡段 B（K0+380）横断面图的实际内容（是否含平面图、立面图、断面图、结构图及大样图，及计算参数、破裂面位置、滑坡推力、工程措施抗滑力等），并确认设计说明是否另有坡段 B 专项章节，以判定 X52 的等级。",
+      "reviewer_saw_saved_input": true
+    }
+  },
+  "reviewer_rows": 16,
+  "derived_results": {
+    "A": {
+      "status": "unscored",
+      "input_count": 8,
+      "missing_indicators": [
+        "X11",
+        "X23",
+        "X22",
+        "X12",
+        "X31",
+        "X51",
+        "X52",
+        "X42"
+      ],
+      "adopted_score": null,
+      "low": {
+        "level": "I",
+        "total": "8.90"
+      },
+      "high": {
+        "level": "IV",
+        "total": "83.29"
+      }
+    },
+    "B": {
+      "status": "unscored",
+      "input_count": 8,
+      "missing_indicators": [
+        "X11",
+        "X23",
+        "X21",
+        "X22",
+        "X12",
+        "X31",
+        "X32",
+        "X41",
+        "X51",
+        "X52",
+        "X42"
+      ],
+      "adopted_score": null,
+      "low": {
+        "level": "I",
+        "total": "0.00"
+      },
+      "high": {
+        "level": "IV",
+        "total": "100.00"
+      }
+    }
+  },
+  "replay_sha256": "9dba4721b44aee05f94da312c5fac6a18de97e5abd26faa96b2421a39d32958b",
+  "verified_by": "tests/test_run06_claim_replay.py::test_all_run06_rows_through_native_tools",
+  "offline_model_calls": 0,
+  "cold_restore": "Replay test exported the restored archive and compared its bytes with the original.",
+  "checks": [
+    "All 16 saved inputs and dispositions match accepted M4",
+    "Each Reviewer's saved input and row digest match its Writer row",
+    "Both calculator results are unscored and reference eight judgments"
+  ]
+}

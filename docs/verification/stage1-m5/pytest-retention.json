@@ -1,0 +1,38 @@
+{
+  "tested_configuration_commit": "3ce0e3894bb8447ea207a980d8c861b997c7484a",
+  "pytest_version": "9.1.1",
+  "retention_policy": "failed",
+  "retention_count": 1,
+  "real_test_files": [
+    "tests/test_m5_commission_imports.py",
+    "tests/test_m5_checkpoint_assertions.py",
+    "tests/test_m5_planning_source_access.py",
+    "tests/test_m5_source_use.py",
+    "tests/test_m4_plan_authority.py",
+    "tests/test_probe_case.py"
+  ],
+  "real_tests_passed": 39,
+  "loose_files_in_pytest_root_after_real_run": 0,
+  "loose_files_in_tool_tmpdir_after_real_run": 0,
+  "controlled_failure_checks": {
+    "passing_tmp_path_discarded": true,
+    "first_failure_kept": true,
+    "second_failure_replaces_first": true,
+    "session_fixture_removed_after_success": true
+  },
+  "former_diagnostic": {
+    "before_allocated_bytes": 2765627392,
+    "after_allocated_bytes": 176496640,
+    "removed_bytes": 2589130752,
+    "removed_passing_test_tmpdirs": 5058,
+    "other_test_tmpdirs_retained": 200
+  },
+  "full_suite_storage_inspection": {
+    "full_suite_tested_commit": "670a7879669821f6a5968ffdd3d6305b9b9a222c",
+    "unexpected_entries_in_shard_tool_temp": {},
+    "additional_files_in_frozen_source": [],
+    "frozen_source_changed_tracked_files": [],
+    "scope": "Runner-controlled shard temporary roots and frozen source tree; evidence directory excluded."
+  },
+  "passing_full_suite_disposable_pytest_bytes_removed": 2758594560
+}

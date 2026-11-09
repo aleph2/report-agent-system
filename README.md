@@ -260,6 +260,8 @@ Historical frozen run directories retain their original hosts and configuration
 paths as execution evidence. They are not restart entry points after this move;
 do not rewrite their approval hashes or replay their pending requests.
 
+Run release regressions from a detached worktree at the tested commit. Pytest removes passing temporary cases and retains the latest failed run. For parallel runs, set `PYTEST_DEBUG_TEMPROOT` to a stable, existing project directory per shard and let pytest create its numbered subdirectory. Create test databases under `tmp_path` or `tmp_path_factory`. Put results and coverage outside scratch. Passing `--basetemp` disables automatic rotation across runs.
+
 Use a separate virtual environment; install with `python -m pip install -e '.[test]'`.
 The historical ADK test fixtures additionally require `.[historical-tests]`; they
 are retained as prior evidence, not the new report execution architecture.

@@ -1203,3 +1203,9 @@ The operational run and rescue directories contained no assertion database. The 
 The structural test in `tests/test_store_separation.py` guards the assertion database boundary in application and operator scripts. Three negative controls reproduced direct SQLite opening, a parameterized cross-database attach and importing the private SQLite store. The team ran 37 focused offline checks and reran all three separation checks after adding the private-import control. The independent reviewer ran seven authority and separation checks. The scope for M5 is requirements, source roles, owner records and planning checkpoints.
 
 For the section 9a vocabulary sweep, review adding a typed version reference for the proposal and owner act. Stage 1 carries those references as JSON in the convention's `rule` and the act's `reason`. Any vocabulary change goes through the S2 amendment process.
+
+### M5 review candidate
+
+The existing M5 branch carries immutable commission inputs and authenticated checkpoint decisions. A new case grants planning access to the explicitly supplied sources. Report use requires an effective owner decision for the exact plan. The independent review reproduced and rechecked a P1 excluded-file disclosure through alternate Coordinator tools.
+
+The full offline regression at `670a787` passed 6,135 cases with 9 conditional skips. The operator checks brought all affected modules above or equal to their M0 coverage floors. Fake03's fresh preparation and 16-row replay passed. The approved miniature case has a known P2 failure when copied into a fresh probe; the same missing planning receipt reproduces on accepted M4. The pytest retention configuration at `3ce0e38` was checked separately using 39 passing integration tests and deliberate failures. See the [M5 verification record](../docs/verification/stage1-m5/README.md) for exact revisions and results. The review tag precedes owner acceptance and promotion to main.
