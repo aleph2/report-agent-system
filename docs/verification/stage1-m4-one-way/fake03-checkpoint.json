@@ -1,0 +1,135 @@
+{
+  "rows": {
+    "B/X21": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X22": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X23": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X32": {
+      "disposition": "original refused; scripted gap saved",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X41": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X42": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X51": {
+      "disposition": "original refused; scripted gap saved",
+      "kind": "gap",
+      "value": null
+    },
+    "B/X52": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X21": {
+      "disposition": "control retained",
+      "kind": "evidence",
+      "value": "37"
+    },
+    "A/X22": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X23": {
+      "disposition": "control retained",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X32": {
+      "disposition": "assumption preserved; original question flagged",
+      "kind": "assumption",
+      "value": "27",
+      "review_question": "本区域是否存在暴雨集中季节、洪水/泥石流/滑坡等其他灾害记录，以及 2026-04-15 开始的施工期是否落在该灾害多发季节？若为灾害多发季节施工，按约定应取大值，本指标需上调至相应等级。"
+    },
+    "A/X41": {
+      "disposition": "control retained",
+      "kind": "evidence",
+      "value": "62"
+    },
+    "A/X42": {
+      "disposition": "original refused; scripted gap saved",
+      "kind": "gap",
+      "value": null
+    },
+    "A/X51": {
+      "disposition": "owner-deferred unscored gap with conditional low and moderate",
+      "kind": "gap",
+      "value": null,
+      "review_question": "Which low-band reading and overlap convention apply?"
+    },
+    "A/X52": {
+      "disposition": "original refused; scripted gap saved",
+      "kind": "gap",
+      "value": null
+    }
+  },
+  "derived_results": {
+    "A": {
+      "low": {
+        "level": "I",
+        "total": "8.90"
+      },
+      "high": {
+        "level": "IV",
+        "total": "83.29"
+      },
+      "missing_indicators": [
+        "X11",
+        "X23",
+        "X22",
+        "X12",
+        "X31",
+        "X51",
+        "X52",
+        "X42"
+      ],
+      "status": "unscored"
+    },
+    "B": {
+      "low": {
+        "level": "I",
+        "total": "0.00"
+      },
+      "high": {
+        "level": "IV",
+        "total": "100.00"
+      },
+      "missing_indicators": [
+        "X11",
+        "X23",
+        "X21",
+        "X22",
+        "X12",
+        "X31",
+        "X32",
+        "X41",
+        "X51",
+        "X52",
+        "X42"
+      ],
+      "status": "unscored"
+    }
+  },
+  "reviewer_rows": 16,
+  "model_calls": 0
+}

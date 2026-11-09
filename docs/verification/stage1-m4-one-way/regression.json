@@ -1,0 +1,58 @@
+{
+  "expected": 6117,
+  "outcomes": {
+    "passed": 6108,
+    "skipped": 9
+  },
+  "failed": [],
+  "missing": [],
+  "duplicates": [],
+  "unexpected": [],
+  "collection_errors": [],
+  "exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "coverage_exit": 0,
+  "tested_revision": "b23238aed97662642d43d4737b13ec2a22a82c07",
+  "finished_utc": "2026-11-09T07:10:47.525843+00:00",
+  "elapsed_seconds": 1906.5,
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "same_skips_as_m3": true,
+  "offline_model_calls": 0,
+  "type_diagnostics": {
+    "m3": 676,
+    "m4": 676,
+    "added": 0
+  },
+  "protected_file_sha256": {
+    "src/report_agent/deep_runtime.py": "7be95d033377c8dfe3547ddadcacfc8336099a115941ce5e99dfa260c380b744",
+    "src/report_agent/content_tasks.py": "5af6de08b7319f089fba65de8af10e3c9adbe53d3d1c3f3702c8679355d73637",
+    "src/report_agent/task_context.py": "9f21082b7ef6f0c05b7564dd543b3b5106ba6f20ca63927dfff1338efde928c2",
+    "src/report_agent/task_supervision.py": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d",
+    "src/report_agent/hierarchical_tools.py": "ac3abfb12a8f18ad4d62969cb835a0be7683ccc0d241290ffbf4802a6985c428",
+    "src/report_agent/assertions/schema/actions.json": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54",
+    "src/report_agent/assertions/schema/checks.sql": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568",
+    "src/report_agent/assertions/schema/kinds.py": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6"
+  },
+  "private_fixture_manifest": {
+    "count": 51,
+    "sha256": "17305c4f1947920c1319c6bab71d62fc6402473110a324c2b9f7c01a77d9dfed"
+  }
+}

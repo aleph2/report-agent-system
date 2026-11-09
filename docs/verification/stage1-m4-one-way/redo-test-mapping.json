@@ -1,0 +1,85 @@
+{
+  "before_revision": "1569c674864c9d072d525f16539f13e6f956cdeb",
+  "after_revision": "b23238aed97662642d43d4737b13ec2a22a82c07",
+  "before": 6109,
+  "after": 6117,
+  "retired": {
+    "tests/test_m4_plan_authority.py::test_exact_business_retry_recovers_missing_native_commit[proposal]": {
+      "replacements": [
+        "tests/test_m4_plan_publication_redo.py::test_content_survives_a_crash_without_becoming_current"
+      ],
+      "reason": "A content-only commit is safe and exact redo publishes the same version."
+    },
+    "tests/test_m4_plan_authority.py::test_exact_native_retry_recovers_missing_business_commit[proposal]": {
+      "replacements": [
+        "tests/test_m4_one_way_authority.py::test_preparation_proposal_and_owner_action_are_separate",
+        "tests/test_m4_plan_publication_redo.py::test_late_redo_keeps_the_newer_proposal_current"
+      ],
+      "reason": "Ordered commits remove the reverse split. A genuine duplicate must reuse the durable operation and preserve newer authority."
+    },
+    "tests/test_m4_plan_authority.py::test_exact_business_retry_recovers_missing_native_commit[decision]": {
+      "replacements": [
+        "tests/test_m4_plan_publication_redo.py::test_owner_content_crash_does_not_resolve_checkpoint"
+      ],
+      "reason": "A content-only commit is safe and exact redo publishes the same version."
+    },
+    "tests/test_m4_plan_authority.py::test_exact_native_retry_recovers_missing_business_commit[decision]": {
+      "replacements": [
+        "tests/test_m4_one_way_authority.py::test_preparation_proposal_and_owner_action_are_separate",
+        "tests/test_m4_plan_publication_redo.py::test_lost_owner_reply_finishes_the_issue_projection"
+      ],
+      "reason": "Ordered commits remove the reverse split. A genuine duplicate must reuse the durable operation and preserve newer authority."
+    },
+    "tests/test_m4_plan_authority.py::test_owner_choices_are_bound_to_the_exact_decision": {
+      "replacements": [
+        "tests/test_m4_plan_publication_redo.py::test_owner_content_crash_does_not_resolve_checkpoint",
+        "tests/test_m4_one_way_authority.py::test_owner_withdrawal_survives_exact_redo_and_blocks_copy"
+      ],
+      "reason": "A changed answer cannot reuse the operation. The exact decision ref and its live owner act determine authority; modifying SQLite directly is outside the report workflow."
+    },
+    "tests/test_m4_plan_authority.py::test_owner_confirmation_binds_the_pinned_template_profile_payload": {
+      "replacements": [
+        "tests/test_m4_plan_authority.py::test_owner_confirmation_keeps_pinned_input_version"
+      ],
+      "reason": "Advancing a profile through the public save path preserves the approved original version without an additional hash."
+    },
+    "tests/test_m4_plan_authority.py::test_independent_first_submissions_and_relocated_split_retry": {
+      "replacements": [
+        "tests/test_m4_plan_authority.py::test_independent_first_submissions_and_relocated_redo",
+        "tests/test_m4_plan_publication_redo.py::test_content_survives_a_crash_without_becoming_current"
+      ],
+      "reason": "Independent IDs, relocation and interruption are exercised without restoring just one database from an old image."
+    },
+    "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[commission]": {
+      "replacements": [
+        "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[commission-False]"
+      ],
+      "reason": "Same withdrawal check, parameterized to cover a published preexisting artifact as well."
+    },
+    "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[required_case]": {
+      "replacements": [
+        "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[required_case-False]"
+      ],
+      "reason": "Same withdrawal check, parameterized to cover a published preexisting artifact as well."
+    }
+  },
+  "added": [
+    "tests/test_fake_fresh_comparison.py::test_prepared_case_seal_keeps_nonempty_assertion_wal",
+    "tests/test_m4_one_way_authority.py::test_late_proposal_reads_by_version_and_rejected_checkpoint_cannot_approve",
+    "tests/test_m4_one_way_authority.py::test_old_unreadable_proposal_cannot_reactivate_pre_m4_approval",
+    "tests/test_m4_one_way_authority.py::test_owner_withdrawal_survives_exact_redo_and_blocks_copy",
+    "tests/test_m4_one_way_authority.py::test_preparation_proposal_and_owner_action_are_separate",
+    "tests/test_m4_plan_authority.py::test_independent_first_submissions_and_relocated_redo",
+    "tests/test_m4_plan_authority.py::test_owner_confirmation_keeps_pinned_input_version",
+    "tests/test_m4_plan_publication_redo.py::test_content_survives_a_crash_without_becoming_current",
+    "tests/test_m4_plan_publication_redo.py::test_foreign_prepared_content_cannot_claim_a_new_plan_identity",
+    "tests/test_m4_plan_publication_redo.py::test_late_redo_keeps_the_newer_proposal_current",
+    "tests/test_m4_plan_publication_redo.py::test_lost_owner_reply_finishes_the_issue_projection",
+    "tests/test_m4_plan_publication_redo.py::test_owner_content_crash_does_not_resolve_checkpoint",
+    "tests/test_m4_plan_publication_redo.py::test_repeated_issue_projection_is_idempotent",
+    "tests/test_m4_plan_publication_redo.py::test_replaced_pending_checkpoint_is_preserved_after_owner_act",
+    "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[commission-False]",
+    "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[commission-True]",
+    "tests/test_m4_snapshot_authority.py::test_snapshot_preflight_refuses_withdrawn_owner_confirmation[required_case-False]"
+  ]
+}

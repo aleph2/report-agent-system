@@ -1189,3 +1189,7 @@ The Coordinator proposes an exact plan version through `save_plan`; the existing
 The regression candidate includes the independent review fix for a withdrawn approval. Both snapshot export preflight and regenerated confirmation checklists recheck the selected owner decision. Individual fixes were tested offline. The M4 review tag is cut only after full-suite verification. The dispatcher, action catalog and approval process are outside this migration.
 
 The completed M4 candidate at `1569c674864c9d072d525f16539f13e6f956cdeb` passed 6,100 offline tests with 9 conditional skips. Fake03 restored all 16 judgments and Reviewer views. The [M4 verification record](../docs/verification/stage1-m4/README.md) includes the per-module coverage and one-to-one retired-test mapping. Candidate is ready for owner review.
+
+### M4 review correction — one-way plan references
+
+The owner held the first M4 tag because its publication spanned two WAL databases. The replacement at `b23238aed97662642d43d4737b13ec2a22a82c07` commits immutable versions and authority actions separately. The full offline suite passed 6,108 tests with 9 conditional skips. The [revised verification record](../docs/verification/stage1-m4-one-way/README.md) includes the crash, redo and withdrawal checks, coverage and retired-test mapping. Awaiting M4 review.
