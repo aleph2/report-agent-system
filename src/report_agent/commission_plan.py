@@ -1,6 +1,7 @@
 """Versioned commission proposals; only operator replies authorize writing or reductions."""
 from . import legacy_state as legacy, plan_authority
 from pathlib import Path
+from uuid import uuid4
 import json
 import re
 from typing import Annotated, Literal
@@ -467,13 +468,12 @@ def read_plan(store):
         if not ref:
             return None
         record = cs._read(db, ref)
-        plan_authority.verify(store.root, record)
         confirmation = plan_authority.decision_ref(db)
         if confirmation:
             decision = cs._read(db, confirmation)
             if (decision['owner_id'] == 'operator' and decision['payload'].get('approved') is True
                     and decision['payload'].get('plan_ref') == ref):
-                plan_authority.verify(store.root, record, decision)
+                plan_authority.confirmed_refs(db, plan=ref, decision=confirmation)
                 record['commission_confirmation_ref'] = confirmation
                 requirements = decision['payload'].get('required_material_issues')
                 record['required_material_issues'] = (requirements if requirements is not None else
@@ -605,7 +605,10 @@ def save_plan(cs, actor, operation_id, plan):
     if not enabled(cs.store):
         raise ActionRejected('COMMISSION_CHECKPOINT_NOT_ENABLED')
     from .commission_requirements import require_complete
-    require_complete(cs, plan)
+    if cs.receipt(actor, operation_id)["state"] == "unknown":
+        # New submissions report missing commission requirements before form errors.
+        # An exact redo uses its saved version even if the current requirements changed.
+        require_complete(cs, plan)
     from .planning_inputs import model_value
     plan = model_value(CommissionPlan, plan).model_dump()
     ids = [o['object_id'] for o in plan['objects']]
@@ -629,10 +632,7 @@ def save_plan(cs, actor, operation_id, plan):
         visit(section)
     if any(not c['source']['quote'].strip() for c in plan['conventions']):
         raise ActionRejected('COMMISSION_CONVENTION_QUOTE_REQUIRED')
-    executed = False
     def save(db):
-        nonlocal executed
-        executed = True
         require_complete(cs, plan, db=db)
         _validate_sources(cs, db, actor, plan)
         roles = legacy.get_commission_source_roles(db, {})
@@ -713,7 +713,18 @@ def save_plan(cs, actor, operation_id, plan):
                  for r in old['payload']['inventory_refs']} if old else {}
         if not prior.keys() <= set(ids):
             raise ActionRejected('COMMISSION_OBJECT_REMOVAL_REQUIRES_RETAINED_RECORD')
-        plan_id = old_ref['id'] if old_ref else plan_authority.first_plan_id(cs.store, actor, operation_id)
+        # Unpublished content can occupy the next version after an interrupted save.
+        # Only the assertion-selected plan above supplies the approved business inputs.
+        if old_ref:
+            head = db.execute("SELECT id,version FROM content_heads WHERE type='CommissionPlan' AND id=?",
+                              (old_ref['id'],)).fetchone()
+        else:
+            head = db.execute("""SELECT id,version FROM content_versions WHERE type='CommissionPlan'
+                AND json_extract(data,'$.owner_id')=? AND json_extract(data,'$.task_id')=?
+                AND json_type(data,'$.plan_input_refs')='array' ORDER BY rowid DESC LIMIT 1""",
+                (actor.id, actor.task_id)).fetchone()
+        plan_id = head[0] if head else str(uuid4())
+        predecessor = {'type': 'CommissionPlan', 'id': head[0], 'version': head[1]} if head else None
         inventory = []
         for obj in plan['objects']:
             previous = prior.get(obj['object_id'])
@@ -721,35 +732,30 @@ def save_plan(cs, actor, operation_id, plan):
                        'scope': 'assessment object', 'inventory_object': obj}
             if previous and previous['payload'] == payload:
                 inventory.append(previous['ref'])
+            elif previous:
+                prior_ref = previous['ref']
+                latest, = db.execute("SELECT version FROM content_heads WHERE type=? AND id=?",
+                                     (prior_ref['type'], prior_ref['id'])).fetchone()
+                inventory.append(cs._insert(db, actor, 'Requirement', payload, id=prior_ref['id'],
+                                            version=latest + 1, previous_ref={**prior_ref, 'version': latest}))
             else:
-                inventory.append(cs._insert(db, actor, 'Requirement', payload,
-                    **({'id': previous['ref']['id'], 'version': previous['ref']['version'] + 1,
-                        'previous_ref': previous['ref']} if previous else {
-                            'id': plan_authority.stable_id(actor, operation_id, ['inventory', plan_id, obj['object_id']])})))
+                inventory.append(cs._insert(db, actor, 'Requirement', payload))
         ref = {'type': 'CommissionPlan', 'id': plan_id,
-               'version': old_ref['version'] + 1 if old_ref else 1}
+               'version': head[1] + 1 if head else 1}
         payload = {**plan, 'inventory_refs': inventory,
                    **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})}
         from .plan_inputs import frozen_refs
-        inputs = frozen_refs(db)
-        proof = plan_authority.publish(cs, db, actor, operation_id, ref, payload, inputs=inputs)
         cs._insert(db, actor, 'CommissionPlan', payload, id=ref['id'], version=ref['version'],
-                   previous_ref=old_ref, plan_authority=proof)
+                   previous_ref=predecessor, plan_input_refs=frozen_refs(db))
         return {'plan_ref': ref, 'inventory_refs': inventory}
+
     response = cs.operation(actor, operation_id, {'commission_plan': plan}, save)
-    if not executed:
-        with cs.store.connect() as db:
-            db.execute('BEGIN IMMEDIATE')
-            record = cs._read(db, response['result']['plan_ref'])
-            plan_authority.recover_publication(cs, db, actor, operation_id, record, record)
+    plan_authority.propose(cs.store, actor, operation_id, response['result']['plan_ref'])
     return response
 
 
 def _confirmed(cs, db):
-    ref = plan_authority.plan_ref(db)
-    confirmation = plan_authority.decision_ref(db)
-    if not ref or not confirmation:
-        raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED')
+    ref, confirmation = plan_authority.confirmed_refs(db)
     decision = cs._read(db, confirmation)
     plan = cs._read(db, ref)
     from .commission_requirements import require_complete, enabled as requirements_enabled
@@ -759,7 +765,6 @@ def _confirmed(cs, db):
     if (decision['owner_id'] != 'operator' or decision['payload'].get('plan_ref') != ref
             or decision['payload'].get('approved') is not True):
         raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_STALE')
-    plan_authority.verify(cs.store.root, plan, decision)
     return plan, decision
 
 
@@ -964,7 +969,7 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
     if plan_ref != checkpoint['plan_ref']:
         raise ActionRejected('COMMISSION_CHECKLIST_CONFIRMATION_MISMATCH')
     record = cs._read(db, plan_ref)
-    plan_authority.verify(cs.store.root, record, decision)
+    plan_authority.confirmed_refs(db, plan=plan_ref, decision=ref)
     plan = record['payload']
     rules = decision['payload'].get('confirmed_rules', _confirmed_rules(plan))
     lines = ['# 已确认规则与表式清单', '', '复用范围：规则与表式；不复用历史报告数值。',
@@ -1036,7 +1041,6 @@ def reply(workspace, issue_id, decision):
         if issue is None:
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
         plan_record = cs._read(db, decision['plan_ref'])
-        plan_authority.verify(cs.store.root, plan_record)
         plan = plan_record['payload']
         if decision['approved']:
             from .commission_requirements import require_complete, enabled as requirements_enabled
@@ -1050,11 +1054,6 @@ def reply(workspace, issue_id, decision):
         if issue.get('decision_origin') == 'operator':
             if issue.get('decision') != answer:
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
-            if plan_record.get('plan_authority'):
-                previous = cs._read(db, {'type': 'CommissionDecision',
-                    'id': plan_authority.stable_id(owner, issue_id, 'decision'), 'version': 1})
-                plan_authority.recover_publication(cs, db, owner, issue_id, previous, plan_record)
-                db.commit()
             if decision['approved']:
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
                 legacy.set_report_issues(db, issues)
@@ -1075,20 +1074,48 @@ def reply(workspace, issue_id, decision):
         owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
         accepted = {**decision, 'reductions': owner_reductions, **({'required_material_issues': required_material_issues(
             cs, db, decision['plan_ref'], plan, decision.get('template_decisions', [])), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
-        if not plan_record.get('plan_authority'):
+        if plan_authority.native_plan_ref(db) != decision['plan_ref']:
             raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
-        ref = {'type': 'CommissionDecision', 'id': plan_authority.stable_id(owner, issue_id, 'decision'), 'version': 1}
-        proof = plan_authority.publish(cs, db, owner, issue_id, ref, accepted,
-                                       proposal_id=plan_record['plan_authority']['assertion_id'])
-        cs._insert(db, owner, 'CommissionDecision', accepted, id=ref['id'], plan_authority=proof)
-        issue.update(decision=answer, decision_origin='operator', resolved=True)
-        legacy.set_report_issues(db, issues)
-        _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
-        _set(db, 'report_status', 'ready')
-        db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('commission_owner_decision', encode({'issue_id': issue_id, 'decision_ref': ref})))
-        if decision['approved']:
-            # Commit authority first; a failed file projection can be regenerated by the same reply.
+        # The case transaction has only validated the operator's request so far.
+        # Commit the immutable choices before the owner action can select them.
+        db.commit()
+        def save_choices(connection):
+            ref = cs._insert(connection, owner, 'CommissionDecision', accepted)
+            return {'decision_ref': ref}
+        try:
+            result = cs.operation(owner, 'commission-owner:' + issue_id, decision, save_choices)
+        except ActionRejected as error:
+            if str(error) == 'OPERATION_CONFLICT':
+                raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED') from error
+            raise
+        ref = result['result']['decision_ref']
+        plan_authority.decide(workspace.store, owner, issue_id, decision['plan_ref'], ref, decision['approved'])
+        db.execute('BEGIN IMMEDIATE')
+        issues = legacy.get_report_issues(db, [])
+        issue = next((i for i in issues if i['id'] == issue_id), None)
+        if issue is None:
+            raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
+        selected = (plan_authority.plan_ref(db) == decision['plan_ref']
+                    and plan_authority.decision_ref(db) == ref)
+        if selected and decision['approved']:
+            _confirmed(cs, db)
+        if issue.get('decision_origin') == 'operator':
+            if issue.get('decision') != answer:
+                raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
+        else:
+            issue.update(decision=answer, decision_origin='operator', resolved=True)
+            legacy.set_report_issues(db, issues)
+            _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
+            if selected:
+                _set(db, 'report_status', 'ready')
+            db.execute('INSERT INTO events(kind,data) VALUES (?,?)', (
+                'commission_owner_decision', encode({'issue_id': issue_id, 'decision_ref': ref})))
+        if selected and decision['approved']:
             db.commit()
+            db.execute('BEGIN IMMEDIATE')
+            issues = legacy.get_report_issues(db, [])
+            issue = next(i for i in issues if i['id'] == issue_id)
+            checkpoint = legacy.get_commission_checkpoint(db, issue_id)
             _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
             legacy.set_report_issues(db, issues)
         return issue

@@ -180,3 +180,15 @@ async def test_real_launch_pair_uses_same_verified_grant_and_independent_cases(p
     assert first['budget']==second['budget']==dict(maximum_tokens=3_700_000,settled=220,held=0)
     assert first['comparison_sha256']==second['comparison_sha256']
     assert second['campaign_budget']['reserved_or_unknown_upper_bounds']==host.BOUND
+
+
+def test_prepared_case_seal_keeps_nonempty_assertion_wal(tmp_path):
+    (tmp_path / 'state.db').write_bytes(b'state')
+    (tmp_path / 'assertions.sqlite3').write_bytes(b'assertions')
+    sealed = host._seal(tmp_path)
+    (tmp_path / 'assertions.sqlite3-shm').write_bytes(b'lock bookkeeping')
+    wal = tmp_path / 'assertions.sqlite3-wal'
+    wal.touch()
+    assert host._seal(tmp_path) == sealed
+    wal.write_bytes(b'committed pages')
+    assert host._seal(tmp_path) != sealed

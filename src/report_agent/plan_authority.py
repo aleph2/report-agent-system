@@ -1,158 +1,177 @@
-"""Versioned planning decisions and their native assertion proofs."""
+"""Case data holds immutable plan versions; signed proposal and owner acts select them."""
 from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, uuid5
 
-from . import legacy_state as legacy
+from . import assertions, legacy_state as legacy
 from .assertion_host import AssertionHost, Grant
 from .assertions.launch import Commission
 from .content_store import ContentStore
-from .errors import ActionRejected
-from .store import digest, encode
+from .errors import ActionForbidden, ActionRejected
+from .store import encode
 
 
-def _has(db, name):
-    return db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone()
+def _directory(storage):
+    if isinstance(storage, sqlite3.Connection):
+        path = storage.execute("PRAGMA database_list").fetchone()[2]
+        return Path(path).parent if path else None
+    return Path(storage if isinstance(storage, (str, Path)) else storage.root)
 
 
-def _latest(storage, kind, default):
+def historical_refs(storage):
+    """Read the retained pre-M4 pins, including the pins of an isolated historical import."""
     if not isinstance(storage, sqlite3.Connection):
-        with storage.connect() as db:
-            return _latest(db, kind, default)
-    if _has(storage, 'content_versions'):
-        row = storage.execute("""SELECT id,version FROM content_versions WHERE type=?
-            AND json_type(data,'$.plan_authority') IS NOT NULL ORDER BY version DESC, rowid DESC LIMIT 1""", (kind,)).fetchone()
-        if row:
-            return dict(type=kind, id=row[0], version=row[1])
-    if _has(storage, 'imported_historical_plan'):
-        row = storage.execute("SELECT ref FROM imported_historical_plan WHERE kind=?", (kind,)).fetchone()
-        if row:
-            return json.loads(row[0])
-    read = legacy.get_commission_plan if kind == 'CommissionPlan' else legacy.get_commission_confirmation
-    return read(storage, default)
-
-
-def plan_ref(storage, default=None):
-    return _latest(storage, 'CommissionPlan', default)
-
-
-def decision_ref(storage, default=None):
-    return _latest(storage, 'CommissionDecision', default)
+        path = Path(storage if isinstance(storage, (str, Path)) else storage.root) / 'state.db'
+        if not path.is_file():
+            return None, None
+        with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+            return historical_refs(db)
+    if storage.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='imported_historical_plan'").fetchone():
+        rows = dict(storage.execute("SELECT kind,ref FROM imported_historical_plan"))
+        return json.loads(rows['CommissionPlan']), json.loads(rows['CommissionDecision'])
+    return legacy.get_commission_plan(storage), legacy.get_commission_confirmation(storage)
 
 
 def install_historical_refs(db, plan, decision):
-    """Trusted import of the two verified pre-M4 pins into an empty probe case."""
     db.execute("CREATE TABLE imported_historical_plan(kind TEXT PRIMARY KEY, ref TEXT NOT NULL)")
     db.executemany("INSERT INTO imported_historical_plan VALUES (?,?)",
                    [(ref['type'], encode(ref)) for ref in (plan, decision)])
 
 
-def first_plan_id(store, actor, call):
-    """An independent commission starts fresh; its persisted grant pins a retry's subject."""
-    principal = str(uuid5(NAMESPACE_URL, actor.id))
-    grant = AssertionHost(store.root).lookup((principal, actor.role, actor.task_id, 'plan-action:' + call))
-    if grant is None:
-        return str(uuid4())
-    subject, = grant.subjects
-    return subject
+def _actions(storage, *, live=False):
+    root = _directory(storage)
+    return Commission.plan_actions(root, live=live) if root else []
+
+
+def _entries(actions):
+    plans, decisions = [], []
+    for action, body, status in actions:
+        proposal = action == 'record_convention'
+        text = body['claim']['rule' if proposal else 'reason']
+        try:
+            ref = json.loads(text)
+        except ValueError:
+            # A person's independent withdrawal can give an ordinary textual reason.
+            continue
+        if isinstance(ref, dict) and ref.get('type') == ('CommissionPlan' if proposal else 'CommissionDecision'):
+            (plans if proposal else decisions).append((ref, body, status))
+    if not plans and any(action == 'record_convention' for action, _, _ in actions):
+        # A held M4 candidate used opaque rules. Its presence precludes historical approval fallback.
+        raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
+    return plans, decisions
+
+
+def native_plan_ref(storage, default=None):
+    plans, _ = _entries(_actions(storage))
+    return plans[-1][0] if plans else default
+
+
+def has_proposal(storage, plan):
+    plans, _ = _entries(_actions(storage))
+    return any(ref == plan for ref, _, _ in plans)
+
+
+def plan_ref(storage, default=None):
+    return native_plan_ref(storage) or historical_refs(storage)[0] or default
+
+
+def decision_ref(storage, default=None):
+    plans, decisions = _entries(_actions(storage))
+    if plans:
+        return decisions[-1][0] if decisions else default
+    return historical_refs(storage)[1] or default
 
 
 def stable_id(actor, call, item):
     return str(uuid5(NAMESPACE_URL, encode([actor.id, actor.task_id, call, item])))
 
 
-def _claim(ref, payload, inputs, proposal_id):
-    if ref['type'] == 'CommissionPlan':
-        return 'record_convention', dict(kind='convention', scope='commission_plan', rule=digest([ref, payload, inputs]))
-    effect = 'confirm' if payload['approved'] else 'retract'
-    return effect, dict(kind='act', effect=effect, target=proposal_id, reason=digest([ref, payload]))
-
-
-def publish(cs, db, actor, call, ref, payload, *, inputs=(), proposal_id=None):
-    bindings = [{'ref': r, 'digest': digest(ContentStore._read(db, r)['payload'])} for r in inputs]
-    action, claim = _claim(ref, payload, bindings, proposal_id)
-    plan = ref if action == 'record_convention' else payload['plan_ref']
-    role = 'coordinator' if action == 'record_convention' else 'owner'
-    host = AssertionHost(cs.store.root)
+def _context(host, actor, role, call, plan, action, target=None):
     grant = Grant(str(uuid5(NAMESPACE_URL, actor.id)), role, actor.task_id, 'plan-action:' + call,
-                  digest(plan), frozenset([plan['id']]), frozenset([proposal_id] if proposal_id else []),
-                  frozenset([action]))
-    ctx = host.issue_once(grant, action, call)
-    saved = host.commission.publish_in_case(db, ctx, subject=plan['id'], claim=claim)
-    return {'assertion_id': saved['id'], 'operation_id': saved['operation_id'],
-            **({'inputs': bindings} if bindings else {})}
+                  encode(plan), frozenset([plan['id']]), frozenset([target] if target else []), frozenset([action]))
+    return host.issue_once(grant, action, call)
 
 
-def recover_publication(cs, db, actor, call, record, plan):
-    """An exact business replay repairs the native side of an interrupted WAL commit."""
-    link = record.get('plan_authority')
-    if not link:
-        return
-    committed = Commission.committed_projection(cs.store.root, link['operation_id'], link['assertion_id'])
-    if committed:
-        _verify(record, plan, committed)
-        return
-    inputs = [item['ref'] for item in link.get('inputs', ())]
-    restored = publish(cs, db, actor, call, record['ref'], record['payload'], inputs=inputs,
-                       proposal_id=None if record['ref']['type'] == 'CommissionPlan' else plan['plan_authority']['assertion_id'])
-    if restored != link or not db.execute(
-            "SELECT 1 FROM plan_assertions.assertions WHERE id=?", (link['assertion_id'],)).fetchone():
-        raise ActionRejected('COMMISSION_PLAN_AUTHORITY_RECOVERY_MISMATCH')
+def propose(store, actor, operation_id, plan):
+    if actor.role != 'coordinator' or actor.id != 'content:coordinator':
+        raise ActionForbidden('COMMISSION_PROPOSAL_COORDINATOR_REQUIRED')
+    with store.connect() as db:
+        record = ContentStore._read(db, plan)
+    if plan['type'] != 'CommissionPlan' or record['owner_id'] != actor.id:
+        raise ActionRejected('COMMISSION_PROPOSAL_VERSION_REQUIRED')
+    host = AssertionHost(store.root)
+    ctx = _context(host, actor, 'coordinator', operation_id, plan, 'record_convention')
+    return assertions.record_convention(ctx, subject=plan['id'],
+        claim=dict(kind='convention', scope='commission_plan', rule=encode(plan)))
 
 
-def _verify(record, plan, committed, *, approved=False):
-    link = record.get('plan_authority')
-    if link is None:
-        if plan.get('plan_authority'):
-            raise ActionRejected('COMMISSION_PLAN_AUTHORITY_MISSING')
-        return
-    target = plan.get('plan_authority', {}).get('assertion_id')
-    ref = record['ref']
-    action, claim = _claim(ref, record['payload'], link.get('inputs', ()), target)
-    if committed:
-        binding, assertion, state, _ = committed
-        role = 'coordinator' if action == 'record_convention' else 'owner'
-        author = 'content:coordinator' if role == 'coordinator' else 'operator'
-        if (state['action'] == action and binding['role'] == role and record['owner_id'] == author
-                and binding['actor'] == str(uuid5(NAMESPACE_URL, author)) and binding['task'] == record['task_id']
-                and binding['plan'] == digest(plan['ref']) and assertion['subject'] == plan['ref']['id']
-                and all(assertion['claim'].get(k) == v for k, v in claim.items())
-                and (not approved or state['active'] and not state['stale'] and not state['challenged']
-                     and (role != 'coordinator' or state['status'] == 'confirmed'))):
-            return
-    raise ActionRejected('COMMISSION_PLAN_AUTHORITY_INVALID')
+def decide(store, owner, operation_id, plan, decision, approved):
+    if owner.role != 'operator' or owner.id != 'operator':
+        raise ActionForbidden('COMMISSION_CHECKPOINT_OWNER_REQUIRED')
+    with store.connect() as db:
+        record = ContentStore._read(db, decision)
+    if (decision['type'] != 'CommissionDecision' or record['owner_id'] != owner.id
+            or record['payload']['plan_ref'] != plan or record['payload']['approved'] is not approved):
+        raise ActionRejected('COMMISSION_CHECKPOINT_DECISION_MISMATCH')
+    plans, _ = _entries(_actions(store))
+    proposal = next((body for ref, body, _ in reversed(plans) if ref == plan), None)
+    if proposal is None:
+        raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
+    action = 'confirm' if approved else 'retract'
+    host = AssertionHost(store.root)
+    target = proposal['id']
+    ctx = _context(host, owner, 'owner', operation_id, plan, action, target)
+    try:
+        return host.commission.decide_current(ctx, subject=plan['id'],
+            claim=dict(kind='act', effect=action, target=target, reason=encode(decision)))
+    except ValueError as exc:
+        raise ActionRejected(str(exc)) from exc
 
 
-def verify(case, plan, decision=None):
-    inputs = plan.get('plan_authority', {}).get('inputs', ())
-    if inputs:
-        with closing(sqlite3.connect((Path(case) / 'state.db').as_uri() + '?mode=ro', uri=True)) as db:
-            db.execute('BEGIN')
-            for item in inputs:
-                if digest(ContentStore._read(db, item['ref'])['payload']) != item['digest']:
-                    raise ActionRejected('COMMISSION_PLAN_AUTHORITY_INPUT_MISMATCH')
-    approved = bool(decision and decision['payload']['approved'])
-    records = [plan, decision] if decision else [plan]
-    pins = [(link['operation_id'], link['assertion_id']) for r in records if (link := r.get('plan_authority'))]
-    proofs = Commission.committed_projections(case, pins)
-    for record in records:
-        _verify(record, plan, proofs.get(record.get('plan_authority', {}).get('assertion_id')), approved=approved)
+def _approved(plans, decisions, plan, decision):
+    if not plans or not decisions:
+        raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED')
+    plan = plans[-1][0] if plan is None else plan
+    decision = decisions[-1][0] if decision is None else decision
+    proposal = next((r for r in reversed(plans) if r[0] == plan), None)
+    answer = next((r for r in reversed(decisions) if r[0] == decision), None)
+    if not proposal or not answer or (answer[1]['claim']['effect'] != 'confirm'
+            or answer[1]['claim']['target'] != proposal[1]['id']):
+        raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_STALE')
+    if (proposal[2]['status'] != 'confirmed' or any(not state['active'] or state['challenged'] or state['stale']
+                                                    for state in (proposal[2], answer[2]))):
+        raise ActionRejected('COMMISSION_PLAN_AUTHORITY_WITHDRAWN')
+    return plan, decision
 
 
-def copy_plan_evidence(source, output, records):
-    """Copy only the pinned plan actions in an approved business closure to its clean case."""
-    records = list(records)
-    links = [r['plan_authority'] for r in records if 'plan_authority' in r]
-    if not links:
-        return
-    with closing(sqlite3.connect((Path(source) / 'state.db').as_uri() + '?mode=ro', uri=True)) as db:
-        db.execute('BEGIN')
-        plan = ContentStore._read(db, plan_ref(db))
-        decision = ContentStore._read(db, decision_ref(db))
-        if (decision['payload']['plan_ref'] != plan['ref'] or not decision['payload']['approved']
-                or plan not in records or decision not in records):
+def confirmed_refs(storage, *, plan=None, decision=None):
+    plans, decisions = _entries(_actions(storage, live=True))
+    if plans:
+        return _approved(plans, decisions, plan, decision)
+    old_plan, old_decision = historical_refs(storage)
+    if old_plan and old_decision and plan in (None, old_plan) and decision in (None, old_decision):
+        if not isinstance(storage, sqlite3.Connection):
+            path = Path(storage if isinstance(storage, (str, Path)) else storage.root) / 'state.db'
+            with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+                db.row_factory = sqlite3.Row
+                record = ContentStore._read(db, old_decision)
+        else:
+            record = ContentStore._read(storage, old_decision)
+        if record['owner_id'] == 'operator' and record['payload'].get('plan_ref') == old_plan and record['payload'].get('approved') is True:
+            return old_plan, old_decision
+    raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED')
+
+
+def copy_plan_evidence(source, output, records, *, plan, decision):
+    wanted = [r['ref'] for r in records]
+
+    def select(snapshot):
+        proposals, decisions = _entries(snapshot)
+        if _approved(proposals, decisions, None, None) != (plan, decision) or plan not in wanted or decision not in wanted:
             raise ActionRejected('COMMISSION_PLAN_AUTHORITY_IMPORT_MISMATCH')
-        verify(source, plan, decision)
-    Commission(output).import_plan_actions(source, links)
+        return [body for ref, body, _ in proposals if ref in wanted] + [
+            body for ref, body, _ in decisions if ref == decision]
+
+    Commission(output).import_plan_actions(source, select)

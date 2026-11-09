@@ -453,7 +453,9 @@ def require_snapshot(cs, db, snapshot):
     plan_ref, decision_ref = payload.get('commission_plan_ref'), payload.get('commission_confirmation_ref')
     plan = cs._read(db, plan_ref) if plan_ref else {}
     decision = cs._read(db, decision_ref) if decision_ref else {}
-    if not anchored and 'plan_authority' not in plan and 'plan_authority' not in decision:
+    versioned_plan = bool(plan) and ('plan_input_refs' in plan or 'plan_authority' in plan
+                                    or plan_authority.has_proposal(db, plan_ref))
+    if not anchored and not versioned_plan:
         return  # Older snapshots use the existing material-issue and export checks.
     if not plan or not decision:
         raise ActionRejected('COMMISSION_REQUIREMENTS_SNAPSHOT_BINDING_REQUIRED')
@@ -463,7 +465,8 @@ def require_snapshot(cs, db, snapshot):
             or decision['payload'].get('plan_ref') != plan_ref
             or (anchored and decision['payload'].get('requirements_ref') != plan['payload'].get('requirements_ref'))):
         raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
-    plan_authority.verify(cs.store.root, plan, decision)
+    if versioned_plan:
+        plan_authority.confirmed_refs(db, plan=plan_ref, decision=decision_ref)
 
 
 def export_preflight(cs, actor, snapshot_ref, deliverable):

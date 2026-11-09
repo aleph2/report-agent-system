@@ -151,8 +151,13 @@ def _seal(case):
     for p in sorted(case.rglob('*')):
         if p.is_symlink():
             raise ValueError('FAKE_CASE_SYMLINK')
-        if p.is_file() and not (p.name=='state.db-shm' or (p.name=='state.db-wal' and p.stat().st_size==0)):
-            files[str(p.relative_to(case))] = _sha(p)
+        if p.is_file():
+            name = str(p.relative_to(case))
+            if name in ('state.db-shm', 'assertions.sqlite3-shm'):
+                continue
+            if name in ('state.db-wal', 'assertions.sqlite3-wal') and p.stat().st_size == 0:
+                continue
+            files[name] = _sha(p)
     if 'state.db' not in files:
         raise ValueError('FAKE_PREPARED_DATABASE_REQUIRED')
     return digest(files)

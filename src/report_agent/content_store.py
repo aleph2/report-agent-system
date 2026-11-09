@@ -201,14 +201,14 @@ class ContentStore:
         return {"ok": True, "result": result, "receipt_id": receipt}
 
     @staticmethod
-    def _insert(db, actor, type, payload, *, id=None, version=1, previous_ref=None, plan_authority=None):
+    def _insert(db, actor, type, payload, *, id=None, version=1, previous_ref=None, plan_input_refs=None):
         ref = {"type": type, "id": id or str(uuid4()), "version": version}
         record = {"ref": ref, "schema_version": SCHEMA_VERSION, "previous_ref": previous_ref,
                   "owner_id": actor.id, "created_by": actor.id, "task_id": actor.task_id,
                   "created_at": datetime.now(timezone.utc).isoformat(),
                   "payload_digest": digest(payload), "payload": payload}
-        if plan_authority is not None:
-            record["plan_authority"] = plan_authority
+        if plan_input_refs is not None:
+            record["plan_input_refs"] = plan_input_refs
         db.execute("INSERT INTO content_versions VALUES (?,?,?,?)", (*Ref.model_validate(ref).key(), encode(record)))
         db.execute("INSERT INTO content_heads VALUES (?,?,?) ON CONFLICT(type,id) DO UPDATE SET version=excluded.version", tuple(ref.values()))
         if type == "Relation":

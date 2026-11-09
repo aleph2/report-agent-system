@@ -80,13 +80,13 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
     with tempfile.TemporaryDirectory(prefix='probe-business-snapshot-') as folder:
         frozen_path = Path(folder) / 'state.db'
         with _read(source / 'state.db') as original, closing(sqlite3.connect(frozen_path)) as frozen:
+            if (plan_authority.plan_ref(original) != expected_plan_ref
+                    or plan_authority.decision_ref(original) != expected_decision_ref):
+                raise ValueError('PROBE_APPROVED_PIN_MISMATCH')
             original.backup(frozen)
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
             state = legacy.read_probe_business_state(frozen)
-            if (plan_authority.plan_ref(frozen) != expected_plan_ref
-                    or plan_authority.decision_ref(frozen) != expected_decision_ref):
-                raise ValueError('PROBE_APPROVED_PIN_MISMATCH')
             if any(s.get('copied_path') or s.get('original_path') for s in state['manifest']['sources']):
                 raise ValueError('PROBE_MANIFEST_SOURCE_PATH_UNSUPPORTED')
             authority = state.get('source_use_authority_binding')
@@ -97,7 +97,7 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                     raise ValueError('PROBE_SOURCE_AUTHORITY_MISSING')
                 state[key] = json.loads(row[0])
             records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref])
-            historical = 'plan_authority' not in ContentStore._read(frozen, expected_plan_ref)
+            historical = plan_authority.historical_refs(frozen) == (expected_plan_ref, expected_decision_ref)
             legacy_skeleton = plan_inputs.get_skeleton(frozen) if historical else None
             legacy_profiles = plan_inputs.get_text_profiles(frozen) if historical else None
             if historical:
@@ -132,7 +132,9 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 plan_inputs.save_text_profiles(db, legacy_profiles)
             if historical:
                 plan_authority.install_historical_refs(db, expected_plan_ref, expected_decision_ref)
-        plan_authority.copy_plan_evidence(source, output, records.values())
+        if not historical:
+            plan_authority.copy_plan_evidence(source, output, records.values(),
+                                              plan=expected_plan_ref, decision=expected_decision_ref)
 
         source_blobs, copied_blobs = BlobStore(source), BlobStore(output)
         dependencies = {}

@@ -97,35 +97,54 @@ class Commission:
     def committed_projection(directory, operation_id, assertion_id):
         return Commission.committed_projections(directory, [(operation_id, assertion_id)]).get(assertion_id)
 
-    def publish_in_case(self, case_db, ctx, *, subject, claim):
-        """Publish a plan action inside its caller's case transaction and savepoint."""
-        from .actions import _save_locked
-        databases = {name: Path(path) for _, name, path in case_db.execute("PRAGMA database_list")}
-        if (not case_db.in_transaction or ctx._store is not self._store
-                or databases["main"] != self._store.path.parent / "state.db"):
-            raise ValueError("Plan publication requires the owning case transaction")
-        if "plan_assertions" not in databases:
-            case_db.execute("ATTACH DATABASE ? AS plan_assertions", (str(self._store.path),))
-        elif databases["plan_assertions"] != self._store.path:
-            raise ValueError("Incorrect assertion database for this case")
-        previous = case_db.row_factory
-        try:
-            case_db.row_factory = sqlite3.Row
-            with ctx._authorized() as grant:
-                return _save_locked(ctx.action, ctx, case_db, grant, subject=subject, claim=claim)
-        finally:
-            case_db.row_factory = previous
+    @staticmethod
+    def _plan_rows(db):
+        return db.execute("""WITH proposals AS (
+            SELECT id FROM assertions WHERE action='record_convention' AND role='coordinator'
+            AND body ->> '$.claim.scope'='commission_plan')
+            SELECT id,action,body FROM assertions WHERE id IN proposals OR
+            (role='owner' AND action IN ('confirm','retract') AND body ->> '$.claim.target' IN proposals)
+            ORDER BY CASE WHEN action='record_convention' THEN 0 ELSE 1 END,
+                     CASE WHEN action='record_convention' AND json_valid(body ->> '$.claim.rule')
+                          THEN json_extract(body ->> '$.claim.rule', '$.version') END,
+                     rowid""")
 
-    def import_plan_actions(self, directory, links):
+    @staticmethod
+    def _plan_snapshot(db, live):
+        from .queries import assertion_states
+        states = assertion_states(db) if live else {}
+        return [(action, json.loads(body), states.get(key)) for key, action, body in Commission._plan_rows(db)]
+
+    @staticmethod
+    def plan_actions(directory, *, live=False):
+        """Read native proposal references and the owner acts that target them in one snapshot."""
+        path = Path(directory) / "assertions.sqlite3"
+        if not path.is_file():
+            return []
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
+            db.execute("BEGIN")
+            return Commission._plan_snapshot(db, live)
+
+    @staticmethod
+    def decide_current(ctx, *, subject, claim):
+        from .actions import _save_locked
+        with ctx.write() as (db, grant):
+            if not db.execute("SELECT 1 FROM operations WHERE id=?", (ctx.operation_id,)).fetchone():
+                proposals = [key for key, action, _ in Commission._plan_rows(db) if action == "record_convention"]
+                if not proposals or proposals[-1] != claim["target"]:
+                    raise ValueError("COMMISSION_CHECKPOINT_REPLY_STALE")
+            return _save_locked(ctx.action, ctx, db, grant, subject=subject, claim=claim)
+
+    def import_plan_actions(self, directory, select):
         """Restore a business-only case's plan actions with their original receipts."""
         from .export import _restore_record
         path = Path(directory).resolve() / "assertions.sqlite3"
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as source, self._store.transaction() as db:
             source.execute("BEGIN")
-            for link in links:
+            for assertion in select(self._plan_snapshot(source, True)):
                 row = source.execute("""SELECT a.body,a.action,a.role,a.snapshot,o.binding,o.digest
                     FROM assertions a JOIN operations o ON a.body=o.result WHERE a.id=? AND o.id=?""",
-                    (link["assertion_id"], link["operation_id"])).fetchone()
+                    (assertion["id"], assertion["operation_id"])).fetchone()
                 if not row or (row[1], row[2]) not in (
                         ("record_convention", "coordinator"), ("confirm", "owner"), ("retract", "owner")):
                     raise ValueError("Missing plan action for business import")

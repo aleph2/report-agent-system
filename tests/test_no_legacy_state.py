@@ -103,7 +103,7 @@ def test_legacy_state_ownership():
 # These are existing public payload fields, dictionary projections and exporter
 # module filenames. They contain no per-family storage access.
 PUBLIC_USES = {
-    ("plan_authority", "_claim", "keyword"): {"commission_plan"},
+    ("plan_authority", "propose", "keyword"): {"commission_plan"},
     ("commission_plan", "save_plan", "Dict"): {"commission_plan"},
     ("commission_plan", "request_checkpoint", "Dict"): {"corrections", "commission_plan"},
     ("content_export", "execute", "Tuple"): {"commission_owner_records"},
