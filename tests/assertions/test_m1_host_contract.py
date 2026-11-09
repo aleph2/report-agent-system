@@ -46,6 +46,14 @@ def test_produced_ids_are_narrowed_by_issuer_task_subject_and_kind(tmp_path):
         assert not host.commission.produced_ids(**(params | {k: "different"}))
 
 
+def test_source_action_refuses_removed_observation_time_without_saving(tmp_path):
+    host, grant, ctx, claim = source_case(tmp_path)
+    with pytest.raises(TypeError, match="unexpected keyword argument 'observed_at'"):
+        assertions.assert_source(ctx, subject="A", claim=claim, observed_at="1999-01-01")
+    assert host.recover_receipt(ctx.operation_id) is None
+    assert not host.commission.produced_ids(actor=grant.principal, task=grant.task, subject="A", kind="source")
+
+
 def test_engineering_date_is_a_cited_value(tmp_path):
     host, _, ctx, claim = source_case(tmp_path)
     claim.update(predicate="survey_date", value="2025-04-19", unit=None)

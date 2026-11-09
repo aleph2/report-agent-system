@@ -36,15 +36,10 @@ def _save(action, ctx, **request):
         return _save_locked(action, ctx, db, grant, **request)
 
 
-def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None, observed_at=None):
+def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None):
     if action != ctx.action:
         raise PermissionError("Native call belongs to a different action")
     request = dict(action=action, subject=subject, claim=claim, grounds=grounds, id=id)
-    # Exact retries of pre-M4 operations use their original request digest.
-    if observed_at is not None:
-        if action != "assert_source":
-            raise ValueError("Only a source assertion accepts a material observation time")
-        request["observed_at"] = observed_at
     digest = request_digest(request)
     store = ctx._store
     previous = store.lookup(db, ctx.operation_id, ctx.binding, digest, can_read=True)
