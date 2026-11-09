@@ -1,0 +1,106 @@
+{
+  "expected": 6157,
+  "outcomes": {
+    "passed": 6148,
+    "skipped": 9
+  },
+  "failed": [],
+  "missing": [],
+  "duplicates": [],
+  "unexpected": [],
+  "collection_errors": [],
+  "exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "coverage_exit": 0,
+  "started_utc": "2026-11-09T12:21:08.347121+00:00",
+  "finished_utc": "2026-11-09T12:49:25.012530+00:00",
+  "elapsed_seconds": 1696.7,
+  "tested_revision": "5ea36cc3fc75daf7b1306864f73e7cb5ee361c36",
+  "baseline": "64c9b4e3ffa9b34748e936a372afdb6eadb152fb",
+  "paid_model_calls": 0,
+  "type_diagnostics": {
+    "baseline": {
+      "filesAnalyzed": 187,
+      "errorCount": 676,
+      "warningCount": 0,
+      "informationCount": 0,
+      "timeInSec": 16.964
+    },
+    "candidate": {
+      "filesAnalyzed": 189,
+      "errorCount": 676,
+      "warningCount": 0,
+      "informationCount": 0,
+      "timeInSec": 33.711
+    },
+    "added": [],
+    "resolved": 0
+  },
+  "protected_files": {
+    "src/report_agent/assertions/schema/kinds.py": {
+      "comparison": "byte-identical",
+      "sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6"
+    },
+    "src/report_agent/assertions/schema/actions.json": {
+      "comparison": "byte-identical",
+      "sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54"
+    },
+    "src/report_agent/assertions/schema/checks.sql": {
+      "comparison": "byte-identical",
+      "sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568"
+    },
+    "src/report_agent/content_tasks.py": {
+      "comparison": "byte-identical",
+      "sha256": "f089375105be2c69939d1a88e71ff4aadb60dc40057863806fdcd1b0c3105808"
+    },
+    "src/report_agent/task_supervision.py": {
+      "comparison": "byte-identical",
+      "sha256": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d"
+    },
+    "src/report_agent/supervision_plugins.py": {
+      "comparison": "byte-identical",
+      "sha256": "9558b051b94a16ca4cefa0b83416348ed426da318b0898ef419443713c50c653"
+    },
+    "src/report_agent/assertion_host.py": {
+      "comparison": "byte-identical",
+      "sha256": "674620572b827234fff38794f67f15fa0d06e18380e6bfb36afb36e77d462375"
+    },
+    "src/report_agent/deep_runtime.py": {
+      "comparison": "identical module AST after replacing only the issue-reader import and call",
+      "before_sha256": "6c667763c0f4fb621e803b746e744a7434a27fd3e98416b60c7dc4e3396fc7db",
+      "after_sha256": "e0846154af37b4d0ae6c9305857f4d5ea80a9eea3be0e141d816db629dd62936"
+    },
+    "scripts/report_host.py": {
+      "comparison": "identical complete module AST after normalizing only the import and issue getter",
+      "before_sha256": "e4c6f4e3213d27b68d26d5f842a9cb4cc1808a7496bcf823ce99761bc0e05d2f",
+      "after_sha256": "b8b76c2afc446cda3d7062900dabe68fce5cc102be40f44e2f89ead00791ec9b"
+    }
+  },
+  "fixture_files": 51,
+  "fixture_manifest_sha256": "ef29a6843a9eb7378f76b2451b61fe4cd6a0998faa5bdedae7d4a6c6055fc556",
+  "conditional_skips": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_match_accepted_m5": true,
+  "coverage_includes_separate_successful_operator_checks": true,
+  "additional_operator_tests_passed": 3,
+  "source_package_byte_identical_to_type_checked_implementation": true,
+  "offline_runner_sha256": "d10190f84b39254081af14f11bff558adea646aa6371a2ee882f383d6056f3bf",
+  "offline_network_guard_sha256": "85f022c628a260c26fdfdb023ab4c82427692c8cd4458361cf93efb3f8315e6c"
+}

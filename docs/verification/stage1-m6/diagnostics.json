@@ -1,0 +1,26 @@
+{
+  "diagnostics": [
+    {
+      "revision": "286aec8",
+      "status": "stopped diagnostic; not final suite evidence",
+      "failed": {
+        "tests/test_report_trunk.py::test_human_decision_revision_and_receipt_rollback_together": "call",
+        "tests/test_duty_remaining_consumers_adapter.py::test_native_remaining_consumer_sdk_fidelity_and_saved_state[requirements-wire]": "call",
+        "tests/test_duty_remaining_consumers_adapter.py::test_native_remaining_consumer_sdk_fidelity_and_saved_state[requirements-commit-before-refusal]": "call"
+      },
+      "reason": "Three test migration failures; corrected test tree requires a fresh full regression. Application code unchanged.",
+      "retained_test_data_bytes": 27041792
+    },
+    {
+      "revision": "80a6f6c",
+      "status": "stopped diagnostic; not final suite evidence",
+      "failed": {
+        "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites": "call",
+        "tests/test_m1_checkpoint_host.py::test_owner_replies_and_corrections_resume_same_workspace_budget_and_unknown_rows": "call"
+      },
+      "reason": "Historical-only issue reader reproduced an indefinite native host wait in the pending-issues test; fixed and independently rechecked. Census updated. Stop own diagnostic before clean pinned full run.",
+      "retained_test_data_bytes": 18550784
+    }
+  ],
+  "final_verification": "Fresh complete full suite at 5ea36cc; no failed outcomes combined or discarded to manufacture a pass."
+}

@@ -23,3 +23,7 @@ Test temporary directories use pytest's `failed` retention policy with count one
 The engineering lead is still a role without a named person. The 11 pilot scoring criteria and HP02 page 115 remain pending technical review; no request has been sent and no engineering judgment is supplied by this migration. The owner confirms resulting project conventions before the real report. This does not block the offline M6 storage migration.
 
 The consolidated later work is recorded in [section 9a handoff](stage1-9a-consolidated.md).
+
+## Review candidate
+
+The fresh full regression at `5ea36cc` passed 6,148 tests with nine unchanged conditional skips and no failures. Three separate successful operator checks bring every affected module above its M0 coverage floor. There are no new type diagnostics. Native owner replies resume the same host and budget context; the host changes only its issue reader, with an otherwise identical AST. The refreshed census removes 51 retired access signatures without changing the scanner. See the [complete verification record](../verification/stage1-m6/README.md), including the initial failures, their dispositions, individual retired-test mapping, independent review and cleanup evidence. Owner acceptance is still pending.

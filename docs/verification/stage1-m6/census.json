@@ -1,0 +1,15 @@
+{
+  "before_sites": 1001,
+  "after_sites": 950,
+  "removed_signatures": 51,
+  "added_signatures": 0,
+  "removed_by_family": {
+    "report_issues": 32,
+    "g6_issue_record:*": 10,
+    "g6_issue_binding:*": 4,
+    "g6_issue_route:*": 5
+  },
+  "scanner_byte_identical": true,
+  "scanner_sha256": "88eebdfdd9b0a1a5e6bc931fba7856a4bef6b9aa846607245dc91b01f179b13d",
+  "retired_write_guard": "All four M6 families added without removing earlier retired families"
+}

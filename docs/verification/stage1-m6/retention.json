@@ -1,0 +1,72 @@
+{
+  "policy": "failed",
+  "count": 1,
+  "explicit_basetemp": false,
+  "shards": {
+    "tmp-collection": {
+      "cache_files": 0,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 0
+    },
+    "tmp-group-0": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 114688
+    },
+    "tmp-group-1": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 118784
+    },
+    "tmp-group-2": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 110592
+    },
+    "tmp-group-3": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 106496
+    },
+    "tmp-group-4": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 126976
+    },
+    "tmp-group-5": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 110592
+    },
+    "tmp-group-6": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 126976
+    },
+    "tmp-group-7": {
+      "cache_files": 4,
+      "remaining_test_files": 0,
+      "remaining": [],
+      "allocated_bytes": 16384
+    }
+  },
+  "operator_checks": {
+    "project_config_explicit": true,
+    "passed": 3,
+    "configured_run_temp_removed_automatically": true,
+    "one_time_cleanup_of_prior_unconfigured_passing_root": {
+      "files": 42,
+      "allocated_bytes": 1290240,
+      "reason": "The earlier external test invocation did not discover project pytest configuration; its successful case data was verified before removal. Logs and test source retained."
+    },
+    "remaining_test_files": 0
+  }
+}

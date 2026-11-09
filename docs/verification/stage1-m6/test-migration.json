@@ -1,0 +1,63 @@
+{
+  "baseline": "64c9b4e3ffa9b34748e936a372afdb6eadb152fb",
+  "before": 6144,
+  "after": 6157,
+  "retired": {
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[g6_issue_binding:]": {
+      "covering_tests": [
+        "tests/test_m6_issues.py::test_issue_content_versions_rollback_and_historical_read[binding]",
+        "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[g6_issue_binding]"
+      ],
+      "reason": "Native legacy writes retired; immutable versions, historical reads and rollback retained."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[g6_issue_record:]": {
+      "covering_tests": [
+        "tests/test_m6_issues.py::test_issue_content_versions_rollback_and_historical_read[record]",
+        "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[g6_issue_record]"
+      ],
+      "reason": "Native legacy writes retired; immutable versions, historical reads and rollback retained."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[g6_issue_route:]": {
+      "covering_tests": [
+        "tests/test_m6_issues.py::test_issue_content_versions_rollback_and_historical_read[route]",
+        "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[g6_issue_route]"
+      ],
+      "reason": "Native legacy writes retired; immutable versions, historical reads and rollback retained."
+    },
+    "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[report_issues]": {
+      "covering_tests": [
+        "tests/test_m6_issues.py::test_issue_versions_preserve_history_and_identical_redo",
+        "tests/test_m6_issues.py::test_historical_issue_read_does_not_create_native_tables",
+        "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[report_issues]"
+      ],
+      "reason": "Native legacy writes retired; immutable versions, historical reads and rollback retained."
+    },
+    "tests/test_report_trunk.py::test_human_decision_revision_and_receipt_rollback_together": {
+      "covering_tests": [
+        "tests/test_report_trunk.py::test_human_decision_authority_survives_projection_rollback_and_redo"
+      ],
+      "reason": "Accepted separate authority/case transactions: projection rollback is preserved, committed authority survives, and redo finishes exactly once."
+    }
+  },
+  "added": [
+    "tests/test_delivery_guard.py::test_resume_redo_after_owner_act_preserves_the_original_wait",
+    "tests/test_m6_issues.py::test_crash_before_owner_assertion_leaves_wait_open_and_redo_finishes",
+    "tests/test_m6_issues.py::test_historical_issue_read_does_not_create_native_tables",
+    "tests/test_m6_issues.py::test_host_cli_exposes_issue_view_and_locations",
+    "tests/test_m6_issues.py::test_human_reply_is_authoritative_before_projection_and_can_be_revised",
+    "tests/test_m6_issues.py::test_issue_content_versions_rollback_and_historical_read[binding]",
+    "tests/test_m6_issues.py::test_issue_content_versions_rollback_and_historical_read[record]",
+    "tests/test_m6_issues.py::test_issue_content_versions_rollback_and_historical_read[route]",
+    "tests/test_m6_issues.py::test_issue_versions_preserve_history_and_identical_redo",
+    "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[g6_issue_binding]",
+    "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[g6_issue_record]",
+    "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[g6_issue_route]",
+    "tests/test_m6_issues.py::test_migrated_family_has_no_legacy_write_accessor[report_issues]",
+    "tests/test_m6_issues.py::test_native_issue_record_wins_iteration_without_changing_history",
+    "tests/test_m6_issues.py::test_report_uncertainty_never_creates_runtime_waits",
+    "tests/test_m6_issues.py::test_workspace_redo_finishes_projection_after_owner_act",
+    "tests/test_report_trunk.py::test_human_decision_authority_survives_projection_rollback_and_redo",
+    "tests/test_system_assembler.py::test_route_revision_preserves_history_and_frozen_export[complete-issue]"
+  ],
+  "unchanged_ids": 6139
+}

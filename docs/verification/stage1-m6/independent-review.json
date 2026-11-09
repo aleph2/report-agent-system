@@ -1,0 +1,19 @@
+{
+  "reviewer": "/root/m6_review",
+  "role": "alignment-reviewer",
+  "revision": "286aec8a708bbbf4c0e70d7a8e08b925ef1e9967",
+  "final_test_tree_revision": "80a6f6c632c8a8a398c28b58ebad6443c0917297",
+  "src_package_bytes_unchanged_between_initial_implementation_and_final_pin": true,
+  "final_host_revision": "5ea36cc3fc75daf7b1306864f73e7cb5ee361c36",
+  "host_and_census_recheck": {"passed": 9, "elapsed_seconds": 6.46, "scope": "Live host owner-wait progression and state census", "host_ast": "Identical to accepted M5 after normalizing only the import and equivalent issue getter", "census": "51 retired access signatures removed; none added", "severity": "P2: native host could remain safely paused after owner reply; fixed"},
+  "test_migration_recheck": {"passed": 3, "elapsed_seconds": 21.80, "scope": "Two configured SDK capture variants and the strengthened trunk authority/projection rollback test", "verdict": "Replacement follows the accepted separate-write design and does not weaken the required behavior"},
+  "verdict": "No blocking alignment findings in inspected M6 scope",
+  "final_tests": {"passed": 19, "elapsed_seconds": 17.02, "scope": "Workspace redo, delivery-resume redo and production Fake03 replay"},
+  "earlier_tests": {"passed": 48, "elapsed_seconds": 12.25, "qualification": "Before the final location adjustment; do not add to final full-suite count"},
+  "findings": [
+    {"severity": "P2", "description": "An owner act could commit before a lost Workspace reply left the runtime waiting; exact redo returned too early", "disposition": "Fixed and independently rechecked through the real Workspace entrypoint"},
+    {"severity": "P2", "description": "Known report locations were not propagated to questions, conflicts and findings", "disposition": "Fixed before the pinned full run; inherit known subject/target locations and retain unknown locations explicitly"}
+  ],
+  "confirmed": ["Dispatcher control logic unchanged; equivalent issue reader substitution only", "S2 vocabulary, actions and checks unchanged", "Trusted host CLI does not widen agent packets", "Immutable issue versions and historical reads retained", "Repetition guard already fingerprints every exact content head, including all five native issue types; no duplicate issue-view query is required", "The fixed historical-trial audit retains its historical reader, not a native dependency"],
+  "limits": ["Full regression is Main's verification", "Findings without a location available in the view remain explicitly unlocated", "No paid calls or engineering review"]
+}

@@ -1,0 +1,40 @@
+{
+  "src/report_agent/assertions/schema/kinds.py": {
+    "comparison": "byte-identical",
+    "sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6"
+  },
+  "src/report_agent/assertions/schema/actions.json": {
+    "comparison": "byte-identical",
+    "sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54"
+  },
+  "src/report_agent/assertions/schema/checks.sql": {
+    "comparison": "byte-identical",
+    "sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568"
+  },
+  "src/report_agent/content_tasks.py": {
+    "comparison": "byte-identical",
+    "sha256": "f089375105be2c69939d1a88e71ff4aadb60dc40057863806fdcd1b0c3105808"
+  },
+  "src/report_agent/task_supervision.py": {
+    "comparison": "byte-identical",
+    "sha256": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d"
+  },
+  "src/report_agent/supervision_plugins.py": {
+    "comparison": "byte-identical",
+    "sha256": "9558b051b94a16ca4cefa0b83416348ed426da318b0898ef419443713c50c653"
+  },
+  "src/report_agent/assertion_host.py": {
+    "comparison": "byte-identical",
+    "sha256": "674620572b827234fff38794f67f15fa0d06e18380e6bfb36afb36e77d462375"
+  },
+  "src/report_agent/deep_runtime.py": {
+    "comparison": "identical module AST after replacing only the issue-reader import and call",
+    "before_sha256": "6c667763c0f4fb621e803b746e744a7434a27fd3e98416b60c7dc4e3396fc7db",
+    "after_sha256": "e0846154af37b4d0ae6c9305857f4d5ea80a9eea3be0e141d816db629dd62936"
+  },
+  "scripts/report_host.py": {
+    "comparison": "identical complete module AST after normalizing only the import and issue getter",
+    "before_sha256": "e4c6f4e3213d27b68d26d5f842a9cb4cc1808a7496bcf823ce99761bc0e05d2f",
+    "after_sha256": "b8b76c2afc446cda3d7062900dabe68fce5cc102be40f44e2f89ead00791ec9b"
+  }
+}

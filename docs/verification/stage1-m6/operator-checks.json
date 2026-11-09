@@ -1,0 +1,25 @@
+{
+  "passed": 3,
+  "elapsed_seconds": 9.497688055038452,
+  "source_sha256": "ef4c700dabf5514084f0d2a642756a67cbd0282ce9d5696a95328aa8300bde65",
+  "project_config_explicit": true,
+  "tests": [
+    "test_writer_cannot_change_owner_scope_or_read_sources_by_claiming_planning",
+    "test_reclassification_cannot_rewrite_import_or_apply_owner_answer_to_a_new_version",
+    "test_owner_may_resolve_source_precedence_but_cannot_implicitly_approve_a_calculation"
+  ],
+  "counts_separate_from_full_suite": true,
+  "paid_model_calls": 0,
+  "purpose": "Existing successful operator workflows for requirements authority, source access and classification; same checks used for accepted M5 coverage.",
+  "cleanup": {
+    "project_config_explicit": true,
+    "passed": 3,
+    "configured_run_temp_removed_automatically": true,
+    "one_time_cleanup_of_prior_unconfigured_passing_root": {
+      "files": 42,
+      "allocated_bytes": 1290240,
+      "reason": "The earlier external test invocation did not discover project pytest configuration; its successful case data was verified before removal. Logs and test source retained."
+    },
+    "remaining_test_files": 0
+  }
+}
