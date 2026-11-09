@@ -4,7 +4,7 @@ import json
 from collections import defaultdict, deque
 from sqlite3 import Connection
 
-from .ids import request_digest
+from .ids import request_digest, canonical_json
 
 
 _ENDED = {"retracted", "superseded"}
@@ -163,6 +163,8 @@ def _readable_body(body, permitted):
         claim["basis"] = [key for key in claim["basis"] if key in permitted]
     if claim.get("citation") and claim["citation"]["source_version"] not in permitted:
         claim.pop("citation")
+    if claim.get("artifact_ref") and canonical_json(claim["artifact_ref"]) not in permitted:
+        claim.pop("artifact_ref")
     if claim.get("warrant") and claim["warrant"]["criterion"] not in permitted:
         claim.pop("warrant")
     if claim.get("adjustment"):

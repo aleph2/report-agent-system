@@ -53,6 +53,18 @@
       "summary": "m3-assessment-1 binds the typed calculator assessment to a derived assertion. Scored, pending-review and unscored results distinguish adopted scores from draft arithmetic and carry bounds, robustness, missing or interrupted inputs and the projection digest. Empty inputs are valid only for an unscored assessment naming missing indicators.",
       "owner_record": "Owner chat, 2026-11-08, following the source observation date discussion: “Acknowledge M1, M2 and M3; start M4.”",
       "status": "acknowledged"
+    },
+    {
+      "id": "M7",
+      "date": "2026-11-09",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "99b3d512882297a8e5c9b2280c34e64fef47850c",
+      "before_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "after_sha256": "4a4da24abf2b4be11e00419abb6eeb8c38b5dd742646b2d166c656f553bbedc9",
+      "summary": "Optional typed Derived.artifact_ref identifies an immutable ContentNode, DocumentSnapshot or CommissionOutcome. Omitted when absent; existing serialized records and schema versions unchanged. Artifact provenance cannot carry a numeric value or assessment. The required native-provenance and stale-export consumer remains an M7 acceptance condition; aggregate integration currently awaits a separately acknowledged C5 amendment.",
+      "owner_record": "Owner chat 2026-11-09, response to M7 proposal: approve option 1 subject to actual staleness/export consumption and assembler producer identity. Reuse existing calculator action/permissions, no release authority. M4/M5 JSON references remain on the 9a list.",
+      "status": "acknowledged"
     }
   ]
 }

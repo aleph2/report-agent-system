@@ -1,0 +1,25 @@
+{
+  "schema_commit": "99b3d512882297a8e5c9b2280c34e64fef47850c",
+  "main": "48fabae8606d25bd4ca20df219fc9968f2b07df4",
+  "vocabulary_regression": {
+    "passed": 209,
+    "failed": 0,
+    "seconds": 25.50939917564392,
+    "exit_code": 0
+  },
+  "aggregate_reproduction": {
+    "exit_code": 1,
+    "desired_artifact_outcome": "Refused by C5; desired acceptance awaits owner-acknowledged check amendment",
+    "negative_control": "Ordinary derivation remains correctly refused by C5",
+    "outcomes": {
+      "failed": 1,
+      "passed": 1
+    }
+  },
+  "checks_sql_changed": false,
+  "action_catalog_changed": false,
+  "model_calls": 0,
+  "scope": "Preparation only; no M7 implementation, stale-export consumer or final full-regression claim",
+  "test_reproduction": "test_aggregate_gate.py",
+  "independent_design_review": "/root/m6_review confirmed C5 obstacle and lineage-only proposal; no implementation approval implied"
+}

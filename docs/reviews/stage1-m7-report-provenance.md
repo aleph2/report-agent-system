@@ -1,6 +1,6 @@
 # M7: report provenance
 
-Status: proposal for the owner; no M7 application code changed. Baseline is accepted M6 `48fabae8606d25bd4ca20df219fc9968f2b07df4`. The first M7 action, a full offline regression of that exact revision, passed 6,150 tests with nine unchanged conditional skips. Automatic cleanup left no passing-case files outside caches. See the [baseline verification record](../verification/stage1-m7-baseline/README.md). Main stays at accepted M6 until M7 is reviewed and accepted.
+Status: M7 in progress. The optional result-reference vocabulary is implemented and tested; aggregate provenance awaits acknowledgment of the additional C5 finding below. Baseline is accepted M6 `48fabae8606d25bd4ca20df219fc9968f2b07df4`. The first M7 action, a full offline regression of that exact revision, passed 6,150 tests with nine unchanged conditional skips. Automatic cleanup left no passing-case files outside caches. See the [baseline verification record](../verification/stage1-m7-baseline/README.md). Main stays at accepted M6 until M7 is reviewed and accepted.
 
 ## Requirement and scope
 
@@ -53,11 +53,26 @@ For an artifact derivation:
 - Existing inputs/grounds identify the actual plan authority and antecedent assertions. Existing strength checks stay intact: successful assembly does not by itself establish engineering certainty.
 - The assertion records provenance only. It does not approve, independently review, release or sign the report.
 
-This moves only the typed case-version reference needed by M7 forward from the section 9a vocabulary sweep. The remaining reference cleanup stays in 9a. It is an additive amendment to `kinds.py`, logged under the existing S2 amendment process; no new schema version, action, role or SQL-check relaxation is proposed. Implementation waits for the owner's acknowledgment.
+This moves only the typed case-version reference needed by M7 forward from the section 9a vocabulary sweep. The remaining reference cleanup stays in 9a. It is an additive amendment to `kinds.py`, logged under the existing S2 amendment process; no new schema version, action, role or SQL-check relaxation is proposed. The owner acknowledged this vocabulary addition subject to actual stale-export consumption and assembler attribution; those conditions remain M7 acceptance tests. The additional C5 integration finding below needs a separate check acknowledgment.
 
 Independent alignment reviewer `/root/m6_review` checked the scope and this choice: extending `Derived` is smaller and semantically sound; a separate claim kind/action is unnecessary. This is design review, not implementation verification.
 
-## Implementation after acknowledgment
+## Implementation plan and integration findings
+
+### Additional C5 integration finding: acknowledgment needed
+
+The owner acknowledged the optional reference with two conditions: an actual staleness/export consumer and the assembler's own producer identity. The field is implemented additively at `99b3d51` and its original serialized numeric shape is unchanged. The dated vocabulary amendment is logged in `s2-amendments.json`.
+
+[Authenticated reproduction and negative control](../verification/stage1-m7-c5/README.md) found a separate, concrete obstacle in `checks.sql` C5: a report artifact for the report subject cannot list inputs belonging to slopes A and B without confirmed cross-subject transfer conventions. The desired artifact test fails with `C5: Cross-subject support needs a current confirmed transfer with matching scope`; the ordinary non-artifact derivation control passes by retaining that refusal. The test uses the real `AssertionHost`/`derive_result` path, not a mocked validator. `/root/m6_review` independently confirmed the cause and ruled out omitting inputs, changing their subjects or inventing owner-confirmed transfer conventions.
+
+Impact: P2, confined to publishing aggregate M7 provenance; it blocks completing M7 aggregation and its staleness test. Accepted main and existing report behavior remain at `48fabae`. No SQL check has been changed. The proposed disposition is a second, dated S2 acknowledgment:
+
+- Only a `derive_result` under the existing calculator capability, with a valid `artifact_ref` and no numeric `value` or `assessment`, may use cross-subject **input lineage** without a transfer convention.
+- C5 stays unchanged for numeric derivations, judgments, recommendations, conflicts, and grounds with classification, assumption, adjustment or context purposes.
+- C4 still requires the exact issued packet and existing inputs. C10 still limits result strength. The trusted assembler supplies the exact case-version result; no model-facing permission is added.
+- Keep every input ID so that actual source/judgment supersession propagates to the artifact and is consumed by export. This exemption records that the report contains both slopes; it does not apply one slope's evidence to the other.
+
+The minimal SQL change is a provenance-only predicate in C5, not a catalog/role change. It will be logged separately in `s2-amendments.json` only after the owner acknowledges it. Tests must prove the aggregate artifact succeeds, stale-input export fails, numeric and judgment transfers still refuse, and non-input grounds are not exempted. The original proposal's expectation that no SQL change was needed is superseded by this reproduced integration finding.
 
 Main owns the M7 application changes, tests and Git operations. No other writing owner is assigned.
 
@@ -90,6 +105,6 @@ The engineering lead is still unnamed. The 11 pilot criteria and HP02 page 115 r
 
 ## Skills and evidence limits
 
-Main applied the using-agent-skills phase selection, Git workflow for the fixed baseline and milestone branch, and the TDD workflow's existing full-suite runner. Migration and incremental-implementation guidance were used to separate active consumers from O4-deferred work. Ponytail guided reuse of the existing result/action rather than a new agent or generic receipt framework. Test-first application changes have not started pending the S2 acknowledgment.
+Main applied the using-agent-skills phase selection, Git workflow for the fixed baseline and milestone branch, and the TDD workflow's existing full-suite runner. Migration and incremental-implementation guidance were used to separate active consumers from O4-deferred work. Ponytail guided reuse of the existing result/action rather than a new agent or generic receipt framework. The artifact-reference shape and packet boundary were developed with RED/GREEN tests; 209 surrounding checks passed. Full report integration awaits the additional C5 acknowledgment. Independent preparation review by `/root/m6_review` also passed the two provenance tests; it does not establish the pending stale-export consumer.
 
 No relevant existing Graphify graph was found in this checkout or the previously used project locations, and the native environment has neither its package nor CLI. Current source readers and call sites were inspected directly; no graph query, installation or fresh graph build is claimed. Langfuse, prompt design and paid model evaluation are outside this storage-only opening step. The independent alignment review was performed by `/root/m6_review`; it establishes the proposal's scope and semantics, not a completed implementation.

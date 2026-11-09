@@ -6,7 +6,7 @@ from pydantic import TypeAdapter
 
 from .authority import authority_projection
 from .evidence import evidence_projection, normalize_judgment
-from .ids import assertion_id, request_digest
+from .ids import assertion_id, request_digest, canonical_json
 from .queries import _dependencies, assertion_states
 from .refusals import CATALOG, enforce
 from .schema.kinds import Assertion, Claims, Ground, is_canonical_id
@@ -24,6 +24,8 @@ def _check_packet(row, packet):
     refs.update(claim.get("disclosed_gaps", ()))
     refs.update(claim.get(k) for k in ("target", "successor", "snapshot"))
     refs.add((claim.get("citation") or {}).get("source_version"))
+    if claim.get("artifact_ref"):
+        refs.add(canonical_json(claim["artifact_ref"]))
     if pair := claim.get("pair"):
         refs.add(pair["snapshot"])
         refs.update(pair["records"])

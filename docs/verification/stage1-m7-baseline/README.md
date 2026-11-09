@@ -19,6 +19,6 @@ The recorded Fake03 replay preserved 16 rows: ten controls, four refused origina
 
 ## Next step
 
-M7 application implementation awaits acknowledgment of the [minimal S2 amendment](../../reviews/stage1-m7-report-provenance.md): an optional typed artifact result reference on `Derived`, reusing the existing trusted calculator action. Main remains at the fully tested `48fabae`; the M7 branch currently contains only this baseline record and its proposal. The final M7 implementation will need its own regression, tag and owner review.
+The owner has acknowledged the optional typed artifact result reference, subject to assembler attribution and an actual stale-export consumer. The additive field passed its focused test at `99b3d51`. A subsequent authenticated reproduction found that C5 rejects required aggregate lineage across A and B; the [narrow additional check amendment](../stage1-m7-c5/README.md) awaits acknowledgment. Main remains at the fully tested `48fabae`. M7 is not yet implemented or tagged; it will need its own full regression and review after integration.
 
 The engineering lead remains unnamed. The 11 criteria and HP02 page 115 remain pending human review and are not supplied by this baseline run.
