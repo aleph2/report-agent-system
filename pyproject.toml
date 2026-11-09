@@ -25,3 +25,5 @@ report_agent = ["static/*", "rules/*.md", "methods/*.json", "assertions/schema/*
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+tmp_path_retention_policy = "failed"
+tmp_path_retention_count = 1
