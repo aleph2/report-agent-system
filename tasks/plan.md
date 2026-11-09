@@ -1170,7 +1170,7 @@ At M4 start the Coordinator stops supplying observation-time metadata. A date us
 
 M4 opened with the shared confirmed-plan test fixture. It submits through the Coordinator and applies a synthetic operator reply through the regular checkpoint. The approval test exercises an amended proposal and reopens the prior immutable decision. The next migration step is to query the confirmed plan and decision by their exact versions, including the requirements version and owner choices. Independent intake review identified that a Coordinator endorsement or an answer to an unrelated question cannot establish plan approval. Section 9a's Writer extraction belongs after M10 and before the separately authorized paid Fake03 run.
 
-The owner accepted the observation-time fix at `8893c1d`. The owner ran 150 offline tests and the team ran 235 focused tests, including the LangChain-dependent modules. At the end of M4, run the full offline repository suite once on the completed candidate, record its commit, results and skips, then tag that verified revision for owner review. Use focused tests for individual fixes.
+The owner accepted the observation-time fix at `8893c1d`. The reviewer ran 150 offline tests, all of which passed. The team separately ran 235 focused tests, including the LangChain-dependent modules, and all 235 passed. At the end of M4, run the full offline repository suite once on the completed candidate, record its commit, results and skips, then tag that verified revision for owner review. Use focused tests for individual fixes.
 
 ### October compatibility replay and M4 handoff
 
