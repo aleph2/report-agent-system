@@ -3,7 +3,7 @@ from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from . import legacy_state as legacy
 from .assertion_host import AssertionHost, Grant
@@ -47,6 +47,16 @@ def install_historical_refs(db, plan, decision):
     db.execute("CREATE TABLE imported_historical_plan(kind TEXT PRIMARY KEY, ref TEXT NOT NULL)")
     db.executemany("INSERT INTO imported_historical_plan VALUES (?,?)",
                    [(ref['type'], encode(ref)) for ref in (plan, decision)])
+
+
+def first_plan_id(store, actor, call):
+    """An independent commission starts fresh; its persisted grant pins a retry's subject."""
+    principal = str(uuid5(NAMESPACE_URL, actor.id))
+    grant = AssertionHost(store.root).lookup((principal, actor.role, actor.task_id, 'plan-action:' + call))
+    if grant is None:
+        return str(uuid4())
+    subject, = grant.subjects
+    return subject
 
 
 def stable_id(actor, call, item):

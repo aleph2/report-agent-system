@@ -171,3 +171,25 @@ def test_owner_confirmation_binds_the_pinned_template_profile_payload(commission
         db.execute('UPDATE content_versions SET data=? WHERE type=?', (encode(profile), 'PlanTextProfiles'))
     with pytest.raises(ActionRejected, match='AUTHORITY_INPUT_MISMATCH'):
         confirmed_records(commission)
+
+
+def test_independent_first_submissions_and_relocated_split_retry(commission, tmp_path_factory):
+    from shutil import copytree
+    from report_agent.content_store import ContentStore
+    from report_agent.store import Store
+
+    cs = commission.cs
+    other = ContentStore(Store(copytree(cs.store.root, tmp_path_factory.mktemp('independent') / 'case')))
+    with cs.store.connect() as db, sqlite3.connect(':memory:') as before:
+        db.backup(before)
+        saved = save(commission)
+        before.backup(db)
+    moved = ContentStore(Store(copytree(cs.store.root, tmp_path_factory.mktemp('relocated') / 'case')))
+
+    def submit(case):
+        return commission_plan.save_plan(case, commission.co, 'save-plan', commission.plan)['result']
+
+    independent = submit(other)
+    assert independent['plan_ref'] != saved['plan_ref']
+    assert set(r['id'] for r in independent['inventory_refs']).isdisjoint(r['id'] for r in saved['inventory_refs'])
+    assert submit(moved) == saved

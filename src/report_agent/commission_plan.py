@@ -713,6 +713,7 @@ def save_plan(cs, actor, operation_id, plan):
                  for r in old['payload']['inventory_refs']} if old else {}
         if not prior.keys() <= set(ids):
             raise ActionRejected('COMMISSION_OBJECT_REMOVAL_REQUIRES_RETAINED_RECORD')
+        plan_id = old_ref['id'] if old_ref else plan_authority.first_plan_id(cs.store, actor, operation_id)
         inventory = []
         for obj in plan['objects']:
             previous = prior.get(obj['object_id'])
@@ -724,9 +725,8 @@ def save_plan(cs, actor, operation_id, plan):
                 inventory.append(cs._insert(db, actor, 'Requirement', payload,
                     **({'id': previous['ref']['id'], 'version': previous['ref']['version'] + 1,
                         'previous_ref': previous['ref']} if previous else {
-                            'id': plan_authority.stable_id(actor, operation_id, ['inventory', obj['object_id']])})))
-        ref = {'type': 'CommissionPlan',
-               'id': old_ref['id'] if old_ref else plan_authority.stable_id(actor, operation_id, 'plan'),
+                            'id': plan_authority.stable_id(actor, operation_id, ['inventory', plan_id, obj['object_id']])})))
+        ref = {'type': 'CommissionPlan', 'id': plan_id,
                'version': old_ref['version'] + 1 if old_ref else 1}
         payload = {**plan, 'inventory_refs': inventory,
                    **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})}
