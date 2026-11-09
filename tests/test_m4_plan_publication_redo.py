@@ -42,6 +42,10 @@ def test_owner_content_crash_does_not_resolve_checkpoint(commission, monkeypatch
     saved = save(commission)
     issue_id = commission_plan.request_checkpoint(commission.ws)["issue_id"]
     answer = dict(plan_ref=saved["plan_ref"], approved=True, corrections="", reductions=[])
+    with pytest.raises(ActionRejected, match="COMMISSION_REDUCTION_OBJECT_INVALID"):
+        commission_plan.reply(commission.ws, issue_id, {**answer, "reductions": [
+            {"object_id": "outside-the-plan", "reason": "Excluded"}]})
+    assert not commission.cs.list_objects("CommissionDecision")
     with monkeypatch.context() as patch:
         patch.setattr(plan_authority, "decide", interrupt, raising=False)
         with pytest.raises(RuntimeError, match="before assertion"):
@@ -54,6 +58,8 @@ def test_owner_content_crash_does_not_resolve_checkpoint(commission, monkeypatch
     with pytest.raises(ActionRejected, match="ALREADY_ANSWERED"):
         commission_plan.reply(commission.ws, issue_id, {**answer, "approved": False, "corrections": "Different"})
     commission_plan.reply(commission.ws, issue_id, answer)
+    with pytest.raises(ActionRejected, match="ALREADY_ANSWERED"):
+        commission_plan.reply(commission.ws, issue_id, {**answer, "approved": False, "corrections": "Different"})
     assert confirmed_records(commission)[1] == decision
     assert commission.cs.list_objects("CommissionDecision") == [decision]
 

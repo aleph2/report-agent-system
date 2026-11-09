@@ -206,31 +206,34 @@ src/report_agent/cli.py	129	main	accessor	read	get_content_delivery	content_deli
 src/report_agent/cli.py	140	main	accessor	read	get_content_final_review	content_final_review
 src/report_agent/cli.py	165	main	accessor	read	get_decision_observation	decision_observation
 src/report_agent/cli.py	167	main	property	read	store.manifest	manifest
-src/report_agent/commission_carryover.py	34	rows	helper	read	KEY	commission_carryover
-src/report_agent/commission_carryover.py	52	decorate	helper	read	KEY	commission_carryover
-src/report_agent/commission_carryover.py	59	gaps	helper	read	KEY	commission_carryover
-src/report_agent/commission_carryover.py	126	install_carryover	helper	read	KEY	commission_carryover
-src/report_agent/commission_carryover.py	167	install_carryover	helper	write	KEY	commission_carryover
-src/report_agent/commission_carryover.py	179	save	helper	read	KEY	commission_carryover
-src/report_agent/commission_carryover.py	193	save	helper	write	KEY	commission_carryover
-src/report_agent/commission_owner_records.py	124	install_owner_records	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_owner_records.py	133	install_owner_records	accessor	write	set_commission_owner_records	commission_owner_records
-src/report_agent/commission_owner_records.py	139	_registry	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_plan.py	446	_state	sql	read	key	@helper
-src/report_agent/commission_plan.py	451	_set	sql	write	key	@helper
-src/report_agent/commission_plan.py	632	save	accessor	read	get_commission_source_roles	commission_source_roles
-src/report_agent/commission_plan.py	913	request_checkpoint	accessor	write	set_commission_checkpoint	commission_checkpoint:*
-src/report_agent/commission_plan.py	990	_write_confirmation_checklist	accessor	write	set_commission_checkpoint	commission_checkpoint:*
-src/report_agent/commission_plan.py	1008	reply	accessor	read	get_commission_checkpoint	commission_checkpoint:*
-src/report_agent/commission_plan.py	1012	reply	accessor	read	get_report_issues	report_issues
-src/report_agent/commission_plan.py	1030	reply	accessor	write	set_report_issues	report_issues
-src/report_agent/commission_plan.py	1052	reply	accessor	write	set_report_issues	report_issues
-src/report_agent/commission_plan.py	1053	reply	helper	read	'context_revision'	context_revision
-src/report_agent/commission_plan.py	1053	reply	helper	write	'context_revision'	context_revision
-src/report_agent/commission_plan.py	1054	reply	helper	write	'report_status'	report_status
-src/report_agent/commission_plan.py	1060	reply	accessor	write	set_report_issues	report_issues
-src/report_agent/commission_plan.py	1089	snapshot_outcomes	accessor	read	iter_commission_outcomes	commission_outcome:*
-src/report_agent/commission_plan.py	1128	save	accessor	write	set_commission_outcome	commission_outcome:*
+src/report_agent/commission_carryover.py	35	rows	helper	read	KEY	commission_carryover
+src/report_agent/commission_carryover.py	53	decorate	helper	read	KEY	commission_carryover
+src/report_agent/commission_carryover.py	60	gaps	helper	read	KEY	commission_carryover
+src/report_agent/commission_carryover.py	127	install_carryover	helper	read	KEY	commission_carryover
+src/report_agent/commission_carryover.py	168	install_carryover	helper	write	KEY	commission_carryover
+src/report_agent/commission_carryover.py	180	save	helper	read	KEY	commission_carryover
+src/report_agent/commission_carryover.py	194	save	helper	write	KEY	commission_carryover
+src/report_agent/commission_owner_records.py	126	install_owner_records	accessor	read	get_commission_owner_records	commission_owner_records
+src/report_agent/commission_owner_records.py	135	install_owner_records	accessor	write	set_commission_owner_records	commission_owner_records
+src/report_agent/commission_owner_records.py	141	_registry	accessor	read	get_commission_owner_records	commission_owner_records
+src/report_agent/commission_plan.py	447	_state	sql	read	key	@helper
+src/report_agent/commission_plan.py	452	_set	sql	write	key	@helper
+src/report_agent/commission_plan.py	638	save	accessor	read	get_commission_source_roles	commission_source_roles
+src/report_agent/commission_plan.py	938	request_checkpoint	accessor	write	set_commission_checkpoint	commission_checkpoint:*
+src/report_agent/commission_plan.py	1017	_write_confirmation_checklist	accessor	write	set_commission_checkpoint	commission_checkpoint:*
+src/report_agent/commission_plan.py	1035	reply	accessor	read	get_commission_checkpoint	commission_checkpoint:*
+src/report_agent/commission_plan.py	1039	reply	accessor	read	get_report_issues	report_issues
+src/report_agent/commission_plan.py	1059	reply	accessor	write	set_report_issues	report_issues
+src/report_agent/commission_plan.py	1094	reply	accessor	read	get_report_issues	report_issues
+src/report_agent/commission_plan.py	1107	reply	accessor	write	set_report_issues	report_issues
+src/report_agent/commission_plan.py	1108	reply	helper	read	'context_revision'	context_revision
+src/report_agent/commission_plan.py	1108	reply	helper	write	'context_revision'	context_revision
+src/report_agent/commission_plan.py	1110	reply	helper	write	'report_status'	report_status
+src/report_agent/commission_plan.py	1116	reply	accessor	read	get_report_issues	report_issues
+src/report_agent/commission_plan.py	1118	reply	accessor	read	get_commission_checkpoint	commission_checkpoint:*
+src/report_agent/commission_plan.py	1120	reply	accessor	write	set_report_issues	report_issues
+src/report_agent/commission_plan.py	1149	snapshot_outcomes	accessor	read	iter_commission_outcomes	commission_outcome:*
+src/report_agent/commission_plan.py	1188	save	accessor	write	set_commission_outcome	commission_outcome:*
 src/report_agent/commission_planning.py	217	install_classifications	accessor	write	set_commission_requirements	commission_requirements
 src/report_agent/commission_planning.py	262	install_reviewed_entries	helper	read	CATALOG	commission_reviewed_entries
 src/report_agent/commission_planning.py	285	install_reviewed_entries	helper	write	CATALOG	commission_reviewed_entries
@@ -253,18 +256,18 @@ src/report_agent/commission_planning.py	872	reply_requirements	helper	read	'cont
 src/report_agent/commission_planning.py	872	reply_requirements	helper	write	'context_revision'	context_revision
 src/report_agent/commission_planning.py	873	reply_requirements	helper	write	'report_status'	report_status
 src/report_agent/commission_planning.py	1023	install_prepared_planning	helper	read	CATALOG	commission_reviewed_entries
-src/report_agent/commission_requirements.py	206	read_requirements	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	222	install_requirements	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	232	install_requirements	accessor	write	set_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	233	install_requirements	helper	read	'manifest'	manifest
-src/report_agent/commission_requirements.py	233	install_requirements	helper	write	'manifest'	manifest
-src/report_agent/commission_requirements.py	241	_write_items	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	274	_write_items	accessor	write	set_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	314	check_plan	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	390	check_plan	accessor	read	get_commission_source_roles	commission_source_roles
-src/report_agent/commission_skeleton.py	29	_current	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/commission_skeleton.py	140	prepare_skeleton	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_skeleton.py	273	validate_skeleton	accessor	read	get_commission_owner_records	commission_owner_records
+src/report_agent/commission_requirements.py	207	read_requirements	accessor	read	get_commission_requirements	commission_requirements
+src/report_agent/commission_requirements.py	223	install_requirements	accessor	read	get_commission_requirements	commission_requirements
+src/report_agent/commission_requirements.py	233	install_requirements	accessor	write	set_commission_requirements	commission_requirements
+src/report_agent/commission_requirements.py	234	install_requirements	helper	read	'manifest'	manifest
+src/report_agent/commission_requirements.py	234	install_requirements	helper	write	'manifest'	manifest
+src/report_agent/commission_requirements.py	242	_write_items	accessor	read	get_commission_requirements	commission_requirements
+src/report_agent/commission_requirements.py	275	_write_items	accessor	write	set_commission_requirements	commission_requirements
+src/report_agent/commission_requirements.py	315	check_plan	accessor	read	get_commission_requirements	commission_requirements
+src/report_agent/commission_requirements.py	391	check_plan	accessor	read	get_commission_source_roles	commission_source_roles
+src/report_agent/commission_skeleton.py	30	_current	accessor	read	get_commission_requirements	commission_requirements
+src/report_agent/commission_skeleton.py	141	prepare_skeleton	accessor	read	get_commission_owner_records	commission_owner_records
+src/report_agent/commission_skeleton.py	274	validate_skeleton	accessor	read	get_commission_owner_records	commission_owner_records
 src/report_agent/content_delivery.py	13	_legacy_current_delivery	accessor	read	get_content_delivery	content_delivery
 src/report_agent/content_delivery.py	13	_legacy_current_delivery	accessor	read	get_content_final_review	content_final_review
 src/report_agent/content_delivery.py	53	current_delivery	accessor	read	get_content_delivery	content_delivery
@@ -278,12 +281,12 @@ src/report_agent/content_export.py	491	read_export	store	read	'manifest'	manifes
 src/report_agent/content_export.py	510	prepare	store	read	'manifest'	manifest
 src/report_agent/content_export.py	531	execute	store	read	'manifest'	manifest
 src/report_agent/content_export.py	568	finalize	store	read	'manifest'	manifest
-src/report_agent/content_store.py	219	import_inputs	property	read	self.store.manifest	manifest
-src/report_agent/content_store.py	267	save	sql	read	SELECT value FROM state WHERE key='content_revision_limit'	content_revision_limit
-src/report_agent/content_store.py	327	save	helper	write	prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id'])	g6_object_prose:*,g6_section_prose:*
-src/report_agent/content_store.py	434	_snapshot_payload	property	read	self.store.manifest	manifest
+src/report_agent/content_store.py	221	import_inputs	property	read	self.store.manifest	manifest
+src/report_agent/content_store.py	269	save	sql	read	SELECT value FROM state WHERE key='content_revision_limit'	content_revision_limit
+src/report_agent/content_store.py	329	save	helper	write	prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id'])	g6_object_prose:*,g6_section_prose:*
 src/report_agent/content_store.py	436	_snapshot_payload	property	read	self.store.manifest	manifest
-src/report_agent/content_store.py	829	save	accessor	write	set_content_final_review	content_final_review
+src/report_agent/content_store.py	438	_snapshot_payload	property	read	self.store.manifest	manifest
+src/report_agent/content_store.py	836	save	accessor	write	set_content_final_review	content_final_review
 src/report_agent/content_tasks.py	360	delegated_task	property	read	workspace.store.manifest	manifest
 src/report_agent/content_tasks.py	402	register	sql	write	'source_use_task_binding:' + task_ref['id']	source_use_task_binding:*
 src/report_agent/content_tasks.py	424	delegated_task	store	read	'source_use_task_binding:' + resumed	source_use_task_binding:*
@@ -528,57 +531,57 @@ src/report_agent/legacy_state.py	53	get_assessment_receipt	helper	read	'assessme
 src/report_agent/legacy_state.py	57	get_g6_assessment	helper	read	'g6_assessment:' + suffix	g6_assessment:*
 src/report_agent/legacy_state.py	61	get_g6_assessment_producer	helper	read	'g6_assessment_producer:' + suffix	g6_assessment_producer:*
 src/report_agent/legacy_state.py	65	get_commission_plan	helper	read	'commission_plan'	commission_plan
-src/report_agent/legacy_state.py	73	get_commission_confirmation	helper	read	'commission_confirmation'	commission_confirmation
-src/report_agent/legacy_state.py	81	get_commission_skeleton	helper	read	COMMISSION_SKELETON_KEY	commission_skeleton
-src/report_agent/legacy_state.py	89	get_commission_planning_draft	helper	read	COMMISSION_PLANNING_DRAFT_KEY	commission_planning_draft
-src/report_agent/legacy_state.py	97	get_commission_text_profiles	helper	read	'commission_text_profiles'	commission_text_profiles
-src/report_agent/legacy_state.py	105	get_commission_requirements	helper	read	COMMISSION_REQUIREMENTS_KEY	commission_requirements
-src/report_agent/legacy_state.py	109	set_commission_requirements	helper	write	COMMISSION_REQUIREMENTS_KEY	commission_requirements
-src/report_agent/legacy_state.py	113	get_commission_requirements_checkpoint	helper	read	'commission_requirements_checkpoint:' + suffix	commission_requirements_checkpoint:*
-src/report_agent/legacy_state.py	117	set_commission_requirements_checkpoint	helper	write	'commission_requirements_checkpoint:' + suffix	commission_requirements_checkpoint:*
-src/report_agent/legacy_state.py	121	get_commission_source_roles	helper	read	'commission_source_roles'	commission_source_roles
-src/report_agent/legacy_state.py	125	set_commission_source_roles	helper	write	'commission_source_roles'	commission_source_roles
-src/report_agent/legacy_state.py	129	get_commission_owner_records	helper	read	COMMISSION_OWNER_RECORDS_KEY	commission_owner_records
-src/report_agent/legacy_state.py	133	set_commission_owner_records	helper	write	COMMISSION_OWNER_RECORDS_KEY	commission_owner_records
-src/report_agent/legacy_state.py	137	get_commission_checkpoint	helper	read	'commission_checkpoint:' + suffix	commission_checkpoint:*
-src/report_agent/legacy_state.py	141	set_commission_checkpoint	helper	write	'commission_checkpoint:' + suffix	commission_checkpoint:*
-src/report_agent/legacy_state.py	145	get_report_issues	helper	read	'report_issues'	report_issues
-src/report_agent/legacy_state.py	149	set_report_issues	helper	write	'report_issues'	report_issues
-src/report_agent/legacy_state.py	153	get_g6_issue_record	helper	read	'g6_issue_record:' + suffix	g6_issue_record:*
-src/report_agent/legacy_state.py	157	set_g6_issue_record	helper	write	'g6_issue_record:' + suffix	g6_issue_record:*
-src/report_agent/legacy_state.py	161	get_g6_issue_binding	helper	read	'g6_issue_binding:' + suffix	g6_issue_binding:*
-src/report_agent/legacy_state.py	165	set_g6_issue_binding	helper	write	'g6_issue_binding:' + suffix	g6_issue_binding:*
-src/report_agent/legacy_state.py	169	get_g6_issue_route	helper	read	'g6_issue_route:' + suffix	g6_issue_route:*
-src/report_agent/legacy_state.py	173	set_g6_issue_route	helper	write	'g6_issue_route:' + suffix	g6_issue_route:*
-src/report_agent/legacy_state.py	177	get_planned_section_receipt	helper	read	'planned_section_receipt:' + suffix	planned_section_receipt:*
-src/report_agent/legacy_state.py	181	set_planned_section_receipt	helper	write	'planned_section_receipt:' + suffix	planned_section_receipt:*
-src/report_agent/legacy_state.py	185	get_assembly_receipt	helper	read	'assembly_receipt:' + suffix	assembly_receipt:*
-src/report_agent/legacy_state.py	189	set_assembly_receipt	helper	write	'assembly_receipt:' + suffix	assembly_receipt:*
-src/report_agent/legacy_state.py	193	get_commission_outcome	helper	read	'commission_outcome:' + suffix	commission_outcome:*
-src/report_agent/legacy_state.py	197	set_commission_outcome	helper	write	'commission_outcome:' + suffix	commission_outcome:*
-src/report_agent/legacy_state.py	201	get_rescue_projection	helper	read	'rescue_projection:' + suffix	rescue_projection:*
-src/report_agent/legacy_state.py	205	set_rescue_projection	helper	write	'rescue_projection:' + suffix	rescue_projection:*
-src/report_agent/legacy_state.py	209	get_content_delivery	helper	read	'content_delivery'	content_delivery
-src/report_agent/legacy_state.py	213	set_content_delivery	helper	write	'content_delivery'	content_delivery
-src/report_agent/legacy_state.py	217	get_content_final_review	helper	read	'content_final_review'	content_final_review
-src/report_agent/legacy_state.py	221	set_content_final_review	helper	write	'content_final_review'	content_final_review
-src/report_agent/legacy_state.py	225	get_corrections	helper	read	'corrections'	corrections
-src/report_agent/legacy_state.py	229	set_corrections	helper	write	'corrections'	corrections
-src/report_agent/legacy_state.py	233	get_source_changes	helper	read	'source_changes'	source_changes
-src/report_agent/legacy_state.py	237	set_source_changes	helper	write	'source_changes'	source_changes
-src/report_agent/legacy_state.py	241	get_result_impact_assessments	helper	read	'result_impact_assessments'	result_impact_assessments
-src/report_agent/legacy_state.py	245	set_result_impact_assessments	helper	write	'result_impact_assessments'	result_impact_assessments
-src/report_agent/legacy_state.py	249	get_decision_observation	helper	read	'decision_observation'	decision_observation
-src/report_agent/legacy_state.py	253	set_decision_observation	helper	write	'decision_observation'	decision_observation
-src/report_agent/legacy_state.py	261	read_completion_authority_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','content_delivery') ORDER BY key	content_delivery,manifest
-src/report_agent/legacy_state.py	265	read_repetition_state_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','feedback','report_issues','issues','context_revision','source_changes','corrections','content_delivery','content_execution_dec	acceptance_default,acceptance_mode,active_rubric_hash,content_delivery,content_execution_decision,context_policy,context_revision,corrections,decision_observation,feedback,issues,knowledge_enabled,manifest,operator_%,report_issues,source_changes
-src/report_agent/legacy_state.py	275	iter_g6_issue_record	sql	read	'g6_issue_record:'	g6_issue_record:*
-src/report_agent/legacy_state.py	279	iter_g6_issue_record_ordered	sql	read	'g6_issue_record:'	g6_issue_record:*
-src/report_agent/legacy_state.py	283	iter_g6_issue_route_ordered	sql	read	'g6_issue_route:'	g6_issue_route:*
-src/report_agent/legacy_state.py	292	iter_commission_outcomes	sql	read	prefix + ':'	commission_outcome:*
-src/report_agent/legacy_state.py	306	read_probe_business_state	sql	read	SELECT key,value FROM state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority_binding
-src/report_agent/legacy_state.py	311	insert_probe_business_state	sql	write	INSERT INTO state VALUES (?,?)	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority:*,source_use_authority_binding
-src/report_agent/legacy_state.py	318	read_review_trial_state	sql	read	keys	active_reviewer_prompt_hash,active_rubric_hash,checkpoint_resume,delivery,knowledge_enabled,knowledge_project_id,manifest,native_interrupts,report_error,report_issues,report_status,rubric_reviews,rubric_status
+src/report_agent/legacy_state.py	69	get_commission_confirmation	helper	read	'commission_confirmation'	commission_confirmation
+src/report_agent/legacy_state.py	73	get_commission_skeleton	helper	read	COMMISSION_SKELETON_KEY	commission_skeleton
+src/report_agent/legacy_state.py	77	get_commission_planning_draft	helper	read	COMMISSION_PLANNING_DRAFT_KEY	commission_planning_draft
+src/report_agent/legacy_state.py	81	get_commission_text_profiles	helper	read	'commission_text_profiles'	commission_text_profiles
+src/report_agent/legacy_state.py	85	get_commission_requirements	helper	read	COMMISSION_REQUIREMENTS_KEY	commission_requirements
+src/report_agent/legacy_state.py	89	set_commission_requirements	helper	write	COMMISSION_REQUIREMENTS_KEY	commission_requirements
+src/report_agent/legacy_state.py	93	get_commission_requirements_checkpoint	helper	read	'commission_requirements_checkpoint:' + suffix	commission_requirements_checkpoint:*
+src/report_agent/legacy_state.py	97	set_commission_requirements_checkpoint	helper	write	'commission_requirements_checkpoint:' + suffix	commission_requirements_checkpoint:*
+src/report_agent/legacy_state.py	101	get_commission_source_roles	helper	read	'commission_source_roles'	commission_source_roles
+src/report_agent/legacy_state.py	105	set_commission_source_roles	helper	write	'commission_source_roles'	commission_source_roles
+src/report_agent/legacy_state.py	109	get_commission_owner_records	helper	read	COMMISSION_OWNER_RECORDS_KEY	commission_owner_records
+src/report_agent/legacy_state.py	113	set_commission_owner_records	helper	write	COMMISSION_OWNER_RECORDS_KEY	commission_owner_records
+src/report_agent/legacy_state.py	117	get_commission_checkpoint	helper	read	'commission_checkpoint:' + suffix	commission_checkpoint:*
+src/report_agent/legacy_state.py	121	set_commission_checkpoint	helper	write	'commission_checkpoint:' + suffix	commission_checkpoint:*
+src/report_agent/legacy_state.py	125	get_report_issues	helper	read	'report_issues'	report_issues
+src/report_agent/legacy_state.py	129	set_report_issues	helper	write	'report_issues'	report_issues
+src/report_agent/legacy_state.py	133	get_g6_issue_record	helper	read	'g6_issue_record:' + suffix	g6_issue_record:*
+src/report_agent/legacy_state.py	137	set_g6_issue_record	helper	write	'g6_issue_record:' + suffix	g6_issue_record:*
+src/report_agent/legacy_state.py	141	get_g6_issue_binding	helper	read	'g6_issue_binding:' + suffix	g6_issue_binding:*
+src/report_agent/legacy_state.py	145	set_g6_issue_binding	helper	write	'g6_issue_binding:' + suffix	g6_issue_binding:*
+src/report_agent/legacy_state.py	149	get_g6_issue_route	helper	read	'g6_issue_route:' + suffix	g6_issue_route:*
+src/report_agent/legacy_state.py	153	set_g6_issue_route	helper	write	'g6_issue_route:' + suffix	g6_issue_route:*
+src/report_agent/legacy_state.py	157	get_planned_section_receipt	helper	read	'planned_section_receipt:' + suffix	planned_section_receipt:*
+src/report_agent/legacy_state.py	161	set_planned_section_receipt	helper	write	'planned_section_receipt:' + suffix	planned_section_receipt:*
+src/report_agent/legacy_state.py	165	get_assembly_receipt	helper	read	'assembly_receipt:' + suffix	assembly_receipt:*
+src/report_agent/legacy_state.py	169	set_assembly_receipt	helper	write	'assembly_receipt:' + suffix	assembly_receipt:*
+src/report_agent/legacy_state.py	173	get_commission_outcome	helper	read	'commission_outcome:' + suffix	commission_outcome:*
+src/report_agent/legacy_state.py	177	set_commission_outcome	helper	write	'commission_outcome:' + suffix	commission_outcome:*
+src/report_agent/legacy_state.py	181	get_rescue_projection	helper	read	'rescue_projection:' + suffix	rescue_projection:*
+src/report_agent/legacy_state.py	185	set_rescue_projection	helper	write	'rescue_projection:' + suffix	rescue_projection:*
+src/report_agent/legacy_state.py	189	get_content_delivery	helper	read	'content_delivery'	content_delivery
+src/report_agent/legacy_state.py	193	set_content_delivery	helper	write	'content_delivery'	content_delivery
+src/report_agent/legacy_state.py	197	get_content_final_review	helper	read	'content_final_review'	content_final_review
+src/report_agent/legacy_state.py	201	set_content_final_review	helper	write	'content_final_review'	content_final_review
+src/report_agent/legacy_state.py	205	get_corrections	helper	read	'corrections'	corrections
+src/report_agent/legacy_state.py	209	set_corrections	helper	write	'corrections'	corrections
+src/report_agent/legacy_state.py	213	get_source_changes	helper	read	'source_changes'	source_changes
+src/report_agent/legacy_state.py	217	set_source_changes	helper	write	'source_changes'	source_changes
+src/report_agent/legacy_state.py	221	get_result_impact_assessments	helper	read	'result_impact_assessments'	result_impact_assessments
+src/report_agent/legacy_state.py	225	set_result_impact_assessments	helper	write	'result_impact_assessments'	result_impact_assessments
+src/report_agent/legacy_state.py	229	get_decision_observation	helper	read	'decision_observation'	decision_observation
+src/report_agent/legacy_state.py	233	set_decision_observation	helper	write	'decision_observation'	decision_observation
+src/report_agent/legacy_state.py	237	read_completion_authority_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','content_delivery') ORDER BY key	content_delivery,manifest
+src/report_agent/legacy_state.py	241	read_repetition_state_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','feedback','report_issues','issues','context_revision','source_changes','corrections','content_delivery','content_execution_dec	acceptance_default,acceptance_mode,active_rubric_hash,content_delivery,content_execution_decision,context_policy,context_revision,corrections,decision_observation,feedback,issues,knowledge_enabled,manifest,operator_%,report_issues,source_changes
+src/report_agent/legacy_state.py	251	iter_g6_issue_record	sql	read	'g6_issue_record:'	g6_issue_record:*
+src/report_agent/legacy_state.py	255	iter_g6_issue_record_ordered	sql	read	'g6_issue_record:'	g6_issue_record:*
+src/report_agent/legacy_state.py	259	iter_g6_issue_route_ordered	sql	read	'g6_issue_route:'	g6_issue_route:*
+src/report_agent/legacy_state.py	268	iter_commission_outcomes	sql	read	prefix + ':'	commission_outcome:*
+src/report_agent/legacy_state.py	282	read_probe_business_state	sql	read	SELECT key,value FROM state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority_binding
+src/report_agent/legacy_state.py	287	insert_probe_business_state	sql	write	INSERT INTO state VALUES (?,?)	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority:*,source_use_authority_binding
+src/report_agent/legacy_state.py	294	read_review_trial_state	sql	read	keys	active_reviewer_prompt_hash,active_rubric_hash,checkpoint_resume,delivery,knowledge_enabled,knowledge_project_id,manifest,native_interrupts,report_error,report_issues,report_status,rubric_reviews,rubric_status
 src/report_agent/live_messages.py	34	_once	sql	read	key	message_call:*,message_offer:*,task_state_frame:*,tool_selection_offer:*
 src/report_agent/live_messages.py	37	_once	sql	write	key	message_call:*,message_offer:*,task_state_frame:*,tool_selection_offer:*
 src/report_agent/live_messages.py	352	finalize_offer	helper	write	'message_offer:' + digest(offer)	message_offer:*
@@ -592,7 +595,7 @@ src/report_agent/method_pack.py	183	register_reviewed_method_pack	sql	read	ident
 src/report_agent/method_pack.py	186	register_reviewed_method_pack	sql	write	identity	reviewed_method_identity:*
 src/report_agent/method_pack.py	187	register_reviewed_method_pack	sql	write	'reviewed_method_pack:' + pack_digest	reviewed_method_pack:*
 src/report_agent/method_pack.py	216	reviewed_method_questions	helper	read	'reviewed_method_pack:' + digest(pack)	reviewed_method_pack:*
-src/report_agent/mini_commission.py	90	prepare_mini_commission	accessor	write	set_commission_source_roles	commission_source_roles
+src/report_agent/mini_commission.py	91	prepare_mini_commission	accessor	write	set_commission_source_roles	commission_source_roles
 src/report_agent/model_config.py	81	bind_role_services	property	read	store.manifest	manifest
 src/report_agent/model_config.py	82	bind_role_services	store	read	'role_model_services'	role_model_services
 src/report_agent/model_config.py	88	bind_role_services	store	read	'role_generation'	role_generation
@@ -636,31 +639,33 @@ src/report_agent/operator_instructions.py	118	sync_operator_instructions	store	r
 src/report_agent/operator_instructions.py	123	sync_operator_instructions	store	read	KEY	prompt_instruction_registry
 src/report_agent/operator_instructions.py	132	sync_operator_instructions	store	write	'operator_instruction_binding'	operator_instruction_binding
 src/report_agent/operator_instructions.py	134	sync_operator_instructions	store	write	'operator_instruction_sync_intent'	operator_instruction_sync_intent
+src/report_agent/plan_authority.py	34	historical_refs	accessor	read	get_commission_confirmation	commission_confirmation
+src/report_agent/plan_authority.py	34	historical_refs	accessor	read	get_commission_plan	commission_plan
 src/report_agent/planning_budget.py	91	approvable_plan	accessor	read	get_report_issues	report_issues
 src/report_agent/planning_budget.py	92	approvable_plan	accessor	read	get_commission_checkpoint	commission_checkpoint:*
-src/report_agent/planning_guard.py	21	fingerprint	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/planning_guard.py	30	record_planning_result	helper	read	KEY	commission_planning_rejections
-src/report_agent/planning_guard.py	47	record_planning_result	accessor	read	get_report_issues	report_issues
-src/report_agent/planning_guard.py	47	record_planning_result	accessor	write	set_report_issues	report_issues
-src/report_agent/planning_guard.py	48	record_planning_result	helper	write	'report_status'	report_status
-src/report_agent/planning_guard.py	49	record_planning_result	helper	read	'context_revision'	context_revision
-src/report_agent/planning_guard.py	49	record_planning_result	helper	write	'context_revision'	context_revision
-src/report_agent/planning_guard.py	52	record_planning_result	helper	write	KEY	commission_planning_rejections
-src/report_agent/planning_guard.py	57	require_resumed	store	read	KEY	commission_planning_rejections
-src/report_agent/planning_guard.py	71	require_resumed	store	read	KEY	commission_planning_rejections
-src/report_agent/planning_guard.py	81	resume_planning	helper	read	KEY	commission_planning_rejections
-src/report_agent/planning_guard.py	82	resume_planning	accessor	read	get_report_issues	report_issues
-src/report_agent/planning_guard.py	93	resume_planning	helper	write	KEY	commission_planning_rejections
-src/report_agent/planning_guard.py	94	resume_planning	accessor	write	set_report_issues	report_issues
-src/report_agent/planning_guard.py	95	resume_planning	helper	write	'report_status'	report_status
-src/report_agent/planning_guard.py	96	resume_planning	helper	read	'context_revision'	context_revision
-src/report_agent/planning_guard.py	96	resume_planning	helper	write	'context_revision'	context_revision
-src/report_agent/planning_guard.py	138	aafter_model	store	read	key	commission_planning_completion_wait
-src/report_agent/planning_guard.py	151	aafter_model	store	write	key	commission_planning_completion_wait
-src/report_agent/planning_guard.py	156	aafter_model	accessor	read	get_report_issues	report_issues
-src/report_agent/probe_case.py	83	prepare_probe_case	accessor	read	read_probe_business_state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority_binding
-src/report_agent/probe_case.py	92	prepare_probe_case	sql	read	key	source_use_authority:*
-src/report_agent/probe_case.py	105	prepare_probe_case	accessor	write	insert_probe_business_state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority:*,source_use_authority_binding
+src/report_agent/planning_guard.py	23	fingerprint	accessor	read	get_commission_requirements	commission_requirements
+src/report_agent/planning_guard.py	32	record_planning_result	helper	read	KEY	commission_planning_rejections
+src/report_agent/planning_guard.py	49	record_planning_result	accessor	read	get_report_issues	report_issues
+src/report_agent/planning_guard.py	49	record_planning_result	accessor	write	set_report_issues	report_issues
+src/report_agent/planning_guard.py	50	record_planning_result	helper	write	'report_status'	report_status
+src/report_agent/planning_guard.py	51	record_planning_result	helper	read	'context_revision'	context_revision
+src/report_agent/planning_guard.py	51	record_planning_result	helper	write	'context_revision'	context_revision
+src/report_agent/planning_guard.py	54	record_planning_result	helper	write	KEY	commission_planning_rejections
+src/report_agent/planning_guard.py	59	require_resumed	store	read	KEY	commission_planning_rejections
+src/report_agent/planning_guard.py	73	require_resumed	store	read	KEY	commission_planning_rejections
+src/report_agent/planning_guard.py	83	resume_planning	helper	read	KEY	commission_planning_rejections
+src/report_agent/planning_guard.py	84	resume_planning	accessor	read	get_report_issues	report_issues
+src/report_agent/planning_guard.py	95	resume_planning	helper	write	KEY	commission_planning_rejections
+src/report_agent/planning_guard.py	96	resume_planning	accessor	write	set_report_issues	report_issues
+src/report_agent/planning_guard.py	97	resume_planning	helper	write	'report_status'	report_status
+src/report_agent/planning_guard.py	98	resume_planning	helper	read	'context_revision'	context_revision
+src/report_agent/planning_guard.py	98	resume_planning	helper	write	'context_revision'	context_revision
+src/report_agent/planning_guard.py	140	aafter_model	store	read	key	commission_planning_completion_wait
+src/report_agent/planning_guard.py	153	aafter_model	store	write	key	commission_planning_completion_wait
+src/report_agent/planning_guard.py	158	aafter_model	accessor	read	get_report_issues	report_issues
+src/report_agent/probe_case.py	89	prepare_probe_case	accessor	read	read_probe_business_state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority_binding
+src/report_agent/probe_case.py	95	prepare_probe_case	sql	read	key	source_use_authority:*
+src/report_agent/probe_case.py	113	prepare_probe_case	accessor	write	insert_probe_business_state	acceptance_default,acceptance_mode,commission_carryover,commission_confirmation,commission_owner_records,commission_plan,commission_requirements,commission_reviewed_entries,commission_skeleton,commission_source_roles,commission_text_profiles,manifest,reviewed_method_pack:*,source_use_authority:*,source_use_authority_binding
 src/report_agent/prompt_instructions.py	64	_read	sql	read	KEY	prompt_instruction_registry
 src/report_agent/prompt_instructions.py	70	_save	sql	write	KEY	prompt_instruction_registry
 src/report_agent/prompt_instructions.py	90	save_instruction	property	read	store.manifest	manifest

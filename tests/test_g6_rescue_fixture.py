@@ -11,7 +11,7 @@ import pytest
 
 from report_agent import plan_authority
 from report_agent.content_models import Ref
-from report_agent.content_store import Actor
+from report_agent.content_store import Actor, ContentStore
 from report_agent.errors import ActionRejected
 from report_agent.material_issues import MaterialIssue, validate_required_issues
 from report_agent.system_assembler import preflight_assembly
@@ -99,20 +99,24 @@ def test_complete_display_arithmetic_without_assessments_is_not_assembly_ready(t
     records[Ref.model_validate(snapshot_ref).key()] = source
     db = sqlite3.connect(':memory:')
     db.execute('CREATE TABLE state(key TEXT PRIMARY KEY,value TEXT)')
+    db.execute('CREATE TABLE content_versions(type TEXT, id TEXT, version INTEGER, data TEXT, PRIMARY KEY(type,id,version))')
+    db.executemany('INSERT INTO content_versions VALUES (?,?,?,?)',
+                   [(*key, json.dumps(value)) for key, value in records.items()])
     plan_authority.install_historical_refs(db, plan_ref, decision_ref)
     db.commit()
+    setup_writes = db.total_changes
     @contextmanager
     def connect():
         db.execute('PRAGMA query_only=ON')
         yield db
     store = SimpleNamespace(root=tmp_path, connect=connect, manifest={})
-    cs = SimpleNamespace(store=store, _read=lambda _, target: deepcopy(records[Ref.model_validate(target).key()]))
+    cs = SimpleNamespace(store=store, _read=ContentStore._read)
     try:
         result = preflight_assembly(cs, Actor('content:coordinator', 'coordinator', 'fixture'),
             source_snapshot_ref=snapshot_ref, prose_bindings={},
             assessment_refs=data['canonical_assessment_refs'], issue_bindings={})
         assert result['ready'] is False
         assert result['missing_assessments'] == sorted(table['object_id'] for table in data['tables'])
-        assert db.total_changes == 2
+        assert db.total_changes == setup_writes
     finally:
         db.close()
