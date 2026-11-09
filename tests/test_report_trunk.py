@@ -466,7 +466,7 @@ def test_adoption_is_explicit_but_exact_review_target_must_be_observed(tmp_path)
                   input_ids=[draft["id"]], target_id=draft["id"], outcome="accepted")
 
 
-def test_human_decision_revision_and_receipt_rollback_together(tmp_path):
+def test_human_decision_authority_survives_projection_rollback_and_redo(tmp_path):
     import sqlite3
     ws = workspace(tmp_path)
     issue = ws.issue("source_conflict", "Conflicting timing", ["access"])
@@ -478,8 +478,21 @@ def test_human_decision_revision_and_receipt_rollback_together(tmp_path):
                       WHEN NEW.kind='human_decision' BEGIN SELECT RAISE(ABORT, 'simulated'); END""")
     with pytest.raises(sqlite3.IntegrityError, match="simulated"):
         ws.decide_issue(issue["id"], "Changed decision", resolved=True)
-    assert ws.status() == before
+    # M6 commits authority separately; only the unfinished case projection rolls back.
+    from report_agent import issue_state
+    assert issue_state.get_wait_projection(ws.store)[0]['decision'] == 'Earlier decision'
+    assert ws.status()['issues'][0]['decision'] == 'Changed decision'
+    assert {k: v for k, v in ws.status().items() if k != 'issues'} == {
+        k: v for k, v in before.items() if k != 'issues'}
     assert ws.store.get("context_revision") == revision
+    with ws.store.connect() as db:
+        db.execute('DROP TRIGGER simulate_commit_failure')
+    ws.decide_issue(issue['id'], 'Changed decision', resolved=True)
+    assert issue_state.get_wait_projection(ws.store)[0]['decision'] == 'Changed decision'
+    assert ws.store.get('context_revision') == revision + 1
+    events = ws.store.events()
+    ws.decide_issue(issue['id'], 'Changed decision', resolved=True)
+    assert ws.store.events() == events
 
 
 def test_new_review_is_effective_everywhere_and_system_failure_is_not_missing_data(tmp_path):

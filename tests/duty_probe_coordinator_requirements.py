@@ -1,11 +1,11 @@
 """Fresh P01 criteria establishment through the unmodified native agent graph.
 
 One imported Requirement contains the three original clauses, as the existing
-from report_agent import issue_state
 import API specifies. Preparation chooses real read tools explicitly as a fake
 setup; later actions use the injected model and ordinary ToolNode. No new C1
 storage, semantic acceptance guard, host completion or report generation.
 """
+from report_agent import issue_state
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
