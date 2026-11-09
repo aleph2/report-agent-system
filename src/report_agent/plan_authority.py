@@ -57,9 +57,6 @@ def _entries(actions):
             continue
         if isinstance(ref, dict) and ref.get('type') == ('CommissionPlan' if proposal else 'CommissionDecision'):
             (plans if proposal else decisions).append((ref, body, status))
-    if not plans and any(action == 'record_convention' for action, _, _ in actions):
-        # A held M4 candidate used opaque rules. Its presence precludes historical approval fallback.
-        raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
     return plans, decisions
 
 

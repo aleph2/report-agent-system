@@ -1193,3 +1193,13 @@ The completed M4 candidate at `1569c674864c9d072d525f16539f13e6f956cdeb` passed 
 ### M4 review correction — one-way plan references
 
 The owner held the first M4 tag because its publication spanned two WAL databases. The replacement at `b23238aed97662642d43d4737b13ec2a22a82c07` commits immutable versions and authority actions separately. The full offline suite passed 6,108 tests with 9 conditional skips. The [revised verification record](../docs/verification/stage1-m4-one-way/README.md) includes the crash, redo and withdrawal checks, coverage and retired-test mapping. Awaiting M4 review.
+
+### M5 opening decisions
+
+The owner accepted revised M4 at `b23238a`. The reviewer independently ran 156 offline tests. The team's full run passed 6,108 with 9 conditional skips. The owner separately confirmed the default-branch move from `8e54420` to `b23238a`; the October tag still pins the old tip.
+
+The operational run and rescue directories contained no assertion database. The HP02 O6 case and its reviewed copy both predate the held M4 tag and contain zero commission-plan conventions. The held-format special case was therefore retired. Real pre-M4 case pins still work, and a newly published version still requires its own owner approval. The replacement for `test_old_unreadable_proposal_cannot_reactivate_pre_m4_approval` is `test_new_proposal_requires_its_own_approval_in_a_pre_m4_case`.
+
+The structural test in `tests/test_store_separation.py` guards the assertion database boundary in application and operator scripts. Three negative controls reproduced direct SQLite opening, a parameterized cross-database attach and importing the private SQLite store. The team ran 37 focused offline checks and reran all three separation checks after adding the private-import control. The independent reviewer ran seven authority and separation checks. The scope for M5 is requirements, source roles, owner records and planning checkpoints.
+
+For the section 9a vocabulary sweep, review adding a typed version reference for the proposal and owner act. Stage 1 carries those references as JSON in the convention's `rule` and the act's `reason`. Any vocabulary change goes through the S2 amendment process.

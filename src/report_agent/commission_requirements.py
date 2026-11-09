@@ -453,7 +453,7 @@ def require_snapshot(cs, db, snapshot):
     plan_ref, decision_ref = payload.get('commission_plan_ref'), payload.get('commission_confirmation_ref')
     plan = cs._read(db, plan_ref) if plan_ref else {}
     decision = cs._read(db, decision_ref) if decision_ref else {}
-    versioned_plan = bool(plan) and ('plan_input_refs' in plan or 'plan_authority' in plan
+    versioned_plan = bool(plan) and ('plan_input_refs' in plan
                                     or plan_authority.has_proposal(db, plan_ref))
     if not anchored and not versioned_plan:
         return  # Older snapshots use the existing material-issue and export checks.
