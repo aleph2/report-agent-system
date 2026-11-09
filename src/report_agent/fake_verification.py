@@ -5,7 +5,7 @@ check and (only with launch authority) run. Supply the trusted authority digest
 separately. init-grant is a one-time action for the entire verification campaign.
 Each preparation owns GRANT/runs/RUN_ID/case, prepared.json, and result.json.
 """
-from . import legacy_state as legacy
+from . import plan_authority
 import argparse
 import asyncio
 from contextlib import closing
@@ -205,9 +205,8 @@ def check_prepared(approval_file, approval_sha256, prepared_sha256):
         db.execute('PRAGMA query_only=ON')
         if db.execute("SELECT 1 FROM content_versions WHERE type IN ('DelegatedTask','Assessment') LIMIT 1").fetchone():
             raise ValueError('FAKE_FRESH_CASE_REQUIRED')
-        raw=legacy.read_probe_plan_pin_rows(db)
-        pins={k:json.loads(v) for k,v in raw}
-        if pins!={'commission_plan':receipt['plan_ref'],'commission_confirmation':receipt['decision_ref']}:
+        if (plan_authority.plan_ref(db) != receipt['plan_ref']
+                or plan_authority.decision_ref(db) != receipt['decision_ref']):
             raise ValueError('FAKE_CONFIRMED_PLAN_CHANGED')
     from .writer_fact_packet import packet_grant
     for oid in receipt['object_ids']:

@@ -2,6 +2,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 import pytest
+from report_agent import plan_authority
 from report_agent.content_store import ContentStore
 from report_agent.writer_runtime import writer_session
 from support.mini_judgments import advance_to_rainfall, gap_input, install_rainfall
@@ -147,7 +148,7 @@ def test_reversed_quotes_preserve_confirmed_issue_source_order(method_commission
         'value':'height not stated in scope','source':f.cite('scope'),
         'reason':'Scope names the object but does not state its height.'})
     saved=save(f,plan);approve(f,saved)
-    original=f.cs.read(f.ws.store.get('commission_confirmation'))
+    original=f.cs.read(plan_authority.decision_ref(f.ws.store))
     required=original['payload']['required_material_issues'][0]
     with f.cs.store.connect() as db:
         task=f.cs._insert(db,f.co,'DelegatedTask',{'role':'writer','goal':'Check slope',

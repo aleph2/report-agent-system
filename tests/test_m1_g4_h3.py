@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.content_store import ContentStore
 from report_agent.source_materials import issue, block_material
@@ -238,7 +239,7 @@ def test_checkpoint_lists_every_proposed_candidate_and_evidence_locations(draft_
     for item in fixture.plan['reconciliations']:
         for citation in item['sources']:
             assert citation['locator'] in brief
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
     assert saved['result']['plan_ref']
 
 
@@ -294,7 +295,7 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
         seen['initial_gap_list'] = value['diagnostic']['gaps']
         paths = ' '.join(g['path'] for g in seen['initial_gap_list'])
         assert all(key in paths for key in ('requirements.', 'sections', 'objects'))
-        assert not cs.list_objects('CommissionPlan') and ws.store.get('commission_confirmation') is None
+        assert not cs.list_objects('CommissionPlan') and plan_authority.decision_ref(ws.store) is None
         return invoke('set_requirement_status', anchor_id=first_anchor['id'], status='required',
             interpretation='Resolve the exact source requirement without changing its classification.')
 
@@ -317,7 +318,7 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
         seen['classified_gap_list'] = value['diagnostic']['gaps']
         paths = ' '.join(g['path'] for g in seen['classified_gap_list'])
         assert all(key in paths for key in ('sections', 'objects', 'scope_boundary')), seen['classified_gap_list']
-        assert not cs.list_objects('CommissionPlan') and ws.store.get('commission_confirmation') is None
+        assert not cs.list_objects('CommissionPlan') and plan_authority.decision_ref(ws.store) is None
         return invoke('read_planning_draft')
 
     steps.append(after_linked_incomplete)
@@ -349,7 +350,7 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
         'planning_errors': planning_errors}, ensure_ascii=False)
     record = api().read_plan(ws.store)
     assert record and record['payload']['method_pack'] and set(record['payload']['table_specs']) == {'ranking', 'evaluation'}
-    assert ws.store.get('commission_confirmation') is None and not cs.list_objects('Assessment')
+    assert plan_authority.decision_ref(ws.store) is None and not cs.list_objects('Assessment')
     issue = next(i for i in ws.store.get('report_issues') if not i['resolved'])
     api().reply(ws, issue['id'], {'plan_ref': record['ref'], 'requirements_ref': record['payload']['requirements_ref'],
         'approved': True, 'corrections': '', 'reductions': []})

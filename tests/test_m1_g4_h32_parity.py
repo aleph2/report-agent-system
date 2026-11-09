@@ -5,6 +5,7 @@ import pytest
 from jsonschema import Draft202012Validator
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
+from report_agent import plan_authority
 from report_agent import commission_planning as planning
 from report_agent.errors import ActionRejected
 from report_agent.native_operation_tools import native_write_tools
@@ -173,7 +174,7 @@ def test_runtime_planning_actions_preserve_structured_gaps_or_fields(draft_case,
         assert gaps and all(gap.get('path') and gap.get('code') for gap in gaps), caught.value.diagnostic
     else:
         assert_fields(caught.value)
-    assert draft_case.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(draft_case.ws.store) is None
 
 
 async def test_native_missing_quote_returns_nested_field_diagnostic(draft_case):

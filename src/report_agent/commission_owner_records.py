@@ -1,5 +1,7 @@
 """Immutable pre-run owner authority, separate from proposals and plan approval."""
+from . import plan_inputs
 from . import legacy_state as legacy
+from . import plan_authority
 from copy import deepcopy
 from hashlib import sha256
 from typing import Literal
@@ -126,7 +128,7 @@ def install_owner_records(cs, bundle, source_refs):
             if previous['digest'] != fingerprint:
                 refuse(None, 'registry', fingerprint, 'owner records are immutable')
             return fingerprint
-        if legacy.get_commission_skeleton(db) or legacy.get_commission_plan(db) or legacy.get_commission_confirmation(db) or legacy.get_commission_planning_draft(db, {}).get('revision'):
+        if plan_inputs.get_skeleton(db) or plan_authority.plan_ref(db) or plan_authority.decision_ref(db) or plan_inputs.get_draft(db, {}).get('revision'):
             refuse(None, 'registry', fingerprint, 'fresh preparation required')
         from .hierarchical_tools import actor_for
         _validate_sources(cs, db, actor_for('coordinator'), bundle)
@@ -155,7 +157,7 @@ def _documents(bundle, section_id, skeleton=None):
 def decorate_plan(cs, db, plan):
     record = _registry(cs, db)
     if not record:
-        skeleton = legacy.get_commission_skeleton(db)
+        skeleton = plan_inputs.get_skeleton(db)
         if skeleton:
             plan = deepcopy(plan)
             for section in plan.get('sections', []):
@@ -170,7 +172,7 @@ def decorate_plan(cs, db, plan):
         sid = section['section_id']
         section['notes'] = list(dict.fromkeys([*section.get('notes', []), *section.get('pending_sources', [])]))
         section['pending_sources'] = []
-        section['missing_documents'] = _documents(bundle, sid, legacy.get_commission_skeleton(db))
+        section['missing_documents'] = _documents(bundle, sid, plan_inputs.get_skeleton(db))
         # Historical string-keyed replacements are history, never authority in the new contract.
         current = {s['document_id']: s for s in section.get('source_substitutions', []) if s.get('document_id')}
         current.update({s['document_id']: {k: deepcopy(v) for k, v in s.items() if k != 'section_id'}
@@ -187,7 +189,7 @@ def validate_owner_records(cs, db, plan):
     registry = _registry(cs, db)
     typed = plan.get('owner_records_digest') or plan.get('owner_records') or any(s.get('missing_documents') for s in plan.get('sections', []))
     if not registry:
-        if typed and not (legacy.get_commission_skeleton(db) and not plan.get('owner_records_digest') and not plan.get('owner_records')):
+        if typed and not (plan_inputs.get_skeleton(db) and not plan.get('owner_records_digest') and not plan.get('owner_records')):
             refuse(None, 'owner_records', 'unbound', 'trusted registry required')
         return
     bundle = registry['bundle']
@@ -195,10 +197,10 @@ def validate_owner_records(cs, db, plan):
         refuse(None, 'owner_records', registry['digest'], 'binding mismatch')
     sections = {s['section_id']: s for s in plan.get('sections', [])}
     for sid, section in sections.items():
-        if section.get('missing_documents', []) != _documents(bundle, sid, legacy.get_commission_skeleton(db)) or section.get('pending_sources'):
+        if section.get('missing_documents', []) != _documents(bundle, sid, plan_inputs.get_skeleton(db)) or section.get('pending_sources'):
             refuse(sid, 'missing_documents', 'registry', 'retain ID-based documents; legacy text belongs in notes')
         for sub in section.get('source_substitutions', []):
-            if not sub.get('document_id') or sub['document_id'] not in {d['id'] for d in _documents(bundle, sid, legacy.get_commission_skeleton(db))}:
+            if not sub.get('document_id') or sub['document_id'] not in {d['id'] for d in _documents(bundle, sid, plan_inputs.get_skeleton(db))}:
                 refuse(sid, 'source_substitutions', sub.get('document_id') or sub['requested_source'], 'registered document ID required')
     objects = {o['object_id']: o for o in plan.get('objects', [])}
     for record in bundle['records']:

@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from report_agent import plan_authority, plan_inputs
 from report_agent.errors import ActionRejected, ActionForbidden
 from test_m1_commission_plan import api
 from test_m1_g3_integration import method_commission
@@ -36,7 +37,7 @@ def test_skeleton_is_not_silently_assumed_when_no_reviewed_spec_exists(draft_cas
     refs = [row["ref"] for row in source_pins(fixture, fixture.plan)]
     with pytest.raises(ActionRejected):
         skeleton_api().prepare_skeleton(fixture.cs, refs)
-    assert not fixture.cs.store.get("commission_skeleton")
+    assert not plan_inputs.get_skeleton(fixture.cs.store)
 
 
 @pytest.fixture
@@ -99,7 +100,7 @@ def test_real_outline_populates_ordered_structure_before_any_section_tool(skelet
     assert plan["deliverables"] == ["Word", "Excel"]
     assert plan["skeleton_digest"] == state["digest"]
     assert not plan.get("objects")
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_skeleton_preserves_reviewed_convention_bindings(skeleton_case):
@@ -120,7 +121,7 @@ def test_skeleton_install_is_idempotent_but_cannot_be_replaced(skeleton_case):
     f.skeleton_spec["deliverables"] = ["Word"]
     with pytest.raises(ActionRejected):
         prepare(f)
-    assert f.cs.store.get("commission_skeleton")["digest"] == first["digest"]
+    assert plan_inputs.get_skeleton(f.cs.store)["digest"] == first["digest"]
 
 
 def test_reviewed_spec_cannot_target_other_requirements(skeleton_case):
@@ -128,7 +129,7 @@ def test_reviewed_spec_cannot_target_other_requirements(skeleton_case):
     f.skeleton_spec["requirements_digest"] = "0" * 64
     with pytest.raises(ActionRejected):
         prepare(f)
-    assert not f.cs.store.get("commission_skeleton")
+    assert not plan_inputs.get_skeleton(f.cs.store)
 
 
 @pytest.mark.parametrize("fault", ["invented-section", "unknown-dependency", "self-dependency"])
@@ -202,7 +203,7 @@ def test_boolean_inclusion_alone_does_not_classify_candidate(skeleton_case):
         planning().submit_plan(f.cs, f.co, "j2-unclassified-submit")
     gaps = exc.value.diagnostic.get("gaps", [])
     assert any("disposition" in str(gap).lower() and obj["object_id"] in str(gap) for gap in gaps), gaps
-    assert not f.cs.store.get("commission_plan")
+    assert not plan_authority.plan_ref(f.cs.store)
 
 
 def test_included_disposition_is_explicit_and_has_no_exclusion_question(skeleton_case):
@@ -229,7 +230,7 @@ def test_proposed_exclusion_generates_nonerasable_owner_question(skeleton_case):
         "question_id": "candidate-exclusion:" + obj["object_id"],
         "text": "Agent claims owner already agreed.", "resolved": True})
     assert assembled(f)["open_questions"] == initial
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_claimed_owner_exclusion_without_owner_record_is_rejected(skeleton_case):
@@ -306,7 +307,7 @@ def test_duplicate_template_heading_requires_only_offered_span_choice(fixed_case
         skeleton_api().resolve_skeleton_question(f.cs, f.co, "j2-invented-choice", question["question_id"], state["digest"], "invented-span")
     selected = question["choices"][1]
     skeleton_api().resolve_skeleton_question(f.cs, f.co, "j2-real-choice", question["question_id"], state["digest"], selected["id"])
-    current = f.cs.store.get("commission_skeleton")
+    current = plan_inputs.get_skeleton(f.cs.store)
     section = next(s for s in current["sections"] if s["section_id"] == "4")
     assert section["text"] == selected["fields"]["text"]
     assert not any(q["question_id"] == question["question_id"] for q in current["questions"])
@@ -341,7 +342,7 @@ def assert_disposition_gap(f, object_id):
         planning().submit_plan(f.cs, f.co, "j2-invalid-disposition-submit")
     gaps = exc.value.diagnostic.get("gaps", [])
     assert any("disposition" in str(gap).lower() and object_id in str(gap) for gap in gaps), gaps
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_template_source_must_be_explicitly_in_preparation_source_refs(fixed_case):
@@ -349,15 +350,16 @@ def test_template_source_must_be_explicitly_in_preparation_source_refs(fixed_cas
     f.skeleton_refs.remove(f.template_ref)
     with pytest.raises(ActionRejected):
         prepare(f)
-    assert not f.cs.store.get("commission_skeleton")
+    assert not plan_inputs.get_skeleton(f.cs.store)
 
 
 def test_template_profile_cannot_change_after_preparation(fixed_case):
     f = fixed_case
     prepare(f)
-    profiles = deepcopy(f.cs.store.get("commission_text_profiles"))
+    profiles = deepcopy(plan_inputs.get_text_profiles(f.cs.store))
     profiles["j2-template-profile"]["header_lines"] = []
-    f.cs.store.set("commission_text_profiles", profiles)
+    with f.cs.store.connect() as db:
+        plan_inputs.save_text_profiles(db, profiles)
     with pytest.raises(ActionRejected):
         assembled(f)
 
@@ -408,7 +410,7 @@ def test_host_owner_exclusion_automatically_classifies_only_its_object(skeleton_
     assert disposition["status"] == "owner_excluded"
     assert disposition["owner_record_id"] == record["id"]
     assert not any("candidate-exclusion:" + obj["object_id"] in q for q in plan["open_questions"])
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_brief_keeps_full_questions_and_binds_original_appendix_and_audit(skeleton_case, tmp_path):
@@ -487,7 +489,7 @@ def test_owner_fact_for_not_yet_entered_object_is_a_visible_draft_gap(skeleton_c
     assert any("HP06" in str(gap) for gap in view["gaps"]), view["gaps"]
     with pytest.raises(ActionRejected):
         planning().submit_plan(f.cs, f.co, "j2-owner-fact-missing-object")
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 @pytest.mark.parametrize("gate", ["save", "approval", "writer"])
@@ -523,7 +525,7 @@ def test_template_choice_does_not_expand_writer_permissions(fixed_case):
     with pytest.raises(ActionForbidden):
         skeleton_api().resolve_skeleton_question(f.cs, Actor("writer", "writer", "undelegated"),
             "j2-writer-template-choice", question["question_id"], state["digest"], question["choices"][0]["id"])
-    assert f.cs.store.get("commission_skeleton")["digest"] == state["digest"]
+    assert plan_inputs.get_skeleton(f.cs.store)["digest"] == state["digest"]
 
 
 def test_changed_pinned_source_identity_is_rejected_on_read(skeleton_case, monkeypatch):
@@ -575,7 +577,7 @@ def test_fresh_skeleton_provides_inventory_attributes_without_details_tool(skele
     prepare(f)
     plan = assembled(f)
     assert plan["inventory_attributes"] == f.plan["inventory_attributes"]
-    assert not f.cs.store.get("commission_planning_draft", {}).get("items", {}).get("details")
+    assert not plan_inputs.get_draft(f.cs.store, {}).get("items", {}).get("details")
     with f.cs.store.connect() as db:
         changed = deepcopy(plan)
         changed["inventory_attributes"] = ["Agent invented field"]
@@ -649,11 +651,11 @@ def test_fresh_plan_can_submit_through_judgment_tools_without_hidden_details(der
         "section_id": "4", "sources": assessment["sources"]})
     view = planning().read_draft(f.cs, f.co)
     assert not view["gaps"], view["gaps"]
-    assert not f.cs.store.get("commission_planning_draft")["items"].get("details")
+    assert not plan_inputs.get_draft(f.cs.store)["items"].get("details")
     receipt = planning().submit_plan(f.cs, f.co, "j2-complete-submit")
     saved = f.cs.read(receipt["result"]["plan_ref"])["payload"]
     assert saved["inventory_attributes"] == f.plan["inventory_attributes"]
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
     anchor = next((a for a in f.anchors if "本委托的重要性顺序" in a["source"]["quote"]), None)
     if anchor:
         from report_agent.content_store import Actor
@@ -681,7 +683,7 @@ def test_missing_title_can_select_only_actual_canonical_same_number_span(derived
         "start_page": 1, "end_page": 1, "start_sentence": "5 Changed title", "end_sentence": "Objects {COUNT}."}
     skeleton_api().resolve_skeleton_question(f.cs, f.co, "j2-canonical-missing-title", question["question_id"],
         state["digest"], "canonical-source-selection", selection=selection)
-    current = f.cs.store.get("commission_skeleton")
+    current = plan_inputs.get_skeleton(f.cs.store)
     section = next(s for s in current["sections"] if s["section_id"] == "5")
     assert section["extraction"]["selection"] == selection
     assert api().fixed_section_text(section) == "5 Changed title\nObjects {COUNT}."
@@ -708,7 +710,7 @@ def test_missing_title_choice_cannot_override_canonical_source_constraints(deriv
     with pytest.raises(ActionRejected):
         skeleton_api().resolve_skeleton_question(f.cs, f.co, "j2-canonical-bad-" + fault,
             question["question_id"], expected, "canonical-source-selection", selection=selection)
-    assert f.cs.store.get("commission_skeleton")["digest"] == state["digest"]
+    assert plan_inputs.get_skeleton(f.cs.store)["digest"] == state["digest"]
 
 
 @pytest.mark.parametrize("derived_template_case", ["duplicate"], indirect=True)

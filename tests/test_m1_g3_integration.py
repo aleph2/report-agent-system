@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.hierarchical_tools import actor_for
@@ -144,7 +145,7 @@ def test_missing_method_capability_is_saved_as_question_but_cannot_be_approved(m
     assert all(question in brief for question in record['method_questions'])
     with pytest.raises(ActionRejected, match='(?i)(method|strategy|weight)'):
         approve(fixture, saved)
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
 
 
 @pytest.mark.parametrize('method_commission', ['without-weight-convention'], indirect=True)
@@ -157,7 +158,7 @@ def test_guideline_default_is_visible_as_unagreed_before_owner_approval(method_c
     saved = save(fixture, plan)
     checkpoint = api().request_checkpoint(fixture.ws)
     assert '默认，未约定' in brief_text(fixture, checkpoint)
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
     approve(fixture, saved)
 
 
@@ -186,7 +187,7 @@ def test_genuine_citations_do_not_authorize_unreviewed_numeric_method_data(metho
     assert api().read_plan(fixture.ws.store)['payload']['method_questions']
     with pytest.raises(ActionRejected, match='(?i)(method|review)'):
         approve(fixture, saved)
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
 
 
 def persistence_input(fixture):

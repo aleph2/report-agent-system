@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.content_models import Ref
 from report_agent.content_store import Actor
 from report_agent.errors import ActionRejected
@@ -77,7 +78,7 @@ def test_g5_numeric_rows_recompute_exactly_without_implying_engineering_completi
     assert data['internal_content_counts'] == {'qualifier_metadata': 34, 'prose_regex_matches': 0}
 
 
-def test_complete_display_arithmetic_without_assessments_is_not_assembly_ready():
+def test_complete_display_arithmetic_without_assessments_is_not_assembly_ready(tmp_path):
     data = fixture_data()
     # A minimal read-only projection isolates the canonical-assessment gate.
     # It is not a substitute for the separate real-case preflight evidence.
@@ -98,14 +99,13 @@ def test_complete_display_arithmetic_without_assessments_is_not_assembly_ready()
     records[Ref.model_validate(snapshot_ref).key()] = source
     db = sqlite3.connect(':memory:')
     db.execute('CREATE TABLE state(key TEXT PRIMARY KEY,value TEXT)')
-    db.executemany('INSERT INTO state VALUES (?,?)', [('commission_plan', json.dumps(plan_ref)),
-        ('commission_confirmation', json.dumps(decision_ref))])
+    plan_authority.install_historical_refs(db, plan_ref, decision_ref)
     db.commit()
     @contextmanager
     def connect():
         db.execute('PRAGMA query_only=ON')
         yield db
-    store = SimpleNamespace(connect=connect, manifest={})
+    store = SimpleNamespace(root=tmp_path, connect=connect, manifest={})
     cs = SimpleNamespace(store=store, _read=lambda _, target: deepcopy(records[Ref.model_validate(target).key()]))
     try:
         result = preflight_assembly(cs, Actor('content:coordinator', 'coordinator', 'fixture'),

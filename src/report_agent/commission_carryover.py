@@ -1,5 +1,6 @@
 """Import source-bound judgments as proposals; prior approvals never cross runs."""
-from . import legacy_state as legacy
+from . import plan_inputs
+from . import plan_authority
 from copy import deepcopy
 from typing import Literal
 from pydantic import Field
@@ -128,7 +129,7 @@ def install_carryover(cs, package, source_refs):
             if previous['digest'] != fingerprint:
                 raise ActionRejected('CARRYOVER_PACKAGE_IMMUTABLE')
             return fingerprint
-        if not legacy.get_commission_skeleton(db) or legacy.get_commission_planning_draft(db, {}).get('revision') or legacy.get_commission_plan(db) or legacy.get_commission_confirmation(db):
+        if not plan_inputs.get_skeleton(db) or plan_inputs.get_draft(db, {}).get('revision') or plan_authority.plan_ref(db) or plan_authority.decision_ref(db):
             raise ActionRejected('CARRYOVER_FRESH_SKELETON_REQUIRED')
         _validate_sources(cs, db, actor_for('coordinator'), mapped)
         items, proposals = {}, []
@@ -152,7 +153,7 @@ def install_carryover(cs, package, source_refs):
             question = PlanningQuestion.model_validate({'question_id':'carryover-'+str(i+1),'text':value,'resolved':False}).model_dump(mode='json')
             add('question', question['question_id'], question)
             items.setdefault('question', {})[question['question_id']] = question
-        skeleton = {s['section_id']:s for s in legacy.get_commission_skeleton(db)['sections']}
+        skeleton = {s['section_id']:s for s in plan_inputs.get_skeleton(db)['sections']}
         for value in mapped['section_source_choices']:
             if set(value) != {'section_id','sources','examples','rule'} or value['section_id'] not in skeleton:
                 raise ActionRejected('CARRYOVER_SECTION_JUDGMENT_INVALID')
@@ -160,7 +161,7 @@ def install_carryover(cs, package, source_refs):
             section = skeleton[value['section_id']]
             if section['kind'] == 'extracted' and not section.get('extraction'):
                 items.setdefault('section_judgment',{})[value['section_id']] = {k:value[k] for k in ('section_id','sources','examples')}
-        legacy.set_commission_planning_draft(db, {'revision':1,'items':items})
+        plan_inputs.save_draft(db, {'revision':1,'items':items})
         _, _, plan = _assemble(cs,db)
         for item in proposals:
             item['initial_digest'] = digest(_value(item,plan))
@@ -192,6 +193,6 @@ def review_carried_items(cs, actor, operation_id, reviews):
             registry['reviews'][review['item_id']] = review
         _set(db,KEY,registry)
         draft['revision'] += 1
-        legacy.set_commission_planning_draft(db,draft)
+        plan_inputs.save_draft(db, draft, actor=actor)
         return {'reviewed':len(reviews),'revision':draft['revision']}
     return cs.operation(actor,operation_id,{'reviews':reviews},save)

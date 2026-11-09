@@ -1,4 +1,5 @@
 """Source-bound planning steps; reviewed data stays on the server."""
+from . import plan_inputs
 from . import legacy_state as legacy
 from copy import deepcopy
 import re
@@ -19,7 +20,6 @@ from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventory
 
 CATALOG = 'commission_reviewed_entries'
 CONTRACT = 'commission-planning-v1'
-DRAFT = legacy.COMMISSION_PLANNING_DRAFT_KEY
 
 
 def enabled(store):
@@ -59,11 +59,11 @@ def install_text_profile(cs, profile):
         db.execute('BEGIN IMMEDIATE')
         if cs._read(db, profile['source_ref'])['payload']['file_digest'] != profile['file_digest']:
             raise ActionRejected('TEXT_PROFILE_SOURCE_CHANGED')
-        profiles = legacy.get_commission_text_profiles(db, {})
+        profiles = plan_inputs.get_text_profiles(db, {})
         if profile['id'] in profiles and profiles[profile['id']] != profile:
             raise ActionRejected('TEXT_PROFILE_IMMUTABLE')
         profiles[profile['id']] = profile
-        legacy.set_commission_text_profiles(db, profiles)
+        plan_inputs.save_text_profiles(db, profiles)
     return profile
 
 
@@ -73,10 +73,10 @@ def resolve_source_span(cs, selection):
         raise ActionRejected('SOURCE_SPAN_PAGE_ORDER')
     from .document_tools import physical_page_number
     with cs.store.connect() as db:
-        profile = legacy.get_commission_text_profiles(db, {}).get(selection['profile_id'])
+        profile = plan_inputs.get_text_profiles(db, {}).get(selection['profile_id'])
         if not profile or profile['source_ref'] != selection['source_ref']:
             reject('source_span.profile_id', 'SOURCE_SPAN_PROFILE_REQUIRED',
-                   [key for key, item in legacy.get_commission_text_profiles(db, {}).items() if item['source_ref'] == selection['source_ref']],
+                   [key for key, item in plan_inputs.get_text_profiles(db, {}).items() if item['source_ref'] == selection['source_ref']],
                    related_fields=['source_span.source_ref'],
                    message='Choose a reviewed profile bound to this exact source. For an extracted section, use sources citations and omit source_span; a fixed section requires a reviewed template profile. Do not reuse a template profile for a design source.')
         source = cs._read(db, selection['source_ref'])['payload']
@@ -346,7 +346,7 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     def save(db):
-        if legacy.get_commission_skeleton(db):
+        if plan_inputs.get_skeleton(db):
             raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         items = deepcopy(previous['payload']['items'])
@@ -428,7 +428,7 @@ def _assemble(cs, db):
     from .commission_requirements import read_requirements
     from .commission_plan import CommissionPlan
     requirements = read_requirements(cs, db=db)
-    draft = legacy.get_commission_planning_draft(db, {'revision': 0, 'items': {}})
+    draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
     items = draft['items']
     plan = {key: list(items.get(kind, {}).values()) for kind, key in
             [('section', 'sections'), ('object', 'objects'), ('reconciliation', 'reconciliations'), ('question', 'open_questions')]}  # type: dict
@@ -504,7 +504,7 @@ def _gaps(cs, plan, db):
                 for f in fields] or [{'anchor_id': None, 'path': 'plan', 'code': 'PLAN_INCOMPLETE', 'message': str(error)}]
     for question in plan.get('skeleton_questions', []):
         gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + question['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': question['reason']})
-    draft = legacy.get_commission_planning_draft(db, {'items': {}})
+    draft = plan_inputs.get_draft(db, {'items': {}})
     for value in draft['items'].get('substitution', {}).values():
         if value['section_id'] not in {s['section_id'] for s in plan['sections']}:
             gaps.append({'anchor_id': None, 'path': 'substitutions.' + value['section_id'],
@@ -535,7 +535,7 @@ def read_draft(cs, actor):
                 'entries': [{'id': e['id'], 'kind': e['kind'], 'label': e['label'],
                              'capabilities': entry_obligations(e)[0], 'table_roles': entry_obligations(e)[1]}
                             for e in _state(db, CATALOG, {}).values()],
-                'text_profiles': list(legacy.get_commission_text_profiles(db, {}).values()), 'gaps': _gaps(cs, plan, db)}
+                'text_profiles': list(plan_inputs.get_text_profiles(db, {}).values()), 'gaps': _gaps(cs, plan, db)}
 
 
 
@@ -570,7 +570,7 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
             'entries': [(e['id'], {'id': e['id'], 'kind': e['kind'], 'label': e['label'],
                 'capabilities': entry_obligations(e)[0], 'table_roles': entry_obligations(e)[1]})
                 for e in _state(db, CATALOG, {}).values()],
-            'text_profiles': list(legacy.get_commission_text_profiles(db, {}).items()),
+            'text_profiles': list(plan_inputs.get_text_profiles(db, {}).items()),
             'gaps': [(str(i), g) for i, g in enumerate(gaps)],
         }
         from .commission_carryover import rows
@@ -636,14 +636,14 @@ def save_item(cs, actor, operation_id, kind, item):
     request = {'kind': kind, 'item': deepcopy(item)}
     def save(db):
         value = deepcopy(item)
-        if legacy.get_commission_skeleton(db) and kind in ('section', 'details'):
+        if plan_inputs.get_skeleton(db) and kind in ('section', 'details'):
             raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
-        if kind in ('section_judgment', 'disposition') and not legacy.get_commission_skeleton(db):
+        if kind in ('section_judgment', 'disposition') and not plan_inputs.get_skeleton(db):
             raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
         if kind == 'section_judgment':
             if set(value) - {'section_id', 'sources', 'examples', 'notes'}:
                 raise ActionRejected('SKELETON_JUDGMENT_FIELDS_ONLY')
-            original = next((s for s in legacy.get_commission_skeleton(db)['sections'] if s['section_id'] == value.get('section_id')), None)
+            original = next((s for s in plan_inputs.get_skeleton(db)['sections'] if s['section_id'] == value.get('section_id')), None)
             if not original or original['kind'] == 'fixed' or original.get('extraction'):
                 raise ActionRejected('SKELETON_JUDGMENT_SECTION_INVALID')
         if kind == 'disposition':
@@ -701,13 +701,13 @@ def save_item(cs, actor, operation_id, kind, item):
                kind if kind in ('details', 'boundary') else
                value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
                value['question_id'] if kind == 'question' else value['reconciliation_id'])
-        draft = legacy.get_commission_planning_draft(db, {'revision': 0, 'items': {}})
+        draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
         previous = draft['items'].setdefault(kind, {}).get(key)
         changed = previous != value
         if changed:
             draft['items'][kind][key] = value
             draft['revision'] += 1
-            legacy.set_commission_planning_draft(db, draft)
+            plan_inputs.save_draft(db, draft, actor=actor)
         return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions, 'customer_basis_binding': basis_binding}
     return cs.operation(actor, operation_id, request, save)
 
@@ -987,7 +987,7 @@ def planning_tools(cs, actor):
         from .commission_carryover import review_carried_items as review
         return review(cs, actor(), operation_id, [r.model_dump(mode='json') for r in reviews])
 
-    if legacy.get_commission_skeleton(cs.store):
+    if plan_inputs.get_skeleton(cs.store):
         return assertion_tools + [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
             set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question, review_carried_items]]
     return assertion_tools + [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,

@@ -103,15 +103,14 @@ def test_legacy_state_ownership():
 # These are existing public payload fields, dictionary projections and exporter
 # module filenames. They contain no per-family storage access.
 PUBLIC_USES = {
+    ("plan_authority", "_claim", "keyword"): {"commission_plan"},
     ("commission_plan", "save_plan", "Dict"): {"commission_plan"},
     ("commission_plan", "request_checkpoint", "Dict"): {"corrections", "commission_plan"},
     ("content_export", "execute", "Tuple"): {"commission_owner_records"},
     ("content_workbook", "_export_workbook", "Tuple"): {"commission_owner_records"},
     ("deep_runtime", "project_view", "Subscript"): {"commission_source_roles", "content_final_review", "content_delivery"},
-    ("fake_verification", "check_prepared", "Dict"): {"commission_plan", "commission_confirmation"},
     ("knowledge_state", "project_state", "Subscript"): {"content_delivery"},
     ("mini_commission", "prepare_mini_commission", "Dict"): {"corrections"},
-    ("probe_case", "prepare_probe_case", "Call"): {"commission_plan", "commission_confirmation"},
     ("review_context", "capture", "Dict"): {"corrections"},
     ("review_context", "capture", "Subscript"): {"corrections"},
     ("workspace", "_dependency_snapshot", "Dict"): {"source_changes"},
@@ -144,6 +143,21 @@ HISTORICAL_READERS = {"writer_assessment_draft:", "writer_indicator_steps:", "wr
                       "assessment_receipt:", "g6_assessment:", "g6_assessment_producer:"}
 
 
+M4_HISTORICAL_READERS = {"commission_plan", "commission_confirmation", "commission_skeleton",
+                         "commission_planning_draft", "commission_text_profiles"}
+
+
+@pytest.mark.parametrize("family", sorted(M4_HISTORICAL_READERS))
+def test_old_planning_keys_are_readable_without_a_write_accessor(tmp_path, family):
+    from report_agent import legacy_state
+    from report_agent.store import Store
+
+    store = Store(tmp_path)
+    store.set(family, {"historical": True})
+    assert getattr(legacy_state, "get_" + family)(store) == {"historical": True}
+    assert not hasattr(legacy_state, "set_" + family)
+
+
 @pytest.mark.parametrize("family", sorted(HISTORICAL_READERS))
 def test_old_writer_keys_are_readable_without_a_write_accessor(tmp_path, family):
     from report_agent import legacy_state
@@ -157,7 +171,7 @@ def test_old_writer_keys_are_readable_without_a_write_accessor(tmp_path, family)
     assert getattr(legacy_state, "get_" + name)(store, "old-id") == {"v": 1}
 
 
-@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS))
+@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS - M4_HISTORICAL_READERS))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

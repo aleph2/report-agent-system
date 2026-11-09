@@ -6,6 +6,7 @@ from importlib import import_module
 import pytest
 from pydantic import ValidationError
 
+from report_agent import plan_authority
 from report_agent.errors import ActionForbidden, ActionRejected
 from test_m1_commission_plan import api, save
 from test_m1_g3_integration import method_commission
@@ -109,8 +110,8 @@ def test_registry_install_is_immutable_idempotent_and_unapproved(owner_case):
     first, plan = install(f)
     assert owner_api().install_owner_records(f.cs, deepcopy(f.owner_bundle), f.owner_source_refs) == first
     assert plan['owner_records_digest']
-    assert not f.cs.store.get('commission_confirmation')
-    assert not f.cs.store.get('commission_plan')
+    assert not plan_authority.decision_ref(f.cs.store)
+    assert not plan_authority.plan_ref(f.cs.store)
     changed = deepcopy(f.owner_bundle)
     changed['documents'][0]['name'] = 'Unreviewed replacement label'
     with pytest.raises(ActionRejected):
@@ -144,7 +145,7 @@ def test_reasoned_owner_withdrawal_resolves_only_recorded_document(owner_case):
     target = next(s for s in plan['sections'] if s['section_id'] == '4')
     assert target['missing_documents'][0]['withdrawn_by'] == 'owner-1'
     assert api().unresolved_sources(target) == []
-    assert not f.cs.store.get('commission_confirmation')
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 @pytest.mark.parametrize('reason', ['', '   '])
@@ -194,10 +195,16 @@ def test_unregistered_plan_cannot_invent_owner_authority(required_case):
 
 
 @pytest.mark.parametrize('key', ['commission_confirmation', 'commission_plan'])
-def test_owner_registry_installation_requires_fresh_case(owner_case, key):
+def test_owner_registry_installation_requires_fresh_case(owner_case, key, monkeypatch):
+    from support.plan_fixture import approve
     f = owner_case
-    f.cs.store.set(key, {'type': 'CommissionPlan', 'id': 'existing', 'version': 1})
-    with pytest.raises(ActionRejected):
+    saved = save(f)
+    if key == 'commission_confirmation':
+        approve(f, saved, requirements_ref=f.requirements_ref)
+        assert plan_authority.decision_ref(f.cs.store)
+        # Exercise the decision guard independently of the proposal that produced it.
+        monkeypatch.setattr(plan_authority, 'plan_ref', lambda storage: None)
+    with pytest.raises(ActionRejected, match='fresh preparation required'):
         owner_api().install_owner_records(f.cs, f.owner_bundle, f.owner_source_refs)
 
 
@@ -300,7 +307,7 @@ def test_host_prepares_separate_owner_file_without_treating_it_as_source_documen
     assert 'owner-decisions.json' not in prepared['source_files']
     from report_agent.store import Store
     assert Store(state['CASE']).get('commission_owner_records')
-    assert not Store(state['CASE']).get('commission_confirmation')
+    assert not plan_authority.decision_ref(Store(state['CASE']))
     assert not (state['HERE'] / 'started.json').exists()
 
 
@@ -340,12 +347,12 @@ def test_existing_owner_scope_reduction_needs_no_second_reduction_decision(owner
         {'included': False, 'reason': reason}, reason=reason)]
     _, plan = install(f)
     saved = save(f, plan, operation='j1-owner-reduction-plan')
-    assert not f.cs.store.get('commission_confirmation'), 'Owner records do not approve the full plan'
+    assert not plan_authority.decision_ref(f.cs.store), 'Owner records do not approve the full plan'
     checkpoint = api().request_checkpoint(f.ws)
     decision = {'plan_ref': saved['plan_ref'], 'requirements_ref': f.requirements_ref,
                 'approved': True, 'corrections': '', 'reductions': []}
     api().reply(f.ws, checkpoint['issue_id'], decision)
-    confirmation = f.cs.read(f.cs.store.get('commission_confirmation'))['payload']
+    confirmation = f.cs.read(plan_authority.decision_ref(f.cs.store))['payload']
     assert confirmation['reductions'] == [{'object_id': obj['object_id'], 'reason': reason}]
     # The exact repeated approval remains idempotent even though effective reductions were materialized.
     api().reply(f.ws, checkpoint['issue_id'], decision)
@@ -498,7 +505,7 @@ def test_rejected_plan_does_not_materialize_owner_reductions_as_approval(owner_c
     api().reply(f.ws, checkpoint['issue_id'], {'plan_ref': saved['plan_ref'],
         'requirements_ref': f.requirements_ref, 'approved': False,
         'corrections': 'Revise the plan before approval.', 'reductions': []})
-    decision = f.cs.read(f.cs.store.get('commission_confirmation'))['payload']
+    decision = f.cs.read(plan_authority.decision_ref(f.cs.store))['payload']
     assert decision['approved'] is False
     assert decision['reductions'] == []
 

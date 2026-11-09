@@ -2,6 +2,7 @@
 from copy import deepcopy
 import pytest
 from pydantic import ValidationError
+from report_agent import plan_authority
 from report_agent import writer_issues as api
 from report_agent.content_store import Actor
 from report_agent.errors import ActionRejected
@@ -47,6 +48,7 @@ def _writers(f, option=None, *, reviewed=False):
             citation = dict(source_ref=ref, locator='page 1', quote=quotes[obj['object_id']])
             section['sources'].append(citation)
             obj['sources'].append(citation)
+    f.writer_plan = plan
     saved = save(f, plan); approve(f, saved)
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     f.plan_ref = saved['plan_ref']; f.actors = []
@@ -162,7 +164,7 @@ def test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair(reviewed_
 def test_new_issue_does_not_replace_any_of_25_legacy_obligations_or_guess_routes(writers):
     from report_agent.system_assembler import _prepare, _current_selections
     f=writers
-    decision_ref=f.ws.store.get('commission_confirmation')
+    decision_ref=plan_authority.decision_ref(f.ws.store)
     original=deepcopy(f.cs.read(decision_ref))
     required=original['payload']['required_material_issues']
     assert len(required)==25
@@ -179,7 +181,7 @@ def test_new_issue_does_not_replace_any_of_25_legacy_obligations_or_guess_routes
 @pytest.mark.parametrize('writers',['inventory-conflict'],indirect=True)
 def test_exact_required_inventory_issue_identity_is_reused_without_changing_obligation(writers):
     f=writers
-    original=deepcopy(f.cs.read(f.ws.store.get('commission_confirmation')))
+    original=deepcopy(f.cs.read(plan_authority.decision_ref(f.ws.store)))
     required=original['payload']['required_material_issues'][0]
     value={**issue(),**{k:required[k] for k in ('kind','basis','question')}}
     result=api.propose_material_issue(f.cs,f.actors[0],'inventory-issue',value)['result']
@@ -212,7 +214,10 @@ def test_source_quote_forgery_and_assignment_revocation_are_not_cached_successes
     with f.ws.store.connect() as db:
         report=_prepare(f.cs,db,f.co,**_current_selections(f.cs,db),current=True)[0]
     assert any(p['code']=='issue_proposal_invalid' and 'QUOTE_NOT_AT_SOURCE' in p['reason'] for p in report['problems'])
-    f.ws.store.set('commission_confirmation',None)
+    revised = deepcopy(f.writer_plan)
+    revised['open_questions'].append('Review the revised assignment.')
+    next_plan = save(f, revised, operation='supersede-assignment')
+    assert next_plan['plan_ref'] != f.plan_ref
     with pytest.raises((ActionRejected,ActionForbidden)):
         api.propose_material_issue(f.cs,f.actors[0],'issue',issue())
 

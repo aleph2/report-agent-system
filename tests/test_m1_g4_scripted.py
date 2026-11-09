@@ -7,6 +7,7 @@ from docx import Document
 from openpyxl import load_workbook
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from report_agent import plan_authority
 from report_agent.deep_runtime import build_agent
 from report_agent.content_delivery import current_delivery
 from test_deep_runtime import Driver, invoke as scripted_invoke, observation
@@ -40,7 +41,7 @@ async def test_complete_current_scripted_report_checkpoint_calculation_exports_r
     proposal = Driver(coordinator=[invoke('save_commission_plan', plan=plan), AIMessage('Proposal ready for operator review.')])
     await build_agent(ws, proposal, None).ainvoke({'messages': [HumanMessage('Synthetic offline plan only.')]})
     saved = api().read_plan(ws.store)
-    assert saved and ws.store.get('commission_confirmation') is None
+    assert saved and plan_authority.decision_ref(ws.store) is None
     checkpoint = api().request_checkpoint(ws)
     brief = Path(checkpoint['brief_path'])
     if not brief.is_absolute():

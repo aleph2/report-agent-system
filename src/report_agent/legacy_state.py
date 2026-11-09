@@ -65,40 +65,20 @@ def get_commission_plan(storage, default=_MISSING):
     return _get(storage, 'commission_plan', default)
 
 
-def set_commission_plan(storage, value):
-    _set(storage, 'commission_plan', value)
-
-
 def get_commission_confirmation(storage, default=_MISSING):
     return _get(storage, 'commission_confirmation', default)
-
-
-def set_commission_confirmation(storage, value):
-    _set(storage, 'commission_confirmation', value)
 
 
 def get_commission_skeleton(storage, default=_MISSING):
     return _get(storage, COMMISSION_SKELETON_KEY, default)
 
 
-def set_commission_skeleton(storage, value):
-    _set(storage, COMMISSION_SKELETON_KEY, value)
-
-
 def get_commission_planning_draft(storage, default=_MISSING):
     return _get(storage, COMMISSION_PLANNING_DRAFT_KEY, default)
 
 
-def set_commission_planning_draft(storage, value):
-    _set(storage, COMMISSION_PLANNING_DRAFT_KEY, value)
-
-
 def get_commission_text_profiles(storage, default=_MISSING):
     return _get(storage, 'commission_text_profiles', default)
-
-
-def set_commission_text_profiles(storage, value):
-    _set(storage, 'commission_text_profiles', value)
 
 
 def get_commission_requirements(storage, default=_MISSING):
@@ -253,10 +233,6 @@ def set_decision_observation(storage, value):
     _set(storage, 'decision_observation', value)
 
 
-def read_probe_plan_pin_rows(db):
-    return db.execute("SELECT key,value FROM state WHERE key IN ('commission_plan','commission_confirmation')").fetchall()
-
-
 def read_completion_authority_rows(db):
     return db.execute("SELECT key,value FROM state WHERE key IN ('manifest','content_delivery') ORDER BY key").fetchall()
 
@@ -295,9 +271,9 @@ def iter_commission_outcomes(db, object_digest):
 
 BUSINESS_STATE = frozenset({
     'manifest', 'acceptance_default', 'acceptance_mode',
-    'commission_plan', 'commission_confirmation', 'commission_requirements',
-    'commission_owner_records', 'commission_skeleton', 'commission_source_roles',
-    'commission_text_profiles', 'commission_reviewed_entries', 'commission_carryover',
+    'commission_requirements',
+    'commission_owner_records', 'commission_source_roles',
+    'commission_reviewed_entries', 'commission_carryover',
     'source_use_authority_binding',
 })
 

@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.errors import ActionForbidden, ActionRejected
 from test_m1_commission_plan import api, approve, commission, save, writer
@@ -81,7 +82,7 @@ def test_substitution_rejects_invalid_customer_or_replacement_basis(substitution
         item['requested_source'] = 'A different unrequested source'
     with pytest.raises((ActionRejected, ActionForbidden, ValueError)):
         save(substitution, plan, operation='invalid-substitution')
-    assert substitution.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(substitution.ws.store) is None
 
 
 def test_one_substitution_does_not_cover_another_pending_source(substitution):
@@ -90,7 +91,7 @@ def test_one_substitution_does_not_cover_another_pending_source(substitution):
     saved = save(substitution, plan)
     with pytest.raises(ActionRejected, match='COMMISSION_PENDING_SOURCES'):
         approve(substitution, saved)
-    assert substitution.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(substitution.ws.store) is None
 
 
 def test_changed_substitution_requires_new_plan_confirmation(substitution):

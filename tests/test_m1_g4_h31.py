@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.errors import ActionRejected
 from report_agent.source_materials import issue, block_material, analysis_materials
@@ -162,12 +163,12 @@ def test_owner_can_reduce_retained_unread_candidate_with_persisted_reason(exclus
     candidate.update(included=True, reason='Keep this unread candidate pending the owner decision.')
     saved = save(fixture, operation='h31-retain-for-owner')
     checkpoint = api().request_checkpoint(fixture.ws)
-    assert not fixture.ws.store.get('commission_confirmation')
+    assert not plan_authority.decision_ref(fixture.ws.store)
     reason = 'Owner explicitly removes this candidate from this commission; retain the decision and evidence gap.'
     decision = {'plan_ref': saved['plan_ref'], 'requirements_ref': fixture.requirements_ref,
         'approved': True, 'corrections': '', 'reductions': [{'object_id': 'S1', 'reason': reason}]}
     replied = api().reply(fixture.ws, checkpoint['issue_id'], decision)
-    accepted = fixture.cs.read(fixture.ws.store.get('commission_confirmation'))
+    accepted = fixture.cs.read(plan_authority.decision_ref(fixture.ws.store))
     assert accepted['owner_id'] == 'operator' and accepted['payload']['reductions'] == decision['reductions']
     assert fixture.cs.read(saved['plan_ref'])['payload']['objects'][0]['included'] is True
     assigned = writer(fixture, saved)

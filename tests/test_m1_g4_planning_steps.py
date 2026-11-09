@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from report_agent.store import encode
 from report_agent.catalog import Catalog
@@ -686,7 +687,7 @@ def test_small_items_submit_exact_server_attached_data_without_approving_plan(dr
     assert saved['method_conventions'][0]['strategy_id'] == fixture.entries[1]['strategy_id']
     assert saved['method_conventions'][0]['source'] == fixture.weight_anchor['source']
     assert planning().submit_plan(fixture.cs, fixture.co, 'submit-complete-draft') == receipt
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
     checkpoint = api().request_checkpoint(fixture.ws)
     brief = (fixture.ws.store.root / checkpoint['brief_path']).read_text(encoding='utf-8')
     assert fixture.entries[1]['label'] in brief and fixture.entries[2]['label'] in brief
@@ -852,7 +853,7 @@ def test_owner_parse_resolution_preserves_sources_and_does_not_approve_plan(reso
     assert api().reply(fixture.ws, fixture.checkpoint['issue_id'], fixture.resolution) == issue
     assert requirements().read_requirements(fixture.cs)['ref'] == record['ref']
     assert not fixture.cs.list_objects('CommissionDecision')
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
     assert requirements().check_plan(fixture.cs, {'requirements_ref': record['ref']}, record['ref'])
     changed = deepcopy(fixture.resolution)
     changed['resolutions'][0]['note'] = 'A different decision is not the old receipt.'
@@ -897,7 +898,7 @@ def test_unknown_requirement_needs_explicit_owner_classification(resolution_case
     assert classified['origin'] == 'operator' and classified['issue_id'] == result['id']
     assert classified['capabilities'] == ['source_priority']
     assert next(i for i in record['payload']['items'] if i['anchor_id'] == unknown['id'])['status'] == 'unresolved'
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
 
 
 def test_requirement_reply_sidecar_exposes_exact_pending_sources_and_unapproved_shape(resolution_case):
@@ -978,7 +979,7 @@ async def test_native_requirement_checkpoint_resume_keeps_original_issue_and_dec
     assert resumed['status'] == 'needs_human'
     assert final_wait.interrupts[0].value['issue_id'] == completion['issue_id']
     assert final_wait.interrupts[0].value['kind'] == 'planning_completion'
-    assert reopened.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(reopened.store) is None
 
 
 def guard():

@@ -15,6 +15,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.content_store import Actor, ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
@@ -472,7 +473,7 @@ def test_approval_must_name_exact_latest_requirement_version(required_case, faul
         decision['requirements_ref'] = fixture.initial_requirements['ref']
     with pytest.raises((ActionRejected, ValueError), match='(?i)requirement'):
         api().reply(fixture.ws, checkpoint['issue_id'], decision)
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
 
 
 @pytest.mark.parametrize('gate', ['approval', 'writer'])
@@ -662,7 +663,7 @@ def test_prepare_installs_frozen_unresolved_requirements_before_any_coordinator(
     assert record['payload']['anchors']
     assert all(item['status'] == 'unresolved' for item in record['payload']['items'])
     assert not cs.list_objects('CommissionPlan')
-    assert store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(store) is None
 
 
 def test_generic_commit_cannot_forge_host_requirement_records(required_case):

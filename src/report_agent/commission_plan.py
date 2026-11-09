@@ -1,5 +1,5 @@
 """Versioned commission proposals; only operator replies authorize writing or reductions."""
-from . import legacy_state as legacy
+from . import legacy_state as legacy, plan_authority
 from pathlib import Path
 import json
 import re
@@ -463,15 +463,17 @@ def unresolved_sources(section):
 def read_plan(store):
     cs = ContentStore(store)
     with store.connect() as db:
-        ref = legacy.get_commission_plan(db)
+        ref = plan_authority.plan_ref(db)
         if not ref:
             return None
         record = cs._read(db, ref)
-        confirmation = legacy.get_commission_confirmation(db)
+        plan_authority.verify(store.root, record)
+        confirmation = plan_authority.decision_ref(db)
         if confirmation:
             decision = cs._read(db, confirmation)
             if (decision['owner_id'] == 'operator' and decision['payload'].get('approved') is True
                     and decision['payload'].get('plan_ref') == ref):
+                plan_authority.verify(store.root, record, decision)
                 record['commission_confirmation_ref'] = confirmation
                 requirements = decision['payload'].get('required_material_issues')
                 record['required_material_issues'] = (requirements if requirements is not None else
@@ -597,7 +599,8 @@ def _validate_sources(cs, db, actor, plan):
 
 
 def save_plan(cs, actor, operation_id, plan):
-    if actor.role != 'coordinator':
+    from .hierarchical_tools import actor_for
+    if actor != actor_for('coordinator'):
         raise ActionForbidden('FORBIDDEN: commission proposal owner')
     if not enabled(cs.store):
         raise ActionRejected('COMMISSION_CHECKPOINT_NOT_ENABLED')
@@ -626,7 +629,10 @@ def save_plan(cs, actor, operation_id, plan):
         visit(section)
     if any(not c['source']['quote'].strip() for c in plan['conventions']):
         raise ActionRejected('COMMISSION_CONVENTION_QUOTE_REQUIRED')
+    executed = False
     def save(db):
+        nonlocal executed
+        executed = True
         require_complete(cs, plan, db=db)
         _validate_sources(cs, db, actor, plan)
         roles = legacy.get_commission_source_roles(db, {})
@@ -695,7 +701,7 @@ def save_plan(cs, actor, operation_id, plan):
             if any(cs._read(db, c['source']['source_ref'])['payload']['source_id'] not in customer_sources
                    for c in plan['conventions']):
                 raise ActionRejected('COMMISSION_CONVENTION_REQUIRES_CUSTOMER_SOURCE')
-        old_ref = legacy.get_commission_plan(db)
+        old_ref = plan_authority.plan_ref(db)
         old = cs._read(db, old_ref) if old_ref else None
         current_sections = {s['section_id']: s for s in plan['sections']}
         for section in old['payload']['sections'] if old else []:
@@ -717,18 +723,31 @@ def save_plan(cs, actor, operation_id, plan):
             else:
                 inventory.append(cs._insert(db, actor, 'Requirement', payload,
                     **({'id': previous['ref']['id'], 'version': previous['ref']['version'] + 1,
-                        'previous_ref': previous['ref']} if previous else {})))
-        ref = cs._insert(db, actor, 'CommissionPlan', {**plan, 'inventory_refs': inventory,
-            **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})},
-            **({'id': old_ref['id'], 'version': old_ref['version'] + 1, 'previous_ref': old_ref} if old_ref else {}))
-        legacy.set_commission_plan(db, ref)
+                        'previous_ref': previous['ref']} if previous else {
+                            'id': plan_authority.stable_id(actor, operation_id, ['inventory', obj['object_id']])})))
+        ref = {'type': 'CommissionPlan',
+               'id': old_ref['id'] if old_ref else plan_authority.stable_id(actor, operation_id, 'plan'),
+               'version': old_ref['version'] + 1 if old_ref else 1}
+        payload = {**plan, 'inventory_refs': inventory,
+                   **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})}
+        from .plan_inputs import frozen_refs
+        inputs = frozen_refs(db)
+        proof = plan_authority.publish(cs, db, actor, operation_id, ref, payload, inputs=inputs)
+        cs._insert(db, actor, 'CommissionPlan', payload, id=ref['id'], version=ref['version'],
+                   previous_ref=old_ref, plan_authority=proof)
         return {'plan_ref': ref, 'inventory_refs': inventory}
-    return cs.operation(actor, operation_id, {'commission_plan': plan}, save)
+    response = cs.operation(actor, operation_id, {'commission_plan': plan}, save)
+    if not executed:
+        with cs.store.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            record = cs._read(db, response['result']['plan_ref'])
+            plan_authority.recover_publication(cs, db, actor, operation_id, record, record)
+    return response
 
 
 def _confirmed(cs, db):
-    ref = legacy.get_commission_plan(db)
-    confirmation = legacy.get_commission_confirmation(db)
+    ref = plan_authority.plan_ref(db)
+    confirmation = plan_authority.decision_ref(db)
     if not ref or not confirmation:
         raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED')
     decision = cs._read(db, confirmation)
@@ -740,6 +759,7 @@ def _confirmed(cs, db):
     if (decision['owner_id'] != 'operator' or decision['payload'].get('plan_ref') != ref
             or decision['payload'].get('approved') is not True):
         raise ActionRejected('COMMISSION_CHECKPOINT_CONFIRMATION_STALE')
+    plan_authority.verify(cs.store.root, plan, decision)
     return plan, decision
 
 
@@ -936,14 +956,16 @@ def _checklist_path(confirmation):
 
 
 def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
-    ref = legacy.get_commission_confirmation(db)
+    ref = plan_authority.decision_ref(db)
     decision = cs._read(db, ref)
     if decision['owner_id'] != 'operator' or decision['payload'].get('approved') is not True:
         return
     plan_ref = decision['payload']['plan_ref']
     if plan_ref != checkpoint['plan_ref']:
         raise ActionRejected('COMMISSION_CHECKLIST_CONFIRMATION_MISMATCH')
-    plan = cs._read(db, plan_ref)['payload']
+    record = cs._read(db, plan_ref)
+    plan_authority.verify(cs.store.root, record, decision)
+    plan = record['payload']
     rules = decision['payload'].get('confirmed_rules', _confirmed_rules(plan))
     lines = ['# 已确认规则与表式清单', '', '复用范围：规则与表式；不复用历史报告数值。',
              '本文件是已保存确认的可读清单；单独编辑本文件不会变更确认。',
@@ -1007,13 +1029,15 @@ def reply(workspace, issue_id, decision):
         db.execute('BEGIN IMMEDIATE')
         checkpoint = legacy.get_commission_checkpoint(db, issue_id)
         if (not checkpoint or checkpoint['plan_ref'] != decision['plan_ref']
-                or legacy.get_commission_plan(db) != decision['plan_ref']):
+                or plan_authority.plan_ref(db) != decision['plan_ref']):
             raise ActionRejected('COMMISSION_CHECKPOINT_REPLY_STALE')
         issues = legacy.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if issue is None:
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
-        plan = cs._read(db, decision['plan_ref'])['payload']
+        plan_record = cs._read(db, decision['plan_ref'])
+        plan_authority.verify(cs.store.root, plan_record)
+        plan = plan_record['payload']
         if decision['approved']:
             from .commission_requirements import require_complete, enabled as requirements_enabled
             require_complete(cs, plan, db=db)
@@ -1022,9 +1046,15 @@ def reply(workspace, issue_id, decision):
                     or checkpoint.get('requirements_ref') != plan.get('requirements_ref')):
                 raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
         answer = encode(decision)
+        owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
         if issue.get('decision_origin') == 'operator':
             if issue.get('decision') != answer:
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
+            if plan_record.get('plan_authority'):
+                previous = cs._read(db, {'type': 'CommissionDecision',
+                    'id': plan_authority.stable_id(owner, issue_id, 'decision'), 'version': 1})
+                plan_authority.recover_publication(cs, db, owner, issue_id, previous, plan_record)
+                db.commit()
             if decision['approved']:
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
                 legacy.set_report_issues(db, issues)
@@ -1043,12 +1073,15 @@ def reply(workspace, issue_id, decision):
                 raise ActionRejected('COMMISSION_CANDIDATE_DECISION_REQUIRED: ' + ', '.join(sorted(proposed - set(reduced))))
         from .commission_owner_records import effective_reductions
         owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
-        owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
         accepted = {**decision, 'reductions': owner_reductions, **({'required_material_issues': required_material_issues(
             cs, db, decision['plan_ref'], plan, decision.get('template_decisions', [])), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
-        ref = cs._insert(db, owner, 'CommissionDecision', accepted)
+        if not plan_record.get('plan_authority'):
+            raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
+        ref = {'type': 'CommissionDecision', 'id': plan_authority.stable_id(owner, issue_id, 'decision'), 'version': 1}
+        proof = plan_authority.publish(cs, db, owner, issue_id, ref, accepted,
+                                       proposal_id=plan_record['plan_authority']['assertion_id'])
+        cs._insert(db, owner, 'CommissionDecision', accepted, id=ref['id'], plan_authority=proof)
         issue.update(decision=answer, decision_origin='operator', resolved=True)
-        legacy.set_commission_confirmation(db, ref)
         legacy.set_report_issues(db, issues)
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         _set(db, 'report_status', 'ready')

@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from test_m1_commission_plan import api, approve, commission, save, writer
 from test_m1_g3_integration import method_commission, persist, persistence_input, brief_text
@@ -432,7 +433,7 @@ def test_v2_spec_bad_binding_blocks_existing_checkpoint_before_assessment(method
         with pytest.raises(ActionRejected, match='(?i)(table|spec|binding|method)'):
             approve(fixture, saved)
     assert not fixture.cs.list_objects('Assessment')
-    assert fixture.cs.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.cs.store) is None
 
 
 @pytest.mark.parametrize('role,field', [('ranking', 'indicator'), ('evaluation', 'value')])
@@ -471,7 +472,7 @@ def test_approved_confirmation_checklist_is_exact_durable_and_rules_only(method_
     original = path.read_bytes()
     text = original.decode('utf-8')
     plan = fixture.cs.read(saved['plan_ref'])['payload']
-    confirmation = fixture.cs.store.get('commission_confirmation')
+    confirmation = plan_authority.decision_ref(fixture.cs.store)
     assert saved['plan_ref']['id'] in text and confirmation['id'] in text
     assert 'synthetic-four' in text and 'rank-lookup' in text
     assert plan['method_conventions'][0]['source']['quote'] in text

@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.content_models import Ref, refs_in
 from report_agent.content_store import Actor
 from report_agent.errors import ActionForbidden, ActionRejected
@@ -48,7 +49,7 @@ def assembly_input(method_commission, request):
     ]
     if issue_mode == 'owner-issue':
         objects.append({'client_key': 'scope', 'type': 'ContentNode', 'payload': node('The approved scope is S1.')})
-    required = f.cs.read(f.ws.store.get('commission_confirmation'))['payload']['required_material_issues']
+    required = f.cs.read(plan_authority.decision_ref(f.ws.store))['payload']['required_material_issues']
     if issue_mode == 'complete-issue':
         from report_agent.system_assembler import record_issue_routes
         record_issue_routes(f.cs, Actor('operator', 'operator', 'synthetic-route'), 'reviewed-route',

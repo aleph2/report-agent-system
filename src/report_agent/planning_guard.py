@@ -1,5 +1,7 @@
 """Persistent planning rejection containment on native middleware boundaries."""
+from . import plan_inputs
 from . import legacy_state as legacy
+from . import plan_authority
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
@@ -18,8 +20,8 @@ KEY = 'commission_planning_rejections'
 
 def fingerprint(workspace):
     with workspace.store.connect() as db:
-        return [legacy.get_commission_requirements(db), legacy.get_commission_plan(db),
-                legacy.get_commission_planning_draft(db)]
+        return [legacy.get_commission_requirements(db), plan_authority.plan_ref(db),
+                plan_inputs.get_draft(db)]
 
 
 def record_planning_result(workspace, role, tool_name, native_call_id, *, rejected, error_code=None, changed=False):

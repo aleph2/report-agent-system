@@ -1,5 +1,6 @@
 """Offline, scripted Coordinator and owner for the hash-pinned synthetic Writer verification case."""
 from . import legacy_state as legacy
+from . import plan_authority
 import hashlib
 import json
 import re
@@ -94,7 +95,7 @@ def prepare_mini_commission(inputs, destination):
         checkpoint = request_checkpoint(ws)
         reply(ws,checkpoint['issue_id'],{'plan_ref':plan_ref,'requirements_ref':requirements_ref,'approved':True,
               'corrections':'','reductions':[{'object_id':'C','reason':'中心桩号 K0+620 超出委托界线 K0+500。'}]})
-        decision_ref = legacy.get_commission_confirmation(store)
+        decision_ref = plan_authority.decision_ref(store)
         if destination.exists():
             raise FileExistsError(destination)
         case.rename(destination)

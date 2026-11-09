@@ -210,45 +210,20 @@ src/report_agent/commission_carryover.py	34	rows	helper	read	KEY	commission_carr
 src/report_agent/commission_carryover.py	52	decorate	helper	read	KEY	commission_carryover
 src/report_agent/commission_carryover.py	59	gaps	helper	read	KEY	commission_carryover
 src/report_agent/commission_carryover.py	126	install_carryover	helper	read	KEY	commission_carryover
-src/report_agent/commission_carryover.py	131	install_carryover	accessor	read	get_commission_confirmation	commission_confirmation
-src/report_agent/commission_carryover.py	131	install_carryover	accessor	read	get_commission_plan	commission_plan
-src/report_agent/commission_carryover.py	131	install_carryover	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/commission_carryover.py	131	install_carryover	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_carryover.py	155	install_carryover	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_carryover.py	163	install_carryover	accessor	write	set_commission_planning_draft	commission_planning_draft
 src/report_agent/commission_carryover.py	167	install_carryover	helper	write	KEY	commission_carryover
 src/report_agent/commission_carryover.py	179	save	helper	read	KEY	commission_carryover
 src/report_agent/commission_carryover.py	193	save	helper	write	KEY	commission_carryover
-src/report_agent/commission_carryover.py	195	save	accessor	write	set_commission_planning_draft	commission_planning_draft
 src/report_agent/commission_owner_records.py	124	install_owner_records	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_owner_records.py	129	install_owner_records	accessor	read	get_commission_confirmation	commission_confirmation
-src/report_agent/commission_owner_records.py	129	install_owner_records	accessor	read	get_commission_plan	commission_plan
-src/report_agent/commission_owner_records.py	129	install_owner_records	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/commission_owner_records.py	129	install_owner_records	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/commission_owner_records.py	133	install_owner_records	accessor	write	set_commission_owner_records	commission_owner_records
 src/report_agent/commission_owner_records.py	139	_registry	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_owner_records.py	158	decorate_plan	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_owner_records.py	173	decorate_plan	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_owner_records.py	190	validate_owner_records	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_owner_records.py	198	validate_owner_records	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_owner_records.py	201	validate_owner_records	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/commission_plan.py	446	_state	sql	read	key	@helper
 src/report_agent/commission_plan.py	451	_set	sql	write	key	@helper
-src/report_agent/commission_plan.py	466	read_plan	accessor	read	get_commission_plan	commission_plan
-src/report_agent/commission_plan.py	470	read_plan	accessor	read	get_commission_confirmation	commission_confirmation
 src/report_agent/commission_plan.py	632	save	accessor	read	get_commission_source_roles	commission_source_roles
-src/report_agent/commission_plan.py	698	save	accessor	read	get_commission_plan	commission_plan
-src/report_agent/commission_plan.py	724	save	accessor	write	set_commission_plan	commission_plan
-src/report_agent/commission_plan.py	730	_confirmed	accessor	read	get_commission_plan	commission_plan
-src/report_agent/commission_plan.py	731	_confirmed	accessor	read	get_commission_confirmation	commission_confirmation
 src/report_agent/commission_plan.py	913	request_checkpoint	accessor	write	set_commission_checkpoint	commission_checkpoint:*
-src/report_agent/commission_plan.py	939	_write_confirmation_checklist	accessor	read	get_commission_confirmation	commission_confirmation
 src/report_agent/commission_plan.py	990	_write_confirmation_checklist	accessor	write	set_commission_checkpoint	commission_checkpoint:*
 src/report_agent/commission_plan.py	1008	reply	accessor	read	get_commission_checkpoint	commission_checkpoint:*
-src/report_agent/commission_plan.py	1010	reply	accessor	read	get_commission_plan	commission_plan
 src/report_agent/commission_plan.py	1012	reply	accessor	read	get_report_issues	report_issues
 src/report_agent/commission_plan.py	1030	reply	accessor	write	set_report_issues	report_issues
-src/report_agent/commission_plan.py	1051	reply	accessor	write	set_commission_confirmation	commission_confirmation
 src/report_agent/commission_plan.py	1052	reply	accessor	write	set_report_issues	report_issues
 src/report_agent/commission_plan.py	1053	reply	helper	read	'context_revision'	context_revision
 src/report_agent/commission_plan.py	1053	reply	helper	write	'context_revision'	context_revision
@@ -256,28 +231,14 @@ src/report_agent/commission_plan.py	1054	reply	helper	write	'report_status'	repo
 src/report_agent/commission_plan.py	1060	reply	accessor	write	set_report_issues	report_issues
 src/report_agent/commission_plan.py	1089	snapshot_outcomes	accessor	read	iter_commission_outcomes	commission_outcome:*
 src/report_agent/commission_plan.py	1128	save	accessor	write	set_commission_outcome	commission_outcome:*
-src/report_agent/commission_planning.py	62	install_text_profile	accessor	read	get_commission_text_profiles	commission_text_profiles
-src/report_agent/commission_planning.py	66	install_text_profile	accessor	write	set_commission_text_profiles	commission_text_profiles
-src/report_agent/commission_planning.py	76	resolve_source_span	accessor	read	get_commission_text_profiles	commission_text_profiles
-src/report_agent/commission_planning.py	79	resolve_source_span	accessor	read	get_commission_text_profiles	commission_text_profiles
 src/report_agent/commission_planning.py	217	install_classifications	accessor	write	set_commission_requirements	commission_requirements
 src/report_agent/commission_planning.py	262	install_reviewed_entries	helper	read	CATALOG	commission_reviewed_entries
 src/report_agent/commission_planning.py	285	install_reviewed_entries	helper	write	CATALOG	commission_reviewed_entries
 src/report_agent/commission_planning.py	290	reviewed_entry	helper	read	CATALOG	commission_reviewed_entries
 src/report_agent/commission_planning.py	292	reviewed_entry	helper	read	CATALOG	commission_reviewed_entries
-src/report_agent/commission_planning.py	349	save	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_planning.py	431	_assemble	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/commission_planning.py	507	_gaps	accessor	read	get_commission_planning_draft	commission_planning_draft
 src/report_agent/commission_planning.py	537	read_draft	helper	read	CATALOG	commission_reviewed_entries
-src/report_agent/commission_planning.py	538	read_draft	accessor	read	get_commission_text_profiles	commission_text_profiles
 src/report_agent/commission_planning.py	572	read_draft_page	helper	read	CATALOG	commission_reviewed_entries
-src/report_agent/commission_planning.py	573	read_draft_page	accessor	read	get_commission_text_profiles	commission_text_profiles
-src/report_agent/commission_planning.py	639	save	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_planning.py	641	save	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_planning.py	646	save	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/commission_planning.py	683	save	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_planning.py	704	save	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/commission_planning.py	710	save	accessor	write	set_commission_planning_draft	commission_planning_draft
 src/report_agent/commission_planning.py	776	create	accessor	read	get_report_issues	report_issues
 src/report_agent/commission_planning.py	780	create	accessor	write	set_report_issues	report_issues
 src/report_agent/commission_planning.py	781	create	helper	read	'context_revision'	context_revision
@@ -291,7 +252,6 @@ src/report_agent/commission_planning.py	871	reply_requirements	accessor	write	se
 src/report_agent/commission_planning.py	872	reply_requirements	helper	read	'context_revision'	context_revision
 src/report_agent/commission_planning.py	872	reply_requirements	helper	write	'context_revision'	context_revision
 src/report_agent/commission_planning.py	873	reply_requirements	helper	write	'report_status'	report_status
-src/report_agent/commission_planning.py	990	planning_tools	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/commission_planning.py	1023	install_prepared_planning	helper	read	CATALOG	commission_reviewed_entries
 src/report_agent/commission_requirements.py	206	read_requirements	accessor	read	get_commission_requirements	commission_requirements
 src/report_agent/commission_requirements.py	222	install_requirements	accessor	read	get_commission_requirements	commission_requirements
@@ -300,23 +260,11 @@ src/report_agent/commission_requirements.py	233	install_requirements	helper	read
 src/report_agent/commission_requirements.py	233	install_requirements	helper	write	'manifest'	manifest
 src/report_agent/commission_requirements.py	241	_write_items	accessor	read	get_commission_requirements	commission_requirements
 src/report_agent/commission_requirements.py	274	_write_items	accessor	write	set_commission_requirements	commission_requirements
-src/report_agent/commission_requirements.py	304	check_plan	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/commission_requirements.py	314	check_plan	accessor	read	get_commission_requirements	commission_requirements
 src/report_agent/commission_requirements.py	390	check_plan	accessor	read	get_commission_source_roles	commission_source_roles
-src/report_agent/commission_skeleton.py	24	_current	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/commission_skeleton.py	29	_current	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/commission_skeleton.py	31	_current	accessor	read	get_commission_text_profiles	commission_text_profiles
-src/report_agent/commission_skeleton.py	130	prepare_skeleton	accessor	read	get_commission_text_profiles	commission_text_profiles
-src/report_agent/commission_skeleton.py	133	prepare_skeleton	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_skeleton.py	138	prepare_skeleton	accessor	read	get_commission_plan	commission_plan
-src/report_agent/commission_skeleton.py	138	prepare_skeleton	accessor	read	get_commission_planning_draft	commission_planning_draft
 src/report_agent/commission_skeleton.py	140	prepare_skeleton	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_skeleton.py	229	prepare_skeleton	accessor	write	set_commission_skeleton	commission_skeleton
 src/report_agent/commission_skeleton.py	273	validate_skeleton	accessor	read	get_commission_owner_records	commission_owner_records
-src/report_agent/commission_skeleton.py	317	save	accessor	write	set_commission_skeleton	commission_skeleton
-src/report_agent/commission_skeleton.py	323	apply_dispositions	accessor	read	get_commission_skeleton	commission_skeleton
-src/report_agent/commission_skeleton.py	326	apply_dispositions	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/commission_skeleton.py	342	disposition_gaps	accessor	read	get_commission_skeleton	commission_skeleton
 src/report_agent/content_delivery.py	13	_legacy_current_delivery	accessor	read	get_content_delivery	content_delivery
 src/report_agent/content_delivery.py	13	_legacy_current_delivery	accessor	read	get_content_final_review	content_final_review
 src/report_agent/content_delivery.py	53	current_delivery	accessor	read	get_content_delivery	content_delivery
@@ -505,11 +453,6 @@ src/report_agent/exporting.py	449	export_docx	property	read	workspace.store.mani
 src/report_agent/exporting.py	471	export_docx	property	read	workspace.store.manifest	manifest
 src/report_agent/exporting.py	496	export_docx	store	read	'model_mode'	model_mode
 src/report_agent/exporting.py	498	export_docx	property	read	workspace.store.manifest	manifest
-src/report_agent/extraction_probe.py	103	_inputs	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/extraction_probe.py	104	_inputs	accessor	read	get_commission_plan	commission_plan
-src/report_agent/fake_indicator_retry.py	168	launch	accessor	read	get_commission_confirmation	commission_confirmation
-src/report_agent/fake_indicator_retry.py	168	launch	accessor	read	get_commission_plan	commission_plan
-src/report_agent/fake_verification.py	208	check_prepared	accessor	read	read_probe_plan_pin_rows	commission_confirmation,commission_plan
 src/report_agent/g3_export.py	169	validate_export	accessor	read	get_planned_section_receipt	planned_section_receipt:*
 src/report_agent/g3_export.py	224	validate_export	accessor	read	get_planned_section_receipt	planned_section_receipt:*
 src/report_agent/g3_export.py	239	validate_export	accessor	read	get_planned_section_receipt	planned_section_receipt:*
@@ -585,15 +528,10 @@ src/report_agent/legacy_state.py	53	get_assessment_receipt	helper	read	'assessme
 src/report_agent/legacy_state.py	57	get_g6_assessment	helper	read	'g6_assessment:' + suffix	g6_assessment:*
 src/report_agent/legacy_state.py	61	get_g6_assessment_producer	helper	read	'g6_assessment_producer:' + suffix	g6_assessment_producer:*
 src/report_agent/legacy_state.py	65	get_commission_plan	helper	read	'commission_plan'	commission_plan
-src/report_agent/legacy_state.py	69	set_commission_plan	helper	write	'commission_plan'	commission_plan
 src/report_agent/legacy_state.py	73	get_commission_confirmation	helper	read	'commission_confirmation'	commission_confirmation
-src/report_agent/legacy_state.py	77	set_commission_confirmation	helper	write	'commission_confirmation'	commission_confirmation
 src/report_agent/legacy_state.py	81	get_commission_skeleton	helper	read	COMMISSION_SKELETON_KEY	commission_skeleton
-src/report_agent/legacy_state.py	85	set_commission_skeleton	helper	write	COMMISSION_SKELETON_KEY	commission_skeleton
 src/report_agent/legacy_state.py	89	get_commission_planning_draft	helper	read	COMMISSION_PLANNING_DRAFT_KEY	commission_planning_draft
-src/report_agent/legacy_state.py	93	set_commission_planning_draft	helper	write	COMMISSION_PLANNING_DRAFT_KEY	commission_planning_draft
 src/report_agent/legacy_state.py	97	get_commission_text_profiles	helper	read	'commission_text_profiles'	commission_text_profiles
-src/report_agent/legacy_state.py	101	set_commission_text_profiles	helper	write	'commission_text_profiles'	commission_text_profiles
 src/report_agent/legacy_state.py	105	get_commission_requirements	helper	read	COMMISSION_REQUIREMENTS_KEY	commission_requirements
 src/report_agent/legacy_state.py	109	set_commission_requirements	helper	write	COMMISSION_REQUIREMENTS_KEY	commission_requirements
 src/report_agent/legacy_state.py	113	get_commission_requirements_checkpoint	helper	read	'commission_requirements_checkpoint:' + suffix	commission_requirements_checkpoint:*
@@ -632,7 +570,6 @@ src/report_agent/legacy_state.py	241	get_result_impact_assessments	helper	read	'
 src/report_agent/legacy_state.py	245	set_result_impact_assessments	helper	write	'result_impact_assessments'	result_impact_assessments
 src/report_agent/legacy_state.py	249	get_decision_observation	helper	read	'decision_observation'	decision_observation
 src/report_agent/legacy_state.py	253	set_decision_observation	helper	write	'decision_observation'	decision_observation
-src/report_agent/legacy_state.py	257	read_probe_plan_pin_rows	sql	read	SELECT key,value FROM state WHERE key IN ('commission_plan','commission_confirmation')	commission_confirmation,commission_plan
 src/report_agent/legacy_state.py	261	read_completion_authority_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','content_delivery') ORDER BY key	content_delivery,manifest
 src/report_agent/legacy_state.py	265	read_repetition_state_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','feedback','report_issues','issues','context_revision','source_changes','corrections','content_delivery','content_execution_dec	acceptance_default,acceptance_mode,active_rubric_hash,content_delivery,content_execution_decision,context_policy,context_revision,corrections,decision_observation,feedback,issues,knowledge_enabled,manifest,operator_%,report_issues,source_changes
 src/report_agent/legacy_state.py	275	iter_g6_issue_record	sql	read	'g6_issue_record:'	g6_issue_record:*
@@ -656,7 +593,6 @@ src/report_agent/method_pack.py	186	register_reviewed_method_pack	sql	write	iden
 src/report_agent/method_pack.py	187	register_reviewed_method_pack	sql	write	'reviewed_method_pack:' + pack_digest	reviewed_method_pack:*
 src/report_agent/method_pack.py	216	reviewed_method_questions	helper	read	'reviewed_method_pack:' + digest(pack)	reviewed_method_pack:*
 src/report_agent/mini_commission.py	90	prepare_mini_commission	accessor	write	set_commission_source_roles	commission_source_roles
-src/report_agent/mini_commission.py	97	prepare_mini_commission	accessor	read	get_commission_confirmation	commission_confirmation
 src/report_agent/model_config.py	81	bind_role_services	property	read	store.manifest	manifest
 src/report_agent/model_config.py	82	bind_role_services	store	read	'role_model_services'	role_model_services
 src/report_agent/model_config.py	88	bind_role_services	store	read	'role_generation'	role_generation
@@ -700,13 +636,9 @@ src/report_agent/operator_instructions.py	118	sync_operator_instructions	store	r
 src/report_agent/operator_instructions.py	123	sync_operator_instructions	store	read	KEY	prompt_instruction_registry
 src/report_agent/operator_instructions.py	132	sync_operator_instructions	store	write	'operator_instruction_binding'	operator_instruction_binding
 src/report_agent/operator_instructions.py	134	sync_operator_instructions	store	write	'operator_instruction_sync_intent'	operator_instruction_sync_intent
-src/report_agent/planning_assertions.py	22	_issuer	accessor	read	get_commission_planning_draft	commission_planning_draft
-src/report_agent/planning_assertions.py	24	_issuer	accessor	read	get_commission_plan	commission_plan
 src/report_agent/planning_budget.py	91	approvable_plan	accessor	read	get_report_issues	report_issues
 src/report_agent/planning_budget.py	92	approvable_plan	accessor	read	get_commission_checkpoint	commission_checkpoint:*
-src/report_agent/planning_guard.py	21	fingerprint	accessor	read	get_commission_plan	commission_plan
 src/report_agent/planning_guard.py	21	fingerprint	accessor	read	get_commission_requirements	commission_requirements
-src/report_agent/planning_guard.py	22	fingerprint	accessor	read	get_commission_planning_draft	commission_planning_draft
 src/report_agent/planning_guard.py	30	record_planning_result	helper	read	KEY	commission_planning_rejections
 src/report_agent/planning_guard.py	47	record_planning_result	accessor	read	get_report_issues	report_issues
 src/report_agent/planning_guard.py	47	record_planning_result	accessor	write	set_report_issues	report_issues

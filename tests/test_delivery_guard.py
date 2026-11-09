@@ -5,7 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from report_agent import delivery_guard as guard
+from report_agent import delivery_guard as guard, plan_authority
+from support.plan_fixture import install_confirmed_plan
+from test_m1_commission_plan import commission
 from report_agent.errors import ActionRejected
 from report_agent.store import Store
 
@@ -15,7 +17,6 @@ def workspace(tmp_path):
     store = Store(tmp_path / 'case')
     store.set('manifest', {'assembly_contract': 'system-assembler-v1'})
     store.set('report_status', 'running')
-    store.set('commission_confirmation', {'approved': 'unchanged'})
     return SimpleNamespace(store=store)
 
 
@@ -31,18 +32,31 @@ def wait(workspace):
     return state
 
 
-def test_three_export_failures_pause_once_and_preserve_approval(workspace):
+@pytest.fixture
+def approved_workspace(commission):
+    install_confirmed_plan(commission)
+    ws = commission.ws
+    ws.store.set('manifest', {**ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
+    ws.store.set('report_status', 'running')
+    return ws
+
+
+def test_three_export_failures_pause_once_and_preserve_approval(approved_workspace):
+    workspace = approved_workspace
+    original = plan_authority.decision_ref(workspace.store)
+    assert original
+    previous_issues = workspace.store.get('report_issues', [])
     assert result(workspace, 'one')['consecutive_rejections'] == 1
     assert result(workspace, 'two')['waiting'] is False
     state = result(workspace, 'three')
     assert state['waiting'] and state['consecutive_rejections'] == 3
     assert workspace.store.get('report_status') == 'waiting_for_human'
     issues = workspace.store.get('report_issues')
-    assert len(issues) == 1 and issues[0]['category'] == 'system_failure'
-    assert issues[0]['id'] == state['issue_id']
-    assert workspace.store.get('commission_confirmation') == {'approved': 'unchanged'}
+    assert issues[:-1] == previous_issues
+    assert issues[-1]['category'] == 'system_failure' and issues[-1]['id'] == state['issue_id']
+    assert plan_authority.decision_ref(workspace.store) == original
     assert result(workspace, 'four')['issue_id'] == state['issue_id']
-    assert len(workspace.store.get('report_issues')) == 1
+    assert workspace.store.get('report_issues') == issues
 
 
 def test_actor_and_native_call_identity_deduplicate_across_reopen(workspace):
@@ -108,7 +122,10 @@ def test_resume_requires_exact_typed_decision(workspace, decision):
     assert workspace.store.get(guard.KEY)['waiting']
 
 
-def test_exact_resume_is_idempotent_and_does_not_approve_or_erase_failures(workspace):
+def test_exact_resume_is_idempotent_and_does_not_approve_or_erase_failures(approved_workspace):
+    workspace = approved_workspace
+    original = plan_authority.decision_ref(workspace.store)
+    assert original
     state = wait(workspace)
     decision = {'decision': 'resume_delivery', 'note': 'Reviewed export failures and corrected the cause.'}
     with pytest.raises(ActionRejected, match='DELIVERY_RESUME_ISSUE_MISMATCH'):
@@ -119,7 +136,7 @@ def test_exact_resume_is_idempotent_and_does_not_approve_or_erase_failures(works
     state = workspace.store.get(guard.KEY)
     assert not state['waiting'] and state['consecutive_rejections'] == 0
     assert len(state['failures']) == 3
-    assert workspace.store.get('commission_confirmation') == {'approved': 'unchanged'}
+    assert plan_authority.decision_ref(workspace.store) == original
     assert result(workspace, 'next')['consecutive_rejections'] == 1
     with pytest.raises(ActionRejected, match='DELIVERY_WAIT_NOT_ACTIVE'):
         guard.resume_delivery(workspace, resolved['id'], {**decision, 'note': 'Different reply'})

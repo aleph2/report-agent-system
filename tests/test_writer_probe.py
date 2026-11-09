@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import pytest
+from report_agent import plan_authority
 from report_agent.writer_probe import verified_request_bound, refusal_rows
 
 
@@ -72,7 +73,7 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     case, evidence, env = root/'case', root/'evidence', root/'synthetic.env'
     evidence.mkdir()
     imported = prepare_probe_case(f.ws.store.root, case, expected_plan_ref=saved['plan_ref'],
-                                 expected_decision_ref=f.ws.store.get('commission_confirmation'))
+                                 expected_decision_ref=plan_authority.decision_ref(f.ws.store))
     url = 'https://synthetic.invalid/v1'
     env.write_text('\n'.join([
         'HIGHWAY_MODEL_NAME=glm-5.3', 'HIGHWAY_MODEL_BASE_URL='+url,

@@ -2,7 +2,7 @@
 import json
 import pytest
 from copy import deepcopy
-from report_agent import commission_planning as planning
+from report_agent import commission_planning as planning, plan_inputs
 from report_agent.errors import ActionRejected
 from report_agent.store import encode
 from test_m1_g4_planning_steps import (method_commission, anchored, required_case, entries, linked, draft_case, text_source, offline_only)
@@ -17,7 +17,8 @@ def large(f):
     # Same failure shape as the real draft: large fixed text before trailing gaps.
     section = deepcopy(f.plan['sections'][0])
     section['text'] = 'Retained source text. ' * 9000
-    f.ws.store.set(planning.DRAFT, {'revision': 7, 'items': {'section': {section['section_id']: section}}})
+    with f.cs.store.connect() as db:
+        plan_inputs.save_draft(db, {'revision': 7, 'items': {'section': {section['section_id']: section}}}, actor=f.co)
     return section
 
 

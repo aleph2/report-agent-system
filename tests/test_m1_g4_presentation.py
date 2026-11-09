@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from report_agent.store import Store
 from test_m1_commission_plan import api, approve, save, writer, commission
@@ -38,7 +39,7 @@ def test_new_contract_refuses_confirmation_of_old_plan_without_rewriting_it(meth
     new_contract(fixture)
     with pytest.raises(ActionRejected, match='(?i)(table.*spec|spec.*table)'):
         approve(fixture, saved)
-    assert fixture.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(fixture.ws.store) is None
     assert fixture.cs.read(saved['plan_ref']) == before
 
 
@@ -58,11 +59,11 @@ def test_new_contract_does_not_reissue_legacy_confirmation_on_operator_replay(me
     fixture = method_commission
     saved = save(fixture)
     checkpoint, decision = approve(fixture, saved)
-    historical = deepcopy(fixture.ws.store.get('commission_confirmation'))
+    historical = deepcopy(plan_authority.decision_ref(fixture.ws.store))
     new_contract(fixture)
     with pytest.raises(ActionRejected, match='(?i)(table.*spec|spec.*table)'):
         api().reply(fixture.ws, checkpoint['issue_id'], decision)
-    assert fixture.ws.store.get('commission_confirmation') == historical
+    assert plan_authority.decision_ref(fixture.ws.store) == historical
 
 
 def test_historical_assessment_path_remains_readable_and_unchanged(method_commission):
@@ -98,4 +99,4 @@ def test_nonassessment_commission_does_not_require_irrelevant_table_specs(commis
     new_contract(fixture)
     saved = save(fixture)
     approve(fixture, saved)
-    assert fixture.ws.store.get('commission_confirmation')
+    assert plan_authority.decision_ref(fixture.ws.store)

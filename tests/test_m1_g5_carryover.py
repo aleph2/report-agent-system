@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from report_agent import plan_authority, plan_inputs
 from report_agent.errors import ActionRejected, ActionForbidden
 from report_agent.content_models import Ref
 from test_m1_g5_j2 import skeleton_case, entries, required_case, anchored, method_commission, ws
@@ -74,8 +75,8 @@ def test_import_remaps_sources_by_unique_hash_and_preserves_unapproved_proposals
     assert all(row["status"] == "proposed" for row in plan["carried_items"])
     assert plan["objects"][0]["sources"] == f.current_judgments["objects"][0]["sources"]
     assert "prior-source-" not in str(plan)
-    assert not f.cs.store.get("commission_plan")
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.plan_ref(f.cs.store)
+    assert not plan_authority.decision_ref(f.cs.store)
     assert install(f) == fingerprint
 
 
@@ -101,7 +102,7 @@ def test_confirming_every_current_projection_is_not_plan_approval(carry_case):
     install(f)
     review_all(f)
     assert all(row["status"] == "confirmed" for row in view(f)["plan"]["carried_items"])
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_edit_after_review_invalidates_only_the_affected_object_review(carry_case):
@@ -179,7 +180,7 @@ def test_untrusted_carryover_content_is_rejected_before_draft_mutation(carry_cas
     with pytest.raises((ActionRejected, ValueError)):
         install(f, package)
     assert not f.cs.store.get("commission_carryover")
-    assert not f.cs.store.get("commission_planning_draft", {}).get("revision")
+    assert not plan_inputs.get_draft(f.cs.store, {}).get("revision")
 
 
 def test_two_current_source_refs_with_same_hash_are_ambiguous(carry_case):
@@ -197,10 +198,10 @@ def test_two_current_source_refs_with_same_hash_are_ambiguous(carry_case):
 def test_import_does_not_overwrite_existing_draft(carry_case):
     f = carry_case
     planning().save_item(f.cs, f.co, "existing-object", "object", f.plan["objects"][0])
-    before = deepcopy(f.cs.store.get("commission_planning_draft"))
+    before = deepcopy(plan_inputs.get_draft(f.cs.store))
     with pytest.raises(ActionRejected, match="FRESH_SKELETON"):
         install(f)
-    assert f.cs.store.get("commission_planning_draft") == before
+    assert plan_inputs.get_draft(f.cs.store) == before
 
 
 def test_installed_package_is_immutable_even_after_review(carry_case):
@@ -250,7 +251,7 @@ def test_imported_free_question_stays_open_after_review(carry_case):
     review_all(f)
     plan = view(f)["plan"]
     assert "Designer must confirm this retained question." in plan["open_questions"]
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_carried_exclusion_without_current_page_read_or_owner_record_stays_blocked(carry_case):
@@ -259,7 +260,7 @@ def test_carried_exclusion_without_current_page_read_or_owner_record_stays_block
     install(f)
     review_all(f)
     assert any(g["code"] == "CARRYOVER_EXCLUSION_PAGE_READ_REQUIRED" for g in view(f)["gaps"])
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_recorded_owner_scope_exclusion_does_not_invent_page_read_requirement(skeleton_case):
@@ -276,7 +277,7 @@ def test_recorded_owner_scope_exclusion_does_not_invent_page_read_requirement(sk
     install(f)
     review_all(f)
     assert not any(g["code"] == "CARRYOVER_EXCLUSION_PAGE_READ_REQUIRED" for g in view(f)["gaps"])
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_only_current_direct_page_return_clears_carried_exclusion_read_gate(carry_case):
@@ -305,4 +306,4 @@ def test_only_current_direct_page_return_clears_carried_exclusion_read_gate(carr
     assert requires_read(), "Helper input alone is not a direct page return."
     issue(f.ws, f.co, "read_source_page", json.dumps(data, ensure_ascii=False), block_material(data))
     assert not requires_read()
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)

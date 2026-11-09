@@ -10,13 +10,13 @@ import tempfile
 from .blob_store import BlobStore
 from .catalog import Catalog
 from .content_models import refs_in
-from . import legacy_state as legacy
+from . import legacy_state as legacy, plan_authority, plan_inputs
 from .content_store import ContentStore
 from .store import Store, digest, encode
 from .workspace import Workspace
 
-BUSINESS_STATE = legacy.BUSINESS_STATE
 BUSINESS_TYPES = frozenset({
+    'PlanSkeleton', 'PlanTextProfiles',
     'CommissionPlan', 'CommissionDecision', 'CommissionRequirements', 'Requirement', 'SourceArtifact',
 })
 
@@ -39,28 +39,31 @@ def _db_hashes(root):
             if (root / name).exists() and (name == 'state.db' or (root / name).stat().st_size)}
 
 
-def _content_closure(db, state):
+def _content_closure(db, state, plan_inputs_and_pins):
     # Carryover's old origin/source pins are historical provenance, not live refs.
     roots = [v for k, v in state.items() if k != 'commission_carryover']
     if state.get('commission_carryover'):
         roots.append(state['commission_carryover'].get('items', []))
-    pending = [r for value in roots for r in refs_in(value)]
+    pending = [r for value in [*roots, plan_inputs_and_pins] for r in refs_in(value)]
     records = {}
+    positions = {}
     while pending:
         ref = pending.pop()
         if ref.key() in records:
             continue
         if ref.type not in BUSINESS_TYPES:
             raise ValueError('PROBE_NONBUSINESS_DEPENDENCY')
-        row = db.execute('SELECT data FROM content_versions WHERE type=? AND id=? AND version=?', ref.key()).fetchone()
+        row = db.execute('SELECT rowid,data FROM content_versions WHERE type=? AND id=? AND version=?', ref.key()).fetchone()
         if row is None:
             raise ValueError('PROBE_BUSINESS_DEPENDENCY_MISSING')
-        record = json.loads(row[0])
+        position, raw = row
+        record = json.loads(raw)
         if record['ref'] != ref.model_dump() or record['payload_digest'] != digest(record['payload']):
             raise ValueError('PROBE_BUSINESS_INTEGRITY_MISMATCH')
         records[ref.key()] = record
+        positions[ref.key()] = position
         pending.extend(refs_in(record))
-    return records
+    return {key: records[key] for key in sorted(records, key=positions.__getitem__)}
 
 
 def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expected_decision_ref) -> dict:
@@ -81,8 +84,8 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
             state = legacy.read_probe_business_state(frozen)
-            if (state.get('commission_plan') != expected_plan_ref
-                    or state.get('commission_confirmation') != expected_decision_ref):
+            if (plan_authority.plan_ref(frozen) != expected_plan_ref
+                    or plan_authority.decision_ref(frozen) != expected_decision_ref):
                 raise ValueError('PROBE_APPROVED_PIN_MISMATCH')
             if any(s.get('copied_path') or s.get('original_path') for s in state['manifest']['sources']):
                 raise ValueError('PROBE_MANIFEST_SOURCE_PATH_UNSUPPORTED')
@@ -93,7 +96,12 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 if row is None:
                     raise ValueError('PROBE_SOURCE_AUTHORITY_MISSING')
                 state[key] = json.loads(row[0])
-            records = _content_closure(frozen, state)
+            records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref])
+            historical = 'plan_authority' not in ContentStore._read(frozen, expected_plan_ref)
+            legacy_skeleton = plan_inputs.get_skeleton(frozen) if historical else None
+            legacy_profiles = plan_inputs.get_text_profiles(frozen) if historical else None
+            if historical:
+                records.update(_content_closure(frozen, {}, [legacy_skeleton, legacy_profiles]))
             versions = frozen.execute('SELECT id,operation,data,original FROM source_versions ORDER BY rowid').fetchall()
             blocks = frozen.execute('SELECT source_id,ordinal,locator,text FROM source_blocks ORDER BY source_id,ordinal').fetchall()
         if _db_hashes(source) != before:
@@ -117,6 +125,14 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 heads[typ, identity] = max(version, heads.get((typ, identity), 0))
             db.executemany('INSERT INTO content_heads VALUES (?,?,?)',
                            [(*key, version) for key, version in heads.items()])
+
+            if legacy_skeleton is not None and ('PlanSkeleton', 'PlanSkeleton') not in heads:
+                plan_inputs.save_skeleton(db, legacy_skeleton)
+            if legacy_profiles is not None and ('PlanTextProfiles', 'PlanTextProfiles') not in heads:
+                plan_inputs.save_text_profiles(db, legacy_profiles)
+            if historical:
+                plan_authority.install_historical_refs(db, expected_plan_ref, expected_decision_ref)
+        plan_authority.copy_plan_evidence(source, output, records.values())
 
         source_blobs, copied_blobs = BlobStore(source), BlobStore(output)
         dependencies = {}

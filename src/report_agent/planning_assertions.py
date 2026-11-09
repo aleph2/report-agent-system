@@ -6,7 +6,8 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import Field
 
-from . import assertions, legacy_state as legacy
+from . import assertions, plan_inputs
+from . import plan_authority
 from .assertion_host import AssertionHost, Grant
 from .content_tasks import model_owner_identity
 from .errors import ActionForbidden, ActionRejected
@@ -19,9 +20,9 @@ def _issuer(cs, actor, subject):
     if actor != actor_for('coordinator') or model_owner_identity(cs.store) is not None:
         raise ActionForbidden('PLANNING_ASSERTION_COORDINATOR_REQUIRED')
     with cs.store.connect() as db:
-        draft = legacy.get_commission_planning_draft(db, {})
+        draft = plan_inputs.get_draft(db, {})
         if subject not in draft.get('items', {}).get('object', {}):
-            ref = legacy.get_commission_plan(db)
+            ref = plan_authority.plan_ref(db)
             if not ref or not any(o['object_id'] == subject for o in cs._read(db, ref)['payload']['objects']):
                 raise ActionForbidden('PLANNING_ASSERTION_INVENTORY_SUBJECT_REQUIRED')
     return str(uuid5(NAMESPACE_URL, actor.id))

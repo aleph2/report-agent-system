@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from test_m1_commission_plan import api, save, writer
 from test_m1_g3_integration import method_commission, persist
@@ -54,7 +55,7 @@ def test_pending_source_applicability_is_not_implicitly_approved(source_decision
     decision.pop("template_decisions")
     with pytest.raises(ActionRejected):
         decide(f, decision)
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
     assert not next(i for i in f.cs.store.get("report_issues") if i["id"] == f.checkpoint["issue_id"]).get("resolved")
 
 
@@ -82,7 +83,7 @@ def test_owner_source_decision_rejects_incomplete_or_invalid_choices(source_deci
             first["replacements"].append({"old": "method sentence", "new": "Updated"})
     with pytest.raises((ActionRejected, ValueError)):
         decide(f, decision)
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_source_choices_are_still_bound_to_current_plan_and_issue(source_decision_case):
@@ -91,17 +92,17 @@ def test_source_choices_are_still_bound_to_current_plan_and_issue(source_decisio
     decision["plan_ref"]["version"] += 1
     with pytest.raises(ActionRejected, match="STALE"):
         decide(f, decision)
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 def test_explicit_source_choices_persist_and_replay_idempotently(source_decision_case):
     f = source_decision_case
     decide(f)
-    original = f.cs.store.get("commission_confirmation")
+    original = plan_authority.decision_ref(f.cs.store)
     record = f.cs.read(original)["payload"]
     assert record["template_decisions"] == choices()
     decide(f)
-    assert f.cs.store.get("commission_confirmation") == original
+    assert plan_authority.decision_ref(f.cs.store) == original
     assert len(f.cs.list_objects("CommissionDecision")) == 1
 
 
@@ -111,7 +112,7 @@ def test_plan_rejection_does_not_require_source_adoption_choices(source_decision
     decision.update(approved=False, corrections="Review source applicability before approval.")
     decision.pop("template_decisions")
     decide(f, decision)
-    assert f.cs.read(f.cs.store.get("commission_confirmation"))["payload"]["approved"] is False
+    assert f.cs.read(plan_authority.decision_ref(f.cs.store))["payload"]["approved"] is False
 
 
 def test_template_choice_cannot_attach_to_legacy_plan_without_question_parts(method_commission):
@@ -121,7 +122,7 @@ def test_template_choice_cannot_attach_to_legacy_plan_without_question_parts(met
     with pytest.raises(ActionRejected):
         api().reply(f.ws, checkpoint["issue_id"], {"plan_ref": saved["plan_ref"], "approved": True,
             "corrections": "", "reductions": [], "template_decisions": choices()})
-    assert not f.cs.store.get("commission_confirmation")
+    assert not plan_authority.decision_ref(f.cs.store)
 
 
 @pytest.fixture

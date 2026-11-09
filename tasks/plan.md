@@ -1181,3 +1181,9 @@ Offline comparison of the October release (`8e54420`) and accepted M3 (`76d835b`
 - The October tag preserves the release records and the exact old default-branch tip. It is sufficient for the handoff.
 
 After the owner accepts the tested M4 tag, recheck the remote `main` tip, the October tag and the accepted target. Show the owner both commit IDs and obtain explicit confirmation for the one-time non-fast-forward update. Use a lease pinned to the confirmed old commit. If the tip changes or branch protection refuses the update, report it to the owner. The README identifies the tag for opening October cases.
+
+### M4 plan core candidate
+
+The Coordinator proposes an exact plan version through `save_plan`; the existing checkpoint records the owner's choices and binds the owner action to that proposal. The approved plan pins the skeleton and text profiles used in submission. Drafts, skeletons and profiles now have immutable content versions. Historical cases keep their existing read path. The fresh business import copies the selected plan evidence without copying the issuing grants or a live planning draft.
+
+The regression candidate includes the independent review fix for a withdrawn approval. Both snapshot export preflight and regenerated confirmation checklists recheck the selected owner decision. Individual fixes were tested offline. The M4 review tag is cut only after full-suite verification. The dispatcher, action catalog and approval process are outside this migration.

@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from test_m1_source_substitution import substitution, section, REQUESTED
 from test_m1_commission_plan import commission, save, approve, api
@@ -46,4 +47,4 @@ def test_brief_is_chinese_and_distinguishes_proposal_from_approval(substitution)
     for heading in ('编制计划确认', '评估对象', '章节计划', '交付物', '客户约定', '资料替代', '待确认问题'):
         assert heading in brief
     assert '客户原文依据' in brief and '代理解释' in brief
-    assert substitution.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(substitution.ws.store) is None

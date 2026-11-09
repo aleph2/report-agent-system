@@ -1,4 +1,5 @@
 """Source-owned commission anchors and one authority check, independent of plans."""
+from . import plan_inputs
 from . import legacy_state as legacy
 from io import BytesIO
 import re
@@ -301,7 +302,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
     items = {i['anchor_id']: i for i in record['payload']['items']}
     from .commission_carryover import gaps as carryover_gaps
     gaps = disposition_gaps(cs, db, plan) + carryover_gaps(cs, db, plan)
-    for q in (legacy.get_commission_skeleton(db) or {}).get('questions', []):
+    for q in (plan_inputs.get_skeleton(db) or {}).get('questions', []):
         gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + q['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': q['reason']})
     def gap(anchor, path, code, message):
         gaps.append({'anchor_id': anchor['id'], 'path': path, 'code': code, 'message': message})
@@ -446,23 +447,28 @@ def require_complete(cs, plan, *, db=None):
 
 def require_snapshot(cs, db, snapshot):
     """Check the selected immutable snapshot, not an unrelated newer plan."""
-    if not enabled(cs.store):
-        return
+    from . import plan_authority
+    anchored = enabled(cs.store)
     payload = snapshot['payload']
     plan_ref, decision_ref = payload.get('commission_plan_ref'), payload.get('commission_confirmation_ref')
+    if not anchored and not plan_ref and not decision_ref:
+        return
     if not plan_ref or not decision_ref:
         raise ActionRejected('COMMISSION_REQUIREMENTS_SNAPSHOT_BINDING_REQUIRED')
-    plan, decision = cs._read(db, plan_ref)['payload'], cs._read(db, decision_ref)
-    require_complete(cs, plan, db=db)
+    plan, decision = cs._read(db, plan_ref), cs._read(db, decision_ref)
+    if anchored:
+        require_complete(cs, plan['payload'], db=db)
     if (decision['owner_id'] != 'operator' or not decision['payload'].get('approved')
             or decision['payload'].get('plan_ref') != plan_ref
-            or decision['payload'].get('requirements_ref') != plan.get('requirements_ref')):
+            or (anchored and decision['payload'].get('requirements_ref') != plan['payload'].get('requirements_ref'))):
         raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
+    plan_authority.verify(cs.store.root, plan, decision)
 
 
 def export_preflight(cs, actor, snapshot_ref, deliverable):
     """Export replay grants authority too; reading an old artifact remains separate."""
-    if enabled(cs.store):
+    from .commission_plan import enabled as checkpoint_enabled
+    if enabled(cs.store) or checkpoint_enabled(cs.store):
         with cs.store.connect() as db:
             if deliverable is not None:
                 from .deliverables import resolve_snapshot

@@ -201,12 +201,14 @@ class ContentStore:
         return {"ok": True, "result": result, "receipt_id": receipt}
 
     @staticmethod
-    def _insert(db, actor, type, payload, *, id=None, version=1, previous_ref=None):
+    def _insert(db, actor, type, payload, *, id=None, version=1, previous_ref=None, plan_authority=None):
         ref = {"type": type, "id": id or str(uuid4()), "version": version}
         record = {"ref": ref, "schema_version": SCHEMA_VERSION, "previous_ref": previous_ref,
                   "owner_id": actor.id, "created_by": actor.id, "task_id": actor.task_id,
                   "created_at": datetime.now(timezone.utc).isoformat(),
                   "payload_digest": digest(payload), "payload": payload}
+        if plan_authority is not None:
+            record["plan_authority"] = plan_authority
         db.execute("INSERT INTO content_versions VALUES (?,?,?,?)", (*Ref.model_validate(ref).key(), encode(record)))
         db.execute("INSERT INTO content_heads VALUES (?,?,?) ON CONFLICT(type,id) DO UPDATE SET version=excluded.version", tuple(ref.values()))
         if type == "Relation":
@@ -605,8 +607,13 @@ class ContentStore:
     def read_context(self, actor, target_ref, offset=0, limit=20):
         if offset < 0 or limit < 1 or limit > 100:
             raise ActionRejected("INVALID_PAGE")
+        from .plan_inputs import PRIVATE_INPUT_TYPES
+        if target_ref["type"] in PRIVATE_INPUT_TYPES:
+            raise ActionForbidden("FORBIDDEN: use the Coordinator planning interface for plan inputs")
         record = self.read(target_ref)
         refs = record["payload"]["refs"] if target_ref["type"] == "DocumentSnapshot" else [target_ref]
+        if target_ref["type"] == "DocumentSnapshot" and any(ref["type"] in PRIVATE_INPUT_TYPES for ref in refs):
+            raise ActionForbidden("FORBIDDEN: snapshot contains private plan inputs")
         items = [self.read(r) for r in refs[offset:offset + limit]]
         return self.observe(actor, {"target_ref": target_ref, "objects": items, "loaded_refs": refs[offset:offset + limit],
             "total": len(refs), "next_offset": offset + limit if offset + limit < len(refs) else None,

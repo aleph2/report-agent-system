@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.probe_case import prepare_probe_case
 from report_agent.store import Store
 from report_agent.workspace import Workspace
@@ -29,8 +30,8 @@ def target(tmp_path_factory):
 
 
 def prepare(f, target, **changes):
-    pins = {'expected_plan_ref': f.ws.store.get('commission_plan'),
-            'expected_decision_ref': f.ws.store.get('commission_confirmation')}
+    pins = {'expected_plan_ref': plan_authority.plan_ref(f.ws.store),
+            'expected_decision_ref': plan_authority.decision_ref(f.ws.store)}
     return prepare_probe_case(f.ws.store.root, target, **{**pins, **changes})
 
 
@@ -56,7 +57,7 @@ def test_import_preserves_business_identity_without_old_execution_state(assigned
     assert hashes(source) == before
     assert receipt['case_root'] == str(target)
     assert receipt['plan_ref'] == f.plan_ref
-    assert receipt['decision_ref'] == f.ws.store.get('commission_confirmation')
+    assert receipt['decision_ref'] == plan_authority.decision_ref(f.ws.store)
     assert len(receipt['source_db_sha256']) == len(receipt['frozen_db_sha256']) == 64
     store = Store(target); cs = ContentStore(store)
     with store.connect() as db:

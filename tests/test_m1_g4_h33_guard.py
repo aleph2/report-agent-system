@@ -5,6 +5,7 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
+from report_agent import plan_authority
 from report_agent import commission_plan, commission_planning, deep_runtime
 from report_agent.errors import ActionRejected
 from report_agent.store import Store, encode
@@ -36,7 +37,7 @@ def approval(fixture):
     checkpoint = commission_plan.request_checkpoint(fixture.ws)
     # Existing trusted approval boundary; never fabricate a confirmation record.
     commission_plan.reply(fixture.ws, checkpoint['issue_id'], {
-        'plan_ref': fixture.ws.store.get('commission_plan'),
+        'plan_ref': plan_authority.plan_ref(fixture.ws.store),
         'requirements_ref': fixture.ws.store.get('commission_requirements'),
         'approved': True, 'corrections': '', 'reductions': [],
     })
@@ -61,7 +62,7 @@ async def test_unapproved_terminal_becomes_real_wait_without_extra_model_call(dr
     assert not issue.get('decision_origin') and not issue['resolved']
     diagnostic = encode(state.interrupts[0].value)
     assert 'gap' in diagnostic.lower() and ('section' in diagnostic.lower() or 'object' in diagnostic.lower()), diagnostic
-    assert f.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(f.ws.store) is None
     assert not f.cs.list_objects('CommissionDecision')
     assert any(isinstance(m, AIMessage) and m.content == final().content for m in state.values['messages'])
     reopened = Workspace(Store(f.ws.store.root))
@@ -89,7 +90,7 @@ async def test_trusted_note_resumes_into_model_not_stale_final_or_approval(draft
     result = await run(Workspace(Store(f.ws.store.root)), fresh)
     assert result['status'] == 'needs_human' and result['last_error'] is None, result
     assert len(fresh.calls) == 1
-    assert f.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(f.ws.store) is None
     assert not f.cs.list_objects('CommissionDecision')
     assert f.ws.store.get('commission_planning_rejections') == cap_before
     state = await snapshot(f.ws, fresh)
@@ -124,7 +125,7 @@ async def test_new_terminal_same_words_after_guidance_requires_new_wait(draft_ca
     assert result['status'] == 'needs_human' and result['last_error'] is None, result
     assert len(fresh.calls) == 1
     assert f.ws.store.get(WAIT)['issue_id'] != first
-    assert f.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(f.ws.store) is None
 
 
 async def test_explicit_pausing_question_uses_existing_wait(draft_case):
@@ -184,14 +185,14 @@ async def test_old_owner_confirmation_cannot_finish_after_current_version_change
     f = draft_case
     current_native_profiles(f)
     approval(f)
-    old_confirmation = f.ws.store.get('commission_confirmation')
-    old_plan = f.ws.store.get('commission_plan')
+    old_confirmation = plan_authority.decision_ref(f.ws.store)
+    old_plan = plan_authority.plan_ref(f.ws.store)
     old_requirements = f.ws.store.get('commission_requirements')
     if changed == 'plan':
         revised = deepcopy(commission_planning.read_draft(f.cs, f.co)['plan'])
         revised['open_questions'].append('A newly recorded factual question requires owner review.')
         commission_plan.save_plan(f.cs, f.co, 'h33-revised-plan', revised)
-        assert f.ws.store.get('commission_plan') != old_plan
+        assert plan_authority.plan_ref(f.ws.store) != old_plan
     else:
         record = commission_requirements.read_requirements(f.cs)
         items = deepcopy(record['payload']['items'])
@@ -208,7 +209,7 @@ async def test_old_owner_confirmation_cannot_finish_after_current_version_change
     assert len(driver.calls) == 1
     state = await snapshot(f.ws, driver)
     assert state.interrupts[0].value['issue_id'] == f.ws.store.get(WAIT)['issue_id']
-    assert f.ws.store.get('commission_confirmation') == old_confirmation
+    assert plan_authority.decision_ref(f.ws.store) == old_confirmation
 
 
 async def test_planning_terminal_guard_is_registered_only_once_for_coordinator(draft_case, monkeypatch):

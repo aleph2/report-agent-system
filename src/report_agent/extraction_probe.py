@@ -11,7 +11,8 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pypdf import PdfReader, PdfWriter
 
-from . import legacy_state as legacy
+from . import plan_inputs
+from . import plan_authority
 from .assertion_host import AssertionHost
 from .catalog import Catalog
 from .commission_planning import save_item
@@ -100,8 +101,8 @@ def _inputs(case):
         raise ValueError('O6_INPUT_SCOPE_CHANGED')
     if set(s['id'] for s in cs.store.source_catalog()) != set(DOCUMENTS):
         raise ValueError('O6_MATERIAL_SCOPE_CHANGED')
-    objects = legacy.get_commission_planning_draft(cs.store, {}).get('items', {}).get('object', {})
-    if set(objects) != {SUBJECT} or legacy.get_commission_plan(cs.store):
+    objects = plan_inputs.get_draft(cs.store, {}).get('items', {}).get('object', {})
+    if set(objects) != {SUBJECT} or plan_authority.plan_ref(cs.store):
         raise ValueError('O6_SUBJECT_SCOPE_CHANGED')
     validate_source_versions(cs, co, source_ids=list(DOCUMENTS))
     packet = []

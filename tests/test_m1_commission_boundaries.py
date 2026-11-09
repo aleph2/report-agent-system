@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from test_m1_commission_plan import api, approve, commission, save
 
@@ -16,7 +17,7 @@ def test_missing_named_source_is_recorded_but_cannot_be_approved_as_available(co
     assert 'Named design general statement' in brief
     with pytest.raises(ActionRejected, match='COMMISSION_PENDING_SOURCES'):
         approve(commission, saved)
-    assert commission.ws.store.get('commission_confirmation') is None
+    assert plan_authority.decision_ref(commission.ws.store) is None
 
 
 @pytest.mark.parametrize('v4', [False, True])
