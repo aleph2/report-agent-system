@@ -103,14 +103,16 @@ def test_same_exclusion_with_verified_direct_candidate_page_passes_each_gate(exc
     else:
         returned_image(fixture, 2, [0.1, 0.1, 0.8, 0.8], 'incomplete')
     assert not exclusion_gaps(fixture)
-    if gate == 'approval-replay':
-        # Use a real initial approval so its complete confirmation projection exists.
-        saved = save(fixture, operation='h31-direct-for-replay')
+    if gate in ('approval', 'approval-replay'):
+        # An owner can approve only a proposal submitted by the Coordinator.
+        saved = save(fixture, operation='h31-direct-for-approval')
         checkpoint = api().request_checkpoint(fixture.ws)
         decision = {'plan_ref': saved['plan_ref'], 'requirements_ref': fixture.requirements_ref,
             'approved': True, 'corrections': '', 'reductions': []}
         first = api().reply(fixture.ws, checkpoint['issue_id'], decision)
-        assert api().reply(fixture.ws, checkpoint['issue_id'], decision) == first
+        assert first['resolved'] and first['decision_origin'] == 'operator'
+        if gate == 'approval-replay':
+            assert api().reply(fixture.ws, checkpoint['issue_id'], decision) == first
     else:
         assert invoke_gate(fixture, gate)
 
