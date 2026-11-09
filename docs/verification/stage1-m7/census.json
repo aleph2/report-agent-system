@@ -1,0 +1,242 @@
+{
+  "baseline": "48fabae",
+  "removed_access_signatures": [
+    {
+      "file": "src/report_agent/commission_plan.py",
+      "scope": "snapshot_outcomes",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "iter_commission_outcomes",
+      "families": "commission_outcome:*"
+    },
+    {
+      "file": "src/report_agent/commission_plan.py",
+      "scope": "save",
+      "access": "accessor",
+      "operation": "write",
+      "operand": "set_commission_outcome",
+      "families": "commission_outcome:*"
+    },
+    {
+      "file": "src/report_agent/content_store.py",
+      "scope": "save",
+      "access": "helper",
+      "operation": "write",
+      "operand": "prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id'])",
+      "families": "g6_object_prose:*,g6_section_prose:*"
+    },
+    {
+      "file": "src/report_agent/g3_export.py",
+      "scope": "validate_export",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/g3_export.py",
+      "scope": "validate_export",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/g3_export.py",
+      "scope": "validate_export",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/legacy_state.py",
+      "scope": "set_planned_section_receipt",
+      "access": "helper",
+      "operation": "write",
+      "operand": "'planned_section_receipt:' + suffix",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/legacy_state.py",
+      "scope": "set_assembly_receipt",
+      "access": "helper",
+      "operation": "write",
+      "operand": "'assembly_receipt:' + suffix",
+      "families": "assembly_receipt:*"
+    },
+    {
+      "file": "src/report_agent/legacy_state.py",
+      "scope": "set_commission_outcome",
+      "access": "helper",
+      "operation": "write",
+      "operand": "'commission_outcome:' + suffix",
+      "families": "commission_outcome:*"
+    },
+    {
+      "file": "src/report_agent/legacy_state.py",
+      "scope": "set_rescue_projection",
+      "access": "helper",
+      "operation": "write",
+      "operand": "'rescue_projection:' + suffix",
+      "families": "rescue_projection:*"
+    },
+    {
+      "file": "src/report_agent/rescue_projection.py",
+      "scope": "_project",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/rescue_projection.py",
+      "scope": "execute",
+      "access": "accessor",
+      "operation": "write",
+      "operand": "set_rescue_projection",
+      "families": "rescue_projection:*"
+    },
+    {
+      "file": "src/report_agent/rescue_projection.py",
+      "scope": "verify_projection",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_rescue_projection",
+      "families": "rescue_projection:*"
+    },
+    {
+      "file": "src/report_agent/risk_scoring.py",
+      "scope": "create_planned_section_in_transaction",
+      "access": "accessor",
+      "operation": "write",
+      "operand": "set_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/risk_scoring.py",
+      "scope": "create_planned_section_in_transaction",
+      "access": "accessor",
+      "operation": "write",
+      "operand": "set_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/section_writing.py",
+      "scope": "validate_prose",
+      "access": "helper",
+      "operation": "read",
+      "operand": "prose_selection_key(cs, db, actor, plan['ref'], sid)",
+      "families": "g6_object_prose:*,g6_section_prose:*"
+    },
+    {
+      "file": "src/report_agent/section_writing.py",
+      "scope": "save",
+      "access": "helper",
+      "operation": "read",
+      "operand": "prose_selection_key(cs, db, actor, plan['ref'], sid)",
+      "families": "g6_object_prose:*,g6_section_prose:*"
+    },
+    {
+      "file": "src/report_agent/system_assembler.py",
+      "scope": "_execute_assembly",
+      "access": "accessor",
+      "operation": "write",
+      "operand": "set_commission_outcome",
+      "families": "commission_outcome:*"
+    },
+    {
+      "file": "src/report_agent/system_assembler.py",
+      "scope": "_execute_assembly",
+      "access": "accessor",
+      "operation": "write",
+      "operand": "set_assembly_receipt",
+      "families": "assembly_receipt:*"
+    },
+    {
+      "file": "src/report_agent/system_assembler.py",
+      "scope": "_current_selections",
+      "access": "helper",
+      "operation": "read",
+      "operand": "'g6_section_prose:' + digest([plan['ref'], sid])",
+      "families": "g6_section_prose:*"
+    },
+    {
+      "file": "src/report_agent/system_assembler.py",
+      "scope": "_current_selections",
+      "access": "helper",
+      "operation": "read",
+      "operand": "'g6_object_prose:' + digest([plan['ref'], sid, obj['object_id']])",
+      "families": "g6_object_prose:*"
+    },
+    {
+      "file": "src/report_agent/system_assembler.py",
+      "scope": "require_assembled",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_assembly_receipt",
+      "families": "assembly_receipt:*"
+    },
+    {
+      "file": "src/report_agent/writer_issues.py",
+      "scope": "save_section_prose",
+      "access": "helper",
+      "operation": "read",
+      "operand": "prose_selection_key(cs, db, actor, bound['plan']['ref'], bound['section_id'])",
+      "families": "g6_object_prose:*,g6_section_prose:*"
+    }
+  ],
+  "added_access_signatures": [
+    {
+      "file": "src/report_agent/legacy_state.py",
+      "scope": "historical_prose",
+      "access": "helper",
+      "operation": "read",
+      "operand": "key",
+      "families": "g6_object_prose:*,g6_section_prose:*"
+    },
+    {
+      "file": "src/report_agent/report_state.py",
+      "scope": "planned_section",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_planned_section_receipt",
+      "families": "planned_section_receipt:*"
+    },
+    {
+      "file": "src/report_agent/report_state.py",
+      "scope": "assembly",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_assembly_receipt",
+      "families": "assembly_receipt:*"
+    },
+    {
+      "file": "src/report_agent/report_state.py",
+      "scope": "projection",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "get_rescue_projection",
+      "families": "rescue_projection:*"
+    },
+    {
+      "file": "src/report_agent/report_state.py",
+      "scope": "outcomes",
+      "access": "accessor",
+      "operation": "read",
+      "operand": "iter_commission_outcomes",
+      "families": "commission_outcome:*"
+    }
+  ],
+  "scanner_unchanged": true,
+  "m7_families": [
+    "planned_section_receipt:*",
+    "assembly_receipt:*",
+    "commission_outcome:*",
+    "rescue_projection:*",
+    "g6_section_prose:*",
+    "g6_object_prose:*"
+  ],
+  "historical_accessors": "read-only; no replacement legacy write accessor",
+  "reviewed_new_signature": "report_state.outcomes historical iter_commission_outcomes fallback explicitly bound in m0-state-bindings.tsv"
+}

@@ -1,0 +1,22 @@
+{
+  "one_time_removed": [
+    {
+      "path": "tmp-group-1/pytest-of-dysun/pytest-0/test_offline_export_preserves_0-offline",
+      "passing_artifact_files": 6,
+      "logical_bytes": 276585
+    },
+    {
+      "path": "tmp-group-1/pytest-of-dysun/pytest-0/test_offline_export_reports_co0-offline",
+      "passing_artifact_files": 2,
+      "logical_bytes": 181444
+    },
+    {
+      "path": "tmp-group-4/pytest-of-dysun/pytest-0/expression-source0",
+      "passing_artifact_files": 86,
+      "logical_bytes": 171882
+    }
+  ],
+  "authority": "Owner standing request for automatic passing-test cleanup and disposal of useless test data. Only3verifiedpassing artifact directories under this final verification run removed after27greenreruns; no source/original/ledger or failuredata touched.",
+  "future": "Owned tmp_path containers; existing pytestfailedretentionpolicy.",
+  "new_cleanup_rerun_remaining_case_files": 0
+}

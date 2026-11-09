@@ -1,0 +1,112 @@
+{
+  "expected": 6169,
+  "outcomes": {
+    "passed": 6160,
+    "skipped": 9
+  },
+  "missing": [],
+  "duplicates": [],
+  "unexpected": [],
+  "unchanged_conditional_skip_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "reconciled": true,
+  "evidence_model": "All8full shards completed. Two obsolete test functions were corrected and their4current cases passed separately. Two cleanup fixtures/tests were corrected and bothcomplete27case modules passed. No production/script/config bytes changed. Every current node covered; originalfailures retained. Not a single clean invocation.",
+  "initial_full_run": {
+    "expected": 6169,
+    "outcomes": {
+      "passed": 6158,
+      "failed": 2,
+      "skipped": 9
+    },
+    "failed": [
+      "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked[span]",
+      "tests/test_m1_g3_integration.py::test_source_view_materialization_preserves_text_and_binds_receipt"
+    ],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-09T20:21:29.228725+00:00",
+    "finished_utc": "2026-11-09T21:06:40.969127+00:00",
+    "elapsed_seconds": 2711.7
+  },
+  "current_version_repair": {
+    "exit_code": 0,
+    "nodes": [
+      "tests/test_m1_g3_integration.py::test_source_view_materialization_preserves_text_and_binds_receipt",
+      "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked[stale]",
+      "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked[outcome_link]",
+      "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked[span]"
+    ],
+    "elapsed_seconds": 28.666330814361572,
+    "record_sha256": "9d8d1ffed8a383df466787f24a790d846f6ca0b99fdefa666e9ee651814243fd"
+  },
+  "source_integrity": "test-repair-integrity.json",
+  "model_calls": 0,
+  "cleanup_module_rerun": {
+    "exit_code": 0,
+    "nodes": [
+      "tests/test_g5_offline_delivery.py::test_mi_3_2_01_anchor_is_passage_not_adopted_summary",
+      "tests/test_g5_offline_delivery.py::test_anchor_refusal_names_issue_and_own_node[absent]",
+      "tests/test_g5_offline_delivery.py::test_anchor_refusal_names_issue_and_own_node[\\u7ecf\\u6838\\u5bf9\\u300a\\u6307\\u5357\\u300b\\u539f\\u6587\\uff0c\\u6307\\u6807\\u4f53\\u7cfb\\u53ca\\u8bc4\\u4f30\\u8868\\u683c\\u5f0f\\u4e3a\\u300a\\u6307\\u5357\\u300b\\u88683-2\\uff08p18\\uff5e23\\uff09\\u7ecf\\u6838\\u5bf9\\u300a\\u6307\\u5357\\u300b\\u539f\\u6587\\uff0c\\u6307\\u6807\\u4f53\\u7cfb\\u53ca\\u8bc4\\u4f30\\u8868\\u683c\\u5f0f\\u4e3a\\u300a\\u6307\\u5357\\u300b\\u88683-2\\uff08p18\\uff5e23\\uff09]",
+      "tests/test_g5_offline_delivery.py::test_word_automatically_exports_same_snapshot_excel",
+      "tests/test_g5_offline_delivery.py::test_failed_excel_does_not_commit_word_pair",
+      "tests/test_g5_offline_delivery.py::test_offline_export_preserves_original_and_creates_pair",
+      "tests/test_g5_offline_delivery.py::test_offline_export_reports_content_failure_without_patching",
+      "tests/test_g5_offline_delivery.py::test_malformed_issue_list_preserves_typed_refusal[None]",
+      "tests/test_g5_offline_delivery.py::test_malformed_issue_list_preserves_typed_refusal[7]",
+      "tests/test_g5_offline_delivery.py::test_full_export_scopes_duplicate_passage_to_its_node",
+      "tests/test_reader_expression_profile.py::test_expression_source_reaches_sdk_and_matches_declared_file[ordinary-absent-legacy]",
+      "tests/test_reader_expression_profile.py::test_expression_source_reaches_sdk_and_matches_declared_file[ordinary-explicit-legacy]",
+      "tests/test_reader_expression_profile.py::test_expression_source_reaches_sdk_and_matches_declared_file[ordinary-reader]",
+      "tests/test_reader_expression_profile.py::test_expression_source_reaches_sdk_and_matches_declared_file[qualifier-only-absent-legacy]",
+      "tests/test_reader_expression_profile.py::test_expression_source_reaches_sdk_and_matches_declared_file[qualifier-only-explicit-legacy]",
+      "tests/test_reader_expression_profile.py::test_expression_source_reaches_sdk_and_matches_declared_file[qualifier-only-reader]",
+      "tests/test_reader_expression_profile.py::test_invalid_expression_profile_rejects_before_text_model_dispatch[unknown-expression]",
+      "tests/test_reader_expression_profile.py::test_invalid_expression_profile_rejects_before_text_model_dispatch[7]",
+      "tests/test_reader_expression_profile.py::test_writer_graph_expression_source_is_frozen_and_not_role_pollution[legacy-writer]",
+      "tests/test_reader_expression_profile.py::test_writer_graph_expression_source_is_frozen_and_not_role_pollution[reader-writer]",
+      "tests/test_reader_expression_profile.py::test_writer_graph_expression_source_is_frozen_and_not_role_pollution[reader-graph-pinned]",
+      "tests/test_reader_expression_profile.py::test_packaged_expression_release_extends_legacy_files_without_rewriting_them",
+      "tests/test_reader_expression_profile.py::test_completed_schema_replay_uses_the_exact_original_expression_source[legacy-replay]",
+      "tests/test_reader_expression_profile.py::test_completed_schema_replay_uses_the_exact_original_expression_source[reader-replay]",
+      "tests/test_reader_expression_profile.py::test_completed_schema_replay_uses_the_exact_original_expression_source[no-cross-source-replay]",
+      "tests/test_reader_expression_profile.py::test_v2_qualifier_revision_keeps_structural_entries_and_does_not_filter_machine_format[retain-structure]",
+      "tests/test_reader_expression_profile.py::test_v2_qualifier_revision_keeps_structural_entries_and_does_not_filter_machine_format[explicit-display-revision]"
+    ],
+    "passed": 27,
+    "elapsed_seconds": 38.482314586639404
+  },
+  "code_commit": "5230b92cc34c609f84236d6830e11f77a84de14d",
+  "fixed_snapshot_base_commit": "0c5781aca75586c6d5860174e26c497b49829759",
+  "fixture_inputs": {
+    "count": 51,
+    "manifest_sha256": "ef29a6843a9eb7378f76b2451b61fe4cd6a0998faa5bdedae7d4a6c6055fc556",
+    "verified_before_and_after": true
+  },
+  "raw_evidence_directory": "/home/dysun/report-agent-m1/verification/stage1-m7-final-20261109-2o9yhog6",
+  "offline_guard": {
+    "runner": "tests/support/run_offline_tests.py",
+    "scope": "Existing Python network and normal-child guard; not an OS network namespace or a formal sandbox."
+  }
+}

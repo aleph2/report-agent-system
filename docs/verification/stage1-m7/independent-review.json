@@ -1,0 +1,43 @@
+{
+  "reviewer": "/root/m6_review",
+  "scope": "M7 working diff atop0c5781a; reused earlier full review and bounded recheck of exact snapshot comparison, host-only record privacy, transaction rollback and cached export diagnostics.",
+  "verdict": "No blocking findings.",
+  "independent_tests": {
+    "passed": 18,
+    "seconds": 26.62,
+    "modules": [
+      "tests/test_m7_provenance.py",
+      "tests/test_m7_sections.py",
+      "tests/test_rescue_assembly.py"
+    ]
+  },
+  "final_type_fix_review": "Source inspected after native_section bool became native_cs object-or-None; unchanged native/historical conditions; no new findings. Main separately reran18 cases and confirmed exact676 diagnostic baseline.",
+  "confirmed": [
+    "S2 three contract files and actions.py/queries.py match48fabae byte-for-byte",
+    "Dispatcher, task supervision and report_host script match48fabae",
+    "Output and metadata roll back together and redo once",
+    "Agent direct/wrapper reads cannot expose host-only generation records",
+    "Cached exports refuse stale inputs, retain G3 diagnostics and preserve prior files"
+  ],
+  "limitations": [
+    "Independent reviewer did not run full repository suite or mutation tests; no Git edits, paid calls or engineering sign-off.",
+    "Final full regression is Main evidence and remains separate from reviewer test count."
+  ],
+  "provenance": "Independent collaboration task final responses in current owner chat, 2026-11-09",
+  "full_run_test_correction_review": {
+    "functions": [
+      "tests/test_m1_g3_integration.py::test_source_view_materialization_preserves_text_and_binds_receipt",
+      "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked"
+    ],
+    "finding": "Two tests targeted retired state rather than native case records; no app defect.",
+    "independent_ast_check": "Only those two test functions differ from the frozen full run; module imports, other functions and all production/script Python unchanged.",
+    "verdict": "No weakened check. Exact source-view reference binding and actual removed-span transform refusal retained.",
+    "evidence_disposition": "Reconciled complete suite acceptable after all shards finish and all current-case versions pass; preserve initial failures and reruns; do not claim a single clean invocation."
+  },
+  "cleanup_review": {
+    "finding": "No weakened checks; siblingrelationship and sourcehash/network/export/failure assertions preserved. Expression legacy-source assertion runs percase.",
+    "condition": "Whole cleanupmodules rerun, removeonly3verifiedoldpassingpaths, retain18failurefiles.",
+    "main_disposition": "Satisfied:27passed,0remainingpassingcasefiles innewroot;94oldpassingfiles removedfromexact3resolvedpaths;18failurefileskept.",
+    "reviewer_limit": "Reviewer did not execute cleanup tests or deletion; Main verified actual records."
+  }
+}

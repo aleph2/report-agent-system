@@ -1,0 +1,10 @@
+{
+  "baseline": "accepted M6 type results at5ea36cc, unchanged by reply-only fix48fabae",
+  "baseline_errors": 676,
+  "current_errors": 676,
+  "new_diagnostics": [],
+  "removed_diagnostics": [],
+  "comparison": "file-relative path, severity, full message, rule; line shifts ignored",
+  "command": "python -B -m pyright --pythonpath /home/dysun/.venvs/report-agent-system-native/bin/python --outputjson src/report_agent",
+  "limits": "Pyright still exits1 due676 existing diagnostics; no claim of a type-clean repository."
+}

@@ -1,0 +1,202 @@
+{
+  "baseline": "48fabae",
+  "whole_test_functions_retired": [],
+  "changed_test_functions": [
+    {
+      "original_test": "tests/test_m1_g3_presentation.py::test_derived_receipt_cannot_be_reused_for_rewritten_text",
+      "covering_test": "tests/test_m1_g3_presentation.py::test_derived_receipt_cannot_be_reused_for_rewritten_text",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_m1_g3_presentation.py::test_fixed_source_views_require_exact_materialized_receipt",
+      "covering_test": "tests/test_m1_g3_presentation.py::test_fixed_source_views_require_exact_materialized_receipt",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_m1_g5_j2.py::test_composed_runtime_seals_every_child_body_and_region_contract",
+      "covering_test": "tests/test_m1_g5_j2.py::test_composed_runtime_seals_every_child_body_and_region_contract",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_m1_g5_j3.py::test_export_requires_composition_receipt_bound_to_frozen_owner_choices",
+      "covering_test": "tests/test_m1_g5_j3.py::test_export_requires_composition_receipt_bound_to_frozen_owner_choices",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback",
+      "covering_test": "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_no_legacy_state.py::test_legacy_state_ownership",
+      "covering_test": "tests/test_no_legacy_state.py::test_legacy_state_ownership",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_rescue_assembly.py::test_fake_coordinator_prose_is_still_rejected",
+      "covering_test": "tests/test_rescue_assembly.py::test_fake_coordinator_prose_is_still_rejected",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_rescue_assembly.py::test_forged_projection_payload_keeps_digest_check_with_current_issue_overlay",
+      "covering_test": "tests/test_rescue_assembly.py::test_forged_projection_payload_keeps_digest_check_with_current_issue_overlay",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_rescue_assembly.py::test_heading_parent_cannot_hide_missing_descendant",
+      "covering_test": "tests/test_rescue_assembly.py::test_heading_parent_cannot_hide_missing_descendant",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_rescue_assembly.py::test_projections_from_mixed_source_snapshots_are_not_combined",
+      "covering_test": "tests/test_rescue_assembly.py::test_projections_from_mixed_source_snapshots_are_not_combined",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_rescue_assembly.py::test_verified_rescue_assembles_empty_parents_and_preserves_title",
+      "covering_test": "tests/test_rescue_assembly.py::test_verified_rescue_assembles_empty_parents_and_preserves_title",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_section_writing.py::test_exact_span_checks",
+      "covering_test": "tests/test_section_writing.py::test_exact_span_checks",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_section_writing.py::test_prose_cannot_smuggle_an_agent_authored_scoring_table",
+      "covering_test": "tests/test_section_writing.py::test_prose_cannot_smuggle_an_agent_authored_scoring_table",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_section_writing.py::test_save_revision_replaces_citations_and_keeps_old_record",
+      "covering_test": "tests/test_section_writing.py::test_save_revision_replaces_citations_and_keeps_old_record",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites",
+      "covering_test": "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_system_assembler.py::test_automatic_owner_routes_do_not_mutate_inputs_or_break_operation_retry",
+      "covering_test": "tests/test_system_assembler.py::test_automatic_owner_routes_do_not_mutate_inputs_or_break_operation_retry",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_system_assembler.py::test_complete_assembly_preserves_originals_and_closes_all_references",
+      "covering_test": "tests/test_system_assembler.py::test_complete_assembly_preserves_originals_and_closes_all_references",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_system_assembler.py::test_current_route_assembles_without_agent_snapshot_and_requires_receipt",
+      "covering_test": "tests/test_system_assembler.py::test_current_route_assembles_without_agent_snapshot_and_requires_receipt",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_system_assembler.py::test_owner_issue_routes_automatically_to_1_3_and_exports_once",
+      "covering_test": "tests/test_system_assembler.py::test_owner_issue_routes_automatically_to_1_3_and_exports_once",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_writer_issue_tools.py::test_object_prose_is_isolated_and_native_replay_is_stable",
+      "covering_test": "tests/test_writer_issue_tools.py::test_object_prose_is_isolated_and_native_replay_is_stable",
+      "disposition": "retained; storage-facing setup/assertions migrated to case records; behavioral expectation remains"
+    },
+    {
+      "original_test": "tests/test_m1_g3_integration.py::test_source_view_materialization_preserves_text_and_binds_receipt",
+      "covering_test": "tests/test_m1_g3_integration.py::test_source_view_materialization_preserves_text_and_binds_receipt",
+      "disposition": "Retained same node IDs; full regression exposed retired-state test assumption. Native exact-reference/source-view or removed-span reader fault test replaces obsolete state/digest access; current-version rerun retained."
+    },
+    {
+      "original_test": "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked",
+      "covering_test": "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked",
+      "disposition": "Retained same node IDs; full regression exposed retired-state test assumption. Native exact-reference/source-view or removed-span reader fault test replaces obsolete state/digest access; current-version rerun retained."
+    }
+  ],
+  "added_to_existing_modules": [
+    "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only"
+  ],
+  "parameter_replacement": {
+    "tests/test_m1_g5_j3.py::test_export_requires_composition_receipt_bound_to_frozen_owner_choices[wrong-decision-digest]": "tests/test_m1_g5_j3.py::test_export_requires_composition_receipt_bound_to_frozen_owner_choices[wrong-decision-version]"
+  },
+  "new_tests": [
+    "tests/test_m7_provenance.py",
+    "tests/test_m7_sections.py"
+  ],
+  "withdrawn_prototype_tests": "Two artifact_ref tests at99b3d51/0c5781a removed when owner withdrew artifact_ref. They are not in accepted48fabae; generation-case tests replace the abandoned approach.",
+  "notes": [
+    "No test skip added or acceptance bar lowered.",
+    "Native metadata uses immutable version/content/reference checks; historical tests keep original digest validation.",
+    "Native source-view validation remains covered by test_m1_g3_integration.py::test_source_view_export_requires_current_exact_materialized_receipt.",
+    "Metadata privacy (direct and wrapper), snapshot tampering, cached-pair staleness and transaction rollback have dedicated new regressions."
+  ],
+  "retired_parameter_cases": [
+    {
+      "original_test": "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[assembly_receipt:]",
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[assembly_receipt:]",
+        "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction[AssemblyProvenance-record_assembly-assembly]"
+      ],
+      "reason": "The legacy write accessor is retired by M7. Historical read remains, native atomic rollback is tested in the owning case transaction."
+    },
+    {
+      "original_test": "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[planned_section_receipt:]",
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[planned_section_receipt:]",
+        "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction[SectionProvenance-record_section-planned_section]"
+      ],
+      "reason": "The legacy write accessor is retired by M7. Historical read remains, native atomic rollback is tested in the owning case transaction."
+    },
+    {
+      "original_test": "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[rescue_projection:]",
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[rescue_projection:]",
+        "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction[RescueProjection-record_projection-projection]"
+      ],
+      "reason": "The legacy write accessor is retired by M7. Historical read remains, native atomic rollback is tested in the owning case transaction."
+    },
+    {
+      "original_test": "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_outcome:]",
+      "covering_tests": [
+        "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[commission_outcome:]",
+        "tests/test_m7_provenance.py::test_output_and_provenance_roll_back_together_then_redo_once[with-owner-ranks]"
+      ],
+      "reason": "The legacy write accessor is retired by M7. Historical read remains, native atomic rollback is tested in the owning case transaction."
+    }
+  ],
+  "exact_node_delta": {
+    "added": [
+      "tests/test_m1_g5_j3.py::test_export_requires_composition_receipt_bound_to_frozen_owner_choices[wrong-decision-version]",
+      "tests/test_m7_provenance.py::test_cached_word_excel_pair_rechecks_transitive_judgment_withdrawal[with-owner-ranks]",
+      "tests/test_m7_provenance.py::test_export_preflight_rejects_superseded_input_even_without_a_new_export_call",
+      "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction[AssemblyProvenance-record_assembly-assembly]",
+      "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction[RescueProjection-record_projection-projection]",
+      "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction[SectionProvenance-record_section-planned_section]",
+      "tests/test_m7_provenance.py::test_output_and_provenance_roll_back_together_then_redo_once[with-owner-ranks]",
+      "tests/test_m7_provenance.py::test_prose_selection_versions_preserve_original_without_legacy_state",
+      "tests/test_m7_sections.py::test_composition_provenance_keeps_exact_refs_without_receipt_hashes",
+      "tests/test_m7_sections.py::test_native_composition_checks_the_immutable_payload_directly",
+      "tests/test_m7_sections.py::test_rescue_projection_is_reference_bound_and_rechecks_its_transform",
+      "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[assembly_receipt:]",
+      "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[commission_outcome:]",
+      "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[planned_section_receipt:]",
+      "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[rescue_projection:]"
+    ],
+    "removed": [
+      "tests/test_m1_g5_j3.py::test_export_requires_composition_receipt_bound_to_frozen_owner_choices[wrong-decision-digest]",
+      "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[assembly_receipt:]",
+      "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[commission_outcome:]",
+      "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[planned_section_receipt:]",
+      "tests/test_no_legacy_state.py::test_accessor_preserves_storage_key_and_rollback[rescue_projection:]"
+    ]
+  },
+  "cleanup_fixture_changes": {
+    "tests/test_g5_offline_delivery.py": "Local offline_case and two offline tests use siblingsource/export directories under tmp_path; allmodule cases rerun.",
+    "tests/test_reader_expression_profile.py": "expression_rule_tree uses function tmp_path rather than modulefactory; wholemodule rerun, no external consumers."
+  },
+  "post_full_reruns": {
+    "repaired_cases": 4,
+    "cleanup_module_cases": 27,
+    "deduplication": "Latest current-version outcome per original node, all6169covered; no new skips."
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "confirmed_m7_findings": [
+    {
+      "id": "cached-export-staleness",
+      "severity": "P2",
+      "scope": "M7 migration candidate only; no original case changed",
+      "red_record": "/home/dysun/report-agent-m1/verification/stage1-m7-work-lclz4uy4/case-export-red2.json",
+      "red_exit": 1,
+      "red_counts": {
+        "passed": 4,
+        "failed": 1
+      },
+      "confirmed_cause": "Export returned through cached operations without checking frozen assertion currency.",
+      "disposition": "Current assertions are checked before replay; old files remain unchanged.",
+      "covering_test": "tests/test_m7_provenance.py::test_cached_word_excel_pair_rechecks_transitive_judgment_withdrawal",
+      "blocked_action": "Review-ready M7 until scoped correction; resolved before final frozen full run"
+    },
+    {
+      "id": "g3-diagnostics",
+      "severity": "P2",
+      "scope": "M7 migration candidate only; no original case changed",
+      "red_record": "/home/dysun/report-agent-m1/verification/stage1-m7-work-lclz4uy4/test-migration.json",
+      "red_exit": 1,
+      "red_counts": {
+        "passed": 210,
+        "failed": 1
+      },
+      "confirmed_cause": "Early generic currency refusal hid existing affected-node G3 diagnostics.",
+      "disposition": "Existing G3 preflight is run for its detailed diagnostic before rethrowing generic refusal.",
+      "covering_test": "tests/test_m1_g3_presentation.py::test_export_after_input_withdrawal_identifies_generated_and_derived_section_scores",
+      "blocked_action": "Review-ready M7 until scoped correction; resolved before final frozen full run"
+    },
+    {
+      "id": "native-snapshot-integrity",
+      "severity": "P2",
+      "scope": "M7 migration candidate only; no original case changed",
+      "red_record": "/home/dysun/report-agent-m1/verification/stage1-m7-work-lclz4uy4/snapshot-ref-red.json",
+      "red_exit": 1,
+      "red_counts": {
+        "failed": 1
+      },
+      "confirmed_cause": "After receipt digests were removed, an altered in-memory snapshot could pass native assembly validation.",
+      "disposition": "Compare the complete snapshot and rendered content to their exact immutable case versions.",
+      "covering_test": "tests/test_m7_provenance.py::test_cached_word_excel_pair_rechecks_transitive_judgment_withdrawal",
+      "blocked_action": "Review-ready M7 until scoped correction; resolved before final frozen full run"
+    },
+    {
+      "id": "metadata-visibility",
+      "severity": "P2",
+      "scope": "M7 migration candidate only; no original case changed",
+      "red_record": "/home/dysun/report-agent-m1/verification/stage1-m7-work-lclz4uy4/case-privacy-red.json",
+      "red_exit": 1,
+      "red_counts": {
+        "failed": 3
+      },
+      "confirmed_cause": "Migrating host-only state into general case objects exposed operational metadata through agent read_context.",
+      "disposition": "Block the five operational case types through direct and wrapper snapshot reads, retaining the previous visibility boundary.",
+      "covering_test": "tests/test_m7_provenance.py::test_generation_record_is_immutable_hash_free_and_same_transaction",
+      "blocked_action": "Review-ready M7 until scoped correction; resolved before final frozen full run"
+    },
+    {
+      "id": "type-narrowing",
+      "severity": "P3",
+      "scope": "Four new pyright diagnostics; no reproduced runtime malfunction",
+      "confirmed_cause": "A Boolean native_section variable did not narrow the optional ContentStore for typed native reads.",
+      "disposition": "Keep native_cs as object-or-None; native/historical conditions unchanged.18focused tests passed; exact676 baseline diagnostics restored.",
+      "partial_run_preserved": "/home/dysun/report-agent-m1/verification/stage1-m7-final-20261109-a91mwohx",
+      "blocked_action": "Zero-new-diagnostic verification; corrected before final full run"
+    },
+    {
+      "id": "full-suite-storage-test-migration",
+      "severity": "P3",
+      "scope": "Test assertion/fault target only; application behavior unchanged",
+      "red_node": "tests/test_m1_g3_integration.py::test_source_view_materialization_preserves_text_and_binds_receipt",
+      "red_record": "/home/dysun/report-agent-m1/verification/stage1-m7-final-20261109-2o9yhog6",
+      "confirmed_cause": "Test rendered the correct text/views, then read a retired state receipt and obsolete digest.",
+      "disposition": "Read native immutable case provenance and compare the exact referenced node/source views; text,node,plan and repeat-call expectations retained.",
+      "blocked_action": "Completion evidence until corrected current-version test passes; resolved by recorded rerun."
+    },
+    {
+      "id": "full-suite-storage-test-migration",
+      "severity": "P3",
+      "scope": "Test assertion/fault target only; application behavior unchanged",
+      "red_node": "tests/test_rescue_projection.py::test_canonical_identity_and_exact_removed_span_are_rechecked[span]",
+      "red_record": "/home/dysun/report-agent-m1/verification/stage1-m7-final-20261109-2o9yhog6",
+      "confirmed_cause": "Fault wrote the retired state key, leaving the native case projection unchanged.",
+      "disposition": "Inject the wrong span into the exact native projection reader; keep canonical recomputation and the original transform-refusal assertion. All3parameters rerun.",
+      "blocked_action": "Completion evidence until corrected current-version test passes; resolved by recorded rerun."
+    },
+    {
+      "id": "passing-test-retention",
+      "severity": "P3",
+      "scope": "Verification temporarydata, not runtime report content",
+      "confirmed_cause": "Two offline-output siblingdirs and a moduletmp_path_factory rule tree were outside pytesttmp_path cleanup ownership.94passingfiles remained.",
+      "disposition": "Move case/output siblings under ownedparent and rule tree to function tmp_path;27wholemodule casespass and newrootempty; exact3oldpassingpaths removed once,18failurefilespreserved.",
+      "blocked_action": "Claim of verified automaticcleanup until rerun audit; resolved."
+    }
+  ],
+  "historical_design_investigation": "C5 correctly refused cross-subject artifact claims in abandoned99b3d51/0c5781a approach. Owner withdrew it. Preserved docs/verification/stage1-m7-c5 is historical, not an outstanding gate or changed S2 rule.",
+  "classification_limits": "Mechanism/test-setup or stale census diagnostics are retained locally, not misrepresented as report-runtime or engineering failures."
+}

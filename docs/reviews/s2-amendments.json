@@ -71,7 +71,7 @@
       "date": "2026-11-09",
       "file": "kinds.py",
       "category": "vocabulary",
-      "revision": "0c5781aca75586c6d5860174e26c497b49829759",
+      "revision": "5230b92cc34c609f84236d6830e11f77a84de14d",
       "before_sha256": "4a4da24abf2b4be11e00419abb6eeb8c38b5dd742646b2d166c656f553bbedc9",
       "after_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
       "summary": "Owner withdrew the optional artifact_ref and its proposed C5 exception: assembly generation is operational case data, not an assertion. Restores kinds.py exactly to accepted M6/M3; calculator actions, SQL checks and existing schema versions remain unchanged. Earlier M7 entries remain chronological history only.",

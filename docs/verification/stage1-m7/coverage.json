@@ -1,0 +1,377 @@
+{
+  "totals": {
+    "covered_lines": 30276,
+    "num_statements": 33344,
+    "percent_covered": 90.7989443378119,
+    "percent_covered_display": "91",
+    "missing_lines": 3068,
+    "excluded_lines": 4,
+    "percent_statements_covered": 90.7989443378119,
+    "percent_statements_covered_display": "91"
+  },
+  "affected_modules": {
+    "src/report_agent/assertions/launch.py": {
+      "m0": null,
+      "m6_opening_full": {
+        "covered_lines": 169,
+        "num_statements": 172,
+        "percent_covered": 98.25581395348837,
+        "percent_covered_display": "98",
+        "missing_lines": 3,
+        "excluded_lines": 0,
+        "percent_statements_covered": 98.25581395348837,
+        "percent_statements_covered_display": "98"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 180,
+        "num_statements": 184,
+        "percent_covered": 97.82608695652173,
+        "percent_covered_display": "98",
+        "missing_lines": 4,
+        "excluded_lines": 0,
+        "percent_statements_covered": 97.82608695652173,
+        "percent_statements_covered_display": "98"
+      },
+      "meets_m0_floor": null
+    },
+    "src/report_agent/commission_plan.py": {
+      "m0": {
+        "covered_lines": 862,
+        "num_statements": 922,
+        "percent_covered": 93.49240780911063,
+        "percent_covered_display": "93",
+        "missing_lines": 60,
+        "excluded_lines": 0,
+        "percent_statements_covered": 93.49240780911063,
+        "percent_statements_covered_display": "93"
+      },
+      "m6_opening_full": {
+        "covered_lines": 937,
+        "num_statements": 998,
+        "percent_covered": 93.88777555110221,
+        "percent_covered_display": "94",
+        "missing_lines": 61,
+        "excluded_lines": 0,
+        "percent_statements_covered": 93.88777555110221,
+        "percent_statements_covered_display": "94"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 938,
+        "num_statements": 999,
+        "percent_covered": 93.89389389389389,
+        "percent_covered_display": "94",
+        "missing_lines": 61,
+        "excluded_lines": 0,
+        "percent_statements_covered": 93.89389389389389,
+        "percent_statements_covered_display": "94"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/commission_requirements.py": {
+      "m0": {
+        "covered_lines": 351,
+        "num_statements": 384,
+        "percent_covered": 91.40625,
+        "percent_covered_display": "91",
+        "missing_lines": 33,
+        "excluded_lines": 0,
+        "percent_statements_covered": 91.40625,
+        "percent_statements_covered_display": "91"
+      },
+      "m6_opening_full": {
+        "covered_lines": 394,
+        "num_statements": 427,
+        "percent_covered": 92.27166276346604,
+        "percent_covered_display": "92",
+        "missing_lines": 33,
+        "excluded_lines": 0,
+        "percent_statements_covered": 92.27166276346604,
+        "percent_statements_covered_display": "92"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 404,
+        "num_statements": 437,
+        "percent_covered": 92.44851258581235,
+        "percent_covered_display": "92",
+        "missing_lines": 33,
+        "excluded_lines": 0,
+        "percent_statements_covered": 92.44851258581235,
+        "percent_statements_covered_display": "92"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/content_store.py": {
+      "m0": {
+        "covered_lines": 795,
+        "num_statements": 833,
+        "percent_covered": 95.43817527010805,
+        "percent_covered_display": "95",
+        "missing_lines": 38,
+        "excluded_lines": 0,
+        "percent_statements_covered": 95.43817527010805,
+        "percent_statements_covered_display": "95"
+      },
+      "m6_opening_full": {
+        "covered_lines": 816,
+        "num_statements": 854,
+        "percent_covered": 95.5503512880562,
+        "percent_covered_display": "96",
+        "missing_lines": 38,
+        "excluded_lines": 0,
+        "percent_statements_covered": 95.5503512880562,
+        "percent_statements_covered_display": "96"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 821,
+        "num_statements": 859,
+        "percent_covered": 95.57625145518044,
+        "percent_covered_display": "96",
+        "missing_lines": 38,
+        "excluded_lines": 0,
+        "percent_statements_covered": 95.57625145518044,
+        "percent_statements_covered_display": "96"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/g3_export.py": {
+      "m0": {
+        "covered_lines": 314,
+        "num_statements": 343,
+        "percent_covered": 91.54518950437318,
+        "percent_covered_display": "92",
+        "missing_lines": 29,
+        "excluded_lines": 0,
+        "percent_statements_covered": 91.54518950437318,
+        "percent_statements_covered_display": "92"
+      },
+      "m6_opening_full": {
+        "covered_lines": 333,
+        "num_statements": 363,
+        "percent_covered": 91.73553719008264,
+        "percent_covered_display": "92",
+        "missing_lines": 30,
+        "excluded_lines": 0,
+        "percent_statements_covered": 91.73553719008264,
+        "percent_statements_covered_display": "92"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 341,
+        "num_statements": 371,
+        "percent_covered": 91.91374663072776,
+        "percent_covered_display": "92",
+        "missing_lines": 30,
+        "excluded_lines": 0,
+        "percent_statements_covered": 91.91374663072776,
+        "percent_statements_covered_display": "92"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/legacy_state.py": {
+      "m0": null,
+      "m6_opening_full": {
+        "covered_lines": 126,
+        "num_statements": 130,
+        "percent_covered": 96.92307692307692,
+        "percent_covered_display": "97",
+        "missing_lines": 4,
+        "excluded_lines": 0,
+        "percent_statements_covered": 96.92307692307692,
+        "percent_statements_covered_display": "97"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 122,
+        "num_statements": 126,
+        "percent_covered": 96.82539682539682,
+        "percent_covered_display": "97",
+        "missing_lines": 4,
+        "excluded_lines": 0,
+        "percent_statements_covered": 96.82539682539682,
+        "percent_statements_covered_display": "97"
+      },
+      "meets_m0_floor": null
+    },
+    "src/report_agent/report_state.py": {
+      "m0": null,
+      "m6_opening_full": null,
+      "full_and_corrected_cases": {
+        "covered_lines": 92,
+        "num_statements": 94,
+        "percent_covered": 97.87234042553192,
+        "percent_covered_display": "98",
+        "missing_lines": 2,
+        "excluded_lines": 0,
+        "percent_statements_covered": 97.87234042553192,
+        "percent_statements_covered_display": "98"
+      },
+      "meets_m0_floor": null
+    },
+    "src/report_agent/rescue_projection.py": {
+      "m0": {
+        "covered_lines": 229,
+        "num_statements": 259,
+        "percent_covered": 88.41698841698842,
+        "percent_covered_display": "88",
+        "missing_lines": 30,
+        "excluded_lines": 0,
+        "percent_statements_covered": 88.41698841698842,
+        "percent_statements_covered_display": "88"
+      },
+      "m6_opening_full": {
+        "covered_lines": 236,
+        "num_statements": 266,
+        "percent_covered": 88.7218045112782,
+        "percent_covered_display": "89",
+        "missing_lines": 30,
+        "excluded_lines": 0,
+        "percent_statements_covered": 88.7218045112782,
+        "percent_statements_covered_display": "89"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 238,
+        "num_statements": 269,
+        "percent_covered": 88.47583643122677,
+        "percent_covered_display": "88",
+        "missing_lines": 31,
+        "excluded_lines": 0,
+        "percent_statements_covered": 88.47583643122677,
+        "percent_statements_covered_display": "88"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/risk_scoring.py": {
+      "m0": {
+        "covered_lines": 418,
+        "num_statements": 443,
+        "percent_covered": 94.3566591422122,
+        "percent_covered_display": "94",
+        "missing_lines": 25,
+        "excluded_lines": 0,
+        "percent_statements_covered": 94.3566591422122,
+        "percent_statements_covered_display": "94"
+      },
+      "m6_opening_full": {
+        "covered_lines": 477,
+        "num_statements": 504,
+        "percent_covered": 94.64285714285714,
+        "percent_covered_display": "95",
+        "missing_lines": 27,
+        "excluded_lines": 0,
+        "percent_statements_covered": 94.64285714285714,
+        "percent_statements_covered_display": "95"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 474,
+        "num_statements": 501,
+        "percent_covered": 94.61077844311377,
+        "percent_covered_display": "95",
+        "missing_lines": 27,
+        "excluded_lines": 0,
+        "percent_statements_covered": 94.61077844311377,
+        "percent_statements_covered_display": "95"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/section_writing.py": {
+      "m0": {
+        "covered_lines": 92,
+        "num_statements": 102,
+        "percent_covered": 90.19607843137256,
+        "percent_covered_display": "90",
+        "missing_lines": 10,
+        "excluded_lines": 0,
+        "percent_statements_covered": 90.19607843137256,
+        "percent_statements_covered_display": "90"
+      },
+      "m6_opening_full": {
+        "covered_lines": 94,
+        "num_statements": 104,
+        "percent_covered": 90.38461538461539,
+        "percent_covered_display": "90",
+        "missing_lines": 10,
+        "excluded_lines": 0,
+        "percent_statements_covered": 90.38461538461539,
+        "percent_statements_covered_display": "90"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 93,
+        "num_statements": 103,
+        "percent_covered": 90.29126213592232,
+        "percent_covered_display": "90",
+        "missing_lines": 10,
+        "excluded_lines": 0,
+        "percent_statements_covered": 90.29126213592232,
+        "percent_statements_covered_display": "90"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/system_assembler.py": {
+      "m0": {
+        "covered_lines": 446,
+        "num_statements": 511,
+        "percent_covered": 87.27984344422701,
+        "percent_covered_display": "87",
+        "missing_lines": 65,
+        "excluded_lines": 0,
+        "percent_statements_covered": 87.27984344422701,
+        "percent_statements_covered_display": "87"
+      },
+      "m6_opening_full": {
+        "covered_lines": 458,
+        "num_statements": 523,
+        "percent_covered": 87.5717017208413,
+        "percent_covered_display": "88",
+        "missing_lines": 65,
+        "excluded_lines": 0,
+        "percent_statements_covered": 87.5717017208413,
+        "percent_statements_covered_display": "88"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 461,
+        "num_statements": 526,
+        "percent_covered": 87.6425855513308,
+        "percent_covered_display": "88",
+        "missing_lines": 65,
+        "excluded_lines": 0,
+        "percent_statements_covered": 87.6425855513308,
+        "percent_statements_covered_display": "88"
+      },
+      "meets_m0_floor": true
+    },
+    "src/report_agent/writer_issues.py": {
+      "m0": {
+        "covered_lines": 146,
+        "num_statements": 162,
+        "percent_covered": 90.12345679012346,
+        "percent_covered_display": "90",
+        "missing_lines": 16,
+        "excluded_lines": 0,
+        "percent_statements_covered": 90.12345679012346,
+        "percent_statements_covered_display": "90"
+      },
+      "m6_opening_full": {
+        "covered_lines": 148,
+        "num_statements": 164,
+        "percent_covered": 90.2439024390244,
+        "percent_covered_display": "90",
+        "missing_lines": 16,
+        "excluded_lines": 0,
+        "percent_statements_covered": 90.2439024390244,
+        "percent_statements_covered_display": "90"
+      },
+      "full_and_corrected_cases": {
+        "covered_lines": 147,
+        "num_statements": 163,
+        "percent_covered": 90.1840490797546,
+        "percent_covered_display": "90",
+        "missing_lines": 16,
+        "excluded_lines": 0,
+        "percent_statements_covered": 90.1840490797546,
+        "percent_statements_covered_display": "90"
+      },
+      "meets_m0_floor": true
+    }
+  },
+  "below_m0_floor": [],
+  "measurement": "Standard coverage.py path aliases normalize the already combined full-suite and4corrected-case measurements across byte-identical app source. Raw measurement and unaliased duplicate-path report retained; no manual line-count edits.",
+  "m0_baseline_sha256": "94a438dc287f7b5cfbb8e9d4823adca183fb27f28bf2bf04b7b710ab187102a0"
+}

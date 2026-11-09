@@ -1,0 +1,60 @@
+--- a/tests/test_m1_g3_integration.py
++++ b/tests/test_m1_g3_integration.py
+@@ -434 +434 @@
+-    from report_agent.store import digest
++    from report_agent import report_state
+@@ -447,2 +447,3 @@
+-    receipt = fixture.cs.store.get('planned_section_receipt:' + digest(result['node_ref']))
+-    assert receipt['source_views_digest'] == digest(body['source_views'])
++    receipt = report_state.planned_section(fixture.cs.store, result['node_ref'])
++    assert fixture.cs.read(receipt['node_ref'])['payload']['body']['source_views'] == body['source_views']
++    assert 'source_views_digest' not in receipt
+--- a/tests/test_rescue_projection.py
++++ b/tests/test_rescue_projection.py
+@@ -298 +298 @@
+-def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection, fault):
++def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection, fault, monkeypatch):
+@@ -299,0 +300 @@
++    from report_agent import report_state
+@@ -316 +317,3 @@
+-            _set(db, 'rescue_projection:' + digest(projected['ref']), receipt)
++            read = report_state.projection
++            monkeypatch.setattr(report_state, 'projection',
++                lambda storage, ref: receipt if ref == projected['ref'] else read(storage, ref))
+--- a/tests/test_g5_offline_delivery.py
++++ b/tests/test_g5_offline_delivery.py
+@@ -64 +64,10 @@
+-def test_offline_export_preserves_original_and_creates_pair(ws, tmp_path, monkeypatch):
++@pytest.fixture
++def offline_case(ws, tmp_path):
++    from report_agent.store import Store
++    from report_agent.workspace import Workspace
++    store = Store(tmp_path / 'source')
++    store.initialize(ws.store.manifest)
++    return Workspace(store)
++
++
++def test_offline_export_preserves_original_and_creates_pair(offline_case, tmp_path, monkeypatch):
+@@ -66,0 +76 @@
++    ws = offline_case
+@@ -72 +82 @@
+-    output = tmp_path.parent / (tmp_path.name + '-offline')
++    output = tmp_path / 'offline'
+@@ -80 +90 @@
+-def test_offline_export_reports_content_failure_without_patching(ws, tmp_path):
++def test_offline_export_reports_content_failure_without_patching(offline_case, tmp_path):
+@@ -81,0 +92 @@
++    ws = offline_case
+@@ -84 +95 @@
+-    output = tmp_path.parent / (tmp_path.name + '-offline')
++    output = tmp_path / 'offline'
+--- a/tests/test_reader_expression_profile.py
++++ b/tests/test_reader_expression_profile.py
+@@ -30,2 +30,2 @@
+-@pytest.fixture(scope='module')
+-def expression_rule_tree(tmp_path_factory):
++@pytest.fixture
++def expression_rule_tree(tmp_path):
+@@ -33 +33 @@
+-    rules = tmp_path_factory.mktemp('expression-source') / 'expression-rules'
++    rules = tmp_path / 'expression-rules'

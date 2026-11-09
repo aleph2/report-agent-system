@@ -1,0 +1,60 @@
+{
+  "applied": [
+    {
+      "skill": "using-agent-skills",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/agent-skills/agent-skills/0.6.13/skills/using-agent-skills/SKILL.md",
+      "sha256": "30787ef2c77bf1a4729fffed0f6523ba6fcbe81bdc436b36371b78c21394d3c3",
+      "participant": "Main; independent reviewer separately used code-review-and-quality",
+      "actions": "Phase selection at resume; reused relevant same-version guidance."
+    },
+    {
+      "skill": "ponytail",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/ponytail/ponytail/5.3.3/skills/ponytail/SKILL.md",
+      "sha256": "f18008471528f0adde90a560d053f85935eed5cee26c447b7177ad24472bcf32",
+      "participant": "Main; independent reviewer separately used code-review-and-quality",
+      "actions": "Reuse case-content versions; no new store/framework/dependency; keep scope on six M7 families."
+    },
+    {
+      "skill": "incremental-implementation",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/agent-skills/agent-skills/0.6.13/skills/incremental-implementation/SKILL.md",
+      "sha256": "df66536610071727feae1ca95f3c391c248ad828041750ccd3699cce763aa00b",
+      "participant": "Main; independent reviewer separately used code-review-and-quality",
+      "actions": "Integrate scoped changes and reuse valid focused results before final whole-repository run."
+    },
+    {
+      "skill": "test-driven-development",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/agent-skills/agent-skills/0.6.13/skills/test-driven-development/SKILL.md",
+      "sha256": "a3aa6ba95638497025577469eda10ed17918698209615aeafbc26f131bf2469d",
+      "participant": "Main; independent reviewer separately used code-review-and-quality",
+      "actions": "Real RED reproduction of stale export, hidden G3 detail, snapshot mutation and metadata visibility; dedicated GREEN tests and full offline regression."
+    },
+    {
+      "skill": "git-workflow-and-versioning",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/agent-skills/agent-skills/0.6.13/skills/git-workflow-and-versioning/SKILL.md",
+      "sha256": "b7465d187935c52546d39fdc7bd6ac36d94eda25a9500ef8c18b767d2eb116ea",
+      "participant": "Main; independent reviewer separately used code-review-and-quality",
+      "actions": "Existing milestone branch; one Git operator; fixed test snapshot; commit/tag/push after verification; no main promotion."
+    },
+    {
+      "skill": "code-review-and-quality",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/agent-skills/agent-skills/0.6.13/skills/code-review-and-quality/SKILL.md",
+      "sha256": "2db1e850379f255fd3091ef278cde24cd6c7d2ba23e360cc52ea522c40d4396e",
+      "participant": "Main; independent reviewer separately used code-review-and-quality",
+      "actions": "Main integration review plus independent bounded recheck; explicit findings, actual tests and evidence limits."
+    },
+    {
+      "skill": "debugging-and-error-recovery",
+      "path": "/mnt/c/Users/dongy/.codex/plugins/cache/agent-skills/agent-skills/0.6.13/skills/debugging-and-error-recovery/SKILL.md",
+      "sha256": "21f3960f5d7ae2cc95c40896545004dbbcbbd752ea65fc2d53962554d4174220",
+      "participant": "Main, independent reviewer recheck",
+      "actions": "Read original full-run trace, localize two stale test-store targets, preserve application checks, rerun exact corrected cases and verify unchanged production bytes; retain first failures."
+    }
+  ],
+  "not_claimed": [
+    "Graphify query/rebuild: prior structure check found no applicable graph/tool; current source and exact diff used directly.",
+    "Langfuse/prompt design: no runtime AI evaluation or prompt/role change in M7.",
+    "Live provider/model testing or engineering acceptance."
+  ],
+  "review_limits": "The independent reviewer inspected source and ran18focused cases; no artificial mutation experiment was claimed. Original failing reproductions show the new guards detect their concrete faults.",
+  "scope": "Current owner decisions supersede the withdrawn artifact_ref and C5 proposals; no speculative requirements added."
+}

@@ -1,0 +1,38 @@
+{
+  "records": {
+    "case-last-focused.json": {
+      "exit_code": 0,
+      "elapsed_seconds": 13.038306474685669,
+      "outcomes": {
+        "passed": 50
+      },
+      "record_sha256": "483538ada344c837f94f98d34c4837623eb617bbac578a07d6f38c90c2cad777"
+    },
+    "case-last-current.json": {
+      "exit_code": 0,
+      "elapsed_seconds": 6.419713258743286,
+      "outcomes": {
+        "passed": 7
+      },
+      "record_sha256": "98c50012bdf69c409322942054cf06927213852df1b6f30a2cd214bafd92b968"
+    },
+    "case-type-fix.json": {
+      "exit_code": 0,
+      "elapsed_seconds": 22.972971200942993,
+      "outcomes": {
+        "passed": 18
+      },
+      "record_sha256": "c5c33b213801b81fe18f2b22fc5b472d161006d58c5b7c80e021f816360faa0a"
+    },
+    "case-integration-final.json": {
+      "exit_code": 0,
+      "elapsed_seconds": 53.88673233985901,
+      "outcomes": {
+        "passed": 275
+      },
+      "record_sha256": "33c37493da202808f95bf16cf36e5a602529c1147dff14376bc27aa91a7a166a"
+    }
+  },
+  "counting": "Overlapping focused/reviewer checks are not added to the full-suite total. The275-test record predates final privacy/snapshot refinements; final18-case rerun covers them and the native_cs type correction.",
+  "reused_red_green": "See diagnostics.json for original red records and final covering tests."
+}

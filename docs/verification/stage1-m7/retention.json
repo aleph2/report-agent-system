@@ -1,0 +1,56 @@
+{
+  "policy": "failed",
+  "count": 1,
+  "explicit_basetemp": false,
+  "roots": {
+    "tmp-cleanup-check": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-collection": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-0": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-1": {
+      "retained_failure_files": 9,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-2": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-3": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-4": {
+      "retained_failure_files": 9,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-5": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-6": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-group-7": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    },
+    "tmp-repaired-cases": {
+      "retained_failure_files": 0,
+      "passing_case_files_outside_caches": 0
+    }
+  },
+  "passing_case_files_outside_caches": 0,
+  "retained_original_failure_files": 18,
+  "cleanup_fixes": "Two offline sibling outputs moved under an owned parent; module factory rule tree moved to function tmp_path. Both27case modules pass and theirnewtmp roots are empty outside caches.",
+  "one_time_cleanup": "passing-artifact-cleanup.json records94oldpassingfiles removed only from3verifieddirs; originalfailurecases and logs remain.",
+  "limits": "Source snapshots, logs, fixtures, coverage and earlier partial/type-debug records are retained evidence, not disposable passing cases."
+}

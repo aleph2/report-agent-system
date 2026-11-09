@@ -1,0 +1,43 @@
+{
+  "baseline": "48fabae8606d25bd4ca20df219fc9968f2b07df4",
+  "files": {
+    "src/report_agent/assertions/schema/kinds.py": {
+      "sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "matches_m6_bytes": true
+    },
+    "src/report_agent/assertions/schema/actions.json": {
+      "sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54",
+      "matches_m6_bytes": true
+    },
+    "src/report_agent/assertions/schema/checks.sql": {
+      "sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568",
+      "matches_m6_bytes": true
+    },
+    "src/report_agent/assertions/actions.py": {
+      "sha256": "54999f04a50157c1d0e6c2dffd7639dd7124f2451002e76caffd248edd432ddc",
+      "matches_m6_bytes": true
+    },
+    "src/report_agent/assertions/queries.py": {
+      "sha256": "7b8d88dc3a1f99615870592ec8337133ddd0f1d06193c6fce6f9588865678a27",
+      "matches_m6_bytes": true
+    },
+    "src/report_agent/deep_runtime.py": {
+      "sha256": "a2c366e57aae730f7f2ceb7b7a204f08bbf9e9d8ecf7e8e5130e6d945a18b21f",
+      "matches_m6_bytes": true
+    },
+    "src/report_agent/task_supervision.py": {
+      "sha256": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d",
+      "matches_m6_bytes": true
+    },
+    "scripts/report_host.py": {
+      "sha256": "b8b76c2afc446cda3d7062900dabe68fce5cc102be40f44e2f89ead00791ec9b",
+      "matches_m6_bytes": true
+    },
+    "pyproject.toml": {
+      "sha256": "069ddd1ac7c0579ea1e346d171e2cc09cec6b58c3fba27d755d22b8295193879",
+      "matches_m6_bytes": true
+    }
+  },
+  "assertion_package_change": "Only public read-only current_references lookup added in launch.py; no S2 extension remains.",
+  "model_calls": 0
+}

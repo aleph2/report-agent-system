@@ -1,0 +1,52 @@
+{
+  "tested_file_count": 975,
+  "application_scripts_and_config_byte_unchanged": true,
+  "changed_files": [
+    {
+      "file": "tests/test_m1_g3_integration.py",
+      "functions": [
+        "test_source_view_materialization_preserves_text_and_binds_receipt"
+      ],
+      "frozen_sha256": "e131b199b717f50d4b3feba8ab2b4ee04e144cf8be63ab7e4eec4f11e6a6c192",
+      "final_sha256": "cb4ca64a99130624111c0542d5842f9e7f8ee958dfdbd4487b68f35f62758071",
+      "other_module_ast_unchanged": true
+    },
+    {
+      "file": "tests/test_rescue_projection.py",
+      "functions": [
+        "test_canonical_identity_and_exact_removed_span_are_rechecked"
+      ],
+      "frozen_sha256": "e893ab8652dc3b274b2b453924152c479da118cf520aa901c53a1037f16ad08d",
+      "final_sha256": "46d738187a35793329f8263e92cd1ac17bba3afaba81bbe355567fdf9f1fc2b4",
+      "other_module_ast_unchanged": true
+    },
+    {
+      "file": "tests/test_g5_offline_delivery.py",
+      "functions": [
+        "offline_case",
+        "test_offline_export_preserves_original_and_creates_pair",
+        "test_offline_export_reports_content_failure_without_patching"
+      ],
+      "frozen_sha256": "0e2128748f48cfb20a95d33b4b32a2c45c300d68fd42c8be3b8031255b6a7f7c",
+      "final_sha256": "b97bd41715ff71300c86631b4811179f0b51e8083092f89bc7e709a7ab142cc1",
+      "other_module_ast_unchanged": true
+    },
+    {
+      "file": "tests/test_reader_expression_profile.py",
+      "functions": [
+        "expression_rule_tree"
+      ],
+      "frozen_sha256": "251c8219cb0b214647b0a67f0c6de7ae1305899cc79008ca7f77f37a10889d8a",
+      "final_sha256": "5c41a5f9982268c4ba7de51113a20cc309adab653086ff17492aa487b815ce29",
+      "other_module_ast_unchanged": true
+    }
+  ],
+  "test_repair_patch_sha256": "e9ba154e00da5d1ec09b1cc9e55363e712389b41595b8e81b53940ed5e9977b0",
+  "limits": "Four test files changed only in named functions/local fixtures; whole affected cleanup modules and allcases of correctedfunctions passed on finalbytes. Appsource identical acrossfull and reruns.",
+  "code_commit": "5230b92cc34c609f84236d6830e11f77a84de14d",
+  "committed_tested_file_count": 975,
+  "committed_bytes_match_current_tested_versions": true,
+  "manifest_sha256": "19e71f7cc4876795b1f1642a343f675b73f52b4d4bedbd5725a29902b75bd5d0",
+  "original_frozen_manifest_sha256": "8dbdbdc576a874100b6efb3d6ed331459ac9537e1de1b86c805e4cb7944ae405",
+  "patch_format": "Zero-context unified diff; validate/apply with git apply --unidiff-zero. Original context patch retained locally."
+}

@@ -1,0 +1,20 @@
+{
+  "row_count": 16,
+  "dispositions": {
+    "control retained": 10,
+    "original refused; scripted gap saved": 4,
+    "assumption preserved; original question flagged": 1,
+    "owner-deferred unscored gap with conditional low and moderate": 1
+  },
+  "record_sha256": "87a480c04e03de9f4b0d5b8fd83736b4d7985051ff41af03e104783f6e3b01b0",
+  "A_X32": {
+    "value": 27,
+    "question_preserved": true
+  },
+  "A_X51": {
+    "kind": "gap",
+    "adopted_score": null,
+    "owner_deferral_preserved": true
+  },
+  "limitation": "Offline recorded replay with scripted gap/review responses; no model-quality or engineering acceptance claim."
+}
