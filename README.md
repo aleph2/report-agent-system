@@ -1,5 +1,11 @@
 # Report Agent System
 
+## Opening October release cases
+
+To read a case that stores source files in the October release layout, use
+[`regression-20261028-ocr-fake01`](https://github.com/aleph2/report-agent-system/tree/regression-20261028-ocr-fake01)
+on a copy of the case. This tag also contains the October release manifest and validation record.
+
 ## Current model request timeout (2026-10-24)
 
 The native async model-call deadline is 600 seconds, including SDK work and parsing.

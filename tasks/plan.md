@@ -1171,3 +1171,13 @@ At M4 start the Coordinator stops supplying observation-time metadata. A date us
 M4 opened with the shared confirmed-plan test fixture. It submits through the Coordinator and applies a synthetic operator reply through the regular checkpoint. The approval test exercises an amended proposal and reopens the prior immutable decision. The next migration step is to query the confirmed plan and decision by their exact versions, including the requirements version and owner choices. Independent intake review identified that a Coordinator endorsement or an answer to an unrelated question cannot establish plan approval. Section 9a's Writer extraction belongs after M10 and before the separately authorized paid Fake03 run.
 
 The owner accepted the observation-time fix at `8893c1d`. The owner ran 150 offline tests and the team ran 235 focused tests, including the LangChain-dependent modules. At the end of M4, run the full offline repository suite once on the completed candidate, record its commit, results and skips, then tag that verified revision for owner review. Use focused tests for individual fixes.
+
+### October compatibility replay and M4 handoff
+
+Offline comparison of the October release (`8e54420`) and accepted M3 (`76d835b`), using synthetic cases:
+
+- Source preservation on M3 passed all 10 checks, including importing a PDF, reopening it, comparing its original bytes and rendering its page. M3 returned `SOURCE_ORIGINAL_UNAVAILABLE` for the October-format case. The October tag reopened the same case successfully afterward. Use that tag for historical October cases.
+- The eight October context checks passed at the October tag. At M3 both assignment-deduplication checks failed. Of six summary-index checks, two passed and four failed. The owner accepted leaving these behaviors out. Revisit if a current workload reproduces the problem.
+- The October tag preserves the release records and the exact old default-branch tip. It is sufficient for the handoff.
+
+After the owner accepts the tested M4 tag, recheck the remote `main` tip, the October tag and the accepted target. Show the owner both commit IDs and obtain explicit confirmation for the one-time non-fast-forward update. Use a lease pinned to the confirmed old commit. If the tip changes or branch protection refuses the update, report it to the owner. The README identifies the tag for opening October cases.
