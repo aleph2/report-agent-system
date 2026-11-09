@@ -75,7 +75,7 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
         queried = [r for r in (primary, companion) if r is not None]
         same_selection = bool(selected and selected["snapshot_ref"] == snapshot_ref)
         selected_refs = ([r for r in (selected["export_ref"], selected.get("workbook_export_ref")) if r is not None]
-                         if same_selection else [])
+                         if selected and same_selection else [])
         if any((by_key.get(_key(r)) or contents.read(r))["payload"].get("snapshot_ref") != snapshot_ref for r in reviewed):
             reason = "different_artifact_snapshot"
         elif same_selection and primary is not None and primary not in selected_refs:
@@ -213,7 +213,7 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
             "queried_export_refs": scope_exports,
             "selection_matches_snapshot": same_selection,
             "selected_delivery_export_refs": ([r for r in (selected["export_ref"], selected.get("workbook_export_ref")) if r is not None]
-                                              if same_selection else []),
+                                              if selected and same_selection else []),
             "draft_selection_is_not_approval": True,
             "note": "An applicability mismatch alone does not prove files changed. select_content_delivery can save an explicitly intended valid draft pair without prior approval. Selection creates no review and waives no source, scope, version or withdrawal checks."}
     return {**query_context, "snapshot_ref": snapshot_ref, "export_ref": export_ref,

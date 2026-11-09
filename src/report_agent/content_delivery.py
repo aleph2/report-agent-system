@@ -21,7 +21,7 @@ def _legacy_current_delivery(store):
     superseded = bool(final and any(r["payload"]["review_ref"] == final["review_ref"]
                                   for r in cs.list_objects("ReviewSupersession")))
     matched = matched and not superseded
-    payload = cs.read(final["review_ref"])["payload"] if matched else None
+    payload = cs.read(final["review_ref"])["payload"] if final and matched else None
     items = [] if payload is None else [i for i in payload["items"] if cs.item_applies(i, selected["snapshot_ref"], selected["export_ref"], companion)]
     checks = [] if payload is None else [c for c in payload.get("delivery_checks", [])
         if not c["artifact_refs"] or cs.item_applies({**c, "assessment_kind": c["kind"]}, selected["snapshot_ref"], selected["export_ref"], companion)]
