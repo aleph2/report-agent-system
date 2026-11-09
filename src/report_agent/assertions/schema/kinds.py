@@ -144,17 +144,10 @@ class AssessmentCalculation(Shape):
     projection_digest: Digest
 
 
-class ArtifactRef(Shape):
-    type: Literal["ContentNode", "DocumentSnapshot", "CommissionOutcome"]
-    id: Id
-    version: int = Field(ge=1)
-
-
 class Derived(Shape):
     kind: Literal["derived"]
     rule_version: Id
     inputs: tuple[Id, ...]
-    artifact_ref: ArtifactRef | None = Field(default=None, exclude_if=lambda v: v is None)
     assessment: AssessmentCalculation | None = Field(default=None, exclude_if=lambda v: v is None)
     strength: Literal["undetermined", "provisional", "determined"]
     value: Decimal | None = None
@@ -163,8 +156,6 @@ class Derived(Shape):
     @model_validator(mode="after")
     def check_assessment(self):
         result = self.assessment
-        if self.artifact_ref and (self.value is not None or result is not None):
-            raise ValueError("Report artifact provenance cannot adopt a numeric result")
         if not self.inputs and not (result and result.status == "unscored" and result.missing_indicators):
             raise ValueError("Derived result requires inputs")
         if result:

@@ -295,8 +295,9 @@ def test_exact_heading_ancestor_authorizes_unlabelled_site_prose(site_projection
 
 
 @pytest.mark.parametrize('fault', ['stale', 'outcome_link', 'span'])
-def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection, fault):
+def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection, fault, monkeypatch):
     from report_agent.commission_plan import _set
+    from report_agent import report_state
     f = site_projection
     prose, args = frozen_site(f, 'HP-01 设计高度30m。本边坡综合得分F＝56.32，风险等级Ⅲ级，需开展专项施工安全风险评估。')
     result = project_rescue_prose(f.cs, f.co, 'recheck-result', **args,
@@ -313,7 +314,9 @@ def test_canonical_identity_and_exact_removed_span_are_rechecked(site_projection
         else:
             receipt = verify_projection(f.cs, db, projected, '4', f.plan, f.co)
             receipt['assessment_replacement']['removed_result_span']['start'] += 1
-            _set(db, 'rescue_projection:' + digest(projected['ref']), receipt)
+            read = report_state.projection
+            monkeypatch.setattr(report_state, 'projection',
+                lambda storage, ref: receipt if ref == projected['ref'] else read(storage, ref))
         with pytest.raises(ActionRejected, match='(ASSESSMENT|OUTCOME)'):
             verify_projection(f.cs, db, projected, '4', f.plan, f.co)
 

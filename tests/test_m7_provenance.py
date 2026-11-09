@@ -1,53 +1,145 @@
-"""Report derivations identify immutable artifacts and invalidate stale exports."""
+"""Case provenance is immutable operational data; export checks referenced assertions."""
 import pytest
-from pydantic import ValidationError
 
-from report_agent.assertions.schema.kinds import Derived
-
-
-def test_artifact_reference_is_additive_and_does_not_change_numeric_records():
-    original = dict(kind='derived', rule_version='rule', inputs=['fact'], strength='undetermined', value=None)
-    assert Derived.model_validate(original).model_dump(mode='json') == original
-    ref = dict(type='ContentNode', id='section', version=1)
-    saved = Derived.model_validate({**original, 'artifact_ref': ref})
-    assert saved.artifact_ref.model_dump() == ref
-    assert saved.model_dump(mode='json')['artifact_ref'] == ref
-    with pytest.raises(ValidationError):
-        Derived.model_validate({**original, 'artifact_ref': {**ref, 'version': 0}})
-    with pytest.raises(ValidationError):
-        Derived.model_validate({**original, 'artifact_ref': ref, 'value': '42'})
+from report_agent import report_state
+from report_agent.content_store import Actor, ContentStore
+from report_agent.errors import ActionRejected, ActionForbidden
+from report_agent.store import Store, encode
+from test_m1_g3_integration import method_commission
+from test_section_writing import reviewed_writing
 
 
-def test_native_artifact_reference_must_be_in_the_host_issued_packet(tmp_path):
-    from dataclasses import replace
+def case(tmp_path):
+    store = Store(tmp_path)
+    store.initialize({'goal': 'Synthetic provenance test', 'sources': [
+        {'id': 'source', 'content': 'Synthetic supplied material', 'coverage': 'complete'}],
+                      'content_contract': 'hierarchical-review-v1'})
+    cs = ContentStore(store)
+    actor = Actor('content:coordinator', 'coordinator', 'synthetic')
+    root = cs.commit(actor, 'root', [{'client_key': 'root', 'type': 'ContentNode',
+        'payload': {'kind': 'report', 'body': {'text': 'Synthetic report'},
+                    'qualifiers': {}, 'claim_kind': 'structure'}}])['result']['refs']['root']
+    snapshot = cs.freeze(actor, 'snapshot', root, [root])['result']['snapshot_ref']
+    return store, cs, actor, root, snapshot
+
+
+@pytest.mark.parametrize('kind,write,read', [
+    ('SectionProvenance', report_state.record_section, report_state.planned_section),
+    ('AssemblyProvenance', report_state.record_assembly, report_state.assembly),
+    ('RescueProjection', report_state.record_projection, report_state.projection)])
+def test_generation_record_is_immutable_hash_free_and_same_transaction(tmp_path, kind, write, read):
+    store, cs, actor, node, snapshot = case(tmp_path)
+    ref = snapshot if kind == 'AssemblyProvenance' else node
+    payload = {'node_ref': ref, 'section_id': '4', 'text_digest': 'discarded',
+               'nested': {'source_record_digest': 'discarded', 'source_ref': node}}
+    with pytest.raises(RuntimeError), store.connect() as db:
+        write(db, ref, payload)
+        raise RuntimeError('case transaction failed')
+    assert not report_state.native(store, kind, ref)
+    first = write(store, ref, payload)
+    assert write(store, ref, payload) == first
+    saved = read(store, ref)
+    assert saved == report_state.clean(payload)
+    assert cs.read(first)['created_by'] == 'system:report-assembler'
+    with pytest.raises(ActionForbidden):
+        cs.read_context(Actor('content:writer', 'writer', 'unoffered'), first)
+    with store.connect() as db:
+        wrapped = cs._insert(db, actor, 'DocumentSnapshot', {'refs': [first]})
+    with pytest.raises(ActionForbidden):
+        cs.read_context(Actor('content:writer', 'writer', 'unoffered'), wrapped)
+    with pytest.raises(ActionRejected, match='IMMUTABLE'):
+        write(store, ref, {**payload, 'section_id': '5'})
+    assert read(store, ref) == saved
+    with store.connect() as db:
+        assert db.execute("SELECT count(*) FROM content_versions WHERE type=?", (kind,)).fetchone()[0] == 1
+
+
+def test_prose_selection_versions_preserve_original_without_legacy_state(tmp_path):
+    store, cs, actor, node, snapshot = case(tmp_path)
+    scope = 'prose:' + encode([{'type': 'CommissionPlan', 'id': 'plan', 'version': 1}, '4', None])
+    first = report_state.select_prose(store, scope, node, actor=actor)
+    second = report_state.select_prose(store, scope, snapshot, actor=actor)
+    assert report_state.prose_ref(store, scope) == snapshot
+    assert cs.read(first)['payload'] == node
+    assert cs.read(second)['previous_ref'] == first
+    assert report_state.select_prose(store, scope, snapshot, actor=actor) == second
+    assert store.get(scope) is None
+
+
+def test_export_preflight_rejects_superseded_input_even_without_a_new_export_call(tmp_path):
     from uuid import NAMESPACE_URL, uuid5
     from report_agent import assertions
     from report_agent.assertion_host import AssertionHost, Grant
-    from report_agent.assertions.ids import canonical_json
-    from report_agent.assertions.queries import packet
+    from report_agent.commission_requirements import export_preflight
+    store, cs, actor, node, snapshot = case(tmp_path)
     host = AssertionHost(tmp_path)
-    author = str(uuid5(NAMESPACE_URL, 'coordinator'))
-    source_grant = Grant(author, 'coordinator', 'planning', 'source', 'plan',
-        frozenset(['report']), frozenset(), frozenset(['assert_source']))
-    fact = assertions.assert_source(host.issue_once(source_grant, 'assert_source', 'source'),
-        subject='report', claim=dict(kind='source', predicate='condition', state='unknown', coverage='report'))
-    grant = Grant(str(uuid5(NAMESPACE_URL, 'report-agent:report-assembler')), 'calculator',
-        'assembler/report', 'assemble', 'plan', frozenset(['report']),
-        frozenset([fact['id'], 'assembler-v1']), frozenset(['derive_result']),
-        resources={'rules': {'assembler-v1': {'version': 'assembler-v1'}}})
-    with pytest.raises(ValueError, match='C4'):
-        assertions.derive_result(host.issue_once(grant, 'derive_result', 'assemble'), subject='report',
-            claim=dict(kind='derived', inputs=[fact['id']], rule_version='assembler-v1',
-                strength='undetermined', artifact_ref=dict(type='DocumentSnapshot', id='unissued', version=1)))
-    ref = dict(type='DocumentSnapshot', id='issued', version=1)
-    resource = canonical_json(ref)
-    granted = replace(grant, attempt='issued', packet=grant.packet | {resource})
-    saved = assertions.derive_result(host.issue_once(granted, 'derive_result', 'issued'), subject='report',
-        claim=dict(kind='derived', inputs=[fact['id']], rule_version='assembler-v1',
-            strength='undetermined', artifact_ref=ref))
-    assert saved['was_generated_by'] == 'assembler/report'
-    for visible in [False, True]:
-        read = replace(grant, attempt='read/' + str(visible), actions=frozenset(),
-            packet=frozenset([saved['id'], *([resource] if visible else [])]))
-        body, = packet(host.issue_once(read, 'derive_result', 'read/' + str(visible)))
-        assert ('artifact_ref' in body['claim']) is visible
+    principal = str(uuid5(NAMESPACE_URL, 'synthetic-coordinator'))
+    def source(call, subject='A'):
+        grant = Grant(principal, 'coordinator', 'source', call, 'plan',
+            frozenset([subject]), frozenset(), frozenset(['assert_source']))
+        return assertions.assert_source(host.issue_once(grant, 'assert_source', call),
+            subject=subject, claim=dict(kind='source', predicate='condition', state='unknown', coverage=subject))
+    old, new, other = source('old'), source('new'), source('other', 'B')
+    report_state.record_assembly(store, snapshot, {'snapshot_ref': snapshot, 'assertion_refs': [old['id'], other['id']]})
+    export_preflight(cs, actor, snapshot, None)
+    owner = Grant(str(uuid5(NAMESPACE_URL, 'operator')), 'owner', 'review', 'replace', 'plan',
+        frozenset(['A']), frozenset([old['id'], new['id']]), frozenset(['supersede']))
+    assertions.supersede(host.issue_once(owner, 'supersede', 'replace'), subject='A',
+        claim=dict(kind='act', effect='supersede', target=old['id'], successor=new['id'], reason='Corrected input'))
+    with pytest.raises(ActionRejected, match='REPORT_INPUT_ASSERTION_NOT_CURRENT'):
+        export_preflight(cs, actor, snapshot, None)
+    assert cs.read(snapshot)['ref'] == snapshot
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_cached_word_excel_pair_rechecks_transitive_judgment_withdrawal(reviewed_writing):
+    from copy import deepcopy
+    from report_agent.assessment_projection import selected_assessment
+    from report_agent.assertion_host import AssertionHost
+    from report_agent.content_export import export_snapshot
+    from report_agent.section_writing import save_section_prose
+    from report_agent.system_assembler import assemble_current_report, require_assembled
+    from test_assessment_refresh import act
+    f = reviewed_writing
+    save_section_prose(f.cs, f.writer, 'context', '4', 'S1 design height is 30 metres.', [f.cite('design')])
+    snapshot = assemble_current_report(f.cs, f.co, 'assembly')['result']['snapshot_ref']
+    provenance = report_state.assembly(f.cs.store, snapshot)
+    altered = deepcopy(f.cs.read(snapshot))
+    altered['payload']['manifest_digest'] = 'not-the-frozen-version'
+    with f.cs.store.connect() as db, pytest.raises(ActionRejected, match='SNAPSHOT_MISMATCH'):
+        require_assembled(f.cs, db, altered)
+    with f.cs.store.connect() as db:
+        assessment = f.cs._read(db, selected_assessment(db, f.plan_ref, 'S1'))['payload']
+    assert assessment['derived_assertion_id'] in provenance['assertion_refs']
+    pair = export_snapshot(f.cs, f.co, 'frozen-pair', snapshot, {'toc': False})['result']
+    paths = [f.cs.store.root / pair['file_ref'], f.cs.store.root / pair['workbook']['file_ref']]
+    original = [path.read_bytes() for path in paths]
+    assert export_snapshot(f.cs, f.co, 'frozen-pair', snapshot, {'toc': False})['result'] == pair
+    host = AssertionHost(f.cs.store.root)
+    derived = host.recover_receipt(assessment['derive_operation_id'])['result']
+    act(host, f.plan_ref, 'S1', derived['claim']['inputs'][0], 'retract')
+    with pytest.raises(ActionRejected, match='G3_EXPORT_PREFLIGHT'):
+        export_snapshot(f.cs, f.co, 'frozen-pair', snapshot, {'toc': False})
+    assert [path.read_bytes() for path in paths] == original
+
+
+@pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
+def test_output_and_provenance_roll_back_together_then_redo_once(reviewed_writing, monkeypatch):
+    from report_agent.section_writing import save_section_prose
+    from report_agent.system_assembler import assemble_current_report
+    f = reviewed_writing
+    save_section_prose(f.cs, f.writer, 'context', '4', 'S1 design height is 30 metres.', [f.cite('design')])
+    before = f.cs.list_objects()
+    record = report_state.record_assembly
+    def interrupted(*args, **kwargs):
+        record(*args, **kwargs)
+        raise RuntimeError('interrupted before case commit')
+    monkeypatch.setattr(report_state, 'record_assembly', interrupted)
+    with pytest.raises(RuntimeError, match='before case commit'):
+        assemble_current_report(f.cs, f.co, 'same-operation')
+    assert f.cs.list_objects() == before
+    monkeypatch.setattr(report_state, 'record_assembly', record)
+    first = assemble_current_report(f.cs, f.co, 'same-operation')
+    complete = f.cs.list_objects()
+    assert assemble_current_report(f.cs, f.co, 'same-operation') == first
+    assert f.cs.list_objects() == complete

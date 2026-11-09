@@ -65,6 +65,18 @@
       "summary": "Optional typed Derived.artifact_ref identifies an immutable ContentNode, DocumentSnapshot or CommissionOutcome. Omitted when absent; existing serialized records and schema versions unchanged. Artifact provenance cannot carry a numeric value or assessment. The required native-provenance and stale-export consumer remains an M7 acceptance condition; aggregate integration currently awaits a separately acknowledged C5 amendment.",
       "owner_record": "Owner chat 2026-11-09, response to M7 proposal: approve option 1 subject to actual staleness/export consumption and assembler producer identity. Reuse existing calculator action/permissions, no release authority. M4/M5 JSON references remain on the 9a list.",
       "status": "acknowledged"
+    },
+    {
+      "id": "M7-withdrawal",
+      "date": "2026-11-09",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "0c5781aca75586c6d5860174e26c497b49829759",
+      "before_sha256": "4a4da24abf2b4be11e00419abb6eeb8c38b5dd742646b2d166c656f553bbedc9",
+      "after_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "summary": "Owner withdrew the optional artifact_ref and its proposed C5 exception: assembly generation is operational case data, not an assertion. Restores kinds.py exactly to accepted M6/M3; calculator actions, SQL checks and existing schema versions remain unchanged. Earlier M7 entries remain chronological history only.",
+      "owner_record": "Owner chat 2026-11-09, response to C5 question: keep C5 unchanged, do not hold M7; migrate four receipt families as immutable case records, withdraw artifact_ref, and check referenced assertions at export. No review/challenge/supersede consumer of generation provenance was found.",
+      "status": "acknowledged"
     }
   ]
 }

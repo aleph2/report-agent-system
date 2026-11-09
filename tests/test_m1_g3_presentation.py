@@ -298,10 +298,11 @@ def test_historical_generated_ranking_requires_regeneration_without_mutating_sav
     assert node['body'] == before
 
 
-def test_fixed_source_views_require_exact_materialized_receipt():
+def test_fixed_source_views_require_exact_materialized_receipt(monkeypatch):
     from types import SimpleNamespace
     from report_agent.g3_export import validate_export
     from report_agent.store import digest
+    from report_agent import report_state
     args = list(fixture())
     record = args[2][('ContentNode', 'fixed', 1)]
     source_record = args[2][('SourceArtifact', 'source', 1)]
@@ -313,6 +314,9 @@ def test_fixed_source_views_require_exact_materialized_receipt():
                'section_id': '1.1', 'text_digest': digest(body['text']),
                'source_views_digest': digest(body['source_views'])}
     args[0] = SimpleNamespace(store=SimpleNamespace(get=lambda key: receipt if key == 'planned_section_receipt:' + digest(record['ref']) else None))
+    monkeypatch.setattr(report_state, 'native', lambda *args: False)
+    monkeypatch.setattr(report_state, 'planned_section',
+                        lambda storage, target: receipt if target == record['ref'] else None)
     validate_export(*args)
     source_record['payload']['source_id'] = 'different-pdf'
     with pytest.raises(ActionRejected, match='source view pinned source'):
@@ -376,15 +380,18 @@ def test_assessment_receipt_requires_all_three_exact_selected_nodes(tmp_path):
         validate_export(*args)
 
 
-def test_derived_receipt_cannot_be_reused_for_rewritten_text():
+def test_derived_receipt_cannot_be_reused_for_rewritten_text(monkeypatch):
     from types import SimpleNamespace
     from report_agent.g3_export import validate_export
     from report_agent.store import digest
+    from report_agent import report_state
     args = list(fixture())
     args[2][('CommissionPlan', 'plan', 1)]['payload']['sections'][1]['kind'] = 'derived'
     node_ref = ref('ContentNode', 'extracted')
     receipt = {'node_ref': node_ref, 'commission_plan_ref': ref('CommissionPlan', 'plan'), 'section_id': '2', 'assessment_refs': [], 'text_digest': digest('现场事实')}
     args[0] = SimpleNamespace(store=SimpleNamespace(get=lambda key: receipt))
+    monkeypatch.setattr(report_state, 'native', lambda *args: False)
+    monkeypatch.setattr(report_state, 'planned_section', lambda storage, target: receipt)
     validate_export(*args)
     args[2][('ContentNode', 'extracted', 1)]['payload']['body']['text'] = '另一个结论'
     with pytest.raises(ActionRejected, match='derived section receipt mismatch'):

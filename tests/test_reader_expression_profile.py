@@ -27,10 +27,10 @@ NODE = {'kind': 'block', 'body': {'text': 'A qualified finding for the report re
         'claim_kind': 'inference', 'qualifiers': {'technical': 'Condition remains unverified.'}}
 
 
-@pytest.fixture(scope='module')
-def expression_rule_tree(tmp_path_factory):
+@pytest.fixture
+def expression_rule_tree(tmp_path):
     original = {name: (prompt_sources.RULES / (name + '.md')).read_bytes() for name in SOURCES}
-    rules = tmp_path_factory.mktemp('expression-source') / 'expression-rules'
+    rules = tmp_path / 'expression-rules'
     shutil.copytree(prompt_sources.RULES, rules)
     (rules / 'agent-writer.md').write_text('Fixture Writer definition independent of expression profiles.', encoding='utf-8')
     for name in SOURCES:

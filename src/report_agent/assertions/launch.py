@@ -98,6 +98,20 @@ class Commission:
         return Commission.committed_projections(directory, [(operation_id, assertion_id)]).get(assertion_id)
 
     @staticmethod
+    def current_references(directory, ids):
+        """Trusted export's read-only status check; it records no claim or action."""
+        from .queries import assertion_states
+        if not ids or directory is None:
+            return {}
+        path = Path(directory) / 'assertions.sqlite3'
+        if not ids or not path.is_file():
+            return {}
+        with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
+            db.execute('BEGIN')
+            states = assertion_states(db)
+            return {key: states[key] for key in ids if key in states}
+
+    @staticmethod
     def _plan_rows(db):
         return db.execute("""WITH proposals AS (
             SELECT id FROM assertions WHERE action='record_convention' AND role='coordinator'

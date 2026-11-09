@@ -1,5 +1,5 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
-from . import legacy_state as legacy
+from . import legacy_state as legacy, report_state
 from .assessment_results import score_band
 from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker
 from typing import Literal
@@ -543,7 +543,6 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
     """Trusted assembler and writer API share the same validated projection."""
     from .commission_plan import fixed_section_text, fixed_source_views, _confirmed, outside_boundary
     from .content_models import ContentNode
-    from .store import digest
     if not plan or not plan['payload'].get('method_pack'):
         raise ActionRejected('PLANNED_SECTION_METHOD_REQUIRED')
     section = next((s for s in plan['payload']['sections'] if s['section_id'] == section_id), None)
@@ -594,13 +593,12 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         refs = [cs._insert(db, actor, 'ContentNode', node) for node in all_nodes]
         relations = [cs._insert(db, actor, 'Relation', {'subject_ref': refs[0], 'object_ref': ref,
             'predicate': 'contains', 'position': n, 'provenance_kind': 'adopted_during_generation'}) for n, ref in enumerate(refs[1:])]
-        for ref, node in zip(refs, all_nodes):
+        for ref in refs:
             receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
-                'section_id': section_id, 'body_digest': digest(node['body']), 'composition_digest': digest(section['result_composition']),
-                'group_ref': refs[0], 'commission_confirmation_ref': decision['ref'], 'decision_digest': digest(decision['payload'])}
+                'section_id': section_id, 'group_ref': refs[0], 'commission_confirmation_ref': decision['ref']}
             if ref == refs[0]:
                 receipt['node_refs'] = refs
-            legacy.set_planned_section_receipt(db, digest(ref), receipt)
+            report_state.record_section(db, ref, receipt)
         return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
             **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
     if section['kind'] == 'fixed' and (slots or assessment_refs):
@@ -630,8 +628,6 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         'working_notes': 'Source copy and reviewed literal/result substitutions.'}).model_dump(mode='json')
     ref = cs._insert(db, actor, 'ContentNode', payload)
     receipt = {'node_ref': ref, 'commission_plan_ref': plan['ref'], 'assessment_refs': list(assessment_refs),
-               'section_id': section_id, 'text_digest': digest(text)}
-    if views:
-        receipt['source_views_digest'] = digest(views)
-    legacy.set_planned_section_receipt(db, digest(ref), receipt)
+               'section_id': section_id}
+    report_state.record_section(db, ref, receipt)
     return {'node_ref': ref, 'refs': {'section': ref}, 'assessment_refs': list(assessment_refs)}

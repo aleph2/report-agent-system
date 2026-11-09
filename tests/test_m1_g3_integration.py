@@ -431,7 +431,7 @@ def test_source_view_plan_rejects_invalid_or_unbound_structure(method_commission
 
 
 def test_source_view_materialization_preserves_text_and_binds_receipt(method_commission):
-    from report_agent.store import digest
+    from report_agent import report_state
     fixture = method_commission
     plan = source_view_plan(fixture)
     saved = save(fixture, plan)
@@ -444,8 +444,9 @@ def test_source_view_materialization_preserves_text_and_binds_receipt(method_com
         'source_ref': fixture.sources['template'],
         'source_id': fixture.cs.read(fixture.sources['template'])['payload']['source_id'],
         'page': 1, 'crop': [.1, .2, .9, .8]}]
-    receipt = fixture.cs.store.get('planned_section_receipt:' + digest(result['node_ref']))
-    assert receipt['source_views_digest'] == digest(body['source_views'])
+    receipt = report_state.planned_section(fixture.cs.store, result['node_ref'])
+    assert fixture.cs.read(receipt['node_ref'])['payload']['body']['source_views'] == body['source_views']
+    assert 'source_views_digest' not in receipt
     assert receipt['node_ref'] == result['node_ref']
     assert receipt['commission_plan_ref'] == saved['plan_ref']
     assert create_section(fixture, actor, '1.1') == result

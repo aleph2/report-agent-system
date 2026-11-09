@@ -14,6 +14,7 @@ commission_planning_draft commission_text_profiles commission_requirements
 commission_requirements_checkpoint: commission_source_roles commission_owner_records
 commission_checkpoint: report_issues g6_issue_record: g6_issue_binding: g6_issue_route:
 planned_section_receipt: assembly_receipt: commission_outcome: rescue_projection:
+g6_section_prose: g6_object_prose:
 content_delivery content_final_review corrections source_changes
 result_impact_assessments decision_observation
 """.split())
@@ -89,7 +90,7 @@ db.execute("SELECT 'corrections' FROM figures")
 
 def test_legacy_state_ownership():
     package = Path(__file__).resolve().parents[1] / "src/report_agent"
-    assert len(FAMILIES) == 32
+    assert len(FAMILIES) == 34
     assert all(key not in (package / "legacy_state.py").read_text() for key in RETIRED)
     project = package.parents[1]
     files = sorted(package.rglob("*.py")) + sorted((project / "scripts").rglob("*.py"))
@@ -231,8 +232,24 @@ def test_host_input_records_are_private_in_direct_and_snapshot_reads(tmp_path):
                 cs.read_context(writer, target)
 
 
+M7_HISTORICAL_READERS = {'planned_section_receipt:', 'assembly_receipt:', 'commission_outcome:', 'rescue_projection:'}
+M7_PROSE_READERS = {'g6_section_prose:', 'g6_object_prose:'}
+
+
+@pytest.mark.parametrize("family", sorted(M7_HISTORICAL_READERS))
+def test_m7_historical_receipts_remain_read_only(tmp_path, family):
+    from report_agent import legacy_state
+    from report_agent.store import Store
+    store = Store(tmp_path)
+    name = family.rstrip(':')
+    store.set(family + 'old', {'historical': True})
+    assert getattr(legacy_state, 'get_' + name)(store, 'old') == {'historical': True}
+    assert not hasattr(legacy_state, 'set_' + name)
+
+
 @pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS
-                                          - M4_HISTORICAL_READERS - M5_HISTORICAL_READERS - M6_HISTORICAL_READERS))
+                                          - M4_HISTORICAL_READERS - M5_HISTORICAL_READERS - M6_HISTORICAL_READERS
+                                          - M7_HISTORICAL_READERS - M7_PROSE_READERS))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

@@ -1,3 +1,11 @@
+# Historical M7 C5 investigation — superseded
+
+The owner resolved this investigation on 2026-11-09 by keeping S2/C5 unchanged and storing operational generation data in immutable case records. There is **no pending C5 acknowledgment**. The artifact_ref proposal was withdrawn, not granted an exception. See the [current M7 design](../../reviews/stage1-m7-report-provenance.md).
+
+The material below records the abandoned approach at commit `0c5781a`. Its executable reproduction applies only to that historical code pin, on a copy; it is not a current test or acceptance gate. Earlier logs and commits are preserved.
+
+---
+
 # M7 aggregate lineage: C5 acknowledgment gate
 
 The owner acknowledged the optional `Derived.artifact_ref` with two conditions: an actual stale-export consumer and explicit assembler attribution. The typed field is implemented at `99b3d51`; existing serialized numeric records and schema versions are unchanged. M7 is not complete, and main remains `48fabae`.

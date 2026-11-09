@@ -1,7 +1,7 @@
-from report_agent import issue_state
+from report_agent import issue_state, report_state
 import pytest
 from report_agent.errors import ActionRejected, ActionForbidden
-from report_agent.store import digest
+from report_agent.store import digest, encode
 from report_agent.section_writing import save_section_prose, propose_material_issue
 from test_m1_g3_integration import method_commission, section_plan
 from test_m1_commission_plan import save, approve, writer
@@ -23,7 +23,7 @@ def test_save_revision_replaces_citations_and_keeps_old_record(writing):
     second = save_section_prose(f.cs,f.writer,'p2','4','S1 lies at K1+200-K1+400.',[changed],first)['result']['refs']['prose']
     assert f.cs.read(first) == old
     assert f.cs.read(second)['payload']['citations'] == [changed]
-    assert f.ws.store.get('g6_section_prose:'+digest([f.plan_ref,'4'])) == second
+    assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', None])) == second
     with pytest.raises(ActionRejected,match='PROSE_CURRENT_VERSION_REQUIRED'):
         save_section_prose(f.cs,f.writer,'new-overwrite','4','Another draft.',[changed])
 
@@ -37,7 +37,7 @@ def test_exact_span_checks(writing,text,citations,reason):
         save_section_prose(f.cs,f.writer,'bad','4',text,[f.cite(x) for x in citations])
     spans=exc.value.diagnostic['spans'];assert any(s['reason']==reason for s in spans)
     assert all(0<=s['start']<s['end']<=len(text) for s in spans)
-    assert f.ws.store.get('g6_section_prose:'+digest([f.plan_ref,'4'])) is None
+    assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', None])) is None
 
 def test_scope_and_manual_structure_are_rejected(writing):
     f=writing
@@ -177,4 +177,4 @@ def test_prose_cannot_smuggle_an_agent_authored_scoring_table(writing):
     spans=[s for s in exc.value.diagnostic['spans'] if s['reason']=='system_table_required']
     assert len(spans)==1
     assert text[spans[0]['start']:spans[0]['end']]==table
-    assert f.ws.store.get('g6_section_prose:'+digest([f.plan_ref,'4'])) is None
+    assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', None])) is None

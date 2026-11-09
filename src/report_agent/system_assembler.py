@@ -1,5 +1,5 @@
 """Trusted, deterministic assembly of frozen producer records; no model calls."""
-from . import issue_state
+from . import issue_state, report_state
 from . import legacy_state as legacy
 from copy import deepcopy
 import json
@@ -8,7 +8,7 @@ from .assessment_projection import assessment_receipt, score_blocker, selected_a
 from .commission_plan import _confirmed, _state, outside_boundary
 from .content_models import ContentNode, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
-from .store import digest
+from .store import digest, encode
 
 CONTRACT = 'system-assembler-v1'
 
@@ -484,7 +484,7 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
             'section_ref': object_heads[obj], 'score_ref': receipt['evaluation_ref'], 'level_ref': receipt['level_ref'],
             'basis_refs': [receipt['evidence_ref']], 'unresolved': [], 'commission_plan_ref': plan['ref'],
             'object_ref': object_ref, 'assessment_ref': assessment_ref})
-        legacy.set_commission_outcome(db, digest([plan['ref'], obj]) + ':' + digest([actor.id, root]), outcome)
+        report_state.select_outcome(db, plan['ref'], obj, [actor.id, root], outcome, actor=actor)
         outcomes.append(outcome)
     closed = _closure(cs, db, refs)
     result = cs._freeze_in_transaction(db, actor, root, closed, [])
@@ -494,20 +494,20 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
     actual_issues = rendered_issues(records, root)
     validate_required_issues(cs, db, snapshot, records, actual_issues)
     issue_targets = {issue.id: node_ref for node_ref, issue in actual_issues}
-    legacy.set_assembly_receipt(db, digest(result['snapshot_ref']), {
-        'contract': CONTRACT, 'snapshot_ref': result['snapshot_ref'], 'manifest_digest': result['manifest_digest'],
-        'source_snapshot_ref': request['source_snapshot_ref'], 'source_manifest_digest': source['payload']['manifest_digest'],
+    report_state.record_assembly(db, result['snapshot_ref'], {
+        'contract': CONTRACT, 'snapshot_ref': result['snapshot_ref'],
+        'source_snapshot_ref': request['source_snapshot_ref'],
         'source_kind': 'current-selections' if current else 'frozen-snapshot',
         'rescue_source_snapshot_ref': source.get('rescue_source_snapshot_ref'),
         'rescue_projection_refs': [r['projection_ref'] for r in source.get('rescue_projections', [])],
         'structural_parent_refs': source.get('structural_parent_refs', {}),
         'commission_plan_ref': plan['ref'], 'commission_confirmation_ref': decision['ref'],
-        'bindings_digest': digest(request), 'resolved_issue_bindings': issue_bindings,
+        'resolved_issue_bindings': issue_bindings,
         'operator_issue_routes': {i: saved for i in issue_bindings
             if (saved := issue_state.get_g6_issue_route(db, digest([plan['ref'], i]))) is not None},
         'prose_copies': copies, 'assessment_refs': list(request['assessment_refs']),
         'issue_targets': issue_targets, 'outcome_refs': outcomes,
-        'records_digest': digest([cs._read(db, r) for r in snapshot['payload']['refs']])})
+        'assertion_refs': report_state.assertion_refs(db, snapshot['payload']['refs'], plan['ref'], decision['ref'])})
     return {**result, 'assembly_contract': CONTRACT}
 
 
@@ -526,11 +526,11 @@ def _current_selections(cs, db) -> dict:
         sid = section['section_id']
         if section['kind'] != 'extracted':
             continue
-        selected = _state(db, 'g6_section_prose:' + digest([plan['ref'], sid]))
+        selected = report_state.prose_ref(db, 'prose:' + encode([plan['ref'], sid, None]))
         if selected is not None:
             prose[sid] = selected if isinstance(selected, list) else [selected]
         for obj in plan['payload']['objects']:
-            selected = _state(db, 'g6_object_prose:' + digest([plan['ref'], sid, obj['object_id']]))
+            selected = report_state.prose_ref(db, 'prose:' + encode([plan['ref'], sid, obj['object_id']]))
             if selected is not None:
                 prose.setdefault(sid, []).extend(selected if isinstance(selected, list) else [selected])
     for obj in plan['payload']['objects']:
@@ -575,18 +575,22 @@ def assemble_current_report(cs, actor, operation_id):
 
 def require_assembled(cs, db, snapshot, records=None):
     """Verify assembly provenance without changing legacy export behavior."""
-    receipt = legacy.get_assembly_receipt(db, digest(snapshot['ref']))
+    receipt = report_state.assembly(db, snapshot['ref'])
+    case_record = report_state.native(db, 'AssemblyProvenance', snapshot['ref'])
+    if case_record and snapshot != cs._read(db, snapshot['ref']):
+        raise ActionRejected('SYSTEM_ASSEMBLY_SNAPSHOT_MISMATCH')
     from .section_writing import enabled as system_writing
     if receipt is None and not system_writing(cs.store):
         return None
     p = snapshot['payload']
     if (not receipt or receipt.get('contract') != CONTRACT or receipt.get('snapshot_ref') != snapshot['ref'] or
-            receipt.get('manifest_digest') != p.get('manifest_digest') or
+            (not case_record and receipt.get('manifest_digest') != p.get('manifest_digest')) or
             receipt.get('commission_plan_ref') != p.get('commission_plan_ref') or
             receipt.get('commission_confirmation_ref') != p.get('commission_confirmation_ref')):
         raise ActionRejected('SYSTEM_ASSEMBLY_RECEIPT_REQUIRED_OR_INVALID')
     records = records if records is not None else {_key(r): cs._read(db, r) for r in p['refs']}
-    if receipt.get('records_digest') != digest([records[_key(r)] for r in p['refs']]):
+    if (any(records[_key(r)] != cs._read(db, r) for r in p['refs']) if case_record
+            else receipt.get('records_digest') != digest([records[_key(r)] for r in p['refs']])):
         raise ActionRejected('SYSTEM_ASSEMBLY_RECORDS_DIGEST_MISMATCH')
     decision = records.get(_key(p['commission_confirmation_ref']))
     if (not decision or decision.get('owner_id') != 'operator' or

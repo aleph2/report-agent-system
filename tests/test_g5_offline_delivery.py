@@ -61,15 +61,25 @@ def test_failed_excel_does_not_commit_word_pair(ws, monkeypatch):
     assert not cs.list_objects("ExportArtifact")
 
 
-def test_offline_export_preserves_original_and_creates_pair(ws, tmp_path, monkeypatch):
+@pytest.fixture
+def offline_case(ws, tmp_path):
+    from report_agent.store import Store
+    from report_agent.workspace import Workspace
+    store = Store(tmp_path / 'source')
+    store.initialize(ws.store.manifest)
+    return Workspace(store)
+
+
+def test_offline_export_preserves_original_and_creates_pair(offline_case, tmp_path, monkeypatch):
     import socket
     from report_agent.offline_export import export_offline, hashes
+    ws = offline_case
     cs, actor, snapshot, _ = fixture(ws)
     before = hashes(ws.store.root)
     def forbidden(*args, **kwargs):
         raise AssertionError("network not permitted")
     monkeypatch.setattr(socket.socket, 'connect', forbidden)
-    output = tmp_path.parent / (tmp_path.name + '-offline')
+    output = tmp_path / 'offline'
     receipt = export_offline(ws.store.root, output)
     assert receipt['status'] == 'exported; verification pending', receipt.get('error')
     assert receipt['snapshot_ref'] == snapshot
@@ -77,11 +87,12 @@ def test_offline_export_preserves_original_and_creates_pair(ws, tmp_path, monkey
     assert (output / 'G5-report.docx').is_file()
     assert (output / 'G5-clarifications.xlsx').is_file()
 
-def test_offline_export_reports_content_failure_without_patching(ws, tmp_path):
+def test_offline_export_reports_content_failure_without_patching(offline_case, tmp_path):
     from report_agent.offline_export import export_offline, hashes
+    ws = offline_case
     cs, actor, snapshot, _ = fixture(ws, paragraph=dict(text='absent', material_issues=[passage()]))
     before = hashes(ws.store.root)
-    output = tmp_path.parent / (tmp_path.name + '-offline')
+    output = tmp_path / 'offline'
     receipt = export_offline(ws.store.root, output)
     assert receipt['status'] == 'blocked'
     assert 'MI-3-2-01' in receipt['error']

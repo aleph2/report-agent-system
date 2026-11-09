@@ -1,12 +1,12 @@
 """Assigned prose and issue proposals; document structure remains system-owned."""
-from . import issue_state
+from . import issue_state, report_state
 from . import legacy_state as legacy
 from typing import Literal
 from pydantic import Field
 from .material_issues import StrictRecord, IssueSource
 from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
-from .store import digest
+from .store import digest, encode
 
 
 class IssueProposal(StrictRecord):
@@ -38,12 +38,11 @@ def prose_selection_key(cs, db, actor, plan_ref, section_id):
         bound = bound_assignment(cs, db, actor)
         if bound['plan']['ref'] != plan_ref or bound['section_id'] != section_id:
             raise ActionRejected('PROSE_ASSIGNMENT_BINDING_MISMATCH')
-        return 'g6_object_prose:' + digest([plan_ref, section_id, object_id])
-    return 'g6_section_prose:' + digest([plan_ref, section_id])
+    return 'prose:' + encode([plan_ref, section_id, object_id])
 
 
 def validate_prose(cs, db, actor, node, previous_ref=None):
-    from .commission_plan import assert_writing_allowed, _state
+    from .commission_plan import assert_writing_allowed
     from .g3_export import _INTERNAL
     plan = assert_writing_allowed(cs, db, actor)
     sid = node.get('body', {}).get('section_id')
@@ -53,7 +52,7 @@ def validate_prose(cs, db, actor, node, previous_ref=None):
         raise ActionRejected('PROSE_ASSIGNED_EXTRACTED_SECTION_REQUIRED')
     if node['kind'] != 'block' or set(node['body']) != {'text', 'section_id'} or node.get('qualifiers'):
         raise ActionRejected('PROSE_ONLY_SYSTEM_OWNS_STRUCTURE_AND_ANCHORS')
-    current = _state(db, prose_selection_key(cs, db, actor, plan['ref'], sid))
+    current = report_state.prose_ref(db, prose_selection_key(cs, db, actor, plan['ref'], sid))
     if current and current != previous_ref:
         raise ActionRejected('PROSE_CURRENT_VERSION_REQUIRED', diagnostic={'section_id': sid, 'current_ref': current})
     if previous_ref and cs._read(db, previous_ref)['payload']['body'].get('section_id') != sid:
@@ -93,7 +92,7 @@ def save_section_prose(cs, actor, operation_id, section_id, text, citations, pre
 
 def propose_material_issue(cs, actor, operation_id, node_ref, issue):
     """Record engineering facts for an owned current node; assign position in system code."""
-    from .commission_plan import assert_writing_allowed, _confirmed, _state
+    from .commission_plan import assert_writing_allowed, _confirmed
     from .material_issues import MaterialIssue
     if not enabled(cs.store):
         raise ActionRejected('SYSTEM_ASSEMBLER_CONTRACT_REQUIRED')
@@ -105,7 +104,7 @@ def propose_material_issue(cs, actor, operation_id, node_ref, issue):
         if node_ref['type'] != 'ContentNode' or record['owner_id'] != actor.id or record['task_id'] != actor.task_id:
             raise ActionForbidden('FORBIDDEN: material issue node owner')
         sid = record['payload']['body'].get('section_id')
-        if _state(db, prose_selection_key(cs, db, actor, plan['ref'], sid)) != node_ref:
+        if report_state.prose_ref(db, prose_selection_key(cs, db, actor, plan['ref'], sid)) != node_ref:
             raise ActionRejected('ISSUE_CURRENT_PROSE_NODE_REQUIRED')
         value = MaterialIssue.model_validate({**issue, 'anchor': {'paragraph_index': 0, 'start': 0, 'end': None}}).model_dump()
         _, decision = _confirmed(cs, db)

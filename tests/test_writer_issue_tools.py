@@ -1,12 +1,12 @@
 """Writer judgment tools bind scope, sources and locations without model calls."""
-from report_agent import issue_state
+from report_agent import issue_state, report_state
 from copy import deepcopy
 import pytest
 from pydantic import ValidationError
 from report_agent import plan_authority
 from report_agent import writer_issues as api
 from report_agent.errors import ActionRejected
-from report_agent.store import digest
+from report_agent.store import digest, encode
 from test_m1_g3_integration import method_commission, section_plan
 from test_m1_commission_plan import save, approve, writer
 
@@ -79,9 +79,9 @@ def test_object_prose_is_isolated_and_native_replay_is_stable(writers):
         assert api.save_section_prose(f.cs,actor,'prose-'+str(n),payload)==result
         refs.append(result['result']['refs']['prose'])
     assert refs[0]!=refs[1]
-    assert f.ws.store.get('g6_section_prose:'+digest([f.plan_ref,'4'])) is None
+    assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', None])) is None
     for obj,ref in zip(('S1','S2'),refs):
-        assert f.ws.store.get('g6_object_prose:'+digest([f.plan_ref,'4',obj]))==ref
+        assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', obj])) == ref
     changed=dict(text='Changed context.',quotes=['S1 is a design object with a 30 metre height.'])
     with pytest.raises(ActionRejected,match='OPERATION_CONFLICT'):
         api.save_section_prose(f.cs,f.actors[0],'prose-0',changed)

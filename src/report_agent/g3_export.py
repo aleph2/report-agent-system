@@ -1,5 +1,5 @@
 """G3 snapshot preflight and source-bound application of the reviewed format."""
-from . import legacy_state as legacy
+from . import report_state
 from copy import deepcopy
 import re
 
@@ -161,19 +161,34 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
         node = records[key]['payload']
         body = node['body']
         location = key[1]
+        native_cs = cs if cs is not None and report_state.native(cs.store, 'SectionProvenance', records[key]['ref']) else None
+        section_receipt = report_state.planned_section(native_cs.store, records[key]['ref']) if native_cs else None
+        if native_cs and (not section_receipt or native_cs.read(records[key]['ref'])['payload'] != node
+                or native_cs.read(snapshot['payload']['commission_plan_ref'])['payload'] != plan
+                or section_receipt.get('node_ref') != records[key]['ref']
+                or section_receipt.get('commission_plan_ref') != snapshot['payload']['commission_plan_ref']
+                or section_receipt.get('section_id') != body.get('section_id')):
+            problems.append(location + ': planned section receipt mismatch')
         if (node['kind'] == 'table' and body.get('assessment_ref')
                 and body.get('assessment_part') == 'ranking'
                 and body.get('columns') == ['指标', '重要性排序', '权重', '排序理由']):
             problems.append(location + ': legacy ranking reasons require regeneration from saved assessment')
         if body.get('source_views'):
-            receipt = legacy.get_planned_section_receipt(cs.store, digest(records[key]['ref'])) if cs is not None else None
+            receipt = section_receipt if native_cs else report_state.planned_section(cs.store, records[key]['ref']) if cs is not None else None
             section = sections.get(body.get('section_id'), {})
+            expected_views = []
+            if native_cs:
+                from .commission_plan import fixed_source_views
+                expected_views = [{**view, 'source_id': native_cs.read(view['source_ref'])['payload']['source_id']}
+                                  for view in fixed_source_views(section)]
             if (node['kind'] != 'block' or section.get('kind') != 'fixed' or not receipt
                     or receipt.get('node_ref') != records[key]['ref']
                     or receipt.get('commission_plan_ref') != snapshot['payload']['commission_plan_ref']
                     or receipt.get('section_id') != body.get('section_id')
-                    or receipt.get('text_digest') != digest(body.get('text'))
-                    or receipt.get('source_views_digest') != digest(body['source_views'])):
+                    or (native_cs and (body['source_views'] != expected_views
+                        or node.get('citations', []) != section['sources']))
+                    or (not native_cs and (receipt.get('text_digest') != digest(body.get('text'))
+                        or receipt.get('source_views_digest') != digest(body['source_views'])))):
                 problems.append(location + ': fixed source view receipt mismatch')
             else:
                 for view in body['source_views']:
@@ -221,22 +236,23 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             if outcomes and _key(assessment) not in selected_assessments:
                 problems.append(location + ': assessment not selected by frozen outcomes')
         if cs is not None and section['kind'] == 'derived':
-            receipt = legacy.get_planned_section_receipt(cs.store, digest(records[key]['ref']))
+            receipt = section_receipt if native_cs else report_state.planned_section(cs.store, records[key]['ref'])
             if (not receipt or receipt.get('node_ref') != records[key]['ref']
                     or receipt.get('commission_plan_ref') != snapshot['payload']['commission_plan_ref']
                     or receipt.get('section_id') != sid
-                    or (receipt.get('body_digest') != digest(body) or receipt.get('composition_digest') != digest(section['result_composition'])
-                        if section.get('result_composition') else receipt.get('text_digest') != digest(body.get('text')))):
+                    or (not native_cs and (receipt.get('body_digest') != digest(body) or receipt.get('composition_digest') != digest(section['result_composition'])
+                        if section.get('result_composition') else receipt.get('text_digest') != digest(body.get('text'))))):
                 problems.append(location + ': derived section receipt mismatch')
             elif section.get('result_composition'):
                 if any(p.get('applicability_question') for p in section['result_composition']):
                     confirmation = snapshot['payload'].get('commission_confirmation_ref')
                     saved = (records.get(_key(confirmation)) or cs.read(confirmation)) if confirmation else None
                     if (not saved or receipt.get('commission_confirmation_ref') != confirmation
-                            or receipt.get('decision_digest') != digest(saved['payload'])):
+                            or (native_cs and saved['payload'] != cs.read(confirmation)['payload'])
+                            or (not native_cs and receipt.get('decision_digest') != digest(saved['payload']))):
                         problems.append(location + ': derived template decision receipt mismatch')
-                composition_groups[sid].add(digest(receipt.get('group_ref')))
-                group = legacy.get_planned_section_receipt(cs.store, digest(receipt.get('group_ref')))
+                composition_groups[sid].add(_key(receipt['group_ref']) if receipt.get('group_ref') else None)
+                group = report_state.planned_section(cs.store, receipt.get('group_ref'))
                 expected = [_key(r) for r in (group or {}).get('node_refs', [])]
                 if not expected or any(k not in selected for k in expected) or [k for k in ordered if k in expected] != expected:
                     problems.append(location + ': derived composition incomplete or reordered')

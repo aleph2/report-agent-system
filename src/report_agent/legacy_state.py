@@ -126,32 +126,23 @@ def get_planned_section_receipt(storage, suffix, default=_MISSING):
     return _get(storage, 'planned_section_receipt:' + suffix, default)
 
 
-def set_planned_section_receipt(storage, suffix, value):
-    _set(storage, 'planned_section_receipt:' + suffix, value)
+def historical_prose(storage, plan, section, obj, default=None):
+    from .store import digest
+    key = ('g6_section_prose:' + digest([plan, section]) if obj is None
+           else 'g6_object_prose:' + digest([plan, section, obj]))
+    return _get(storage, key, default)
 
 
 def get_assembly_receipt(storage, suffix, default=_MISSING):
     return _get(storage, 'assembly_receipt:' + suffix, default)
 
 
-def set_assembly_receipt(storage, suffix, value):
-    _set(storage, 'assembly_receipt:' + suffix, value)
-
-
 def get_commission_outcome(storage, suffix, default=_MISSING):
     return _get(storage, 'commission_outcome:' + suffix, default)
 
 
-def set_commission_outcome(storage, suffix, value):
-    _set(storage, 'commission_outcome:' + suffix, value)
-
-
 def get_rescue_projection(storage, suffix, default=_MISSING):
     return _get(storage, 'rescue_projection:' + suffix, default)
-
-
-def set_rescue_projection(storage, suffix, value):
-    _set(storage, 'rescue_projection:' + suffix, value)
 
 
 def get_content_delivery(storage, default=_MISSING):

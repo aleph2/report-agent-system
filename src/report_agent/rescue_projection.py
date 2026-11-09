@@ -1,5 +1,5 @@
 """Audited prose-only rescue projection; original authors and records are immutable."""
-from . import legacy_state as legacy
+from . import report_state
 from .assessment_projection import assessment_receipt, score_blocker, selected_assessment
 from copy import deepcopy
 import json
@@ -178,12 +178,13 @@ def _project(cs, db, source, section, dispositions, required):
                 body = saved['payload'].get('body', {})
                 task = cs._read(db, {'type': 'DelegatedTask', 'id': source['task_id'], 'version': 1})
                 plan_ref = task['payload']['commission_plan_ref']
-                planned = legacy.get_planned_section_receipt(db, digest(replacement))
+                planned = report_state.planned_section(db, replacement)
                 assessment = body.get('assessment_ref')
                 scored = assessment_receipt(db, assessment) if assessment else None
                 valid_planned = (planned and planned.get('node_ref') == replacement and
                     planned.get('commission_plan_ref') == plan_ref and
-                    (planned.get('body_digest') == digest(body) or planned.get('text_digest') == digest(body.get('text'))))
+                    (report_state.native(db, 'SectionProvenance', replacement)
+                     or planned.get('body_digest') == digest(body) or planned.get('text_digest') == digest(body.get('text'))))
                 if scored and (blocker := score_blocker(scored)):
                     raise ActionRejected('RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: ' + blocker)
                 valid_scored = (scored and scored.get(body.get('assessment_part', '') + '_ref') == replacement and
@@ -280,15 +281,15 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
         output = {sid: [] for sid in bindings}; receipts = []
         for sid, snapshot, source, task, payload, removed, accounting, dispositions, replacement in prepared:
             ref = cs._insert(db, coordinator, 'ContentNode', payload)
-            receipt = {'contract': CONTRACT, 'projection_ref': ref, 'payload_digest': digest(payload),
-                'source_snapshot_ref': source_snapshot_ref, 'source_snapshot_digest': digest(snapshot['payload']),
-                'source_ref': source['ref'], 'source_record_digest': digest(source), 'source_task_ref': task['ref'],
-                'source_task_digest': digest(task), 'section_id': sid, 'commission_plan_ref': plan['ref'],
+            receipt = {'contract': CONTRACT, 'projection_ref': ref,
+                'source_snapshot_ref': source_snapshot_ref,
+                'source_ref': source['ref'], 'source_task_ref': task['ref'],
+                'section_id': sid, 'commission_plan_ref': plan['ref'],
                 'removed_structural_span': removed, 'archived_qualifiers': deepcopy(source['payload']['qualifiers']),
                 'qualifier_accounting': accounting, 'qualifier_dispositions': deepcopy(dispositions)}
             if replacement is not None:
-                receipt['assessment_replacement'] = replacement
-            legacy.set_rescue_projection(db, digest(ref), receipt)
+                receipt['assessment_replacement'] = report_state.clean(replacement)
+            report_state.record_projection(db, ref, receipt)
             output[sid].append(ref); receipts.append(receipt)
         return {'section_bindings': output, 'projection_receipts': receipts,
                 'refs': {str(i): ref for i, ref in enumerate(r for refs in output.values() for r in refs)}}
@@ -298,27 +299,31 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
 
 def verify_projection(cs, db, record, sid, plan, co_actor):
     """Verify the exact derived copy and original assignment; never adopt producer identity."""
-    receipt = legacy.get_rescue_projection(db, digest(record['ref']))
+    receipt = report_state.projection(db, record['ref'])
+    native = report_state.native(db, 'RescueProjection', record['ref'])
     if (not receipt or receipt.get('contract') != CONTRACT or receipt.get('projection_ref') != record['ref'] or
             record.get('owner_id') != co_actor.id or record.get('created_by') != co_actor.id or
             receipt.get('section_id') != sid or receipt.get('commission_plan_ref') != plan['ref']):
         raise ActionRejected('RESCUE_PROJECTION_RECEIPT_REQUIRED_OR_INVALID')
-    if receipt.get('payload_digest') != digest(record['payload']):
+    if not native and receipt.get('payload_digest') != digest(record['payload']):
         raise ActionRejected('RESCUE_PROJECTION_PAYLOAD_DIGEST_MISMATCH')
     snapshot, source, task, section, decision = _origin(cs, db, receipt['source_snapshot_ref'], receipt['source_ref'], sid, plan, co_actor)
-    if (receipt.get('source_snapshot_digest') != digest(snapshot['payload']) or
-            receipt.get('source_record_digest') != digest(source) or receipt.get('source_task_ref') != task['ref'] or
-            receipt.get('source_task_digest') != digest(task)):
+    if (receipt.get('source_task_ref') != task['ref'] or (not native and (
+            receipt.get('source_snapshot_digest') != digest(snapshot['payload']) or
+            receipt.get('source_record_digest') != digest(source) or
+            receipt.get('source_task_digest') != digest(task)))):
         raise ActionRejected('RESCUE_PROJECTION_SOURCE_DIGEST_MISMATCH')
     required = {i['id']:i for i in decision['payload'].get('required_material_issues', [])}
     expected, removed, accounting = _project(cs, db, source, section, receipt['qualifier_dispositions'], required)
     replacement = receipt.get('assessment_replacement')
     if replacement is not None:
         checked = _assessment_replacement(cs, db, source, section, plan, replacement['assessment_ref'])
-        if replacement != checked:
+        if replacement != (report_state.clean(checked) if native else checked):
             raise ActionRejected('RESCUE_ASSESSMENT_REPLACEMENT_TRANSFORM_MISMATCH')
         expected['body']['text'] = expected['body']['text'][:-len(checked['removed_result_span']['text'])]
-    if (record['payload'] != expected or receipt.get('removed_structural_span') != removed or
+    if record['payload'] != expected:
+        raise ActionRejected('RESCUE_PROJECTION_PAYLOAD_DIGEST_MISMATCH')
+    if (receipt.get('removed_structural_span') != removed or
             receipt.get('archived_qualifiers') != source['payload']['qualifiers'] or
             receipt.get('qualifier_accounting') != accounting):
         raise ActionRejected('RESCUE_PROJECTION_TRANSFORM_MISMATCH')

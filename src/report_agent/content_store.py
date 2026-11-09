@@ -332,9 +332,9 @@ class ContentStore:
                     _validate_sources(self, db, actor, payload['citations'])
                 self._insert(db, actor, ref["type"], payload, id=ref["id"], version=ref["version"], previous_ref=obj.get("previous_ref"))
                 if g6 and ref['type'] == 'ContentNode':
-                    from .commission_plan import _set
+                    from . import report_state
                     from .section_writing import prose_selection_key
-                    _set(db, prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id']), ref)
+                    report_state.select_prose(db, prose_selection_key(self, db, actor, writing_plan['ref'], payload['body']['section_id']), ref, actor=actor)
             from .revision_authorization import record_use
             for grant, resulting_ref in exception_uses:
                 record_use(db, grant, resulting_ref, operation_id)
@@ -616,10 +616,15 @@ class ContentStore:
         if offset < 0 or limit < 1 or limit > 100:
             raise ActionRejected("INVALID_PAGE")
         from .plan_inputs import PRIVATE_INPUT_TYPES
+        from .report_state import PRIVATE_TYPES
+        if target_ref['type'] in PRIVATE_TYPES:
+            raise ActionForbidden('FORBIDDEN: report generation records are host-only')
         if target_ref["type"] in PRIVATE_INPUT_TYPES:
             raise ActionForbidden("FORBIDDEN: use the Coordinator planning interface for plan inputs")
         record = self.read(target_ref)
         refs = record["payload"]["refs"] if target_ref["type"] == "DocumentSnapshot" else [target_ref]
+        if target_ref['type'] == 'DocumentSnapshot' and any(ref['type'] in PRIVATE_TYPES for ref in refs):
+            raise ActionForbidden('FORBIDDEN: snapshot contains host-only generation records')
         if target_ref["type"] == "DocumentSnapshot" and any(ref["type"] in PRIVATE_INPUT_TYPES for ref in refs):
             raise ActionForbidden("FORBIDDEN: snapshot contains private plan inputs")
         items = [self.read(r) for r in refs[offset:offset + limit]]

@@ -285,11 +285,11 @@ def test_source_applicability_reaches_anchored_word_comment_and_excel_not_body(s
     assert "不表示本次已完成现场调查" not in body
 
 
-@pytest.mark.parametrize("fault", ["wrong-confirmation", "wrong-decision-digest"])
-def test_export_requires_composition_receipt_bound_to_frozen_owner_choices(source_decision_case, fault):
+@pytest.mark.parametrize("fault", ["wrong-confirmation", "wrong-decision-version"])
+def test_export_requires_composition_receipt_bound_to_frozen_owner_choices(source_decision_case, fault, monkeypatch):
     from report_agent.content_models import Ref
     from report_agent.g3_export import validate_export
-    from report_agent.store import digest
+    from report_agent import report_state
     f = source_decision_case
     decide(f)
     export_applicable_source(f)
@@ -297,15 +297,16 @@ def test_export_requires_composition_receipt_bound_to_frozen_owner_choices(sourc
     records = {Ref.model_validate(ref).key(): f.cs.read(ref) for ref in snapshot["payload"]["refs"]}
     confirmation_ref = snapshot["payload"]["commission_confirmation_ref"]
     root = f.materialized_result["node_ref"]
-    key = "planned_section_receipt:" + digest(root)
-    receipt = deepcopy(f.cs.store.get(key))
+    receipt = deepcopy(report_state.planned_section(f.cs.store, root))
     assert receipt["commission_confirmation_ref"] == confirmation_ref
-    assert receipt["decision_digest"] == digest(f.cs.read(confirmation_ref)["payload"])
+    assert 'decision_digest' not in receipt
     if fault == "wrong-confirmation":
-        receipt["commission_confirmation_ref"] = {**confirmation_ref, "version": confirmation_ref["version"] + 1}
+        receipt["commission_confirmation_ref"] = {**confirmation_ref, "id": 'foreign-confirmation'}
     else:
-        receipt["decision_digest"] = "0" * 64
-    f.cs.store.set(key, receipt)
+        receipt["commission_confirmation_ref"] = {**confirmation_ref, "version": confirmation_ref["version"] + 1}
+    read_section = report_state.planned_section
+    monkeypatch.setattr(report_state, 'planned_section',
+        lambda storage, ref: receipt if ref == root else read_section(storage, ref))
     with pytest.raises(ActionRejected, match="template decision receipt"):
         validate_export(f.cs, snapshot, records)
 

@@ -1,5 +1,5 @@
 """Deterministic assembly preserves producer records and rejects incomplete inputs."""
-from report_agent import issue_state
+from report_agent import issue_state, report_state
 from copy import deepcopy
 
 import pytest
@@ -8,7 +8,7 @@ from report_agent import plan_authority
 from report_agent.content_models import Ref, refs_in
 from report_agent.content_store import Actor
 from report_agent.errors import ActionForbidden, ActionRejected
-from report_agent.store import digest
+from report_agent.store import digest, encode
 from report_agent.system_assembler import assemble_report, preflight_assembly
 from test_m1_commission_plan import approve, save, writer
 from test_m1_g3_integration import method_commission, persist, persistence_input, section_plan
@@ -110,8 +110,10 @@ def test_complete_assembly_preserves_originals_and_closes_all_references(assembl
     assert prose[0]['payload']['body']['section_id'] == '4'
     assert all(f.assessment[k] in snapshot['payload']['refs'] for k in ('ranking_ref', 'evaluation_ref', 'level_ref'))
     assert snapshot['payload']['commission_outcome_refs']
-    receipt = f.ws.store.get('assembly_receipt:' + digest(result['snapshot_ref']))
-    assert receipt['manifest_digest'] == snapshot['payload']['manifest_digest']
+    receipt = report_state.assembly(f.ws.store, result['snapshot_ref'])
+    assert receipt['snapshot_ref'] == snapshot['ref']
+    assert receipt['commission_plan_ref'] == snapshot['payload']['commission_plan_ref']
+    assert 'manifest_digest' not in receipt
     assert receipt['source_snapshot_ref'] == f.inputs['source_snapshot_ref']
     assert assemble_report(f.cs, f.co, 'assemble', **f.inputs)['result'] == result
 
@@ -193,7 +195,7 @@ def test_assembly_preserves_mixed_version_refusal(assembly_input):
 
 def select_current(f):
     plan = f.cs.read(f.inputs['source_snapshot_ref'])['payload']['commission_plan_ref']
-    f.ws.store.set('g6_section_prose:' + digest([plan, '4']), f.prose)
+    report_state.select_prose(f.ws.store, 'prose:' + encode([plan, '4', None]), f.prose, actor=f.writer)
     f.ws.store.set('g6_assessment:' + digest([plan, 'S1']), f.assessment['assessment_ref'])
     for issue_id, binding in f.inputs['issue_bindings'].items():
         issue_state.set_g6_issue_binding(f.ws.store, digest([plan, issue_id]), binding)
@@ -242,10 +244,13 @@ def test_current_route_assembles_without_agent_snapshot_and_requires_receipt(ass
     assert assemble_current_report(f.cs, f.co, 'current-assembly')['result'] == result
     pair = export_snapshot(f.cs, f.co, 'current-pair', result['snapshot_ref'], {'toc': False})['result']
     assert (f.ws.store.root / pair['workbook']['file_ref']).exists()
-    receipt['records_digest'] = 'altered'
-    f.ws.store.set('assembly_receipt:' + digest(result['snapshot_ref']), receipt)
+    with pytest.raises(ActionRejected, match='REPORT_PROVENANCE_IMMUTABLE'):
+        report_state.record_assembly(f.ws.store, result['snapshot_ref'], {**receipt, 'source_kind': 'altered'})
+    records = {Ref.model_validate(ref).key(): deepcopy(f.cs.read(ref)) for ref in snapshot['payload']['refs']}
+    node = next(record for record in records.values() if record['ref']['type'] == 'ContentNode')
+    node['payload']['body']['text'] += ' Unsupported edit.'
     with f.ws.store.connect() as db, pytest.raises(ActionRejected, match='RECORDS_DIGEST'):
-        require_assembled(f.cs, db, snapshot)
+        require_assembled(f.cs, db, snapshot, records)
 
 
 def test_current_route_rejects_stale_issue_proposal_and_preserves_saved_prose(assembly_input):
@@ -279,7 +284,7 @@ def test_owner_issue_routes_automatically_to_1_3_and_exports_once(assembly_input
     from openpyxl import load_workbook
     f = assembly_input
     result = assemble_report(f.cs, f.co, 'owner-auto-assembly', **f.inputs)['result']
-    receipt = f.ws.store.get('assembly_receipt:' + digest(result['snapshot_ref']))
+    receipt = report_state.assembly(f.ws.store, result['snapshot_ref'])
     owner_id = next(i['id'] for i in f.required if i['id'].startswith('owner:'))
     target = f.cs.read(receipt['issue_targets'][owner_id])['payload']
     assert target['body']['section_id'] == '1.3'
@@ -345,7 +350,7 @@ def test_automatic_owner_routes_do_not_mutate_inputs_or_break_operation_retry(as
     first = assemble_report(f.cs, f.co, 'owner-idempotent', **f.inputs)
     assert f.inputs == original
     assert assemble_report(f.cs, f.co, 'owner-idempotent', **f.inputs) == first
-    receipt = f.ws.store.get('assembly_receipt:' + digest(first['result']['snapshot_ref']))
+    receipt = report_state.assembly(f.ws.store, first['result']['snapshot_ref'])
     assert receipt['resolved_issue_bindings'] == {f.required[0]['id']: {'section_id': '1.3'}}
 
 

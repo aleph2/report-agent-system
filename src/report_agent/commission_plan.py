@@ -1190,8 +1190,8 @@ def snapshot_outcomes(cs, db, plan_ref, refs):
         if outside_boundary(cs._read(db, plan_ref)['payload'], obj):
             continue
         matches = []
-        for (value,) in legacy.iter_commission_outcomes(db, digest([plan_ref, obj['object_id']])):
-            ref = json.loads(value)
+        from .report_state import outcomes
+        for ref in outcomes(db, plan_ref, obj['object_id']):
             outcome = cs._read(db, ref)['payload']
             dependencies = [outcome['object_ref'], outcome['section_ref'], outcome['score_ref'],
                             outcome['level_ref'], *outcome['basis_refs']]
@@ -1229,7 +1229,8 @@ def record_outcome(cs, actor, operation_id, object_id, section_ref, score_ref, l
         ref = cs._insert(db, actor, 'CommissionOutcome', {**request,
             'commission_plan_ref': plan['ref'], 'object_ref': object_ref,
             **({'assessment_ref': assessment_ref} if assessment_ref else {})})
-        legacy.set_commission_outcome(db, digest([plan['ref'], object_id]) + ':' + digest(actor.id), ref)
+        from .report_state import select_outcome
+        select_outcome(db, plan['ref'], object_id, actor.id, ref, actor=actor)
         return {'outcome_ref': ref}
     from .commission_requirements import enabled as requirements_enabled
     binding = (lambda db, result: _confirmed(cs, db)[0]['ref']) if requirements_enabled(cs.store) else None

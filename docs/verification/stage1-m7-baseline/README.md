@@ -19,6 +19,6 @@ The recorded Fake03 replay preserved 16 rows: ten controls, four refused origina
 
 ## Next step
 
-The owner has acknowledged the optional typed artifact result reference, subject to assembler attribution and an actual stale-export consumer. The additive field passed its focused test at `99b3d51`. A subsequent authenticated reproduction found that C5 rejects required aggregate lineage across A and B; the [narrow additional check amendment](../stage1-m7-c5/README.md) awaits acknowledgment. Main remains at the fully tested `48fabae`. M7 is not yet implemented or tagged; it will need its own full regression and review after integration.
+The owner superseded the artifact-assertion proposal: M7 now uses immutable case-generation records and an export check of their referenced assertions. S2 and C5 are restored unchanged; no further vocabulary/check acknowledgment is pending. See the [current M7 design](../../reviews/stage1-m7-report-provenance.md). Main remains the fully tested `48fabae`; M7's implementation will have its own full regression and review tag.
 
 The engineering lead remains unnamed. The 11 criteria and HP02 page 115 remain pending human review and are not supplied by this baseline run.

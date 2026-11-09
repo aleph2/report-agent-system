@@ -66,3 +66,4 @@ src/report_agent/working_summary.py	_acreate_summary	failure_key	summary_policy_
 src/report_agent/working_summary.py	_failure_state	failure_key	summary_policy_failure:*	_failure_key hashes the active model, prompt, context and policy.
 src/report_agent/workspace.py	select_delivery	key	delivery,report_status	select_delivery iterates literal (key,value) pairs inside one transaction.
 src/report_agent/writer_issues.py	_write_issue	iter_g6_issue_record	g6_issue_record:*	Named legacy_state.iter_g6_issue_record SQL operands.
+src/report_agent/report_state.py	outcomes	iter_commission_outcomes	commission_outcome:*	Read-only fallback to pre-M7 outcome selections when no immutable case selection exists; exact named historical reader.

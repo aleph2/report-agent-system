@@ -512,13 +512,24 @@ def export_preflight(cs, actor, snapshot_ref, deliverable):
     commission_checks = enabled(cs.store) or checkpoint_enabled(cs.store)
     with cs.store.connect() as db:
         source_checks = commission_imports.requires_source_policy(db) or commission_imports.source_policy_ref(db) is not None
-        if not commission_checks and not source_checks:
+        if commission_checks or source_checks:
+            if deliverable is not None:
+                snapshot_ref = resolve_snapshot(cs, db, actor, deliverable)
+            record = cs._read(db, snapshot_ref)
+            if commission_checks:
+                require_snapshot(cs, db, record)
+            if source_checks:
+                payload = record['payload']
+                source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)
+        elif snapshot_ref is None:
             return
-        if deliverable is not None:
-            snapshot_ref = resolve_snapshot(cs, db, actor, deliverable)
-        record = cs._read(db, snapshot_ref)
-        if commission_checks:
-            require_snapshot(cs, db, record)
-        if source_checks:
-            payload = record['payload']
-            source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)
+        from .report_state import require_current
+        try:
+            require_current(db, snapshot_ref)
+        except ActionRejected:
+            # Keep the existing affected-score diagnostics on both fresh and cached exports.
+            from .g3_export import validate_export
+            record = cs._read(db, snapshot_ref)
+            records = {Ref.model_validate(ref).key(): cs._read(db, ref) for ref in record['payload']['refs']}
+            validate_export(cs, record, records)
+            raise

@@ -928,7 +928,7 @@ def test_runtime_composition_rejects_extra_receipted_assessment(composed_runtime
 
 
 def test_composed_runtime_seals_every_child_body_and_region_contract(composed_runtime):
-    from report_agent.store import digest
+    from report_agent import report_state
     f = composed_runtime
     result = materialize_composition(f)
     refs = [r for r in result["refs"].values() if r["type"] == "ContentNode"]
@@ -936,18 +936,19 @@ def test_composed_runtime_seals_every_child_body_and_region_contract(composed_ru
     bodies = []
     for ref in refs:
         node = f.cs.read(ref)["payload"]
-        receipt = f.cs.store.get("planned_section_receipt:" + digest(ref))
+        receipt = report_state.planned_section(f.cs.store, ref)
         assert node["body"]["planned_section"] is True
         assert node["body"]["commission_plan_ref"] == f.saved["plan_ref"]
         assert node["body"]["assessment_refs"] == [f.assessment_receipt["assessment_ref"]]
-        assert receipt["body_digest"] == digest(node["body"])
-        assert receipt["composition_digest"] == digest(f.composed_section["result_composition"])
+        assert receipt["node_ref"] == ref
+        assert report_state.native(f.cs.store, 'SectionProvenance', ref)
+        assert not any(key.endswith('_digest') for key in receipt)
         assert receipt["commission_plan_ref"] == f.saved["plan_ref"]
         assert receipt["assessment_refs"] == [f.assessment_receipt["assessment_ref"]]
         bodies.append(node)
     assert "Project OLD." not in visible_nodes(bodies)
     assert "43.5" in visible_nodes(bodies)
-    root_receipt = f.cs.store.get("planned_section_receipt:" + digest(result["node_ref"]))
+    root_receipt = report_state.planned_section(f.cs.store, result["node_ref"])
     assert root_receipt["node_refs"] == refs
 
 

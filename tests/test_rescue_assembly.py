@@ -1,11 +1,11 @@
 """Assembler integration for provenance-verified rescue prose and structural parents."""
-from report_agent import issue_state
+from report_agent import issue_state, report_state
 from copy import deepcopy
 
 import pytest
 
 from report_agent.errors import ActionRejected
-from report_agent.store import digest
+from report_agent.store import digest, encode
 from report_agent.rescue_projection import project_rescue_prose
 from report_agent.system_assembler import assemble_current_report
 from test_m1_commission_plan import approve, save, writer
@@ -69,7 +69,7 @@ def rescued_input(method_commission, request):
     projected = project_rescue_prose(f.cs, f.co, 'rescue-projections', source_snapshot_ref=frozen,
         bindings=bindings, qualifier_dispositions={}, assessment_replacements=replacement)['result']['section_bindings']
     for sid, selected in projected.items():
-        f.ws.store.set('g6_section_prose:' + digest([saved['plan_ref'], sid]), selected)
+        report_state.select_prose(f.ws.store, 'prose:' + encode([saved['plan_ref'], sid, None]), selected, actor=actor)
     f.ws.store.set('g6_assessment:' + digest([saved['plan_ref'], plan['objects'][0]['object_id']]), assessment['assessment_ref'])
     f.original_refs, f.original_snapshot, f.projected, f.writer = refs, frozen, projected, actor
     f.assessment = assessment
@@ -86,7 +86,7 @@ def test_verified_rescue_assembles_empty_parents_and_preserves_title(rescued_inp
     assert root['body']['text'] == 'Preserved original project report title'
     assert not set(r['id'] for r in snapshot['payload']['refs']).intersection(r['id'] for r in f.original_refs.values())
     assert all(f.cs.read(f.original_refs[k]) == record for k,record in before.items())
-    receipt = f.ws.store.get('assembly_receipt:' + digest(result['snapshot_ref']))
+    receipt = report_state.assembly(f.ws.store, result['snapshot_ref'])
     assert set(receipt['structural_parent_refs']) == {'2', '4'}
     assert receipt['rescue_source_snapshot_ref'] == f.original_snapshot
     pair = export_snapshot(f.cs, f.co, 'rescue-pair', result['snapshot_ref'], {'toc': False})['result']
@@ -99,7 +99,7 @@ def test_fake_coordinator_prose_is_still_rejected(rescued_input):
     def fake(db):
         return f.cs._insert(db, f.co, 'ContentNode', original)
     ref = f.cs.operation(f.co, 'fake-coordinator-copy', {}, fake)['result']
-    f.ws.store.set('g6_section_prose:' + digest([f.plan_ref, '2.1']), ref)
+    report_state.select_prose(f.ws.store, 'prose:' + encode([f.plan_ref, '2.1', None]), ref, actor=f.co)
     with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
         assemble_current_report(f.cs, f.co, 'fake-rescue-assemble')
     assert any(p['code'] == 'rescue_projection_invalid' for p in exc.value.diagnostic['problems'])
@@ -107,7 +107,7 @@ def test_fake_coordinator_prose_is_still_rejected(rescued_input):
 
 def test_heading_parent_cannot_hide_missing_descendant(rescued_input):
     f = rescued_input
-    f.ws.store.set('g6_section_prose:' + digest([f.plan_ref, '2.2']), [])
+    report_state.select_prose(f.ws.store, 'prose:' + encode([f.plan_ref, '2.2', None]), [], actor=f.co)
     with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
         assemble_current_report(f.cs, f.co, 'missing-child')
     assert any(p['code'] == 'empty_extracted_section' and p['section_id'] == '2.2'
@@ -121,7 +121,7 @@ def test_projections_from_mixed_source_snapshots_are_not_combined(rescued_input)
     second = f.cs.freeze(f.co, 'second-source-snapshot', old['payload']['root_ref'], old['payload']['refs'])['result']['snapshot_ref']
     copied = project_rescue_prose(f.cs, f.co, 'second-source-projection', source_snapshot_ref=second,
         bindings={'2.2':[f.original_refs['p2']]}, qualifier_dispositions={})['result']['section_bindings']['2.2']
-    f.ws.store.set('g6_section_prose:' + digest([f.plan_ref, '2.2']), copied)
+    report_state.select_prose(f.ws.store, 'prose:' + encode([f.plan_ref, '2.2', None]), copied, actor=f.co)
     with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
         assemble_current_report(f.cs, f.co, 'mixed-rescue')
     assert any(p['code'] == 'rescue_source_snapshots_mixed' for p in exc.value.diagnostic['problems'])
@@ -178,10 +178,10 @@ def test_forged_projection_payload_keeps_digest_check_with_current_issue_overlay
     def insert(db):
         return f.cs._insert(db, f.co, 'ContentNode', changed)
     fake = f.cs.operation(f.co, 'forged-projection-payload', {}, insert)['result']
-    receipt = f.ws.store.get('rescue_projection:' + digest(original_ref))
+    receipt = report_state.projection(f.ws.store, original_ref)
     receipt['projection_ref'] = fake
-    f.ws.store.set('rescue_projection:' + digest(fake), receipt)
-    f.ws.store.set('g6_section_prose:' + digest([f.plan_ref,'2.1']), fake)
+    report_state.record_projection(f.ws.store, fake, receipt)
+    report_state.select_prose(f.ws.store, 'prose:' + encode([f.plan_ref, '2.1', None]), fake, actor=f.co)
     with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
         assemble_current_report(f.cs, f.co, 'forged-projection-assembly')
     assert any(p['code'] == 'rescue_projection_invalid' and 'PAYLOAD_DIGEST_MISMATCH' in p['reason']

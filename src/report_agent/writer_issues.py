@@ -1,5 +1,5 @@
 """Small Writer judgments; scope, source references and output positions are host-owned."""
-from . import issue_state
+from . import issue_state, report_state
 from . import legacy_state as legacy
 import json
 import re
@@ -81,13 +81,12 @@ def _binding(bound, kind):
 
 def save_section_prose(cs, actor, operation_id, payload):
     """Replace only this assignment's prose; repeat native calls keep their original receipt."""
-    from .commission_plan import _state
     from .section_writing import prose_selection_key, save_section_prose as save
     value = ProseInput.model_validate(payload)
     with cs.store.connect() as db:
         bound = bound_assignment(cs, db, actor)
         citations = _sources(cs, db, actor, bound, value)
-        previous = _state(db, prose_selection_key(cs, db, actor, bound['plan']['ref'], bound['section_id']))
+        previous = report_state.prose_ref(db, prose_selection_key(cs, db, actor, bound['plan']['ref'], bound['section_id']))
     receipt = cs.receipt(actor, operation_id)
     if receipt['state'] == 'known_success':
         ref = receipt['response'].get('result', {}).get('refs', {}).get('prose')

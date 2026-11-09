@@ -1,110 +1,49 @@
-# M7: report provenance
+# M7: immutable case records of report generation
 
-Status: M7 in progress. The optional result-reference vocabulary is implemented and tested; aggregate provenance awaits acknowledgment of the additional C5 finding below. Baseline is accepted M6 `48fabae8606d25bd4ca20df219fc9968f2b07df4`. The first M7 action, a full offline regression of that exact revision, passed 6,150 tests with nine unchanged conditional skips. Automatic cleanup left no passing-case files outside caches. See the [baseline verification record](../verification/stage1-m7-baseline/README.md). Main stays at accepted M6 until M7 is reviewed and accepted.
+The owner's latest decision on 2026-11-09 supersedes the earlier artifact-assertion proposal: **keep C5 and S2 unchanged; store generation provenance as immutable case records; check referenced assertions at export.** The earlier proposal and C5 reproduction remain preserved at `0c5781a`.
 
-## Requirement and scope
+## Boundary and consumers
 
-The approved Stage 1 plan, M7, replaces report receipts with provenance for section text, outcomes and snapshots. The complete M0 census also assigns the current section/object prose selections to M7.
+Assembly provenance records a completed system operation. Existing review code reviews frozen content and scoring results; it does not challenge, endorse or supersede generation provenance as a world claim. Independent reviewer `/root/m6_review` confirmed this from the actual readers.
 
-| Family | M7 disposition | Current consumer |
+| Family | Current representation | Consumer |
 | --- | --- | --- |
-| `planned_section_receipt:*` | Migrate | Planned section generation and export validation |
-| `assembly_receipt:*` | Migrate | System assembly and its export provenance |
-| `commission_outcome:*` | Migrate | Frozen per-object conclusions |
-| `g6_section_prose:*` | Migrate active current-report selection | Writer save and current assembly |
-| `g6_object_prose:*` | Migrate active current-report selection | Assigned object prose and current assembly |
-| `rescue_projection:*` | Keep behind accessors under O4 | Deferred rescue route |
+| planned_section_receipt:* | SectionProvenance case version | fixed/derived section validation, group/order checks, export |
+| assembly_receipt:* | AssemblyProvenance case version | source/plan bindings, issue placement, frozen input-currentness at export |
+| commission_outcome:* | Existing CommissionOutcome plus versioned OutcomeSelection | exact object outcomes included when freezing a snapshot |
+| rescue_projection:* | RescueProjection case version | exact source/task/transformation validation |
+| g6_section_prose:*, g6_object_prose:* | Versioned ProseSelection | current assigned prose and revision validation |
 
-The deferred rescue path's shared planned-section reader follows the migrated accessor. This does not migrate or retire its own rescue-projection family. O4/O5 routes, dispatcher control flow, role prompts, scoring behavior and the section 9a role split remain outside this slice.
+The four receipt families follow the owner's new decision. The two prose-selection families already belong to M7 in the full M0 census. Migrating rescue storage does not retire or change its route. The dispatcher, role prompts and later task-store work remain unchanged.
 
-## Why an S2 amendment is needed
+## Atomic writes and history
 
-Current `Derived` records identify their rule and assertion inputs, and can carry a numeric value or an assessment. They cannot identify the immutable case record containing a generated section, outcome or snapshot. `Recommendation` is a Writer's semantic recommendation, not system assembly provenance. Encoding report receipts as conventions would not meet the M7 requirement.
+Output and generation metadata are saved together in the same case transaction using the existing content_versions/content_heads component. A failed transaction leaves neither partial output nor its provenance. An identical completed operation returns its recorded result. Generation metadata for an exact output version cannot be replaced; changes require another output. Operational prose/outcome selections may advance their versioned head while retaining earlier selections.
 
-A direct offline shape check on `48fabae` confirms that supplying the proposed reference is refused as `extra_forbidden` at `artifact_ref`. This is a gap between the M7 requirement and the approved vocabulary, not a failing behavior test or permission to change the contract.
+Metadata uses plain case references. It introduces no new assertion, role, action, approval authority, backlink, joint database commit or repair service. The record's producer is `system:report-assembler`, not the calculator. Historical state readers remain read-only.
 
-Relevant code at the baseline:
+M7 provenance payloads drop the former body/text/composition/decision/source/record/binding hashes. Native checks compare exact immutable records, references and recomputed transformations directly. Historical readers retain validation of their original formats. Existing generic case-storage/operation integrity, source-version pins and O7 Word/Excel release digests remain outside the provenance-payload migration.
 
-- `assertions/schema/kinds.py:147`: existing `Derived` shape.
-- `assertions/schema/actions.json`: `derive_result` belongs to the calculator service.
-- `risk_scoring.py:603,636`: planned section receipts.
-- `system_assembler.py:487,497,578`: outcomes, assembly receipt and export requirement.
-- `commission_plan.py:1193,1232`: selected outcomes.
-- `section_writing.py:36` and `system_assembler.py:529,533`: prose selection.
-- `docs/verification/m0-m1-20261108/census.tsv`: the six families above.
+## Actual staleness consumer
 
-## Proposed dated S2 amendment
+AssemblyProvenance freezes the existing calculator assertion IDs actually referenced by the selected assessments and the exact plan/owner-act IDs. Calculator lineage already reaches the original source facts and Writer judgments. The system does not guess additional semantic support from shared page numbers or free prose.
 
-Extend the existing `Derived` claim with one optional field:
+Both Word and Excel export preflight read those IDs through a public read-only assertion-status helper before returning a cached export result. Missing, inactive, stale or challenged inputs refuse export. Existing plan/approval and source-access checks run first. Existing score failures still identify the affected generated nodes and derived sections through G3 diagnostics.
 
-```text
-artifact_ref:
-    type: ContentNode | DocumentSnapshot | CommissionOutcome
-    id: existing case record ID
-    version: existing positive version number
-```
+A native integration test generates a reviewed score, assembles and exports Word/Excel, confirms same-operation replay, retracts an upstream judgment, then refuses the repeated export while preserving the original file bytes. A separate case test includes A/B source assertions without adding a cross-subject world claim and refuses export after a source supersession.
 
-Keep the existing `derive_result` action and calculator role. The trusted deterministic assembler records the transformation under its authenticated service identity. This does not add an agent or offer calculator authority to the Writer.
+## Contract restoration
 
-For an artifact derivation:
+The abandoned artifact_ref field and its special packet handling are removed. kinds.py, actions.json, checks.sql, assertion actions.py and queries.py again match accepted `48fabae` exactly. The only addition inside the assertion package is a trusted read-only status lookup. s2-amendments.json retains the chronological proposal/acknowledgment and records the owner's withdrawal/restoration; there is no active M7 vocabulary or check extension.
 
-- The reference names an already committed immutable version in this case. The host supplies and resolves it; it is not an extra LLM argument.
-- Numeric `value` and `assessment` are absent or null. Existing numeric derivations remain unchanged.
-- Existing inputs/grounds identify the actual plan authority and antecedent assertions. Existing strength checks stay intact: successful assembly does not by itself establish engineering certainty.
-- The assertion records provenance only. It does not approve, independently review, release or sign the report.
+M4/M5 references stored as JSON text remain on the 9a list, as the owner requested. This slice does not move them.
 
-This moves only the typed case-version reference needed by M7 forward from the section 9a vocabulary sweep. The remaining reference cleanup stays in 9a. It is an additive amendment to `kinds.py`, logged under the existing S2 amendment process; no new schema version, action, role or SQL-check relaxation is proposed. The owner acknowledged this vocabulary addition subject to actual stale-export consumption and assembler attribution; those conditions remain M7 acceptance tests. The additional C5 integration finding below needs a separate check acknowledgment.
+## Verification and handoff
 
-Independent alignment reviewer `/root/m6_review` checked the scope and this choice: extending `Derived` is smaller and semantically sound; a separate claim kind/action is unnecessary. This is design review, not implementation verification.
+The opening full run on accepted main `48fabae` passed 6,150 tests with nine unchanged conditional skips. That is baseline evidence, not the final M7 run.
 
-## Implementation plan and integration findings
+Focused current-case integration passed 275 tests, including immutable generation/rollback, exact versions and transformed content, actual cached Word/Excel refusal after a judgment withdrawal, required issue placement and legacy reads. The census scanner is unchanged; its reviewed historical fallback binding is explicit, and the six migrated families have no legacy writes. Existing storage-facing tests now read case records; digest-only scenarios map to exact-reference/immutable-payload behavior tests.
 
-### Additional C5 integration finding: acknowledgment needed
+The final M7 code pin still needs its full offline suite, coverage/type comparison, final review and pushed review tag. Main remains accepted M6 until the owner accepts M7. The original G5 case, all financial records/holds and source originals remain untouched; no model calls are authorized or needed for this migration.
 
-The owner acknowledged the optional reference with two conditions: an actual staleness/export consumer and the assembler's own producer identity. The field is implemented additively at `99b3d51` and its original serialized numeric shape is unchanged. The dated vocabulary amendment is logged in `s2-amendments.json`.
-
-[Authenticated reproduction and negative control](../verification/stage1-m7-c5/README.md) found a separate, concrete obstacle in `checks.sql` C5: a report artifact for the report subject cannot list inputs belonging to slopes A and B without confirmed cross-subject transfer conventions. The desired artifact test fails with `C5: Cross-subject support needs a current confirmed transfer with matching scope`; the ordinary non-artifact derivation control passes by retaining that refusal. The test uses the real `AssertionHost`/`derive_result` path, not a mocked validator. `/root/m6_review` independently confirmed the cause and ruled out omitting inputs, changing their subjects or inventing owner-confirmed transfer conventions.
-
-Impact: P2, confined to publishing aggregate M7 provenance; it blocks completing M7 aggregation and its staleness test. Accepted main and existing report behavior remain at `48fabae`. No SQL check has been changed. The proposed disposition is a second, dated S2 acknowledgment:
-
-- Only a `derive_result` under the existing calculator capability, with a valid `artifact_ref` and no numeric `value` or `assessment`, may use cross-subject **input lineage** without a transfer convention.
-- C5 stays unchanged for numeric derivations, judgments, recommendations, conflicts, and grounds with classification, assumption, adjustment or context purposes.
-- C4 still requires the exact issued packet and existing inputs. C10 still limits result strength. The trusted assembler supplies the exact case-version result; no model-facing permission is added.
-- Keep every input ID so that actual source/judgment supersession propagates to the artifact and is consumed by export. This exemption records that the report contains both slopes; it does not apply one slope's evidence to the other.
-
-The minimal SQL change is a provenance-only predicate in C5, not a catalog/role change. It will be logged separately in `s2-amendments.json` only after the owner acknowledges it. Tests must prove the aggregate artifact succeeds, stale-input export fails, numeric and judgment transfers still refuse, and non-input grounds are not exempted. The original proposal's expectation that no SQL change was needed is superseded by this reproduced integration finding.
-
-Main owns the M7 application changes, tests and Git operations. No other writing owner is assigned.
-
-1. Preserve immutable report content in the case database. Record the corresponding artifact derivation separately, pointing one way to the content version.
-2. Replace the active receipt and selection writers/readers with the existing case-version and assertion actions/queries. Retain read-only historical access and the O4-deferred family.
-3. Each completed operation replays by its exact actor, request and bindings. A crash after case content commits leaves unused content, not an approved or exportable result; exact redo records the missing derivation. No joint transaction, backlink, new digest or repair service.
-4. Preserve earlier frozen exports and all current required-issue, fixed-text, citation, internal-content and calculator-result checks.
-5. Refresh the census and retired-write guard. Any removed storage test names its exact covering behavior test. Do not change behavior expectations to accommodate the migration.
-
-## Verification
-
-Use test-first cases for:
-
-- The artifact reference resolves to the exact node/outcome/snapshot version; numeric results remain compatible.
-- Case content alone cannot satisfy the native provenance requirement.
-- Crash after content save and crash after provenance save: exact redo completes without duplicate derivations or altered content.
-- Current selection follows effective assertion acts, independently of row order. Superseded selections do not replace a frozen snapshot.
-- Generated fixed and derived sections, composition order, per-object outcomes and trusted assembly still reach Word and Excel through existing checks.
-- Historical read fallback and the deferred rescue route remain available.
-- All 25 required issues still map one-to-one between Word comments and Excel rows.
-- The recorded Fake03 outcomes, packet equivalence, ranks, gaps, source qualifiers and unscored A/X51 remain intact.
-- Dispatcher/protected files remain unchanged; the only S2 change is the acknowledged additive amendment.
-- Full offline regression on the final M7 code pin, coverage floors, type-diagnostic comparison, independent review and automatic cleanup.
-
-The opening full regression belongs to `48fabae`; the final M7 regression will belong to the final M7 code pin. They are separate records. No paid/model call is part of M7.
-
-## Remaining human work
-
-The engineering lead is still unnamed. The 11 pilot criteria and HP02 page 115 remain pending engineering review. This does not block the offline storage migration, and M7 will not supply those judgments.
-
-## Skills and evidence limits
-
-Main applied the using-agent-skills phase selection, Git workflow for the fixed baseline and milestone branch, and the TDD workflow's existing full-suite runner. Migration and incremental-implementation guidance were used to separate active consumers from O4-deferred work. Ponytail guided reuse of the existing result/action rather than a new agent or generic receipt framework. The artifact-reference shape and packet boundary were developed with RED/GREEN tests; 209 surrounding checks passed. Full report integration awaits the additional C5 acknowledgment. Independent preparation review by `/root/m6_review` also passed the two provenance tests; it does not establish the pending stale-export consumer.
-
-No relevant existing Graphify graph was found in this checkout or the previously used project locations, and the native environment has neither its package nor CLI. Current source readers and call sites were inspected directly; no graph query, installation or fresh graph build is claimed. Langfuse, prompt design and paid model evaluation are outside this storage-only opening step. The independent alignment review was performed by `/root/m6_review`; it establishes the proposal's scope and semantics, not a completed implementation.
+The 11 criteria and HP02 page 115 still await a named engineering lead. That does not block this offline storage change.
