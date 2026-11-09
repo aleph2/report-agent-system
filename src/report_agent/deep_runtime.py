@@ -1,5 +1,6 @@
 """Native DeepAgents runtime with project-bound business tools, not a stage engine."""
 from __future__ import annotations
+from . import issue_state
 from . import legacy_state
 from .prompt_sources import load_prompt
 
@@ -1266,7 +1267,7 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 store.set("checkpoint_resume", bool(snapshot.next))
                 interrupts = snapshot.interrupts
                 if interrupts:
-                    issues = {i["id"]: i for i in legacy_state.get_report_issues(store, [])}
+                    issues = {i["id"]: i for i in issue_state.get_report_issues(store, [])}
                     answers = {}
                     for pending in interrupts:
                         from .execution_progress import KIND as PROGRESS_KIND, resume_answer as progress_answer

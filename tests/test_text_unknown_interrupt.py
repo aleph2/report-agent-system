@@ -1,4 +1,5 @@
 """Real native child checkpoints: an unknown-admission denial is not a replan loop."""
+from report_agent import issue_state
 import hashlib
 import json
 import pytest
@@ -79,7 +80,7 @@ async def test_native_arbitrary_resume_cannot_release_unknown(ws, answer):
     driver, service, factory = case(ws)
     await deep_runtime.run_report(ws, factory)
     calls = len(driver.calls)
-    ws.store.set('report_issues', [{'id':None, 'decision':'approved', 'decision_origin':'operator'}])
+    issue_state.set_report_issues(ws.store, [{'id':None, 'decision':'approved', 'decision_origin':'operator'}])
     await deep_runtime.run_report(ws, factory)
     # Even direct native misuse must re-pause, not return an error to the Writer.
     async with deep_runtime.project_agent(ws, factory) as agent:

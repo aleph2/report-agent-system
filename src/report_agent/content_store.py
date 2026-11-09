@@ -25,7 +25,11 @@ class ContentStore:
     def __init__(self, store):
         self.store = store
         with store.connect() as db:
-            db.executescript("""
+            self.ensure_schema(db)
+
+    @staticmethod
+    def ensure_schema(db):
+        schema = """
                 CREATE TABLE IF NOT EXISTS content_versions (
                     type TEXT NOT NULL, id TEXT NOT NULL, version INTEGER NOT NULL,
                     data TEXT NOT NULL, PRIMARY KEY(type,id,version));
@@ -43,7 +47,11 @@ class ContentStore:
                     PRIMARY KEY(relation_id,version));
                 CREATE INDEX IF NOT EXISTS content_edges_subject ON content_edges(subject_key);
                 CREATE INDEX IF NOT EXISTS content_edges_object ON content_edges(object_key);
-            """)
+            """
+        # execute() preserves the caller's transaction; executescript() commits it.
+        for statement in schema.split(';'):
+            if statement.strip():
+                db.execute(statement)
 
     @staticmethod
     def _read(db, ref):

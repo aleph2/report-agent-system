@@ -1,4 +1,5 @@
 """H2 source-bound planning tools; synthetic offline mechanics, not autonomy."""
+from report_agent import issue_state
 from copy import deepcopy
 from importlib import import_module
 
@@ -851,7 +852,7 @@ def test_requirements_owner_redo_after_case_save(resolution_case, monkeypatch):
     pending = [r for r in f.cs.list_objects('CommissionRequirements') if r['owner_id'] == 'operator']
     assert len(pending) == 1
     assert requirements().read_requirements(f.cs)['ref'] == f.before_resolution['ref']
-    assert not next(i for i in f.ws.store.get('report_issues') if i['id'] == issue_id)['resolved']
+    assert not next(i for i in issue_state.get_report_issues(f.ws.store) if i['id'] == issue_id)['resolved']
     issue = api().reply(f.ws, issue_id, f.resolution)
     assert issue['requirements_result_ref'] == pending[0]['ref']
     assert commission_assertions.checkpoint_answer(f.ws.store, 'requirements', issue_id) == pending[0]['ref']
@@ -901,7 +902,7 @@ def test_requirement_resolution_rejects_unbound_owner_payload(resolution_case, f
     with pytest.raises((ActionRejected, ValueError)):
         api().reply(fixture.ws, fixture.checkpoint['issue_id'], decision)
     assert requirements().read_requirements(fixture.cs)['ref'] == fixture.before_resolution['ref']
-    assert not next(i for i in fixture.ws.store.get('report_issues') if i['id'] == fixture.checkpoint['issue_id'])['resolved']
+    assert not next(i for i in issue_state.get_report_issues(fixture.ws.store) if i['id'] == fixture.checkpoint['issue_id'])['resolved']
 
 
 def test_unknown_requirement_needs_explicit_owner_classification(resolution_case):
@@ -972,7 +973,7 @@ async def test_native_requirement_checkpoint_resume_keeps_original_issue_and_dec
     decision = {'decision': 'resolve_requirements', 'requirements_ref': checkpoint['requirements_ref'],
         'resolutions': resolutions}
     answered = api().reply(fixture.ws, issue_id, decision)
-    issue_ids = [i['id'] for i in fixture.ws.store.get('report_issues')]
+    issue_ids = [i['id'] for i in issue_state.get_report_issues(fixture.ws.store)]
 
     def after_owner(messages):
         observed = observation(messages, 'request_requirement_resolution')
@@ -991,7 +992,7 @@ async def test_native_requirement_checkpoint_resume_keeps_original_issue_and_dec
     # the original requirement checkpoint and its delivered decision remain intact.
     completion = reopened.store.get('commission_planning_completion_wait')
     assert completion and completion['issue_id'] not in issue_ids
-    issues = reopened.store.get('report_issues')
+    issues = issue_state.get_report_issues(reopened.store)
     assert [i['id'] for i in issues] == [*issue_ids, completion['issue_id']]
     original = next(i for i in issues if i['id'] == issue_id)
     assert original['decision'] == answered['decision'] and original['decision_origin'] == 'operator'

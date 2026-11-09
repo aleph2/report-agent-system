@@ -1,4 +1,5 @@
 from __future__ import annotations
+from . import issue_state
 from . import legacy_state as legacy
 
 from .errors import ActionForbidden, ActionRejected
@@ -510,7 +511,7 @@ class Workspace:
         if category not in {"source_missing", "source_conflict", "system_failure", "requirement"} or not description.strip():
             raise ActionRejected("INVALID_ISSUE")
         self.store.sources(source_ids)
-        issues = legacy.get_report_issues(self.store, [])
+        issues = issue_state.get_report_issues(self.store, [])
         for item in issues:
             if (item["category"], item["description"], item["source_ids"]) == (category, description, source_ids):
                 return item
@@ -522,9 +523,12 @@ class Workspace:
 
     def _issue_change(self, issues, event_kind, event_data, *, report_status=None):
         with self.store.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if issue_state.get_wait_projection(db, []) == issues:
+                return
             row = db.execute("SELECT value FROM state WHERE key='context_revision'").fetchone()
             revision = (json.loads(row[0]) if row else 0) + 1
-            legacy.set_report_issues(db, issues)
+            issue_state.set_report_issues(db, issues)
             if report_status is not None:
                 db.execute("INSERT OR REPLACE INTO state VALUES ('report_status', ?)", (encode(report_status),))
             db.execute("INSERT OR REPLACE INTO state VALUES ('context_revision', ?)", (encode(revision),))
@@ -534,7 +538,7 @@ class Workspace:
         if not message.strip():
             raise ActionRejected("HUMAN_DECISION_REQUIRED")
         with self.store.run_lock():
-            issues = legacy.get_report_issues(self.store, [])
+            issues = issue_state.get_report_issues(self.store, [])
             issue = next((i for i in issues if i["id"] == issue_id), None)
             if issue is None:
                 raise ActionRejected("ISSUE_NOT_IN_PROJECT")
@@ -545,7 +549,11 @@ class Workspace:
             ):
                 raise ActionRejected("TYPED_CHECKPOINT_REQUIRES_COMMISSION_REPLY")
             if issue.get("decision") == message and issue["resolved"] == resolved:
+                self._issue_change(issues, 'human_decision',
+                    {'issue_id': issue_id, 'message': message, 'resolved': resolved}, report_status='ready')
                 return issue
+            from .issue_authority import record_answer
+            record_answer(self.store, issue, message, resolved)
             issue.update(decision=message, resolved=resolved, decision_origin="operator")
             # A recorded decision is input for the producer, not automatic validation.
             self._issue_change(issues,
@@ -584,7 +592,7 @@ class Workspace:
                        and not c.get("resolved", False)]
         if any(c.get("status", "pending") == "pending" for c in corrections):
             status = "changes_required"
-        pending = [i for i in legacy.get_report_issues(self.store, []) if not i["resolved"]]
+        pending = [i for i in issue_state.get_report_issues(self.store, []) if not i["resolved"]]
         if any(i["category"] in {"source_conflict", "source_missing"} for i in pending):
             status = "needs_human"
         elif any(i["category"] == "system_failure" for i in pending):
@@ -633,5 +641,5 @@ class Workspace:
                 "sources": self.store.source_catalog(), "impact": impact,
                 "source_changes": legacy.get_source_changes(self.store, []),
                 "result_impact_assessments": legacy.get_result_impact_assessments(self.store, {}),
-                "issues": legacy.get_report_issues(self.store, []), "delivery": delivery,
+                "issues": issue_state.get_report_issues(self.store, []), "delivery": delivery,
                 "feedback": self.store.get("feedback", [])}

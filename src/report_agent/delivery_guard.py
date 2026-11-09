@@ -1,4 +1,5 @@
 """Persistent export-failure wait for the system-assembled delivery contract."""
+from . import issue_state
 from . import legacy_state as legacy
 import re
 from uuid import uuid4
@@ -57,7 +58,7 @@ def record_export_result(workspace, role, tool_name, native_call_id, *, rejected
                 issue = {'id': identity, 'category': 'system_failure', 'description':
                     'Delivery paused after three consecutive failed exports. Review the preserved failures and explicitly resume delivery after correcting the cause.',
                     'source_ids': [], 'resolved': False}
-                legacy.set_report_issues(db, [*legacy.get_report_issues(db, []), issue])
+                issue_state.set_report_issues(db, [*issue_state.get_report_issues(db, []), issue])
                 _set(db, 'report_status', 'waiting_for_human')
                 _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
                 state.update(waiting=True, issue_id=identity)
@@ -99,7 +100,7 @@ def resume_delivery(workspace, issue_id, decision):
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         state = _state(db, KEY, {})
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         answer = encode(decision)
         if not issue or state.get('issue_id') != issue_id:
@@ -108,10 +109,15 @@ def resume_delivery(workspace, issue_id, decision):
             if issue.get('decision_origin') == 'operator' and issue.get('decision') == answer:
                 return issue
             raise ActionRejected('DELIVERY_WAIT_NOT_ACTIVE')
+        # Commit the validated human answer before its runtime projection.
+        db.commit()
+        from .issue_authority import record_answer
+        record_answer(workspace.store, issue, answer, True)
+        db.execute('BEGIN IMMEDIATE')
         issue.update(decision=answer, decision_origin='operator', resolved=True)
         state.update(waiting=False, consecutive_rejections=0)
         _set(db, KEY, state)
-        legacy.set_report_issues(db, issues)
+        issue_state.set_report_issues(db, issues)
         _set(db, 'report_status', 'ready')
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)',

@@ -1,4 +1,5 @@
 """Assigned prose and issue proposals; document structure remains system-owned."""
+from . import issue_state
 from . import legacy_state as legacy
 from typing import Literal
 from pydantic import Field
@@ -112,10 +113,10 @@ def propose_material_issue(cs, actor, operation_id, node_ref, issue):
         if expected and any(value.get(k) != expected[k] for k in ('id', 'kind', 'object_label', 'basis', 'sources', 'question')):
             raise ActionRejected('REQUIRED_MATERIAL_ISSUE_MISMATCH: ' + value['id'])
         key = digest([plan['ref'], value['id']])
-        old = legacy.get_g6_issue_record(db, key)
+        old = issue_state.get_g6_issue_record(db, key)
         if old and (not old.get('node_ref') or cs._read(db, old['node_ref'])['owner_id'] != actor.id):
             raise ActionForbidden('FORBIDDEN: material issue proposal owner')
-        legacy.set_g6_issue_record(db, key, {'node_ref': node_ref, 'issue': value})
-        legacy.set_g6_issue_binding(db, key, {'section_id': sid})
+        issue_state.set_g6_issue_record(db, key, {'node_ref': node_ref, 'issue': value}, actor=actor)
+        issue_state.set_g6_issue_binding(db, key, {'section_id': sid}, actor=actor)
         return {'issue_id': value['id'], 'node_ref': node_ref, 'section_id': sid}
     return cs.operation(actor, operation_id, {'propose_material_issue': {'node_ref': node_ref, 'issue': issue}}, save)

@@ -3,6 +3,7 @@
 Synthetic source files exercise the real import/parser boundaries. No H2 planning
 tools, auto-attachment, rejection policy, real model calls or engineering judgment.
 """
+from report_agent import issue_state
 from copy import deepcopy
 from importlib import import_module
 from io import BytesIO
@@ -420,10 +421,10 @@ def saved_historical_bundle(fixture, plan, *, answered=True):
         api()._set(db, 'commission_checkpoint:' + issue['id'], {'plan_ref': plan_ref,
             'requirements_ref': fixture.requirements_ref, 'brief_path': 'outputs/synthetic-historical.md'})
         if answered:
-            issues = api()._state(db, 'report_issues', [])
+            issues = issue_state.get_report_issues(db, [])
             matching = next(item for item in issues if item['id'] == issue['id'])
             matching.update(decision_origin='operator', decision=encode(decision), resolved=True)
-            api()._set(db, 'report_issues', issues)
+            issue_state.set_report_issues(db, issues)
     return SimpleNamespace(plan_ref=plan_ref, decision=decision, issue_id=issue['id'],
         actor=Actor('content:writer:' + task_ref['id'], 'writer', task_ref['id']),
         root_ref=root, snapshot_ref=snapshot, table_ref=table)

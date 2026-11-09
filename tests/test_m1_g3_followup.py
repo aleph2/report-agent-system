@@ -1,4 +1,5 @@
 """G3 follow-up: immutable known-conflict obligations and source-exact tables."""
+from report_agent import issue_state
 from copy import deepcopy
 
 import pytest
@@ -483,7 +484,7 @@ def test_approved_confirmation_checklist_is_exact_durable_and_rules_only(method_
     assert api().read_plan(fixture.cs.store)['confirmation_checklist_path'] == str(relative)
     question = api().commission_assertions.checkpoint(fixture.cs.store, 'plan', checkpoint['issue_id'])
     assert question['plan_ref'] == saved['plan_ref']
-    answered = next(i for i in fixture.cs.store.get('report_issues') if i['id'] == checkpoint['issue_id'])
+    answered = next(i for i in issue_state.get_report_issues(fixture.cs.store) if i['id'] == checkpoint['issue_id'])
     assert answered['confirmation_checklist_path'] == str(relative)
     actor = writer(fixture, saved)
     assessment = persistence_input(fixture)
@@ -500,14 +501,14 @@ def test_approved_confirmation_checklist_is_exact_durable_and_rules_only(method_
 def test_plan_question_is_durable_before_exposing_owner_wait(method_commission, monkeypatch):
     f = method_commission
     ref = save(f, synthetic_pilot_plan(f))['plan_ref']
-    before = f.ws.store.get('report_issues', [])
+    before = issue_state.get_report_issues(f.ws.store, [])
     with monkeypatch.context() as patch:
         def interrupt(*args):
             raise RuntimeError('before native question')
         patch.setattr(api().commission_assertions, 'ask_checkpoint', interrupt)
         with pytest.raises(RuntimeError, match='before native question'):
             api().request_checkpoint(f.ws)
-    assert f.ws.store.get('report_issues', []) == before
+    assert issue_state.get_report_issues(f.ws.store, []) == before
     issued = api().request_checkpoint(f.ws)
     assert api().request_checkpoint(f.ws)['issue_id'] == issued['issue_id']
     assert api().commission_assertions.checkpoint(f.ws.store, 'plan', issued['issue_id'])['plan_ref'] == ref

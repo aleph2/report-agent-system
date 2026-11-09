@@ -1,4 +1,5 @@
 """Actual native graph feedback; scripted models test mechanics, not report quality."""
+from report_agent import issue_state
 import hashlib
 import json
 import traceback
@@ -180,7 +181,7 @@ def test_recording_issue_does_not_require_pausing_or_resolve_it(ws):
     result = tools["ask_human"]("source_conflict", "Two source values need a human decision.", ["s"], pause=False)
     assert result["waiting_for_human"] and not result["execution_paused"]
     assert not result["issue"]["resolved"]
-    assert ws.store.get("report_issues")[0]["id"] == result["issue"]["id"]
+    assert issue_state.get_report_issues(ws.store)[0]["id"] == result["issue"]["id"]
 
 
 async def review_snapshot(workspace, driver):
@@ -389,7 +390,7 @@ async def test_legacy_child_interrupt_resumes_with_rubric_without_duplicate_resu
     with reopened.store.run_lock():
         async with _historical_child_agent(reopened, fresh, rules=rules) as agent:
             waiting = await agent.aget_state(config, subgraphs=True)
-            issues = {i["id"]: i for i in reopened.store.get("report_issues", [])}
+            issues = {i["id"]: i for i in issue_state.get_report_issues(reopened.store, [])}
             answers = {}
             for pending in waiting.interrupts:
                 issue = issues[pending.value["issue_id"]]

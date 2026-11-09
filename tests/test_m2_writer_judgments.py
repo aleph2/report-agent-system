@@ -1,4 +1,5 @@
 """One real Writer save is a durable assertion; an interrupted step remains runtime work."""
+from report_agent import issue_state
 import json
 import pytest
 
@@ -79,7 +80,7 @@ def test_lost_task_commit_recovers_original_judgment_without_second_save(mini, t
         if domain_failure:
             assert replay["result"]["issue_id"]
             with ws.store.connect() as db:
-                assert db.execute("SELECT count(*) FROM state WHERE key LIKE 'g6_issue_record:%'").fetchone()[0] == 1
+                assert len(issue_state.iter_g6_issue_record(db)) == 1
         assert records(host, tmp_path/"recovered.jsonl") == before
 
 

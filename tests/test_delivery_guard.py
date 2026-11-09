@@ -1,4 +1,5 @@
 """Offline delivery-wait mechanics in fresh cases; no model or export calls."""
+from report_agent import issue_state
 import asyncio
 import json
 from types import SimpleNamespace
@@ -32,6 +33,27 @@ def wait(workspace):
     return state
 
 
+def test_resume_redo_after_owner_act_preserves_the_original_wait(workspace, monkeypatch):
+    state = wait(workspace)
+    issue_id = state['issue_id']
+    reply = {'decision': 'resume_delivery', 'note': 'Corrected the exporter.'}
+    save = issue_state.set_report_issues
+    def fail(db, rows):
+        if any(i.get('resolved') for i in rows):
+            raise RuntimeError('lost after owner act')
+        return save(db, rows)
+    monkeypatch.setattr(issue_state, 'set_report_issues', fail)
+    with pytest.raises(RuntimeError):
+        guard.resume_delivery(workspace, issue_id, reply)
+    assert workspace.store.get(guard.KEY)['waiting']
+    monkeypatch.setattr(issue_state, 'set_report_issues', save)
+    result = guard.resume_delivery(workspace, issue_id, reply)
+    assert result['resolved'] and not workspace.store.get(guard.KEY)['waiting']
+    events = workspace.store.events()
+    assert guard.resume_delivery(workspace, issue_id, reply) == result
+    assert workspace.store.events() == events
+
+
 @pytest.fixture
 def approved_workspace(commission):
     install_confirmed_plan(commission)
@@ -45,18 +67,18 @@ def test_three_export_failures_pause_once_and_preserve_approval(approved_workspa
     workspace = approved_workspace
     original = plan_authority.decision_ref(workspace.store)
     assert original
-    previous_issues = workspace.store.get('report_issues', [])
+    previous_issues = issue_state.get_report_issues(workspace.store, [])
     assert result(workspace, 'one')['consecutive_rejections'] == 1
     assert result(workspace, 'two')['waiting'] is False
     state = result(workspace, 'three')
     assert state['waiting'] and state['consecutive_rejections'] == 3
     assert workspace.store.get('report_status') == 'waiting_for_human'
-    issues = workspace.store.get('report_issues')
+    issues = issue_state.get_report_issues(workspace.store)
     assert issues[:-1] == previous_issues
     assert issues[-1]['category'] == 'system_failure' and issues[-1]['id'] == state['issue_id']
     assert plan_authority.decision_ref(workspace.store) == original
     assert result(workspace, 'four')['issue_id'] == state['issue_id']
-    assert workspace.store.get('report_issues') == issues
+    assert issue_state.get_report_issues(workspace.store) == issues
 
 
 def test_actor_and_native_call_identity_deduplicate_across_reopen(workspace):

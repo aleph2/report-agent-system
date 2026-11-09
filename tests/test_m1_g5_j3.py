@@ -1,4 +1,5 @@
 """G5 J3 first slice: explicit source applicability decisions and anchored artifacts."""
+from report_agent import issue_state
 from copy import deepcopy
 from importlib import import_module
 
@@ -56,7 +57,7 @@ def test_pending_source_applicability_is_not_implicitly_approved(source_decision
     with pytest.raises(ActionRejected):
         decide(f, decision)
     assert not plan_authority.decision_ref(f.cs.store)
-    assert not next(i for i in f.cs.store.get("report_issues") if i["id"] == f.checkpoint["issue_id"]).get("resolved")
+    assert not next(i for i in issue_state.get_report_issues(f.cs.store) if i["id"] == f.checkpoint["issue_id"]).get("resolved")
 
 
 @pytest.mark.parametrize("fault", ["missing-choice", "unknown-part", "duplicate-part", "wrong-choice", "keep-with-replacement",

@@ -1,4 +1,5 @@
 """H3.3 terminal planning waits: native scripted mechanics, not model autonomy."""
+from report_agent import issue_state
 from copy import deepcopy
 
 import pytest
@@ -59,7 +60,7 @@ async def test_unapproved_terminal_becomes_real_wait_without_extra_model_call(dr
     assert wait and wait['issue_id']
     state = await snapshot(f.ws, driver)
     assert state.interrupts and state.interrupts[0].value['issue_id'] == wait['issue_id']
-    issue = next(i for i in f.ws.store.get('report_issues') if i['id'] == wait['issue_id'])
+    issue = next(i for i in issue_state.get_report_issues(f.ws.store) if i['id'] == wait['issue_id'])
     assert not issue.get('decision_origin') and not issue['resolved']
     diagnostic = encode(state.interrupts[0].value)
     assert 'gap' in diagnostic.lower() and ('section' in diagnostic.lower() or 'object' in diagnostic.lower()), diagnostic
@@ -111,7 +112,7 @@ async def test_raw_resume_cannot_authorize_terminal_planning_wait(draft_case):
                                 {'configurable': {'thread_id': 'report'}})
     assert not fresh.calls
     assert f.ws.store.get(WAIT)['issue_id'] == wait['issue_id']
-    issue = next(i for i in f.ws.store.get('report_issues') if i['id'] == wait['issue_id'])
+    issue = next(i for i in issue_state.get_report_issues(f.ws.store) if i['id'] == wait['issue_id'])
     assert not issue.get('decision_origin')
 
 
@@ -137,7 +138,7 @@ async def test_explicit_pausing_question_uses_existing_wait(draft_case):
     assert result['status'] == 'needs_human' and result['last_error'] is None, result
     assert len(driver.calls) == 1 and f.ws.store.get(WAIT) is None
     state = await snapshot(f.ws, driver)
-    assert state.interrupts and len(f.ws.store.get('report_issues')) == 1
+    assert state.interrupts and len(issue_state.get_report_issues(f.ws.store)) == 1
 
 
 async def test_invalid_tool_call_is_feedback_not_a_terminal_completion(draft_case):

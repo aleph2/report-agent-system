@@ -1,5 +1,6 @@
 """Bounded visual-tool mechanics; fake responses do not prove visual correctness."""
 
+from report_agent import issue_state
 from types import SimpleNamespace
 import json
 import logging
@@ -41,7 +42,7 @@ class VisionModel:
 
 
 def source_snapshot(ws):
-    return ws.store.manifest, ws.results(), ws.store.get('report_issues'), ws.store.get('report_delivery')
+    return ws.store.manifest, ws.results(), issue_state.get_report_issues(ws.store), ws.store.get('report_delivery')
 
 
 @pytest.mark.asyncio

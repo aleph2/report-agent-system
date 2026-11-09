@@ -1,4 +1,5 @@
 """Writer judgment tools bind scope, sources and locations without model calls."""
+from report_agent import issue_state
 from copy import deepcopy
 import pytest
 from pydantic import ValidationError
@@ -91,7 +92,7 @@ def test_issue_before_prose_has_system_id_and_deterministic_binding(writers):
     for n,kind in enumerate(('conflict','missing')):
         response=api.propose_material_issue(f.cs,f.actors[n],'issue-'+kind,issue(kind))
         key='g6_issue_record:'+digest([f.plan_ref,response['result']['issue_id']])
-        saved=f.ws.store.get(key)
+        saved=issue_state.get_g6_issue_record(f.ws.store, key.split(':', 1)[1])
         assert saved['binding']==({'section_id':'4','object_id':'S1'} if kind=='conflict' else {'section_id':'4'})
         assert saved['issue']['object_label']=='Slope '+str(n+1)
         assert saved['issue']['anchor']=={'paragraph_index':0,'start':0,'end':None}
@@ -115,8 +116,8 @@ def test_typed_issue_receipt_tampering_blocks_assembly(writers):
     f=writers
     result=api.propose_material_issue(f.cs,f.actors[0],'issue',issue())['result']
     key='g6_issue_record:'+digest([f.plan_ref,result['issue_id']])
-    proposal=f.ws.store.get(key);proposal['issue']['basis']='Forged basis'
-    f.ws.store.set(key,proposal)
+    proposal=issue_state.get_g6_issue_record(f.ws.store, key.split(':', 1)[1]);proposal['issue']['basis']='Forged basis'
+    issue_state.set_g6_issue_record(f.ws.store, key.split(':', 1)[1],proposal)
     with f.ws.store.connect() as db:
         report=_prepare(f.cs,db,f.co,**_current_selections(f.cs,db),current=True)[0]
     assert any(p['code']=='issue_proposal_invalid' for p in report['problems'])
@@ -184,7 +185,7 @@ def test_exact_required_inventory_issue_identity_is_reused_without_changing_obli
     value={**issue(),**{k:required[k] for k in ('kind','basis','question')}}
     result=api.propose_material_issue(f.cs,f.actors[0],'inventory-issue',value)['result']
     assert result['issue_id']==required['id']
-    proposal=f.ws.store.get('g6_issue_record:'+digest([f.plan_ref,result['issue_id']]))
+    proposal=issue_state.get_g6_issue_record(f.ws.store,digest([f.plan_ref,result['issue_id']]))
     assert {k:proposal['issue'][k] for k in required}==required
     assert f.cs.read(original['ref'])==original
 
@@ -206,9 +207,9 @@ def test_source_quote_forgery_and_assignment_revocation_are_not_cached_successes
     f=writers
     response=api.propose_material_issue(f.cs,f.actors[0],'issue',issue())
     key='g6_issue_record:'+digest([f.plan_ref,response['result']['issue_id']])
-    proposal=f.ws.store.get(key)
+    proposal=issue_state.get_g6_issue_record(f.ws.store, key.split(':', 1)[1])
     proposal['source_citations'][0]['quote']='Not in the source.'
-    f.ws.store.set(key,proposal)
+    issue_state.set_g6_issue_record(f.ws.store, key.split(':', 1)[1],proposal)
     with f.ws.store.connect() as db:
         report=_prepare(f.cs,db,f.co,**_current_selections(f.cs,db),current=True)[0]
     assert any(p['code']=='issue_proposal_invalid' and 'QUOTE_NOT_AT_SOURCE' in p['reason'] for p in report['problems'])

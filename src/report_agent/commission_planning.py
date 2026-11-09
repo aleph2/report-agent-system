@@ -1,4 +1,5 @@
 """Source-bound planning steps; reviewed data stays on the server."""
+from . import issue_state
 from . import commission_assertions, commission_imports, plan_inputs
 from . import legacy_state as legacy
 from copy import deepcopy
@@ -830,7 +831,7 @@ def reply_requirements(workspace, issue_id, decision):
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         checkpoint = commission_assertions.checkpoint(db, 'requirements', issue_id)
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if not issue or not checkpoint or checkpoint['requirements_ref'] != decision['requirements_ref']:
             raise ActionRejected('REQUIREMENTS_CHECKPOINT_REPLY_STALE')
@@ -880,14 +881,14 @@ def reply_requirements(workspace, issue_id, decision):
             raise ActionRejected('REQUIREMENTS_CHECKPOINT_REPLY_STALE')
         commission_assertions.answer_checkpoint(workspace.store, owner, issue_id, 'requirements', issue_id, ref)
         db.execute('BEGIN IMMEDIATE')
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         issue = next(i for i in issues if i['id'] == issue_id)
         if issue.get('requirements_result_ref') == ref and issue.get('decision_origin') == 'operator':
             if issue.get('decision') != answer:
                 raise ActionRejected('REQUIREMENTS_CHECKPOINT_ALREADY_ANSWERED')
             return issue
         issue.update(decision=answer, decision_origin='operator', resolved=True, requirements_result_ref=ref)
-        legacy.set_report_issues(db, issues)
+        issue_state.set_report_issues(db, issues)
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         _set(db, 'report_status', 'ready')
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('commission_requirement_decision', encode({'issue_id': issue_id, 'requirements_ref': ref})))

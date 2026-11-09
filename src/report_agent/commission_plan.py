@@ -1,4 +1,5 @@
 """Versioned commission proposals; only operator replies authorize writing or reductions."""
+from . import issue_state
 from . import commission_assertions, commission_imports
 from . import legacy_state as legacy, plan_authority
 from pathlib import Path
@@ -840,12 +841,12 @@ def project_checkpoint_issue(store, issue_id, description, source_ids):
     """Expose the human wait in the runtime only after its signed question exists."""
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         if any(issue['id'] == issue_id for issue in issues):
             return
         issue = {'id': issue_id, 'category': 'requirement', 'description': description,
                  'source_ids': source_ids, 'resolved': False}
-        legacy.set_report_issues(db, [*issues, issue])
+        issue_state.set_report_issues(db, [*issues, issue])
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)',
                    ('issue_recorded', encode({'issue_id': issue_id, 'category': 'requirement'})))
@@ -1078,7 +1079,7 @@ def reply(workspace, issue_id, decision):
         if (not checkpoint or checkpoint['plan_ref'] != decision['plan_ref']
                 or plan_authority.plan_ref(db) != decision['plan_ref']):
             raise ActionRejected('COMMISSION_CHECKPOINT_REPLY_STALE')
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if issue is None:
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
@@ -1100,7 +1101,7 @@ def reply(workspace, issue_id, decision):
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
             if decision['approved']:
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
-                legacy.set_report_issues(db, issues)
+                issue_state.set_report_issues(db, issues)
             return issue
         pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
         if decision['approved'] and pending:
@@ -1136,7 +1137,7 @@ def reply(workspace, issue_id, decision):
         commission_assertions.answer_checkpoint(workspace.store, owner, issue_id, 'plan', issue_id, ref)
         plan_authority.decide(workspace.store, owner, issue_id, decision['plan_ref'], ref, decision['approved'])
         db.execute('BEGIN IMMEDIATE')
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if issue is None:
             raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
@@ -1147,7 +1148,7 @@ def reply(workspace, issue_id, decision):
         if (issue.get('decision_origin') != 'operator' or not issue.get('resolved')
                 or issue.get('decision') != answer):
             issue.update(decision=answer, decision_origin='operator', resolved=True)
-            legacy.set_report_issues(db, issues)
+            issue_state.set_report_issues(db, issues)
             _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
             if selected:
                 _set(db, 'report_status', 'ready')
@@ -1156,11 +1157,11 @@ def reply(workspace, issue_id, decision):
         if selected and decision['approved']:
             db.commit()
             db.execute('BEGIN IMMEDIATE')
-            issues = legacy.get_report_issues(db, [])
+            issues = issue_state.get_report_issues(db, [])
             issue = next(i for i in issues if i['id'] == issue_id)
             checkpoint = commission_assertions.checkpoint(db, 'plan', issue_id)
             _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
-            legacy.set_report_issues(db, issues)
+            issue_state.set_report_issues(db, issues)
         return issue
 
 

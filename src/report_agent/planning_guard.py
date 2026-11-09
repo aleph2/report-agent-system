@@ -1,4 +1,5 @@
 """Persistent planning rejection containment on native middleware boundaries."""
+from . import issue_state
 from . import plan_inputs
 from . import legacy_state as legacy
 from . import plan_authority
@@ -47,7 +48,7 @@ def record_planning_result(workspace, role, tool_name, native_call_id, *, reject
                 issue = {'id': identity, 'category': 'requirement', 'description':
                     'Planning paused after five consecutive rejected submissions. Review the preserved errors and explicitly resume this planning wait.',
                     'source_ids': [], 'resolved': False}
-                legacy.set_report_issues(db, [*legacy.get_report_issues(db, []), issue])
+                issue_state.set_report_issues(db, [*issue_state.get_report_issues(db, []), issue])
                 _set(db, 'report_status', 'waiting_for_human')
                 _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
                 state.update(waiting=True, issue_id=identity)
@@ -82,7 +83,7 @@ def resume_planning(workspace, issue_id, decision):
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         state = _state(db, KEY, {})
-        issues = legacy.get_report_issues(db, [])
+        issues = issue_state.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         answer = encode(decision)
         if not issue or state.get('issue_id') != issue_id:
@@ -91,10 +92,15 @@ def resume_planning(workspace, issue_id, decision):
             if issue.get('decision_origin') == 'operator' and issue.get('decision') == answer:
                 return issue
             raise ActionRejected('PLANNING_WAIT_NOT_ACTIVE')
+        # Commit the validated human answer before its runtime projection.
+        db.commit()
+        from .issue_authority import record_answer
+        record_answer(workspace.store, issue, answer, True)
+        db.execute('BEGIN IMMEDIATE')
         issue.update(decision=answer, decision_origin='operator', resolved=True)
         state.update(waiting=False, consecutive_rejections=0)
         _set(db, KEY, state)
-        legacy.set_report_issues(db, issues)
+        issue_state.set_report_issues(db, issues)
         _set(db, 'report_status', 'ready')
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('planning_operator_resume', encode({'issue_id': issue_id, 'note': decision['note']})))
@@ -156,7 +162,7 @@ class PlanningGuard(AgentMiddleware):
         interrupt({'issue_id': waiting['issue_id'], 'category': 'requirement',
             'kind': 'planning_completion', 'description': 'Planning ended without a confirmed plan or a blocking pause. Owner guidance is required.',
             **waiting['gaps']})
-        issue = next((i for i in legacy.get_report_issues(self.workspace.store, []) if i['id'] == waiting['issue_id']), {})
+        issue = next((i for i in issue_state.get_report_issues(self.workspace.store, []) if i['id'] == waiting['issue_id']), {})
         if issue.get('decision_origin') != 'operator' or not issue.get('decision', '').strip():
             raise ActionRejected('PLANNING_COMPLETION_OPERATOR_DECISION_REQUIRED')
         # Resume guidance is not a replacement for the original report goal.

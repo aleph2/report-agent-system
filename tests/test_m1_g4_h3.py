@@ -1,4 +1,5 @@
 """H3 synthetic access evidence and corrected planning mechanics; no paid models."""
+from report_agent import issue_state
 from copy import deepcopy
 from importlib import import_module
 import json
@@ -356,7 +357,7 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
     record = api().read_plan(ws.store)
     assert record and record['payload']['method_pack'] and set(record['payload']['table_specs']) == {'ranking', 'evaluation'}
     assert plan_authority.decision_ref(ws.store) is None and not cs.list_objects('Assessment')
-    issue = next(i for i in ws.store.get('report_issues') if not i['resolved'])
+    issue = next(i for i in issue_state.get_report_issues(ws.store) if not i['resolved'])
     api().reply(ws, issue['id'], {'plan_ref': record['ref'], 'requirements_ref': record['payload']['requirements_ref'],
         'approved': True, 'corrections': '', 'reductions': []})
 

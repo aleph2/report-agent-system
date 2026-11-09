@@ -1,4 +1,5 @@
 """Assembler integration for provenance-verified rescue prose and structural parents."""
+from report_agent import issue_state
 from copy import deepcopy
 
 import pytest
@@ -153,7 +154,7 @@ def test_current_issue_proposal_does_not_change_projection_verification(rescued_
         'anchor':{'paragraph_index':0,'start':0,'end':None}}
     ref = f.projected['2.1'][0]
     original = deepcopy(f.cs.read(ref))
-    f.ws.store.set('g6_issue_record:' + digest([f.plan_ref,issue['id']]), {'node_ref':ref,'issue':issue})
+    issue_state.set_g6_issue_record(f.ws.store, digest([f.plan_ref,issue['id']]), {'node_ref':ref,'issue':issue})
     result = assemble_current_report(f.cs, f.co, 'projection-with-current-issue')['result']
     snapshot = f.cs.read(result['snapshot_ref'])
     records = {Ref.model_validate(r).key():f.cs.read(r) for r in snapshot['payload']['refs']}

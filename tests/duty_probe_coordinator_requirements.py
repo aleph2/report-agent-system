@@ -1,6 +1,7 @@
 """Fresh P01 criteria establishment through the unmodified native agent graph.
 
 One imported Requirement contains the three original clauses, as the existing
+from report_agent import issue_state
 import API specifies. Preparation chooses real read tools explicitly as a fake
 setup; later actions use the injected model and ordinary ToolNode. No new C1
 storage, semantic acceptance guard, host completion or report generation.
@@ -131,7 +132,7 @@ async def capture_coordinator_requirements(ws, case, folder, model_factory):
         capture = {'case': case, 'fixture': fixture, 'runtime': runtime, 'raised_error': error,
             'phase_events': phases, 'native_model_calls': calls, 'new_objects': new_objects,
             'criteria': cs.list_objects('Criterion'), 'tasks': cs.list_objects('DelegatedTask'),
-            'handoffs': cs.list_objects('HandlingRecord'), 'issues': ws.store.get('report_issues', []),
+            'handoffs': cs.list_objects('HandlingRecord'), 'issues': issue_state.get_report_issues(ws.store, []),
             'execution_decision': ws.store.get('content_execution_decision'), 'finals': finals,
             'originals_unchanged': all(cs.read(o['ref']) == o for o in fixture['originals']),
             'host_completion_actions': False, 'semantic_status': 'not_semantically_assessed',

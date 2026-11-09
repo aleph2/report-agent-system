@@ -1,4 +1,5 @@
 """Deterministic assembly preserves producer records and rejects incomplete inputs."""
+from report_agent import issue_state
 from copy import deepcopy
 
 import pytest
@@ -195,8 +196,36 @@ def select_current(f):
     f.ws.store.set('g6_section_prose:' + digest([plan, '4']), f.prose)
     f.ws.store.set('g6_assessment:' + digest([plan, 'S1']), f.assessment['assessment_ref'])
     for issue_id, binding in f.inputs['issue_bindings'].items():
-        f.ws.store.set('g6_issue_binding:' + digest([plan, issue_id]), binding)
+        issue_state.set_g6_issue_binding(f.ws.store, digest([plan, issue_id]), binding)
     return plan
+
+
+@pytest.mark.parametrize('assembly_input', ['complete-issue'], indirect=True)
+def test_route_revision_preserves_history_and_frozen_export(assembly_input):
+    from report_agent.content_export import export_snapshot
+    from report_agent.system_assembler import record_issue_routes, require_assembled
+    f = assembly_input
+    plan = f.cs.read(f.inputs['source_snapshot_ref'])['payload']['commission_plan_ref']
+    issue_id = f.required[0]['id']
+    key = digest([plan, issue_id])
+    frozen = assemble_report(f.cs, f.co, 'before-route-revision', **f.inputs)['result']['snapshot_ref']
+    with f.ws.store.connect() as db:
+        original = issue_state.get_g6_issue_route(db, key)
+    operator = Actor('operator', 'operator', 'route-revision')
+    response = record_issue_routes(f.cs, operator, 'revise-route',
+        {issue_id: {'section_id': '4', 'object_id': 'S1', 'reason': 'Reviewed for this slope.'}},
+        note='Revised placement.')
+    assert record_issue_routes(f.cs, operator, 'revise-route',
+        {issue_id: {'section_id': '4', 'object_id': 'S1', 'reason': 'Reviewed for this slope.'}},
+        note='Revised placement.') == response
+    with f.ws.store.connect() as db:
+        versions = db.execute("SELECT data FROM content_versions WHERE type='IssueRoute' AND id=? ORDER BY version", (key,)).fetchall()
+        import json
+        assert len(versions) == 2 and json.loads(versions[0][0])['payload'] == original
+        receipt = require_assembled(f.cs, db, f.cs._read(db, frozen))
+        assert receipt['operator_issue_routes'][issue_id] == original
+    pair = export_snapshot(f.cs, f.co, 'frozen-route-pair', frozen, {'toc': False})['result']
+    assert (f.ws.store.root / pair['workbook']['file_ref']).is_file()
 
 
 def test_current_route_assembles_without_agent_snapshot_and_requires_receipt(assembly_input):
@@ -229,14 +258,14 @@ def test_current_route_rejects_stale_issue_proposal_and_preserves_saved_prose(as
              'adopted_value': '30 metres', 'question': 'Verify the missing measurement.',
              'affects_level': False, 'anchor': {'paragraph_index': 0, 'start': 0, 'end': None}}
     key = 'g6_issue_record:' + digest([plan, issue['id']])
-    f.ws.store.set(key, {'node_ref': f.prose, 'issue': issue})
+    issue_state.set_g6_issue_record(f.ws.store, key.split(':', 1)[1], {'node_ref': f.prose, 'issue': issue})
     result = assemble_current_report(f.cs, f.co, 'current-with-issue')['result']
     snapshot = f.cs.read(result['snapshot_ref'])
     from report_agent.material_issues import rendered_issues
     records = {_key(r): f.cs.read(r) for r in snapshot['payload']['refs']}
     assert any(i.id == issue['id'] for _, i in rendered_issues(records, snapshot['payload']['root_ref']))
     assert f.cs.read(f.prose) == original
-    f.ws.store.set(key, {'node_ref': {**f.prose, 'id': 'unselected-node'}, 'issue': issue})
+    issue_state.set_g6_issue_record(f.ws.store, key.split(':', 1)[1], {'node_ref': {**f.prose, 'id': 'unselected-node'}, 'issue': issue})
     with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
         assemble_current_report(f.cs, f.co, 'stale-proposal')
     assert any(p['code'] == 'stale_issue_proposal' for p in exc.value.diagnostic['problems'])

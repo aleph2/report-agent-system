@@ -196,6 +196,17 @@ def test_production_replays_saved_fake03_business_fields(commission,label):
         assert claim["value"]==original["value"]
     if label=="A/X32":
         assert claim["value"]=="27" and claim["classification"]=="moderate" and claim["question"]
+    if claim['basis'] in {'gap', 'conditional', 'assumption'} or claim.get('question'):
+        from report_agent.issue_state import issue_view
+        from report_agent.store import Store
+        view = issue_view(Store(commission.host.access.parent))
+        entry = next(x for x in view if x['id'] == row['id'])
+        assert entry['record']['claim'] == claim
+        assert entry['report_locations'] == [{'object_id': row['subject']}]
+        if claim.get('question'):
+            linked = next(x for x in view if x['id'] == claim['question'])
+            assert {'object_id': row['subject']} in linked['report_locations']
+        assert not any(x['kind'] == 'human_wait' for x in view)
 
 
 def test_current_x51_stays_unscored_on_production_path(tmp_path):
@@ -205,3 +216,5 @@ def test_current_x51_stays_unscored_on_production_path(tmp_path):
     claim=case.submit("A/X51",pending=True)["claim"]
     assert claim["basis"]=="gap" and claim["value"] is None and claim["classification"] is None
     assert claim["alternatives"]==["low","moderate"] and claim["question"]
+    from report_agent.assertions.launch import Commission as Reader
+    assert any(x['record']['claim'] == claim for x in Reader.issue_records(tmp_path))

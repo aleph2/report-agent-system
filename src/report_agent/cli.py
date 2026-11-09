@@ -24,7 +24,7 @@ FRESH_NATIVE_DEFAULTS = {
 
 def main():
     parser = argparse.ArgumentParser(description="Independent report-agent prototype")
-    parser.add_argument("command", choices=["init", "run", "status", "events", "feedback",
+    parser.add_argument("command", choices=["init", "run", "status", "events", "issues", "feedback",
                                             "report-run", "report-status", "serve", "export", "import", "content-delivery", "commission-reply"])
     parser.add_argument("--project", required=True, type=Path, help="Isolated writable project directory")
     parser.add_argument("--manifest", type=Path)
@@ -151,6 +151,9 @@ def main():
         parser.error("Historical prototype execution is inactive; initialize a fresh native project and use report-run. Saved history remains readable.")
     elif args.command == "events":
         result = store.events()
+    elif args.command == 'issues':
+        from .issue_state import issue_view
+        result = {'issues': issue_view(store)}
     elif args.command == "feedback":
         if not args.feedback:
             parser.error("feedback requires --feedback")

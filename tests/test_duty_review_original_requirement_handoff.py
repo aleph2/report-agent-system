@@ -6,6 +6,7 @@ that response. The four handoff variants migrated from implicit runtime loading
 to explicit selection; their original body/version/gap assertions remain. The historical oversize variant
 now proves full delivery instead of the removed character-limit refusal.
 """
+from report_agent import issue_state
 from copy import deepcopy
 import json
 import hashlib
@@ -99,7 +100,7 @@ def capture(ws, request, driver, held):
     try:
         cs = ContentStore(ws.store)
         data.update(saved_reviews=cs.list_objects("ReviewRecord"), tasks=cs.list_objects("DelegatedTask"),
-            issues=ws.store.get("report_issues", []), delivery=current_delivery(ws.store), events=ws.store.events())
+            issues=issue_state.get_report_issues(ws.store, []), delivery=current_delivery(ws.store), events=ws.store.events())
         with ws.store.connect() as db:
             data["observations"] = [{"id": r[0], "actor_id": r[1], "data": json.loads(r[2])}
                 for r in db.execute("SELECT id,actor_id,data FROM content_observations")]
@@ -322,12 +323,12 @@ async def test_focused_review_can_complete_without_global_promotion(ws, request)
     # The original global Criterion was not silently replaced by this local one.
     assert refs["k"] in cs.read(snapshot)["payload"]["criteria_refs"]
     assert refs["k"] != call["args"]["review_requirements"][0]["criterion_ref"]
-    assert not ws.store.get("report_issues", [])  # Pending prose is not an actual human request.
+    assert not issue_state.get_report_issues(ws.store, [])  # Pending prose is not an actual human request.
 
 
 async def test_explicit_nonblocking_human_issue_preserves_supported_draft(ws, request):
     cs, _, snapshot, original, _ = prepare(ws)
-    held = {"original": original, "prose_only_issue_count": len(ws.store.get("report_issues", []))}
+    held = {"original": original, "prose_only_issue_count": len(issue_state.get_report_issues(ws.store, []))}
 
     def continue_draft(messages):
         message = tool_reply(messages, "human-decision")
@@ -359,7 +360,7 @@ async def test_explicit_nonblocking_human_issue_preserves_supported_draft(ws, re
                 raise
     assert held["runtime"]["last_error"] is None, held["runtime"]
     assert held["prose_only_issue_count"] == 0
-    issues = ws.store.get("report_issues", [])
+    issues = issue_state.get_report_issues(ws.store, [])
     assert len(issues) == 1 and issues[0]["description"] == GAP and issues[0]["resolved"] is False
     assert held["context_after"]["issues"] == issues
     assert len(cs.list_objects("ExportArtifact")) == 2 and not cs.list_objects("ReviewRecord")

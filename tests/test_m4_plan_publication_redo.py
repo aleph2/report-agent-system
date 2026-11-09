@@ -1,4 +1,5 @@
 """The case contents commit before a proposal or owner act can establish authority."""
+from report_agent import issue_state
 from copy import deepcopy
 
 import pytest
@@ -52,7 +53,7 @@ def test_owner_content_crash_does_not_resolve_checkpoint(commission, monkeypatch
             commission_plan.reply(commission.ws, issue_id, answer)
     [decision] = commission.cs.list_objects("CommissionDecision")
     assert plan_authority.decision_ref(commission.cs.store) is None
-    assert not next(i for i in legacy.get_report_issues(commission.cs.store) if i["id"] == issue_id)["resolved"]
+    assert not next(i for i in issue_state.get_report_issues(commission.cs.store) if i["id"] == issue_id)["resolved"]
     with pytest.raises(ActionRejected):
         confirmed_records(commission)
     with pytest.raises(ActionRejected, match="ALREADY_ANSWERED"):
@@ -96,7 +97,7 @@ def test_lost_owner_reply_finishes_the_issue_projection(commission, monkeypatch)
         with pytest.raises(RuntimeError, match="lost committed result"):
             commission_plan.reply(commission.ws, issue_id, answer)
     _, decision = confirmed_records(commission)
-    issues = legacy.get_report_issues(commission.cs.store)
+    issues = issue_state.get_report_issues(commission.cs.store)
     assert not next(i for i in issues if i["id"] == issue_id)["resolved"]
     issue = commission_plan.reply(commission.ws, issue_id, answer)
     assert issue["resolved"] and (commission.cs.store.root / issue["confirmation_checklist_path"]).is_file()
@@ -124,7 +125,7 @@ def test_replaced_pending_checkpoint_is_preserved_after_owner_act(commission, mo
     monkeypatch.setattr(plan_authority, "decide", replace_checkpoint)
     issue = commission_plan.reply(commission.ws, issue_id, answer)
     assert issue["resolved"] and "confirmation_checklist_path" not in issue
-    issues = legacy.get_report_issues(commission.cs.store)
+    issues = issue_state.get_report_issues(commission.cs.store)
     assert not next(i for i in issues if i["id"] == successor["issue_id"])["resolved"]
     assert commission.cs.store.get("report_status") == "awaiting_user"
 
@@ -142,10 +143,10 @@ def test_repeated_issue_projection_is_idempotent(commission, monkeypatch):
     def project_elsewhere(*args, **kwargs):
         result = decide(*args, **kwargs)
         with commission.cs.store.connect() as db:
-            issues = legacy.get_report_issues(db)
+            issues = issue_state.get_report_issues(db)
             issue = next(i for i in issues if i["id"] == issue_id)
             issue.update(decision=encode(answer), decision_origin="operator", resolved=True)
-            legacy.set_report_issues(db, issues)
+            issue_state.set_report_issues(db, issues)
             db.execute("INSERT INTO events(kind,data) VALUES ('commission_owner_decision', '{}')")
             commission_plan._set(db, "context_revision", 123)
         return result

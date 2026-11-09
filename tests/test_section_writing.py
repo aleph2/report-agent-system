@@ -1,3 +1,4 @@
+from report_agent import issue_state
 import pytest
 from report_agent.errors import ActionRejected, ActionForbidden
 from report_agent.store import digest
@@ -53,7 +54,7 @@ def test_issue_proposal_has_system_anchor_and_no_content_mutation(writing):
     old=f.cs.read(ref)
     issue=dict(id='MI-test',kind='missing',object_label='S1',basis='Review needed',sources=[],adopted_value='30 metres',question='Confirm design height.',affects_level=False)
     propose_material_issue(f.cs,f.writer,'issue',ref,issue)
-    saved=f.ws.store.get('g6_issue_record:'+digest([f.plan_ref,issue['id']]))
+    saved=issue_state.get_g6_issue_record(f.ws.store,digest([f.plan_ref,issue['id']]))
     assert saved['issue']['anchor']=={'paragraph_index':0,'start':0,'end':None}
     assert f.cs.read(ref)==old
     with pytest.raises(ActionRejected,match='ISSUE_ANCHOR_IS_SYSTEM_OWNED'):

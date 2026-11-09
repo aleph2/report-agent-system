@@ -1,4 +1,5 @@
 """Small Writer judgments; scope, source references and output positions are host-owned."""
+from . import issue_state
 from . import legacy_state as legacy
 import json
 import re
@@ -135,7 +136,7 @@ def _write_issue(cs, db, actor, operation_id, bound, value):
         raise ActionRejected('REQUIRED_MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
     if not matches:
         # Reuse historical IDs even when their source order differed; never rewrite old keys.
-        for _, raw in legacy.iter_g6_issue_record(db):
+        for _, raw in issue_state.iter_g6_issue_record(db):
             previous = json.loads(raw)
             if (previous.get('writer_task_ref') == bound['task_ref']
                     and previous.get('commission_plan_ref') == bound['plan']['ref']
@@ -154,11 +155,11 @@ def _write_issue(cs, db, actor, operation_id, bound, value):
         'commission_plan_ref': bound['plan']['ref'], 'binding': _binding(bound, value.kind),
         'source_citations': citations, 'receipt_id': operation_id}
     key = digest([bound['plan']['ref'], issue['id']])
-    old = legacy.get_g6_issue_record(db, key)
+    old = issue_state.get_g6_issue_record(db, key)
     if old and old.get('writer_task_ref') != bound['task_ref']:
         raise ActionForbidden('FORBIDDEN: material issue proposal owner')
-    legacy.set_g6_issue_record(db, key, proposal)
-    legacy.set_g6_issue_binding(db, key, proposal['binding'])
+    issue_state.set_g6_issue_record(db, key, proposal, actor=actor)
+    issue_state.set_g6_issue_binding(db, key, proposal['binding'], actor=actor)
     return {'issue_id': issue['id'], 'binding': proposal['binding'], 'proposal_digest': digest(proposal)}
 
 

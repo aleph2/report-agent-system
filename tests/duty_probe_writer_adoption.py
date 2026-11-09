@@ -7,6 +7,7 @@ Only the first Writer model step is a fixture. Its process_report_content call
 runs in the real ToolNode. Later steps use handler(request) without rewriting
 the request, tools, model or return. No stored body is inserted into a prompt.
 """
+from report_agent import issue_state
 import hashlib
 import json
 from copy import deepcopy
@@ -109,7 +110,7 @@ def assess(ws, fixture):
     cs = ContentStore(ws.store)
     nodes = cs.list_objects('ContentNode')
     exact = [n for n in nodes if n['payload'] == fixture['expected_payloads'][0]]
-    issues = deepcopy(ws.store.get('report_issues', []))
+    issues = deepcopy(issue_state.get_report_issues(ws.store, []))
     handoffs = cs.list_objects('HandlingRecord')
     original_ok = all(cs.read(item['ref']) == item for item in fixture['originals'])
     untouched = not cs.list_objects('ReviewRecord') and not cs.list_objects('ExportArtifact')
@@ -183,5 +184,5 @@ async def capture_writer_adoption(ws, case, folder, model_factory):
                        'Initial process action is explicit fixture preparation, not a Writer decision.']}
         dump(folder / 'capture.json', capture)
         dump(folder / 'saved-state.json', {'objects': cs.list_objects(), 'events': ws.store.events(),
-                                         'issues': ws.store.get('report_issues', [])})
+                                         'issues': issue_state.get_report_issues(ws.store, [])})
     return capture

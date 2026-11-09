@@ -1,4 +1,5 @@
 """Actual synthetic Run 02 rejected public calls, replayed through GLM mock transport."""
+from report_agent import issue_state
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -140,8 +141,7 @@ async def test_native_save_gap_with_structured_conflict_commits_issue(tmp_path, 
             step=read_indicator_step(cs,session.actor)
             assert step['indicator_id']=='X21' and step['gap_indicators']==['X11','X12']
             with cs.store.connect() as db:
-                issues=[json.loads(raw) for raw, in db.execute(
-                    "SELECT value FROM state WHERE key LIKE 'g6_issue_record:%'")]
+                issues=[json.loads(raw) for _, raw in issue_state.iter_g6_issue_record(db)]
             assert len(issues)==1
             assert issues[0]['issue']['adopted_value']==conflict['adopted_value']
             assert {s['quote'] for s in issues[0]['source_citations']}==set(conflict['quotes'])

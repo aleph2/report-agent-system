@@ -1,4 +1,5 @@
 """Host-owned planning stop-loss and grant accounting; no ledger mutation."""
+from . import issue_state
 from . import legacy_state as legacy
 from . import commission_assertions
 import asyncio
@@ -89,7 +90,7 @@ def approvable_plan(workspace):
         require_complete(cs,plan)
         if any(unresolved_sources(s) for s in plan['sections']) or method_questions(plan):
             return False
-        for issue in legacy.get_report_issues(workspace.store,[]):
+        for issue in issue_state.get_report_issues(workspace.store,[]):
             checkpoint = commission_assertions.checkpoint(workspace.store, 'plan', issue['id'])
             if not checkpoint or checkpoint['plan_ref'] != record['ref'] or checkpoint.get('requirements_ref') != plan.get('requirements_ref'):
                 continue

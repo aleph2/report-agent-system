@@ -3,6 +3,7 @@
 These cases exercise exact registered caller paths, not real model judgment.
 Only temporary synthetic workspaces are written; no application repairs.
 """
+from report_agent import issue_state
 import hashlib
 import json
 from copy import deepcopy
@@ -422,7 +423,7 @@ async def test_coordinator_ask_human_records_unresolved_issue_and_actual_pause(w
         first = await run_report(ws, driver)
         saved = await checkpoint(ws, driver)
         observed.update(first=first, first_checkpoint=saved)
-        issues = ws.store.get('report_issues')
+        issues = issue_state.get_report_issues(ws.store)
         assert len(issues) == 1 and not issues[0]['resolved']
         if pause:
             assert saved['next'] and len(saved['interrupts']) == 1
@@ -434,7 +435,7 @@ async def test_coordinator_ask_human_records_unresolved_issue_and_actual_pause(w
             observed.update(second=second, resumed_checkpoint=after)
             assert second['last_error'] is None
             assert not after['next'] and not after['interrupts']
-            assert len(ws.store.get('report_issues')) == 1
+            assert len(issue_state.get_report_issues(ws.store)) == 1
         else:
             assert first['last_error'] is None and not saved['next'] and not saved['interrupts']
         assert len(observed['next_inputs']) == 1

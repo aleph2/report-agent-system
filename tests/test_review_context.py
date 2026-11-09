@@ -1,4 +1,5 @@
 """Context completeness/privacy and native integration; no model quality claims."""
+from report_agent import issue_state
 import json
 from hashlib import sha256
 
@@ -45,7 +46,7 @@ def test_public_history_excludes_private_fields_and_preserves_provenance():
 
 
 def test_long_assignment_and_late_decision_are_completely_pageable(workspace):
-    workspace.store.set("report_issues", [{"resolved": True, "decision_origin": "operator", "decision": "x" * 17000 + "TAIL_DECISION"}])
+    issue_state.set_report_issues(workspace.store, [{"resolved": True, "decision_origin": "operator", "decision": "x" * 17000 + "TAIL_DECISION"}])
     messages = [HumanMessage("Original request"), *[AIMessage("Long author text" * 1000) for _ in range(35)],
                 HumanMessage("LAST_REAL_FEEDBACK"),
                 HumanMessage("PRIOR_NATIVE_GAP", additional_kwargs={"lc_source": "rubric_grader"})]
@@ -65,7 +66,7 @@ def test_long_assignment_and_late_decision_are_completely_pageable(workspace):
         assert "".join(pages) == context.sections[section]
         assert marker in "".join(pages)
     before = context.read("assignment")
-    workspace.store.set("report_issues", [])
+    issue_state.set_report_issues(workspace.store, [])
     assert context.read("assignment") == before  # A running attempt has a frozen view.
     with pytest.raises(Exception, match="SECTION_UNAVAILABLE"):
         context.read("../../other-project")

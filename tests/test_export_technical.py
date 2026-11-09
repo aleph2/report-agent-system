@@ -1,5 +1,6 @@
 """Template and restricted page-image integration, using temporary synthetic reports."""
 
+from report_agent import issue_state
 import base64
 import hashlib
 from io import BytesIO
@@ -249,7 +250,7 @@ def test_reader_business_issues_without_technical_audit_and_no_mutations(ws):
     ws.decide_issue(technical["id"], "PRIVATE Main recovery instructions", resolved=True)
     resolved = ws.issue("source_missing", "Previously missing file", ["source"])
     ws.decide_issue(resolved["id"], "Supplied", resolved=True)
-    before = (ws.results(), ws.tasks(), ws.store.events(), ws.store.get("report_issues"))
+    before = (ws.results(), ws.tasks(), ws.store.events(), issue_state.get_report_issues(ws.store))
     doc = export(ws, draft, template="technical_zh")
     content = text(doc)
     assert "Height remains unconfirmed" in content
@@ -258,7 +259,7 @@ def test_reader_business_issues_without_technical_audit_and_no_mutations(ws):
     assert "[source] Project original" in content
     assert "Unverified appendix" not in content
     assert "Draft: " + draft["id"] not in content
-    assert before == (ws.results(), ws.tasks(), ws.store.events(), ws.store.get("report_issues"))
+    assert before == (ws.results(), ws.tasks(), ws.store.events(), issue_state.get_report_issues(ws.store))
     legacy = text(export(ws, draft, include_execution_record=True))
     assert "PRIVATE Main recovery instructions" in legacy
 

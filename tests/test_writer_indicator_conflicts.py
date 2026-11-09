@@ -1,4 +1,5 @@
 """Bounded Writer conflict provenance must survive the same transaction as the row."""
+from report_agent import issue_state
 from pathlib import Path
 from types import SimpleNamespace
 import pytest
@@ -47,14 +48,14 @@ def test_conflict_in_an_outcome_reaches_verifiable_issue_once(tmp_path, kind, ex
         assert recorded['issue_id']
         key='g6_issue_record:'+digest([receipt['plan_ref'],recorded['issue_id']])
         with cs.store.connect() as db:
-            proposal=verify_issue_proposal(cs,db,ws.store.get(key),cs._read(db,receipt['plan_ref']), actor_for('coordinator'))
+            proposal=verify_issue_proposal(cs,db,issue_state.get_g6_issue_record(ws.store, key.split(':', 1)[1]),cs._read(db,receipt['plan_ref']), actor_for('coordinator'))
         assert proposal['issue']['adopted_value']==conflict['adopted_value']
         assert {s['quote'] for s in proposal['source_citations']}==set(conflict['quotes'])
         assert proposal['binding']=={'section_id':'3','object_id':'A'}
         explicit=propose_material_issue(cs,actor,'also-reported',dict(kind='conflict',**separate))['result']
         assert explicit['issue_id']==recorded['issue_id']
         with cs.store.connect() as db:
-            assert db.execute("SELECT count(*) FROM state WHERE key LIKE 'g6_issue_record:%'").fetchone()[0]==1
+            assert len(issue_state.iter_g6_issue_record(db))==1
 
 from test_writer_issue_tools import reviewed_writers
 from test_m1_g3_integration import method_commission
@@ -120,7 +121,7 @@ def test_rejected_conflict_rolls_back_indicator_row_and_issue(tmp_path):
             save_indicator_outcome(cs,actor,'invalid-conflict','X11',row)
         assert read_indicator_step(cs,actor)['indicator_id']=='X11'
         with cs.store.connect() as db:
-            assert db.execute("SELECT count(*) FROM state WHERE key LIKE 'g6_issue_record:%'").fetchone()[0]==0
+            assert len(issue_state.iter_g6_issue_record(db))==0
 
 
 @pytest.mark.parametrize('quotes', [['same','same'], [' ', 'other']])
@@ -155,7 +156,7 @@ def test_reversed_quotes_preserve_confirmed_issue_source_order(method_commission
     value['quotes']=[f.cite('scope')['quote'],f.cite('design')['quote']]
     result=propose_material_issue(f.cs,actor,'required-reverse',value)['result']
     assert result['issue_id']==required['id']
-    proposal=f.ws.store.get('g6_issue_record:'+digest([saved['plan_ref'],result['issue_id']]))
+    proposal=issue_state.get_g6_issue_record(f.ws.store,digest([saved['plan_ref'],result['issue_id']]))
     assert proposal['issue']['sources']==required['sources']
     with f.cs.store.connect() as db:
         verify_issue_proposal(f.cs,db,proposal,f.cs._read(db,saved['plan_ref']),f.co)

@@ -181,6 +181,8 @@ M5_HISTORICAL_READERS = {
     "commission_source_roles", "commission_checkpoint:",
 }
 
+M6_HISTORICAL_READERS = {'report_issues', 'g6_issue_record:', 'g6_issue_binding:', 'g6_issue_route:'}
+
 
 @pytest.mark.parametrize("family", sorted(M5_HISTORICAL_READERS))
 def test_old_commission_key_is_readable_without_a_write_accessor(tmp_path, family):
@@ -230,7 +232,7 @@ def test_host_input_records_are_private_in_direct_and_snapshot_reads(tmp_path):
 
 
 @pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS
-                                          - M4_HISTORICAL_READERS - M5_HISTORICAL_READERS))
+                                          - M4_HISTORICAL_READERS - M5_HISTORICAL_READERS - M6_HISTORICAL_READERS))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

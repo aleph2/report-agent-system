@@ -1,4 +1,5 @@
 """Thin evidence and persistence adapter for DeepAgents' native rubric loop."""
+from . import issue_state
 from . import legacy_state as legacy
 from pathlib import Path
 from inspect import iscoroutinefunction
@@ -178,7 +179,7 @@ def observation_version(workspace, draft_id):
     changes = dict(workspace.delivery(draft_id).get("changes", {}))
     changes.pop("context_revision", None)
     changes.pop("review_context_revision", None)
-    return digest({"changes": changes, "human_inputs": legacy.get_report_issues(workspace.store, [])})
+    return digest({"changes": changes, "human_inputs": issue_state.get_report_issues(workspace.store, [])})
 
 
 def native_review(workspace, model, tools, rules, middleware=()):

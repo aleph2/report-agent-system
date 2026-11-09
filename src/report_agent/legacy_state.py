@@ -110,32 +110,16 @@ def get_report_issues(storage, default=_MISSING):
     return _get(storage, 'report_issues', default)
 
 
-def set_report_issues(storage, value):
-    _set(storage, 'report_issues', value)
-
-
 def get_g6_issue_record(storage, suffix, default=_MISSING):
     return _get(storage, 'g6_issue_record:' + suffix, default)
-
-
-def set_g6_issue_record(storage, suffix, value):
-    _set(storage, 'g6_issue_record:' + suffix, value)
 
 
 def get_g6_issue_binding(storage, suffix, default=_MISSING):
     return _get(storage, 'g6_issue_binding:' + suffix, default)
 
 
-def set_g6_issue_binding(storage, suffix, value):
-    _set(storage, 'g6_issue_binding:' + suffix, value)
-
-
 def get_g6_issue_route(storage, suffix, default=_MISSING):
     return _get(storage, 'g6_issue_route:' + suffix, default)
-
-
-def set_g6_issue_route(storage, suffix, value):
-    _set(storage, 'g6_issue_route:' + suffix, value)
 
 
 def get_planned_section_receipt(storage, suffix, default=_MISSING):
@@ -246,6 +230,10 @@ def iter_g6_issue_route_ordered(db):
 
 def issue_record_key(suffix):
     return 'g6_issue_record:' + suffix
+
+
+def issue_route_key(suffix):
+    return 'g6_issue_route:' + suffix
 
 
 def iter_commission_outcomes(db, object_digest):

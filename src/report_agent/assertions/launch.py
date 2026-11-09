@@ -162,6 +162,43 @@ class Commission:
             db.execute("BEGIN")
             return Commission._planning_rows(db, subject)
 
+    @staticmethod
+    def issue_records(directory):
+        """Trusted host issue view; never issued as an unrestricted agent query."""
+        from .queries import assertion_states
+        path = Path(directory).resolve() / 'assertions.sqlite3'
+        if not path.is_file():
+            return []
+        with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
+            db.execute('BEGIN')
+            states = assertion_states(db)
+            result = []
+            for identity, raw in db.execute('SELECT id,body FROM assertions ORDER BY rowid'):
+                row, state = json.loads(raw), states[identity]
+                claim = row['claim']
+                if not state['active']:
+                    continue
+                kind = claim['kind']
+                if (kind in {'question', 'conflict', 'finding'} or kind == 'judgment'
+                        and (claim['basis'] in {'gap', 'assumption', 'conditional'}
+                             or claim.get('question') or claim.get('review_flags'))):
+                    result.append({'record': row, 'state': state})
+            return result
+
+    @staticmethod
+    def issue_actions(directory):
+        """Read authenticated replies to runtime questions without opening an agent capability."""
+        from .queries import assertion_states
+        path = Path(directory).resolve() / 'assertions.sqlite3'
+        if not path.is_file():
+            return []
+        with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
+            db.execute('BEGIN')
+            states = assertion_states(db)
+            return [(action, json.loads(raw), states[identity]) for identity, action, raw in db.execute(
+                "SELECT id,action,body FROM assertions WHERE body ->> '$.subject' GLOB 'runtime-issue/*' "
+                "AND ((action='ask' AND role='coordinator') OR (action='decide' AND role='owner')) ORDER BY rowid")]
+
     def import_planning_actions(self, directory, select):
         self._import_actions(directory, lambda db: select(self._planning_rows(db)), {
             ("record_convention", "coordinator"), ("ask", "coordinator"), ("decide", "owner")})

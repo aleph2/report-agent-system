@@ -1,4 +1,5 @@
 """The commission checkpoint must survive native tool and delegation boundaries."""
+from report_agent import issue_state
 from copy import deepcopy
 import json
 
@@ -59,7 +60,7 @@ def test_generic_operator_prose_is_not_structured_commission_approval(commission
         commission.ws.decide_issue(checkpoint['issue_id'], 'approved', resolved=True)
     generic = commission.ws.issue('requirement', 'Clarify an unrelated label.', [])
     commission.ws.decide_issue(generic['id'], 'approved', resolved=True)
-    issues = {issue['id']: issue for issue in legacy_state.get_report_issues(commission.ws.store)}
+    issues = {issue['id']: issue for issue in issue_state.get_report_issues(commission.ws.store)}
     assert issues[generic['id']]['decision'] == 'approved' and issues[generic['id']]['resolved']
     assert not issues[checkpoint['issue_id']]['resolved']
     actor = unapproved_writer(commission, saved)
