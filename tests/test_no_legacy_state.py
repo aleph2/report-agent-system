@@ -104,6 +104,7 @@ def test_legacy_state_ownership():
 # module filenames. They contain no per-family storage access.
 PUBLIC_USES = {
     ("plan_authority", "propose", "keyword"): {"commission_plan"},
+    ("commission_assertions", "record_interpretation", "Dict"): {"commission_requirements"},
     ("commission_plan", "save_plan", "Dict"): {"commission_plan"},
     ("commission_plan", "request_checkpoint", "Dict"): {"corrections", "commission_plan"},
     ("content_export", "execute", "Tuple"): {"commission_owner_records"},
@@ -134,6 +135,10 @@ def test_new_family_literals_require_review():
             while scope in parents and not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 scope = parents[scope]
             key = path.stem, getattr(scope, "name", None), type(parent).__name__
+            # The business import drops these legacy keys from the isolated state copy.
+            if key == ("probe_case", "prepare_probe_case", "Call") and ast.unparse(parent.func) == "state.pop":
+                if node.value in {"commission_source_roles", "commission_owner_records", "commission_requirements"}:
+                    continue
             if node.value not in PUBLIC_USES.get(key, ()):
                 violations.append((str(path.relative_to(package)), node.lineno, node.value))
     assert violations == []
@@ -171,7 +176,61 @@ def test_old_writer_keys_are_readable_without_a_write_accessor(tmp_path, family)
     assert getattr(legacy_state, "get_" + name)(store, "old-id") == {"v": 1}
 
 
-@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS - M4_HISTORICAL_READERS))
+M5_HISTORICAL_READERS = {
+    "commission_requirements", "commission_requirements_checkpoint:", "commission_owner_records",
+    "commission_source_roles", "commission_checkpoint:",
+}
+
+
+@pytest.mark.parametrize("family", sorted(M5_HISTORICAL_READERS))
+def test_old_commission_key_is_readable_without_a_write_accessor(tmp_path, family):
+    from report_agent import commission_assertions, commission_imports, commission_requirements, legacy_state
+    from report_agent.store import Store
+
+    store = Store(tmp_path)
+    name = family.rstrip(":")
+    issue = "existing-issue"
+    raw_key = family + issue if family.endswith(":") else family
+    ref = {"type": "CommissionRequirements", "id": "old", "version": 1}
+    old = ref if family == "commission_requirements" else {"historical": True}
+    store.set(raw_key, old)
+    assert not hasattr(legacy_state, "set_" + name)
+    legacy_read = getattr(legacy_state, "get_" + name)
+    suffix = (issue,) if family.endswith(":") else ()
+    assert legacy_read(store, *suffix) == old
+    if family == "commission_checkpoint:" or family == "commission_requirements_checkpoint:":
+        kind = "plan" if family == "commission_checkpoint:" else "requirements"
+        assert commission_assertions.checkpoint(store, kind, issue) == old
+        assert commission_assertions.checkpoint_answer(store, kind, issue) is None
+    else:
+        readers = {"commission_requirements": commission_requirements.requirements_ref,
+                   "commission_source_roles": commission_imports.source_roles,
+                   "commission_owner_records": commission_imports.owner_records}
+        assert readers[family](store) == old
+    assert store.get(raw_key) == old
+    assert not (tmp_path / "assertions.sqlite3").exists()
+
+
+def test_host_input_records_are_private_in_direct_and_snapshot_reads(tmp_path):
+    from report_agent import commission_imports
+    from report_agent.content_store import Actor, ContentStore
+    from report_agent.errors import ActionForbidden
+    from report_agent.store import Store
+
+    cs = ContentStore(Store(tmp_path))
+    host = Actor("host", "host", "intake")
+    writer = Actor("writer", "writer", "section")
+    for kind in commission_imports.TYPES:
+        with cs.store.connect() as db:
+            ref = cs._insert(db, host, kind, {})
+            wrapped = cs._insert(db, host, "DocumentSnapshot", {"refs": [ref]})
+        for target in (ref, wrapped):
+            with pytest.raises(ActionForbidden):
+                cs.read_context(writer, target)
+
+
+@pytest.mark.parametrize("family", sorted(FAMILIES - RETIRED - HISTORICAL_READERS
+                                          - M4_HISTORICAL_READERS - M5_HISTORICAL_READERS))
 def test_accessor_preserves_storage_key_and_rollback(tmp_path, family):
     from report_agent import legacy_state
     from report_agent.store import Store

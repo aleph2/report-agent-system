@@ -532,10 +532,7 @@ def _v4_task(workspace, call):
             payload['layout_snapshot_ref'] = layout
         from .deliverables import source_authority
         from .store import encode
-        import json
-        source_authority(cs, db, co, [])
-        policy_row = db.execute("SELECT value FROM state WHERE key='source_use_authority_binding'").fetchone()
-        policy = json.loads(policy_row[0]) if policy_row else None
+        policy = source_authority(cs, db, co, [])
         if policy:
             from .store import encode
             payload['source_use_policy_ref'] = policy

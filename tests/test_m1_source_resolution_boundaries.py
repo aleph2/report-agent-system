@@ -2,17 +2,20 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent.commission_imports import install_source_roles
 from report_agent import plan_authority
 from report_agent.errors import ActionRejected
-from test_m1_source_substitution import substitution, section, REQUESTED
+from test_m1_source_substitution import substitution, section, with_substitution, REQUESTED
 from test_m1_commission_plan import commission, save, approve, api
 
 
 @pytest.mark.parametrize('roles', [{}, None])
-def test_customer_authority_missing_fails_closed(substitution, roles):
-    substitution.ws.store.set('commission_source_roles', roles)
-    with pytest.raises(ActionRejected, match='CUSTOMER_SOURCE'):
-        save(substitution)
+def test_customer_authority_missing_fails_closed(commission, roles):
+    if roles is not None:
+        install_source_roles(commission.ws.store, roles)
+    with_substitution(commission, commission.cite('scope'))
+    with pytest.raises(ActionRejected, match='COMMISSION_SUBSTITUTION_REQUIRES_CUSTOMER_SOURCE'):
+        save(commission)
 
 
 @pytest.mark.parametrize('change', ['delete-name', 'delete-section', 'rename-section'])

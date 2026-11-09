@@ -139,9 +139,8 @@ def test_conflict_quote_refusal_names_field_and_correction(quotes):
 
 
 def test_reversed_quotes_preserve_confirmed_issue_source_order(method_commission):
-    from report_agent.content_store import Actor
     from test_m1_g3_integration import section_plan
-    from test_m1_commission_plan import save, approve
+    from test_m1_commission_plan import save, approve, writer
     f=method_commission
     plan=section_plan(f)
     plan['objects'][0]['attributes'][0]['values'].append({
@@ -150,11 +149,7 @@ def test_reversed_quotes_preserve_confirmed_issue_source_order(method_commission
     saved=save(f,plan);approve(f,saved)
     original=f.cs.read(plan_authority.decision_ref(f.ws.store))
     required=original['payload']['required_material_issues'][0]
-    with f.cs.store.connect() as db:
-        task=f.cs._insert(db,f.co,'DelegatedTask',{'role':'writer','goal':'Check slope',
-            'delegated_by':f.co.id,'commission_plan_ref':saved['plan_ref'],
-            'section_ids':['4'],'assessment_object_id':'S1'})
-    actor=Actor('content:writer:'+task['id'],'writer',task['id'])
+    actor = writer(f, saved, section_ids=['4'], assessment_object_id='S1')
     value={k:required[k] for k in ('kind','basis','question')}
     value.update(adopted_value='30 metres from design',affects_level=False)
     value['quotes']=[f.cite('scope')['quote'],f.cite('design')['quote']]

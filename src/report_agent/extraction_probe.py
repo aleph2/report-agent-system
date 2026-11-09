@@ -73,6 +73,7 @@ def prepare(library, case):
         commission_planning_contract='commission-planning-v1',
         source_use=dict(source_ids=list(DOCUMENTS), authorization_origin='Operator-selected O6 physical pages')))
     cs = ContentStore(store)
+    Catalog(store)
     with store.connect() as db:
         # Catalog initialized these new manifest sources with generic text locators.
         # Retain the original physical page numbers for the issued excerpts.

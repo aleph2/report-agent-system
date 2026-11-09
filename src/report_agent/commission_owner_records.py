@@ -1,4 +1,5 @@
 """Immutable pre-run owner authority, separate from proposals and plan approval."""
+from . import commission_imports
 from . import plan_inputs
 from . import legacy_state as legacy
 from . import plan_authority
@@ -123,7 +124,7 @@ def install_owner_records(cs, bundle, source_refs):
     fingerprint = digest(entry)
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        previous = legacy.get_commission_owner_records(db)
+        previous = commission_imports.owner_records(db)
         if previous:
             if previous['digest'] != fingerprint:
                 refuse(None, 'registry', fingerprint, 'owner records are immutable')
@@ -131,14 +132,14 @@ def install_owner_records(cs, bundle, source_refs):
         if plan_inputs.get_skeleton(db) or plan_authority.plan_ref(db) or plan_authority.decision_ref(db) or plan_inputs.get_draft(db, {}).get('revision'):
             refuse(None, 'registry', fingerprint, 'fresh preparation required')
         from .hierarchical_tools import actor_for
-        _validate_sources(cs, db, actor_for('coordinator'), bundle)
-        legacy.set_commission_owner_records(db, {**entry, 'digest': fingerprint})
+        _validate_sources(cs, db, actor_for('coordinator'), bundle, planning=True)
+        commission_imports.save_owner_records(db, {**entry, 'digest': fingerprint})
         db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('owner_records_installed', encode({'digest': fingerprint, 'approved': False})))
     return fingerprint
 
 
 def _registry(cs, db):
-    record = legacy.get_commission_owner_records(db)
+    record = commission_imports.owner_records(db)
     if record:
         if digest({k: record[k] for k in ('bundle', 'source_pins')}) != record['digest']:
             refuse(None, 'registry', record['digest'], 'registry changed')

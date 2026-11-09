@@ -28,16 +28,22 @@ def historical_refs(storage):
             return None, None
         with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
             return historical_refs(db)
-    if storage.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='imported_historical_plan'").fetchone():
-        rows = dict(storage.execute("SELECT kind,ref FROM imported_historical_plan"))
-        return json.loads(rows['CommissionPlan']), json.loads(rows['CommissionDecision'])
-    return legacy.get_commission_plan(storage), legacy.get_commission_confirmation(storage)
+    return (imported_historical_ref(storage, 'CommissionPlan') or legacy.get_commission_plan(storage),
+            imported_historical_ref(storage, 'CommissionDecision') or legacy.get_commission_confirmation(storage))
 
 
-def install_historical_refs(db, plan, decision):
+def imported_historical_ref(db, kind):
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='imported_historical_plan'").fetchone():
+        row = db.execute("SELECT ref FROM imported_historical_plan WHERE kind=?", (kind,)).fetchone()
+        if row:
+            return json.loads(row[0])
+    return None
+
+
+def install_historical_refs(db, plan, decision, *, requirements=None):
     db.execute("CREATE TABLE imported_historical_plan(kind TEXT PRIMARY KEY, ref TEXT NOT NULL)")
     db.executemany("INSERT INTO imported_historical_plan VALUES (?,?)",
-                   [(ref['type'], encode(ref)) for ref in (plan, decision)])
+                   [(ref['type'], encode(ref)) for ref in (plan, decision, requirements) if ref])
 
 
 def _actions(storage, *, live=False):

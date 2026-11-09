@@ -36,9 +36,8 @@ def prepare(ws, prelisted):
     ws.store.set('manifest', {**ws.store.manifest, 'goal': GOAL, 'sources': [
         *ws.store.manifest['sources'],
         {'id': 'g2', 'title': 'Synthetic corrigendum', 'content': ORIGINAL, 'coverage': 'complete'}]})
-    from report_agent.source_use import configure_source_use
-    configure_source_use(ws.store, [s['id'] for s in ws.store.manifest['sources']],
-                         'Original explicit GOAL: all supplied versions for this same question')
+    from test_source_use_authority import approved_policy
+    approved_policy(ws.store, [s['id'] for s in ws.store.manifest['sources']])
     cs, owner, refs, snapshot, _ = seed(ws)
     eligible = cs.capture_sources(owner, 'known-project-original', ['g2'])['result']['source_refs'][0]
     task = review_call(snapshot, refs, id='discover-source-task')
@@ -201,7 +200,7 @@ async def test_foreign_project_source_is_not_discoverable_or_capturable(ws, requ
         capture = save_capture(ws, request, held, checker, originals, task, runtime, error)
     assert error is None, error
     for key in ('read_return', 'capture_return'):
-        assert 'SOURCE_NOT_IN_PROJECT' in json.dumps(held[key]), held[key]
+        assert 'SOURCE_USE_VERSION_NOT_AUTHORIZED' in json.dumps(held[key]), held[key]
     assert foreign_marker not in json.dumps(capture, ensure_ascii=False)
     assert not checker.calls and not cs.list_objects('ReviewRecord')
     assert not [obj for obj in cs.list_objects('SourceArtifact') if obj['payload']['source_id'] == 'foreign-only']

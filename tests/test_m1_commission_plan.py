@@ -69,7 +69,18 @@ def commission(tmp_path):
     return SimpleNamespace(ws=ws, cs=cs, co=co, plan=plan, sources=sources, cite=cite)
 
 
-def writer(fixture, saved, *, section_ids=None, operation='writer-task'):
+def writer(fixture, saved, *, section_ids=None, operation='writer-task', assessment_object_id=None):
+    from report_agent.content_tasks import delegated_task
+    args = {'subagent_type': 'writer', 'section_ids': section_ids or ['4'], 'description': 'Write the agreed sections.'}
+    if assessment_object_id is not None:
+        args['assessment_object_id'] = assessment_object_id
+    with delegated_task(fixture.ws, 'coordinator', {'id': operation, 'name': 'task', 'args': args}) as (_, actor):
+        task = fixture.cs.read({'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})
+        assert task['payload']['commission_plan_ref'] == saved['plan_ref']
+        return actor
+
+
+def unapproved_writer(fixture, saved, *, section_ids=None, operation='writer-task'):
     def register(db):
         return fixture.cs._insert(db, fixture.co, 'DelegatedTask', {
             'role': 'writer', 'goal': 'Write the agreed sections.',
@@ -164,7 +175,7 @@ def test_checkpoint_brief_and_exact_reply_are_idempotent(commission):
 def test_writing_requires_current_plan_and_operator_confirmation(commission, state):
     saved = save(commission)
     checkpoint = api().request_checkpoint(commission.ws)
-    actor = writer(commission, saved)
+    actor = unapproved_writer(commission, saved)
     if state == 'corrections':
         api().reply(commission.ws, checkpoint['issue_id'], {'plan_ref': saved['plan_ref'],
             'approved': False, 'corrections': 'Correct the section source.', 'reductions': []})
@@ -196,7 +207,7 @@ async def test_precheckpoint_text_work_refuses_before_helper_invocation(commissi
     from report_agent import text_work
     from test_bounded_review import Model
     saved = save(commission)
-    actor = writer(commission, saved)
+    actor = unapproved_writer(commission, saved)
     model = Model('{}')
     with pytest.raises((ActionRejected, ActionForbidden), match='(?i)(commission|checkpoint)'):
         await text_work.produce(commission.ws, actor, model, 'premature-text', 'Write chapter 4',

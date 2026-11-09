@@ -10,13 +10,13 @@ import tempfile
 from .blob_store import BlobStore
 from .catalog import Catalog
 from .content_models import refs_in
-from . import legacy_state as legacy, plan_authority, plan_inputs
+from . import commission_assertions, commission_imports, legacy_state as legacy, plan_authority, plan_inputs
 from .content_store import ContentStore
 from .store import Store, digest, encode
 from .workspace import Workspace
 
 BUSINESS_TYPES = frozenset({
-    'PlanSkeleton', 'PlanTextProfiles',
+    'PlanSkeleton', 'PlanTextProfiles', *commission_imports.TYPES,
     'CommissionPlan', 'CommissionDecision', 'CommissionRequirements', 'Requirement', 'SourceArtifact',
 })
 
@@ -83,20 +83,40 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
             if (plan_authority.plan_ref(original) != expected_plan_ref
                     or plan_authority.decision_ref(original) != expected_decision_ref):
                 raise ValueError('PROBE_APPROVED_PIN_MISMATCH')
+            from .commission_requirements import requirements_ref
+            current_requirements = requirements_ref(original)
             original.backup(frozen)
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
             state = legacy.read_probe_business_state(frozen)
             if any(s.get('copied_path') or s.get('original_path') for s in state['manifest']['sources']):
                 raise ValueError('PROBE_MANIFEST_SOURCE_PATH_UNSUPPORTED')
-            authority = state.get('source_use_authority_binding')
-            if authority:
-                key = 'source_use_authority:' + authority
-                row = frozen.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
-                if row is None:
-                    raise ValueError('PROBE_SOURCE_AUTHORITY_MISSING')
-                state[key] = json.loads(row[0])
-            records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref])
+            # Retired state keys from an old source never become authority in a new-format case.
+            state.pop('commission_source_roles', None)
+            state.pop('commission_owner_records', None)
+            legacy_requirements = state.pop('commission_requirements', None)
+            legacy_roles = legacy_owner = None
+            if commission_imports.requires_source_policy(frozen):
+                state.pop('source_use_authority_binding', None)
+                legacy_requirements = None
+            else:
+                legacy_roles = commission_imports.source_roles(frozen)
+                legacy_owner = commission_imports.owner_records(frozen)
+                legacy_requirements = legacy_requirements or plan_authority.imported_historical_ref(frozen, 'CommissionRequirements')
+                authority = state.get('source_use_authority_binding')
+                if authority:
+                    key = 'source_use_authority:' + authority
+                    row = frozen.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
+                    if row is None:
+                        raise ValueError('PROBE_SOURCE_AUTHORITY_MISSING')
+                    state[key] = json.loads(row[0])
+            records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref, legacy_owner])
+            plan = records[('CommissionPlan', expected_plan_ref['id'], expected_plan_ref['version'])]
+            pinned = plan['payload'].get('requirements_ref')
+            if pinned and current_requirements != pinned:
+                raise ValueError('PROBE_APPROVED_REQUIREMENTS_MISMATCH')
+            if legacy_requirements != pinned:
+                legacy_requirements = None
             historical = plan_authority.historical_refs(frozen) == (expected_plan_ref, expected_decision_ref)
             legacy_skeleton = plan_inputs.get_skeleton(frozen) if historical else None
             legacy_profiles = plan_inputs.get_text_profiles(frozen) if historical else None
@@ -130,11 +150,19 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 plan_inputs.save_skeleton(db, legacy_skeleton)
             if legacy_profiles is not None and ('PlanTextProfiles', 'PlanTextProfiles') not in heads:
                 plan_inputs.save_text_profiles(db, legacy_profiles)
-            if historical:
-                plan_authority.install_historical_refs(db, expected_plan_ref, expected_decision_ref)
+            if legacy_roles is not None and ('CommissionSourceRoles', 'CommissionSourceRoles') not in heads:
+                plan_inputs._save('CommissionSourceRoles', db, legacy_roles)
+            if legacy_owner is not None and ('CommissionOwnerRecords', 'CommissionOwnerRecords') not in heads:
+                commission_imports.save_owner_records(db, legacy_owner)
+            if historical or legacy_requirements:
+                plan_authority.install_historical_refs(
+                    db, expected_plan_ref if historical else None, expected_decision_ref if historical else None,
+                    requirements=legacy_requirements)
         if not historical:
             plan_authority.copy_plan_evidence(source, output, records.values(),
                                               plan=expected_plan_ref, decision=expected_decision_ref)
+            commission_assertions.copy_planning_evidence(source, output, records.values(),
+                                                         plan=expected_plan_ref, decision=expected_decision_ref)
 
         source_blobs, copied_blobs = BlobStore(source), BlobStore(output)
         dependencies = {}

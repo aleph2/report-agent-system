@@ -53,13 +53,19 @@ class Catalog:
                     db.execute('INSERT INTO source_blocks VALUES (?, ?, ?, ?)', values)
                 ordinal += 1
 
-    def sources(self):
+    @staticmethod
+    def read_sources(db, manifest):
+        """Read immutable versions in the caller's transaction, including initial manifest files."""
         initial = [{**s, "document_id": s["id"], "replaces_id": "", "limitations": s.get("limitations", [])}
-                   for s in self.store.manifest["sources"]]
-        with self.store.connect() as db:
-            added = [json.loads(r[0]) for r in db.execute("SELECT data FROM source_versions ORDER BY rowid")]
+                   for s in manifest["sources"]]
+        exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_versions'").fetchone()
+        added = [json.loads(r[0]) for r in db.execute("SELECT data FROM source_versions ORDER BY rowid")] if exists else []
         replaced = {s["replaces_id"] for s in added}
         return [{**s, "current": s["id"] not in replaced} for s in initial + added]
+
+    def sources(self):
+        with self.store.connect() as db:
+            return self.read_sources(db, self.store.manifest)
 
     def metadata(self):
         return [{k: v for k, v in s.items() if k != "content"} for s in self.sources()]
@@ -143,11 +149,14 @@ class Catalog:
         if offset < 0 or not 1 <= limit <= 50:
             raise ActionRejected("PAGE_REQUIRES_NONNEGATIVE_OFFSET_AND_LIMIT_1_TO_50")
 
-    def search(self, query, offset=0, limit=10, include_history=False, source_id=None):
+    def search(self, query, offset=0, limit=10, include_history=False, source_id=None, *, allowed_source_ids=None):
         self._page(offset, limit)
         if not query.strip():
             raise ActionRejected("SEARCH_QUERY_REQUIRED")
         sources = self.sources()
+        if allowed_source_ids is not None:
+            allowed = set(allowed_source_ids)
+            sources = [s for s in sources if s["id"] in allowed]
         if source_id is not None:
             sources = [s for s in sources if s["id"] == source_id]
             if not sources:

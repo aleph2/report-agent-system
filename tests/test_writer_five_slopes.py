@@ -12,6 +12,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from report_agent.commission_imports import install_source_roles
 from report_agent.catalog import Catalog
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
@@ -66,7 +67,7 @@ def five(tmp_path, monkeypatch, request):
     pack['weight_tables']=[{'id':'rank-lookup','source':cite('guideline'),
         'rows':[{'indicator_count':11,'weights':WEIGHTS}]}]
     register_reviewed_method_pack(store,pack,'Hand-derived synthetic acceptance oracle; no engineering judgments claimed.')
-    store.set('commission_source_roles',{name:{'id':name,'purpose':'commission' if name=='scope' else 'source_or_applicable_standard'} for name in texts})
+    install_source_roles(store, {name:{'id':pdf_id if name == 'design' else name,'purpose':'commission' if name=='scope' else 'source_or_applicable_standard'} for name in texts})
     plan = {'sections':[{'section_id':'4','title':'Assessment','kind':'extracted','outline':cite('outline'),'sources':[cite('design')]},
         {'section_id':'5','title':'Conclusion','kind':'derived','outline':cite('outline'),'sources':[cite('design')],
             'derived_from':['4'],'rule':'Summarize section 4 canonical assessments.'}],

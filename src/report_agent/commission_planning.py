@@ -1,5 +1,5 @@
 """Source-bound planning steps; reviewed data stays on the server."""
-from . import plan_inputs
+from . import commission_assertions, commission_imports, plan_inputs
 from . import legacy_state as legacy
 from copy import deepcopy
 import re
@@ -14,7 +14,7 @@ from .table_spec import TableSpec, validate_table_specs
 from .commission_plan import (_state, _set, _citations, ScopeBoundary, SourceSubstitution,
                               Reconciliation, ResultBinding, LiteralReplacement, SourceView)
 from .store import digest
-from .commission_requirements import Capability
+from .commission_requirements import Capability, publish_interpretation, save_revision
 from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventoryObject, PlanningSubstitution,
     PlanningReconciliationInput, resolve_citations, model_value, reject, expose, metres)
 
@@ -211,11 +211,8 @@ def install_classifications(cs, classifications, review_note):
             existing[value['anchor_id']] = entry
         if existing == record['payload'].get('classifications', {}):
             return record['ref']
-        ref = cs._insert(db, Actor('host', 'host', 'commission-classification'), 'CommissionRequirements',
-                         {**record['payload'], 'classifications': existing}, id=record['ref']['id'],
-                         version=record['ref']['version'] + 1, previous_ref=record['ref'])
-        legacy.set_commission_requirements(db, ref)
-        return ref
+        return save_revision(cs, db, Actor('host', 'host', 'commission-classification'),
+                             record['ref'], {**record['payload'], 'classifications': existing})
 
 
 def classified_item(cs, db, record, item):
@@ -343,7 +340,7 @@ def entry_plan_gaps(cs, db, item, plan):
 
 def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=False):
     from .commission_requirements import read_requirements, _write_items
-    if actor.role != 'coordinator':
+    if actor.role != 'coordinator' or actor.id != 'content:coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     def save(db):
         if plan_inputs.get_skeleton(db):
@@ -356,7 +353,10 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
         item.update(change)
         ref = _write_items(cs, db, actor, previous, items, relink_anchor=anchor_id if relink else None)
         return {'requirements_ref': ref, 'changed': ref != previous['ref']}
-    return cs.operation(actor, operation_id, {'anchor_id': anchor_id, 'change': change, 'relink': relink}, save)
+    result = cs.operation(actor, operation_id, {'anchor_id': anchor_id, 'change': change, 'relink': relink}, save)
+    if result['result']['changed']:
+        publish_interpretation(cs, actor, operation_id, result['result']['requirements_ref'])
+    return result
 
 
 def set_requirement_status(cs, actor, operation_id, anchor_id, status, interpretation, capabilities=None):
@@ -680,12 +680,12 @@ def save_item(cs, actor, operation_id, kind, item):
             basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
             value = boundary
         from .commission_owner_records import decorate_plan, refuse
-        if legacy.get_commission_owner_records(db):
+        if commission_imports.owner_records(db):
             if kind == 'section':
                 value = decorate_plan(cs, db, {'sections': [value], 'objects': []})['sections'][0]
             if kind == 'substitution' and not value.get('substitution', {}).get('document_id'):
                 refuse(value.get('section_id'), 'source_substitutions', value.get('substitution', {}).get('requested_source', 'unknown'), 'document ID required')
-        resolutions = resolve_citations(cs, db, actor, value, kind)
+        resolutions = resolve_citations(cs, db, actor, value, kind, planning=True)
         if kind in models:
             value = model_value(models[kind], value, kind).model_dump(mode='json')
         elif kind == 'substitution':
@@ -696,7 +696,7 @@ def save_item(cs, actor, operation_id, kind, item):
             value = model_value(SectionJudgment, value, 'section_judgment').model_dump(mode='json', exclude_unset=True)
         elif kind != 'disposition':
             raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
-        _validate_sources(cs, db, actor, value)
+        _validate_sources(cs, db, actor, value, planning=True)
         key = (value['section_id'] if kind in ('section', 'section_judgment') else value['object_id'] if kind in ('object', 'disposition') else
                kind if kind in ('details', 'boundary') else
                value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
@@ -756,11 +756,10 @@ def requirement_lines(cs, db, record):
 def request_requirements_checkpoint(workspace, operation_id=None, actor=None):
     from .content_store import ContentStore, Actor
     from .commission_requirements import read_requirements
-    from uuid import uuid4
-    from .store import encode
+    from .plan_authority import stable_id
     cs = ContentStore(workspace.store)
     actor = actor or Actor('content:coordinator', 'coordinator', 'content-task:coordinator')
-    if actor.role != 'coordinator':
+    if actor.role != 'coordinator' or actor.id != 'content:coordinator':
         raise ActionForbidden('FORBIDDEN: requirement checkpoint belongs to coordinator')
     operation_id = operation_id or 'requirements-checkpoint:' + digest(read_requirements(cs)['ref'])
     def create(db):
@@ -773,16 +772,9 @@ def request_requirements_checkpoint(workspace, operation_id=None, actor=None):
         relative = 'outputs/requirements-checkpoint-' + digest(record['ref']) + '.md'
         description = 'Resolve commission requirements ' + digest(record['ref']) + '. Brief: ' + relative
         source_ids = [cs._read(db, p['ref'])['payload']['source_id'] for p in record['payload']['source_pins']]
-        issues = legacy.get_report_issues(db, [])
-        issue = next((i for i in issues if i['category'] == 'requirement' and i['description'] == description and i['source_ids'] == source_ids), None)
-        if issue is None:
-            issue = {'id': str(uuid4()), 'category': 'requirement', 'description': description, 'source_ids': source_ids, 'resolved': False}
-            legacy.set_report_issues(db, [*issues, issue])
-            _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)
-            db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('issue_recorded', encode({'issue_id': issue['id'], 'category': 'requirement'})))
+        identity = stable_id(actor, 'requirements-checkpoint', record['ref'])
         checkpoint = {'requirements_ref': record['ref'], 'anchor_ids': pending, 'brief_path': relative}
-        legacy.set_commission_requirements_checkpoint(db, issue['id'], checkpoint)
-        return {'issue_id': issue['id'], **checkpoint, 'description': description, 'source_ids': source_ids}
+        return {'issue_id': identity, **checkpoint, 'description': description, 'source_ids': source_ids}
     checkpoint = cs.operation(actor, operation_id, {}, create)['result']
     record = read_requirements(cs, checkpoint['requirements_ref'])
     pending, identity = checkpoint['anchor_ids'], checkpoint['issue_id']
@@ -809,6 +801,10 @@ def request_requirements_checkpoint(workspace, operation_id=None, actor=None):
         'classification_note': 'For unclassified items, supply either eligible reviewed entry_ids or ordinary capabilities, with a written basis. Never type computational capabilities; choose reviewed entries. This decision does not approve a plan.',
         'decision_schema': RequirementDecision.model_json_schema()}
     path.with_suffix('.json').write_text(json.dumps(sidecar, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    commission_assertions.ask_checkpoint(workspace.store, actor, identity, 'requirements', identity,
+        {k: checkpoint[k] for k in ('requirements_ref', 'anchor_ids', 'brief_path')})
+    from .commission_plan import project_checkpoint_issue
+    project_checkpoint_issue(workspace.store, identity, checkpoint['description'], checkpoint['source_ids'])
     return checkpoint
 
 
@@ -833,18 +829,22 @@ def reply_requirements(workspace, issue_id, decision):
     cs = ContentStore(workspace.store)
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        checkpoint = legacy.get_commission_requirements_checkpoint(db, issue_id)
+        checkpoint = commission_assertions.checkpoint(db, 'requirements', issue_id)
         issues = legacy.get_report_issues(db, [])
         issue = next((i for i in issues if i['id'] == issue_id), None)
         if not issue or not checkpoint or checkpoint['requirements_ref'] != decision['requirements_ref']:
             raise ActionRejected('REQUIREMENTS_CHECKPOINT_REPLY_STALE')
         answer = encode(decision)
-        if issue.get('decision_origin') == 'operator':
+        answered = commission_assertions.checkpoint_answer(db, 'requirements', issue_id)
+        historical = legacy.get_commission_requirements_checkpoint(db, issue_id)
+        if issue.get('decision_origin') == 'operator' and (historical or
+                answered and issue.get('requirements_result_ref') == answered):
             if issue.get('decision') != answer:
                 raise ActionRejected('REQUIREMENTS_CHECKPOINT_ALREADY_ANSWERED')
             return issue
-        record = read_requirements(cs, db=db)
-        if record['ref'] != decision['requirements_ref']:
+        owner = Actor('operator', 'operator', 'requirements-checkpoint:' + issue_id)
+        record = read_requirements(cs, decision['requirements_ref'], db=db)
+        if not answered and read_requirements(cs, db=db)['ref'] != record['ref']:
             raise ActionRejected('REQUIREMENTS_CHECKPOINT_REPLY_STALE')
         selected = [r['anchor_id'] for r in decision['resolutions']]
         if len(set(selected)) != len(selected) or not set(selected) <= set(checkpoint['anchor_ids']):
@@ -864,9 +864,28 @@ def reply_requirements(workspace, issue_id, decision):
                     raise ActionRejected('REQUIREMENTS_CLASSIFICATION_TARGET_MISMATCH')
                 value = _classifications(cs, db, record, [resolution['classification']], note)[0]
                 payload.setdefault('classifications', {})[identity] = {**value, 'origin': 'operator', 'issue_id': issue_id, 'note': note}
-        ref = cs._insert(db, Actor('operator', 'operator', 'requirements-checkpoint:' + issue_id), 'CommissionRequirements', payload,
-                         id=record['ref']['id'], version=record['ref']['version'] + 1, previous_ref=record['ref'])
-        legacy.set_commission_requirements(db, ref)
+        def prepare(db):
+            return {'requirements_ref': save_revision(cs, db, owner, record['ref'], payload)}
+        db.commit()
+        try:
+            prepared = cs.operation(owner, 'requirements-owner:' + issue_id, decision, prepare)
+        except ActionRejected as exc:
+            if str(exc) == 'OPERATION_CONFLICT':
+                raise ActionRejected('REQUIREMENTS_CHECKPOINT_ALREADY_ANSWERED') from exc
+            raise
+        ref = prepared['result']['requirements_ref']
+        current = read_requirements(cs)['ref']
+        answered = commission_assertions.checkpoint_answer(workspace.store, 'requirements', issue_id)
+        if current != decision['requirements_ref'] and answered != ref:
+            raise ActionRejected('REQUIREMENTS_CHECKPOINT_REPLY_STALE')
+        commission_assertions.answer_checkpoint(workspace.store, owner, issue_id, 'requirements', issue_id, ref)
+        db.execute('BEGIN IMMEDIATE')
+        issues = legacy.get_report_issues(db, [])
+        issue = next(i for i in issues if i['id'] == issue_id)
+        if issue.get('requirements_result_ref') == ref and issue.get('decision_origin') == 'operator':
+            if issue.get('decision') != answer:
+                raise ActionRejected('REQUIREMENTS_CHECKPOINT_ALREADY_ANSWERED')
+            return issue
         issue.update(decision=answer, decision_origin='operator', resolved=True, requirements_result_ref=ref)
         legacy.set_report_issues(db, issues)
         _set(db, 'context_revision', _state(db, 'context_revision', 0) + 1)

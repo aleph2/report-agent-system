@@ -1,5 +1,4 @@
 """Offline, scripted Coordinator and owner for the hash-pinned synthetic Writer verification case."""
-from . import legacy_state as legacy
 from . import plan_authority
 import hashlib
 import json
@@ -86,9 +85,12 @@ def prepare_mini_commission(inputs, destination):
         catalog = Catalog(store)
         ids = {name:catalog.import_file(name, data)['source']['id'] for name,data in sources.items()}
         ids[METHOD_SOURCE_NAME] = 'system-method'
+        from .source_use import configure_source_use
+        configure_source_use(store, list(ids.values()), "Files supplied in the mini commission")
         captured = cs.import_inputs(co,'mini-capture',list(ids.values()))['result']['source_refs']
         refs = {name:ref for name,ref in zip(ids,captured,strict=True)}
-        legacy.set_commission_source_roles(store, {n:{'id':sid,'purpose':'commission' if n=='00_scope.md'
+        from report_agent.commission_imports import install_source_roles
+        install_source_roles(store, {n:{'id':sid,'purpose':'commission' if n=='00_scope.md'
                   else 'template' if n=='08_template.docx' else 'source_or_applicable_standard'} for n,sid in ids.items()})
         plan, requirements_ref = _plan(ws, cs, co, ids, refs, catalog, method)
         plan_ref = save_plan(cs,co,'mini-scripted-plan',plan)['result']['plan_ref']

@@ -5,7 +5,6 @@ import pytest
 from pydantic import ValidationError
 
 from report_agent import writer_assessment as api
-from report_agent.content_store import Actor
 from report_agent.errors import ActionForbidden, ActionRejected
 from test_m1_commission_plan import approve, save, writer
 from test_m1_g3_integration import method_commission
@@ -16,12 +15,7 @@ def assigned(method_commission):
     f=method_commission
     f.ws.store.set('manifest',{**f.ws.store.manifest,'assembly_contract':'system-assembler-v1'})
     saved=save(f);approve(f,saved)
-    prior=writer(f,saved,section_ids=['4'])
-    payload=deepcopy(f.cs.read({'type':'DelegatedTask','id':prior.task_id,'version':1})['payload'])
-    payload['assessment_object_id']='S1'
-    def register(db):return f.cs._insert(db,f.co,'DelegatedTask',payload)
-    task=f.cs.operation(f.co,'host-assessment-assignment',{},register)['result']
-    f.actor=Actor('content:writer:'+task['id'],'writer',task['id'])
+    f.actor = writer(f, saved, section_ids=['4'], assessment_object_id='S1', operation='host-assessment-assignment')
     f.plan_ref=saved['plan_ref']
     return f
 

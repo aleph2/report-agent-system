@@ -132,7 +132,7 @@ def quote_locations(rows, quote):
     return result
 
 
-def resolve_citations(cs, db, actor, value, root):
+def resolve_citations(cs, db, actor, value, root, *, planning=False):
     changes = []
     for path, citation in citation_paths(value, root):
         source = cs._read(db, citation['source_ref'])
@@ -140,7 +140,7 @@ def resolve_citations(cs, db, actor, value, root):
             reject(path + '.source_ref', 'source_artifact_required')
         from .deliverables import source_authority
         try:
-            source_authority(cs, db, actor, [source])
+            source_authority(cs, db, actor, [source], planning=planning)
         except ActionRejected as error:
             reject(path + '.source_ref', str(error))
         rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal', (source['payload']['source_id'],)))

@@ -85,40 +85,25 @@ def get_commission_requirements(storage, default=_MISSING):
     return _get(storage, COMMISSION_REQUIREMENTS_KEY, default)
 
 
-def set_commission_requirements(storage, value):
-    _set(storage, COMMISSION_REQUIREMENTS_KEY, value)
-
-
 def get_commission_requirements_checkpoint(storage, suffix, default=_MISSING):
     return _get(storage, 'commission_requirements_checkpoint:' + suffix, default)
 
 
-def set_commission_requirements_checkpoint(storage, suffix, value):
-    _set(storage, 'commission_requirements_checkpoint:' + suffix, value)
+def get_commission_source_roles(storage, default=None):
+    from .commission_imports import source_roles
+    return source_roles(storage, default)
 
 
-def get_commission_source_roles(storage, default=_MISSING):
+def historical_commission_source_roles(storage, default=_MISSING):
     return _get(storage, 'commission_source_roles', default)
-
-
-def set_commission_source_roles(storage, value):
-    _set(storage, 'commission_source_roles', value)
 
 
 def get_commission_owner_records(storage, default=_MISSING):
     return _get(storage, COMMISSION_OWNER_RECORDS_KEY, default)
 
 
-def set_commission_owner_records(storage, value):
-    _set(storage, COMMISSION_OWNER_RECORDS_KEY, value)
-
-
 def get_commission_checkpoint(storage, suffix, default=_MISSING):
     return _get(storage, 'commission_checkpoint:' + suffix, default)
-
-
-def set_commission_checkpoint(storage, suffix, value):
-    _set(storage, 'commission_checkpoint:' + suffix, value)
 
 
 def get_report_issues(storage, default=_MISSING):

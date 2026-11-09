@@ -48,10 +48,10 @@ def test_content_failure_rolls_back_native_proposal_and_owner_act(commission):
     fail_on('CommissionDecision')
     with pytest.raises(sqlite3.IntegrityError, match='injected failure'):
         approve(commission, saved)
-    assert plan_authority.decision_ref(cs.store) is None and count() == 1
+    assert plan_authority.decision_ref(cs.store) is None and count() == 2  # proposal and unanswered checkpoint
     unhook()
     approve(commission, saved)
-    assert confirmed_records(commission)[0]['ref'] == saved['plan_ref'] and count() == 2
+    assert confirmed_records(commission)[0]['ref'] == saved['plan_ref'] and count() == 4  # plus owner answer and approval
 
 
 def test_superseded_plan_copy_keeps_only_the_selected_approval(commission, tmp_path_factory):
@@ -77,8 +77,7 @@ def test_superseded_plan_copy_keeps_only_the_selected_approval(commission, tmp_p
         assert copied._read(db, first['plan_ref']) == previous_plan
     with sqlite3.connect(case / 'assertions.sqlite3') as db:
         actions = dict(db.execute('SELECT id,action FROM assertions'))
-    assert set(actions.values()) == {'record_convention', 'confirm'}
-    assert len(actions) == 3
+    assert sorted(actions.values()) == ['ask', 'confirm', 'decide', 'record_convention', 'record_convention']
     assert actions[plan_action_id(commission, 'record_convention', previous_plan['ref'])] == 'record_convention'
     assert plan_action_id(commission, 'confirm', previous_decision['ref']) not in actions
     assert not (case / 'assertion-access.sqlite3').exists()
@@ -118,7 +117,9 @@ def test_owner_confirmation_keeps_pinned_input_version(commission):
         revised = plan_inputs.save_text_profiles(db, {"template": "revised"})
     assert revised != ref
     plan, decision = confirmed_records(commission)
-    assert plan["plan_input_refs"] == [ref]
+    from report_agent.commission_imports import frozen_refs
+    with commission.cs.store.connect() as db:
+        assert plan["plan_input_refs"] == [ref, *frozen_refs(db)]
     assert commission.cs.read(ref)["payload"] == {"template": "original"}
     assert decision["payload"]["plan_ref"] == saved["plan_ref"]
 

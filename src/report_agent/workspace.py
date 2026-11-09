@@ -538,6 +538,12 @@ class Workspace:
             issue = next((i for i in issues if i["id"] == issue_id), None)
             if issue is None:
                 raise ActionRejected("ISSUE_NOT_IN_PROJECT")
+            from . import commission_assertions
+            if issue["category"] == "requirement" and any(
+                commission_assertions.checkpoint(self.store, kind, issue_id)
+                for kind in ("plan", "requirements")
+            ):
+                raise ActionRejected("TYPED_CHECKPOINT_REQUIRES_COMMISSION_REPLY")
             if issue.get("decision") == message and issue["resolved"] == resolved:
                 return issue
             issue.update(decision=message, resolved=resolved, decision_origin="operator")

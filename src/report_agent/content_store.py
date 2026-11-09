@@ -615,6 +615,13 @@ class ContentStore:
         if target_ref["type"] == "DocumentSnapshot" and any(ref["type"] in PRIVATE_INPUT_TYPES for ref in refs):
             raise ActionForbidden("FORBIDDEN: snapshot contains private plan inputs")
         items = [self.read(r) for r in refs[offset:offset + limit]]
+        sources = [item['ref'] for item in items if item['ref']['type'] == 'SourceArtifact']
+        for item in items:
+            if item['ref']['type'] == 'Evidence':
+                sources.extend(item['payload']['source_refs'])
+        if sources:
+            from .source_use import check_source_read
+            check_source_read(self, lambda: actor, source_refs=sources)
         return self.observe(actor, {"target_ref": target_ref, "objects": items, "loaded_refs": refs[offset:offset + limit],
             "total": len(refs), "next_offset": offset + limit if offset + limit < len(refs) else None,
             "unreturned_refs": refs[:offset] + refs[offset + limit:]})

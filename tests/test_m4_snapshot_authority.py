@@ -15,6 +15,14 @@ from test_m1_g4_requirements import anchored, required_case, method_commission
 
 @pytest.mark.parametrize(("case_fixture", "preexisting"), [("commission", False), ("required_case", False), ("commission", True)])
 def test_snapshot_preflight_refuses_withdrawn_owner_confirmation(request, case_fixture, preexisting, monkeypatch):
+    if preexisting:
+        # Model an original pre-M5 case, which has no commission intake record.
+        from report_agent import plan_inputs
+        save_input = plan_inputs._save
+        def historical_input(kind, *args, **kwargs):
+            if kind != 'CommissionSourceManifest':
+                return save_input(kind, *args, **kwargs)
+        monkeypatch.setattr(plan_inputs, '_save', historical_input)
     case = request.getfixturevalue(case_fixture)
     if preexisting:
         # A plan version created before input pins were introduced may still be proposed today.

@@ -71,10 +71,19 @@ def test_matching_title_or_claimed_hash_cannot_replace_frozen_identity(alias_com
 def test_irrelevant_capture_metadata_does_not_change_guideline_identity(alias_commission):
     f = alias_commission
     metadata = deepcopy(f.cs.read(f.alias)['payload']['source_metadata'])
-    metadata.update(title='Another captured name for the same synthetic guideline', current=False)
+    metadata.update(current=False)
     alias = variant(f, 'source_metadata', metadata)
     f.applied['sources'][1]['source_ref'] = alias
     assert persist(f, f.actor, f.assessment)['assessment_ref']['type'] == 'Assessment'
+
+
+def test_changed_title_is_a_different_frozen_source_version(alias_commission):
+    f = alias_commission
+    metadata = {**f.cs.read(f.alias)['payload']['source_metadata'], 'title': 'Changed after owner approval'}
+    f.applied['sources'][1]['source_ref'] = variant(f, 'source_metadata', metadata)
+    with pytest.raises(ActionRejected, match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
+        persist(f, f.actor, f.assessment)
+    assert not f.cs.list_objects('Assessment')
 
 
 def test_guideline_alias_in_section_sources_cannot_satisfy_project_facts(alias_commission):
@@ -106,15 +115,18 @@ def test_guideline_alias_does_not_admit_template_or_commission_as_facts(alias_co
 
 
 def test_guideline_alias_does_not_expand_host_source_authorization(alias_commission):
-    from report_agent.content_tasks import delegated_task
-    from report_agent.source_use import configure_source_use
+    from report_agent.catalog import Catalog
     f = alias_commission
-    configure_source_use(f.ws.store, ['design'], 'Synthetic owner permits design only for this new task.')
-    call = {'name': 'task', 'id': 'restricted-writer', 'args': {'subagent_type': 'writer',
-        'section_ids': ['4'], 'description': 'Assess only within the exact host source grant.'}}
-    with delegated_task(f.ws, 'coordinator', call) as (_, actor):
-        with pytest.raises((ActionRejected, ActionForbidden), match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
-            persist(f, actor, f.assessment)
+    # A newly catalogued copy can have identical guideline text but was not enrolled
+    # in the source set the owner approved for this plan.
+    text = f.cs.read(f.alias)['payload']['content']
+    other_id = Catalog(f.ws.store).import_file('extra-guideline.txt', text.encode())['source']['id']
+    other = f.cs.capture_sources(f.co, 'new-guideline-copy', [other_id])['result']['source_refs'][0]
+    source = f.applied['sources'][1]
+    source['source_ref'] = other
+    source['locator'] = Catalog(f.ws.store).read(other_id, 0, 1)['blocks'][0]['locator']
+    with pytest.raises((ActionRejected, ActionForbidden), match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
+        persist(f, f.actor, f.assessment)
     assert not f.cs.list_objects('Assessment')
 
 

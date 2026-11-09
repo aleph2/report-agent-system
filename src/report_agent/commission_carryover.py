@@ -131,7 +131,7 @@ def install_carryover(cs, package, source_refs):
             return fingerprint
         if not plan_inputs.get_skeleton(db) or plan_inputs.get_draft(db, {}).get('revision') or plan_authority.plan_ref(db) or plan_authority.decision_ref(db):
             raise ActionRejected('CARRYOVER_FRESH_SKELETON_REQUIRED')
-        _validate_sources(cs, db, actor_for('coordinator'), mapped)
+        _validate_sources(cs, db, actor_for('coordinator'), mapped, planning=True)
         items, proposals = {}, []
         def add(kind, target, original, index=0):
             identity = kind + ':' + target

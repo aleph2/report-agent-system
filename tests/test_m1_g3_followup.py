@@ -481,8 +481,10 @@ def test_approved_confirmation_checklist_is_exact_durable_and_rules_only(method_
         assert spec['table_type'] in text and digest(spec) in text
     assert '复用范围：规则与表式；不复用历史报告数值。' in text
     assert api().read_plan(fixture.cs.store)['confirmation_checklist_path'] == str(relative)
-    state = fixture.cs.store.get('commission_checkpoint:' + checkpoint['issue_id'])
-    assert state['confirmation_checklist_path'] == str(relative)
+    question = api().commission_assertions.checkpoint(fixture.cs.store, 'plan', checkpoint['issue_id'])
+    assert question['plan_ref'] == saved['plan_ref']
+    answered = next(i for i in fixture.cs.store.get('report_issues') if i['id'] == checkpoint['issue_id'])
+    assert answered['confirmation_checklist_path'] == str(relative)
     actor = writer(fixture, saved)
     assessment = persistence_input(fixture)
     assessment['method_version'] = 2
@@ -493,6 +495,49 @@ def test_approved_confirmation_checklist_is_exact_durable_and_rules_only(method_
     assert replay['confirmation_checklist_path'] == str(relative)
     assert path.read_bytes() == original  # Newly saved report values never enter the reusable checklist.
     assert len(fixture.cs.list_objects('CommissionDecision')) == before_count == 1
+
+
+def test_plan_question_is_durable_before_exposing_owner_wait(method_commission, monkeypatch):
+    f = method_commission
+    ref = save(f, synthetic_pilot_plan(f))['plan_ref']
+    before = f.ws.store.get('report_issues', [])
+    with monkeypatch.context() as patch:
+        def interrupt(*args):
+            raise RuntimeError('before native question')
+        patch.setattr(api().commission_assertions, 'ask_checkpoint', interrupt)
+        with pytest.raises(RuntimeError, match='before native question'):
+            api().request_checkpoint(f.ws)
+    assert f.ws.store.get('report_issues', []) == before
+    issued = api().request_checkpoint(f.ws)
+    assert api().request_checkpoint(f.ws)['issue_id'] == issued['issue_id']
+    assert api().commission_assertions.checkpoint(f.ws.store, 'plan', issued['issue_id'])['plan_ref'] == ref
+    assert f.ws.store.get('commission_checkpoint:' + issued['issue_id']) is None
+
+
+def test_owner_brief_names_planning_only_source_versions_and_report_scope(method_commission):
+    from report_agent import commission_imports
+    f = method_commission
+    invalid = deepcopy(f.plan)
+    invalid['sections'].append(invalid['sections'][0])
+    with pytest.raises(ActionRejected, match='COMMISSION_DUPLICATE_OBJECT_OR_SECTION'):
+        save(f, invalid, 'before-intake-is-complete')
+    assert commission_imports.source_policy_ref(f.ws.store) is None
+    from report_agent.catalog import Catalog
+    extra = Catalog(f.ws.store).import_file('supplement.txt', b'Supplement supplied during preparation.')['source']
+    roles = commission_imports.source_roles(f.ws.store)
+    commission_imports.install_source_roles(f.ws.store,
+        {**roles, 'supplement': {'id': extra['id'], 'purpose': 'design'}})
+    ref = save(f, synthetic_pilot_plan(f))['plan_ref']
+    pinned = commission_imports.source_policy_ref(f.ws.store)
+    assert pinned in f.cs.read(ref)['plan_input_refs']
+    checkpoint = api().request_checkpoint(f.ws)
+    brief = (f.ws.store.root / checkpoint['brief_path']).read_text(encoding='utf-8')
+    assert '提交的资料当前仅用于规划' in brief
+    assert '拟纳入对象：' + '、'.join(o['object_id'] for o in f.cs.read(ref)['payload']['objects'] if o['included']) in brief
+    versions = f.cs.read(pinned)['payload']['versions']
+    assert extra['id'] in {row['source_id'] for row in versions}
+    for row in versions:
+        assert row['source_id'] + ' / ' + row['immutable_version_digest'] in brief
 
 
 def test_declined_checkpoint_never_emits_approved_confirmation_checklist(method_commission):

@@ -191,7 +191,9 @@ def test_approvable_requires_current_submitted_complete_checkpoint(tmp_path, mon
     if condition == "stale-requirements": checkpoint["requirements_ref"]["version"] = 2
     if condition != "missing-brief": (tmp_path/"brief.md").write_text("synthetic checkpoint")
     state = {"report_issues":[issue]}
-    if condition != "no-checkpoint": state["commission_checkpoint:i"] = checkpoint
+    from report_agent import commission_assertions
+    monkeypatch.setattr(commission_assertions, "checkpoint", lambda store, kind, issue_id:
+                        checkpoint if (kind, issue_id) == ("plan", "i") and condition != "no-checkpoint" else None)
     store = SimpleNamespace(root=tmp_path,get=lambda key,default=None:state.get(key,default))
     monkeypatch.setattr(ContentStore,"__init__",lambda self,store:None)
     monkeypatch.setattr(cp,"read_plan",lambda store:None if condition=="draft-only" else {"ref":ref,"payload":plan})

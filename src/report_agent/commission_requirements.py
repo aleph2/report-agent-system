@@ -1,5 +1,5 @@
 """Source-owned commission anchors and one authority check, independent of plans."""
-from . import plan_inputs
+from . import commission_imports, plan_inputs
 from . import legacy_state as legacy
 from io import BytesIO
 import re
@@ -10,10 +10,9 @@ from pydantic import Field
 from .content_models import Contract, Ref
 from .content_store import Actor
 from .errors import ActionForbidden, ActionRejected
-from .store import digest
+from .store import Store, digest
 
 CONTRACT = 'commission-requirements-v1'
-KEY = legacy.COMMISSION_REQUIREMENTS_KEY
 Capability = Literal['method_pack', 'weight_binding', 'table_specs', 'scope_boundary',
     'inventory_reconciliation', 'section', 'fixed_text', 'result_bindings', 'inventory',
     'deliverables', 'material_issues', 'source_priority', 'assumptions']
@@ -199,12 +198,50 @@ def extract_anchors(cs, scope_ref, outline_ref):
     return result
 
 
+def requirements_ref(storage, default=None):
+    """Select a host-prepared version, a published interpretation, or an owner's answer."""
+    from . import commission_assertions, plan_authority
+    if isinstance(storage, Store):
+        with storage.connect() as db:
+            return requirements_ref(db, default)
+    db = storage
+    historical = (legacy.get_commission_requirements(db)
+                  or plan_authority.imported_historical_ref(db, 'CommissionRequirements'))
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='content_versions'").fetchone():
+        return historical or default
+    published = None
+    rows = db.execute("""SELECT id,version,json_extract(data,'$.owner_id') FROM content_versions
+                         WHERE type='CommissionRequirements' ORDER BY version DESC""")
+    for identity, version, owner in rows:
+        ref = {'type': 'CommissionRequirements', 'id': identity, 'version': version}
+        if ref == historical or owner == 'host':
+            return ref
+        if published is None:
+            published = commission_assertions.requirements_results(db)
+        if (identity, version) in published:
+            return ref
+    return historical or default
+
+
+def save_revision(cs, db, actor, previous, payload):
+    # An independently committed version can await publication. Never reuse its number.
+    version = db.execute("SELECT max(version) FROM content_versions WHERE type=? AND id=?",
+                         (previous['type'], previous['id'])).fetchone()[0] + 1
+    return cs._insert(db, actor, 'CommissionRequirements', payload, id=previous['id'],
+                      version=version, previous_ref=previous)
+
+
+def publish_interpretation(cs, actor, operation_id, ref):
+    from .commission_assertions import record_interpretation
+    if cs.read(ref)['owner_id'] == actor.id:
+        record_interpretation(cs.store, actor, operation_id, ref)
+
+
 def read_requirements(cs, ref=None, *, db=None):
-    from .commission_plan import _state
     if db is None:
         with cs.store.connect() as connection:
             return read_requirements(cs, ref, db=connection)
-    ref = ref or legacy.get_commission_requirements(db)
+    ref = ref or requirements_ref(db)
     if not ref:
         raise ActionRejected('COMMISSION_REQUIREMENTS_REQUIRED')
     if Ref.model_validate(ref).type != 'CommissionRequirements':
@@ -220,7 +257,7 @@ def install_requirements(cs, scope_ref, outline_ref):
     pins = [{'ref': r, 'file_digest': _source(cs, r)['file_digest']} for r in refs]
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        old = legacy.get_commission_requirements(db)
+        old = requirements_ref(db)
         if old:
             payload = cs._read(db, old)['payload']
             if payload['source_pins'] != pins or payload['anchors'] != anchors:
@@ -230,16 +267,14 @@ def install_requirements(cs, scope_ref, outline_ref):
             'items': [{'anchor_id': a['id'], 'status': 'unresolved',
                        'interpretation': 'Awaiting source-linked interpretation', 'capabilities': []} for a in anchors]}
         ref = cs._insert(db, Actor('host', 'host', 'commission-requirements'), 'CommissionRequirements', payload)
-        legacy.set_commission_requirements(db, ref)
         _set(db, 'manifest', {**_state(db, 'manifest'), 'commission_requirements_contract': CONTRACT})
         return ref
 
 
 def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
-    from .commission_plan import _state, _set
     from .commission_planning import classified_item, enabled as planning_enabled
-    requirements_ref = previous['ref']
-    if legacy.get_commission_requirements(db) != requirements_ref:
+    previous_ref = previous['ref']
+    if requirements_ref(db) != previous_ref:
         raise ActionRejected('COMMISSION_REQUIREMENTS_VERSION_STALE')
     items = [RequirementItem.model_validate(i).model_dump() for i in items]
     old = {i['anchor_id']: i for i in previous['payload']['items']}
@@ -268,23 +303,23 @@ def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
                 and not planning_enabled(cs.store)):
             raise ActionRejected('COMMISSION_REQUIREMENTS_CAPABILITY_REQUIRED')
     if items == previous['payload']['items']:
-        return requirements_ref
-    payload = {**previous['payload'], 'items': items}
-    ref = cs._insert(db, actor, 'CommissionRequirements', payload, id=requirements_ref['id'],
-                     version=requirements_ref['version'] + 1, previous_ref=requirements_ref)
-    legacy.set_commission_requirements(db, ref)
-    return ref
+        return previous_ref
+    return save_revision(cs, db, actor, previous_ref, {**previous['payload'], 'items': items})
 
 
 def propose_requirements(cs, actor, operation_id, requirements_ref, items):
-    if actor.role != 'coordinator':
+    if actor.role != 'coordinator' or actor.id != 'content:coordinator':
         raise ActionForbidden('FORBIDDEN: requirement interpretation belongs to coordinator')
     items = [RequirementItem.model_validate(i).model_dump() for i in items]
     def save(db):
         previous = read_requirements(cs, requirements_ref, db=db)
         ref = _write_items(cs, db, actor, previous, items)
         return {'requirements_ref': ref}
-    return cs.operation(actor, operation_id, {'requirements_ref': requirements_ref, 'items': items}, save)
+    result = cs.operation(actor, operation_id, {'requirements_ref': requirements_ref, 'items': items}, save)
+    ref = result['result']['requirements_ref']
+    if ref != requirements_ref:
+        publish_interpretation(cs, actor, operation_id, ref)
+    return result
 
 
 def check_plan(cs, plan, requirements_ref=None, *, db=None):
@@ -312,7 +347,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
             for anchor in anchors:
                 if anchor['source']['source_ref'] == pin['ref']:
                     gap(anchor, 'source_pins', 'SOURCE_PIN_MISMATCH', 'Requirement source version no longer matches its frozen hash')
-    if (record['ref'] != legacy.get_commission_requirements(db) or plan.get('requirements_ref') != record['ref']):
+    if (record['ref'] != read_requirements(cs, db=db)['ref'] or plan.get('requirements_ref') != record['ref']):
         gap(anchors[0], 'requirements_ref', 'REQUIREMENTS_VERSION', 'Use the current complete requirement record')
     sections = {s.get('section_id'): s for s in plan.get('sections', [])}
     for section in sections.values():
@@ -388,7 +423,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                                or not set(section.get('derived_from', [])) <= sections.keys()
                                or identity in section.get('derived_from', []))
                 if capability in ('fixed_text', 'result_bindings'):
-                    roles = legacy.get_commission_source_roles(db, {})
+                    roles = commission_imports.source_roles(db, {})
                     templates = {r['id'] for r in roles.values() if r.get('purpose') == 'template'}
                     sources = section.get('sources', [])
                     missing = (missing or not sources or any(
@@ -472,9 +507,18 @@ def require_snapshot(cs, db, snapshot):
 def export_preflight(cs, actor, snapshot_ref, deliverable):
     """Export replay grants authority too; reading an old artifact remains separate."""
     from .commission_plan import enabled as checkpoint_enabled
-    if enabled(cs.store) or checkpoint_enabled(cs.store):
-        with cs.store.connect() as db:
-            if deliverable is not None:
-                from .deliverables import resolve_snapshot
-                snapshot_ref = resolve_snapshot(cs, db, actor, deliverable)
-            require_snapshot(cs, db, cs._read(db, snapshot_ref))
+    from . import commission_imports
+    from .deliverables import resolve_snapshot, source_authority
+    commission_checks = enabled(cs.store) or checkpoint_enabled(cs.store)
+    with cs.store.connect() as db:
+        source_checks = commission_imports.requires_source_policy(db) or commission_imports.source_policy_ref(db) is not None
+        if not commission_checks and not source_checks:
+            return
+        if deliverable is not None:
+            snapshot_ref = resolve_snapshot(cs, db, actor, deliverable)
+        record = cs._read(db, snapshot_ref)
+        if commission_checks:
+            require_snapshot(cs, db, record)
+        if source_checks:
+            payload = record['payload']
+            source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)

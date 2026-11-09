@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from report_agent.commission_imports import install_source_roles, source_roles
 from report_agent import plan_authority, plan_inputs
 from report_agent.errors import ActionRejected, ActionForbidden
 from test_m1_commission_plan import api
@@ -272,9 +273,9 @@ def fixed_case(entries, request):
         pages = ["SYNTHETIC HEADER\n8 Other section\nNot the required title."]
     f.template_ref = capture(f, "j2-actual-template.pdf", pdf_bytes(pages), "j2-template")
     payload = f.cs.read(f.template_ref)["payload"]
-    roles = deepcopy(f.cs.store.get("commission_source_roles"))
+    roles = deepcopy(source_roles(f.cs.store))
     roles["j2-template"] = {"id": payload["source_id"], "purpose": "template"}
-    f.cs.store.set("commission_source_roles", roles)
+    install_source_roles(f.cs.store, roles)
     planning().install_text_profile(f.cs, {"id": "j2-template-profile", "source_ref": f.template_ref,
         "file_digest": payload["file_digest"], "header_lines": ["SYNTHETIC HEADER"],
         "footer_lines": [], "page_number_offset": 0, "join_lines": "paragraph"})
@@ -562,9 +563,9 @@ def derived_template_case(entries, request):
     ref = capture(f, "j2-derived-template.pdf", pdf_bytes(pages), "j2-derived-template")
     f.template_ref = ref
     payload = f.cs.read(ref)["payload"]
-    roles = deepcopy(f.cs.store.get("commission_source_roles"))
+    roles = deepcopy(source_roles(f.cs.store))
     roles["j2-derived-template"] = {"id": payload["source_id"], "purpose": "template"}
-    f.cs.store.set("commission_source_roles", roles)
+    install_source_roles(f.cs.store, roles)
     planning().install_text_profile(f.cs, {"id": "j2-derived-profile", "source_ref": ref,
         "file_digest": payload["file_digest"], "header_lines": ["SYNTHETIC HEADER"],
         "footer_lines": [], "page_number_offset": 0, "join_lines": "paragraph"})
@@ -658,17 +659,13 @@ def test_fresh_plan_can_submit_through_judgment_tools_without_hidden_details(der
     assert not plan_authority.decision_ref(f.cs.store)
     anchor = next((a for a in f.anchors if "本委托的重要性顺序" in a["source"]["quote"]), None)
     if anchor:
-        from report_agent.content_store import Actor
         from report_agent.writer_assessment import read_indicator_step
         from test_m1_commission_plan import writer
         from test_m1_g4_requirements import confirm
         assert saved["indicator_rank_order"] == {"indicator_ids": ["B", "A", "D", "C"], "source": anchor["source"]}
         confirm(f, receipt["result"], ref=saved["requirements_ref"])
-        prior = writer(f, receipt["result"], section_ids=["4"])
-        task = deepcopy(f.cs.read({"type":"DelegatedTask","id":prior.task_id,"version":1})["payload"])
-        task["assessment_object_id"] = f.plan["objects"][0]["object_id"]
-        ref = f.cs.operation(f.co, "ranked-slope", {}, lambda db: f.cs._insert(db,f.co,"DelegatedTask",task))["result"]
-        actor = Actor("content:writer:"+ref["id"],"writer",ref["id"])
+        actor = writer(f, receipt["result"], section_ids=["4"], operation="ranked-slope",
+                       assessment_object_id=f.plan["objects"][0]["object_id"])
         step = read_indicator_step(f.cs, actor)
         assert (step["indicator_id"], step["rank"], step["rank_basis"]) == ("A", 2, anchor["source"]["quote"])
 
@@ -845,9 +842,9 @@ Do not consume this chapter."""
     ref = capture(f, "j2-composed-template.pdf", pdf_bytes([body]), "j2-composed-template")
     f.template_ref = ref
     payload = f.cs.read(ref)["payload"]
-    roles = deepcopy(f.cs.store.get("commission_source_roles"))
+    roles = deepcopy(source_roles(f.cs.store))
     roles["j2-composed-template"] = {"id": payload["source_id"], "purpose": "template"}
-    f.cs.store.set("commission_source_roles", roles)
+    install_source_roles(f.cs.store, roles)
     planning().install_text_profile(f.cs, {"id": "j2-composed-profile", "source_ref": ref,
         "file_digest": payload["file_digest"], "header_lines": [], "footer_lines": [],
         "page_number_offset": 0, "join_lines": "paragraph"})

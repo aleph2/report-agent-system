@@ -2,6 +2,7 @@
 from . import plan_inputs
 from . import legacy_state as legacy
 from . import plan_authority
+from .commission_requirements import requirements_ref
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
@@ -20,7 +21,7 @@ KEY = 'commission_planning_rejections'
 
 def fingerprint(workspace):
     with workspace.store.connect() as db:
-        return [legacy.get_commission_requirements(db), plan_authority.plan_ref(db),
+        return [requirements_ref(db), plan_authority.plan_ref(db),
                 plan_inputs.get_draft(db)]
 
 

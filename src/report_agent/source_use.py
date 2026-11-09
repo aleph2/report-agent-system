@@ -4,8 +4,9 @@ This is not source discovery, relevance selection, or an Agent grant tool.
 """
 import json
 
+from . import commission_imports
 from .errors import ActionForbidden, ActionRejected
-from .store import digest, encode
+from .store import digest
 
 
 def validate_declaration(value, source_ids=None):
@@ -34,68 +35,150 @@ def _commission(store):
     return digest({k: value.get(k) for k in ('report_id', 'goal', 'scope_instruction', 'report_category')})
 
 
-def _policy(store, ref):
-    value = store.get('source_use_authority:' + ref)
-    if (not value or digest(value) != ref or value.get('contract') != 'source-use-v1'
-            or value.get('commission_binding') != _commission(store)):
+def _policy(store, ref, db=None):
+    from .content_store import ContentStore
+    if isinstance(ref, dict):
+        if db is None:
+            with store.connect() as connection:
+                return _policy(store, ref, connection)
+        if 'planning_inputs' in ref:
+            return _supplied_policy(store, db, ref['planning_inputs'])
+        if ref != commission_imports.source_policy_ref(db):
+            raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
+        value = ContentStore._read(db, ref)['payload']
+    else:
+        value = store.get('source_use_authority:' + ref)
+        if not value or digest(value) != ref:
+            raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
+    if value.get('contract') != 'source-use-v1' or value.get('commission_binding') != _commission(store):
         raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
     return value
 
 
 def configure_source_use(store, source_ids, authorization_origin):
-    """Trusted host API. Same declaration is idempotent, never re-enrolls versions."""
+    """Freeze the explicitly supplied versions; final report authority comes from plan approval."""
     declaration = validate_declaration(dict(source_ids=source_ids, authorization_origin=authorization_origin))
-    prior = store.get('source_use_authority_binding')
+    prior = commission_imports.source_policy_ref(store)
+    if not prior and not commission_imports.requires_source_policy(store):
+        prior = store.get('source_use_authority_binding')  # Reopening a historical case.
     if prior:
         policy = _policy(store, prior)
         if policy['declaration'] != declaration:
             raise ActionRejected('SOURCE_USE_AUTHORITY_IMMUTABLE')
         return prior
+    return commission_imports.install_source_policy(store, _version_policy(store, declaration))
+
+
+def _version_policy(store, declaration, db=None):
+    from .catalog import Catalog
     from .content_store import ContentStore
-    sources = store.sources(declaration['source_ids'])
+    if db is None:
+        with store.connect() as connection:
+            return _version_policy(store, declaration, connection)
+    manifest = json.loads(db.execute("SELECT value FROM state WHERE key='manifest'").fetchone()[0])
+    available = {s['id']: s for s in Catalog.read_sources(db, manifest)}
+    ids = declaration['source_ids']
+    if not set(ids) <= available.keys():
+        raise ActionRejected('SOURCE_NOT_IN_PROJECT')
+    sources = [available[source_id] for source_id in ids]
     if any(not s.get('current', True) for s in sources):
         raise ActionRejected('SOURCE_USE_VERSION_NOT_CURRENT')
-    policy = {'contract': 'source-use-v1', 'commission_binding': _commission(store),
+    return {'contract': 'source-use-v1', 'commission_binding': _commission(store),
               'declaration': declaration,
               'versions': [{'source_id': s['id'],
                             'source_payload_digest': digest(ContentStore.source_payload(s)),
                             'immutable_version_digest': immutable_version_digest(ContentStore.source_payload(s))} for s in sources]}
-    ref = digest(policy)
-    with store.connect() as db:
-        db.execute('BEGIN IMMEDIATE')
+
+
+def _supplied_inputs(db):
+    return [r for r in commission_imports.frozen_refs(db)
+            if r['type'] in ('CommissionSourceManifest', 'CommissionSourceRoles')]
+
+
+def _supplied_policy(store, db, refs):
+    from .content_store import ContentStore
+    declaration = store.get('manifest', {}).get('source_use')
+    if declaration:
+        # If preparation stopped after committing an explicit subset, it still bounds planning.
+        return _version_policy(store, validate_declaration(declaration), db)
+    ids = set()
+    for ref in refs:
+        payload = ContentStore._read(db, ref)['payload']
+        if ref['type'] == 'CommissionSourceManifest':
+            ids.update(item['id'] for item in payload['sources'])
+        elif ref['type'] == 'CommissionSourceRoles':
+            ids.update(item['id'] for item in payload.values())
+    return _version_policy(store, {'source_ids': sorted(ids), 'authorization_origin': 'Supplied commission files'}, db)
+
+
+def freeze_supplied_sources(store, *, db=None):
+    """Freeze supplied files in the same case transaction that stores the proposal version."""
+    if db is None:
+        with store.connect() as connection:
+            connection.execute('BEGIN IMMEDIATE')
+            return freeze_supplied_sources(store, db=connection)
+    ref = commission_imports.source_policy_ref(db)
+    if ref or not commission_imports.requires_source_policy(db):
+        return ref
+    return commission_imports.save_source_policy(db, _supplied_policy(store, db, _supplied_inputs(db)))
+
+
+def _planning_binding(store, db, *, planning=True):
+    ref = commission_imports.source_policy_ref(db)
+    if not ref:
+        if commission_imports.requires_source_policy(db):
+            if planning:
+                return {'planning_inputs': _supplied_inputs(db)}
+            raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED')
         row = db.execute("SELECT value FROM state WHERE key='source_use_authority_binding'").fetchone()
-        if row and json.loads(row[0]) != ref:
-            raise ActionRejected('SOURCE_USE_AUTHORITY_IMMUTABLE')
-        db.execute('INSERT OR IGNORE INTO state VALUES (?,?)', ('source_use_authority:' + ref, encode(policy)))
-        db.execute('INSERT OR IGNORE INTO state VALUES (?,?)', ('source_use_authority_binding', encode(ref)))
-    return ref
-
-
-def report_binding(store):
-    ref = store.get('source_use_authority_binding')
+        ref = json.loads(row[0]) if row else None
     if ref:
-        _policy(store, ref)
-    elif store.manifest.get('source_use') is not None:
+        _policy(store, ref, db)
+    elif store.get('manifest', {}).get('source_use') is not None:
         raise ActionRejected('SOURCE_USE_DECLARED_BUT_UNBOUND')
     return ref
 
 
+def report_binding(store, *, db=None, snapshot=None):
+    from . import plan_authority
+    from .content_store import ContentStore
+    if db is None:
+        with store.connect() as connection:
+            return report_binding(store, db=connection, snapshot=snapshot)
+    ref = _planning_binding(store, db, planning=False)
+    if isinstance(ref, dict):
+        # Only a genuine, currently approved proposal can authorize these host inputs.
+        pins = {}
+        if snapshot is not None:
+            pins = {'plan': snapshot.get('commission_plan_ref'), 'decision': snapshot.get('commission_confirmation_ref')}
+            if not all(pins.values()):
+                raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED')
+        try:
+            plan, _ = plan_authority.confirmed_refs(db, **pins)
+        except ActionRejected as error:
+            raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED') from error
+        inputs = ContentStore._read(db, plan).get('plan_input_refs', [])
+        scope = [r for r in commission_imports.frozen_refs(db) if r['type'] == 'CommissionSourceManifest']
+        if not plan_authority.has_proposal(db, plan) or any(r not in inputs for r in [ref, *scope]):
+            raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED')
+    return ref
+
+
 def resolve_source_use_binding(workspace, actor):
-    active = report_binding(workspace.store)
-    if actor is None:
-        if active:
-            raise ActionForbidden('FORBIDDEN: source use requires actual actor')
-        return None
-    if actor.role == 'coordinator':
+    if actor is not None and actor.role == 'coordinator':
         from .hierarchical_tools import actor_for
         if actor != actor_for('coordinator'):
             raise ActionForbidden('FORBIDDEN: source use coordinator identity')
-        return active
-    if actor.role not in {'writer', 'reviewer', 'layout'} or actor.id != 'content:' + actor.role + ':' + actor.task_id:
+        with workspace.store.connect() as db:
+            return _planning_binding(workspace.store, db)
+    active = report_binding(workspace.store)
+    if actor is None or actor.role not in {'writer', 'reviewer', 'layout'} or actor.id != 'content:' + actor.role + ':' + actor.task_id:
         if active:
-            raise ActionForbidden('FORBIDDEN: source use task identity')
+            raise ActionForbidden('FORBIDDEN: source use requires actual task identity')
         return None
     ref = workspace.store.get('source_use_task_binding:' + actor.task_id)
+    if isinstance(active, dict) and active != ref:
+        raise ActionForbidden('FORBIDDEN: task lacks the approved source policy')
     if active or ref:
         from .content_tasks import bound_actor
         if bound_actor(workspace, actor.role, None) != actor:
@@ -106,28 +189,52 @@ def resolve_source_use_binding(workspace, actor):
         if task['payload']['role'] != actor.role:
             raise ActionForbidden('FORBIDDEN: source use task role')
         _policy(workspace.store, ref)
-    return ref  # Missing legacy task binding never inherits a later report grant.
+    return ref
 
 
 def validate_source_versions(workspace, actor, source_ids=(), source_refs=(), materials=()):
     ref = resolve_source_use_binding(workspace, actor)
     if not ref:
         return None
+    _check_versions(workspace, _policy(workspace.store, ref), source_ids, source_refs, materials)
+    return ref
+
+
+def check_source_read(workspace, actor_for_read, source_ids=(), source_refs=()):
+    """Apply the M5 selection at agent read tools. An implicit search covers just its allowed IDs."""
+    with workspace.store.connect() as db:
+        if not (commission_imports.source_policy_ref(db) or commission_imports.requires_source_policy(db)):
+            return None
+    ref = resolve_source_use_binding(workspace, actor_for_read())
+    policy = _policy(workspace.store, ref)
+    if source_ids is None:
+        source_ids = [entry['source_id'] for entry in policy['versions']]
+    _check_versions(workspace, policy, source_ids, source_refs, ())
+    return source_ids
+
+
+def _check_versions(workspace, policy, source_ids, source_refs, materials):
     from .content_store import ContentStore
     cs = ContentStore(workspace.store)
-    policy = _policy(workspace.store, ref)
     eligible = {v['source_id']: v for v in policy['versions']}
-    payloads = [cs.source_payload(s) for s in workspace.store.sources(list(source_ids))]
+    payloads = []
     for source_ref in source_refs:
         obj = cs.read(source_ref)
         if obj['ref']['type'] != 'SourceArtifact':
             raise ActionRejected('SOURCE_USE_REQUIRES_SOURCE_ARTIFACT')
         payloads.append(obj['payload'])
+    ids = set(source_ids) | {m['source_id'] for m in materials} | {p['source_id'] for p in payloads}
+    if not ids <= eligible.keys():
+        raise ActionRejected('SOURCE_USE_VERSION_NOT_AUTHORIZED')
+    if not ids:
+        return
+    current_payloads = {s['id']: cs.source_payload(s) for s in workspace.store.sources(list(ids))}
+    payloads.extend(current_payloads[i] for i in source_ids)
     # Full saved payloads are required; metadata-only compiler representations
     # cannot stand in for originals. A replacement never inherits its old ID.
     for payload in payloads:
         enrolled = eligible.get(payload['source_id'])
-        current = cs.source_payload(workspace.store.sources([payload['source_id']])[0])
+        current = current_payloads[payload['source_id']]
         if (not enrolled or immutable_version_digest(payload) != enrolled['immutable_version_digest']
                 or digest(payload) not in {enrolled['source_payload_digest'], digest(current)}):
             raise ActionRejected('SOURCE_USE_VERSION_NOT_AUTHORIZED')
@@ -135,11 +242,10 @@ def validate_source_versions(workspace, actor, source_ids=(), source_refs=(), ma
         enrolled = eligible.get(material['source_id'])
         if not enrolled:
             raise ActionRejected('SOURCE_USE_VERSION_NOT_AUTHORIZED')
-        current = cs.source_payload(workspace.store.sources([material['source_id']])[0])
+        current = current_payloads[material['source_id']]
         if (immutable_version_digest(current) != enrolled['immutable_version_digest'] or
                 material['source_payload_digest'] not in {enrolled['source_payload_digest'], digest(current)}):
             raise ActionRejected('SOURCE_USE_VERSION_NOT_AUTHORIZED')
-    return ref
 
 
 def validate_observation_sources(workspace, actor, observation):

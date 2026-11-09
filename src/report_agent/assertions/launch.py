@@ -137,16 +137,45 @@ class Commission:
 
     def import_plan_actions(self, directory, select):
         """Restore a business-only case's plan actions with their original receipts."""
+        self._import_actions(directory, lambda db: select(self._plan_snapshot(db, True)), {
+            ("record_convention", "coordinator"), ("confirm", "owner"), ("retract", "owner")})
+
+    @staticmethod
+    def _planning_rows(db, subject=None):
+        from .queries import assertion_states
+        rows = db.execute("""SELECT id,action,body FROM assertions WHERE (
+            (action='record_convention' AND role='coordinator' AND body ->> '$.claim.scope'='commission_requirements')
+            OR (body ->> '$.subject' GLOB 'commission-checkpoint/*' AND
+                ((action='ask' AND role='coordinator') OR (action='decide' AND role='owner'))))
+            AND (? IS NULL OR body ->> '$.subject' = ?) ORDER BY rowid""", (subject, subject)).fetchall()
+        if not rows:
+            return []
+        states = assertion_states(db)
+        return [(action, json.loads(body), states[identity]) for identity, action, body in rows]
+
+    @staticmethod
+    def planning_actions(directory, subject=None):
+        path = Path(directory).resolve() / "assertions.sqlite3"
+        if not path.is_file():
+            return []
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
+            db.execute("BEGIN")
+            return Commission._planning_rows(db, subject)
+
+    def import_planning_actions(self, directory, select):
+        self._import_actions(directory, lambda db: select(self._planning_rows(db)), {
+            ("record_convention", "coordinator"), ("ask", "coordinator"), ("decide", "owner")})
+
+    def _import_actions(self, directory, select, permitted):
         from .export import _restore_record
         path = Path(directory).resolve() / "assertions.sqlite3"
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as source, self._store.transaction() as db:
             source.execute("BEGIN")
-            for assertion in select(self._plan_snapshot(source, True)):
+            for assertion in select(source):
                 row = source.execute("""SELECT a.body,a.action,a.role,a.snapshot,o.binding,o.digest
                     FROM assertions a JOIN operations o ON a.body=o.result WHERE a.id=? AND o.id=?""",
                     (assertion["id"], assertion["operation_id"])).fetchone()
-                if not row or (row[1], row[2]) not in (
-                        ("record_convention", "coordinator"), ("confirm", "owner"), ("retract", "owner")):
+                if not row or (row[1], row[2]) not in permitted:
                     raise ValueError("Missing plan action for business import")
                 _restore_record(self._store, db, {
                     "assertion": json.loads(row[0]), "action": row[1], "role": row[2],

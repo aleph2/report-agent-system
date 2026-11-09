@@ -6,7 +6,6 @@ import pytest
 from pydantic import ValidationError
 
 from report_agent import writer_assessment as api
-from report_agent.content_store import Actor
 from report_agent.errors import ActionRejected
 from test_m1_commission_plan import approve, save, writer
 from test_m1_g3_integration import method_commission
@@ -21,10 +20,12 @@ def attach_ranks(f):
 def make_assignment(f):
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     from report_agent.catalog import Catalog
+    from report_agent.commission_imports import source_roles, install_source_roles
     from test_ingestion import pdf_bytes
     from support.judgment_inputs import install_test_judgment_inputs
     f.evidence_quote = 'S1 survey records the synthetic observation.'
     source = Catalog(f.ws.store).import_file('S1-survey.pdf', pdf_bytes([f.evidence_quote]))['source']
+    install_source_roles(f.ws.store, {**source_roles(f.ws.store), 'S1-survey': {'id': source['id'], 'purpose': 'survey'}})
     ref, = f.cs.capture_sources(f.co, 'survey-capture', [source['id']])['result']['source_refs']
     citation = dict(source_ref=ref, locator='page 1', quote=f.evidence_quote)
     next(section for section in f.plan['sections'] if section['section_id'] == '4')['sources'].append(citation)
@@ -33,11 +34,7 @@ def make_assignment(f):
     approve(f, saved)
     f.plan_ref = saved['plan_ref']
     install_test_judgment_inputs(f, 'S1', source['id'], 1, f.evidence_quote)
-    prior = writer(f, saved, section_ids=['4'])
-    task = deepcopy(f.cs.read({'type': 'DelegatedTask', 'id': prior.task_id, 'version': 1})['payload'])
-    task['assessment_object_id'] = 'S1'
-    ref = f.cs.operation(f.co, 'assign-indicators', {}, lambda db: f.cs._insert(db, f.co, 'DelegatedTask', task))['result']
-    f.actor = Actor('content:writer:' + ref['id'], 'writer', ref['id'])
+    f.actor = writer(f, saved, section_ids=['4'], assessment_object_id='S1', operation='assign-indicators')
     return f
 
 

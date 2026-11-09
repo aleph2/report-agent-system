@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
 from report_agent import plan_authority
+from report_agent.commission_requirements import requirements_ref
 from report_agent import commission_plan, commission_planning, deep_runtime
 from report_agent.errors import ActionRejected
 from report_agent.store import Store, encode
@@ -38,7 +39,7 @@ def approval(fixture):
     # Existing trusted approval boundary; never fabricate a confirmation record.
     commission_plan.reply(fixture.ws, checkpoint['issue_id'], {
         'plan_ref': plan_authority.plan_ref(fixture.ws.store),
-        'requirements_ref': fixture.ws.store.get('commission_requirements'),
+        'requirements_ref': requirements_ref(fixture.ws.store),
         'approved': True, 'corrections': '', 'reductions': [],
     })
     return checkpoint
@@ -187,7 +188,7 @@ async def test_old_owner_confirmation_cannot_finish_after_current_version_change
     approval(f)
     old_confirmation = plan_authority.decision_ref(f.ws.store)
     old_plan = plan_authority.plan_ref(f.ws.store)
-    old_requirements = f.ws.store.get('commission_requirements')
+    old_requirements = requirements_ref(f.ws.store)
     if changed == 'plan':
         revised = deepcopy(commission_planning.read_draft(f.cs, f.co)['plan'])
         revised['open_questions'].append('A newly recorded factual question requires owner review.')
@@ -198,7 +199,7 @@ async def test_old_owner_confirmation_cannot_finish_after_current_version_change
         items = deepcopy(record['payload']['items'])
         items[0]['interpretation'] += ' A revised interpretation awaits owner review.'
         commission_requirements.propose_requirements(f.cs, f.co, 'h33-revised-requirements', record['ref'], items)
-        assert f.ws.store.get('commission_requirements') != old_requirements
+        assert requirements_ref(f.ws.store) != old_requirements
     assert f.cs.read(old_confirmation)['payload']['approved'] is True
     with f.cs.store.connect() as db:
         with pytest.raises(ActionRejected):

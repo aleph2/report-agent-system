@@ -3,10 +3,11 @@ from copy import deepcopy
 import hashlib
 import pytest
 from report_agent.content_store import Actor
+from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.catalog import Catalog
 from report_agent.store import digest
-from report_agent import writer_assignments as api
+from report_agent import commission_imports, writer_assignments as api
 from test_m1_g3_integration import method_commission
 from test_m1_commission_plan import save, approve
 from test_ingestion import pdf_bytes
@@ -21,6 +22,9 @@ def assigned(method_commission, request):
     texts = ['Unrelated K3+100', '', 'Drawing K1p250', 'Drawing K1 + 350'] + [''] * (inventory_page - 5) + [old_text]
     data = pdf_bytes(texts)
     source = Catalog(f.ws.store).import_file('design.pdf', data)['source']
+    roles = commission_imports.source_roles(f.ws.store)
+    commission_imports.install_source_roles(f.ws.store, {**roles, 'design.pdf': {
+        'id': source['id'], 'purpose': 'source_or_applicable_standard'}})
     ref = f.cs.capture_sources(f.co, 'pdf-design', [source['id']])['result']['source_refs'][0]
     citation = {'source_ref': ref, 'locator': 'page ' + str(inventory_page), 'quote': old_text}
     def replace(value):
@@ -35,24 +39,25 @@ def assigned(method_commission, request):
         alias = f.cs.capture_sources(f.co, 'pdf-alias', [source['id']])['result']['source_refs'][0]
         f.pdf_alias_ref = alias
         f.plan['objects'][0]['sources'].append({**citation, 'source_ref': alias})
-        guide = deepcopy(f.cs.read(f.sources['guideline'])['payload'])
-        guide['source_metadata']['title'] = 'design'
+        quote = f.cite('guideline')['quote']
+        guide_source = Catalog(f.ws.store).import_file('design.txt', quote.encode())['source']
+        commission_imports.install_source_roles(f.ws.store, {**commission_imports.source_roles(f.ws.store),
+            'design.txt': {'id': guide_source['id'], 'purpose': 'source_or_applicable_standard'}})
+        alias_guide = f.cs.capture_sources(f.co, 'same-title-guide', [guide_source['id']])['result']['source_refs'][0]
         with f.ws.store.connect() as db:
-            alias_guide = f.cs._insert(db, f.co, 'SourceArtifact', guide)
-        f.plan['objects'][0]['sources'].append({**f.cite('guideline'), 'source_ref': alias_guide})
+            locator, = db.execute('SELECT locator FROM source_blocks WHERE source_id=? ORDER BY ordinal LIMIT 1',
+                                  (guide_source['id'],)).fetchone()
+        f.plan['objects'][0]['sources'].append({'source_ref': alias_guide, 'locator': locator, 'quote': quote})
     if "Owner rank order: B, A, D, C." in f.cs.read(f.sources['scope'])['payload']['content']:
         from test_writer_indicator_outcomes import attach_ranks
         attach_ranks(f)
     saved = save(f); approve(f, saved)
-    def register(db):
-        return f.cs._insert(db, f.co, 'DelegatedTask', {
-            'role': 'writer', 'goal': 'Assess the assigned slope.', 'delegated_by': f.co.id,
-            'commission_plan_ref': saved['plan_ref'], 'section_ids': ['4'],
-            'assessment_object_id': 'S1'})
-    task = f.cs.operation(f.co, 'assignment-task', {}, register)['result']
-    f.actor = Actor('content:writer:' + task['id'], 'writer', task['id'])
     f.plan_ref, f.pdf_ref, f.pdf_source_id = saved['plan_ref'], ref, source['id']
-    return f
+    call = {'name': 'task', 'id': 'assignment-task', 'args': {
+        'subagent_type': 'writer', 'description': 'Assess the assigned slope.',
+        'section_ids': ['4'], 'assessment_object_id': 'S1'}}
+    with delegated_task(f.ws, 'coordinator', call) as (_, f.actor):
+        yield f
 
 
 def pdf_entry(f, packet):

@@ -13,7 +13,7 @@ _LEGACY_READERS = {
 }
 
 
-PRIVATE_INPUT_TYPES = frozenset(_LEGACY_READERS)
+PRIVATE_INPUT_TYPES = frozenset(_LEGACY_READERS) | {"CommissionSourceRoles", "CommissionOwnerRecords", "CommissionSourceUsePolicy", "CommissionSourceManifest"}
 
 
 def _head(db, kind):
@@ -68,4 +68,5 @@ def frozen_refs(db):
             value = _LEGACY_READERS[kind](db)
             if value is not None:
                 refs.append(_save(kind, db, value))
-    return refs
+    from . import commission_imports
+    return refs + commission_imports.frozen_refs(db)

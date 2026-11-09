@@ -290,7 +290,7 @@ def test_typed_runtime_feedback_reads_via_existing_optimizer_without_dispatch(ws
 @pytest.mark.parametrize('variant',['authorized-new','same-bytes-alias','ungranted','changed-version','wrong-target','legacy-child'])
 def test_host_material_condition_keeps_original_source_authority(ws,variant):
     from report_agent.catalog import Catalog
-    from report_agent.source_use import configure_source_use
+    from test_source_use_authority import approved_policy
     from report_agent.execution_progress import _condition
     from report_agent.content_tasks import delegated_task
     from test_bounded_review import review_call
@@ -301,7 +301,11 @@ def test_host_material_condition_keeps_original_source_authority(ws,variant):
         with delegated_task(ws,'coordinator',review_call(snapshot,refs)) as (_,actor):
             from report_agent.execution_progress import _scope
             old_scope=_scope(ws,'reviewer')
-    configure_source_use(ws.store,['s',extra],'Direct fixture authorization of exact supplied versions')
+    if variant=='legacy-child':
+        from test_source_use_authority import historical_policy
+        historical_policy(ws.store, ['s', extra])
+    else:
+        approved_policy(ws.store, ['s', extra])
     if variant=='changed-version':
         extra=Catalog(ws.store).import_file('changed-fixture.txt',b'Unapproved changed evidence.',replaces_id=extra)['source']['id']
     if variant=='ungranted':
@@ -523,12 +527,12 @@ async def test_first_sent_attempt_then_local_cap_refusal_remains_unknown(tmp_pat
 
 def test_new_source_id_with_same_file_bytes_is_not_a_recovery_condition(ws):
     from report_agent.catalog import Catalog
-    from report_agent.source_use import configure_source_use
+    from test_source_use_authority import approved_policy
     from report_agent.execution_progress import _condition
     cs,owner,refs,snapshot,all_refs=seed(ws)
     first=Catalog(ws.store).import_file('first-copy.txt',b'Identical supplied fixture file.')['source']['id']
     duplicate=Catalog(ws.store).import_file('second-copy.txt',b'Identical supplied fixture file.')['source']['id']
-    configure_source_use(ws.store,['s',first,duplicate],'Direct fixture authorization of these exact files')
+    approved_policy(ws.store, ['s', first, duplicate])
     original=cs.capture_sources(owner,'first-file',[first])['result']['source_refs'][0]
     alias=cs.capture_sources(owner,'second-file',[duplicate])['result']['source_refs'][0]
     containing=cs.freeze(owner,'with-first-file',refs['root'],[*all_refs,original])['result']['snapshot_ref']
@@ -585,7 +589,7 @@ def test_recovery_condition_receipt_requires_exact_final_wire(ws,delivered):
 
 def test_actor_received_material_outside_snapshot_is_not_new_condition(ws):
     from report_agent.catalog import Catalog
-    from report_agent.source_use import configure_source_use
+    from test_source_use_authority import approved_policy
     from report_agent.execution_progress import _condition
     from report_agent.source_materials import issue,block_material
     from report_agent.summary_recovery import capture
@@ -593,7 +597,7 @@ def test_actor_received_material_outside_snapshot_is_not_new_condition(ws):
     native(ws);manifest=ws.store.manifest;manifest['context_policy']='stateful-tools-v2';ws.store.set('manifest',manifest)
     cs,owner,refs,snapshot,_=seed(ws)
     extra=Catalog(ws.store).import_file('already-received.txt',b'Authorized material already returned to this task.')['source']['id']
-    configure_source_use(ws.store,['s',extra],'Direct fixture authority')
+    approved_policy(ws.store, ['s', extra])
     page=Catalog(ws.store).read(extra,0,10);text=json.dumps(page,ensure_ascii=False)
     receipt=issue(ws,owner,'read_source_page',text,block_material(page))
     ai=AIMessage('',id='actual-source-decision',tool_calls=[{'id':'source-call','name':'read_source_page','args':{'source_id':extra,'offset':0,'limit':10}}],response_metadata={'finish_reason':'tool_calls'})

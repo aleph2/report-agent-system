@@ -1,4 +1,5 @@
 """Offline regression for commission conventions across the two Writer handoff routes."""
+from report_agent.commission_imports import install_source_roles, source_roles
 from report_agent.catalog import Catalog
 from report_agent.content_tasks import delegated_task
 from report_agent.prompt_sources import NATIVE_REVIEW
@@ -14,9 +15,9 @@ def test_both_writer_routes_preserve_the_same_confirmed_customer_record(method_c
     ref = f.cs.capture_sources(f.co, 'capture-supplement', [source['id']])['result']['source_refs'][0]
     with f.ws.store.connect() as db:
         locator = db.execute('SELECT locator FROM source_blocks WHERE source_id=?', (source['id'],)).fetchone()[0]
-    roles = f.ws.store.get('commission_source_roles')
+    roles = source_roles(f.ws.store)
     roles['supplement'] = {'id': source['id'], 'purpose': 'commission'}
-    f.ws.store.set('commission_source_roles', roles)
+    install_source_roles(f.ws.store, roles)
     citation = {'source_ref': ref, 'locator': locator, 'quote': scope}
     f.plan['conventions'].append({'interpretation': scope, 'source': citation})
     f.plan['indicator_rank_order']={'indicator_ids':['D','C','B','A'], 'source':citation}

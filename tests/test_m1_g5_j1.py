@@ -6,6 +6,8 @@ from importlib import import_module
 import pytest
 from pydantic import ValidationError
 
+from report_agent.commission_imports import owner_records
+from report_agent.commission_requirements import requirements_ref
 from report_agent import plan_authority
 from report_agent.errors import ActionForbidden, ActionRejected
 from test_m1_commission_plan import api, save
@@ -210,11 +212,11 @@ def test_owner_registry_installation_requires_fresh_case(owner_case, key, monkey
 
 def test_owner_registry_does_not_expand_source_permissions(owner_case):
     f = owner_case
-    before = deepcopy(f.cs.store.get('source_use_authority:' + f.source_binding))
+    before = deepcopy(f.cs.read(f.source_binding))
     f.owner_bundle['substitutions'] = [substitution(f)]
     f.owner_bundle['records'] = [owner('substitution_authorization', 'doc-general', {'section_ids': ['4']})]
     _, plan = install(f)
-    assert f.cs.store.get('source_use_authority:' + f.source_binding) == before
+    assert f.cs.read(f.source_binding) == before
     target = next(s for s in plan['sections'] if s['section_id'] == '4')
     assert api().unresolved_sources(target) == []
 
@@ -295,10 +297,10 @@ def test_host_prepares_separate_owner_file_without_treating_it_as_source_documen
     import report_agent.commission_skeleton as skeleton_api
     calls = []
     def skeleton(contents, refs):
-        assert contents.store.get('commission_owner_records')
+        assert owner_records(contents.store)
         assert refs
         calls.append(refs)
-        return {'requirements_ref': contents.store.get('commission_requirements'), 'digest': 'synthetic-skeleton'}
+        return {'requirements_ref': requirements_ref(contents.store), 'digest': 'synthetic-skeleton'}
     monkeypatch.setattr(skeleton_api, 'prepare_skeleton', skeleton)
     state['prepare']()
     prepared = json.loads((state['HERE'] / 'prepared.json').read_text())
@@ -306,7 +308,7 @@ def test_host_prepares_separate_owner_file_without_treating_it_as_source_documen
     assert 'owner-decisions.json' in prepared['input_hashes']
     assert 'owner-decisions.json' not in prepared['source_files']
     from report_agent.store import Store
-    assert Store(state['CASE']).get('commission_owner_records')
+    assert owner_records(Store(state['CASE']))
     assert not plan_authority.decision_ref(Store(state['CASE']))
     assert not (state['HERE'] / 'started.json').exists()
 
@@ -420,14 +422,14 @@ def test_owner_registry_refuses_unenrolled_cited_source_without_expanding_author
     forbidden_id = f.cs.read(value['replacement_sources'][0]['source_ref'])['payload']['source_id']
     allowed = sorted({f.cs.read(ref)['payload']['source_id'] for ref in refs} - {forbidden_id})
     binding = configure_source_use(f.cs.store, allowed, 'Restricted J1 fixture source grant')
-    before = deepcopy(f.cs.store.get('source_use_authority:' + binding))
+    before = deepcopy(f.cs.read(binding))
     bundle = {'contract': 'owner-records-v1', 'records': [],
         'documents': [{'id': 'doc-general', 'name': 'General notes', 'section_ids': ['4']}],
         'substitutions': [value], 'objects': []}
     with pytest.raises((ActionRejected, ActionForbidden)):
         owner_api().install_owner_records(f.cs, bundle, refs)
-    assert not f.cs.store.get('commission_owner_records')
-    assert f.cs.store.get('source_use_authority:' + binding) == before
+    assert not owner_records(f.cs.store)
+    assert f.cs.read(binding) == before
 
 
 def test_duplicate_owner_record_ids_are_rejected(owner_case):
@@ -488,7 +490,7 @@ def test_enrolled_but_omitted_source_ref_cannot_enter_owner_registry(owner_case)
     assert f.cs.read(omitted)['payload']['source_id'] in f.enrolled_ids
     with pytest.raises(ActionRejected):
         owner_api().install_owner_records(f.cs, f.owner_bundle, refs)
-    assert not f.cs.store.get('commission_owner_records')
+    assert not owner_records(f.cs.store)
 
 
 def test_rejected_plan_does_not_materialize_owner_reductions_as_approval(owner_case):

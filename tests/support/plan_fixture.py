@@ -38,3 +38,11 @@ def plan_action_id(fixture, action, ref):
             if json.loads(body)["claim"][field] == encode(ref):
                 return identity
     raise AssertionError(f"Missing {action} for {ref}")
+
+
+def enroll_planning_file(fixture, filename, source_id, purpose):
+    """Give this supplied fixture file its role in the commission intake."""
+    from report_agent import commission_imports
+    current = commission_imports.source_roles(fixture.ws.store, {})
+    commission_imports.install_source_roles(fixture.ws.store, {
+        **current, filename: {'id': source_id, 'purpose': purpose}})

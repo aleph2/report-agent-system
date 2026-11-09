@@ -120,12 +120,22 @@ class Store:
         if declaration is not None:
             from .source_use import validate_declaration
             validate_declaration(declaration, ids)
+        commissioned = bool(manifest.get('commission_checkpoint_required') or declaration is not None)
+        if commissioned:
+            from .content_store import ContentStore
+            from . import plan_inputs
+            ContentStore(self)
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             old = db.execute("SELECT value FROM state WHERE key='manifest'").fetchone()
             if old and old[0] != encode(manifest):
                 raise ValueError("PROJECT_INPUT_IMMUTABLE_CREATE_NEW_PROJECT")
             db.execute("INSERT OR IGNORE INTO state VALUES ('manifest', ?)", (encode(manifest),))
             if old is None:
+                if commissioned:
+                    supplied = {k: manifest[k] for k in ('report_id', 'goal', 'scope_instruction', 'report_category',
+                                                          'sources', 'presentation_references') if k in manifest}
+                    plan_inputs._save('CommissionSourceManifest', db, supplied)
                 # Creation marker only; opening an old empty project is not migration.
                 db.execute("INSERT OR IGNORE INTO state VALUES ('acceptance_default', ?)",
                            (encode("requirement-derived-v1"),))

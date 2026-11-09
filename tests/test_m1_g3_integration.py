@@ -5,13 +5,14 @@ from types import SimpleNamespace
 
 import pytest
 
+from report_agent.commission_imports import install_source_roles
 from report_agent import plan_authority
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.hierarchical_tools import actor_for
 from report_agent.store import Store
 from report_agent.workspace import Workspace
-from test_m1_commission_plan import api, approve, save, writer
+from test_m1_commission_plan import api, approve, save, unapproved_writer, writer
 from test_m1_g3_method_pack import pack_data
 from test_m1_g3_scoring import assessment_data
 
@@ -42,7 +43,7 @@ def method_commission(tmp_path, request):
     cs = ContentStore(store)
     imported = cs.import_inputs(co, 'method-inputs', list(texts))['result']
     sources = {cs.read(ref)['payload']['source_id']: ref for ref in imported['source_refs']}
-    store.set('commission_source_roles', {
+    install_source_roles(store, {
         name: {'id': name, 'purpose': 'commission' if name == 'scope' else
                'template' if name == 'template' else 'source_or_applicable_standard'}
         for name in texts})
@@ -260,9 +261,11 @@ def test_assessment_receipt_is_repeatable_and_bounds_come_from_plausible_grade_e
 def test_assessment_persistence_enforces_authority_and_records_no_partial_result(method_commission, fault):
     fixture = method_commission
     saved = save(fixture)
-    if fault != 'unconfirmed':
+    if fault == 'unconfirmed':
+        actor = unapproved_writer(fixture, saved)
+    else:
         approve(fixture, saved)
-    actor = writer(fixture, saved)
+        actor = writer(fixture, saved)
     assessment = persistence_input(fixture)
     if fault == 'coordinator':
         actor = fixture.co

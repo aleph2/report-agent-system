@@ -520,6 +520,8 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
     store, catalog = workspace.store, Catalog(workspace.store)
     allowed_kinds = {"purpose", "plan"} if role == "knowledge" else {"review"} if role == "reviewer" else {"draft"}
 
+    from .source_use import check_source_read
+
     def source_consumer_actor():
         from .hierarchical_tools import enabled as content_enabled
         from .text_work import actor_for_tool
@@ -570,6 +572,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         """
         from .source_tables import present_source_tables
         from .source_materials import returned, block_material
+        check_source_read(workspace, source_consumer_actor, [source_id])
         value = present_source_tables(workspace, catalog.read(source_id, offset, limit), table_detail)
         return returned(workspace,role,'read_source_page',value,block_material(value),runtime, reviewer_handles=reviewer_handles)
 
@@ -590,7 +593,9 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         """
         from .source_search import search_observation
         from .source_materials import returned
-        value = search_observation(workspace, catalog.search(query, offset, limit, source_id=source_id), table_detail)
+        allowed = check_source_read(workspace, source_consumer_actor, None if source_id is None else [source_id])
+        hits = catalog.search(query, offset, limit, source_id=source_id, allowed_source_ids=allowed)
+        value = search_observation(workspace, hits, table_detail)
         materials = [{'source_id':m['source_id'],'kind':'literal_source_search_match',
             'selection':{'units':'zero-based text blocks','ordinals':m.get('ordinals',[m['ordinal']]),
                          'locators':m.get('locators',[m['locator']])},
@@ -623,6 +628,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         """
         from .document_tools import source_page_info
         from .source_materials import returned
+        check_source_read(workspace, source_consumer_actor, [source_id])
         value = source_page_info(workspace, source_id, page)
         has_text = (bool(value['native_text'].strip()) or bool(value['frozen_text_blocks'])
                     or any(t.get('rows') for t in value['table_view'].get('tables',[])))

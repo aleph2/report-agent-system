@@ -2,6 +2,8 @@
 from copy import deepcopy
 import json
 import pytest
+
+from support.plan_fixture import enroll_planning_file
 from jsonschema import Draft202012Validator
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
@@ -96,6 +98,7 @@ async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refus
     subject = f.plan['objects'][0]['object_id']
     planning.save_item(f.cs, f.co, 'parity-subject', 'object', f.plan['objects'][0])
     source = Catalog(f.ws.store).import_file('surveys.pdf', pdf_bytes(['Height 18 m.', 'Height 19 m.']))
+    enroll_planning_file(f, 'surveys.pdf', source['source']['id'], 'source_or_applicable_standard')
     principal = str(uuid5(NAMESPACE_URL, f.co.id))
     host = AssertionHost(f.ws.store.root)
 

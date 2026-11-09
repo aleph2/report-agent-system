@@ -4,7 +4,7 @@ from importlib import import_module
 
 import pytest
 
-from report_agent import plan_authority, plan_inputs
+from report_agent import commission_imports, plan_authority, plan_inputs
 from report_agent.errors import ActionRejected, ActionForbidden
 from report_agent.content_models import Ref
 from test_m1_g5_j2 import skeleton_case, entries, required_case, anchored, method_commission, ws
@@ -290,6 +290,9 @@ def test_only_current_direct_page_return_clears_carried_exclusion_read_gate(carr
     sentence = "S1 proposed exclusion; height 30 m remains a designer fact."
     current = capture(f, "current-exclusion.pdf", pdf_bytes([sentence]), "carry-exclusion-source")
     source = f.cs.read(current)["payload"]
+    roles = commission_imports.source_roles(f.ws.store)
+    commission_imports.install_source_roles(f.ws.store,
+        {**roles, "exclusion-evidence": {"id": source["source_id"], "purpose": "design"}})
     f.skeleton_refs.append(current)
     old = {"type": "SourceArtifact", "id": "prior-exclusion-page", "version": 8}
     f.package["source_pins"].append({"ref": old, "file_digest": source["file_digest"]})

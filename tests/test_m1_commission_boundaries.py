@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent.commission_imports import install_source_roles
 from report_agent import plan_authority
 from report_agent.errors import ActionRejected
 from test_m1_commission_plan import api, approve, commission, save
@@ -41,7 +42,7 @@ def test_derived_sections_cannot_form_a_cycle(commission):
 
 
 def test_source_quote_cannot_impersonate_customer_convention(commission):
-    commission.ws.store.set('commission_source_roles', {
+    install_source_roles(commission.ws.store, {
         'scope': {'id': 'scope', 'purpose': 'commission'},
         'design': {'id': 'design', 'purpose': 'source_or_applicable_standard'}})
     plan = deepcopy(commission.plan)

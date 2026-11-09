@@ -27,7 +27,7 @@ def owner_rows(plan):
     return rows
 
 
-def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines):
+def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines, *, policy_summary=()):
     path = Path(path)
     appendix = path.with_name(path.stem + '-appendix.md')
     audit = path.with_name(path.stem + '-audit.json')
@@ -109,7 +109,7 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines):
         *spans, *bindings_text, *[s['rule'] for s in sections if s.get('result_composition')],
         '交付物：' + '、'.join(plan['deliverables']),
         '方法：' + str(len(plan.get('method_pack',{}).get('indicators',[]))) + '项指标；方法、权重、评分及等级表的逐项引用见完整附录。',
-        '## 审查绑定', '计划版本：' + str(plan_ref['version']), '计划指纹：' + bindings['plan_sha256'],
+        *policy_summary, '## 审查绑定', '计划版本：' + str(plan_ref['version']), '计划指纹：' + bindings['plan_sha256'],
         '要求指纹：' + bindings['requirements_sha256'],
         f'[完整要求、引用与读取记录]({appendix.name})', f'[完整JSON]({audit.name})']
     if plan.get('carried_items'):

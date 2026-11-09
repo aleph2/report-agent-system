@@ -4,7 +4,7 @@ from importlib import import_module
 
 import pytest
 
-from report_agent import plan_authority
+from report_agent import commission_imports, plan_authority
 from report_agent.errors import ActionRejected
 from report_agent.store import encode
 from report_agent.catalog import Catalog
@@ -346,9 +346,9 @@ def paginated_source(fixture, name, pages):
         db.execute('DELETE FROM source_blocks WHERE source_id=?', (source_id,))
         Catalog._blocks(db, source_id, [
             {'locator': f'page {page}', 'text': text} for page, text in enumerate(pages, 1)])
-    roles = deepcopy(fixture.ws.store.get('commission_source_roles'))
+    roles = deepcopy(commission_imports.source_roles(fixture.ws.store))
     roles[name] = {'id': source_id, 'purpose': 'template'}
-    fixture.ws.store.set('commission_source_roles', roles)
+    commission_imports.install_source_roles(fixture.ws.store, roles)
     return ref
 
 
@@ -598,9 +598,9 @@ Use the supplied record set.
 ## 5. Conventions
 1. Retain material issues in the descriptive report; no scoring is commissioned.
 ''', 'ordinary-h2-scope')
-    roles = deepcopy(fixture.ws.store.get('commission_source_roles'))
+    roles = deepcopy(commission_imports.source_roles(fixture.ws.store))
     roles['ordinary-h2'] = {'id': fixture.cs.read(scope)['payload']['source_id'], 'purpose': 'commission'}
-    fixture.ws.store.set('commission_source_roles', roles)
+    commission_imports.install_source_roles(fixture.ws.store, roles)
     root = requirements().install_requirements(fixture.cs, scope, fixture.outline_ref)
     enable_h2(fixture)
     record = requirements().read_requirements(fixture.cs, root)
@@ -836,6 +836,28 @@ def resolution_case(anchored):
     return fixture
 
 
+def test_requirements_owner_redo_after_case_save(resolution_case, monkeypatch):
+    from report_agent import commission_assertions
+    f = resolution_case
+    issue_id = f.checkpoint['issue_id']
+    assert commission_assertions.checkpoint(f.ws.store, 'requirements', issue_id)['requirements_ref'] == f.before_resolution['ref']
+    assert f.ws.store.get('commission_requirements_checkpoint:' + issue_id) is None
+    with monkeypatch.context() as patch:
+        def interrupt(*args):
+            raise RuntimeError('interrupted before owner answer')
+        patch.setattr(commission_assertions, 'answer_checkpoint', interrupt)
+        with pytest.raises(RuntimeError, match='interrupted before owner answer'):
+            api().reply(f.ws, issue_id, f.resolution)
+    pending = [r for r in f.cs.list_objects('CommissionRequirements') if r['owner_id'] == 'operator']
+    assert len(pending) == 1
+    assert requirements().read_requirements(f.cs)['ref'] == f.before_resolution['ref']
+    assert not next(i for i in f.ws.store.get('report_issues') if i['id'] == issue_id)['resolved']
+    issue = api().reply(f.ws, issue_id, f.resolution)
+    assert issue['requirements_result_ref'] == pending[0]['ref']
+    assert commission_assertions.checkpoint_answer(f.ws.store, 'requirements', issue_id) == pending[0]['ref']
+    assert api().reply(f.ws, issue_id, f.resolution) == issue
+
+
 def test_owner_parse_resolution_preserves_sources_and_does_not_approve_plan(resolution_case):
     fixture = resolution_case
     for status in ('required', 'not_applicable'):
@@ -936,7 +958,7 @@ async def test_native_requirement_checkpoint_resume_keeps_original_issue_and_dec
     assert result['status'] == 'needs_human' and len(first.calls) == 1, result
     pending = await snapshot(fixture.ws, first)
     issue_id = pending.interrupts[0].value['issue_id']
-    checkpoint = fixture.ws.store.get('commission_requirements_checkpoint:' + issue_id)
+    checkpoint = planning().commission_assertions.checkpoint(fixture.ws.store, 'requirements', issue_id)
     record = requirements().read_requirements(fixture.cs)
     selected = checkpoint['anchor_ids'] if resolve_all else [fixture.parse_anchor['id']]
     resolutions = []
@@ -973,8 +995,8 @@ async def test_native_requirement_checkpoint_resume_keeps_original_issue_and_dec
     assert [i['id'] for i in issues] == [*issue_ids, completion['issue_id']]
     original = next(i for i in issues if i['id'] == issue_id)
     assert original['decision'] == answered['decision'] and original['decision_origin'] == 'operator'
-    assert reopened.store.get('commission_requirements_checkpoint:' + issue_id) == checkpoint
-    assert reopened.store.get('commission_requirements') == answered['requirements_result_ref']
+    assert planning().commission_assertions.checkpoint(reopened.store, 'requirements', issue_id) == checkpoint
+    assert requirements().requirements_ref(reopened.store) == answered['requirements_result_ref']
     final_wait = await snapshot(reopened, fresh)
     assert resumed['status'] == 'needs_human'
     assert final_wait.interrupts[0].value['issue_id'] == completion['issue_id']

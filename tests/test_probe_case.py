@@ -6,7 +6,8 @@ import sqlite3
 
 import pytest
 
-from report_agent import plan_authority
+from report_agent import commission_assertions, commission_imports, plan_authority
+from report_agent.commission_requirements import requirements_ref
 from report_agent.probe_case import prepare_probe_case
 from report_agent.store import Store
 from report_agent.workspace import Workspace
@@ -150,26 +151,34 @@ def test_business_payload_integrity_is_checked_before_acceptance(assigned, targe
     assert not (target / 'probe-import.json').exists()
 
 
-def test_copied_source_authority_remains_bound_and_never_inherits_old_task(assigned, target):
-    from report_agent.source_use import configure_source_use
-    f = assigned
-    authority = configure_source_use(f.ws.store, [s['id'] for s in f.ws.store.source_catalog()], 'synthetic approved source')
-    prepare(f, target)
-    store = Store(target)
-    assert store.get('source_use_authority_binding') == authority
-    assert store.get('source_use_authority:' + authority) == f.ws.store.get('source_use_authority:' + authority)
-    assert store.get('source_use_task_binding:' + f.actor.task_id) is None
+def test_approved_policy_crosses_as_an_exact_input_without_old_task_grants(method_commission, target):
+    from report_agent.source_use import report_binding
+    from test_m1_commission_plan import approve, save
 
+    f = method_commission
+    saved = save(f)
+    ref = commission_imports.source_policy_ref(f.ws.store)
+    assert ref
+    checkpoint, _ = approve(f, saved)
+    f.ws.store.set('source_use_task_binding:old', ref)
+    receipt = prepare(f, target)
+    store = Store(target)
+    assert report_binding(store) == ref
+    assert commission_assertions.checkpoint_answer(store, 'plan', checkpoint['issue_id']) == receipt['decision_ref']
+    assert ContentStore(store).read(ref) == f.cs.read(ref)
+    assert store.get('source_use_task_binding:old') is None
 
 
 def test_current_requirements_and_previous_immutable_versions_survive(required_case, target):
     from test_m1_commission_plan import save
     f = required_case
     saved = save(f)
-    confirm(f, saved)
+    checkpoint, _ = confirm(f, saved)
     receipt = prepare(f, target)
     store = Store(target); cs = ContentStore(store)
-    assert store.get('commission_requirements') == f.requirements_ref
+    assert store.get('commission_requirements') is None
+    assert requirements_ref(store) == f.requirements_ref
+    assert commission_assertions.checkpoint_answer(store, 'plan', checkpoint['issue_id']) == receipt['decision_ref']
     with store.connect() as db:
         plan, decision = _confirmed(cs, db)
         assert plan['ref'] == saved['plan_ref']
@@ -199,3 +208,45 @@ def test_manifest_file_paths_are_not_silently_retained_as_runtime_dependencies(a
     f.ws.store.set('manifest', manifest)
     with pytest.raises(ValueError, match='SOURCE_PATH'):
         prepare(f, target)
+
+
+def test_pre_m5_import_retains_historical_requirements_and_roles_on_second_copy(tmp_path):
+    from report_agent.catalog import Catalog
+    from report_agent.content_store import Actor
+    from report_agent.store import digest, encode
+    from report_agent.source_use import immutable_version_digest, report_binding
+
+    source = Store(tmp_path / 'october')
+    manifest = {'goal': 'historical fixture',
+                'sources': [{'id': 'scope', 'content': 'Historical scope.', 'title': 'scope', 'coverage': 'complete'}]}
+    source.set('manifest', manifest)
+    Catalog(source)
+    cs = ContentStore(source)
+    payload = cs.source_payload(source.sources(['scope'])[0])
+    policy = {'contract': 'source-use-v1',
+              'commission_binding': digest({k: manifest.get(k) for k in ('report_id', 'goal', 'scope_instruction', 'report_category')}),
+              'declaration': {'source_ids': ['scope'], 'authorization_origin': 'historical scope sheet'},
+              'versions': [{'source_id': 'scope', 'source_payload_digest': digest(payload),
+                            'immutable_version_digest': immutable_version_digest(payload)}]}
+    binding = digest(policy)
+    coordinator = Actor('content:coordinator', 'coordinator', 'coordinator')
+    owner = Actor('operator', 'owner', 'operator')
+    roles = {'scope': {'id': 'scope', 'purpose': 'commission'}}
+    with source.connect() as db:
+        requirements = cs._insert(db, coordinator, 'CommissionRequirements', {})
+        plan = cs._insert(db, coordinator, 'CommissionPlan', {'requirements_ref': requirements})
+        decision = cs._insert(db, owner, 'CommissionDecision', {'plan_ref': plan, 'approved': True})
+        db.executemany('INSERT INTO state VALUES (?,?)', [
+            ('commission_plan', encode(plan)), ('commission_confirmation', encode(decision)),
+            ('commission_requirements', encode(requirements)), ('commission_source_roles', encode(roles)),
+            ('source_use_authority_binding', encode(binding)), ('source_use_authority:' + binding, encode(policy))])
+    for target in (tmp_path / 'first', tmp_path / 'second'):
+        prepare_probe_case(source.root, target, expected_plan_ref=plan, expected_decision_ref=decision)
+        source = Store(target)
+        assert requirements_ref(source) == requirements
+        assert commission_imports.source_roles(source) == roles
+        assert source.get('commission_requirements') is None and source.get('commission_source_roles') is None
+        assert plan_authority.confirmed_refs(source) == (plan, decision)
+        assert report_binding(source) == binding
+        assert commission_imports.source_policy_ref(source) is None
+        assert not plan_authority.has_proposal(source, plan)

@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+from support.plan_fixture import enroll_planning_file
+
 from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.errors import ActionRejected
@@ -32,6 +34,7 @@ def exclusion_case(draft_case):
     fixture.access_ref = capture(fixture, 'exclusion-pages.pdf',
         pdf_bytes(('Unrelated cover.', 'Page two candidate.', 'Unrelated page three.')), 'h31-pages')
     fixture.access_source = fixture.cs.read(fixture.access_ref)['payload']['source_id']
+    enroll_planning_file(fixture, 'exclusion-pages.pdf', fixture.access_source, 'source_or_applicable_standard')
     fixture.plan['objects'][0].update(included=False, origin='interpretation',
         reason='Proposed exclusion based on the cited candidate page; owner decision remains separate.',
         sources=[{'source_ref': fixture.access_ref, 'locator': 'page 2; chars 1-19', 'quote': 'Page two candidate.'}])

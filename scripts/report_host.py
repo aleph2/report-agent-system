@@ -147,12 +147,14 @@ def prepare():
  finally:
   ingestion.MAX_UPLOAD_BYTES,ingestion.MAX_PDF_PAGE_CONTENT_BYTES,ingestion.MAX_PDF_TOTAL_CONTENT_BYTES=original_limits
  configure_source_use(store,["commission",*ids],"User-authorized requirements and source materials; template use follows the confirmed source-linked section plan and customer conventions")
- legacy.set_commission_source_roles(store,inputs)
+ from report_agent.commission_imports import install_source_roles
+ install_source_roles(store,inputs)
  store.set("knowledge_enabled",False);LearningLibrary(CASE/"experience-library")
  store.set("learning_config",{"library_path":str(CASE/"experience-library"),"customer_id":"real-project-isolated"})
  from report_agent.model_recovery import activate_recovery
  recovery=activate_recovery(store,authorization=load(HERE/"authorization.json")["authority"],extra_per_call=CONFIG["maximum_attempts_per_call"]-1,extra_per_case=None,extra_token_ceiling=None,backoff_seconds=CONFIG["retry_backoff_seconds"])
- if ContentStore(store).list_objects() or (CASE/"checkpoints.db").exists():raise RuntimeError("CASE_HAS_SEEDED_RESULTS")
+ from report_agent.commission_imports import TYPES as intake_types
+ if any(r["ref"]["type"] not in intake_types for r in ContentStore(store).list_objects()) or (CASE/"checkpoints.db").exists():raise RuntimeError("CASE_HAS_SEEDED_RESULTS")
  from report_agent.commission_requirements import install_requirements
  from report_agent.content_store import Actor
  contents=ContentStore(store)

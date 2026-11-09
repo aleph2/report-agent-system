@@ -5,6 +5,8 @@ import json
 
 import pytest
 
+from support.plan_fixture import enroll_planning_file
+
 from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.content_store import ContentStore
@@ -44,6 +46,7 @@ def access_case(method_commission):
         'Page four text.', 'Page five unused.', ''))
     fixture.access_ref = capture(fixture, 'access-evidence.pdf', data, 'h3-access-input')
     fixture.access_source = fixture.cs.read(fixture.access_ref)['payload']['source_id']
+    enroll_planning_file(fixture, 'access-evidence.pdf', fixture.access_source, 'source_or_applicable_standard')
     fixture.access_plan = {'sections': [], 'objects': [], 'sources': [
         {'source_ref': fixture.access_ref, 'locator': 'page 2; chars 1-19', 'quote': 'Page two candidate.'}]}
     return fixture
@@ -208,6 +211,8 @@ def test_checkpoint_lists_every_proposed_candidate_and_evidence_locations(draft_
     texts = ['Unrelated cover.', 'Disputed candidate evidence.', 'Height observation.',
         'Reconciliation design statement.', 'Reconciliation survey statement.']
     ref = capture(fixture, 'candidate-locations.pdf', pdf_bytes(texts), 'candidate-locations')
+    enroll_planning_file(fixture, 'candidate-locations.pdf', fixture.cs.read(ref)['payload']['source_id'],
+                         'source_or_applicable_standard')
     def cited(page):
         text = texts[page - 1]
         return {'source_ref': ref, 'locator': f'page {page}; chars 1-{len(text)}', 'quote': text}

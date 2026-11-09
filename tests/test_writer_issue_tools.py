@@ -4,11 +4,10 @@ import pytest
 from pydantic import ValidationError
 from report_agent import plan_authority
 from report_agent import writer_issues as api
-from report_agent.content_store import Actor
 from report_agent.errors import ActionRejected
 from report_agent.store import digest
 from test_m1_g3_integration import method_commission, section_plan
-from test_m1_commission_plan import save, approve
+from test_m1_commission_plan import save, approve, writer
 
 
 @pytest.fixture
@@ -42,6 +41,9 @@ def _writers(f, option=None, *, reviewed=False):
         from support.judgment_inputs import install_test_judgment_inputs, save_reviewed_score
         quotes = {o['object_id']: o['object_id'] + ' survey records the synthetic observation.' for o in plan['objects']}
         source = Catalog(f.ws.store).import_file('issue-survey.pdf', pdf_bytes([' '.join(quotes.values())]))['source']
+        from report_agent.commission_imports import install_source_roles, source_roles
+        install_source_roles(f.ws.store, {**source_roles(f.ws.store), 'issue-survey.pdf': {
+            'id': source['id'], 'purpose': 'source_or_applicable_standard'}})
         ref, = f.cs.capture_sources(f.co, 'capture-issue-survey', [source['id']])['result']['source_refs']
         section = next(s for s in plan['sections'] if s['section_id'] == '4')
         for obj in plan['objects']:
@@ -53,11 +55,7 @@ def _writers(f, option=None, *, reviewed=False):
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract': 'system-assembler-v1'})
     f.plan_ref = saved['plan_ref']; f.actors = []
     for obj in ('S1', 'S2'):
-        with f.ws.store.connect() as db:
-            ref = f.cs._insert(db, f.co, 'DelegatedTask', {'role':'writer', 'goal':'Write assigned slope',
-                'delegated_by':f.co.id, 'commission_plan_ref':f.plan_ref,
-                'section_ids':['4'], 'assessment_object_id':obj})
-        actor = Actor('content:writer:'+ref['id'], 'writer', ref['id'])
+        actor = writer(f, saved, section_ids=['4'], operation='write-' + obj, assessment_object_id=obj)
         f.actors.append(actor)
         if reviewed:
             install_test_judgment_inputs(f, obj, source['id'], 1, quotes[obj])

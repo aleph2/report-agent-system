@@ -79,6 +79,8 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     if reviewer_handles and role != 'reviewer':
         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
     contents, fallback = ContentStore(workspace.store), actor_for(role)
+    from .source_use import check_source_read
+
     def actor():
         from .content_tasks import bound_actor
         return bound_actor(workspace, role, fallback)
@@ -241,6 +243,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
 
     def import_source_versions(operation_id: str, source_ids: list[str]) -> dict:
         """Snapshot authorized source text/metadata and the unchanged commission; no interpretation."""
+        check_source_read(workspace, actor, source_ids)
         return contents.import_inputs(actor(), operation_id, source_ids)
 
     def capture_review_sources(operation_id: str, source_ids: list[str]) -> dict:
@@ -248,6 +251,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         No requirement, author evidence, content or snapshot is changed. Put adopted
         source_refs in review dependency_refs; capture alone asserts no support.
         """
+        check_source_read(workspace, actor, source_ids)
         return contents.capture_sources(actor(), operation_id, source_ids)
 
     def commit_objects(operation_id: str, objects: list[CommitObject]) -> dict:
@@ -394,6 +398,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         if kind == "source":
             if offset < 0 or not 1 <= limit <= 16000:
                 raise ActionRejected("INVALID_PAGE")
+            check_source_read(workspace, actor, [source_id])
             source = workspace.store.sources([source_id])[0]
             text = source["content"]
             result = {"source_id": source_id, "source_digest": digest(source), "text": text[offset:offset + limit],

@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionForbidden, ActionRejected
 from test_bounded_review import Model
-from test_m1_commission_plan import api, approve, commission, save, writer
+from test_m1_commission_plan import api, approve, commission, save, unapproved_writer, writer
 from test_m1_commission_coverage import completed_objects, content
 
 
@@ -40,7 +40,11 @@ def native_tool(value):
 @pytest.mark.parametrize('role', ['coordinator', 'writer'])
 def test_direct_content_commit_cannot_bypass_unanswered_checkpoint(commission, role):
     saved = save(commission)
-    actor = commission.co if role == 'coordinator' else writer(commission, saved)
+    actor = commission.co
+    if role == 'writer':
+        with pytest.raises(ActionRejected, match='SOURCE_USE_OWNER_APPROVAL_REQUIRED'):
+            writer(commission, saved)
+        actor = unapproved_writer(commission, saved)
     with pytest.raises((ActionForbidden, ActionRejected), match='(?i)(commission|checkpoint)'):
         commission.cs.commit(actor, 'premature-commit', [
             {'client_key': 'body', 'type': 'ContentNode', 'payload': content('Premature report body.')}])
@@ -50,9 +54,16 @@ def test_direct_content_commit_cannot_bypass_unanswered_checkpoint(commission, r
 def test_generic_operator_prose_is_not_structured_commission_approval(commission):
     saved = save(commission)
     checkpoint = api().request_checkpoint(commission.ws)
-    commission.ws.decide_issue(checkpoint['issue_id'], 'approved', resolved=True)
-    actor = writer(commission, saved)
-    with commission.ws.store.connect() as db, pytest.raises((ActionForbidden, ActionRejected)):
+    from report_agent import legacy_state
+    with pytest.raises(ActionRejected, match='TYPED_CHECKPOINT_REQUIRES_COMMISSION_REPLY'):
+        commission.ws.decide_issue(checkpoint['issue_id'], 'approved', resolved=True)
+    generic = commission.ws.issue('requirement', 'Clarify an unrelated label.', [])
+    commission.ws.decide_issue(generic['id'], 'approved', resolved=True)
+    issues = {issue['id']: issue for issue in legacy_state.get_report_issues(commission.ws.store)}
+    assert issues[generic['id']]['decision'] == 'approved' and issues[generic['id']]['resolved']
+    assert not issues[checkpoint['issue_id']]['resolved']
+    actor = unapproved_writer(commission, saved)
+    with commission.ws.store.connect() as db, pytest.raises(ActionRejected, match='COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED'):
         api().assert_writing_allowed(commission.cs, db, actor)
 
 

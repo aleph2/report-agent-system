@@ -114,34 +114,34 @@ def published(cs, db, actor, operation_id):
     return value
 
 
-def source_authority(cs, db, actor, records):
-    """Use the existing host-enrolled source versions, inside the current transaction."""
-    binding = ('source_use_authority_binding' if actor.role == 'coordinator'
-               else 'source_use_task_binding:' + actor.task_id)
-    row = db.execute('SELECT value FROM state WHERE key=?', (binding,)).fetchone()
-    if row is None:
-        from .handoff_release import manifest
-        if manifest(cs.store).get('source_use') is not None:
-            raise ActionRejected('SOURCE_USE_DECLARED_BUT_UNBOUND')
-        active = db.execute("SELECT value FROM state WHERE key='source_use_authority_binding'").fetchone()
-        if active:
+def source_authority(cs, db, actor, records, *, planning=False, snapshot=None):
+    """Planning may read supplied versions; producing a report requires approval of them."""
+    from .source_use import _planning_binding, _policy, immutable_version_digest, report_binding
+    if planning:
+        if actor.role != 'coordinator' or actor.id != 'content:coordinator':
+            raise ActionForbidden('FORBIDDEN: planning source selection belongs to coordinator')
+        binding = _planning_binding(cs.store, db)
+    else:
+        binding = report_binding(cs.store, db=db, snapshot=snapshot)
+    if isinstance(binding, dict):
+        expected_actor = 'content:coordinator' if actor.role == 'coordinator' else f'content:{actor.role}:{actor.task_id}'
+        if actor.id != expected_actor:
+            raise ActionForbidden('FORBIDDEN: deliverable source identity')
+    if actor.role != 'coordinator':
+        row = db.execute('SELECT value FROM state WHERE key=?', ('source_use_task_binding:' + actor.task_id,)).fetchone()
+        task_binding = json.loads(row[0]) if row else None
+        if binding and task_binding != binding:
             raise ActionForbidden('FORBIDDEN: deliverable source binding')
-        return
-    policy_ref = json.loads(row[0])
-    policy_row = db.execute('SELECT value FROM state WHERE key=?',
-                            ('source_use_authority:' + policy_ref,)).fetchone()
-    policy = json.loads(policy_row[0]) if policy_row else None
-    from .source_use import _commission
-    if (not policy or digest(policy) != policy_ref or policy.get('contract') != 'source-use-v1'
-            or policy.get('commission_binding') != _commission(cs.store)):
-        raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
-    from .source_use import immutable_version_digest
-    allowed = {r['source_id']: r['immutable_version_digest'] for r in policy['versions']}
-    for record in records:
-        if record['ref']['type'] == 'SourceArtifact':
-            payload = record['payload']
-            if allowed.get(payload['source_id']) != immutable_version_digest(payload):
-                raise ActionRejected('SOURCE_USE_VERSION_NOT_AUTHORIZED')
+        binding = task_binding
+    if binding:
+        policy = _policy(cs.store, binding, db)
+        allowed = {r['source_id']: r['immutable_version_digest'] for r in policy['versions']}
+        for record in records:
+            if record['ref']['type'] == 'SourceArtifact':
+                payload = record['payload']
+                if allowed.get(payload['source_id']) != immutable_version_digest(payload):
+                    raise ActionRejected('SOURCE_USE_VERSION_NOT_AUTHORIZED')
+    return binding
 
 
 def snapshot_selection(cs, db, actor, ref):
@@ -275,7 +275,7 @@ def resolve_snapshot(cs, db, actor, selector):
         raise ActionRejected('DELIVERABLE_SELECTOR_REQUIRED')
     if selector.get('kind') == 'snapshot' and set(selector) == {'kind', 'snapshot_ref'}:
         payload = snapshot_selection(cs, db, actor, selector['snapshot_ref'])
-        source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']])
+        source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)
         return selector['snapshot_ref']
     if selector.get('kind') != 'deliverable' or set(selector) != {'kind', 'operation_id'}:
         raise ActionRejected('DELIVERABLE_SELECTOR_INVALID')
@@ -304,7 +304,7 @@ def export_allowed(cs, db, actor, snapshot):
     """V4 selection grants read/export scope, never another producer's write identity."""
     if snapshot['ref']['type'] != 'DocumentSnapshot':
         raise ActionRejected('SNAPSHOT_REQUIRED')
-    source_authority(cs, db, actor, [cs._read(db, ref) for ref in snapshot['payload']['refs']])
+    source_authority(cs, db, actor, [cs._read(db, ref) for ref in snapshot['payload']['refs']], snapshot=snapshot['payload'])
     if actor.role == 'coordinator':
         return parent(cs, db, snapshot['owner_id']) == actor.id
     if actor.role == 'writer':

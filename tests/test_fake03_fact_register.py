@@ -43,11 +43,17 @@ def test_fixture_publishes_confirmed_records_and_revoked_writer_cannot_downgrade
     from support.fake03 import install
 
     ws, binding, _ = mini
-    install(ws, binding.plan_ref)
     host = AssertionHost(ws.store.root)
     archive = tmp_path / "assertions.jsonl"
-    host.commission.export(archive)
-    rows = [r["assertion"] for line in archive.read_bytes().splitlines() if "assertion" in (r := json.loads(line))]
+
+    def assertions():
+        host.commission.export(archive)
+        return [row["assertion"] for line in archive.read_bytes().splitlines()
+                if "assertion" in (row := json.loads(line))]
+
+    existing = {r["id"] for r in assertions()}
+    install(ws, binding.plan_ref)
+    rows = [r for r in assertions() if r["id"] not in existing]
     claims = [r for r in rows if r["claim"]["kind"] != "act"]
     confirmed = {r["claim"]["target"] for r in rows if r["claim"].get("effect") == "confirm"}
     assert {r["id"] for r in claims} == confirmed

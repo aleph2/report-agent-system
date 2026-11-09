@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 
+from report_agent.commission_imports import install_source_roles
 from report_agent import plan_authority
 from report_agent.catalog import Catalog
 from report_agent.errors import ActionForbidden, ActionRejected
@@ -23,17 +24,21 @@ def substitution(commission):
     with commission.ws.store.connect() as db:
         locator = db.execute('SELECT locator FROM source_blocks WHERE source_id=? ORDER BY rowid',
             (source['id'],)).fetchone()[0]
-    commission.ws.store.set('commission_source_roles', {
+    install_source_roles(commission.ws.store, {
         'scope': {'id': 'scope', 'purpose': 'commission'},
         'substitution-scope': {'id': source['id'], 'purpose': 'commission'},
         'design': {'id': 'design', 'purpose': 'source_or_applicable_standard'},
         'survey': {'id': 'survey', 'purpose': 'source_or_applicable_standard'}})
+    return with_substitution(commission, {'source_ref': source_ref, 'locator': locator, 'quote': CUSTOMER_RULE})
+
+
+def with_substitution(commission, customer_basis):
     plan = deepcopy(commission.plan)
     section = next(s for s in plan['sections'] if s['section_id'] == '2')
     section.update(pending_sources=[REQUESTED], sources=[commission.cite('design')],
         source_substitutions=[{'requested_source': REQUESTED,
             'replacement_sources': [commission.cite('design')],
-            'customer_basis': {'source_ref': source_ref, 'locator': locator, 'quote': CUSTOMER_RULE},
+            'customer_basis': customer_basis,
             'reason': 'Agent interpretation: the supplied design volume supports the required project overview.'}])
     commission.plan = plan
     return commission
@@ -48,7 +53,8 @@ def test_substitution_keeps_named_gap_and_source_basis_then_uses_existing_checkp
     proposed = api().read_plan(substitution.ws.store)['payload']
     assert section(proposed)['pending_sources'] == [REQUESTED]
     assert section(proposed)['source_substitutions'] == section(substitution.plan)['source_substitutions']
-    actor = writer(substitution, saved, section_ids=['2'])
+    from test_m1_commission_plan import unapproved_writer
+    actor = unapproved_writer(substitution, saved, section_ids=['2'])
     with substitution.ws.store.connect() as db, pytest.raises((ActionRejected, ActionForbidden)):
         api().assert_writing_allowed(substitution.cs, db, actor)
     checkpoint, _ = approve(substitution, saved)
@@ -56,6 +62,7 @@ def test_substitution_keeps_named_gap_and_source_basis_then_uses_existing_checkp
     assert REQUESTED in brief and CUSTOMER_RULE in brief
     assert 'design' in brief
     assert section(proposed)['source_substitutions'][0]['reason'] in brief
+    actor = writer(substitution, saved, section_ids=['2'], operation='approved-writer')
     with substitution.ws.store.connect() as db:
         assert api().assert_writing_allowed(substitution.cs, db, actor)['ref'] == saved['plan_ref']
     assert api().read_plan(substitution.ws.store)['ref'] == saved['plan_ref']

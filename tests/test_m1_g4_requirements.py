@@ -15,13 +15,13 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-from report_agent import plan_authority
+from report_agent import commission_imports, plan_authority
 from report_agent.catalog import Catalog
 from report_agent.content_store import Actor, ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.store import digest, encode
 from support.plan_fixture import approve, confirmed_records, install_confirmed_plan
-from test_m1_commission_plan import api, save, writer
+from test_m1_commission_plan import api, save, unapproved_writer, writer
 from test_m1_g3_integration import method_commission, persist, persistence_input
 from test_m1_g3_followup import synthetic_pilot_plan
 
@@ -98,10 +98,11 @@ def anchored(method_commission, request):
         scope = scope.replace('## 6. Contacts', '5. 本委托的重要性顺序（1 为首位）对各坡段相同：1 B，2 A，3 D，4 C。\n\n## 6. Contacts')
     fixture.scope_ref = capture(fixture, 'synthetic-scope.md', scope.encode(), 'h1-scope')
     fixture.outline_ref = capture(fixture, 'synthetic-outline.docx', outline_bytes(), 'h1-outline')
-    roles = deepcopy(fixture.ws.store.get('commission_source_roles'))
+    roles = deepcopy(commission_imports.source_roles(fixture.ws.store))
     source_id = fixture.cs.read(fixture.scope_ref)['payload']['source_id']
     roles['h1-scope'] = {'id': source_id, 'purpose': 'commission'}
-    fixture.ws.store.set('commission_source_roles', roles)
+    roles['h1-outline'] = {'id': fixture.cs.read(fixture.outline_ref)['payload']['source_id'], 'purpose': 'outline'}
+    commission_imports.install_source_roles(fixture.ws.store, roles)
     return fixture
 
 
@@ -159,6 +160,26 @@ def required_case(anchored):
     fixture.anchors = record['payload']['anchors']
     fixture.plan = linked_plan(fixture, fixture.requirements_ref, fixture.anchors)
     return fixture
+
+
+def test_interpretation_recovers_prepared_version_without_promoting_it_early(anchored, monkeypatch):
+    from report_agent import commission_assertions
+    root = requirements().install_requirements(anchored.cs, anchored.scope_ref, anchored.outline_ref)
+    items = capability_items(requirements().read_requirements(anchored.cs)['payload']['anchors'])
+    args = (anchored.cs, anchored.co, 'm5-retry-interpretation', root, items)
+    with monkeypatch.context() as patch:
+        def interrupt(*args):
+            raise RuntimeError('before native interpretation')
+        patch.setattr(commission_assertions, 'record_interpretation', interrupt)
+        with pytest.raises(RuntimeError, match='before native interpretation'):
+            requirements().propose_requirements(*args)
+    [initial, prepared] = anchored.cs.list_objects('CommissionRequirements')
+    assert initial['ref'] == root
+    assert requirements().requirements_ref(anchored.ws.store) == root
+    assert anchored.ws.store.get('commission_requirements') is None
+    replayed = requirements().propose_requirements(*args)['result']['requirements_ref']
+    assert replayed == prepared['ref'] == requirements().requirements_ref(anchored.ws.store)
+    assert len(anchored.cs.list_objects('CommissionRequirements')) == 2
 
 
 def test_extracts_each_numbered_convention_scope_statement_and_word_heading(anchored):
@@ -570,9 +591,9 @@ Use the supplied record set; no engineering boundary calculation is commissioned
 1. Scoring methods, weight strategies and assessment tables are not commissioned for this descriptive report.
 '''
     scope = capture(fixture, 'non-scoring-commission.md', text.encode(), 'non-scoring-scope')
-    roles = deepcopy(fixture.ws.store.get('commission_source_roles'))
+    roles = deepcopy(commission_imports.source_roles(fixture.ws.store))
     roles['non-scoring'] = {'id': fixture.cs.read(scope)['payload']['source_id'], 'purpose': 'commission'}
-    fixture.ws.store.set('commission_source_roles', roles)
+    commission_imports.install_source_roles(fixture.ws.store, roles)
     initial = requirements().install_requirements(fixture.cs, scope, fixture.outline_ref)
     record = requirements().read_requirements(fixture.cs, initial)
     anchors = record['payload']['anchors']
@@ -604,10 +625,11 @@ Use the supplied record set; no engineering boundary calculation is commissioned
     fixture.plan = plan
     assert not requirements().check_plan(fixture.cs, plan, fixture.requirements_ref)
     saved = save(fixture)
-    actor = writer(fixture, saved)
+    pending = unapproved_writer(fixture, saved)
     with fixture.cs.store.connect() as db, pytest.raises(ActionRejected, match='(?i)(confirm|checkpoint)'):
-        api().assert_writing_allowed(fixture.cs, db, actor)
+        api().assert_writing_allowed(fixture.cs, db, pending)
     checkpoint, _ = confirm(fixture, saved)
+    actor = writer(fixture, saved)
     assert checkpoint['requirements_ref'] == fixture.requirements_ref
     accepted = confirmed_records(fixture)[1]['payload']
     assert accepted['requirements_ref'] == fixture.requirements_ref

@@ -1,6 +1,9 @@
 """H3.2 offline planning contracts and canonical evidence."""
 from copy import deepcopy
 import pytest
+
+from support.plan_fixture import enroll_planning_file
+from report_agent.commission_imports import install_source_roles
 from report_agent import commission_planning as planning
 from report_agent import commission_plan
 from report_agent.errors import ActionRejected
@@ -133,7 +136,7 @@ def test_operation_digest_retains_raw_chainage_and_caller_locator(linked):
 
 
 def test_current_anchor_pin_mismatch_is_refused(linked):
-    from report_agent.commission_requirements import read_requirements, KEY
+    from report_agent.commission_requirements import publish_interpretation, read_requirements
     value = boundary(linked)
     record = read_requirements(linked.cs)
     payload = deepcopy(record['payload'])
@@ -142,7 +145,8 @@ def test_current_anchor_pin_mismatch_is_refused(linked):
         ref = linked.cs._insert(db, linked.co, 'CommissionRequirements', payload,
                                id=record['ref']['id'], version=record['ref']['version'] + 1,
                                previous_ref=record['ref'])
-    linked.cs.store.set(KEY, ref)
+    publish_interpretation(linked.cs, linked.co, 'h32-publish-bad-source-pin', ref)
+    assert read_requirements(linked.cs)['ref'] == ref
     with pytest.raises(ActionRejected) as caught:
         planning.save_item(linked.cs, linked.co, 'h32-bad-pin', 'boundary', value)
     assert caught.value.diagnostic['fields'][0]['reason'] == 'requirement_source_pin_mismatch'
@@ -177,6 +181,7 @@ def test_recorded_failure_shape_valid_primary_and_wrong_customer_locator(linked,
         quote = 'Alternate survey evidence for the first contract.'
         ref = capture(linked, 'h32-alternate-survey.txt', quote.encode(), 'h32-survey-input')
         source_id = linked.cs.read(ref)['payload']['source_id']
+        enroll_planning_file(linked, 'h32-alternate-survey.txt', source_id, 'source_or_applicable_standard')
         with linked.cs.store.connect() as db:
             locator = db.execute('SELECT locator FROM source_blocks WHERE source_id=? ORDER BY ordinal', (source_id,)).fetchone()[0]
         value['source'] = {'source_ref': ref, 'locator': locator, 'quote': quote}
@@ -217,7 +222,7 @@ from test_m1_commission_plan import commission
 @pytest.mark.parametrize('case', ['no-extracted', 'unrelated', 'template', 'missing-customer'])
 def test_boundary_membership_errors_identify_plan_fields_not_quote(commission, case):
     plan = deepcopy(commission.plan)
-    commission.ws.store.set('commission_source_roles', {
+    install_source_roles(commission.ws.store, {
         'scope': {'id': 'scope', 'purpose': 'commission'},
         'design': {'id': 'design', 'purpose': 'source_or_applicable_standard'},
         'survey': {'id': 'survey', 'purpose': 'source_or_applicable_standard'},
@@ -256,7 +261,7 @@ def test_boundary_membership_errors_identify_plan_fields_not_quote(commission, c
 
 
 def test_valid_boundary_membership_still_passes(commission):
-    commission.ws.store.set('commission_source_roles', {'scope': {'id': 'scope', 'purpose': 'commission'}})
+    install_source_roles(commission.ws.store, {'scope': {'id': 'scope', 'purpose': 'commission'}})
     plan = deepcopy(commission.plan)
     plan['scope_boundary'] = {'start_meter': '1000', 'end_meter': '2000',
         'source': commission.cite('design'), 'customer_basis': commission.cite('scope')}

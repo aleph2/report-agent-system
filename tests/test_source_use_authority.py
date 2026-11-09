@@ -5,13 +5,14 @@ from copy import deepcopy
 import pytest
 
 from report_agent.bounded_review import perform_review
+from report_agent import commission_imports, plan_authority
 from report_agent.catalog import Catalog
 from report_agent.content_store import ContentStore
 from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.evidence_analysis import selected_evidence, analyze_selected_evidence
 from report_agent.hierarchical_tools import actor_for
-from report_agent.source_use import configure_source_use, resolve_source_use_binding, validate_source_versions
+from report_agent.source_use import configure_source_use, report_binding, resolve_source_use_binding, validate_source_versions
 from report_agent.store import Store, digest
 from report_agent.text_work import prepare_material
 from test_bounded_review import Model, review_call
@@ -19,8 +20,37 @@ from test_hierarchical_content import seed
 from test_task_supervision import ws, offline
 
 
+def approved_policy(store, ids):
+    from report_agent.content_store import Actor
+    from test_m5_source_use import approve
+
+    ref = configure_source_use(store, list(ids), 'These exact supplied versions')
+    if plan_authority.native_plan_ref(store) is None:
+        approve(ContentStore(store), actor_for('coordinator'), Actor('operator', 'operator', 'scope-confirmation'),
+                ref, 'source-use', scope=True)
+    assert report_binding(store) == ref
+    return ref
+
+
 def grant(ws, ids=('s',)):
-    return configure_source_use(ws.store, list(ids), 'Direct human authorization: these exact supplied versions')
+    return approved_policy(ws.store, ids)
+
+
+def historical_policy(store, ids=('s',)):
+    # Pre-M5 fixtures retain the original, digest-bound grant and never acquire a new approval.
+    from report_agent.source_use import _commission, immutable_version_digest
+    versions = []
+    for source in store.sources(list(ids)):
+        payload = ContentStore.source_payload(source)
+        versions.append({'source_id': source['id'], 'source_payload_digest': digest(payload),
+                         'immutable_version_digest': immutable_version_digest(payload)})
+    record = {'contract': 'source-use-v1', 'commission_binding': _commission(store),
+              'declaration': {'source_ids': sorted(ids), 'authorization_origin': 'Archived operator decision'},
+              'versions': versions}
+    key = digest(record)
+    store.set('source_use_authority:' + key, record)
+    store.set('source_use_authority_binding', key)
+    return key
 
 
 def test_host_manifest_binding_invalid_declaration_and_reopen(tmp_path):
@@ -33,10 +63,13 @@ def test_host_manifest_binding_invalid_declaration_and_reopen(tmp_path):
         store.initialize(invalid)
     assert store.get('manifest') is None
     store.initialize(manifest)
-    ref = store.get('source_use_authority_binding')
-    assert len(ref) == 64
+    ref = commission_imports.source_policy_ref(store)
+    assert ref['type'] == 'CommissionSourceUsePolicy'
+    assert store.get('source_use_authority_binding') is None
+    with pytest.raises(ActionRejected, match='SOURCE_USE_OWNER_APPROVAL_REQUIRED'):
+        report_binding(store)
     store.initialize(manifest)
-    assert store.get('source_use_authority_binding') == ref
+    assert commission_imports.source_policy_ref(store) == ref
 
 
 def test_new_tasks_pin_grant_legacy_replay_and_resume_do_not_inherit(ws):
@@ -44,7 +77,7 @@ def test_new_tasks_pin_grant_legacy_replay_and_resume_do_not_inherit(ws):
     old_call = review_call(snapshot, refs, id='legacy')
     with delegated_task(ws, 'coordinator', old_call) as (_, old_actor):
         assert resolve_source_use_binding(ws, old_actor) is None
-    policy = grant(ws)
+    policy = historical_policy(ws.store)
     with delegated_task(ws, 'coordinator', old_call) as (_, replayed):
         assert replayed == old_actor and resolve_source_use_binding(ws, replayed) is None
     resume = review_call(snapshot, refs, id='resume-old')
@@ -60,7 +93,7 @@ def test_same_declaration_after_replacement_never_reenrolls_new_version(ws):
     policy = grant(ws)
     replacement = Catalog(ws.store).import_file('replacement.txt', b'New unapproved rule', replaces_id='s')
     assert grant(ws) == policy
-    assert ws.store.get('source_use_authority_binding') == policy
+    assert commission_imports.source_policy_ref(ws.store) == policy
     owner = actor_for('coordinator')
     with pytest.raises(ActionRejected, match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
         validate_source_versions(ws, owner, [replacement['source']['id']])
@@ -396,16 +429,24 @@ async def test_artifact_checker_rejects_unenrolled_structured_reference_receipt(
     assert not model.calls
 
 
-@pytest.mark.parametrize('authorized', [True, False])
-async def test_artifact_checker_checks_actual_character_source_receipt_before_reservation(ws, authorized):
+@pytest.mark.parametrize('authorized,historical', [(True, False), (False, False), (False, True)])
+async def test_artifact_checker_checks_actual_character_source_receipt_before_reservation(ws, authorized, historical):
     from report_agent.hierarchical_tools import content_tools
     from report_agent.artifact_review import bounded_artifact_review_tool
     from test_artifact_review import setup, payload, visual
     extra = Catalog(ws.store).import_file('other.txt', b'Other source')['source']['id']
-    grant(ws, ['s'] if authorized else [extra])
+    if historical:
+        historical_policy(ws.store, [extra])
+    else:
+        grant(ws, ['s'] if authorized else [extra])
     cs, refs, snapshot, export, render, source, call = setup(ws, pages=1)
     with delegated_task(ws, 'coordinator', call) as (_, reviewer):
         tool = next(t for t in content_tools(ws, 'reviewer') if t.__name__ == 'observe_evidence')
+        if not authorized and not historical:
+            with pytest.raises(ActionRejected, match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
+                tool(kind='source', source_id='s', offset=0, limit=20)
+            assert ws.store.get('artifact_text_work:' + reviewer.id + ':actual-character-receipt') is None
+            return
         selected = tool(kind='source', source_id='s', offset=0, limit=20)
         real_image = visual(cs, reviewer, render, export, source, 1)
         expected = payload(snapshot, refs, render, [real_image])

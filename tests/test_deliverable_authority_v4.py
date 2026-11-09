@@ -9,9 +9,9 @@ from test_deliverable_declaration_v4 import case, work
 
 @pytest.mark.parametrize('changed_commission', [False, True])
 def test_source_policy_must_belong_to_the_actual_commission(case, changed_commission):
-    from report_agent.source_use import configure_source_use
+    from test_source_use_authority import approved_policy
     cs, co, writer, _, source = case
-    policy = configure_source_use(cs.store, ['s'], 'direct fixture authority')
+    policy = approved_policy(cs.store, ['s'])
     cs.store.set('source_use_task_binding:'+writer.task_id, policy)
     if changed_commission:
         cs.store.set('manifest', {**cs.store.manifest, 'goal': 'A different commission.'})
