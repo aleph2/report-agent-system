@@ -94,15 +94,21 @@ def resolve_judgment_sources(cs, db, actor, context, quotes, visual_pages=()):
     for index, quote in enumerate(quotes):
         if not quote.strip():
             reject(f'quotes[{index}]', 'quote_required', code='WRITER_ASSESSMENT_QUOTE_REQUIRED')
+        from .page_bindings import extracted_pages
+        from .source_use import immutable_version_digest
+        from .document_tools import physical_page_number
+        anchors = extracted_pages(cs.store,scope["plan"]["ref"],scope["object"]["object_id"],
+                                  quote,scope.get("indicator_id")) if "plan" in scope and "object" in scope else set()
         matches = []
         for ref, payload in pool:
             rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal', (payload['source_id'],)))
-            matches.extend((ref, locator, payload) for locator in quote_locations(rows, quote))
+            matches.extend((ref, locator, payload) for locator in quote_locations(rows, quote)
+                           if not anchors or (immutable_version_digest(payload),physical_page_number(locator)) in anchors)
         if len(matches) != 1:
             choices = [{'document': p.get('source_metadata',{}).get('title',''), 'locator': loc} for _,loc,p in matches]
             reject(f'quotes[{index}]', 'quote_ambiguous' if matches else 'quote_not_found', choices,
                 code='WRITER_ASSESSMENT_QUOTE_AMBIGUOUS' if matches else 'WRITER_ASSESSMENT_QUOTE_NOT_FOUND')
-        citation = {'source_ref': matches[0][0], 'quote': quote}
+        citation = {'source_ref': matches[0][0], 'quote': quote, 'locator': matches[0][1]}
         resolve_citations(cs, db, actor, {'sources': [citation]}, 'indicator')
         if citation['locator'].startswith('manifest text; chars '):
             citation['locator'] = 'manifest text'
@@ -120,7 +126,7 @@ def _validated_judgment(cs, db, actor, current, rule, value):
     row = {k: value[k] for k in ('rank','value','basis_kind','rationale','rank_reason','question','low','high')}
     row.update(indicator_id=rule['id'], grade_id=grades[value['grade']],
         plausible_grades=[grades[g] for g in value['plausible_grades']],
-        sources=resolve_judgment_sources(cs, db, actor, current, value['quotes'], value['visual_pages']))
+        sources=resolve_judgment_sources(cs, db, actor, {**current, 'indicator_id': rule['id']}, value['quotes'], value['visual_pages']))
     row = validate_indicator_judgment(pack, row)
     validate_indicator_sources(cs, db, actor, current['plan'], current['section_id'], [row])
     return row
@@ -211,10 +217,15 @@ def read_indicator_step(cs, actor):
                               'choice':_grade(g)} for g in rule['grades']],
                   **_assignment_context(cs, db, scope)}
         if 'object_facts' in scope:
-            packet['object_facts'] = scope['object_facts']
+            packet['object_facts'] = deepcopy(scope['object_facts'])
+            if 'extracted_values' in packet['object_facts']:
+                facts = packet['object_facts']
+                facts['applicable_pages'] = [r for r in facts['applicable_pages'] if r['indicator_id'] == rule['id']]
+                facts['extracted_values'] = [r for r in facts['extracted_values'] if rule['id'] in r['indicator_ids']]
             if decision := packet['object_facts'].get('engineering_reviews', {}).get(rule['id']):
                 packet['engineering_review'] = decision
-            packet['midpoint_convention'] = scope['midpoint_convention']
+            if 'midpoint_convention' in scope:
+                packet['midpoint_convention'] = scope['midpoint_convention']
             if 'attestations' in packet['object_facts']:
                 assigned_ids = {f['fact_id'] for f in packet['object_facts']['attestations']}
                 packet['other_context_facts'] = [{k:f[k] for k in ('fact_id','subject','purpose','quote')}
@@ -230,9 +241,24 @@ def read_indicator_step(cs, actor):
                 if rule['id']=='X32':
                     packet['method_adjustment'] = {'condition':'construction during a disaster-prone season',
                                                    'target':'in_band_value','direction':'higher'}
+        from .assertion_host import AssertionHost
+        from .writer_judgment_authority import _criteria_key
+        issued = AssertionHost(cs.store.root).lookup(_criteria_key(scope))
+        if issued:
+            criterion = issued.resources["scopes"][issued.task][rule["id"]]
+            purposes = issued.resources["criteria"][criterion].get("purposes", {})
+            if purposes:
+                packet["fact_predicates"] = sorted({p for values in purposes.values() for p in values})
         if note := CATEGORY_DOCUMENTATION_NOTES.get(packet['category']):
             packet['documentation_note'] = note
     index = read_assignment_pages(cs, actor)
+    if rule and 'extracted_values' in packet.get('object_facts', {}):
+        from .source_use import immutable_version_digest
+        versions = {immutable_version_digest(cs.read(ref)["payload"]): "source-" + str(n)
+                    for n,ref in enumerate(scope["sources"],1)}
+        for binding in packet['object_facts']['applicable_pages']:
+            binding['pages'] = [dict(source_handle=versions[p["source_version"]],page=p["page"])
+                                for p in binding['pages']]
     return {**packet, 'sources': index['sources'], 'page_index_digest': index['index_digest'],
             'limitations': index.get('limitations', [])}
 

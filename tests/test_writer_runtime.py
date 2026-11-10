@@ -23,7 +23,7 @@ def test_fresh_assignment_is_host_scoped_and_public_tools_have_no_ids(ready):
         task=f.cs.read({'type':'DelegatedTask','id':session.actor.task_id,'version':1})['payload']
         assert task['assessment_object_id']=='S1' and task['section_ids']==['4']
         names=set(session.tool_names)
-        assert {'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue'}==names
+        assert {'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue','assert_source','record_conflict'}==names
         assert not names&{'calculate_assessment','task','write_file','grep','commit_objects','freeze_snapshot'}
         for tool in session.tools:
             schema=tool.tool_call_schema.model_json_schema()

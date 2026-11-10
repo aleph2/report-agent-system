@@ -56,7 +56,7 @@ def install_facts(store, plan_ref, section_id, register, typed, reviews, selecti
         return row["id"]
 
     def confirmed(action, subject, claim):
-        key = call("coordinator", action, subject, claim)
+        key = call("owner" if action == "assert_source" else "coordinator", action, subject, claim)
         call("owner", "confirm", subject, dict(kind="act", effect="confirm", target=key,
                                               reason="Scripted owner accepted the reviewed register entry."))
         return key
@@ -81,7 +81,7 @@ def install_facts(store, plan_ref, section_id, register, typed, reviews, selecti
             "subject","purpose","coverage","state","document","page","quote","value","unit"}}
         if row["state"] == "explicit_absence":
             qualifiers["value"] = row["value"]
-        receipt = dict(actor=coordinator, source_version=origin["source_version"], page=origin["page"],
+        receipt = dict(actor=owner, source_version=origin["source_version"], page=origin["page"],
                        modality="text", register_sha256=pin, typed_register_digest=typed_register_digest, qualifiers=qualifiers)
         rid = digest(receipt)
         resources["receipts"][rid] = receipt

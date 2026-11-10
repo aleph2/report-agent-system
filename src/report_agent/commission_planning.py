@@ -541,15 +541,15 @@ def read_draft(cs, actor):
 
 
 DRAFT_COLLECTIONS = Literal['summary', 'requirements', 'sections', 'objects', 'reconciliations',
-    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps', 'carried_items', 'source_assertions']
+    'questions', 'substitutions', 'settings', 'entries', 'text_profiles', 'gaps', 'carried_items', 'source_assertions', 'page_bindings']
 
 
 def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_id='',
                     offset=0, characters=3000, view_ref='', gap_page=1):
     """Bound model observations before platform eviction; retain canonical data server-side."""
-    if collection == 'source_assertions':
+    if collection in ('source_assertions', 'page_bindings'):
         from .planning_assertions import read_source_index
-        return read_source_index(cs, actor, item_id, page, page_size, view_ref)
+        return read_source_index(cs, actor, item_id, page, page_size, view_ref, bindings=collection == "page_bindings")
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     from .store import encode
@@ -913,9 +913,9 @@ def planning_tools(cs, actor):
         Pages contain bounded JSON text: concatenate next_offset chunks before decoding.
         Use the returned view_ref on every continuation; changed drafts require a fresh
         summary. next_gap_page explicitly continues large gap lists.
-        Use assert_source for observations, record_conflict for disagreements, and ask
+        Use propose_page_binding for object/indicator page applicability, record_conflict for disagreements, and ask
         for unresolved questions about planning inventory objects. Read
-        source_assertions with the inventory object ID as item_id for your saved source
+        page_bindings with the inventory object ID as item_id for applicability proposals; source_assertions retains historical source
         IDs; continue using its own view_ref. No tool order is required.
         """
         return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page)

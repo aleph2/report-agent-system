@@ -695,11 +695,9 @@ src/report_agent/source_search.py	51	configure_source_search	store	read	'task006
 src/report_agent/source_search.py	54	configure_source_search	store	read	'delivery'	delivery
 src/report_agent/source_search.py	65	configure_source_search	sql	write	batch keys: CONFIG_KEY, BINDING_KEY	source_search_binding,source_search_view
 src/report_agent/source_use.py	50	_policy	store	read	'source_use_authority:' + ref	source_use_authority:*
-src/report_agent/source_use.py	63	configure_source_use	store	read	'source_use_authority_binding'	source_use_authority_binding
 src/report_agent/source_use.py	78	_version_policy	sql	read	SELECT value FROM state WHERE key='manifest'	manifest
 src/report_agent/source_use.py	100	_supplied_policy	store	read	'manifest'	manifest
 src/report_agent/source_use.py	133	_planning_binding	sql	read	SELECT value FROM state WHERE key='source_use_authority_binding'	source_use_authority_binding
-src/report_agent/source_use.py	137	_planning_binding	store	read	'manifest'	manifest
 src/report_agent/source_use.py	179	resolve_source_use_binding	store	read	'source_use_task_binding:' + actor.task_id	source_use_task_binding:*
 src/report_agent/store.py	63	__init__	sql	schema	CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS artifacts ( id TEXT PRIMARY KEY, operation TEXT UNIQUE NOT NULL, data TEXT 	@schema
 src/report_agent/store.py	130	initialize	sql	read	SELECT value FROM state WHERE key='manifest'	manifest

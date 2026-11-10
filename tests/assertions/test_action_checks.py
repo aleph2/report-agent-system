@@ -34,7 +34,7 @@ class Case:
     def fact(self,state="value",n=4):
         observation=dict(kind="source",predicate="points",value=n if state=="value" else None,
             state=state,coverage="sample",citation=dict(source_version="edition",page=1,quote="4 points"))
-        key=self.apply("coordinator","assert_source",observation)
+        key=self.apply("owner","assert_source",observation)
         self.confirm(key)
         return key
 
@@ -55,7 +55,7 @@ def test_public_integrity_and_error_codes(tmp_path):
     with pytest.raises(ValueError,match="C1"):
         c.apply("writer","ask",dict(kind="source",predicate="missing",coverage="sample",state="unknown"))
     with pytest.raises(ValueError,match="C2"):
-        c.apply("coordinator","assert_source",dict(kind="source",predicate="visits",state="no_value",
+        c.apply("owner","assert_source",dict(kind="source",predicate="visits",state="no_value",
             coverage="sample",citation=dict(source_version="edition",page=1,quote="no prior visit")))
     m=c.method([[dict(classification="some",when=[dict(predicate="points",value=4)])]])
     def classify(fact_id):
@@ -116,7 +116,7 @@ def test_conflicting_observation_and_ambiguous_method_stop_direct_save(tmp_path)
 
 def test_foreign_ground_requires_a_matching_transfer_even_when_in_packet(tmp_path):
     c=Case(tmp_path)
-    grant=Grant(principal=str(uuid5(NAMESPACE_DNS,"coordinator")),role="coordinator",task="observe",
+    grant=Grant(principal=str(uuid5(NAMESPACE_DNS,"coordinator")),role="owner",task="observe",
                 attempt="1",plan="pilot",subjects=frozenset({"other"}),packet=frozenset(c.packet),
                 actions=frozenset({"assert_source"}),resources=c.resources)
     ctx=c.host.issue(grant,"assert_source","external-fact")

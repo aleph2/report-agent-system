@@ -15,6 +15,7 @@ from .prompt_sources import load_prompt, record_runtime_version
 READ = 'read_assigned_page'
 SAVES = ('save_evidence','save_assumption','save_gap')
 ISSUE = 'propose_material_issue'
+EXTRACTION = {'assert_source', 'record_conflict'}
 PAGE_LIMIT = 3
 
 
@@ -31,7 +32,7 @@ class IndicatorBoundary(AgentMiddleware):
 
     def offered(self, name):
         return not self.saved and len(self.save_refusals)<2 and (
-            name in SAVES or name==READ and self.reads<PAGE_LIMIT or name==ISSUE and not self.issue_saved)
+            name in SAVES or name in EXTRACTION or name==READ and self.reads<PAGE_LIMIT or name==ISSUE and not self.issue_saved)
 
     async def awrap_model_call(self, request, handler):
         if self.one_request and self.requested:
@@ -128,7 +129,7 @@ class IndicatorToolReceipts(BusinessBoundary):
 class IndicatorRun:
     def __init__(self, workspace, actor, model, tools):
         self.workspace, self.actor, self.model = workspace, actor, model
-        self.tools = [t for t in tools if t.name in {READ,ISSUE}]
+        self.tools = [t for t in tools if t.name in {READ,ISSUE,*EXTRACTION}]
         self.tool_names = [*(t.name for t in self.tools), *SAVES]
         self.receipts = IndicatorToolReceipts(workspace)
         self.progress = None

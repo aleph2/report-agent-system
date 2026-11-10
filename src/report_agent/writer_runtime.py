@@ -65,7 +65,8 @@ def writer_tools(workspace, actor, *, include_images=True, assessment_only=False
         tool_call_id=(Annotated[str,InjectedToolCallId],...))
     tools.append(MessageTool.from_function(read_assigned_page,args_schema=invocation,message_model=ReadPage))
 
-    return tools
+    from .writer_extraction import tools as extraction_tools
+    return [*tools, *extraction_tools(workspace, actor)]
 
 
 @contextmanager

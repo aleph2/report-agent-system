@@ -244,6 +244,10 @@ def _inputs(cs, db, host, actor, scope, indicator):
         rows.update({k: r for k, r in _confirmed(host, extra).items() if r["claim"]["kind"] == "source"})
     elif host.grant_exists(key):
         raise ValueError("WRITER_JUDGMENT_INPUTS_REVOKED")
+    from .page_bindings import records as page_records, current
+    for row, state in page_records(cs.store, plan_ref, subject):
+        if row["claim"]["kind"] == "source" and current(state):
+            rows[row["id"]] = {**row, "status": state["status"]}
     allowed = {immutable_version_digest(cs._read(db, ref)["payload"]) for ref in scope["sources"]}
     if any((row["claim"].get("citation") or {}).get("source_version") not in allowed for row in rows.values()):
         raise ValueError("WRITER_JUDGMENT_SOURCE_OUTSIDE_ASSIGNMENT")
@@ -257,7 +261,7 @@ def _detail(row, role):
         role=role,
         subject=row["subject"],
         claim=source,
-        status="confirmed",
+        status=row.get("status", "confirmed"),
         strength_rank=0 if source["state"] == "unknown" else 2,
     )
     if "qualifiers" in row:

@@ -103,7 +103,6 @@ def prepare():
  from report_agent.workspace import Workspace
  from report_agent.catalog import Catalog
  from report_agent.content_store import ContentStore
- from report_agent.source_use import configure_source_use
  from report_agent.learning import LearningLibrary
  from report_agent.token_budget import TokenBudget
  import report_agent.ingestion as ingestion
@@ -146,7 +145,6 @@ def prepare():
    print(json.dumps({"imported":name,"bytes":len(data),"pages":profile["pages"] if profile else None},ensure_ascii=False),flush=True)
  finally:
   ingestion.MAX_UPLOAD_BYTES,ingestion.MAX_PDF_PAGE_CONTENT_BYTES,ingestion.MAX_PDF_TOTAL_CONTENT_BYTES=original_limits
- configure_source_use(store,["commission",*ids],"User-authorized requirements and source materials; template use follows the confirmed source-linked section plan and customer conventions")
  from report_agent.commission_imports import install_source_roles
  install_source_roles(store,inputs)
  store.set("knowledge_enabled",False);LearningLibrary(CASE/"experience-library")

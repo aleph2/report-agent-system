@@ -31,31 +31,10 @@ async def test_scoped_extraction_refuses_other_pages_and_never_restarts(tmp_path
     inputs = probe.prepare(library, case, scope)
     assert inputs['documents']['survey']['original_pages'] == [2]
 
-    def step(messages):
-        text = messages[-1].content
-        assert 'Outside scope' not in text
-        assert 'Selected survey 2' in text
-        return AIMessage(content='', tool_calls=[call('assert_source', dict(subject=scope['subject'], predicate='height',
-            state='value', coverage='object', value=23, unit='m', source_id='design', page=4,
-            quote=quote), 'unauthorized-page')])
-
-    def correct(messages):
-        refused = next(m for m in reversed(messages) if isinstance(m, ToolMessage))
-        assert refused.status == 'error'
-        return AIMessage(content='', tool_calls=[call('assert_source', dict(subject=scope['subject'], predicate='height',
-            state='value', coverage='object', value=23, unit='m', source_id='design', page=3,
-            quote=quote), 'authorized-page')])
-
-    driver = Driver(coordinator=[step, correct, AIMessage('Owner comparison pending.')])
-    result = await probe.extract(case, driver('coordinator'), scope)
-    assert result['stop'] == 'coordinator_final' and result['model_invocations'] == 3
-    assert len(result['assertions']) == 1 and result['assertions'][0]['claim']['citation']['page'] == 3
-    assert [r['status'] for r in result['tool_attempts']] == ['error', 'success']
-    assert {t['name'] for t in driver.bindings['coordinator'][0]} == set(probe.ACTIONS)
-    assert json.loads((case/'o6-results.json').read_text())['owner_comparison'] == 'pending'
+    driver = Driver(coordinator=[])
+    with pytest.raises(ValueError, match='O6_UNEXPECTED_ACTION_SCOPE'):
+        await probe.extract(case, driver('coordinator'), scope)
+    assert not driver.calls
     with pytest.raises(ValueError, match='O6_INPUT_SCOPE_CHANGED'):
         await probe.extract(case, driver('coordinator'), {**scope, 'subject': 'SYNTHETIC-OTHER'})
-    assert len(driver.calls) == 3
-    with pytest.raises(FileExistsError):
-        await probe.extract(case, driver('coordinator'), scope)
-    assert len(driver.calls) == 3
+    assert not driver.calls

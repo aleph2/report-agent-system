@@ -80,7 +80,7 @@ def test_historical_unregistered_plan_keeps_legacy_behavior():
 
 @pytest.fixture
 def owner_case(required_case):
-    from report_agent.source_use import configure_source_use
+    from support.source_policy import configure_source_use
     f = required_case
     f.owner_source_refs = [p['ref'] for p in source_pins(f, f.plan)]
     f.enrolled_ids = sorted({f.cs.read(ref)['payload']['source_id'] for ref in f.owner_source_refs})
@@ -414,14 +414,14 @@ def test_owner_open_facts_automatically_reach_word_comments_and_excel_rows(ws):
 
 
 
-def test_owner_registry_refuses_unenrolled_cited_source_without_expanding_authority(required_case):
-    from report_agent.source_use import configure_source_use
+def test_owner_registry_refuses_source_outside_case_without_expanding_access(required_case):
+    from support.source_policy import restrict_supplied_case_files
     f = required_case
     refs = [pin['ref'] for pin in source_pins(f, f.plan)]
     value = substitution(f)
     forbidden_id = f.cs.read(value['replacement_sources'][0]['source_ref'])['payload']['source_id']
     allowed = sorted({f.cs.read(ref)['payload']['source_id'] for ref in refs} - {forbidden_id})
-    binding = configure_source_use(f.cs.store, allowed, 'Restricted J1 fixture source grant')
+    binding = restrict_supplied_case_files(f.cs.store, allowed)
     before = deepcopy(f.cs.read(binding))
     bundle = {'contract': 'owner-records-v1', 'records': [],
         'documents': [{'id': 'doc-general', 'name': 'General notes', 'section_ids': ['4']}],

@@ -28,7 +28,7 @@ def test_exact_repeat_survives_authority_change_but_not_read_revocation(tmp_path
 @pytest.mark.parametrize("quote", ["hidden sentence", "invented sentence"])
 def test_unoffered_source_rejected_before_reading_page(tmp_path, quote):
     host = AssertionHost(tmp_path)
-    grant = Grant(str(uuid4()), "coordinator", "task", "attempt", "plan", {"object"}, set(),
+    grant = Grant(str(uuid4()), "owner", "task", "attempt", "plan", {"object"}, set(),
                   {"assert_source"}, resources={"sources": {"private": {"pages": {"1": "hidden sentence"}}}})
     ctx = host.issue(grant, "assert_source", "call")
     claim = dict(kind="source", predicate="example", state="value", value="test", coverage="object",

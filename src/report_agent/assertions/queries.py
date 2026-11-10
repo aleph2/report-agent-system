@@ -161,6 +161,8 @@ def _readable_body(body, permitted):
             claim[field] = [key for key in claim[field] if key in permitted]
     if claim["kind"] == "recommendation":
         claim["basis"] = [key for key in claim["basis"] if key in permitted]
+    if binding := claim.get("page_binding"):
+        claim["page_binding"] = {**binding, "pages": [p for p in binding["pages"] if p["source_version"] in permitted]}
     if claim.get("citation") and claim["citation"]["source_version"] not in permitted:
         claim.pop("citation")
     if claim.get("warrant") and claim["warrant"]["criterion"] not in permitted:

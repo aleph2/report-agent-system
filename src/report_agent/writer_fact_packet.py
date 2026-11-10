@@ -47,7 +47,18 @@ def assigned_facts(cs, db, actor, scope, *, exact_receipt=False):
     host = AssertionHost(cs.store.root)
     grant = host.lookup(_writer_key(actor, scope))
     if template is None and grant is None:
-        return {}
+        from .page_bindings import records, confirmed, current
+        subject = scope["object"]["object_id"]
+        pages = [dict(binding_id=r["id"], **r["claim"]["page_binding"])
+                 for r in confirmed(cs.store,scope["plan"]["ref"],subject)]
+        indicators = {r["binding_id"]:r["indicator_id"] for r in pages}
+        values = [dict(assertion_id=r["id"], status=state["status"], claim=r["claim"],
+                       indicator_ids=sorted({indicators[g["assertion_id"]] for g in r["grounds"]
+                                             if g["assertion_id"] in indicators}))
+                  for r,state in records(cs.store,scope["plan"]["ref"],subject)
+                  if r["claim"]["kind"] == "source" and current(state)]
+        return dict(object_facts=dict(applicable_pages=pages, extracted_values=values),
+                    assigned_indicators=[r["id"] for r in scope["plan"]["payload"]["method_pack"]["indicators"]])
     if template is None or grant is None or grant.packet != template.packet:
         raise ActionRejected("WRITER_ASSIGNED_FACT_PACKET_REQUIRED")
     allowed = {immutable_version_digest(cs._read(db, ref)["payload"]) for ref in scope["sources"]}

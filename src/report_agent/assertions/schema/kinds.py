@@ -74,11 +74,28 @@ class Conflict(Shape):
         return self
 
 
+class BoundPage(Shape):
+    source_version: Id
+    page: int = Field(ge=1)
+
+
+class PageBinding(Shape):
+    indicator_id: Id
+    pages: tuple[BoundPage, ...]
+
+
 class Convention(Shape):
     kind: Literal["convention"]
     rule: Id
     scope: Id
     criterion_version: Id | None = None
+    page_binding: PageBinding | None = Field(default=None, exclude_if=lambda v: v is None)
+
+    @model_validator(mode="after")
+    def check_binding(self):
+        if (self.scope == "source_page_binding") != (self.page_binding is not None):
+            raise ValueError("Page applicability uses the source_page_binding convention")
+        return self
 
 
 class Warrant(Shape):
@@ -259,7 +276,7 @@ class Assertion(Shape):
     observed_at: AwareDatetime | date | None
     recorded_at: AwareDatetime
     schema_version: Literal["s2-proposal-1", "m1-source-time-1", "m3-assessment-1"]
-    check_version: Literal["s2-proposal-2"]
+    check_version: Literal["s2-proposal-2", "stage1-9a-1"]
 
     @model_validator(mode="after")
     def check_observation_precision(self):

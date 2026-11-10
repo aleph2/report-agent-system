@@ -45,20 +45,6 @@ def install_source_roles(store, roles):
         return _save("CommissionSourceRoles", db, roles)
 
 
-def install_source_policy(store, policy):
-    ContentStore(store)
-    with store.connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        return save_source_policy(db, policy)
-
-
-def save_source_policy(db, policy):
-    old = _head(db, "CommissionSourceUsePolicy")
-    if old and old["payload"] != policy:
-        raise ActionRejected("SOURCE_USE_AUTHORITY_IMMUTABLE")
-    return _save("CommissionSourceUsePolicy", db, policy)
-
-
 def save_owner_records(db, entry):
     return _save("CommissionOwnerRecords", db, entry)
 

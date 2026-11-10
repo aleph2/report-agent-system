@@ -141,8 +141,8 @@ class Store:
                            (encode("requirement-derived-v1"),))
             db.execute("INSERT OR IGNORE INTO state VALUES ('status', ?)", (encode("ready"),))
         if declaration is not None:
-            from .source_use import configure_source_use
-            configure_source_use(self, **declaration)
+            from .source_use import validate_declaration
+            validate_declaration(declaration)
         for result in manifest.get("existing_artifacts", []):
             self.save_material(**result, owner="materials", origin="fixture_existing")
 

@@ -388,6 +388,8 @@ class TemplateDecision(Contract):
 
 
 class OwnerDecision(Contract):
+    unconfirmed_page_bindings: list[str] = Field(default_factory=list, exclude_if=lambda v: not v)
+
     plan_ref: Ref
     requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
     approved: bool = Field(strict=True)
@@ -747,8 +749,6 @@ def save_plan(cs, actor, operation_id, plan):
         payload = {**plan, 'inventory_refs': inventory,
                    **({'method_questions': questions} if plan.get('method_pack') or plan.get('scope_boundary') else {})}
         from .plan_inputs import frozen_refs
-        from .source_use import freeze_supplied_sources
-        freeze_supplied_sources(cs.store, db=db)
         cs._insert(db, actor, 'CommissionPlan', payload, id=ref['id'], version=ref['version'],
                    previous_ref=predecessor, plan_input_refs=frozen_refs(db))
         return {'plan_ref': ref, 'inventory_refs': inventory}
@@ -852,41 +852,38 @@ def project_checkpoint_issue(store, issue_id, description, source_ids):
                    ('issue_recorded', encode({'issue_id': issue_id, 'category': 'requirement'})))
 
 
-def _source_use_brief(cs, record):
-    for ref in record.get('plan_input_refs', []):
-        if ref['type'] != 'CommissionSourceUsePolicy':
-            continue
-        policy = cs.read(ref)['payload']
-        plan = record['payload']
-        versions = policy['versions']
-        names = {s['id']: s.get('title') or s['id'] for s in cs.store.source_catalog()}
-        dataset = [names.get(row['source_id'], row['source_id']) for row in versions]
-        summary = ['## 资料使用确认',
-                   '提交的资料当前仅用于规划。批准本版计划，将允许在以下范围内使用所列版本编写报告。',
-                   '拟纳入对象：' + '、'.join(o['object_id'] for o in plan['objects'] if o['included']),
-                   '章节：' + '、'.join(s['section_id'] for s in plan['sections']),
-                   '交付物：' + '、'.join(plan['deliverables']),
-                   '资料：' + '、'.join(dataset)]
-        if plan.get('scope_boundary'):
-            summary.append('合同范围：' + boundary_display(plan['scope_boundary']))
-        details = ['资料版本：' + row['source_id'] + ' / ' + row['immutable_version_digest'] for row in versions]
-        return summary, details
-    return [], []
-
-
 def request_checkpoint(workspace):
     cs = ContentStore(workspace.store)
     record = read_plan(workspace.store)
     if not record:
         raise ActionRejected('COMMISSION_PLAN_REQUIRED', diagnostic={'fields': [{'field': 'commission_plan', 'reason': 'saved_plan_required', 'choices': []}]})
     plan, ref = record['payload'], record['ref']
+    from . import page_bindings
+    actor = Actor('content:coordinator', 'coordinator', 'content-task:coordinator')
+    issue_id = plan_authority.stable_id(actor, 'plan-checkpoint', ref)
+    previous = commission_assertions.checkpoint(workspace.store, 'plan', issue_id)
+    bindings = {r["id"]: r for r, state in page_bindings.records(workspace.store, ref)
+                if r["claim"]["kind"] == "convention" and page_bindings.current(state)}
+    sheet = previous.get("page_bindings", []) if previous else sorted(bindings)
     from .commission_requirements import require_complete, enabled as requirements_enabled, read_requirements
     require_complete(cs, plan)
     path = workspace.store.root / 'outputs' / ('commission-checkpoint-' + digest(ref) + '.md')
     lines = ['# 编制计划确认', '', '请确认本版本计划，或提出修改意见。',
              '代理建议的排除不等于范围缩减；缩减须由提交者明确确认并说明原因。', '', '## 评估对象', '']
-    policy_summary, policy_versions = _source_use_brief(cs, record)
-    lines += [*policy_summary, *policy_versions]
+    from .source_use import immutable_version_digest
+    source_names = {immutable_version_digest(cs.source_payload(row)):row.get("title",row["id"])
+                    for row in workspace.store.sources([s["id"] for s in workspace.store.source_catalog()])}
+    policy_summary = []
+    lines += ["## 对象/指标资料页适用范围", "一次回复确认本表；列入例外的绑定不确认。数值由 Writer 提取，仍需独立复核。"]
+    for key in sheet:
+        row = bindings.get(key)
+        if row is None:
+            raise ActionRejected("PAGE_BINDING_SHEET_NO_LONGER_CURRENT")
+        binding = row["claim"]["page_binding"]
+        lines.append("- " + key + " / " + row["subject"] + " / " + binding["indicator_id"]
+                     + " / " + ("; ".join(source_names.get(p["source_version"],p["source_version"])
+                         + " / page " + str(p["page"]) for p in binding["pages"]) or "待补充适用资料"))
+
     if requirements_enabled(workspace.store):
         requirements = read_requirements(cs, plan['requirements_ref'])
         lines += ['## 委托要求确认', '', '本次批准同时确认此版本要求记录及明确列出的不适用项。',
@@ -979,11 +976,11 @@ def request_checkpoint(workspace):
     requirement_binding = {'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}
     actor = Actor('content:coordinator', 'coordinator', 'content-task:coordinator')
     issue_id = plan_authority.stable_id(actor, 'plan-checkpoint', ref)
-    commission_assertions.ask_checkpoint(workspace.store, actor, issue_id, 'plan', issue_id, {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)), **brief_artifacts})
+    commission_assertions.ask_checkpoint(workspace.store, actor, issue_id, 'plan', issue_id, {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)), 'page_bindings': sheet, **brief_artifacts})
     path.with_suffix('.json').write_text(json.dumps({'issue_id': issue_id, 'plan_ref': ref, 'source_access': access,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
         **brief_artifacts, 'plan_sha256': digest(plan),
-        'decision_shape': {'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': [], 'template_decisions': [{'section_id': p['section_id'], 'choice': 'KEEP_OR_REPLACE_REQUIRED', 'replacements': []} for s in plan['sections'] for p in s.get('result_composition', []) if p.get('applicability_question')]},
+        'decision_shape': {'unconfirmed_page_bindings': [], 'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': [], 'template_decisions': [{'section_id': p['section_id'], 'choice': 'KEEP_OR_REPLACE_REQUIRED', 'replacements': []} for s in plan['sections'] for p in s.get('result_composition', []) if p.get('applicability_question')]},
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')
     project_checkpoint_issue(workspace.store, issue_id, description, source_ids)
     return {'issue_id': issue_id, 'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)),
@@ -1092,6 +1089,8 @@ def reply(workspace, issue_id, decision):
             if requirements_enabled(cs.store) and (decision.get('requirements_ref') != plan.get('requirements_ref')
                     or checkpoint.get('requirements_ref') != plan.get('requirements_ref')):
                 raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
+        if not set(decision.get('unconfirmed_page_bindings', [])) <= set(checkpoint.get('page_bindings', [])):
+            raise ActionRejected('PAGE_BINDING_EXCEPTION_OUTSIDE_SHEET')
         answer = encode(decision)
         owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
         signed_answer = commission_assertions.checkpoint_answer(db, 'plan', issue_id)
@@ -1100,6 +1099,10 @@ def reply(workspace, issue_id, decision):
             if issue.get('decision') != answer:
                 raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
             if decision['approved']:
+                db.commit()
+                from .page_bindings import confirm_reply
+                confirm_reply(workspace.store, owner, issue_id, checkpoint, signed_answer)
+                db.execute('BEGIN IMMEDIATE')
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
                 issue_state.set_report_issues(db, issues)
             return issue
@@ -1135,6 +1138,8 @@ def reply(workspace, issue_id, decision):
             raise
         ref = result['result']['decision_ref']
         commission_assertions.answer_checkpoint(workspace.store, owner, issue_id, 'plan', issue_id, ref)
+        from .page_bindings import confirm_reply
+        confirm_reply(workspace.store, owner, issue_id, checkpoint, ref)
         plan_authority.decide(workspace.store, owner, issue_id, decision['plan_ref'], ref, decision['approved'])
         db.execute('BEGIN IMMEDIATE')
         issues = issue_state.get_report_issues(db, [])

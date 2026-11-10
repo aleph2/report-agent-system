@@ -126,7 +126,8 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
     for raw_ref in source_version_refs:
         ref = SourceRef.model_validate(raw_ref).model_dump()
         supplemental_refs.setdefault(encode(ref), ref)
-    if supplemental_refs and not policy_ref:
+    from .source_use import case_sources
+    if supplemental_refs and not policy_ref and case_sources(workspace.store) is None:
         raise ActionRejected('REVIEW_SUPPLEMENT_REQUIRES_BOUND_SOURCE_USE_AUTHORITY')
     validate_source_versions(workspace, actor, source_refs=supplemental_refs.values())
     supplemental_ids = set()

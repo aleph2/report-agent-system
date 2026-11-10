@@ -116,7 +116,10 @@ def published(cs, db, actor, operation_id):
 
 def source_authority(cs, db, actor, records, *, planning=False, snapshot=None):
     """Planning may read supplied versions; producing a report requires approval of them."""
-    from .source_use import _planning_binding, _policy, immutable_version_digest, report_binding
+    from .source_use import _planning_binding, _policy, immutable_version_digest, report_binding, check_case_sources
+    sources = [r["ref"] for r in records if r["ref"]["type"] == "SourceArtifact"]
+    if check_case_sources(cs, source_refs=sources):
+        return None
     if planning:
         if actor.role != 'coordinator' or actor.id != 'content:coordinator':
             raise ActionForbidden('FORBIDDEN: planning source selection belongs to coordinator')
@@ -132,7 +135,8 @@ def source_authority(cs, db, actor, records, *, planning=False, snapshot=None):
         task_binding = json.loads(row[0]) if row else None
         if binding and task_binding != binding:
             raise ActionForbidden('FORBIDDEN: deliverable source binding')
-        binding = task_binding
+        if binding:
+            binding = task_binding
     if binding:
         policy = _policy(cs.store, binding, db)
         allowed = {r['source_id']: r['immutable_version_digest'] for r in policy['versions']}

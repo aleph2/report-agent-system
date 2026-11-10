@@ -177,6 +177,20 @@ class Commission:
             return Commission._planning_rows(db, subject)
 
     @staticmethod
+    def page_records(directory):
+        """Host projection of page bindings and extracted facts; not an agent query."""
+        from .queries import assertion_states
+        path = Path(directory).resolve() / "assertions.sqlite3"
+        if not path.is_file():
+            return []
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
+            db.execute("BEGIN")
+            states = assertion_states(db)
+            return [(json.loads(body), states[key]) for key, body in db.execute(
+                """SELECT id,body FROM assertions WHERE
+                body ->> '$.claim.scope'='source_page_binding' OR body ->> '$.claim.kind'='source'""")]
+
+    @staticmethod
     def issue_records(directory):
         """Trusted host issue view; never issued as an unrestricted agent query."""
         from .queries import assertion_states

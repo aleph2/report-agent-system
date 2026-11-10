@@ -24,6 +24,7 @@ def _check_packet(row, packet):
     refs.update(claim.get("disclosed_gaps", ()))
     refs.update(claim.get(k) for k in ("target", "successor", "snapshot"))
     refs.add((claim.get("citation") or {}).get("source_version"))
+    refs.update(p["source_version"] for p in (claim.get("page_binding") or {}).get("pages", ()))
     if pair := claim.get("pair"):
         refs.add(pair["snapshot"])
         refs.update(pair["records"])
@@ -52,6 +53,8 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None)
         raise ValueError("C11: role cannot perform this action")
     claim = _CLAIM.validate_python(claim)
     grounds = _GROUNDS.validate_python(grounds)
+    if grant.role == "writer" and claim.kind == "source" and claim.state != "unknown" and not grounds:
+        raise ValueError("C3: Writer extraction requires an applicable confirmed page binding")
     if claim.kind != spec["kind"]:
         raise ValueError("C1: action does not produce this kind")
     stamp = datetime.now(timezone.utc)

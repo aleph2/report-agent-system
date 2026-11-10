@@ -45,11 +45,11 @@ def freeze_writer_rows(cs, db, writer_ref):
     provenance = {'writer_task_ref':writer_ref, 'assignment_digest':scope['assignment_digest'],
                   'plan_ref':plan['ref'], 'decision_ref':scope['decision']['ref'],
                   'requirements_ref':plan['payload'].get('requirements_ref'),
-                  'profile_digest':digest([scope['assigned_indicators'], facts, scope['midpoint_convention']]),
-                  'method_digest':digest(pack), 'register_sha256':scope['register_sha256'],
+                  'profile_digest':digest([scope['assigned_indicators'], facts, scope.get('midpoint_convention')]),
+                  'method_digest':digest(pack), 'register_sha256':scope.get('register_sha256'),
                   'fact_digest':digest(facts), 'source_versions':sources}
     frozen = {'object_id':oid, 'provenance':provenance, 'object_facts':facts, 'methods':methods,
-              'midpoint_convention':scope['midpoint_convention'], 'rows':draft['rows']}
+              'midpoint_convention':scope.get('midpoint_convention'), 'rows':draft['rows']}
     pin = digest(frozen)
     db.execute('INSERT OR IGNORE INTO state(key,value) VALUES (?,?)',
                ('qualitative_reviewer_snapshot:'+pin, encode(frozen)))
@@ -85,8 +85,15 @@ def reviewer_tools(cs, actor):
         if indicator_id not in view['rows']:
             raise ActionRejected('QUALITATIVE_REVIEW_ROW_OUTSIDE_SCOPE')
         row = view['rows'][indicator_id]
+        facts = view['object_facts']
+        if 'extracted_values' in facts:
+            seen = {r['assertion_id'] for r in row.get('ground_details', [])}
+            facts = {**facts,
+                'applicable_pages':[r for r in facts['applicable_pages'] if r['indicator_id'] == indicator_id],
+                'extracted_values':[r for r in facts['extracted_values']
+                    if indicator_id in r['indicator_ids'] and r['assertion_id'] not in seen]}
         return {**header, 'indicator_id':indicator_id, 'row_digest':digest(row), 'saved_row':row,
-                'indicator_method':view['methods'][indicator_id], 'object_facts':view['object_facts'],
+                'indicator_method':view['methods'][indicator_id], 'object_facts':facts,
                 'midpoint_convention':view['midpoint_convention']}
 
     def record_qualitative_finding(operation_id: str, indicator_id: str, row_digest: str,

@@ -85,8 +85,7 @@ def prepare_mini_commission(inputs, destination):
         catalog = Catalog(store)
         ids = {name:catalog.import_file(name, data)['source']['id'] for name,data in sources.items()}
         ids[METHOD_SOURCE_NAME] = 'system-method'
-        from .source_use import configure_source_use
-        configure_source_use(store, list(ids.values()), "Files supplied in the mini commission")
+
         captured = cs.import_inputs(co,'mini-capture',list(ids.values()))['result']['source_refs']
         refs = {name:ref for name,ref in zip(ids,captured,strict=True)}
         from report_agent.commission_imports import install_source_roles

@@ -21,6 +21,7 @@ refs AS (
  UNION SELECT claim ->> '$.successor' FROM request
  UNION SELECT claim ->> '$.rule_version' FROM request
  UNION SELECT value FROM request, json_each(claim, '$.adjustment.ground_ids')
+ UNION SELECT value ->> '$.source_version' FROM request, json_each(claim, '$.page_binding.pages')
  UNION SELECT claim ->> '$.citation.source_version' FROM request
  UNION SELECT claim ->> '$.pair.snapshot' FROM request
  UNION SELECT claim ->> '$.snapshot' FROM request
@@ -82,7 +83,7 @@ valid_adjustment AS (
  AND NOT EXISTS(SELECT link ->> '$.assertion_id' FROM adjustment_links EXCEPT
                 SELECT value FROM json_each(claim,'$.adjustment.ground_ids'))
  AND NOT EXISTS(SELECT 1 FROM adjustment_links WHERE
-   fact ->> '$.status' IS NOT 'confirmed' OR fact ->> '$.stale' IS NOT 0 OR
+   (fact ->> '$.status' IS NOT 'confirmed' AND coalesce(fact ->> '$.source_eligible',0)<>1) OR fact ->> '$.stale' IS NOT 0 OR
    coalesce(fact ->> '$.state','') NOT IN ('value','no_value') OR
    NOT EXISTS(SELECT 1 FROM json_each(fact,'$.supports') WHERE value=link ->> '$.proposition'))
 ),
@@ -94,11 +95,11 @@ bad(code, reason) AS (
  FROM request WHERE kind='source' AND claim ->> '$.state'='no_value'
  AND (length(trim(coalesce(claim ->> '$.citation.quote','')))=0 OR length(trim(coalesce(claim ->> '$.coverage','')))=0)
  UNION ALL
- SELECT 'C3','Direct evidence needs applicable confirmed, current observations bound to the classification'
+ SELECT 'C3','Direct evidence needs current quoted observations on an applicable confirmed page binding'
  FROM request WHERE kind='judgment' AND claim ->> '$.basis'='evidence' AND (
  NOT EXISTS(SELECT 1 FROM links WHERE link ->> '$.purpose'='classification') OR
  EXISTS(SELECT 1 FROM links WHERE link ->> '$.purpose'='classification' AND
- (fact ->> '$.status' IS NOT 'confirmed' OR fact ->> '$.stale' IS NOT 0 OR
+ ((fact ->> '$.status' IS NOT 'confirmed' AND coalesce(fact ->> '$.source_eligible',0)<>1) OR fact ->> '$.stale' IS NOT 0 OR
   coalesce(fact ->> '$.state','') NOT IN ('value','no_value') OR
   NOT EXISTS(SELECT 1 FROM json_each(fact,'$.supports') WHERE value=link ->> '$.proposition'))))
  UNION ALL

@@ -12,7 +12,8 @@ from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.evidence_analysis import selected_evidence, analyze_selected_evidence
 from report_agent.hierarchical_tools import actor_for
-from report_agent.source_use import configure_source_use, report_binding, resolve_source_use_binding, validate_source_versions
+from support.source_policy import configure_source_use
+from report_agent.source_use import report_binding, resolve_source_use_binding, validate_source_versions
 from report_agent.store import Store, digest
 from report_agent.text_work import prepare_material
 from test_bounded_review import Model, review_call
@@ -64,10 +65,9 @@ def test_host_manifest_binding_invalid_declaration_and_reopen(tmp_path):
     assert store.get('manifest') is None
     store.initialize(manifest)
     ref = commission_imports.source_policy_ref(store)
-    assert ref['type'] == 'CommissionSourceUsePolicy'
+    assert ref is None
     assert store.get('source_use_authority_binding') is None
-    with pytest.raises(ActionRejected, match='SOURCE_USE_OWNER_APPROVAL_REQUIRED'):
-        report_binding(store)
+    assert report_binding(store) is None
     store.initialize(manifest)
     assert commission_imports.source_policy_ref(store) == ref
 

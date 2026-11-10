@@ -14,7 +14,7 @@ def source_case(root):
     quote = "Observed on 2025-04-19. Height was 18 m."
     source = {"pages": {"1": quote}}
     host = AssertionHost(root)
-    grant = Grant(str(uuid4()), "coordinator", "t1", "try1", "p", {"A"}, {version},
+    grant = Grant(str(uuid4()), "owner", "t1", "try1", "p", {"A"}, {version},
                   {"assert_source"}, resources={"sources": {version: source}})
     ctx = host.issue(grant, "assert_source", "native-1")
     claim = dict(kind="source", predicate="height", state="value", value=18,
@@ -74,7 +74,7 @@ def test_old_tagged_archive_roundtrips_without_rewriting_legacy_times(tmp_path):
 
 def test_issue_once_is_atomic_and_cannot_reactivate_a_revoked_native_call(tmp_path):
     host, base, _, _ = source_case(tmp_path)
-    grant = replace(base, attempt="native-7", actions={"ask"}, resources={})
+    grant = replace(base, role="coordinator", attempt="native-7", actions={"ask"}, resources={})
     def ask():
         ctx = host.issue_once(grant, "ask", "7")
         return assertions.ask(ctx, subject="A", claim=dict(kind="question", text="Why?", affects="other"))

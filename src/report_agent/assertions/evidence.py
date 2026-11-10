@@ -65,6 +65,26 @@ def _active(record):
     return record.get("status") == "confirmed" and not record.get("stale",True)
 
 
+def _eligible(record):
+    return _active(record) or record.get("source_eligible", False)
+
+
+def _bound_source(envelope, records, indicator=None):
+    claim = envelope["claim"]
+    if claim["state"] == "unknown" or not claim.get("citation"):
+        return False
+    citation = claim["citation"]
+    for ground in envelope["grounds"]:
+        binding = records.get(ground["assertion_id"], {})
+        spec = binding.get("page_binding")
+        if (ground["purpose"] == "context" and spec and _active(binding)
+                and binding["subject"] == envelope["subject"]
+                and (indicator is None or spec["indicator_id"] == indicator)
+                and {"source_version": citation["source_version"], "page": citation["page"]} in spec["pages"]):
+            return True
+    return False
+
+
 def _grounds(row, records, sources, purpose):
     result = {}
     for ground in row.grounds:
@@ -72,7 +92,7 @@ def _grounds(row, records, sources, purpose):
             continue
         identifier = ground.assertion_id
         record = records.get(identifier,{})
-        if not _active(record) or ground.proposition not in record.get("supports",()):
+        if not _eligible(record) or ground.proposition not in record.get("supports",()):
             continue
         if record["subject"] != row.subject:
             transfer = records.get(ground.transfer_convention,{})
@@ -170,12 +190,13 @@ def evidence_projection(db, row: Assertion, resources: dict, states: dict):
     """Only the host supplies resources. Infer applicability from stored, current records."""
     if isinstance(row.claim,Source):
         _verify_source(row,resources)
-    records, sources, conflicts = {}, {}, []
+    records, sources, conflicts, envelopes = {}, {}, [], {}
     criteria = resources.get("criteria",{})
     conventions = resources.get("conventions",{})
     for identifier, body in db.execute("SELECT id,body FROM assertions"):
         envelope = json.loads(body)
         claim = envelope["claim"]
+        envelopes[identifier] = envelope
         record = {**states.get(identifier,{}), "subject":envelope["subject"],"kind":claim["kind"]}
         records[identifier] = record
         record["strength_rank"] = 0
@@ -190,6 +211,8 @@ def evidence_projection(db, row: Assertion, resources: dict, states: dict):
             if identifier in criteria:
                 _method_record(record, criteria[identifier], (claim.get("citation") or {}).get("source_version"))
         if claim["kind"] == "convention":
+            record["page_binding"] = claim.get("page_binding")
+            record["indicator_id"] = claim["rule"]
             if identifier in criteria:
                 _method_record(record, criteria[identifier], claim.get("criterion_version"))
             binding = conventions.get(identifier,{})
@@ -200,12 +223,26 @@ def evidence_projection(db, row: Assertion, resources: dict, states: dict):
                         record[key] = binding[key]
         if claim["kind"] == "conflict" and record.get("status") not in ("retracted","superseded"):
             conflicts.append((identifier,claim))
+    indicator = None
+    if isinstance(row.claim, Judgment):
+        method = criteria.get(row.claim.warrant.criterion, {})
+        indicator = method.get("authority", {}).get("rule", {}).get("id") or records.get(
+            row.claim.warrant.criterion, {}).get("indicator_id")
+    for identifier in sources:
+        record = records[identifier]
+        record["source_eligible"] = (not record.get("stale") and record["status"] in ("proposed", "endorsed")
+                                     and _bound_source(envelopes[identifier], records, indicator))
+        if record["source_eligible"]:
+            record["strength_rank"] = _strength(sources[identifier])
+    if isinstance(row.claim, Source) and row.claim.state != "unknown" and row.grounds:
+        if not _bound_source(row.model_dump(mode="json"), records):
+            raise ValueError("C3: cite an applicable confirmed current page binding")
     displaced = set()
     for identifier, conflict in conflicts:
         precedence = records.get(conflict.get("precedence_convention"), {})
         preferred = precedence.get("preferred")
         if (_active(precedence) and precedence.get("resolves") == identifier
-                and preferred in conflict["observations"] and _active(records.get(preferred, {}))):
+                and preferred in conflict["observations"] and _eligible(records.get(preferred, {}))):
             displaced.update(key for key in conflict["observations"] if key != preferred)
         for fact in conflict["observations"]:
             if fact in records:
@@ -237,7 +274,7 @@ def evidence_projection(db, row: Assertion, resources: dict, states: dict):
     # Evaluate every interpretation against all current observations, even when the
     # Writer omits a same-subject fact. Its own selected grounds must also suffice.
     available = {i:fact for i,fact in sources.items() if records[i]["subject"] == row.subject
-                 and _active(records[i]) and fact["state"] in ("value","no_value")}
+                 and _eligible(records[i]) and fact["state"] in ("value","no_value")}
     available.update(decisive)
     for key in displaced:
         available.pop(key, None)

@@ -95,7 +95,7 @@ class Commission:
             self.methods[indicator]=key
 
     def save_confirmed(self, action, subject, claim):
-        row=self.call("coordinator",action,subject,claim)
+        row=self.call("owner" if action=="assert_source" else "coordinator",action,subject,claim)
         self.call("owner","confirm",subject,dict(kind="act",effect="confirm",target=row["id"],reason="Fake03 confirmation"))
         return row["id"]
 

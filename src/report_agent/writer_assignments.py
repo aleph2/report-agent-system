@@ -62,6 +62,13 @@ def bound_assignment(cs, db, actor):
     if not pack:
         raise ActionRejected('WRITER_CONFIRMED_METHOD_REQUIRED')
     citations = [*section['sources'], *list(_citations(obj)), *pack['sources']]
+    from .page_bindings import confirmed
+    bound_versions = {p["source_version"] for row in confirmed(cs.store,plan["ref"],object_id)
+                      for p in row["claim"]["page_binding"]["pages"]}
+    for raw, in db.execute("SELECT data FROM content_versions WHERE type='SourceArtifact'"):
+        saved = json.loads(raw)
+        if immutable_version_digest(saved["payload"]) in bound_versions:
+            citations.append({"source_ref": saved["ref"]})
     sources, records, pins, seen = [], [], [], set()
     for citation in citations:
         ref = citation['source_ref']

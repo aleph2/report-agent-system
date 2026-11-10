@@ -144,7 +144,9 @@ def _restore_record(store, db, entry, *, submissions):
     if not spec or spec["kind"] != claim["kind"] or role not in _CATALOG["roles"]:
         raise ValueError("Invalid action or role")
     agent_allowed = "@agent" in spec["roles"] and actor_class_for(role) == "agent"
-    if role not in spec["roles"] and not agent_allowed:
+    historical_source = (body.get("check_version") == "s2-proposal-2"
+                         and action == "assert_source" and role == "coordinator")
+    if role not in spec["roles"] and not agent_allowed and not historical_source:
         raise ValueError("Role is ineligible for the archived action")
     if claim["kind"] in {"act", "decision"}:
         allowed = {"answer", "dismiss_challenge"} if action == "decide" else {action}

@@ -38,7 +38,7 @@ async def test_third_read_retains_all_pages_and_still_offers_one_issue(assigned,
         if turn<=3:
             return reply([(f'page-{turn}','read_assigned_page',{'source_handle':'source-1','page':turn+1})])
         if turn==4:
-            assert {t['function']['name'] for t in body['tools']}=={'save_evidence','save_assumption','save_gap','propose_material_issue'}
+            assert {t['function']['name'] for t in body['tools']}=={'save_evidence','save_assumption','save_gap','propose_material_issue','assert_source','record_conflict'}
             assert len([m for m in body['messages'] if m['role']=='tool'])==3
             assert 'Earlier page/window text cleared' not in str(body['messages'])
             issue={'kind':'missing','basis':'Geology not supplied','adopted_value':'Pending survey',

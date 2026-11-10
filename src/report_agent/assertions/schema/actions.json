@@ -1,5 +1,5 @@
 {
-  "version": "s2-proposal-2",
+  "version": "stage1-9a-1",
   "roles": [
     "coordinator",
     "writer",
@@ -13,7 +13,7 @@
   "actions": {
     "assert_source": {
       "roles": [
-        "coordinator",
+        "writer",
         "owner"
       ],
       "kind": "source",
@@ -22,6 +22,7 @@
     "record_conflict": {
       "roles": [
         "coordinator",
+        "writer",
         "owner"
       ],
       "kind": "conflict",

@@ -26,7 +26,7 @@ def install_test_judgment_inputs(f, subject, source_id, page, quote, *, classifi
 
     condition = observation or {"predicate": "synthetic_observation", "value": "present", "coverage": "object"}
     predicate = condition["predicate"]
-    fact = write("coordinator", "assert_source", {
+    fact = write("owner", "assert_source", {
         "kind": "source", "state": "value", **condition,
         "citation": {"source_version": version, "page": page, "quote": quote},
     }, [version])

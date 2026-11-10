@@ -22,7 +22,7 @@ def receipt(host, operation):
 def test_lost_first_reply_does_not_complete_second_action_or_recheck_old_target(tmp_path):
     case = Case(tmp_path)
     targets = [
-        case.apply("coordinator", "assert_source", dict(
+        case.apply("owner", "assert_source", dict(
             kind="source", predicate=predicate, state="unknown", coverage="sample"
         ))
         for predicate in ("area", "size")

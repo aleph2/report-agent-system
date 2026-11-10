@@ -233,12 +233,12 @@ def test_raw_plan_cannot_forge_confirmed_carryover_status(carry_case):
             carry().gaps(f.cs, db, plan)
 
 
-def test_carryover_cannot_expand_source_permissions(carry_case):
-    from report_agent.source_use import configure_source_use
+def test_carryover_cannot_read_outside_supplied_case_files(carry_case):
+    from support.source_policy import restrict_supplied_case_files
     f = carry_case
     excluded = f.current_judgments["objects"][0]["sources"][0]["source_ref"]
     allowed = [ref for ref in f.skeleton_refs if ref != excluded]
-    configure_source_use(f.cs.store, [f.cs.read(ref)["payload"]["source_id"] for ref in allowed], "Narrow synthetic source enrollment")
+    restrict_supplied_case_files(f.cs.store, [f.cs.read(ref)["payload"]["source_id"] for ref in allowed])
     with pytest.raises((ActionForbidden, ActionRejected)):
         install(f)
     assert not f.cs.store.get("commission_carryover")

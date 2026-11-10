@@ -55,20 +55,6 @@ def _policy(store, ref, db=None):
     return value
 
 
-def configure_source_use(store, source_ids, authorization_origin):
-    """Freeze the explicitly supplied versions; final report authority comes from plan approval."""
-    declaration = validate_declaration(dict(source_ids=source_ids, authorization_origin=authorization_origin))
-    prior = commission_imports.source_policy_ref(store)
-    if not prior and not commission_imports.requires_source_policy(store):
-        prior = store.get('source_use_authority_binding')  # Reopening a historical case.
-    if prior:
-        policy = _policy(store, prior)
-        if policy['declaration'] != declaration:
-            raise ActionRejected('SOURCE_USE_AUTHORITY_IMMUTABLE')
-        return prior
-    return commission_imports.install_source_policy(store, _version_policy(store, declaration))
-
-
 def _version_policy(store, declaration, db=None):
     from .catalog import Catalog
     from .content_store import ContentStore
@@ -111,18 +97,6 @@ def _supplied_policy(store, db, refs):
     return _version_policy(store, {'source_ids': sorted(ids), 'authorization_origin': 'Supplied commission files'}, db)
 
 
-def freeze_supplied_sources(store, *, db=None):
-    """Freeze supplied files in the same case transaction that stores the proposal version."""
-    if db is None:
-        with store.connect() as connection:
-            connection.execute('BEGIN IMMEDIATE')
-            return freeze_supplied_sources(store, db=connection)
-    ref = commission_imports.source_policy_ref(db)
-    if ref or not commission_imports.requires_source_policy(db):
-        return ref
-    return commission_imports.save_source_policy(db, _supplied_policy(store, db, _supplied_inputs(db)))
-
-
 def _planning_binding(store, db, *, planning=True):
     ref = commission_imports.source_policy_ref(db)
     if not ref:
@@ -134,8 +108,6 @@ def _planning_binding(store, db, *, planning=True):
         ref = json.loads(row[0]) if row else None
     if ref:
         _policy(store, ref, db)
-    elif store.get('manifest', {}).get('source_use') is not None:
-        raise ActionRejected('SOURCE_USE_DECLARED_BUT_UNBOUND')
     return ref
 
 
@@ -145,6 +117,15 @@ def report_binding(store, *, db=None, snapshot=None):
     if db is None:
         with store.connect() as connection:
             return report_binding(store, db=connection, snapshot=snapshot)
+    from .page_bindings import sheet_route
+    selected = plan_authority.plan_ref(db)
+    if selected and sheet_route(store, selected):
+        pins = ({"plan": snapshot.get("commission_plan_ref"),
+                 "decision": snapshot.get("commission_confirmation_ref")} if snapshot else {})
+        plan_authority.confirmed_refs(db, **pins)
+        return None
+    if case_sources(store) is not None:
+        return None
     ref = _planning_binding(store, db, planning=False)
     if isinstance(ref, dict):
         # Only a genuine, currently approved proposal can authorize these host inputs.
@@ -176,6 +157,15 @@ def resolve_source_use_binding(workspace, actor):
         if active:
             raise ActionForbidden('FORBIDDEN: source use requires actual task identity')
         return None
+    from . import plan_authority
+    from .page_bindings import sheet_route
+    with workspace.store.connect() as db:
+        selected = plan_authority.plan_ref(db)
+    if selected and sheet_route(workspace.store, selected):
+        from .content_tasks import bound_actor
+        if bound_actor(workspace, actor.role, None) != actor:
+            raise ActionForbidden('FORBIDDEN: source use requires current task binding')
+        return None
     ref = workspace.store.get('source_use_task_binding:' + actor.task_id)
     if isinstance(active, dict) and active != ref:
         raise ActionForbidden('FORBIDDEN: task lacks the approved source policy')
@@ -192,7 +182,39 @@ def resolve_source_use_binding(workspace, actor):
     return ref
 
 
+def case_sources(store):
+    """IDs supplied at intake or explicitly enrolled in this case's source roles."""
+    from .content_store import ContentStore
+    with store.connect() as db:
+        refs = _supplied_inputs(db)
+        ids = set()
+        for ref in refs:
+            payload = ContentStore._read(db, ref)["payload"]
+            entries = payload["sources"] if ref["type"] == "CommissionSourceManifest" else payload.values()
+            ids.update(item["id"] for item in entries)
+        native = commission_imports.requires_source_policy(db)
+    return ids if native else None
+
+
+def check_case_sources(workspace, source_ids=(), source_refs=(), materials=()):
+    """No policy or digest: file membership is the case access boundary."""
+    from .content_store import ContentStore
+    allowed = case_sources(workspace.store)
+    if allowed is None:
+        return False
+    ids = set(source_ids) | {m["source_id"] for m in materials}
+    for ref in source_refs:
+        if ref["type"] != "SourceArtifact":
+            raise ActionRejected("CASE_SOURCE_ARTIFACT_REQUIRED")
+        ids.add(ContentStore(workspace.store).read(ref)["payload"]["source_id"])
+    if not ids <= allowed:
+        raise ActionRejected("CASE_SOURCE_NOT_SUPPLIED")
+    return True
+
+
 def validate_source_versions(workspace, actor, source_ids=(), source_refs=(), materials=()):
+    if check_case_sources(workspace, source_ids, source_refs, materials):
+        return None
     ref = resolve_source_use_binding(workspace, actor)
     if not ref:
         return None
@@ -202,10 +224,18 @@ def validate_source_versions(workspace, actor, source_ids=(), source_refs=(), ma
 
 def check_source_read(workspace, actor_for_read, source_ids=(), source_refs=()):
     """Apply the M5 selection at agent read tools. An implicit search covers just its allowed IDs."""
+    supplied = case_sources(workspace.store)
+    if supplied is not None:
+        if source_ids is None:
+            source_ids = sorted(supplied)
+        check_case_sources(workspace, source_ids, source_refs)
+        return source_ids
     with workspace.store.connect() as db:
         if not (commission_imports.source_policy_ref(db) or commission_imports.requires_source_policy(db)):
             return None
     ref = resolve_source_use_binding(workspace, actor_for_read())
+    if ref is None:
+        return source_ids
     policy = _policy(workspace.store, ref)
     if source_ids is None:
         source_ids = [entry['source_id'] for entry in policy['versions']]
