@@ -31,7 +31,7 @@ def tables(cs, db, plan, obj, assessment_ref, result, prefix):
         rows.append([label, str(rank), weight, value, score, reason])
         ranking.append([label, str(rank), weight])
         if saved['basis_kind'] == 'missing' or saved['basis_kind'].endswith('assumption'):
-            issues.append(dict(id=digest([assessment_ref, key]), kind=saved['basis_kind'],
+            issues.append(dict(id=digest([assessment_ref, key]), kind='unclear' if saved['basis_kind'] == 'missing' else saved['basis_kind'],
                 object_label=obj['label'] + ' / ' + label, basis=reason, sources=source_texts,
                 adopted_value=value, question=saved['question'],
                 anchor=dict(row=len(rows)-1, column=3), affects_level=not bool(result.get('level_robust'))))

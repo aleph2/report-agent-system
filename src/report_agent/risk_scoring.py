@@ -481,7 +481,7 @@ def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, cand
         qualification = '本草稿尚有未评分指标，不采用综合评分或风险等级。'
         text = obj['label'] + '：未评分，风险等级未确定。' + qualification
     else:
-        qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result.get('affects_level') else ''
+        qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result['affects_level'] else ''
         level = (plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
                  if table_records else result['adopted']['level'])
         if result.get('status') == 'legacy_draft':
@@ -622,7 +622,7 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
             if slot['field'] == 'level':
                 if plan['payload'].get('table_specs') and result.get('status') != 'unscored':
                     value = plan['payload']['table_specs']['evaluation']['level_labels'][value]
-                value += '。' + cs._read(db, receipt['level_ref'])['payload']['body']['level_qualification'] if result.get('affects_level') else ''
+                value += '。' + cs._read(db, receipt['level_ref'])['payload']['body']['level_qualification'] if result.get('status') != 'unscored' and result['affects_level'] else ''
         text = text.replace(slot['old'], value, 1)
     payload = ContentNode.model_validate({'kind': 'block', 'body': {'text': text,
         'section_id': section_id, 'planned_section': True, 'commission_plan_ref': plan['ref'],

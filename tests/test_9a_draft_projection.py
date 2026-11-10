@@ -7,11 +7,13 @@ from test_writer_indicator_outcomes import evidence, ranked
 
 
 @pytest.mark.parametrize('method_commission', ['with-owner-ranks'], indirect=True)
-def test_unscored_projection_has_every_indicator_and_actual_gap_reason(ranked):
+@pytest.mark.parametrize('all_open', [False, True])
+def test_unscored_projection_has_every_indicator_and_actual_gap_reason(ranked, all_open):
     f = ranked
     for key in ('A', 'B', 'C'):
         step = read_indicator_step(f.cs, f.actor)
-        save_indicator_outcome(f.cs, f.actor, 'save-' + key, key, evidence(f, step))
+        value = dict(kind='gap', missing='No saved judgment yet', question='Review this indicator?') if all_open else evidence(f, step)
+        save_indicator_outcome(f.cs, f.actor, 'save-' + key, key, value)
     final = save_indicator_outcome(f.cs, f.actor, 'deferred-D', 'D',
         dict(kind='gap', missing='Deferred for engineering review', question='Confirm the conditional grades?'))['result']
     with f.cs.store.connect() as db:
@@ -26,7 +28,7 @@ def test_unscored_projection_has_every_indicator_and_actual_gap_reason(ranked):
     row = next(row for row in table['rows'] if 'Deferred for engineering review' in str(row))
     assert '未评分' in row
     assert '未确定' in f.cs.read(receipt['level_ref'])['payload']['body']['text']
-    assert any(i['kind']=='missing' and i['adopted_value']=='未评分' for i in table['material_issues'])
+    assert any(i['kind']=='unclear' and i['adopted_value']=='未评分' for i in table['material_issues'])
 
 
 @pytest.mark.parametrize('status', ['unscored', 'pending_review', 'stale', 'challenged', 'retracted', 'superseded', 'unverified', 'legacy_draft'])
