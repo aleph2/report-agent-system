@@ -194,7 +194,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
             if oid == 'A':
                 before = tools['read_qualitative_row']('X32')
                 finding = tools['record_qualitative_finding'](
-                    'offline-A-X32', 'X32', before['row_digest'],
+                    'offline-A-X32', 'X32',
                     'Offline scripted finding. The question raises the grade, but season affects the value within the band.')
                 assert tools['read_qualitative_row']('X32') == before
                 report['scripted_finding'] = finding['result']

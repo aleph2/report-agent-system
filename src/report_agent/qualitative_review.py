@@ -96,22 +96,23 @@ def reviewer_tools(cs, actor):
                 'indicator_method':view['methods'][indicator_id], 'object_facts':facts,
                 'midpoint_convention':view['midpoint_convention']}
 
-    def record_qualitative_finding(operation_id: str, indicator_id: str, row_digest: str,
-                                   finding: str) -> dict:
+    def record_qualitative_finding(operation_id: str, indicator_id: str, finding: str) -> dict:
         """Record a separate Reviewer finding against one exact frozen row; the Writer retains row ownership."""
         reviewer = actor()
         def record(db):
             task, pin, view = _assigned(cs, db, reviewer)
-            if indicator_id not in view['rows'] or digest(view['rows'][indicator_id]) != row_digest:
-                raise ActionRejected('QUALITATIVE_REVIEW_ROW_DIGEST_MISMATCH')
+            if indicator_id not in view['rows']:
+                raise ActionRejected('QUALITATIVE_REVIEW_ROW_OUTSIDE_SCOPE')
+            row_digest = digest(view['rows'][indicator_id])
             if not finding.strip():
                 raise ActionRejected('QUALITATIVE_REVIEW_FINDING_REQUIRED')
             payload = {'review_task_ref':task, 'snapshot_digest':pin, 'object_id':view['object_id'],
                        'indicator_id':indicator_id, 'row_digest':row_digest, 'finding':finding}
             return {'finding_ref':cs._insert(db, reviewer, 'QualitativeRowFinding', payload)}
-        return cs.operation(reviewer, operation_id, {'indicator_id':indicator_id, 'row_digest':row_digest,
-                            'qualitative_finding':finding}, record)
-    return [read_qualitative_row, record_qualitative_finding]
+        return cs.operation(reviewer, operation_id, {'indicator_id':indicator_id, 'qualitative_finding':finding}, record)
+    from .native_operation_tools import native_write_tools
+    from .workspace import Workspace
+    return native_write_tools(Workspace(cs.store), 'reviewer', [read_qualitative_row, record_qualitative_finding])
 
 
 @contextmanager
@@ -122,7 +123,7 @@ def qualitative_reviewer_session(workspace, writer_task_ref):
     call = {'name':'task', 'id':'qualitative-review-'+uuid4().hex,
             'args':{'subagent_type':'reviewer', 'description':('Review the assigned rows against their cited excerpts, confirmed facts and method. '
                                    'Check the grade, rationale, assumptions, adjustment and follow-up question together. '
-                                   'Record findings against exact row digests and refer weak bases to engineers.'),
+                                   'Record findings for the assigned indicators; the system binds each frozen row. Refer weak bases to engineers.'),
                     'qualitative_writer_task_ref':writer_task_ref}}
     with delegated_task(workspace, 'coordinator', call):
-        yield {tool.__name__:tool for tool in content_tools(workspace,'reviewer')}
+        yield {getattr(tool, 'name', None) or tool.__name__:tool for tool in content_tools(workspace,'reviewer')}

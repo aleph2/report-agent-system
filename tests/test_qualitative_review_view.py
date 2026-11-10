@@ -92,19 +92,49 @@ def test_qualitative_reviewer_freezes_task_scoped_rows_and_separate_findings(min
         with pytest.raises(ActionRejected, match='ROW_OUTSIDE'):
             read('B/'+ind)
         write = tools['record_qualitative_finding']
-        with pytest.raises(ActionRejected, match='ROW_DIGEST'):
-            write('wrong-digest',ind,'bad','Period is open.')
-        saved = write('record',ind,view['row_digest'],'Period is open.')
+        ws.store.set('manifest', {**ws.store.manifest, 'operation_identity_profile':'native-tool-runtime-v1'})
+        sdk_tools = {getattr(t, 'name', None) or t.__name__:t
+                     for t in business_tools(ws, 'reviewer', None, None)}
+        native = sdk_tools['record_qualitative_finding']
+        assert isinstance(native, StructuredTool)
+        assert set(native.tool_call_schema.model_json_schema()['properties']) == {'indicator_id', 'finding'}
+        with pytest.raises(ActionRejected, match='ROW_OUTSIDE'):
+            write('wrong-row','B/'+ind,'Period is open.')
+        saved = write('record',ind,'Period is open.')
         assert read_progress(ws.store, key) == draft
-        assert write('record',ind,view['row_digest'],'Period is open.')['result'] == saved['result']
+        assert write('record',ind,'Period is open.')['result'] == saved['result']
         assert cs.read(saved['result']['finding_ref'])['payload']['row_digest'] == view['row_digest']
+        import json
+        call = {'name':'record_qualitative_finding', 'type':'tool_call', 'id':'native-review',
+                'args':{'indicator_id':ind, 'finding':'The observation period remains open.'}}
+        first = json.loads(native.invoke(call).content)
+        again = json.loads(native.invoke(call).content)
+        assert first == again
+        assert cs.read(first['result']['finding_ref'])['payload']['row_digest'] == view['row_digest']
+        with pytest.raises(ActionRejected, match='OPERATION_CONFLICT'):
+            native.invoke({**call, 'args':{**call['args'], 'finding':'Changed under the same ID.'}})
+        assert read_progress(ws.store, key) == draft
+        # A new call still checks the frozen view; exact redo remains a recorded operation.
+        with ws.store.connect() as db:
+            raw = db.execute('SELECT value FROM state WHERE key=?',
+                             ('qualitative_reviewer_snapshot:'+index['snapshot_digest'],)).fetchone()[0]
+            frozen = json.loads(raw)
+            frozen['rows'][ind]['rank'] += 1
+            db.execute('UPDATE state SET value=? WHERE key=?',
+                       (json.dumps(frozen), 'qualitative_reviewer_snapshot:'+index['snapshot_digest']))
+        with pytest.raises(ActionRejected, match='FROZEN_DIGEST'):
+            native.invoke({**call, 'id':'different-native-review'})
+        with ws.store.connect() as db:
+            db.execute('UPDATE state SET value=? WHERE key=?',
+                       (raw, 'qualitative_reviewer_snapshot:'+index['snapshot_digest']))
+        assert json.loads(native.invoke(call).content) == first
         from report_agent.hierarchical_tools import content_tools
         from report_agent.assertion_host import AssertionHost
         from report_agent.writer_fact_packet import packet_grant
         host = AssertionHost(ws.store.root)
         grant = packet_grant(ws.store.root, binding.plan_ref, 'A', binding.assessment_section_id)
         host.revoke(grant)
-        assert {t.__name__ for t in content_tools(ws,'reviewer')} == set(tools)
+        assert {getattr(t, 'name', None) or t.__name__ for t in content_tools(ws,'reviewer')} == set(tools)
         assert view == read(ind)
         # Later Writer work cannot change what this Reviewer was assigned.
         with ws.store.connect() as db:

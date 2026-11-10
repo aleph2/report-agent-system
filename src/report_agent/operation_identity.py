@@ -8,7 +8,7 @@ ATOMIC_WRITES = frozenset({
     'freeze_snapshot', 'derive_snapshot', 'submit_review', 'record_handoff',
     'save_section_prose', 'propose_material_issue', 'request_system_delivery',
     'save_indicator_outcome', 'save_evidence', 'save_assumption', 'save_gap',
-    'confirm_review_reuse', 'correct_own_review', 'export_content_snapshot',
+    'confirm_review_reuse', 'correct_own_review', 'record_qualitative_finding', 'export_content_snapshot',
     'export_content_workbook', 'request_layout_capability', 'select_content_delivery',
     'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome',
     'set_requirement_status', 'link_convention', 'set_scope_boundary', 'set_planning_details',
