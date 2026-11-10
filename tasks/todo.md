@@ -357,7 +357,7 @@ Main仅改model_invocation deadline回600、model_recovery已有策略参数化�
 
 ## Stage 1 9a (2026-11-10)
 
-Owner acknowledgment in substance includes the four corrections and a–f split. Part a is accepted after its clean full run. Part b is a review candidate pending owner acceptance. Reuse the current branch, with a separate size/verification record, tag and owner review for each part. Keep earlier unfinished history unchanged.
+Owner acknowledgment in substance includes the four corrections and a–f split. Parts a and b are accepted; main is fdf8f93. C is in progress. B2 follows c acceptance from main and must finish before paid Fake03. Reuse the current branch, with a separate size/verification record, tag and owner review for each part. Keep earlier unfinished history unchanged.
 
 - [x] Record the four corrections and the draft-first split in the proposal, entry, consolidated handoff and first-report procedure.
 - [x] **9a-a1 — binding contract.** Add applicable object/indicator page bindings and source eligibility without falsely confirming extracted values. Likely: planning_assertions.py, assertions/schema/kinds.py, actions.json, checks.sql and focused binding contract tests. Verify accepted versus wrong/unconfirmed binding and unchanged C4/C5.
@@ -375,7 +375,9 @@ Owner acknowledgment in substance includes the four corrections and a–f split.
 - [ ] **9a-c2 — field/check inventory and refusal measurements.** Classify actual pre-Fake03 agent fields/checks against requirements or reproduced bugs and consumers. Distinguish retained O4/O5/later-part code from the paid run's active path. Deduplicate real tool refusals by actor/native call ID; measure genuine zeroes and keep missing measurements explicitly unmeasured.
 - [ ] **Review/tag 9a-c.** Size figures and complete active-path inventory reviewed. No deferred reference/release cleanup pulled into this gate without an actual a-path dependency.
 
-- [ ] **Paid Fake03 gate.** Accepted a/b/c and applicable offline/rendered verification. Freeze answer key and scope before launch. If numeric scoring depends on f, complete/review f first; otherwise label unimplemented numeric rules as capability limitations and do not claim numeric-grade certification. Request separate owner scope/cap approval. This checkbox is not paid-launch authorization.
+- [ ] **9a-b2 — spec-owned format.** Start from main after c acceptance; follow docs/reviews/stage1-9a-b2-format-spec.md. Data-only assessment rows, shared spec renderer, source/open-item comments, instruction-role citation exclusion, numbering/cosmetics, two guards, new pair/PDF/comment list and hashes, one full offline run, owner acceptance, then main. No implementation during c.
+
+- [ ] **Paid Fake03 gate.** Accepted a/b/c/b2 and applicable offline/rendered verification. Freeze answer key and scope before launch. If numeric scoring depends on f, complete/review f first; otherwise label unimplemented numeric rules as capability limitations and do not claim numeric-grade certification. Request separate owner scope/cap approval. This checkbox is not paid-launch authorization.
 
 - [ ] **9a-d — general typed references.** Replace JSON-in-text references and their readers in small batches; no backlink/proof object/joint transaction. General cleanup can follow paid Fake03. Focused redo/read tests, then separate size record/tag/review.
 - [ ] **9a-e1 — case-target findings/release.** Typed case target and full C12 membership, exact frozen pair and independent Reviewer; no placeholder content assertions or C5 exception. Keep temporary release refusal until the replacement is accepted.
@@ -394,3 +396,7 @@ Part-b reader fixes (2026-11-10): source 25cd16c; all five rendered-page finding
 Part-b replacement full gate (2026-11-10): owner-authorized exact 2b55f6c passed cleanly, 6175 passed / 9 unchanged skips / 0 failures in 32m12s. All 6184 cases accounted once; all nine coverage floors pass. Automatic cleanup verified 1250 unchanged files, removed the disposable source copy and left zero test databases in run temp folders. Earlier failed run retained. Main stays 5e6c2ee pending owner acceptance of b; c and paid runs have not started. Review: docs/reviews/stage1-9a-b-full-verification.md.
 
 Part-b owner acceptance (2026-11-10): accepted fdf8f93; main fast-forwarded to that exact reviewed tag. Main re-inspected all six final pages; owner personal visual review is not claimed. Carry pending-section skeleton role to d and Chinese reader-facing reasons/questions to the future frozen paid Fake03 key. Part c starts with its receipt/digest consumer trace and active field/check inventory on the same branch; no new full/model run. Review: docs/reviews/stage1-9a-b-acceptance.md.
+
+Part-b rendered acceptance confirmed without reservation (2026-11-10): owner checked cover/date, TOC, citations, Chinese reasons/grade descriptions, open rows and the printed count of 23 issues. Batch numbering hierarchy, duplicate punctuation and source/PDF spacing into d. c remains receipt/digest cleanup plus the measured active field/check inventory; paid Fake03 still needs the later scope/cap approval.
+
+Owner b2 sequence (2026-11-10): b remains accepted. Finish/accept c and advance main before b2 starts. Paid Fake03 requires a, b, c, b2 and the measured inventory. B2 owns the rendering cosmetics/source-comment/spec format. Two future guard tests are listed in c as planned with no claimed result. No b2 source edits, new branch/worktree or launch.
