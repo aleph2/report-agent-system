@@ -440,7 +440,6 @@ src/report_agent/legacy_state.py	122	get_g6_issue_route	helper	read	'g6_issue_ro
 src/report_agent/legacy_state.py	126	get_planned_section_receipt	helper	read	'planned_section_receipt:' + suffix	planned_section_receipt:*
 src/report_agent/legacy_state.py	133	historical_prose	helper	read	key	g6_object_prose:*,g6_section_prose:*
 src/report_agent/legacy_state.py	137	get_assembly_receipt	helper	read	'assembly_receipt:' + suffix	assembly_receipt:*
-src/report_agent/legacy_state.py	141	get_commission_outcome	helper	read	'commission_outcome:' + suffix	commission_outcome:*
 src/report_agent/legacy_state.py	145	get_rescue_projection	helper	read	'rescue_projection:' + suffix	rescue_projection:*
 src/report_agent/legacy_state.py	149	get_historical_content_delivery	helper	read	'content_delivery'	content_delivery
 src/report_agent/legacy_state.py	153	get_historical_content_final_review	helper	read	'content_final_review'	content_final_review

@@ -1,0 +1,184 @@
+{
+  "source_lines_added": 0,
+  "source_lines_removed": 0,
+  "production_checks_added": 0,
+  "production_checks_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "tested_revision": "e86284a80f71ff21f6164122cf12797225ffdd6b",
+  "full_run": {
+    "expected": 6159,
+    "outcomes": {
+      "passed": 6149,
+      "failed": 1,
+      "skipped": 9
+    },
+    "failed": [
+      "tests/test_state_census.py::test_state_surface_has_a_reviewed_classification_and_no_new_access_sites"
+    ],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-10T07:02:50.922955+00:00",
+    "finished_utc": "2026-11-10T07:31:08.527421+00:00",
+    "elapsed_seconds": 1697.6
+  },
+  "clean_full_pass": false,
+  "failure_classification": "P2 inventory maintenance: M10 removed unused accessor but left its single reviewed census row",
+  "fix": "Remove exactly the get_commission_outcome row from docs/reviews/m0-state-sites.tsv; no guard or source changes",
+  "focused_fix_tests_passed": 44,
+  "focused_fix_seconds": 9.87,
+  "coverage": {
+    "percent": 90.8055280750667,
+    "covered_lines": 30290,
+    "statements": 33357,
+    "m0_floors": [
+      {
+        "file": "src/report_agent/commission_plan.py",
+        "m0_floor": 93.49240780911063,
+        "current": 93.89389389389389,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/commission_requirements.py",
+        "m0_floor": 91.40625,
+        "current": 92.44851258581235,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/content_store.py",
+        "m0_floor": 95.43817527010805,
+        "current": 95.57625145518044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/g3_export.py",
+        "m0_floor": 91.54518950437318,
+        "current": 91.91374663072776,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/rescue_projection.py",
+        "m0_floor": 88.41698841698842,
+        "current": 88.47583643122677,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/risk_scoring.py",
+        "m0_floor": 94.3566591422122,
+        "current": 94.61077844311377,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/section_writing.py",
+        "m0_floor": 90.19607843137256,
+        "current": 90.29126213592232,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/system_assembler.py",
+        "m0_floor": 87.27984344422701,
+        "current": 87.78625954198473,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/writer_issues.py",
+        "m0_floor": 90.12345679012346,
+        "current": 90.1840490797546,
+        "met": true
+      }
+    ]
+  },
+  "type_comparison": {
+    "baseline_revision": "7563917",
+    "current_revision": "e86284a",
+    "pythonpath": "owning native interpreter explicitly selected",
+    "baseline_errors": 676,
+    "current_errors": 676,
+    "new_diagnostics": [],
+    "removed_diagnostics": [],
+    "initial_check": "Invalid interpreter selection; missing installed imports. Raw records preserved; not a code-regression measurement."
+  },
+  "frozen_input_changes": [],
+  "retention": {
+    "policy": "failed",
+    "count": 1,
+    "phases": [
+      {
+        "phase": "tmp-collection",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-0",
+        "database_files": 106,
+        "database_bytes": 9375744
+      },
+      {
+        "phase": "tmp-group-1",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-2",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-3",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-4",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-5",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-6",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-7",
+        "database_files": 0,
+        "database_bytes": 0
+      }
+    ],
+    "note": "Passing shards retain zero case databases; the failed shard retains approximately 9 MiB including shared factory fixtures and failure evidence"
+  },
+  "paid_model_calls": 0,
+  "historical_runs_or_ledgers_modified": false,
+  "planning_conflict_result": "Same producer/routing test passed at pre-M6 7e19856 and accepted M10; omitted fixture actions, not M6 regression",
+  "next_gate": "9a implementation held; request owner approval to promote the census/test fix and perform one replacement clean full offline run",
+  "statistical_timestamp_utc": "2026-11-10T07:37:34.665248+00:00",
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_unchanged_from_prior_full": true,
+  "post_fix_tests_collected": 6160
+}
