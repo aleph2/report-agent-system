@@ -17,19 +17,6 @@ scripts/continue_reference_feedback.py	28	main	store	write	'manifest'	manifest
 scripts/continue_reference_feedback.py	51	main	store	read	'report_error'	report_error
 scripts/continue_reference_feedback.py	51	main	store	read	'report_status'	report_status
 scripts/continue_reference_feedback.py	53	main	store	read	'agent_summary'	agent_summary
-scripts/continue_report_corrections.py	49	main	store	read	'manifest'	manifest
-scripts/continue_report_corrections.py	51	main	store	read	'content_execution_decision'	content_execution_decision
-scripts/continue_report_corrections.py	52	main	store	read	'report_status'	report_status
-scripts/continue_report_corrections.py	53	main	store	read	'agent_summary'	agent_summary
-scripts/continue_report_corrections.py	54	main	store	read	'role_model_services'	role_model_services
-scripts/continue_report_corrections.py	66	main	sql	delete	key	agent_summary,checkpoint_resume,content_execution_decision,native_interrupts,report_error
-scripts/continue_report_corrections.py	67	main	property	read	store.manifest	manifest
-scripts/continue_report_corrections.py	67	main	store	write	'manifest'	manifest
-scripts/continue_report_corrections.py	69	main	store	write	'knowledge_enabled'	knowledge_enabled
-scripts/continue_report_corrections.py	74	main	store	read	'report_status'	report_status
-scripts/continue_report_corrections.py	75	main	store	read	'report_error'	report_error
-scripts/continue_report_corrections.py	77	main	store	read	'content_execution_decision'	content_execution_decision
-scripts/continue_report_corrections.py	79	main	store	read	'agent_summary'	agent_summary
 scripts/import_verified_sources.py	184	check_existing	sql	read	SELECT value FROM state WHERE key='verified_source_import'	verified_source_import
 scripts/import_verified_sources.py	186	check_existing	sql	read	SELECT value FROM state WHERE key='manifest'	manifest
 scripts/import_verified_sources.py	226	import_verified_sources	sql	write	INSERT INTO state VALUES ('verified_source_import', ?)	verified_source_import
