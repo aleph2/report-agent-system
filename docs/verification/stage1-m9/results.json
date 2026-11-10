@@ -1,0 +1,81 @@
+{
+  "source_lines_added": 0,
+  "source_lines_removed": 0,
+  "checks_guard_families_added": 0,
+  "checks_guard_families_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "base_revision": "3b4994799ea4ff6e01699193c22c14ed00948974",
+  "milestone": "M9 old-route retention audit",
+  "disposition": "Retained under approved O5, not migrated or retired",
+  "core_families": {
+    "corrections": {
+      "reads": 5,
+      "writes": 3,
+      "files": [
+        "src/report_agent/workspace.py"
+      ]
+    },
+    "source_changes": {
+      "reads": 7,
+      "writes": 2,
+      "files": [
+        "src/report_agent/catalog.py",
+        "src/report_agent/workspace.py"
+      ]
+    },
+    "result_impact_assessments": {
+      "reads": 3,
+      "writes": 1,
+      "files": [
+        "src/report_agent/workspace.py"
+      ]
+    },
+    "decision_observation": {
+      "reads": 6,
+      "writes": 1,
+      "files": [
+        "src/report_agent/cli.py",
+        "src/report_agent/deep_runtime.py"
+      ]
+    }
+  },
+  "additional_mixed_census_families": [
+    "acceptance_limitation",
+    "agent_summary",
+    "content_execution_decision",
+    "content_execution_limitation",
+    "content_revision_exceptions",
+    "feedback",
+    "learning_active_feedback",
+    "learning_analysis:*",
+    "learning_evaluation",
+    "observations:*",
+    "review_context_snapshots",
+    "summary_original:*"
+  ],
+  "current_static_census_sites": 868,
+  "m9_static_sites": 87,
+  "explicit_core_accessor_calls": 28,
+  "static_counts_are_not_runtime_usage": true,
+  "focused_tests_passed": 137,
+  "tests_collected": 6159,
+  "source_config_test_files_byte_identical": 962,
+  "dispatcher_unchanged": true,
+  "s2_unchanged": true,
+  "tests_added": 0,
+  "tests_deleted": 0,
+  "test_retirement_mapping": [],
+  "coverage_remeasured": false,
+  "full_regression_run": false,
+  "paid_model_calls": 0,
+  "historical_cases_or_ledgers_modified": false,
+  "retention": {
+    "policy": "failed",
+    "count": 1,
+    "source_copy_database_files": 0,
+    "latest_tmp_link_observed": false
+  },
+  "independent_review": "Pending owner review; Main performed the audit and offline checks",
+  "private_evidence": ".private/stage1-m9-20261109/",
+  "deferred_full_run": "One clean full offline run on main after M10, before 9a"
+}

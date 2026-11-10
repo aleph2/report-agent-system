@@ -1,0 +1,17 @@
+family	disposition	consumer_boundary
+corrections	O5 retained behind existing legacy_state accessors	Workspace producer corrections/revisions; public packet fields are not state writes
+source_changes	O5 retained behind existing legacy_state accessors	Catalog source imports and Workspace impact/delivery; shared current readers remain
+result_impact_assessments	O5 retained behind existing legacy_state accessors	Workspace producer-scoped usability decisions; not interchangeable with assertion IDs
+decision_observation	O5 retained behind existing legacy_state accessors	Existing runtime, CLI and repetition-state snapshot; dispatcher retained
+acceptance_limitation	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+agent_summary	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+content_execution_decision	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+content_execution_limitation	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+content_revision_exceptions	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+feedback	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+learning_active_feedback	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+learning_analysis:*	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+learning_evaluation	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+observations:*	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+review_context_snapshots	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion
+summary_original:*	Existing M0 mixed-family path retained; no migration claim	Record separately in M10 retained inventory; no blanket assertion conversion

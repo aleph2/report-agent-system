@@ -1,0 +1,24 @@
+{
+  "scanner": "scripts/state_census.py (unchanged)",
+  "all_static_sites": 868,
+  "selected_m9_sites": 87,
+  "family_static_sites": {
+    "corrections": 12,
+    "source_changes": 13,
+    "result_impact_assessments": 6,
+    "decision_observation": 11,
+    "acceptance_limitation": 3,
+    "agent_summary": 11,
+    "content_execution_decision": 12,
+    "content_execution_limitation": 2,
+    "content_revision_exceptions": 1,
+    "feedback": 9,
+    "learning_active_feedback": 6,
+    "learning_analysis:*": 2,
+    "learning_evaluation": 2,
+    "observations:*": 2,
+    "review_context_snapshots": 2,
+    "summary_original:*": 2
+  },
+  "dynamic_and_grouped_reads_not_runtime_proof": true
+}

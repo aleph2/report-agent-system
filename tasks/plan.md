@@ -1264,3 +1264,14 @@ ASE current-tree retirement, separate from frozen M8: Main owns this cleanup and
 
 Owner accepted M8 at 4d808dd and authorized its fast-forward/deletion handoff. Owner authorized one clean offline full run on main after M10, before 9a; do not run it early. Privacy remediation is prioritized before M9. The old50M standing grant is replaced: each paid launch needs an approved scope/cap within existing100M verification and200M real-report totals; both active AGENTS copies are corrected with no ledger or launch changes.
 ASE retirement verification: 6159 remaining cases collect (exactly22 retired),76focused guards pass,0passing caseDBs,src unchanged. The public-history sanitization plan is review-only at docs/reviews/public-history-sanitization-plan-20261109.md. No tool installation or history/visibility change has occurred.
+
+
+## 2026-11-09 · M9 old-route retention audit
+
+The owner confirmed privacy work complete at accepted public main `3b49947` and directed M9 to proceed. This supersedes the earlier pending privacy/M8 handoff notes above; original accepted hashes remain in private historical evidence. Main owns the M9 review records and this entry on `codex/stage1-m9`.
+
+The approved Stage 1 plan (section 3 O5; section 9 M9/M10) retains old Coordinator/web routes until after the first real report. M9 retains `corrections`, `source_changes`, `result_impact_assessments` and `decision_observation` through their existing accessors. It does not migrate or retire them. Twelve further M0 mixed families are recorded separately for M10; no blanket assertion conversion or completion claim is made for them.
+
+Main ran 137 focused offline tests on an isolated source copy; all passed, and all 6,159 tests collect. The unchanged scanner records 868 static sites, including 87 in the 16 M9-classified families; 28 are explicit core getter/setter calls. Static counts are not runtime usage. All 962 tracked code/script/test/config files are byte-identical to the accepted base. Source/check/fallback changes: zero; no tests deleted; dispatcher and S2 unchanged. Automatic failed-only/count-one test cleanup remains enabled. No full regression or paid call ran.
+
+Review: docs/reviews/stage1-m9-old-routes.md and docs/verification/stage1-m9/. Main remains at the accepted base pending owner review. M10 must retain live task storage and O4/O5 families, and may use the authorized single clean full offline run only after M10 and before 9a.

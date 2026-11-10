@@ -1,0 +1,88 @@
+file	line	scope	access	operation	operand	families	m9_families
+scripts/continue_layout_live_trial.py	39	main	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+scripts/continue_layout_live_trial.py	50	main	store	read	'agent_summary'	agent_summary	agent_summary
+scripts/continue_layout_live_trial.py	50	main	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+scripts/continue_reference_feedback.py	53	main	store	read	'agent_summary'	agent_summary	agent_summary
+scripts/prepare_review_trial017.py	252	prepare	sql	delete	[(key,) for key in ('rubric_targets', 'rubric_reviews', 'rubric_status', 'agent_summary', 'report_activity', 'task006_call_intent', 'knowledge_project_id', 'native_interrupts', 'report_error')]	agent_summary,knowledge_project_id,native_interrupts,report_activity,report_error,rubric_reviews,rubric_status,rubric_targets,task006_call_intent	agent_summary
+scripts/probe_duty_completion.py	132	learning_fixture	store	write	'learning_active_feedback'	learning_active_feedback	learning_active_feedback
+scripts/run_layout_live_trial.py	50	main	sql	delete	key	agent_summary,checkpoint_resume,content_execution_decision,native_interrupts,report_error,role_model_services	agent_summary,content_execution_decision
+scripts/run_layout_live_trial.py	71	main	store	read	'agent_summary'	agent_summary	agent_summary
+scripts/run_reference_alignment.py	59	main	store	write	'agent_summary'	agent_summary	agent_summary
+scripts/run_reference_alignment.py	89	main	store	read	'agent_summary'	agent_summary	agent_summary
+scripts/run_reference_alignment_learning.py	59	main	store	write	'agent_summary'	agent_summary	agent_summary
+scripts/run_reference_alignment_learning.py	107	main	store	read	'agent_summary'	agent_summary	agent_summary
+src/report_agent/acceptance.py	98	requirement_basis	store	read	'feedback'	feedback	feedback
+src/report_agent/catalog.py	101	import_file	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/catalog.py	103	import_file	accessor	write	set_source_changes	source_changes	source_changes
+src/report_agent/cli.py	168	main	accessor	read	get_decision_observation	decision_observation	decision_observation
+src/report_agent/content_delivery.py	72	_current_delivery	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+src/report_agent/content_delivery.py	182	_v4_delivery	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+src/report_agent/deep_runtime.py	197	awrap_tool_call	accessor	read	get_decision_observation	decision_observation	decision_observation
+src/report_agent/deep_runtime.py	243	_awrap_bound_tool_call	accessor	read	get_decision_observation	decision_observation	decision_observation
+src/report_agent/deep_runtime.py	251	_awrap_bound_tool_call	accessor	write	set_decision_observation	decision_observation	decision_observation
+src/report_agent/deep_runtime.py	540	observations	store	read	key	observations:*	observations:*
+src/report_agent/deep_runtime.py	543	observations	store	write	key	observations:*	observations:*
+src/report_agent/deep_runtime.py	1032	require_native_runtime	accessor	read	get_decision_observation	decision_observation	decision_observation
+src/report_agent/deep_runtime.py	1195	run_report	accessor	read	get_decision_observation	decision_observation	decision_observation
+src/report_agent/deep_runtime.py	1349	run_report	accessor	read	get_decision_observation	decision_observation	decision_observation
+src/report_agent/deep_runtime.py	1360	run_report	store	write	'agent_summary'	agent_summary	agent_summary
+src/report_agent/deep_runtime.py	1403	run_report	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+src/report_agent/hierarchical_review.py	201	reconcile	store	write	'content_execution_limitation'	content_execution_limitation	content_execution_limitation
+src/report_agent/hierarchical_tools.py	115	content_status	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+src/report_agent/hierarchical_tools.py	660	save	sql	write	INSERT OR REPLACE INTO state VALUES ('content_execution_decision', ?)	content_execution_decision	content_execution_decision
+src/report_agent/knowledge_state.py	63	project_state	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+src/report_agent/knowledge_state.py	64	project_state	store	read	'content_execution_limitation'	content_execution_limitation	content_execution_limitation
+src/report_agent/knowledge_state.py	79	project_state	store	read	'acceptance_limitation'	acceptance_limitation	acceptance_limitation
+src/report_agent/learning_runtime.py	44	read_learning_feedback	store	read	'learning_active_feedback'	learning_active_feedback	learning_active_feedback
+src/report_agent/learning_runtime.py	104	record_feedback_disposition	store	read	'learning_active_feedback'	learning_active_feedback	learning_active_feedback
+src/report_agent/learning_runtime.py	217	_run_optimizer_locked	store	read	'learning_active_feedback'	learning_active_feedback	learning_active_feedback
+src/report_agent/learning_text_work.py	89	analyze_learning_material	store	write	'learning_analysis:' + receipt	learning_analysis:*	learning_analysis:*
+src/report_agent/learning_text_work.py	96	adopt_project_fact	store	read	'learning_analysis:' + (analysis_id or '')	learning_analysis:*	learning_analysis:*
+src/report_agent/learning_worker.py	20	consume_pending	store	write	'learning_active_feedback'	learning_active_feedback	learning_active_feedback
+src/report_agent/learning_worker.py	30	consume_pending	store	write	'learning_active_feedback'	learning_active_feedback	learning_active_feedback
+src/report_agent/legacy_state.py	167	get_corrections	helper	read	'corrections'	corrections	corrections
+src/report_agent/legacy_state.py	171	set_corrections	helper	write	'corrections'	corrections	corrections
+src/report_agent/legacy_state.py	175	get_source_changes	helper	read	'source_changes'	source_changes	source_changes
+src/report_agent/legacy_state.py	179	set_source_changes	helper	write	'source_changes'	source_changes	source_changes
+src/report_agent/legacy_state.py	183	get_result_impact_assessments	helper	read	'result_impact_assessments'	result_impact_assessments	result_impact_assessments
+src/report_agent/legacy_state.py	187	set_result_impact_assessments	helper	write	'result_impact_assessments'	result_impact_assessments	result_impact_assessments
+src/report_agent/legacy_state.py	191	get_decision_observation	helper	read	'decision_observation'	decision_observation	decision_observation
+src/report_agent/legacy_state.py	195	set_decision_observation	helper	write	'decision_observation'	decision_observation	decision_observation
+src/report_agent/legacy_state.py	203	read_repetition_state_rows	sql	read	SELECT key,value FROM state WHERE key IN ('manifest','feedback','report_issues','issues','context_revision','source_changes','corrections','content_delivery','content_execution_dec	acceptance_default,acceptance_mode,active_rubric_hash,content_delivery,content_execution_decision,context_policy,context_revision,corrections,decision_observation,feedback,issues,knowledge_enabled,manifest,operator_%,report_issues,source_changes	corrections,source_changes,decision_observation,content_execution_decision,feedback
+src/report_agent/repetition_guard.py	55	fingerprint	accessor	read	read_repetition_state_rows	acceptance_default,acceptance_mode,active_rubric_hash,content_delivery,content_execution_decision,context_policy,context_revision,corrections,decision_observation,feedback,issues,knowledge_enabled,manifest,operator_%,report_issues,source_changes	corrections,source_changes,decision_observation,content_execution_decision,feedback
+src/report_agent/report_learning.py	127	prepare_rollout	store	write	'learning_evaluation'	learning_evaluation	learning_evaluation
+src/report_agent/report_learning.py	309	native_rollout	store	read	'learning_evaluation'	learning_evaluation	learning_evaluation
+src/report_agent/review.py	117	aafter_agent	store	write	'acceptance_limitation'	acceptance_limitation	acceptance_limitation
+src/report_agent/review.py	120	aafter_agent	store	write	'acceptance_limitation'	acceptance_limitation	acceptance_limitation
+src/report_agent/review.py	274	bind_target	store	read	'review_context_snapshots'	review_context_snapshots	review_context_snapshots
+src/report_agent/review.py	280	bind_target	store	write	'review_context_snapshots'	review_context_snapshots	review_context_snapshots
+src/report_agent/review_context.py	156	capture	store	read	'feedback'	feedback	feedback
+src/report_agent/revision_authorization.py	13	exact_exception	sql	read	SELECT value FROM state WHERE key='content_revision_exceptions'	content_revision_exceptions	content_revision_exceptions
+src/report_agent/store.py	197	status	store	read	'feedback'	feedback	feedback
+src/report_agent/store.py	212	add_feedback	sql	read	SELECT value FROM state WHERE key='feedback'	feedback	feedback
+src/report_agent/store.py	216	add_feedback	sql	write	INSERT OR REPLACE INTO state VALUES ('feedback', ?)	feedback	feedback
+src/report_agent/task_context.py	205	exact_task_context	store	read	'content_execution_decision'	content_execution_decision	content_execution_decision
+src/report_agent/task_context.py	206	exact_task_context	store	read	'feedback'	feedback	feedback
+src/report_agent/webapp.py	112	status	store	read	'agent_summary'	agent_summary	agent_summary
+src/report_agent/working_summary.py	136	_label_notes	sql	write	key	summary_original:*	summary_original:*
+src/report_agent/working_summary.py	137	_label_notes	sql	read	key	summary_original:*	summary_original:*
+src/report_agent/workspace.py	172	impact	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	183	impact	accessor	read	get_result_impact_assessments	result_impact_assessments	result_impact_assessments
+src/report_agent/workspace.py	243	request_revision	accessor	read	get_corrections	corrections	corrections
+src/report_agent/workspace.py	410	_submit	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	414	_submit	accessor	read	get_corrections	corrections	corrections
+src/report_agent/workspace.py	426	_submit	accessor	write	set_corrections	corrections	corrections
+src/report_agent/workspace.py	443	request_correction	accessor	read	get_corrections	corrections	corrections
+src/report_agent/workspace.py	448	request_correction	accessor	write	set_corrections	corrections	corrections
+src/report_agent/workspace.py	452	request_correction	accessor	write	set_corrections	corrections	corrections
+src/report_agent/workspace.py	465	assess_source_change	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	476	assess_source_change	accessor	write	set_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	498	assess_result_impact	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	501	assess_result_impact	accessor	read	get_result_impact_assessments	result_impact_assessments	result_impact_assessments
+src/report_agent/workspace.py	505	assess_result_impact	accessor	write	set_result_impact_assessments	result_impact_assessments	result_impact_assessments
+src/report_agent/workspace.py	590	delivery	accessor	read	get_corrections	corrections	corrections
+src/report_agent/workspace.py	602	delivery	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	640	status	accessor	read	get_corrections	corrections	corrections
+src/report_agent/workspace.py	642	status	accessor	read	get_source_changes	source_changes	source_changes
+src/report_agent/workspace.py	643	status	accessor	read	get_result_impact_assessments	result_impact_assessments	result_impact_assessments
+src/report_agent/workspace.py	645	status	store	read	'feedback'	feedback	feedback
