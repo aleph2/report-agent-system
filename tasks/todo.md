@@ -1,5 +1,8 @@
 # 当前计划清单
 
+Current Stage 1 work follows the [2026-11-10 9a split](../docs/reviews/stage1-9a-entry.md) and the dated checklist below. Earlier task lists are retained as history, not authorization to resume G4/G5.
+
+
 ## Active G4 repair — 2026-11-03 (ordered review gates)
 
 - [x] H1: source anchors, versioned dispositions, shared completeness guards; actual input extraction and omission matrix; review tag `m1-fixes-20261103-g4-h1` (457 passing affected tests; independent reviews accepted).
@@ -350,3 +353,33 @@ Main仅改model_invocation deadline回600、model_recovery已有策略参数化�
 - Git diff --check 的默认 CRLF 报告经命令局部 `cr-at-eol` 识别后无空白错误；未修改全局 Git 配置或批量格式化。
 
 - DeepSeek 填稿后定向离线检查终态：90 passed，0 failed/skip，256.23 秒；实际 two-file/native SDK、委派提示词分离、来源捕获与 Git archive 恢复均通过。JUnit: `.analysis/deepseek-agent-prompts-20261031/deepseek-filled-source-check-20261101.xml`。这是加载/代码行为证据，不是模型质量证据。
+
+
+## Stage 1 9a (2026-11-10)
+
+Owner acknowledgment in substance includes the four corrections and a–f split. Application implementation is not claimed by this checklist. Reuse the current branch, with a separate size/verification record, tag and owner review for each part. Keep earlier unfinished history unchanged.
+
+- [x] Record the four corrections and the draft-first split in the proposal, entry, consolidated handoff and first-report procedure.
+- [ ] **9a-a1 — binding contract.** Add applicable object/indicator page bindings and source eligibility without falsely confirming extracted values. Likely: planning_assertions.py, assertions/schema/kinds.py, actions.json, checks.sql and focused binding contract tests. Verify accepted versus wrong/unconfirmed binding and unchanged C4/C5.
+- [ ] **9a-a2 — access/extraction adapters.** Likely: writer_fact_packet.py, writer_assignments.py, assertions/evidence.py, writer_assessment.py and focused packet/extraction tests. Verify exact quote resolution, unknown-versus-absence and preserved qualifiers.
+- [ ] **9a-a3 — one owner checkpoint.** Likely: commission_plan.py, commission_assertions.py, issue_authority.py and focused checkpoint tests. One versioned sheet/reply produces all confirm acts; an interrupted fan-out redoes only missing acts with the same identities, no extra click or approval of later-added bindings.
+- [ ] **9a-a4 — retire the file approval.** Likely: source_use.py, current source-access/export callers, relevant source-use UI/action and source-use tests. Fresh-case planning sees supplied files; Writer/report access follows page bindings and case/C4 scope. No file-level wait or hidden source-approval export dependency. Preserve historical decisions and budget authority.
+- [ ] **Review/tag 9a-a.** Check actual source/check/fallback size figures and focused integration; accept before b.
+
+- [ ] **9a-b1 — disclosed draft assembly.** Likely: system_assembler.py, assessment_projection.py, risk_scoring.py and unscored assembly tests. Render every open row with its real reason and no adopted score/level; admit provisional drafts honestly.
+- [ ] **9a-b2 — issue/export closure.** Likely: material_issues.py, content_export.py, content_workbook.py and issue-pair tests. All three planning conflicts have records, bindings/routes and one-to-one Word comments/Excel rows; no score invention or check weakening.
+- [ ] **9a-b3 — rendered output.** Use existing render/inspection facilities on the draft pair; verify pages, tables, TOC, fixed text, citations and internal-content checks. Keep files/snapshots/verification provenance.
+- [ ] **Review/tag 9a-b.** Draft support and rendered-page record accepted; formal release stays refused.
+
+- [ ] **9a-c1 — touched receipt/digest dependencies.** Remove only dependencies touched by a, preserving completed business facts/qualifiers, image-delivery safety, producer binding and exact redo. Split any implementation batch to at most five likely files including tests; record precise consumers before removal.
+- [ ] **9a-c2 — field/check inventory and refusal measurements.** Classify actual pre-Fake03 agent fields/checks against requirements or reproduced bugs and consumers. Distinguish retained O4/O5/later-part code from the paid run's active path. Deduplicate real tool refusals by actor/native call ID; measure genuine zeroes and keep missing measurements explicitly unmeasured.
+- [ ] **Review/tag 9a-c.** Size figures and complete active-path inventory reviewed. No deferred reference/release cleanup pulled into this gate without an actual a-path dependency.
+
+- [ ] **Paid Fake03 gate.** Accepted a/b/c and applicable offline/rendered verification. Freeze answer key and scope before launch. If numeric scoring depends on f, complete/review f first; otherwise label unimplemented numeric rules as capability limitations and do not claim numeric-grade certification. Request separate owner scope/cap approval. This checkbox is not paid-launch authorization.
+
+- [ ] **9a-d — general typed references.** Replace JSON-in-text references and their readers in small batches; no backlink/proof object/joint transaction. General cleanup can follow paid Fake03. Focused redo/read tests, then separate size record/tag/review.
+- [ ] **9a-e1 — case-target findings/release.** Typed case target and full C12 membership, exact frozen pair and independent Reviewer; no placeholder content assertions or C5 exception. Keep temporary release refusal until the replacement is accepted.
+- [ ] **9a-e2 — plan-scoped waivers.** Scope by plan version/object/indicator and effective input references, not snapshot. Tests: typo-only new snapshot retains applicability; changed/new evidence or binding invalidates it; withdrawal invalidates dependent release; no changed score; release records waiver IDs used. Separate size record/tag/review of e before formal release.
+- [ ] **9a-f — numeric rules.** Separate new calculator functionality, using a small table-driven acceptance for guideline thresholds/interpolation, larger total-versus-bench score and unknown required inputs. Existing weighted/sensitivity arithmetic is reused. Separate size record/tag/review; move before paid Fake03 only if the frozen scoring scope needs it.
+
+Full regressions, model runs and real-report launches retain their separate explicit authorization requirements. No source originals, historical cases, ledgers, holds or unknown requests are rewritten/released.

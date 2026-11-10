@@ -1,0 +1,48 @@
+{
+  "source_lines_added": 0,
+  "source_lines_removed": 0,
+  "production_checks_added": 0,
+  "production_checks_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "scope": "Plan revision only: four owner corrections and separately reviewed 9a parts",
+  "before_paid_fake03": [
+    "9a-a bindings/extraction/C3/source-use retirement",
+    "9a-b unscored drafts/issues/rendered QA",
+    "9a-c touched receipt cleanup and measured active-path inventory"
+  ],
+  "after_paid_fake03_allowed": [
+    "9a-d general typed reference cleanup",
+    "9a-e case review/release/C12/waivers",
+    "9a-f numeric rules unless scoring scope requires it earlier"
+  ],
+  "owner_confirmation": "One versioned sheet and one reply; system produces individual acts and exact redo completes missing acts",
+  "waiver_scope": "Plan version + object + indicator + effective input references; not snapshot",
+  "waiver_tests_planned": [
+    "typo-only new snapshot retains",
+    "input change invalidates",
+    "new evidence invalidates",
+    "withdrawal invalidates dependent release",
+    "waiver never changes score",
+    "release records used waiver IDs"
+  ],
+  "numeric_acceptance": "Separate small test of specified thresholds/interpolation/larger-of height and missing inputs",
+  "review_policy": "Each part separate tag/review/actual size record; reuse current branch; main changes only after part acceptance",
+  "checks_performed": [
+    "four corrections present",
+    "a-f timing/gates explicit",
+    "waiver JSON example references CommissionPlan",
+    "existing todo history preserved",
+    "relative links resolve in revised active docs",
+    "git diff --check",
+    "source/test/config byte scope unchanged"
+  ],
+  "full_regression_run": false,
+  "paid_model_calls": 0,
+  "active_s2_changed": false,
+  "dispatcher_changed": false,
+  "application_implementation_started": false,
+  "main_stays_at": "cac8ca6",
+  "prior_clean_baseline": "6151 passed; 9 unchanged skips; 0 failed",
+  "who_verified": "Main; no independent execution claimed",
+  "timestamp_utc": "2026-11-10T08:52:05.401666+00:00"
+}

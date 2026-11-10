@@ -1,6 +1,6 @@
 # Consolidated section 9a handoff
 
-These are already agreed later changes. Storage slices do not implement the role split early.
+Current execution order is the owner's 2026-11-10 split in [9a entry](stage1-9a-entry.md) and the corrected [amendment](stage1-9a-s2-proposal.md). It supersedes earlier all-of-9a-before-paid wording. Parts a/b/c and the measured check inventory precede paid Fake03; d/e may follow, and f follows unless that run's scoring depends on it. Each part has its own tag/review and size figures. This is no paid-launch authority.
 
 1. Retire file-level source-use approval. Case access is the boundary. Keep historical decisions and source originals intact.
 2. Review a typed version-reference field to replace structured JSON in text: the M4 plan proposal and owner decision; the M5 checkpoint question and requirements interpretation. Follow the S2 amendment process for a vocabulary change. M6 runtime answers use the existing reference-in-reason pattern and belong in this same sweep.
@@ -15,9 +15,9 @@ The engineering lead's review of the 11 criteria and the HP02 page 115 interval 
 
 Apply the M7 test: does someone review, challenge or supersede this record? Assembly provenance remains immutable case data. A Reviewer's finding (including whether a paragraph is supported) is a disputable/withdrawable assertion. Release is an assertion recording a decision under delegated owner authority.
 
-One 9a S2 amendment covers findings, release and C12. Findings and releases use the typed case-version reference from item 2 to target paragraphs or snapshots. C12 binds the complete required output list to the exact snapshot and both Word/Excel file digests. Do not create placeholder assertions for report content; do not move assembly provenance into assertions. The M7 artifact_ref withdrawal remains correct.
+The umbrella 9a S2 amendment covers findings, release and C12 in part e, reviewed after the paid draft test if desired; general reference cleanup is part d. Findings and releases use the typed case-version reference from item 2 to target paragraphs or snapshots. C12 binds the complete required output list to the exact snapshot and both Word/Excel file digests. Do not create placeholder assertions for report content; do not move assembly provenance into assertions. The M7 artifact_ref withdrawal remains correct.
 
-Until 9a integration is accepted, the application host refuses formal release with FORMAL_RELEASE_DEFERRED_TO_9A, including an already-issued context. Native delivery remains a draft; scoped review evidence is not whole-report release or engineering sign-off. Remove that temporary guard only with the implemented and reviewed 9a replacement. The first formal release is for the real report after 9a and the paid Fake03 verification; this note authorizes neither paid launch nor early release.
+Until 9a integration is accepted, the application host refuses formal release with FORMAL_RELEASE_DEFERRED_TO_9A, including an already-issued context. Native delivery remains a draft; scoped review evidence is not whole-report release or engineering sign-off. Remove that temporary guard only with the implemented and reviewed 9a replacement. Formal release requires accepted part e and the applicable prior verification; this note authorizes neither paid launch nor early release.
 
 ## First-report corrections — owner decision after M9 acceptance
 
@@ -32,9 +32,17 @@ Owner-approved M10 acceptance separates the native Fake03 refusal from a complet
 - Render each open indicator as its own row, “未评分”, with its actual reason (including engineering deferral or missing supporting page).
 - Show the slope risk level as “not determined”; do not invent an adopted score.
 - Export the draft Word and Excel pair normally from the same snapshot and issue records.
-- Formal release still refuses until every required indicator is scored or explicitly waived by the owner. Implement this alongside the required 9a release integration; the current temporary release refusal remains until its replacement is accepted.
+- Formal release still refuses until every required indicator is scored or explicitly waived by the owner. Part b implements draft support before paid Fake03; part e supplies formal-release integration later. The temporary formal-release refusal stays until e is accepted and does not block a draft.
 - Include required conflict issues, comment bindings and routes. The M10 Fake03 replay omitted the normal Writer issue proposals and the two trusted reconciliation routes. The identical pre-M6/M10 diagnostic proves this is fixture coverage, not an M6 regression. Keep the three obligations; complete their fixture stage and derive the inventory route when unscored assessments become draft-admissible.
 
 History: M3 added native unscored results and explicit score_blocker refusal. Before M3, the Writer only produced a scored canonical assessment when all indicators were saved without gaps, and assembly required that receipt. No verified pre-M3 unscored draft-export route exists; the historical comparison is source inspection, not execution.
 
 Rendered-page QA of the paired Word/Excel output is a required 9a exit criterion before any paid run. Structural package checks alone do not satisfy it.
+
+
+## Four owner corrections applied before implementation
+
+- Part a retires file-level source-use approval in the same binding/C3 amendment. Case access and issued packets remain; preserve historical source-use records and all budget authority.
+- One owner reply to the versioned scope/binding confirmation sheet emits all the individual confirm acts. Retry completes the saved reply's missing acts only; no extra owner click per slope or indicator, no silent approval of later-added bindings.
+- Part e waivers are per plan version, object and indicator, valid until withdrawal or effective inputs change. Compare existing input references directly, without an input digest. A cosmetic snapshot change does not invalidate them. Each release records the waiver IDs it relied on.
+- Part f is new numeric functionality with its own small acceptance test; bring it before paid Fake03 only if the frozen run scope requires numeric scoring.

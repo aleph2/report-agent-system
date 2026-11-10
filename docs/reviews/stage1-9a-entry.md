@@ -1,42 +1,44 @@
-# Section 9a entry — work order and amendment boundary
+# Section 9a — reviewed parts and draft-first gate
 
-Source: **0 lines added / 0 removed**. Production checks/guards added/removed: **0 / 0**. New legacy fallback paths: **0**. This is preparation, not an S2 amendment or paid launch.
+Source: **0 lines added / 0 removed**. Production checks/guards added/removed: **0 / 0**. New legacy fallback paths: **0**. This revision changes the plan only.
 
-## Preconditions and scope
+The owner acknowledged the amendment in substance on 2026-11-10, subject to four corrections now applied in the [amendment](stage1-9a-s2-proposal.md): retire file-level source-use approval in a; plan/object/indicator-scoped waivers that survive cosmetic snapshots; one confirmation-sheet reply producing all individual acts; numeric guideline rules reviewed separately.
 
-Accepted M10 is e86284a; the owner-approved census correction is cac8ca6. The replacement clean full run on that exact main passed once, without reconciliation: 6151 passed, nine unchanged skips, no failures, in 28m12s. The implementation entry gate is met; S2 changes still require acknowledgment of the concrete proposal. The three planning-conflict records are a fixture omission, reproduced with identical behavior before M6 and at M10; no issue-storage repair is indicated.
+The clean implementation baseline is main cac8ca6: 6,151 passed, nine unchanged skips, no failures, in 28m12s, without reconciliation. [Full record](../verification/stage1-clean-main-20261110/results.json). The three planning-conflict obligations are a fixture omission, not an M6 regression. [Trace](stage1-post-m10-verification.md).
 
-[Clean baseline record](../verification/stage1-clean-main-20261110/results.json). [S2 amendment proposal](stage1-9a-s2-proposal.md). [Initial inventory](../verification/stage1-9a-inventory/status.json).
+## Ordered parts
 
-The approved role split is: Coordinator confirms scope and source-page bindings; Writer quotes/extracts values, judges qualitative evidence and calls the shared deterministic calculator; Reviewer independently checks support, qualifiers and calculation. Owner confirms scope/bindings, not each extracted value. Dispatcher remains unchanged. O4/O5 old routes remain retained; assertion-backed reports must direct corrections/source replacements to supersession through assertions.
+| Part | Deliverable and focused acceptance | Timing |
+| --- | --- | --- |
+| a | Bindings → one owner reply → individual acts → Writer quotation/extraction with new C3. No file-level approval wait or export dependency on the new route. Wrong/unconfirmed pages refuse; case/C4 scope stays; new facts are not falsely confirmed. Retry completes missing confirm acts without duplicate acts or a second owner answer. | Before paid Fake03 |
+| b | Unscored/provisional draft Word/Excel from one snapshot, open rows/reasons and not-determined level, all three planning conflicts with correct routes/comments/rows, rendered pages/tables/TOC checked. Do not invent numeric scores or weaken fixed-text/citation/internal-content checks. | Before paid Fake03 |
+| c | Remove receipt/digest dependencies where a touches them, preserving consumed qualifiers and completed facts. Finish the active field/check inventory with requirement/consumer mapping and measured refusal counts, including genuine zeros. Native IDs replace manual copying; preserve image delivery, producer binding and exact redo. | Before paid Fake03 |
+| d | Replace general JSON-in-text references with typed one-way case-version references and update their readers. No proof objects, backlink or multi-store transaction. | May follow paid Fake03 |
+| e | Case-target findings/release, complete C12 and explicit owner waivers. Waivers bind a plan version, object, indicator and effective input references; typo-only re-export preserves them, input changes/withdrawal invalidate them. Release names the waivers it used. | May follow paid Fake03; before formal release |
+| f | New guideline threshold/interpolation and larger-of total/bench-height calculations, with small separate table-driven acceptance tests. Unknown required inputs stay open. | After paid Fake03 unless its frozen scoring scope requires f first |
 
-The original role-split file boundary (prompts, actions.json, C3, calculator exposure and Writer access construction) is kept as the baseline. Later explicit owner decisions also require unscored draft rendering, case-target review/release integration, typed case references, removal of obsolete receipt/digest paths and Workspace correction notice/disablement. These exceptions are requirements, not permission for an unrelated store/dispatcher rebuild. Explain any further boundary crossing before implementing it.
+Follow a–f with a separate tag and review per part, bringing f forward only for the stated numeric dependency. Reuse codex/stage1-9a; main advances only to an accepted part. No branch per letter. Source size figures must show added, removed and net source lines, checks/guards added/removed and fallback changes; do not call growing code a reduction. Retired tests need individual mappings. Full regressions require explicit authorization; do not start one for each documentation edit.
 
-## Implementation order
+## Paid Fake03 gate
 
-1. Complete the field/check inventory for the actual effective tools and prompts. Mark host-injected IDs separately from agent-supplied fields. Each retained field/check cites the approved requirement or reproduced defect and its consumer. Inventory every check, including zero firings; do not infer zero from an absent log. Refusal counts from a paid trace, a scripted replay and expected unit-test exceptions are different measurements. Reuse native-call-ID deduplication.
-2. Bring the **concrete S2 amendment** for acknowledgment before changing the contract: Writer source assertions under confirmed page bindings, C3's quote/binding rule, typed case-version references for the already agreed case-target findings/decisions and C12's complete required outputs. Keep authenticated identity, producer binding, C4 scope, cross-subject support, owner-only waiver/retraction authority and independent Reviewer release checks. No assembly-provenance assertions or placeholder content assertions.
-3. Implement the role/tool change in thin offline-tested slices. Reuse maintained LangChain middleware, native tool-call identity and existing pure arithmetic where applicable. Do not introduce another scheduler or task store. Remove superseded instructions/tool fields at the same time; preserve source originals and historical records.
-4. Implement the mandatory unscored draft path. Each required open indicator has its own “未评分” row and actual reason; a slope without an adopted result has risk level “not determined”. Carry planning-conflict issues and bindings/routes through to one-to-one Word comments/Excel rows. A provisional renderer string is not proof of assembler admission; test admission and rendering independently.
-5. Implement the already agreed release integration and assertion-only correction UX. Formal release refuses until each required indicator is scored or has an explicit owner waiver on the frozen output being released. Draft delivery, formal release and named engineering sign-off remain separate. Remove the temporary blanket release guard only after the replacement is implemented and reviewed.
-6. Finish offline gates and rendered-page QA before requesting a paid launch. Paid Fake03 and the one-slope real-report run each still need a new owner-approved scope and cap; the 100M/200M aggregate limits are not launch permission.
+Accepted a/b/c, the measured inventory and the required offline/rendered verification qualify the draft trunk for an owner-authorized test. Parts d/e are not prerequisites. Leave FORMAL_RELEASE_DEFERRED_TO_9A in place until e is accepted; a draft does not need a waiver or formal-release machinery.
 
-## Evidence to preserve
+Before asking to launch, freeze the answer key, expected numeric coverage and run scope. If numeric scoring is part of that expectation, bring f forward and review its acceptance first. Otherwise numeric rules not yet implemented remain explicit capability limitations, never invented grades or false “missing source” diagnoses. A draft test must not be described as numeric-scoring certification.
 
-- Existing six defect replays, ten valid controls and fake04 alternate wording; A/X32 keeps 27 and its visible question, current A/X51 stays unscored with low/moderate alternatives.
-- Fresh case and task reopening, exact quote/page bindings, image delivery, immutable originals, lost-reply recovery without a second paid call, holds/unknown outcomes intact.
-- Real output pair: same frozen snapshot; required open rows and reasons; required issues one-to-one as Word comments/Excel rows; fixed text, citations and internal-content checks; rendered pages, tables and TOC inspected. Package readability alone is insufficient.
-- Correction/replacement makes dependent scores **and prose** stale; historical output files stay pinned to their original versions.
-- Fields/checks removed have an explicit consumer/requirement decision and tests map individually where retired. No speculative guard is added.
+No launch is granted here. Paid Fake03 and the one-slope real-report test each still need their own owner-approved scope/cap within the aggregate limits. G5 remains stopped and originals, ledgers, holds and unknown outcomes remain untouched.
 
-## Initial source observations, not finished design
+## Boundaries and evidence
 
-- planning_assertions._issuer is Coordinator-only. Editing actions.json alone would not enable Writer extraction; the confirmed-task access adapter also needs the agreed role change.
-- Native Writer operation IDs are already injected by native_operation_tools._native_write. Do not count them as model-supplied fields or build another ID mechanism.
-- assessment_results.unscored_result already computes bounds without adopting a score; rendering/admission is the missing path. Reuse the calculator rather than manufacture a replacement score.
-- The existing qualitative Reviewer view checks frozen row digests and writes case findings; moving disputable case-target findings into assertions is the M8-approved integration, not already completed.
-- Langfuse credentials are not configured. The local frozen traces remain sufficient for this preparation; no CLI install, telemetry setup or source upload is part of 9a.
+- Coordinator proposes applicable pages, owner confirms scope/bindings once, Writer extracts values, Reviewer checks support independently. A binding is not confirmation that an extracted value is correct.
+- Planning reads supplied case material; report use follows page bindings. Retire the file approval in a without fake approval grants, grant-reuse machinery or deletion of historical source-use records.
+- Keep C4/C5, authenticated identity and producer binding. No placeholder assertions for report content or C5 exemption. Assembly provenance remains case data.
+- Corrections/source replacement for assertion-backed reports use assertions. Provide the agreed Workspace notice/disablement by the first real report; this is not global old-route retirement.
+- Preserve six defect replays, ten controls and fake04 wording. A/X32 keeps 27 and its question; current A/X51 stays unscored with its alternatives.
+- Receipt removal cannot discard quoted facts or qualifiers. Business copies carry completed facts, not another run's grants/page receipts. Exact recovery must not replay an unknown paid request.
+- Formal release is a later gate: complete required output list, exact snapshot and both file digests, independent Reviewer, and applicable plan-scoped waivers. Named engineering sign-off is separate. The 11 criteria review and page 115 remain unresolved.
 
-## Initial inventory observation
+## Inventory state
 
-The current qualitative Reviewer tool schema still exposes operation_id and row_digest. The native Writer save schemas already hide/inject operation IDs. The new Reviewer adapter must similarly inject existing native identity and bind the exact frozen target, while preserving redo and version checks. This is a requirement gap found in the schema, not a claim that a live Reviewer failed. Field/guard requirement mapping and refusal measurement are unfinished; unknown counts remain unmeasured.
+[Initial fields](../verification/stage1-9a-inventory/agent-fields-initial.tsv), [S2 checks](../verification/stage1-9a-inventory/s2-checks-initial.tsv), [unfinished mapping/measurements](../verification/stage1-9a-inventory/status.json). Unmeasured is not zero. The current qualitative Reviewer exposes operation_id/row_digest while Writer injects native IDs; remove the new adapter's copying burden without removing recovery/version checks. No live Reviewer failure or model improvement is claimed.
+
+[Plan-revision verification](../verification/stage1-9a-split-plan/results.json): documentation consistency only; no application change or new full/model run.
