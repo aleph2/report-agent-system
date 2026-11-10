@@ -1318,3 +1318,11 @@ The ordered parts are a bindings/extraction/newC3/source-use retirement; b unsco
 Waiver applicability uses existing effective input references directly, no input digest or snapshot identity. Typo-only re-export/new snapshot does not require another waiver; changed/new relevant evidence, bindings or method inputs do. Binding confirmation is one versioned checkpoint; retries finish only its missing acts and never approve later-added bindings. New-route material approval is solely page bindings; case access/C4, historical source-use records and every budget receipt/hold remain protected.
 
 The checklist is in tasks/todo.md under Stage 1 9a (2026-11-10); active scope is docs/reviews/stage1-9a-entry.md and stage1-9a-s2-proposal.md. Older task entries remain evidence, not a direction to resume stopped G4/G5. This revision changes documentation only; no active S2, prompt, dispatcher, application, tests, grants or ledgers changed, and no full regression or paid launch was run or authorized.
+
+## 2026-11-10 · Part 9a-a implementation candidate
+
+Main implemented the owner-acknowledged page-binding/Writer-extraction amendment on the existing codex/stage1-9a branch. One saved reply fans out only to its frozen bindings; exceptions stay proposed. Quoted values remain proposed, and the native read-only Reviewer view exposes their real status. New commissioned cases use supplied-file membership even when historical policy records exist; no file policy is created. Historical records and source/budget pins remain intact.
+
+The same requirement-backed adapter finding covers the native tools, shared evidence projection and confirmation caller. The dispatcher modules and run functions remain unchanged; report_host.prepare removes only its two retired file-policy lines. Source correction/replacement, unscored draft rendering and formal case-target release remain in their separately reviewed parts. No paid launch or full regression is authorized by this candidate.
+
+Review and measured evidence: docs/reviews/stage1-9a-a.md and docs/verification/stage1-9a-a/. Main stays at accepted cac8ca6 until owner acceptance.

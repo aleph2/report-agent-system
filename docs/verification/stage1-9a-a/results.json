@@ -1,0 +1,71 @@
+{
+  "statistical_timestamp_utc": "2026-11-10T11:15:23.096052+00:00",
+  "status": "implementation candidate; owner-authorized full regression and acceptance pending",
+  "base_commit": "46fddcae79c77cbfb26285f670ae5466ad51768b",
+  "code_commit": "bd7ca36313ea2756ee9bab25563fc5cefc49bd7b",
+  "production_lines": {
+    "added": 503,
+    "removed": 129,
+    "net": 374
+  },
+  "focused": {
+    "passed": 540,
+    "failed": 0,
+    "elapsed_seconds": 311.70199370384216,
+    "source": "immutable git archive bd7ca36313ea2756ee9bab25563fc5cefc49bd7b",
+    "native_coordinator_final_recheck": "1 passed; same test strengthened to invoke the real native page tool"
+  },
+  "collection": {
+    "cases": 6168,
+    "baseline_cases": 6160,
+    "executed_full_suite": false
+  },
+  "static_analysis": {
+    "files": 4,
+    "errors": 0,
+    "scope": [
+      "page_bindings.py",
+      "writer_extraction.py",
+      "assertions/evidence.py",
+      "writer_fact_packet.py"
+    ]
+  },
+  "mutation": {
+    "unconfirmed_binding_bypass_detected": true
+  },
+  "temporary_source_copy_removed": true,
+  "protected": {
+    "files": {
+      "src/report_agent/deep_runtime.py": true,
+      "src/report_agent/content_tasks.py": true,
+      "src/report_agent/assertion_host.py": true
+    },
+    "host_functions_changed": [
+      "prepare"
+    ]
+  },
+  "checks": {
+    "explicit_raise_sites_added": 21,
+    "explicit_raise_sites_removed": 4,
+    "counting_method": "AST Raise statements per production file, ignoring source positions; not a complete semantic check inventory.",
+    "sql_rule_families_before": 12,
+    "sql_rule_families_after": 12,
+    "sql_clauses_before": 13,
+    "sql_clauses_after": 13,
+    "schema_validators_added": 1,
+    "schema_validators_removed": 0,
+    "legacy_fallbacks_added": 1,
+    "legacy_fallback_requirement": "Preserve accepted s2-proposal-2 Coordinator source archive rows after current role retirement.",
+    "operational_refusal_frequencies": "unmeasured; complete active-path inventory belongs to 9a-c"
+  },
+  "paid_run": "not launched",
+  "raw_evidence": ".private/stage1-9a-a/",
+  "independent_owner_review": "pending",
+  "deferred_parts": [
+    "b: disclosed draft/rendered outputs",
+    "c: touched transport cleanup and measured inventory",
+    "d: general typed refs",
+    "e: case-target review/release/waivers",
+    "f: numeric guideline rules"
+  ]
+}

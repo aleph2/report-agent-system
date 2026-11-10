@@ -77,6 +77,42 @@
       "summary": "Owner withdrew the optional artifact_ref and its proposed C5 exception: assembly generation is operational case data, not an assertion. Restores kinds.py exactly to accepted M6/M3; calculator actions, SQL checks and existing schema versions remain unchanged. Earlier M7 entries remain chronological history only.",
       "owner_record": "Owner chat 2026-11-09, response to C5 question: keep C5 unchanged, do not hold M7; migrate four receipt families as immutable case records, withdraw artifact_ref, and check referenced assertions at export. No review/challenge/supersede consumer of generation provenance was found.",
       "status": "acknowledged"
+    },
+    {
+      "id": "9a-a-kinds.py",
+      "date": "2026-11-10",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "5753f2de57b2605cc825d115b277cd76c49c75aa",
+      "before_sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6",
+      "after_sha256": "8de86459885607903723460af151f6dd9e04e7c95e70b120a62d3558b6f45011",
+      "summary": "Optional typed convention.page_binding stores indicator and physical source pages; versioned stage1-9a-1 checks. No case_ref, waiver or release changes.",
+      "owner_record": "Owner chat 2026-11-10: revised plan accepted; four corrections and a-f split acknowledged; review part a at its tag.",
+      "status": "acknowledged"
+    },
+    {
+      "id": "9a-a-actions.json",
+      "date": "2026-11-10",
+      "file": "actions.json",
+      "category": "action",
+      "revision": "5753f2de57b2605cc825d115b277cd76c49c75aa",
+      "before_sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54",
+      "after_sha256": "ccd1d31fafa332a0871b4256eb2244e421f50d902ee970a75ae3567d696925e1",
+      "summary": "Writer and owner assert quoted values; Coordinator proposes bindings; Writer may record conflicts.",
+      "owner_record": "Owner chat 2026-11-10: revised plan accepted; four corrections and a-f split acknowledged; review part a at its tag.",
+      "status": "acknowledged"
+    },
+    {
+      "id": "9a-a-checks.sql",
+      "date": "2026-11-10",
+      "file": "checks.sql",
+      "category": "check",
+      "revision": "5753f2de57b2605cc825d115b277cd76c49c75aa",
+      "before_sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568",
+      "after_sha256": "00a2cbde39f658fd413abe3df0dd6dca7447814680b14919a5d3185f77c795bd",
+      "summary": "C3 and source-ground C6 use applicable page-bound quote eligibility without changing Source status. Binding page versions remain C4 references; C5 and formal release authority unchanged.",
+      "owner_record": "Owner chat 2026-11-10: revised plan accepted; four corrections and a-f split acknowledged; review part a at its tag.",
+      "status": "acknowledged"
     }
   ]
 }

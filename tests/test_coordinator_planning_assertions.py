@@ -19,10 +19,22 @@ from test_m1_g4_planning_steps import (anchored, current_native_profiles, draft_
 
 async def test_coordinator_offers_page_proposals_not_value_extraction(draft_case):
     f=draft_case
+    from test_m1_g4_planning_steps import save_draft_parts, planning
+    save_draft_parts(f)
+    submitted=planning().submit_plan(f.cs,f.co,"native-binding-plan")["result"]["plan_ref"]
     current_native_profiles(f)
-    driver=Driver(coordinator=[AIMessage(content='', tool_calls=[call('ask_human',
-        dict(category='requirement',description='Planning checkpoint',source_ids=[],pause=True),'pause')])])
+    subject=f.plan["objects"][0]["object_id"]
+    indicator=f.plan["method_pack"]["indicators"][0]["id"]
+    driver=Driver(coordinator=[
+        AIMessage(content="",tool_calls=[call("propose_page_binding",
+            dict(subject=subject,indicator_id=indicator,pages=[]),"native-page-proposal")]),
+        AIMessage(content='', tool_calls=[call('ask_human',
+            dict(category='requirement',description='Planning checkpoint',source_ids=[],pause=True),'pause')])])
     await build_agent(f.ws,driver,None).ainvoke({'messages':[HumanMessage('Plan this commission.')]})
+    from report_agent.page_bindings import records
+    proposed=[row for row,state in records(f.ws.store,submitted,subject) if row["claim"]["kind"]=="convention"]
+    assert len(proposed)==1 and proposed[0]["claim"]["page_binding"]["indicator_id"]==indicator
+    assert proposed[0]["was_generated_by"]==f.co.task_id
     schemas={s['name']:s for s in driver.bindings['coordinator'][0]}
     assert 'assert_source' not in schemas
     assert 'propose_page_binding' in schemas

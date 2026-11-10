@@ -1,0 +1,14 @@
+{
+  "explicit_raise_sites_added": 21,
+  "explicit_raise_sites_removed": 4,
+  "counting_method": "AST Raise statements per production file, ignoring source positions; not a complete semantic check inventory.",
+  "sql_rule_families_before": 12,
+  "sql_rule_families_after": 12,
+  "sql_clauses_before": 13,
+  "sql_clauses_after": 13,
+  "schema_validators_added": 1,
+  "schema_validators_removed": 0,
+  "legacy_fallbacks_added": 1,
+  "legacy_fallback_requirement": "Preserve accepted s2-proposal-2 Coordinator source archive rows after current role retirement.",
+  "operational_refusal_frequencies": "unmeasured; complete active-path inventory belongs to 9a-c"
+}
