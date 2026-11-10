@@ -160,7 +160,7 @@ class AssertionHost:
         launch.validate_launch(grant.role, [action])
         if not isinstance(native_call_id, str) or not native_call_id.strip():
             raise ValueError("Valid native action and call ID required")
-        return self.commission.bind(partial(self._authorized, grant.key, grant.binding), grant.binding, action,
+        return self.commission.bind(partial(self._authorized, grant.key, grant.binding, action), grant.binding, action,
                                     bound_native_id(grant.principal, action, native_call_id))
 
     def issue(self, grant, action, call_id):
@@ -168,7 +168,9 @@ class AssertionHost:
         return self.bind(grant, native_call_id=call_id, action=action)
 
     @contextmanager
-    def _authorized(self, key, binding):
+    def _authorized(self, key, binding, action):
+        if action == "release":
+            raise PermissionError("FORMAL_RELEASE_DEFERRED_TO_9A")
         # Hold a reader lock on launch authority until the content transaction finishes.
         with closing(sqlite3.connect(self.access)) as db, db:
             db.execute("BEGIN")

@@ -229,7 +229,7 @@ def test_frozen_binding_first_registration_matches_what_owner_confirmed(db):
 
 
 @pytest.mark.parametrize("review_action", ["record_finding", "endorse"])
-def test_public_release_lifecycle_binds_review_pair_scope_and_human_authority(tmp_path, review_action):
+def test_component_release_lifecycle_binds_review_pair_scope_and_human_authority(tmp_path, review_action):
     from uuid import uuid4
 
     from report_agent import assertions
@@ -248,7 +248,15 @@ def test_public_release_lifecycle_binds_review_pair_scope_and_human_authority(tm
             authorities = []
         grant = Grant(actor, role, "task", "attempt", "plan", {"section"}, permitted, {action}, snapshot=snap,
                       resources={**resources, "authorities": authorities})
-        ctx = host.issue(grant, action, str(uuid4()))
+        # Exercise the S2 component contract, not application release availability.
+        from contextlib import contextmanager
+        from report_agent.operation_identity import bound_native_id
+        @contextmanager
+        def authorized():
+            yield grant
+        host.authorize(grant)
+        ctx = host.commission.bind(authorized, grant.binding, action,
+            bound_native_id(actor, action, str(uuid4())))
         saved = getattr(assertions, action)(ctx, subject="section", claim=claim)
         permitted.add(saved["id"])
         return saved["id"]
@@ -287,6 +295,13 @@ def test_public_release_lifecycle_binds_review_pair_scope_and_human_authority(tm
         call("reviewer", review_action, dict(kind="finding", target=member, snapshot="snap", conclusion="passed"),
              snap="snap")
     call("coordinator", "deliver_draft", dict(release, effect="deliver_draft"), snap="snap")
+    app_grant = Grant(actors['coordinator'], 'coordinator', 'task', 'attempt', 'plan',
+        {'section'}, permitted, {'release'}, snapshot='snap', resources={**resources,
+        'authorities': [grant_for('release', scope, actor=actors['coordinator'])]})
+    app_ctx = host.issue(app_grant, 'release', 'eligible-app-release')
+    with pytest.raises(PermissionError, match='FORMAL_RELEASE_DEFERRED_TO_9A'):
+        assertions.release(app_ctx, subject='section', claim=release)
+    assert host.recover_receipt(app_ctx.operation_id) is None
     released = call("coordinator", "release", release, snap="snap", delegated=True)
     call("engineer", "sign_off", dict(kind="act", effect="sign_off", target=released, reason="Signed"),
          delegated=True)
