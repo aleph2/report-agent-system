@@ -45,8 +45,12 @@ class Commission:
                     "digest": row["digest"], "result": json.loads(row["result"]),
                     "created_at": row["created_at"]}
 
+    def judgment_details(self, judgment_id):
+        """Read completed judgment content by its assertion ID, including accepted historical data."""
+        return self._store.judgment_details(judgment_id)
+
     def submission_receipt(self, judgment_id):
-        """Read the immutable submission supporting a committed judgment for host-side projection."""
+        """Read accepted historical hash-linked M2 submissions."""
         return self._store.submission_receipt(judgment_id)
 
     def producer(self, plan, subject):

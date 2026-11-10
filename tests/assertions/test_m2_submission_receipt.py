@@ -157,3 +157,62 @@ def test_existing_v2_database_opens_with_history_and_exact_archive(tmp_path):
     assert reopened.submission_receipt(row["id"]) is None
     reopened.export(path)
     assert path.read_bytes() == before
+
+
+def _details_context(case, label):
+    from report_agent.assertion_host import Grant
+    from uuid import NAMESPACE_URL, uuid5
+    grant = Grant(principal=str(uuid5(NAMESPACE_URL, 'fake03/writer')), role='writer',
+                  task='writer-task', attempt=label, plan='fake03', subjects={'A'},
+                  packet=frozenset(case.packet), actions={'save_judgment'}, resources=case.resources)
+    return case.host.issue_once(grant, 'save_judgment', label)
+
+
+def test_completed_judgment_details_use_the_judgment_id_and_roundtrip(tmp_path):
+    from report_agent import assertions
+    from report_agent.assertions.launch import Commission as Archive
+    case = Commission(tmp_path/'live', deferred=True)
+    original = case.submit('A/X51', pending=True)
+    details = {'input':{'missing':'Pit count awaits engineering review'}, 'rank':9,
+               'disclosed_context':[{'qualifier':'predominantly', 'state':'unknown'}]}
+    ctx = _details_context(case, 'details')
+    args = dict(subject='A', claim=original['claim'], grounds=original['grounds'], judgment_details=details)
+    row = assertions.save_judgment(ctx, **args)
+    assert 'submission_receipt' not in row['claim']
+    assert case.host.commission.judgment_details(row['id']) == details
+    assert case.host.commission.submission_receipt(row['id']) is None
+    assert assertions.save_judgment(ctx, **args) == row
+    invalid = _details_context(case, 'nonobject-details')
+    with pytest.raises(ValueError, match='details must be an object'):
+        assertions.save_judgment(invalid, **{**args, 'judgment_details':[]})
+    assert case.host.recover_receipt(invalid.operation_id) is None
+    with pytest.raises(ValueError, match='OPERATION_CONFLICT'):
+        assertions.save_judgment(ctx, **{**args, 'judgment_details':{**details, 'rank':10}})
+    archive = tmp_path/'details.jsonl'
+    case.host.commission.export(archive)
+    restored = Archive(tmp_path/'restored')
+    restored.restore(archive)
+    assert restored.judgment_details(row['id']) == details
+    copied = tmp_path/'details-again.jsonl'
+    restored.export(copied)
+    assert copied.read_bytes() == archive.read_bytes()
+
+
+def test_details_failure_rolls_back_the_judgment_and_its_operation(tmp_path, monkeypatch):
+    from report_agent import assertions
+    from report_agent.assertions.store import Store
+    case = Commission(tmp_path/'live', deferred=True)
+    original = case.submit('A/X51', pending=True)
+    ctx = _details_context(case, 'rollback-details')
+    attempted = []
+    save = Store.store_judgment_details
+    def fail(db, judgment_id, payload):
+        save(db, judgment_id, payload)
+        attempted.append(judgment_id)
+        raise RuntimeError('simulated details interruption')
+    monkeypatch.setattr(Store, 'store_judgment_details', staticmethod(fail))
+    with pytest.raises(RuntimeError, match='details interruption'):
+        assertions.save_judgment(ctx, subject='A', claim=original['claim'], grounds=original['grounds'],
+                                 judgment_details={'rank':9})
+    assert case.host.recover_receipt(ctx.operation_id) is None
+    assert len(attempted) == 1 and case.host.commission.judgment_details(attempted[0]) is None

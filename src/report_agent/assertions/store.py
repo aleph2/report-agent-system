@@ -99,6 +99,19 @@ class Store:
         db.execute("INSERT INTO submission_receipts VALUES(?,?) ON CONFLICT(id) DO NOTHING",
                    (key, canonical_json(payload)))
 
+    @staticmethod
+    def store_judgment_details(db, judgment_id, payload):
+        if not isinstance(payload, dict):
+            raise ValueError("Judgment details must be an object")
+        db.execute("INSERT INTO submission_receipts VALUES(?,?)", (judgment_id, canonical_json(payload)))
+
+    def judgment_details(self, judgment_id):
+        with self.reader() as db:
+            row = db.execute("SELECT body FROM submission_receipts WHERE id=?", (judgment_id,)).fetchone()
+            if row is not None:
+                return json.loads(row[0])
+        return self.submission_receipt(judgment_id)
+
     def submission_receipt(self, judgment_id):
         with self.reader() as db:
             row = db.execute("""

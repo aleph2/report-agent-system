@@ -14,6 +14,7 @@ from .schema.kinds import actor_class_for, is_canonical_id
 
 _FORMAT = {"format": "report-agent/assertions", "version": 2}
 _WITH_SUBMISSIONS = {**_FORMAT, "version": 3}
+_WITH_DETAILS = {**_FORMAT, "version": 4}
 _CATALOG = json.loads((Path(__file__).parent / "schema/actions.json").read_text(encoding="utf-8"))
 _BINDING = {"actor", "role", "task", "attempt", "plan", "snapshot", "packet_digest"}
 _SELECT_RECORDS = """
@@ -26,13 +27,16 @@ _SELECT_RECORDS = """
 def _verify_submissions(db):
     # Each retained body must be referenced by a committed judgment and its frozen launch pin.
     mismatch = db.execute("""
-        WITH needed(id) AS (
+        WITH linked(id) AS (
             SELECT DISTINCT body ->> '$.claim.submission_receipt' FROM assertions
             WHERE action='save_judgment' AND body ->> '$.claim.submission_receipt' IS NOT NULL
+        ), needed(id) AS (
+            SELECT id FROM linked UNION
+            SELECT a.id FROM assertions a JOIN submission_receipts r ON a.id=r.id WHERE a.action='save_judgment'
         )
         SELECT EXISTS(SELECT id FROM needed EXCEPT SELECT id FROM submission_receipts)
             OR EXISTS(SELECT id FROM submission_receipts EXCEPT SELECT id FROM needed)
-            OR EXISTS(SELECT id FROM needed EXCEPT SELECT id FROM resource_pins
+            OR EXISTS(SELECT id FROM linked EXCEPT SELECT id FROM resource_pins
                       WHERE family='receipts' AND id=digest)
     """).fetchone()[0]
     if mismatch:
@@ -51,11 +55,15 @@ def _records(db):
                "snapshot": row["snapshot"], "binding": json.loads(row["binding"]), "digest": row["digest"]}
     for row in db.execute("SELECT family,id,digest FROM resource_pins ORDER BY family,id"):
         yield {"resource_pin": list(row)}
-    for key, body in db.execute("SELECT id,body FROM submission_receipts ORDER BY id"):
+    for key, body, action in db.execute("""
+            SELECT r.id,r.body,a.action FROM submission_receipts r LEFT JOIN assertions a ON a.id=r.id ORDER BY r.id"""):
         payload = json.loads(body)
-        if request_digest(payload) != key:
-            raise ValueError("Corrupt immutable judgment submission")
-        yield {"submission_receipt": [key, payload]}
+        if action == "save_judgment":
+            yield {"judgment_details": [key, payload]}
+        else:
+            if request_digest(payload) != key:
+                raise ValueError("Corrupt immutable judgment submission")
+            yield {"submission_receipt": [key, payload]}
     for row in db.execute("SELECT plan, subject, actor FROM producers ORDER BY plan,subject"):
         yield {"producer": list(row)}
 
@@ -71,7 +79,7 @@ def export_jsonl(store, path):
         raise ValueError("Archive path collides with the assertion database")
     if path.exists():
         with path.open("rb") as existing:
-            if existing.readline(len(_line(_FORMAT)) + 1) not in (_line(_FORMAT), _line(_WITH_SUBMISSIONS)):
+            if existing.readline(len(_line(_FORMAT)) + 1) not in (_line(_FORMAT), _line(_WITH_SUBMISSIONS), _line(_WITH_DETAILS)):
                 raise ValueError("Export destination contains a different case artifact")
     with NamedTemporaryFile(dir=path.parent, delete=False) as output:
         temp = Path(output.name)
@@ -80,7 +88,8 @@ def export_jsonl(store, path):
             with store.reader() as db:
                 _verify_submissions(db)
                 has_submissions = db.execute("SELECT 1 FROM submission_receipts LIMIT 1").fetchone()
-                header = _line(_WITH_SUBMISSIONS if has_submissions else _FORMAT)
+                has_details = db.execute("SELECT 1 FROM submission_receipts r JOIN assertions a ON a.id=r.id LIMIT 1").fetchone()
+                header = _line(_WITH_DETAILS if has_details else _WITH_SUBMISSIONS if has_submissions else _FORMAT)
                 output.write(header)
                 digest.update(header)
                 for record in _records(db):
@@ -97,7 +106,13 @@ def export_jsonl(store, path):
             temp.unlink(missing_ok=True)
 
 
-def _restore_record(store, db, entry, *, submissions):
+def _restore_record(store, db, entry, *, submissions, details=False):
+    if details and set(entry) == {"judgment_details"}:
+        fields = entry["judgment_details"]
+        if not isinstance(fields, list) or len(fields) != 2:
+            raise ValueError("Malformed judgment details entry")
+        store.store_judgment_details(db, *fields)
+        return
     if submissions and set(entry) == {"submission_receipt"}:
         fields = entry["submission_receipt"]
         if not isinstance(fields, list) or len(fields) != 2:
@@ -179,9 +194,10 @@ def reload_jsonl(store, path):
                for table in ("assertions", "operations", "producers", "resource_pins", "submission_receipts")):
             raise ValueError("RESTORE_REQUIRES_EMPTY_STORE")
         header = source.readline()
-        if header not in (_line(_FORMAT), _line(_WITH_SUBMISSIONS)):
+        if header not in (_line(_FORMAT), _line(_WITH_SUBMISSIONS), _line(_WITH_DETAILS)):
             raise ValueError("Unsupported assertion archive")
-        submissions = header == _line(_WITH_SUBMISSIONS)
+        submissions = header in (_line(_WITH_SUBMISSIONS), _line(_WITH_DETAILS))
+        details = header == _line(_WITH_DETAILS)
         digest = sha256(header)
         for line in source:
             entry = json.loads(line)
@@ -195,7 +211,7 @@ def reload_jsonl(store, path):
                 return
             digest.update(line)
             try:
-                _restore_record(store, db, entry, submissions=submissions)
+                _restore_record(store, db, entry, submissions=submissions, details=details)
             except (KeyError, TypeError, sqlite3.IntegrityError) as exc:
                 raise ValueError("Malformed or duplicate archive record") from exc
         raise ValueError("Missing assertion archive checksum")

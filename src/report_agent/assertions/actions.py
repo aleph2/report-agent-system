@@ -37,10 +37,12 @@ def _save(action, ctx, **request):
         return _save_locked(action, ctx, db, grant, **request)
 
 
-def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None):
+def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None, judgment_details=None):
     if action != ctx.action:
         raise PermissionError("Native call belongs to a different action")
     request = dict(action=action, subject=subject, claim=claim, grounds=grounds, id=id)
+    if judgment_details is not None:
+        request["judgment_details"] = judgment_details
     digest = request_digest(request)
     store = ctx._store
     previous = store.lookup(db, ctx.operation_id, ctx.binding, digest, can_read=True)
@@ -92,12 +94,16 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None)
     saved = store.commit(db, row, action, grant.role, grant.snapshot, ctx.binding, digest)
     if receipt_id:
         store.store_submission(db, receipt_id, grant.resources["receipts"][receipt_id])
+    if judgment_details is not None:
+        store.store_judgment_details(db, saved["id"], judgment_details)
     return saved
 
 
 
-def save_judgment(ctx, *, subject, claim, grounds=(), id=None, accompanying_question=None):
+def save_judgment(ctx, *, subject, claim, grounds=(), id=None, accompanying_question=None, judgment_details=None):
     request = dict(subject=subject, claim=claim, grounds=grounds, id=id)
+    if judgment_details is not None:
+        request["judgment_details"] = judgment_details
     if accompanying_question is None:
         return _save("save_judgment", ctx, **request)
 
