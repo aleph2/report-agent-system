@@ -146,9 +146,102 @@
     "main": "5e6c2ee"
   },
   "limitations": [
-    "No clean full run on corrected source yet",
     "Model Chinese-language adherence unmeasured",
     "Owner acceptance pending",
     "Excel layout outside scope"
-  ]
+  ],
+  "replacement_full_regression": {
+    "source_commit": "2b55f6c91d9eadd4f51a6b999271a05b2a816902",
+    "status": "clean pass",
+    "gate": {
+      "expected": 6184,
+      "outcomes": {
+        "passed": 6175,
+        "skipped": 9
+      },
+      "failed": [],
+      "missing": [],
+      "duplicates": [],
+      "unexpected": [],
+      "collection_errors": [],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "coverage_exit": 0,
+      "started_utc": "2026-11-10T19:20:16.601668+00:00",
+      "finished_utc": "2026-11-10T19:52:28.897001+00:00",
+      "elapsed_seconds": 1932.3
+    },
+    "cleanup": {
+      "source_files_checked": 1250,
+      "source_files_changed": [],
+      "clean_pass": true,
+      "source_copy_removed": true,
+      "retained_test_database_files": 0
+    },
+    "coverage": {
+      "total_percent": 90.61147025680565,
+      "m0_floors": [
+        {
+          "module": "src/report_agent/commission_plan.py",
+          "m0": 93.49240780911063,
+          "actual": 93.7375745526839
+        },
+        {
+          "module": "src/report_agent/commission_requirements.py",
+          "m0": 91.40625,
+          "actual": 92.44851258581235
+        },
+        {
+          "module": "src/report_agent/content_store.py",
+          "m0": 95.43817527010805,
+          "actual": 95.57625145518044
+        },
+        {
+          "module": "src/report_agent/g3_export.py",
+          "m0": 91.54518950437318,
+          "actual": 92.5
+        },
+        {
+          "module": "src/report_agent/rescue_projection.py",
+          "m0": 88.41698841698842,
+          "actual": 88.47583643122677
+        },
+        {
+          "module": "src/report_agent/risk_scoring.py",
+          "m0": 94.3566591422122,
+          "actual": 94.63220675944333
+        },
+        {
+          "module": "src/report_agent/section_writing.py",
+          "m0": 90.19607843137256,
+          "actual": 90.29126213592232
+        },
+        {
+          "module": "src/report_agent/system_assembler.py",
+          "m0": 87.27984344422701,
+          "actual": 88.06818181818181
+        },
+        {
+          "module": "src/report_agent/writer_issues.py",
+          "m0": 90.12345679012346,
+          "actual": 90.1840490797546
+        }
+      ]
+    },
+    "unchanged_skips": 9,
+    "previously_failed_cases_passed_in_full": 61,
+    "paid_model_calls": 0,
+    "active_run_processes_after_completion": 0,
+    "main": "5e6c2ee",
+    "owner_acceptance": "pending",
+    "private_evidence": ".private/stage1-9a-b-reader-fixes-20261110/replacement-full/"
+  }
 }
