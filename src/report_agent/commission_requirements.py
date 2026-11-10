@@ -438,6 +438,8 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
         from .document_tools import physical_page_number
         from .source_access import coverage
         access = coverage(cs, plan, include_page_totals=False)
+        imported = plan_inputs._head(db, 'ImportedSourceReadFacts')
+        read_facts = imported['payload'] if imported else []
         for obj in excluded:
             if any(r['kind'] == 'scope_exclusion' and r['target'] == obj['object_id'] for r in plan.get('owner_records', [])):
                 continue
@@ -446,6 +448,7 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                 ref, locator = citation['source_ref'], citation['locator']
                 page = physical_page_number(locator)
                 cited.append({'source_ref': ref, 'locator': locator, 'page': page})
+                direct = direct or any(f['source_ref'] == ref and page in f['pages'] for f in read_facts)
                 for row in access['sources']:
                     if ref in row['source_version_refs']:
                         pages = set(row['text_returned_pages']) | set(row['inspected_text_pages'])

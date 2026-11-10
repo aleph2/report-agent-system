@@ -14,7 +14,7 @@ _LEGACY_READERS = {
 
 
 PRIVATE_INPUT_TYPES = frozenset(_LEGACY_READERS) | {"CommissionSourceRoles", "CommissionOwnerRecords", "CommissionSourceUsePolicy", "CommissionSourceManifest"}
-PRIVATE_INPUT_TYPES |= {'IssueWaits', 'IssueRecord', 'IssueBinding', 'IssueRoute', 'IssueAnswer'}
+PRIVATE_INPUT_TYPES |= {'IssueWaits', 'IssueRecord', 'IssueBinding', 'IssueRoute', 'IssueAnswer', 'ImportedSourceReadFacts'}
 
 
 def _head(db, kind):

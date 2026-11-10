@@ -16,6 +16,7 @@ from report_agent.commission_plan import _confirmed
 from report_agent.writer_runtime import writer_session
 from report_agent.writer_assignments import read_assignment_pages, read_assigned_page
 from test_writer_assignments import assigned, method_commission
+from test_m1_g4_h31 import exclusion_case, draft_case, entries
 from test_deep_runtime import Driver
 from test_m1_g4_requirements import anchored, required_case, confirm
 
@@ -251,3 +252,28 @@ def test_pre_m5_import_retains_historical_requirements_and_roles_on_second_copy(
         assert report_binding(source) == binding
         assert commission_imports.source_policy_ref(source) is None
         assert not plan_authority.has_proposal(source, plan)
+
+
+def test_exclusion_page_fact_survives_business_copy_without_old_runtime(exclusion_case, target):
+    from test_m1_g4_h31 import direct_text, exclusion_gaps
+    from test_m1_commission_plan import save
+    from report_agent.commission_requirements import check_plan
+    f = exclusion_case
+    direct_text(f)
+    assert not exclusion_gaps(f)
+    saved = save(f)
+    confirm(f, saved)
+    before = hashes(f.ws.store.root)
+    first = prepare(f, target)
+    store = Store(target)
+    with store.connect() as db:
+        plan, _ = _confirmed(ContentStore(store), db)
+        assert not db.execute("SELECT 1 FROM state WHERE key LIKE 'source_material:%' OR key LIKE 'tool_observation:%'").fetchone()
+    assert hashes(f.ws.store.root) == before
+    # A second business import uses the completed fact, never the old task receipts.
+    other = target.parent / 'second-case'
+    prepare_probe_case(target, other, expected_plan_ref=first['plan_ref'], expected_decision_ref=first['decision_ref'])
+    changed = json.loads(json.dumps(plan['payload']))
+    changed['objects'][0]['sources'][0]['locator'] = 'page 3; chars 1-21'
+    assert any(g['code'] == 'EXCLUSION_SOURCE_NOT_DIRECTLY_RETURNED'
+               for g in check_plan(ContentStore(store), changed, f.requirements_ref))

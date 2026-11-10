@@ -124,6 +124,21 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 records.update(_content_closure(frozen, {}, [legacy_skeleton, legacy_profiles]))
             versions = frozen.execute('SELECT id,operation,data,original FROM source_versions ORDER BY rowid').fetchall()
             blocks = frozen.execute('SELECT source_id,ordinal,locator,text FROM source_blocks ORDER BY source_id,ordinal').fetchall()
+        # Completed access facts travel with the source version, not the old task's receipts.
+        from .source_access import coverage
+        frozen_store = Store(Path(folder))
+        report = coverage(ContentStore(frozen_store), plan['payload'], include_page_totals=False)
+        with frozen_store.connect() as db:
+            previous_reads = plan_inputs._head(db, 'ImportedSourceReadFacts')
+        read_facts = previous_reads['payload'] if previous_reads else []
+        for row in report['sources']:
+            pages = sorted(set(row['text_returned_pages'] + row['inspected_text_pages']
+                               + [image['page'] for image in row['image_observations']]))
+            for ref in row['source_version_refs']:
+                if pages and tuple(ref[k] for k in ('type', 'id', 'version')) in records:
+                    fact = {'source_ref': ref, 'pages': pages}
+                    if fact not in read_facts:
+                        read_facts.append(fact)
         if _db_hashes(source) != before:
             raise ValueError('PROBE_SOURCE_CHANGED')
 
@@ -145,6 +160,9 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 heads[typ, identity] = max(version, heads.get((typ, identity), 0))
             db.executemany('INSERT INTO content_heads VALUES (?,?,?)',
                            [(*key, version) for key, version in heads.items()])
+
+            if read_facts:
+                plan_inputs._save('ImportedSourceReadFacts', db, read_facts)
 
             if legacy_skeleton is not None and ('PlanSkeleton', 'PlanSkeleton') not in heads:
                 plan_inputs.save_skeleton(db, legacy_skeleton)
