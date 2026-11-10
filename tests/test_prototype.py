@@ -170,6 +170,9 @@ async def test_adk_can_reuse_without_analysis(native_ws):
     assert result["last_error"] is None, result
     selected = report_state.selected_delivery(native_ws.store)
     assert selected["snapshot_ref"] == snapshot and selected["export_ref"] == export
+    selections = cs.list_objects('DeliverySelection')
+    assert len(selections) == 1 and selections[0]['payload'] == selected
+    objects += selections
     assert cs.list_objects() == objects and export_bytes() == data
     assert all(role == "coordinator" for role, _, _ in driver.calls)
     assert current_delivery(native_ws.store)["overall_verdict"] is None
@@ -278,6 +281,9 @@ async def test_selected_result_survives_tail_failure_without_replay(native_ws):
     receipt = cs.receipt(actor, "select-saved")
     assert receipt["state"] == "known_success"
     assert (await checkpoint(native_ws, driver)).next
+    selections = cs.list_objects('DeliverySelection')
+    assert len(selections) == 1 and selections[0]['payload'] == selected
+    objects += selections
     assert cs.list_objects() == objects and export_bytes() == data
     resumed = Driver(coordinator=[AIMessage(content="Must not repeat selection"),
         AIMessage(content="Saved delivery retained; no acceptance.")])
@@ -355,6 +361,9 @@ async def test_selected_result_survives_actual_task_cancellation(native_ws, monk
     assert store.get("report_error")["type"] == "CancelledError"
     selected = report_state.selected_delivery(store)
     assert selected["snapshot_ref"] == snapshot and selected["export_ref"] == export
+    selections = cs.list_objects('DeliverySelection')
+    assert len(selections) == 1 and selections[0]['payload'] == selected
+    saved_objects += selections
     assert cs.list_objects() == saved_objects
     assert export_bytes() == saved_bytes
 
