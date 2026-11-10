@@ -1,0 +1,142 @@
+[
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_object]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_object]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_question]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_question]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_reconciliation]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_reconciliation]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_section]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_section]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_substitution]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_substitution]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[link_convention]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[link_convention]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[read_planning_draft]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[read_planning_draft]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_planning_details]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_planning_details]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_requirement_status]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_requirement_status]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_scope_boundary]",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_scope_boundary]"
+  },
+  {
+    "failed_node": "tests/test_m1_g4_h32_parity.py::test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal",
+    "passing_node": "tests/test_m1_g4_h32_parity.py::test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_probe_actual_glm_sdk_incomplete_refusal_receipt_and_exclusive_launch[with-owner-ranks]",
+    "passing_node": "tests/test_writer_probe.py::test_probe_actual_glm_sdk_incomplete_refusal_receipt_and_exclusive_launch[with-owner-ranks]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_probe_budget_stops_second_sdk_dispatch_and_preserves_old_hold[with-owner-ranks]",
+    "passing_node": "tests/test_writer_probe.py::test_probe_budget_stops_second_sdk_dispatch_and_preserves_old_hold[with-owner-ranks]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-model-SCOPED_REQUEST_WIRE_MISMATCH]",
+    "passing_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-model-SCOPED_REQUEST_WIRE_MISMATCH]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-url-SCOPED_REQUEST_WIRE_MISMATCH]",
+    "passing_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-url-SCOPED_REQUEST_WIRE_MISMATCH]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-output-SCOPED_REQUEST_OUTPUT_LIMIT_REQUIRED]",
+    "passing_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-output-SCOPED_REQUEST_OUTPUT_LIMIT_REQUIRED]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-image-SCOPED_REQUEST_TEXT_ONLY]",
+    "passing_node": "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-image-SCOPED_REQUEST_TEXT_ONLY]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_second_probe_threshold_is_observation_and_exact_boundary_allows_next_sdk[with-owner-ranks]",
+    "passing_node": "tests/test_writer_probe.py::test_second_probe_threshold_is_observation_and_exact_boundary_allows_next_sdk[with-owner-ranks]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_second_probe_investigation_flag_counts_only_settled_stage_tokens[with-owner-ranks-999999-False]",
+    "passing_node": "tests/test_writer_probe.py::test_second_probe_investigation_flag_counts_only_settled_stage_tokens[with-owner-ranks-999999-False]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_second_probe_investigation_flag_counts_only_settled_stage_tokens[with-owner-ranks-1000000-True]",
+    "passing_node": "tests/test_writer_probe.py::test_second_probe_investigation_flag_counts_only_settled_stage_tokens[with-owner-ranks-1000000-True]"
+  },
+  {
+    "failed_node": "tests/test_writer_probe.py::test_cli_returns_closed_with_gaps_after_all_assigned_indicators[with-owner-ranks]",
+    "passing_node": "tests/test_writer_probe.py::test_cli_returns_closed_with_gaps_after_all_assigned_indicators[with-owner-ranks]"
+  },
+  {
+    "failed_node": "tests/test_m1_commission_runtime.py::test_direct_content_commit_cannot_bypass_unanswered_checkpoint[writer]",
+    "passing_node": "tests/test_m1_commission_runtime.py::test_direct_content_commit_cannot_bypass_unanswered_checkpoint[writer]"
+  },
+  {
+    "failed_node": "tests/test_assessment_source_aliases.py::test_changed_title_is_a_different_frozen_source_version",
+    "passing_node": "tests/test_assessment_source_aliases.py::test_changed_title_is_a_new_frozen_version_without_file_reapproval"
+  },
+  {
+    "failed_node": "tests/test_assessment_source_aliases.py::test_guideline_alias_does_not_expand_host_source_authorization",
+    "passing_node": "tests/test_assessment_source_aliases.py::test_guideline_alias_does_not_expand_host_source_authorization"
+  },
+  {
+    "failed_node": "tests/test_probe_case.py::test_approved_policy_crosses_as_an_exact_input_without_old_task_grants",
+    "passing_node": "tests/test_probe_case.py::test_supplied_boundary_and_owner_reply_copy_without_file_policy_or_old_task_grants"
+  },
+  {
+    "failed_node": "tests/test_m1_g3_followup.py::test_owner_brief_names_planning_only_source_versions_and_report_scope",
+    "passing_node": "tests/test_m1_g3_followup.py::test_owner_brief_names_page_bindings_without_file_approval"
+  },
+  {
+    "failed_node": "tests/test_m7_provenance.py::test_export_preflight_rejects_superseded_input_even_without_a_new_export_call",
+    "passing_node": "tests/test_m7_provenance.py::test_export_preflight_rejects_superseded_input_even_without_a_new_export_call"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[import_source_versions]",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[import_source_versions]"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_context]",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_context]"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[observe_evidence]",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[observe_evidence]"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_source_page]",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_source_page]"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[inspect_source_page]",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[inspect_source_page]"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[search_sources]",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[search_sources]"
+  },
+  {
+    "failed_node": "tests/test_m5_planning_source_access.py::test_search_filters_before_pagination_and_allowed_sources_are_readable",
+    "passing_node": "tests/test_m5_planning_source_access.py::test_search_filters_before_pagination_and_allowed_sources_are_readable"
+  },
+  {
+    "failed_node": "tests/test_no_domain_terms.py::test_assertion_contract_has_no_embedded_domain_rules",
+    "passing_node": "tests/test_no_domain_terms.py::test_assertion_contract_has_no_embedded_domain_rules"
+  }
+]

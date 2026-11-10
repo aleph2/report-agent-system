@@ -1326,3 +1326,8 @@ Main implemented the owner-acknowledged page-binding/Writer-extraction amendment
 The same requirement-backed adapter finding covers the native tools, shared evidence projection and confirmation caller. The dispatcher modules and run functions remain unchanged; report_host.prepare removes only its two retired file-policy lines. Source correction/replacement, unscored draft rendering and formal case-target release remain in their separately reviewed parts. No paid launch or full regression is authorized by this candidate.
 
 Review and measured evidence: docs/reviews/stage1-9a-a.md and docs/verification/stage1-9a-a/. Main stays at accepted cac8ca6 until owner acceptance.
+
+
+### 2026-11-10 — part-a authorized full run and regression corrections
+
+Owner acceptance is conditional on one clean full run. Candidate 5c34d34 finished 6,124 passed / 35 failed / 9 skipped in 31m14s; no collection/missing/duplicate errors. The failures trace to stale role/file-policy fixtures plus a neutral naming guard. Correction 3cca78e passes all 177 targeted cases, with all 35 failed nodes mapped. Current collection 6,169. No new full run is authorized yet; main stays cac8ca6 and b has not started. See docs/reviews/stage1-9a-a-full-regression.md. The two part-a JSON-in-text references are explicitly listed for d; private/local import boundaries remain scoped c/d notes.

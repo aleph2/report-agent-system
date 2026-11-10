@@ -1,0 +1,230 @@
+{
+  "source_lines_added": 5,
+  "source_lines_removed": 5,
+  "production_behavior_changes": 0,
+  "checks_added": 0,
+  "checks_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "status": "full candidate run failed; focused corrections pass; replacement full authorization pending",
+  "tested_revision": "5c34d346563ff7a9937ef482963b9b74db9ae8d8",
+  "correction_code_commit": "3cca78edbbc034153bfaf0b3392039758ae512de",
+  "gate": {
+    "expected": 6168,
+    "outcomes": {
+      "passed": 6124,
+      "failed": 35,
+      "skipped": 9
+    },
+    "failed": [
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_object]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_question]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_reconciliation]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_section]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_substitution]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[link_convention]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[read_planning_draft]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_planning_details]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_requirement_status]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_scope_boundary]",
+      "tests/test_m1_g4_h32_parity.py::test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal",
+      "tests/test_writer_probe.py::test_probe_actual_glm_sdk_incomplete_refusal_receipt_and_exclusive_launch[with-owner-ranks]",
+      "tests/test_writer_probe.py::test_probe_budget_stops_second_sdk_dispatch_and_preserves_old_hold[with-owner-ranks]",
+      "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-model-SCOPED_REQUEST_WIRE_MISMATCH]",
+      "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-url-SCOPED_REQUEST_WIRE_MISMATCH]",
+      "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-output-SCOPED_REQUEST_OUTPUT_LIMIT_REQUIRED]",
+      "tests/test_writer_probe.py::test_probe_final_sdk_wire_rejection_precedes_finance[with-owner-ranks-image-SCOPED_REQUEST_TEXT_ONLY]",
+      "tests/test_writer_probe.py::test_second_probe_threshold_is_observation_and_exact_boundary_allows_next_sdk[with-owner-ranks]",
+      "tests/test_writer_probe.py::test_second_probe_investigation_flag_counts_only_settled_stage_tokens[with-owner-ranks-999999-False]",
+      "tests/test_writer_probe.py::test_second_probe_investigation_flag_counts_only_settled_stage_tokens[with-owner-ranks-1000000-True]",
+      "tests/test_writer_probe.py::test_cli_returns_closed_with_gaps_after_all_assigned_indicators[with-owner-ranks]",
+      "tests/test_m1_commission_runtime.py::test_direct_content_commit_cannot_bypass_unanswered_checkpoint[writer]",
+      "tests/test_assessment_source_aliases.py::test_changed_title_is_a_different_frozen_source_version",
+      "tests/test_assessment_source_aliases.py::test_guideline_alias_does_not_expand_host_source_authorization",
+      "tests/test_probe_case.py::test_approved_policy_crosses_as_an_exact_input_without_old_task_grants",
+      "tests/test_m1_g3_followup.py::test_owner_brief_names_planning_only_source_versions_and_report_scope",
+      "tests/test_m7_provenance.py::test_export_preflight_rejects_superseded_input_even_without_a_new_export_call",
+      "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[import_source_versions]",
+      "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_context]",
+      "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[observe_evidence]",
+      "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[read_source_page]",
+      "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[inspect_source_page]",
+      "tests/test_m5_planning_source_access.py::test_private_source_is_refused_before_receipt[search_sources]",
+      "tests/test_m5_planning_source_access.py::test_search_filters_before_pagination_and_allowed_sources_are_readable",
+      "tests/test_no_domain_terms.py::test_assertion_contract_has_no_embedded_domain_rules"
+    ],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      1,
+      0,
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-10T11:59:06.863882+00:00",
+    "finished_utc": "2026-11-10T12:30:20.878492+00:00",
+    "elapsed_seconds": 1874.0
+  },
+  "coverage": {
+    "percent": 90.50437161720097,
+    "scope": "failed original full run, not a clean accepted measurement",
+    "floors": [
+      {
+        "file": "src/report_agent/commission_plan.py",
+        "floor": 93.49240780911063,
+        "measured": 93.73134328358209,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/commission_requirements.py",
+        "floor": 91.40625,
+        "measured": 92.21967963386727,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/content_delivery.py",
+        "floor": 97.65625,
+        "measured": 97.67441860465117,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/content_store.py",
+        "floor": 95.43817527010805,
+        "measured": 95.57625145518044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/g3_export.py",
+        "floor": 91.54518950437318,
+        "measured": 91.91374663072776,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/hierarchical_review.py",
+        "floor": 86.76470588235294,
+        "measured": 86.95652173913044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/hierarchical_tools.py",
+        "floor": 93.99538106235566,
+        "measured": 94.07744874715262,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/rescue_projection.py",
+        "floor": 88.41698841698842,
+        "measured": 88.47583643122677,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/review_status.py",
+        "floor": 96.52777777777777,
+        "measured": 96.55172413793103,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/risk_scoring.py",
+        "floor": 94.3566591422122,
+        "measured": 94.61077844311377,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/section_writing.py",
+        "floor": 90.19607843137256,
+        "measured": 90.29126213592232,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/system_assembler.py",
+        "floor": 87.27984344422701,
+        "measured": 87.78625954198473,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/writer_issues.py",
+        "floor": 90.12345679012346,
+        "measured": 90.1840490797546,
+        "met": true
+      }
+    ],
+    "all_13_floors_met": true
+  },
+  "focused": [
+    {
+      "phase": "probe-fix",
+      "exit_code": 0,
+      "passed": 43,
+      "elapsed_seconds": 60.427709102630615
+    },
+    {
+      "phase": "parity-fix",
+      "exit_code": 0,
+      "passed": 25,
+      "elapsed_seconds": 18.266311168670654
+    },
+    {
+      "phase": "affected-fix",
+      "exit_code": 0,
+      "passed": 109,
+      "elapsed_seconds": 23.632740259170532
+    }
+  ],
+  "focused_total": 177,
+  "current_collected_cases": 6169,
+  "replacement_full_executed": false,
+  "findings": [
+    {
+      "priority": "P2",
+      "category": "test migration gap",
+      "cause": "old five-tool Writer expectation",
+      "failed_cases": 10,
+      "correction": "exact seven-tool expectation including extraction and conflicts"
+    },
+    {
+      "priority": "P2",
+      "category": "test migration gap",
+      "cause": "Coordinator extraction tests predate the role split",
+      "failed_cases": 11,
+      "correction": "page-binding/question checks and native Writer quote/conflict coverage; no receipt after refused quote or out-of-packet conflict"
+    },
+    {
+      "priority": "P2",
+      "category": "test migration gap",
+      "cause": "retired file policy and old role fixtures",
+      "failed_cases": 13,
+      "correction": "supplied-file boundary, direct checkpoint refusal, immutable new title version, input-copy provenance and Writer-owned source fixture"
+    },
+    {
+      "priority": "P2",
+      "category": "domain-neutral naming guard",
+      "cause": "local variable indicator in the generic assertion package",
+      "failed_cases": 1,
+      "correction": "criterion_id local/parameter rename only; exact inverse text equality verified; guard unchanged"
+    }
+  ],
+  "all_35_failed_nodes_mapped_to_passing_focused_checks": true,
+  "protected": {
+    "dispatcher_unchanged": true,
+    "s2_schema_catalog_checks_unchanged_since_candidate": true,
+    "main": "cac8ca69155c8a04aaab8bb7281162d467a61c99",
+    "part_b_started": false
+  },
+  "cleanup": {
+    "source_files_checked": 1235,
+    "source_files_changed": [],
+    "clean_pass": false,
+    "source_copy_removed": false,
+    "retained_test_database_files": 233
+  },
+  "paid_model_calls": 0,
+  "private_evidence": ".private/stage1-9a-a-full-20261110/",
+  "statistical_timestamp_utc": "2026-11-10T12:47:05.359512+00:00",
+  "review": "Main executed and reviewed; no independent rerun claimed"
+}

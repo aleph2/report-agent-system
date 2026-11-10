@@ -383,3 +383,6 @@ Owner acknowledgment in substance includes the four corrections and a–f split.
 - [ ] **9a-f — numeric rules.** Separate new calculator functionality, using a small table-driven acceptance for guideline thresholds/interpolation, larger total-versus-bench score and unknown required inputs. Existing weighted/sensitivity arithmetic is reused. Separate size record/tag/review; move before paid Fake03 only if the frozen scoring scope needs it.
 
 Full regressions, model runs and real-report launches retain their separate explicit authorization requirements. No source originals, historical cases, ledgers, holds or unknown requests are rewritten/released.
+
+
+Part-a full gate (2026-11-10): original authorized run failed 35 cases; corrections pass 177 focused cases. Replacement full authorization remains required before conditional acceptance/main fast-forward and part b. Details: docs/reviews/stage1-9a-a-full-regression.md.
