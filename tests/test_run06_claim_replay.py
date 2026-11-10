@@ -23,10 +23,10 @@ from test_writer_five_slopes import action
 
 FIXTURE = Path(__file__).parent / 'fixtures/fake03_run06_saved_inputs.json'
 REFUSE = {
-    'A/X42': 'Provide observed facility locations or a survey covering the required distances.',
-    'A/X52': 'Confirm which A-specific drawings were inspected and what their coverage establishes.',
-    'B/X32': 'Provide a hazard history covering B with a defined observation period.',
-    'B/X51': 'Provide counts or an explicit zero finding from an investigation covering B.',
+    'A/X42': '请补充设施实际位置或覆盖规定距离范围的调查资料。',
+    'A/X52': '请确认已核查哪些坡段 A 专项图纸及其覆盖范围。',
+    'B/X32': '请补充坡段 B 的灾害记录，并明确其观测时段。',
+    'B/X51': '请补充覆盖坡段 B 的勘察数量，或明确记载数量为零的调查结论。',
 }
 # Map each historical proposition to the observations it actually relied upon.
 # These are replay inputs, never expected outcomes or runtime configuration.
@@ -127,9 +127,9 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
         attempts[label] += 1
         if label == 'A/X51':
             assert packet['engineering_review']['conditional_grades'] == ['low','moderate']
-            return action('save_gap', label+'-deferred', missing='X51 band interpretation is deferred.',
+            return action('save_gap', label+'-deferred', missing='地质资料分级口径待工程复核。',
                           fact_ids=['F03-A-SURVEY-SECTIONS','F03-A-BOREHOLES'],
-                          question='Which low-band reading and overlap convention apply?')
+                          question='请工程人员确认低分段条文解释及重叠区间的适用口径。')
         if attempts[label] == 1:
             facts = [*packet['object_facts']['attestations'], *packet.get('other_context_facts', [])]
             payload = submission(label, original[label], facts)
@@ -279,9 +279,24 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
         pytest.fail(str(error) + ': ' + json.dumps(error.diagnostic, ensure_ascii=False))
     exported = export_snapshot(reopened, co, 'draft-pair', snapshot, {'toc': True, 'refresh_toc': os.environ.get('FAKE03_DRAFT_REFRESH_TOC') == '1'})['result']
     assert reopened.read(exported['workbook']['export_ref'])['payload']['snapshot_ref'] == snapshot
+    assert reopened.read(exported['export_ref'])['payload']['export_config']['layout']['toc_depth'] == 3
     from docx import Document
     word = Document(ws.store.root / exported['file_ref'])
     assert any(p.style.name == 'Heading 1' for p in word.paragraphs)
+    assert {'3.2.1 坡段 A', '3.2.2 坡段 B'} <= {p.text for p in word.paragraphs if p.style.name == 'Heading 3'}
+    assert '青禾路堑工程' in word.paragraphs[0].text
+    assert any(p.text.startswith('编制日期：') for p in word.paragraphs)
+    assert any('共23项待核事项' in p.text and 'Excel' in p.text for p in word.paragraphs)
+    # Structural headings do not repeat the paragraph's evidence or all section sources.
+    for i, paragraph in enumerate(word.paragraphs[:-1]):
+        if paragraph.style.name.startswith('Heading'):
+            assert not word.paragraphs[i+1].text.startswith('（')
+    text = '\n'.join(p.text for p in word.paragraphs) + '\n'.join(c.text for t in word.tables for r in t.rows for c in r.cells)
+    for internal in ('本次未保存该指标判断', 'X51 band interpretation', '条件分级：low', 'Provide observed', 'Confirm which'):
+        assert internal not in text
+    for i, paragraph in enumerate(word.paragraphs):
+        if '风险等级未确定。本草稿' in paragraph.text:
+            assert not word.paragraphs[i-1].text.startswith('（')
     evaluation_tables = [table for table in word.tables if len(table.columns) == 6]
     assert len(evaluation_tables) == 2
     assert all(table.columns[-1].width > table.columns[0].width * 2 for table in evaluation_tables)
@@ -292,6 +307,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     with ZipFile(ws.store.root / exported['file_ref']) as package:
         comments = etree.fromstring(package.read('word/comments.xml'))
         assert len(comments) == len(ids)
+        assert all('chars ' not in ''.join(c.itertext()) and 'page 1' not in ''.join(c.itertext()) for c in comments)
     book = load_workbook(ws.store.root / exported['workbook']['file_ref'])
     assert set(item['id'] for item in required) <= set(ids)
     mapping = reopened.read(exported['workbook']['mapping_ref'])['payload']['anchor_records']

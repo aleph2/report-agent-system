@@ -44,7 +44,7 @@ def unscored_result(pack, strategy, ranks, entries, interruptions):
         else:
             missing.append(indicator)
             original = entry.get('input', {})
-            reason = original.get('missing') or '本次未保存该指标判断；尚不评价资料是否充足。'
+            reason = original.get('missing') or '本指标尚未评定；尚不评价资料是否充足。'
             if indicator in interruptions:
                 reason = '保存被拒绝而中断：' + '；'.join(str(r) for r in interruptions[indicator].get('refusals', []))
             open_rows.append(dict(indicator_id=indicator, rank=rank, weight=weight, reason=reason,

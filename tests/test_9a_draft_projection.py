@@ -39,3 +39,15 @@ def test_draft_eligibility_does_not_turn_into_score_eligibility(status):
     assert (draft_blocker(receipt) is None) == (status in ('unscored', 'pending_review'))
     if status in ('unscored', 'pending_review'):
         assert draft_blocker(dict(derivation_status=status)) == status
+
+
+def test_open_alternatives_display_method_descriptions_instead_of_internal_ids():
+    from report_agent.draft_assessment import display_rows
+    pack = dict(indicators=[dict(id='X51', grades=[
+        dict(id='low', description='每个断面至少有3个钻探和挖探点', min_value='0', max_value='24'),
+        dict(id='moderate', description='每个断面有2个勘察点', min_value='25', max_value='49')])])
+    result = dict(rows=[], open_rows=[dict(indicator_id='X51', rank=1, reason='分级口径待工程复核', alternatives=['low','moderate'])])
+    text = display_rows(result, pack)[0]['rationale']
+    assert '每个断面至少有3个钻探和挖探点（0–24分）' in text
+    assert '每个断面有2个勘察点（25–49分）' in text
+    assert 'low' not in text and 'moderate' not in text

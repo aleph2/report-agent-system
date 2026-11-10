@@ -127,3 +127,11 @@ def test_full_export_scopes_duplicate_passage_to_its_node(ws):
     assert len(matches) == 2
     assert not matches[0]._p.xpath('.//w:commentRangeStart')
     assert len(matches[1]._p.xpath('.//w:commentRangeStart')) == 1
+
+
+@pytest.mark.parametrize("locator,expected", [("page 1; chars 1-78", "PDF第1页"), ("line 9; chars 1-21", "第9行"), ("body/paragraph 2; chars 1-12", "第2段")])
+def test_issue_citations_use_reader_locations_and_deduplicate(locator, expected):
+    issue = MaterialIssue.model_validate({**passage(), "sources": [
+        dict(document="资料", page=locator), dict(document="资料", page=locator)]})
+    assert issue.source_text() == f"资料（{expected}）"
+    assert "chars" not in issue.comment()

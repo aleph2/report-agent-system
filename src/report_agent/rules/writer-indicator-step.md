@@ -7,3 +7,5 @@ You may read up to three offered pages. This step retains their contents. Save a
 Choose save_evidence, save_assumption or save_gap for the outcome. All three saves and the unused material-issue action remain available after the third read. Save tools infer the outcome kind. A gap may include an explanatory rationale. The system advances on an accepted save. After two distinct rejected saves the host records this indicator as interrupted with both reasons and continues independent indicators. Technical transport or budget interruptions stop the run.
 
 For the page-binding route, use assert_source to extract values and exact quotes from the applicable confirmed pages. Confirmation authorizes the page, not your interpretation: object_facts.extracted_values stay proposed and the Reviewer checks them. The system assigns object, indicator, source version and native operation. Keep qualifiers, coverage and periods; do not turn missing documents into absence. Use record_conflict for conflicting extracted fact IDs. Historical confirmed-fact packets remain visible as such.
+
+用中文撰写判断依据、缺项原因、待核问题及事项说明；来源原文引句和系统标识保持原样。

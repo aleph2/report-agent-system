@@ -39,11 +39,11 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
         return '含假设取值，补充资料后须复核。' if any(r['basis_kind'].endswith('assumption') for r in result['rows']) else ''
     citations = []
     for result in bound.values():
-        if len(display_rows(result)) != len(definitions) or {r['indicator_id'] for r in display_rows(result)} != definitions.keys():
+        if len(display_rows(result, plan['method_pack'])) != len(definitions) or {r['indicator_id'] for r in display_rows(result, plan['method_pack'])} != definitions.keys():
             raise ActionRejected('COMPOSITION_COMPLETE_INDICATORS_REQUIRED')
         if result.get('status') != 'unscored' and result['adopted']['level'] not in bands:
             raise ActionRejected('COMPOSITION_UNKNOWN_RISK_LEVEL')
-        for row in display_rows(result):
+        for row in display_rows(result, plan['method_pack']):
             for c in row['sources']:
                 if c not in citations:
                     citations.append(c)
@@ -68,7 +68,7 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
             node('block', {'text': sid + ' 重要性指标清单\n逐对象列出全部' + str(len(definitions)) + '项指标及已保存的重要性排序，不另行筛选重要指标子集。'}, citations)
             rows = []
             for oid in ids:
-                for row in display_rows(bound[oid]):
+                for row in display_rows(bound[oid], plan['method_pack']):
                     d = definitions[row['indicator_id']]
                     rows.append([label(oid), str(row['rank']), d.get('display_label', d['label']), row['value'], row['weight'], row['rank_reason'], row['rationale'], qualification(bound[oid])])
             node('table', {'caption': '表 ' + sid + '-1 路堑高边坡全部指标重要性排序及取值依据',
@@ -83,7 +83,7 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
                     continue
                 if number(bands[result['adopted']['level']]['lower']) >= number(threshold['lower']):
                     reasons.append('风险等级Ⅲ级及以上')
-                for row in display_rows(result):
+                for row in display_rows(result, plan['method_pack']):
                     d = definitions[row['indicator_id']]
                     if number(row['value']) == max(number(g['max_value']) for g in d['grades']):
                         reasons.append(d.get('display_label', d['label']) + '采用值达到单项最大分值')

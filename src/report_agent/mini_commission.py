@@ -188,7 +188,8 @@ def _plan(ws, cs, co, ids, refs, catalog, method):
     # The real public read and its located blocks are available for the ordinary exclusion check.
     page = rows[design]
     issue(ws,co,'read_source_page',json.dumps(page,ensure_ascii=False),block_material(page))
-    return {'requirements_ref':req,'sections':plan_sections,'inventory_attributes':['中心桩号','坡高（m）','坡长（m）','施工开始日期','坡率','地下水调查记录'],
+    return {'report_title':'青禾路堑工程\n施工安全风险评估报告（草稿）',
+            'requirements_ref':req,'sections':plan_sections,'inventory_attributes':['中心桩号','坡高（m）','坡长（m）','施工开始日期','坡率','地下水调查记录'],
             'objects':objects,'conventions':conventions,'deliverables':['Word','Excel'],
             'reconciliations':[{'sources':[cite(design,'设计坡率为 1:0.75'),cite(survey,'实测坡率为 1:1.0')],
                 'result':'坡段 A 按设计坡率 1:0.75 记录。','differences':['地勘实测为 1:1.0，差异保留。']},

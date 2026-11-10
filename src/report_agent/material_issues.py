@@ -30,10 +30,10 @@ class IssueSource(StrictRecord):
             locator = self.page.strip()
             if locator == "manifest text":
                 locator = "全文"
-            elif match := re.fullmatch(r"line ([1-9][0-9]*)", locator):
-                locator = f"第{match[1]}行"
+            elif match := re.fullmatch(r"(line|body/paragraph) ([1-9][0-9]*)(?:; chars [1-9][0-9]*-[1-9][0-9]*)?", locator):
+                locator = f"第{match[2]}{'行' if match[1] == 'line' else '段'}"
             else:
-                match = re.fullmatch(r"(?:page\s+)?(\d+)", locator, re.IGNORECASE)
+                match = re.fullmatch(r"(?:page\s+)?(\d+)(?:;.*)?", locator, re.IGNORECASE)
                 if match:
                     locator = f"PDF第{match[1]}页"
         return f"{self.document}（{locator}）"
@@ -76,7 +76,7 @@ class MaterialIssue(StrictRecord):
         return self
 
     def source_text(self):
-        return "；".join(source.readable() for source in self.sources) or "无可用证据"
+        return "；".join(dict.fromkeys(source.readable() for source in self.sources)) or "无可用证据"
 
     def impact_text(self):
         if self.kind in {'indirect_assumption', 'no_evidence_assumption'}:

@@ -462,11 +462,13 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
             if assessment_sid != sid:
                 continue
             label = next(o['label'] for o in plan['payload']['objects'] if o['object_id'] == obj)
-            body = {'text': label, 'section_id': sid}
+            table = cs._read(db, receipt['ranking_ref'])['payload']['body']
+            subsection = table['caption'].split('-')[0].removeprefix('表').strip()
+            body = {'text': subsection + ' ' + label, 'section_id': sid}
             issues = bound_issues(sid, obj)
             if issues:
                 body['material_issues'] = issues
-            object_head = insert({'kind': 'block', 'body': body, 'qualifiers': {},
+            object_head = insert({'kind': 'chapter', 'body': body, 'qualifiers': {},
                 'claim_kind': 'structure', 'citations': section['sources'] + issue_citations(sid, obj)})
             contains(head, object_head, child_index); child_index += 1; object_heads[obj] = object_head
             refs.extend(receipt['refs'].values())

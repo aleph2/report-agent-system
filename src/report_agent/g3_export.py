@@ -65,6 +65,8 @@ def _source(citation, records):
 
 
 def citation_text(node, records, plan=None):
+    if node['body'].get('section_heading') or (node['kind'] == 'chapter' and '\n' not in node['body']['text']):
+        return ''
     if plan and plan.get('format_source') and (node['kind'] == 'report' or node['body'].get('page_role') == 'title_page'):
         # Front-matter source bindings stay in the audit, outside the prescribed cover fields.
         return ''
@@ -372,14 +374,18 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
         ref = body.get('assessment_ref')
         assessment = records.get(_key(ref), {}).get('payload', {}) if ref else {}
         opened = body.get('assessment_part') == 'evaluation' and assessment.get('result', {}).get('status') == 'unscored'
-        if not body.get('section_heading') and not opened:
+        numbered_chapter = node['kind'] == 'chapter' and re.fullmatch(r'[1-9][0-9]*(?:\.[0-9]+)*', body['text'].split(' ', 1)[0])
+        if not body.get('section_heading') and not numbered_chapter and not opened:
             continue
         if key not in controls:
             controls[key] = dict(node_ref=records[key]['ref'])
             nodes.append(controls[key])
         control = controls[key]
-        if body.get('section_heading'):
-            control.setdefault('heading_level', min(6, str(body['section_id']).count('.') + 1))
+        if body.get('section_heading') or numbered_chapter:
+            number = body['text'].split(' ', 1)[0] if node['kind'] == 'chapter' else str(body['section_id'])
+            control.setdefault('heading_level', min(6, number.count('.') + 1))
+            if numbered_chapter:
+                raw.setdefault('toc_depth', 3)
         if opened:
             control.setdefault('column_weights', [2, 1.1, 1.4, 1.4, 1.4, 8])
             control.setdefault('allow_row_split', True)

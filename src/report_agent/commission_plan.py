@@ -213,6 +213,7 @@ class IndicatorRankOrder(Contract):
 
 
 class CommissionPlan(Contract):
+    report_title: str = Field(default='', exclude_if=lambda value: not value)
     indicator_rank_order: IndicatorRankOrder | None = Field(default=None, exclude_if=lambda value: value is None)
     carryover_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
     carried_items: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)

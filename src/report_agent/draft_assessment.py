@@ -3,9 +3,13 @@ from .errors import ActionRejected
 from .store import digest
 
 
-def display_rows(result) -> list[dict]:
+def display_rows(result, method_pack) -> list[dict]:
+    grades = {rule['id']: {g['id']: g for g in rule['grades']} for rule in method_pack['indicators']}
+    def alternative_text(row):
+        return '、'.join(g['description'] + f"（{g['min_value']}–{g['max_value']}分）"
+                        for key in row['alternatives'] for g in [grades[row['indicator_id']][key]])
     opened = [dict(**row, value='未评分', score='未评分', basis_kind='missing',
-        rationale=row['reason'] + ('；条件分级：' + '、'.join(row['alternatives']) if row['alternatives'] else ''),
+        rationale=row['reason'] + ('；条件分级：' + alternative_text(row) if row['alternatives'] else ''),
         rank_reason='已确认的重要性排序') for row in result.get('open_rows', [])]
     return sorted([*result['rows'], *opened], key=lambda row: row['rank'])
 
@@ -13,7 +17,7 @@ def display_rows(result) -> list[dict]:
 def tables(cs, db, plan, obj, assessment_ref, result, prefix):
     definitions = {r['id']:r for r in plan['payload']['method_pack']['indicators']}
     rows, ranking, issues, citations = [], [], [], []
-    for saved in display_rows(result):
+    for saved in display_rows(result, plan['payload']['method_pack']):
         key = saved['indicator_id']
         definition = definitions[key]
         rank, weight = saved['rank'], saved['weight']

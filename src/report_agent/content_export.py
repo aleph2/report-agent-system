@@ -220,7 +220,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             from docx.oxml.ns import qn
             for border in doc.styles[name].element.iter(qn("w:pBdr")):
                 border.getparent().remove(border)
-        def emit(ref, depth):
+        def emit(ref, depth, following=None):
             node = records[Ref.model_validate(ref).key()]["payload"]
             body, kind = node["body"], node["kind"]
             issues, merges = validate_node(node, ref)
@@ -326,11 +326,16 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                         presentation.emit_text(doc, rest, image_renderer, controls, table_formatter=format_embedded_table)
                 else:
                     presentation.emit_text(doc, body["text"], image_renderer, controls, table_formatter=format_embedded_table)
+            if body.get('section_heading') and body['text'].split(' ', 1)[-1] == '待核事项':
+                doc.add_paragraph(f'本草稿共{len(issue_records)}项待核事项，详见随附 Excel 问题清单；本文件批注记录相同事项。')
+            if kind == 'report' and depth == 0 and not (plan and plan.get('format_source')):
+                doc.add_paragraph('编制日期：' + snapshot['created_at'][:10])
             if kind != 'table':
                 for issue in issues:
                     comment_passage(doc, doc.paragraphs[paragraph_start:], issue, ref)
             citation = citation_text(node, records, plan=plan)
-            if citation:
+            next_citation = citation_text(records[Ref.model_validate(following).key()]['payload'], records, plan=plan) if following else ''
+            if citation and citation != next_citation:
                 doc.add_paragraph(citation)
             visible = {k: v for k, v in node["qualifiers"].items() if k not in presentation.STRUCTURAL}
             # Suppress only a full literal qualifier line already emitted in this node.
@@ -376,9 +381,10 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                         start_new_page=bool(title_pages) or not cover_break, options=options)
                 elif title_pages and any(child not in title_pages for _, child in edges.get(root_key, [])):
                     presentation.section(doc, options, False)
-            for _, child in sorted(edges.get(Ref.model_validate(ref).key(), []), key=lambda p: p[0]):
-                if not (depth == 0 and child in title_pages):
-                    emit(child, depth + 1)
+            children = [child for _, child in sorted(edges.get(Ref.model_validate(ref).key(), []), key=lambda p: p[0])
+                        if not (depth == 0 and child in title_pages)]
+            for i, child in enumerate(children):
+                emit(child, depth + 1, children[i+1] if i+1 < len(children) else None)
         emit(snapshot["payload"]["root_ref"], 0)
         if owner_issues:
             doc.add_paragraph("业主范围决定", "Heading 1")
