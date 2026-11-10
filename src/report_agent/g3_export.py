@@ -363,8 +363,31 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
     if plan is None:
         return deepcopy(raw_layout or {})
     validate_export(cs, snapshot, records, rendered_keys)
+    raw = deepcopy(raw_layout or {})
+    nodes = raw.get('nodes', [])
+    controls = {_key(item['node_ref']): item for item in nodes}
+    for key in rendered_keys:
+        node = records[key]['payload']
+        body = node.get('body', {})
+        ref = body.get('assessment_ref')
+        assessment = records.get(_key(ref), {}).get('payload', {}) if ref else {}
+        opened = body.get('assessment_part') == 'evaluation' and assessment.get('result', {}).get('status') == 'unscored'
+        if not body.get('section_heading') and not opened:
+            continue
+        if key not in controls:
+            controls[key] = dict(node_ref=records[key]['ref'])
+            nodes.append(controls[key])
+        control = controls[key]
+        if body.get('section_heading'):
+            control.setdefault('heading_level', min(6, str(body['section_id']).count('.') + 1))
+        if opened:
+            control.setdefault('column_weights', [2.5, 1, 1, 1, 1, 8])
+            control.setdefault('allow_row_split', True)
+    if nodes:
+        raw['nodes'] = nodes
     if not plan.get('format_source'):
-        return deepcopy(raw_layout or {})
+        return raw
+    raw_layout = raw
     ordered, edges = _order(snapshot, records)
     root = _key(snapshot['payload']['root_ref'])
     title_keys = [k for k in ordered if records[k]['payload']['body'].get('page_role') == 'title_page']

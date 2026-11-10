@@ -277,8 +277,14 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
         snapshot = assemble_current_report(reopened, co, 'draft-assembly')['result']['snapshot_ref']
     except ActionRejected as error:
         pytest.fail(str(error) + ': ' + json.dumps(error.diagnostic, ensure_ascii=False))
-    exported = export_snapshot(reopened, co, 'draft-pair', snapshot, {'toc': True})['result']
+    exported = export_snapshot(reopened, co, 'draft-pair', snapshot, {'toc': True, 'refresh_toc': os.environ.get('FAKE03_DRAFT_REFRESH_TOC') == '1'})['result']
     assert reopened.read(exported['workbook']['export_ref'])['payload']['snapshot_ref'] == snapshot
+    from docx import Document
+    word = Document(ws.store.root / exported['file_ref'])
+    assert any(p.style.name == 'Heading 1' for p in word.paragraphs)
+    evaluation_tables = [table for table in word.tables if len(table.columns) == 6]
+    assert len(evaluation_tables) == 2
+    assert all(table.columns[-1].width > table.columns[0].width * 2 for table in evaluation_tables)
     from zipfile import ZipFile
     from lxml import etree
     from openpyxl import load_workbook
