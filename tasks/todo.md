@@ -357,7 +357,7 @@ Main仅改model_invocation deadline回600、model_recovery已有策略参数化�
 
 ## Stage 1 9a (2026-11-10)
 
-Owner acknowledgment in substance includes the four corrections and a–f split. Part a implementation is a review candidate; full regression and owner acceptance remain pending. Reuse the current branch, with a separate size/verification record, tag and owner review for each part. Keep earlier unfinished history unchanged.
+Owner acknowledgment in substance includes the four corrections and a–f split. Part a is accepted after its clean full run. Part b is a review candidate pending owner acceptance. Reuse the current branch, with a separate size/verification record, tag and owner review for each part. Keep earlier unfinished history unchanged.
 
 - [x] Record the four corrections and the draft-first split in the proposal, entry, consolidated handoff and first-report procedure.
 - [x] **9a-a1 — binding contract.** Add applicable object/indicator page bindings and source eligibility without falsely confirming extracted values. Likely: planning_assertions.py, assertions/schema/kinds.py, actions.json, checks.sql and focused binding contract tests. Verify accepted versus wrong/unconfirmed binding and unchanged C4/C5.
@@ -366,9 +366,9 @@ Owner acknowledgment in substance includes the four corrections and a–f split.
 - [x] **9a-a4 — retire the file approval.** Likely: source_use.py, current source-access/export callers, relevant source-use UI/action and source-use tests. Fresh-case planning sees supplied files; Writer/report access follows page bindings and case/C4 scope. No file-level wait or hidden source-approval export dependency. Preserve historical decisions and budget authority.
 - [x] **Review/tag 9a-a.** Check actual source/check/fallback size figures and focused integration; accept before b.
 
-- [ ] **9a-b1 — disclosed draft assembly.** Likely: system_assembler.py, assessment_projection.py, risk_scoring.py and unscored assembly tests. Render every open row with its real reason and no adopted score/level; admit provisional drafts honestly.
-- [ ] **9a-b2 — issue/export closure.** Likely: material_issues.py, content_export.py, content_workbook.py and issue-pair tests. All three planning conflicts have records, bindings/routes and one-to-one Word comments/Excel rows; no score invention or check weakening.
-- [ ] **9a-b3 — rendered output.** Use existing render/inspection facilities on the draft pair; verify pages, tables, TOC, fixed text, citations and internal-content checks. Keep files/snapshots/verification provenance.
+- [x] **9a-b1 — disclosed draft assembly.** Likely: system_assembler.py, assessment_projection.py, risk_scoring.py and unscored assembly tests. Render every open row with its real reason and no adopted score/level; admit provisional drafts honestly.
+- [x] **9a-b2 — issue/export closure.** Likely: material_issues.py, content_export.py, content_workbook.py and issue-pair tests. All three planning conflicts have records, bindings/routes and one-to-one Word comments/Excel rows; no score invention or check weakening.
+- [x] **9a-b3 — rendered output.** Use existing render/inspection facilities on the draft pair; verify pages, tables, TOC, fixed text, citations and internal-content checks. Keep files/snapshots/verification provenance.
 - [ ] **Review/tag 9a-b.** Draft support and rendered-page record accepted; formal release stays refused.
 
 - [ ] **9a-c1 — touched receipt/digest dependencies.** Remove only dependencies touched by a, preserving completed business facts/qualifiers, image-delivery safety, producer binding and exact redo. Split any implementation batch to at most five likely files including tests; record precise consumers before removal.
@@ -386,3 +386,5 @@ Full regressions, model runs and real-report launches retain their separate expl
 
 
 Part-a full gate (2026-11-10): owner-authorized replacement on dfebc40 passed cleanly, 6,160 passed / 9 existing skips / 0 failures in 26m32s. Part a is accepted under the conditional decision; main fast-forward is authorized. The first failed run remains failed on record. Next: b, using the existing branch. Details: docs/reviews/stage1-9a-a-acceptance.md.
+
+Part-b candidate (2026-11-10): native unscored draft assembly and the Word/Excel data pair are implemented. Word pages are inspected; Excel layout is outside scope per owner clarification. Main stays at accepted part a; no paid launch or part-b full run. Review: docs/reviews/stage1-9a-b.md.

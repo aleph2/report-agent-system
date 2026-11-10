@@ -1,0 +1,88 @@
+{
+  "timestamp_utc": "2026-11-10T15:14:27.865935+00:00",
+  "baseline": "5e6c2eeae94224699ada0f8d2182b162ef2fbdbd",
+  "source_commit": "5277891a161fe67d271ed173af91c301d82a3ea6",
+  "production": {
+    "added": 150,
+    "removed": 53,
+    "net": 97,
+    "files": [
+      "src/report_agent/assessment_projection.py",
+      "src/report_agent/assessment_results.py",
+      "src/report_agent/commission_results.py",
+      "src/report_agent/draft_assessment.py",
+      "src/report_agent/g3_export.py",
+      "src/report_agent/risk_scoring.py",
+      "src/report_agent/system_assembler.py"
+    ]
+  },
+  "explicit_raise_sites": {
+    "before": 108,
+    "after": 109,
+    "added": 1,
+    "removed": 0,
+    "note": "AST explicit raise expressions in touched source; semantic inventory remains part c"
+  },
+  "legacy_fallbacks_added": 0,
+  "verification": {
+    "focused": {
+      "passed": 503,
+      "failed": 0,
+      "skipped": 0,
+      "modules": 25,
+      "elapsed_seconds": 83.82955312728882
+    },
+    "final_source_export": "passed",
+    "full_regression": "not authorized or run for part b",
+    "paid_model_calls": 0,
+    "pyright": {
+      "baseline_errors": 7,
+      "current_errors": 7,
+      "new_errors": 0
+    },
+    "mutation": "challenged-draft bypass caused one expected failure",
+    "passing_test_databases_retained": 0
+  },
+  "draft": {
+    "saved_judgments": 16,
+    "indicator_rows": 22,
+    "unscored_rows": 19,
+    "adopted_score": false,
+    "planning_conflicts": 3,
+    "word_comments": 23,
+    "excel_issue_rows": 23,
+    "same_snapshot": {
+      "type": "DocumentSnapshot",
+      "id": "ecec5ab5-a928-4485-a835-d764a997a1ab",
+      "version": 1
+    },
+    "word_pages": 7,
+    "word_pages_inspected": true,
+    "final_word_pages_identical_to_inspected": true,
+    "excel_layout": "not required; all new print-format code/tests removed",
+    "files": {
+      "fake03-draft.docx": {
+        "bytes": 36374,
+        "sha256": "1969253f0a7e27d98f2845e155a05bb58219c32fcf6794fceb25412288c5aa53"
+      },
+      "fake03-draft.xlsx": {
+        "bytes": 19490,
+        "sha256": "a2c88d7371515ae500edc38160086d80a11fe8d241ac16b691c255bb765115b2"
+      }
+    }
+  },
+  "protected": {
+    "dispatcher": "byte-identical",
+    "assertion_package_and_S2": "byte-identical",
+    "workbook_implementation": "byte-identical to part a",
+    "main": "5e6c2ee",
+    "historical_cases_ledgers_holds": "untouched"
+  },
+  "evidence": ".private/stage1-9a-b-20261110/delivery-scoped/ and sibling phase/render logs",
+  "limitations": [
+    "Offline mechanics and Word rendering only; no new paid judgment-quality verdict",
+    "Seven Pyright diagnostics predate this slice",
+    "No Excel print-layout claim",
+    "Receipt/digest inventory stays part c; formal release remains deferred"
+  ]
+}
