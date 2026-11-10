@@ -400,3 +400,5 @@ Part-b owner acceptance (2026-11-10): accepted fdf8f93; main fast-forwarded to t
 Part-b rendered acceptance confirmed without reservation (2026-11-10): owner checked cover/date, TOC, citations, Chinese reasons/grade descriptions, open rows and the printed count of 23 issues. Batch numbering hierarchy, duplicate punctuation and source/PDF spacing into d. c remains receipt/digest cleanup plus the measured active field/check inventory; paid Fake03 still needs the later scope/cap approval.
 
 Owner b2 sequence (2026-11-10): b remains accepted. Finish/accept c and advance main before b2 starts. Paid Fake03 requires a, b, c, b2 and the measured inventory. B2 owns the rendering cosmetics/source-comment/spec format. Two future guard tests are listed in c as planned with no claimed result. No b2 source edits, new branch/worktree or launch.
+
+9a-c: authorized full offline regression COMPLETE at tested a70ab4d (6,179 passed /9 unchanged skips /0 failures,26m29s). Owner acceptance PENDING; main remains accepted b. B2 remains queued after c acceptance.

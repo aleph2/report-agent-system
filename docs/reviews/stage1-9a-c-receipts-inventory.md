@@ -19,4 +19,6 @@ The inventory contains all enumerated five-role schemas and nested fields, 3,054
 
 Self-review only; no independent review claimed. No dispatcher, S2 catalog/SQL, export formatting, main, original case, ledger or hold change; no model call. Main stays at accepted b `fdf8f93`.
 
-**Pending:** explicit authority for one clean full offline c regression, then owner review/acceptance. B2 starts from main only after that acceptance. No b2 source or new Word/Excel/PDF is claimed here; its plan and future paid gate are recorded.
+**Clean full run:** owner-authorized on exact `a70ab4d`: **6,179 passed / 9 unchanged skips / 0 failures**, 26m29s, all 6,188 nodes once, all nine coverage floors met (overall 90.63%). All 1,265 frozen files unchanged; passing source copy removed automatically; zero retained temporary test databases. No retry or reconciled failures. [Full result](../verification/stage1-9a-c/clean-full.json).
+
+**Pending:** owner review/acceptance. Main remains accepted b. B2 starts from main only after c acceptance; no b2 source or new Word/Excel/PDF is claimed here.

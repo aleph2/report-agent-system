@@ -22,7 +22,7 @@ Focused results on c production source `2c31486`:
 - Five-role catalog enumeration: **1 passed**, 3.01s.
 - Cold-copy/exclusion controls: **54 passed**, 22.36s; some overlap the core set.
 - Earlier TDD failures are retained honestly: missing native Reviewer wrapping, current receipt-link/projection assertions before fixes, and the cold-copy reproduction. One initial cold-copy attempt had a missing fixture import; it was setup failure, not reproduction. No retired test was deleted or relabeled green.
-- No full c regression has been authorized or run. Focused counts overlap; no summed “total tests passed” claim.
+- Owner subsequently authorized one clean full run on exact `a70ab4d`: **6,179 passed / 9 unchanged skips / 0 failures**, 26m29s. All 6,188 collected nodes ran once; all nine M0 coverage floors passed, overall 90.63%. [Result](clean-full.json). All 1,265 frozen files unchanged, automatic passing-copy removal, zero retained temporary test databases. Focused counts still overlap and are not added to the full-run count.
 
 ## Retained history and limits
 
@@ -30,4 +30,4 @@ New judgments use their assertion ID to retrieve completed business details; the
 
 The cold-copy failure was reproduced at `prepare_probe_case -> _confirmed -> require_complete`: the approved exclusion lost its old page-return evidence. The trusted import now saves private immutable `ImportedSourceReadFacts` (source version + pages) from verified frozen inputs. Exclusion validation consumes those facts. It copies no runtime receipt, grants no Writer image delivery and makes no claim about a new task reading the page. Two successive imports succeed; a changed unobserved page still fails; source bytes remain unchanged.
 
-Full regression, owner review/acceptance, b2 implementation/rendered artifacts and the paid Fake03 run remain pending. The paid gate includes accepted a/b/c/b2, the measured inventory and a frozen answer key, plus a separate owner-approved launch scope/cap.
+Full regression is now complete; owner review/acceptance, b2 implementation/rendered artifacts and the paid Fake03 run remain pending. The paid gate includes accepted a/b/c/b2, the measured inventory and a frozen answer key, plus a separate owner-approved launch scope/cap.
