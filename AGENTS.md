@@ -9,9 +9,10 @@ document it links. If a rule here conflicts with a task the owner gives, ask.
 
 - No installs, uploads, paid model runs, full regressions, report restarts or
   replay of unknown requests without explicit owner authorization for that action.
-- Each paid run needs the owner's authorization naming its scope and spending cap;
-  one launch per authorization. [CONFIRM: does the 50,000,000-token standing
-  per-round authorization of 2026-10-26 still apply, or is it replaced by this?]
+- Each paid launch needs explicit owner authorization naming its scope and spending cap;
+  one launch per authorization.
+- Existing aggregate limits are 100,000,000 verification/test tokens and 200,000,000
+  real-report tokens. These totals do not authorize launches or reset usage/holds.
 - Never release the historical 2M hold. Never reset usage, invent a grant, or
   release or replay an unknown outcome; reconcile it first.
 - Preserve every ledger row, hold, unknown outcome and authorization receipt.
