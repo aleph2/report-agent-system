@@ -31,7 +31,7 @@ INPUT_SHA256 = {
     "08_template.docx": "97e15102a603fa36daa387f6715796706db2ffdc651d8dad523122fa0c2728f6"
 }
 METHOD_SOURCE_NAME = 'system-method-high-slope.txt'
-METHOD_CATALOG_SHA256 = 'a986b71512ca846cc5fc8e2edf030a9fcc83db472d6b7df1ae368d417db00931'
+METHOD_CATALOG_SHA256 = 'efc2f164677bc2323215e7532de9e8dc25dd6873da39de6c6d7efb68e281a154'
 
 
 def _sha(data):

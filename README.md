@@ -3,8 +3,9 @@
 ## Opening October release cases
 
 To read a case that stores source files in the October release layout, use
-[`regression-20261028-ocr-fake01`](https://github.com/aleph2/report-agent-system/tree/regression-20261028-ocr-fake01)
-on a copy of the case. This tag also contains the October release manifest and validation record.
+the original private `regression-20261028-ocr-fake01` tag on a copy of the case.
+It retains the original release manifest and validation record; the public tag
+with the same name is a sanitized derivative. See [private records](docs/private-records.md).
 
 ## Current model request timeout (2026-10-24)
 
@@ -41,65 +42,13 @@ current dependencies, available recovery backups or instructions to restore reti
 Current review evidence is in `.analysis/round06-reviewer-rootcause-20261027` and
 `.analysis/unified-r06-implementation-20261027`. No new report execution is implied.
 
-## Historical work entry points (2026-10-15)
+## Private historical recovery records
 
-- [Current status and next action](.memory/full-chain-validation-live-handoff-20261014.json): the single maintained handoff; older run notes are historical evidence.
-- [Latest terminal run: continuation18](.runs/full-chain-report-validation-20261014/continuation18/result.json): stopped at the authorized token admission boundary; not running and not automatically restartable.
-- [Working drafts and output evidence](.analysis/full-code-design-review-20261015/final-output-evidence-index.json): exact R5/R6 DOCX paths and verification limits. The full first-contract report, issues-only XLSX and independent acceptance remain incomplete.
-
-Keep project complexity proportional to actual requirements. Continue an existing
-case for another execution window; create an independent case only for a real
-isolation requirement. Immutable materials should be reused through a shared
-materialization implementation; this convergence is pending, not an already
-implemented storage guarantee. Preserve source/OCR and necessary recovery/audit
-evidence. Historical `.runs/` and `.analysis/` records are not additional current
-work entry points; directory cleanup does not create a parallel management system.
-
-Historical diagnostic archive (2026-10-15):
-`.runs/reference-alignment-20261006-v2/state.db` now retains only the latest
-`deep_model_request` event; its 2,848 older request events are preserved in the
-byte-exact full original database archive
-`.runs/reference-alignment-20261006-v2/state-before-cleanup-20261015.db.gz`.
-Other events, business/source records and row identities are unchanged.
-Full-history consumers, including `Store.events()`, learning call ledgers and
-execution audits, must actually read a restored original database rather than
-this compact online database. Online event counts are not complete historical
-call or cost totals. Restore to a new temporary file from WSL with:
-
-```sh
-/home/dysun/.venvs/report-agent-system/bin/python /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/runtime-cleanup-20261015/sqlite_cleanup.py restore-copy --output /tmp/report-agent-sqlite-restore-20261015/state.db
-```
-
-This verifies the original file hash and never overwrites the online database.
-Read the returned `--output` database for full-history analysis. The temporary
-directory does not contain all case assets; restoring this file does not make a
-complete runnable case or authorize replaying historical model work. Exact
-scope, before/after hashes and recovery evidence are recorded in the existing
-[cleanup result](.analysis/runtime-cleanup-20261015/cleanup-consolidated-result.json).
-
-Two further terminal historical databases use a narrower archive boundary:
-
-| Online database | Inherited requests moved to full archive | Case-specific requests still online | Restore case index |
-| --- | --- | --- | --- |
-| `.runs/reference-alignment-learning-20261006/state.db` | 2,843 `deep_model_request` events with sequence ≤ 14632 | All 92, including follow-up work | 0 |
-| `.runs/high-slope-coverage-validation-20261008/case/state.db` | 3,697 `deep_model_request` events with sequence ≤ 19798 | All 33 | 1 |
-
-Each directory retains its own `state-before-cleanup-20261015.db.gz`, containing
-the exact full original database. Other events, all other tables and retained
-row identities are unchanged. Full inherited-history audits, original file-hash
-checks and ancestor event-count fingerprints require the restored original;
-do not run those checks against the compact online database. The following
-explicit restore commands were executed and verified against the original hashes:
-
-```sh
-/home/dysun/.venvs/report-agent-system/bin/python /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/runtime-cleanup-20261015/sqlite_cleanup.py restore-copy --plan sqlite-cleanup-batch2-plan.json --case 0 --output /tmp/report-agent-sqlite-restore-learning-20261015/state.db
-/home/dysun/.venvs/report-agent-system/bin/python /mnt/c/Users/dongy/Documents/ChatGPT/report-agent-system/.analysis/runtime-cleanup-20261015/sqlite_cleanup.py restore-copy --plan sqlite-cleanup-batch2-plan.json --case 1 --output /tmp/report-agent-sqlite-restore-high-slope-20261015/state.db
-```
-
-Use a new output file; restoration refuses to overwrite an existing file. The
-pilot restore command above still selects its original archive. These restored
-databases are for reading historical evidence, not automatic execution or model
-replay. Current report state, checkpoints and OCR results were not cleaned.
+Old handoffs, cleanup commands and their original verification records are retained
+in the private archive described in [private records](docs/private-records.md).
+They are historical evidence, not current execution or restart entry points.
+Read old cases on copies with their original private tagged code. Never overwrite
+an online database or replay an unknown paid request to inspect its history.
 
 Independent greenfield prototype, not a modification or wrapper of the previous
 highway-report application. The current increment implements outcome-task coordination,
@@ -265,7 +214,7 @@ Run release regressions from a detached worktree at the tested commit. Pytest re
 Use a separate virtual environment; install with `python -m pip install -e '.[test]'`.
 The historical ADK test fixtures additionally require `.[historical-tests]`; they
 are retained as prior evidence, not the new report execution architecture.
-The development environment is `/home/dysun/.venvs/report-agent-system`.
+Activate the project virtual environment selected for your machine before running these commands.
 
 ```bash
 report-agent init --project .runs/example --manifest examples/materials-new.json

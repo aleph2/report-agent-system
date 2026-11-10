@@ -1,4 +1,3 @@
 {
-  "python.defaultInterpreterPath": "/home/dysun/.venvs/report-agent-system/bin/python",
   "python.languageServer": "Pylance"
 }

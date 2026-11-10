@@ -1,0 +1,23 @@
+{
+  "source_lines_added": 3,
+  "source_lines_removed": 3,
+  "checks_or_guard_families_added": 0,
+  "checks_or_guard_families_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "scope": "Neutral presentation-source label and portable active documentation/settings",
+  "method_semantics_unchanged": true,
+  "method_pack_changed_field": "presentation_source.name",
+  "existing_catalog_pins_refreshed": 2,
+  "focused_tests_passed": 39,
+  "full_regression_run": false,
+  "paid_model_calls": 0,
+  "dispatcher_unchanged": true,
+  "s2_schema_unchanged": true,
+  "fresh_sanitized_development_clone": true,
+  "legacy_git_repositories_push_blocked": 3,
+  "legacy_registered_worktrees_covered": 20,
+  "legacy_tracked_edits_preserved": true,
+  "historical_machine_paths_retained": true,
+  "historical_project_title_rewrite_performed": false,
+  "private_details": ".private/privacy-follow-up-20261109/"
+}

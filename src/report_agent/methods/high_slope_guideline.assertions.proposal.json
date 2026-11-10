@@ -1,7 +1,7 @@
 {
   "status": "s2_owner_review_only",
   "version": "s2-proposal-1",
-  "transcription_sha256": "a986b71512ca846cc5fc8e2edf030a9fcc83db472d6b7df1ae368d417db00931",
+  "transcription_sha256": "efc2f164677bc2323215e7532de9e8dc25dd6873da39de6c6d7efb68e281a154",
   "source_pdf_sha256": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98",
   "page_numbering": "one-based physical PDF pages; printed page = physical page minus 7",
   "criteria": [

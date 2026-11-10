@@ -23,3 +23,6 @@ __pycache__/
 # Private case history and operator data (owner privacy requirement).
 .memory/
 .operator/instructions.json
+
+# Local private archive mount, never published.
+/.private

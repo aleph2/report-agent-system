@@ -109,4 +109,4 @@ After each report-generation test round reaches a terminal state and Neo has
 reviewed it, send one concise summary using the private contact policy: flow and artifacts, token use, first failures and
 corrections, open issues, next steps; label failed rounds honestly. Never resend
 a sent message; reconcile Sent before retrying an unknown send.
-Private policy: `/home/dysun/report-agent-private-archives/ase-retirement-20261110T011447Z/round-summary-policy-20261026.json`.
+Private policy: `.private/round-summary-policy-20261026.json`.
