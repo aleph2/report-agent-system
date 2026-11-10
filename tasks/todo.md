@@ -364,7 +364,7 @@ Owner acknowledgment in substance includes the four corrections and a–f split.
 - [x] **9a-a2 — access/extraction adapters.** Likely: writer_fact_packet.py, writer_assignments.py, assertions/evidence.py, writer_assessment.py and focused packet/extraction tests. Verify exact quote resolution, unknown-versus-absence and preserved qualifiers.
 - [x] **9a-a3 — one owner checkpoint.** Likely: commission_plan.py, commission_assertions.py, issue_authority.py and focused checkpoint tests. One versioned sheet/reply produces all confirm acts; an interrupted fan-out redoes only missing acts with the same identities, no extra click or approval of later-added bindings.
 - [x] **9a-a4 — retire the file approval.** Likely: source_use.py, current source-access/export callers, relevant source-use UI/action and source-use tests. Fresh-case planning sees supplied files; Writer/report access follows page bindings and case/C4 scope. No file-level wait or hidden source-approval export dependency. Preserve historical decisions and budget authority.
-- [ ] **Review/tag 9a-a.** Check actual source/check/fallback size figures and focused integration; accept before b.
+- [x] **Review/tag 9a-a.** Check actual source/check/fallback size figures and focused integration; accept before b.
 
 - [ ] **9a-b1 — disclosed draft assembly.** Likely: system_assembler.py, assessment_projection.py, risk_scoring.py and unscored assembly tests. Render every open row with its real reason and no adopted score/level; admit provisional drafts honestly.
 - [ ] **9a-b2 — issue/export closure.** Likely: material_issues.py, content_export.py, content_workbook.py and issue-pair tests. All three planning conflicts have records, bindings/routes and one-to-one Word comments/Excel rows; no score invention or check weakening.
@@ -385,4 +385,4 @@ Owner acknowledgment in substance includes the four corrections and a–f split.
 Full regressions, model runs and real-report launches retain their separate explicit authorization requirements. No source originals, historical cases, ledgers, holds or unknown requests are rewritten/released.
 
 
-Part-a full gate (2026-11-10): original authorized run failed 35 cases; corrections pass 177 focused cases. Replacement full authorization remains required before conditional acceptance/main fast-forward and part b. Details: docs/reviews/stage1-9a-a-full-regression.md.
+Part-a full gate (2026-11-10): owner-authorized replacement on dfebc40 passed cleanly, 6,160 passed / 9 existing skips / 0 failures in 26m32s. Part a is accepted under the conditional decision; main fast-forward is authorized. The first failed run remains failed on record. Next: b, using the existing branch. Details: docs/reviews/stage1-9a-a-acceptance.md.

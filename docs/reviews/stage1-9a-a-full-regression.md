@@ -1,5 +1,7 @@
 # Part a — full regression and test migration corrections
 
+Follow-up: the separately authorized [clean replacement passed and part a is accepted](stage1-9a-a-acceptance.md). The failed-run facts below are preserved.
+
 Follow-up production source **+5 / -5 / net 0** (neutral identifier rename only); checks/guards **+0 / -0**; legacy fallbacks **+0**. Part-a production total remains +503 / -129 / net +374. [Results](../verification/stage1-9a-a-full/results.json).
 
 **Gate not passed.** The owner accepted a in substance and authorized one full offline run on 5c34d34, conditional main advancement on a clean result. That run finished in 31m14s: **6,124 passed / 35 failed / 9 skipped**, with no missing, duplicate or unexpected cases or collection errors. Coverage 90.50%; all 13 existing floors met. This is a failed run, not a reconciled green result.

@@ -42,3 +42,8 @@ No launch is granted here. Paid Fake03 and the one-slope real-report test each s
 [Initial fields](../verification/stage1-9a-inventory/agent-fields-initial.tsv), [S2 checks](../verification/stage1-9a-inventory/s2-checks-initial.tsv), [unfinished mapping/measurements](../verification/stage1-9a-inventory/status.json). Unmeasured is not zero. The current qualitative Reviewer exposes operation_id/row_digest while Writer injects native IDs; remove the new adapter's copying burden without removing recovery/version checks. No live Reviewer failure or model improvement is claimed.
 
 [Plan-revision verification](../verification/stage1-9a-split-plan/results.json): documentation consistency only; no application change or new full/model run.
+
+
+## Before candidate tags for b and c
+
+Owner process correction after the part-a full run: search application and tests for the retired names and old tool-set literals before tagging. For b/c this includes source_policy_ref, SOURCE_USE_VERSION_NOT_AUTHORIZED and Coordinator assert_source assumptions, plus the behavior each part retires. Classify each match as an intentional historical reader/test, a negative assertion of the new rule, or an active migration gap. Run every affected test module before the candidate tag. Keep required historical coverage; do not weaken a guard or remove a test merely because a retired name appears. This is a review habit, not a new scanner or runtime check.

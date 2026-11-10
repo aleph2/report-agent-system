@@ -2,7 +2,7 @@
 
 Production source **+503 / -129 / net +374 lines**, including active prompts/schema and the host preparation caller. SQL families **12 → 12**, clauses **13 → 13**; one schema validator added. Explicit raise sites **+21 / -4** (AST count, not a complete semantic inventory). **One** compatibility condition preserves accepted s2-proposal-2 source archives. [Measurements](../verification/stage1-9a-a/results.json).
 
-**Status:** owner accepted in substance, conditional on a clean full suite. The authorized run failed; its migration corrections pass 177 focused cases. [Full-run record and next gate](stage1-9a-a-full-regression.md). Main stays cac8ca6; part b has not started. No paid launch.
+**Status:** accepted after the owner-authorized clean replacement: 6,160 passed / 9 existing skips / 0 failures on dfebc40. [Acceptance and evidence](stage1-9a-a-acceptance.md). The earlier failed full run remains failed on record. No paid launch.
 
 Coordinator proposes object/indicator pages; the host fills source versions. One versioned sheet shows document names and physical pages. One saved reply creates only its listed confirm acts. Exceptions stay unconfirmed; redo completes missing acts without duplicates, another answer or approving later proposals.
 
@@ -14,4 +14,4 @@ Reproductions closed repeated-quote resolution, the Reviewer's old-register depe
 
 The deep_runtime.py, content_tasks.py and assertion_host.py bytes are unchanged. Only report_host.prepare removes two policy lines; all other host functions are unchanged. Formal release still refuses with FORMAL_RELEASE_DEFERRED_TO_9A.
 
-**Not verified:** a clean full suite on the correction, paid extraction quality or rendered Word/Excel. Refusal frequencies are **unmeasured**, not zero; the complete inventory remains part c. Parts b–f keep their agreed gates. Raw evidence and reference-document fingerprints remain private under .private/stage1-9a-a/.
+**Not verified:** paid extraction quality or rendered Word/Excel. Refusal frequencies are **unmeasured**, not zero; the complete inventory remains part c. Parts b–f keep their agreed gates. Raw evidence and reference-document fingerprints remain private under .private/stage1-9a-a/.

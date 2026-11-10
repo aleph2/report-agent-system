@@ -1331,3 +1331,8 @@ Review and measured evidence: docs/reviews/stage1-9a-a.md and docs/verification/
 ### 2026-11-10 — part-a authorized full run and regression corrections
 
 Owner acceptance is conditional on one clean full run. Candidate 5c34d34 finished 6,124 passed / 35 failed / 9 skipped in 31m14s; no collection/missing/duplicate errors. The failures trace to stale role/file-policy fixtures plus a neutral naming guard. Correction 3cca78e passes all 177 targeted cases, with all 35 failed nodes mapped. Current collection 6,169. No new full run is authorized yet; main stays cac8ca6 and b has not started. See docs/reviews/stage1-9a-a-full-regression.md. The two part-a JSON-in-text references are explicitly listed for d; private/local import boundaries remain scoped c/d notes.
+
+
+### 2026-11-10 — part-a clean replacement accepted
+
+The separately authorized full run on dfebc40 passed 6,160 cases with 9 unchanged external-service skips, zero failures, and no missing/duplicate/collection errors in 26m32s. All 35 prior failure replacements passed in this run. Coverage 90.58%, all 13 floors met; successful source copy and every temporary test database cleaned automatically. Conditional owner acceptance/main fast-forward now applies. Acceptance metadata changes no source, tests or configuration. Reuse codex/stage1-9a for b; no paid launch is authorized. Before b/c tags, search retired names and old tool sets, classify retained historical/negative coverage versus actual gaps, and run affected modules. See docs/reviews/stage1-9a-a-acceptance.md.
