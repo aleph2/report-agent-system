@@ -127,3 +127,10 @@ def score_blocker(receipt):
     if status in ('scored', 'legacy_g3_scored', 'historical_scored'):
         return None
     return status or 'unverified'
+
+
+def draft_blocker(receipt):
+    """A verified native draft may disclose gaps; it never becomes a reviewed score."""
+    if receipt.get('derived_assertion_id') and receipt.get('derivation_status') in ('unscored', 'pending_review'):
+        return None
+    return score_blocker(receipt)

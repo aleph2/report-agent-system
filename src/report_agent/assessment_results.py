@@ -32,7 +32,7 @@ def unscored_result(pack, strategy, ranks, entries, interruptions):
                     for row in table.rows if row.indicator_count == len(ranks)), None)
     if weights is None:
         raise ActionRejected('ASSESSMENT_INVALID: weight strategy/count unavailable')
-    minima, maxima, missing, rows = [], [], [], []
+    minima, maxima, missing, rows, open_rows = [], [], [], [], []
     for rank, (indicator, weight) in enumerate(zip(ranks, weights), 1):
         entry = entries.get(indicator, {})
         if entry and entry['rank'] != rank:
@@ -43,6 +43,13 @@ def unscored_result(pack, strategy, ranks, entries, interruptions):
             rows.append({**row, 'weight': weight, 'score': sum_products([[row['value'], weight]])['total']})
         else:
             missing.append(indicator)
+            original = entry.get('input', {})
+            reason = original.get('missing') or '本次未保存该指标判断。'
+            if indicator in interruptions:
+                reason = '保存被拒绝而中断：' + '；'.join(str(r) for r in interruptions[indicator].get('refusals', []))
+            open_rows.append(dict(indicator_id=indicator, rank=rank, weight=weight, reason=reason,
+                question=original.get('question') or '请补充或复核本指标判断。',
+                sources=entry.get('sources', []), alternatives=entry.get('claim', {}).get('alternatives', [])))
             alternatives = set(entry.get('claim', {}).get('alternatives', ()))
             grades = {g.id: g for g in definitions[indicator].grades}
             if alternatives - grades.keys():
@@ -56,7 +63,7 @@ def unscored_result(pack, strategy, ranks, entries, interruptions):
     high = score_band(method, sum_products(maxima)['total'], allow_unclassified=True)
     robust = low['level'] == high['level'] if low['level'] and high['level'] else None
     return dict(status='unscored', low=low, high=high, level_robust=robust,
-                missing_indicators=missing, interrupted_indicators=sorted(interruptions), rows=rows)
+                missing_indicators=missing, interrupted_indicators=sorted(interruptions), rows=rows, open_rows=open_rows)
 
 
 def immutable_entries(cs, db, actor, scope, draft):

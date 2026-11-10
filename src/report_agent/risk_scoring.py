@@ -315,7 +315,7 @@ def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     bind_producer(cs, db, plan['ref'], obj['object_id'], actor, bulk=True, draft_only=draft_only)
     result['status'] = 'legacy_draft' if draft_only else 'legacy_g3_scored'
     # Bulk callers predate immutable indicator submissions. Preserve their historical provenance.
-    return _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, {})
+    return _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, {})
 
 
 def _prepare_complete(cs, db, actor, plan, section_id, assessment):
@@ -361,7 +361,7 @@ def preview_writer_assessment(cs, db, actor, scope, draft):
         # Verify every rendering invariant before the last immutable judgment commits.
         db.execute('SAVEPOINT assessment_preview')
         try:
-            _project_scored(cs, db, actor, 'preview', scope['plan'], scope['object'], scope['section_id'],
+            _project_assessment(cs, db, actor, 'preview', scope['plan'], scope['object'], scope['section_id'],
                             candidate, result, {})
         finally:
             db.execute('ROLLBACK TO assessment_preview')
@@ -400,16 +400,10 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment=None,
     except (ValueError, PermissionError) as exc:
         raise ActionRejected('ASSESSMENT_DERIVATION_REFUSED: ' + str(exc)) from exc
     native = dict(derived_assertion_id=assertion['id'], derive_operation_id=assertion['operation_id'])
-    if result['status'] == 'scored':
-        return _project_scored(cs, db, actor, operation_id, plan, obj, section, candidate, result, native)
-    ref = cs._insert(db, actor, 'Assessment', {'commission_plan_ref': plan['ref'], **candidate, **native, 'result': result})
-    receipt = dict(assessment_ref=ref, refs={'assessment': ref}, result=result, **native)
-    from .section_writing import enabled
-    record_assessment_projection(db, plan['ref'], obj['object_id'], receipt, select=enabled(cs.store))
-    return receipt
+    return _project_assessment(cs, db, actor, operation_id, plan, obj, section, candidate, result, native)
 
 
-def _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, native):
+def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, native):
     from .content_models import ContentNode
     from .store import digest
     pack = plan['payload']['method_pack']
@@ -417,14 +411,18 @@ def _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidat
     index = plan['payload']['objects'].index(obj) + 1
     parts = section_id.split('.')
     table_prefix = '.'.join((parts + ['2'])[:2] + [str(index)])
+    unscored = result.get('status') == 'unscored'
     table_records = (_table_records(pack, result, obj['label'], table_prefix)
-                     if plan['payload'].get('table_specs') else None)
+                     if plan['payload'].get('table_specs') and not unscored else None)
     assessment_ref = cs._insert(db, actor, 'Assessment', {'commission_plan_ref': plan['ref'], **candidate,
         'result': result, **native, **({'table_records': table_records} if table_records else {})})
     evidence_ref = cs._insert(db, actor, 'Evidence', {'source_refs': [], 'locator': 'system calculation',
         'excerpt': '', 'input_refs': [assessment_ref, plan['ref']], 'method': 'reviewed method table lookup and decimal sum_products',
         'tool_receipt': operation_id, 'result': result})
-    if table_records:
+    if unscored:
+        from .draft_assessment import tables
+        ranking_body, evaluation_body, citations = tables(cs, db, plan, obj, assessment_ref, result, table_prefix)
+    elif table_records:
         ranking_body, evaluation_body, citations = _projected_tables(
             cs, db, plan, assessment_ref, table_records, result, obj['label'])
     else:
@@ -471,7 +469,7 @@ def _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidat
         payload = ContentNode.model_validate({**base, 'kind': kind, 'body': {
             **body, 'section_id': section_id, 'assessment_ref': assessment_ref}}).model_dump(mode='json')
         return cs._insert(db, actor, 'ContentNode', payload)
-    if not table_records:
+    if not table_records and not unscored:
         ranking_body = {'columns': ['指标', '重要性排序', '权重'], 'rows': ranking,
             'caption': table_prefix + '-1 ' + obj['label'] + '指标重要性排序表', 'assessment_part': 'ranking'}
         evaluation_body = {'columns': ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释'],
@@ -479,15 +477,19 @@ def _project_scored(cs, db, actor, operation_id, plan, obj, section_id, candidat
             'rows': rows, 'merges': merges, 'material_issues': issues, 'assessment_part': 'evaluation'}
     ranking_ref = node('table', ranking_body)
     evaluation_ref = node('table', evaluation_body)
-    qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result['affects_level'] else ''
-    level = (plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
-             if table_records else result['adopted']['level'])
-    if result.get('status') == 'legacy_draft':
-        qualification = '批量录入的试算草稿，需按已确认的方法逐项复核。' + qualification
-    if result.get('review_status') == 'pending_review':
-        qualification = '指标判断待复核，当前评分及等级为试算结果。' + qualification
-    level_ref = node('block', {'text': f"{obj['label']}：综合评分{result['adopted']['total']}，风险等级{level}。" + qualification,
-        'assessment_part': 'level', 'level_qualification': qualification})
+    if unscored:
+        qualification = '本草稿尚有未评分指标，不采用综合评分或风险等级。'
+        text = obj['label'] + '：未评分，风险等级未确定。' + qualification
+    else:
+        qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result['affects_level'] else ''
+        level = (plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
+                 if table_records else result['adopted']['level'])
+        if result.get('status') == 'legacy_draft':
+            qualification = '批量录入的试算草稿，需按已确认的方法逐项复核。' + qualification
+        if result.get('review_status') == 'pending_review':
+            qualification = '指标判断待复核，当前评分及等级为试算结果。' + qualification
+        text = f"{obj['label']}：综合评分{result['adopted']['total']}，风险等级{level}。" + qualification
+    level_ref = node('block', {'text': text, 'assessment_part': 'level', 'level_qualification': qualification})
     generated = [ranking_ref, evaluation_ref, level_ref]
     relations = [cs._insert(db, actor, 'Relation', {'subject_ref': ref, 'object_ref': evidence_ref,
         'predicate': 'supported_by', 'provenance_kind': 'adopted_during_generation'}) for ref in generated]
