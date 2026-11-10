@@ -3,7 +3,6 @@ from copy import deepcopy
 import json
 import pytest
 
-from support.plan_fixture import enroll_planning_file
 from jsonschema import Draft202012Validator
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
@@ -17,7 +16,7 @@ from test_m1_g4_planning_steps import (method_commission, anchored, required_cas
 STEP_NAMES = {'read_planning_draft', 'set_requirement_status', 'link_convention',
               'set_scope_boundary', 'set_planning_details', 'add_object', 'add_section',
               'add_substitution', 'add_reconciliation', 'add_question'}
-ASSERTION_STEPS = {'assert_source', 'record_conflict', 'ask'}
+ASSERTION_STEPS = {'propose_page_binding', 'record_conflict', 'ask'}
 
 
 def tools(f):
@@ -84,9 +83,7 @@ async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refus
     from langgraph.graph import StateGraph, MessagesState, START, END
     from langgraph.prebuilt import ToolNode
     from report_agent.assertion_host import AssertionHost
-    from report_agent.catalog import Catalog
     from report_agent.operation_identity import bound_native_id
-    from test_ingestion import pdf_bytes
 
     f = draft_case
     offered = tools(f)
@@ -97,8 +94,6 @@ async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refus
     runner = graph.compile()
     subject = f.plan['objects'][0]['object_id']
     planning.save_item(f.cs, f.co, 'parity-subject', 'object', f.plan['objects'][0])
-    source = Catalog(f.ws.store).import_file('surveys.pdf', pdf_bytes(['Height 18 m.', 'Height 19 m.']))
-    enroll_planning_file(f, 'surveys.pdf', source['source']['id'], 'source_or_applicable_standard')
     principal = str(uuid5(NAMESPACE_URL, f.co.id))
     host = AssertionHost(f.ws.store.root)
 
@@ -119,14 +114,12 @@ async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refus
         assert receipt['result'] == saved and saved['was_generated_by'] == f.co.task_id
         return saved['id']
 
-    facts = []
-    for page, height in enumerate((18, 19), start=1):
-        args = dict(subject=subject, predicate='height', state='value', coverage='slope', value=height,
-                    unit='m', source_id=source['source']['id'], page=page, quote=f'Height {height} m.')
-        facts.append(await submit('assert_source', f'height-{page}', args))
-    await submit('assert_source', 'wrong-quote', {**args, 'quote': 'Height 20 m.'}, refusal='C2')
-    await submit('record_conflict', 'compare', dict(subject=subject, observations=facts))
-    await submit('record_conflict', 'foreign', dict(subject=subject, observations=[facts[0], 'outside']),
+    # A draft inventory alone cannot authorize a page binding or value extraction.
+    assert 'assert_source' not in offered
+    await submit('propose_page_binding', 'before-saved-plan',
+                 dict(subject=subject, indicator_id='height', pages=[]),
+                 refusal='PAGE_BINDING_SAVED_PLAN_OBJECT_REQUIRED')
+    await submit('record_conflict', 'foreign', dict(subject=subject, observations=['outside-1', 'outside-2']),
                  refusal='PLANNING_CONFLICT_REQUIRES_OWN_SUBJECT_OBSERVATIONS')
     question = dict(subject=subject, text='Which survey applies?', affects='value')
     await submit('ask', 'question', question)

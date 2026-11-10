@@ -515,7 +515,7 @@ def test_plan_question_is_durable_before_exposing_owner_wait(method_commission, 
     assert f.ws.store.get('commission_checkpoint:' + issued['issue_id']) is None
 
 
-def test_owner_brief_names_planning_only_source_versions_and_report_scope(method_commission):
+def test_owner_brief_names_page_bindings_without_file_approval(method_commission):
     from report_agent import commission_imports
     f = method_commission
     invalid = deepcopy(f.plan)
@@ -524,21 +524,28 @@ def test_owner_brief_names_planning_only_source_versions_and_report_scope(method
         save(f, invalid, 'before-intake-is-complete')
     assert commission_imports.source_policy_ref(f.ws.store) is None
     from report_agent.catalog import Catalog
-    extra = Catalog(f.ws.store).import_file('supplement.txt', b'Supplement supplied during preparation.')['source']
+    from test_ingestion import pdf_bytes
+    extra = Catalog(f.ws.store).import_file('supplement.pdf', pdf_bytes(['S1 design height is 30 metres.']))['source']
     roles = commission_imports.source_roles(f.ws.store)
     commission_imports.install_source_roles(f.ws.store,
         {**roles, 'supplement': {'id': extra['id'], 'purpose': 'design'}})
     ref = save(f, synthetic_pilot_plan(f))['plan_ref']
-    pinned = commission_imports.source_policy_ref(f.ws.store)
-    assert pinned in f.cs.read(ref)['plan_input_refs']
+    assert commission_imports.source_policy_ref(f.ws.store) is None
+    saved = f.cs.read(ref)
+    assert all(r['type'] != 'CommissionSourceUsePolicy' for r in saved['plan_input_refs'])
+    from report_agent.page_bindings import propose
+    subject = saved['payload']['objects'][0]['object_id']
+    indicator = saved['payload']['method_pack']['indicators'][0]['id']
+    extra_ref = f.cs.capture_sources(f.co, 'brief-source', [extra['id']])['result']['source_refs'][0]
+    payload = f.cs.read(extra_ref)['payload']
+    proposal = propose(f.cs, f.co, 'owner-brief-page', subject, indicator,
+                       [dict(source_id=payload['source_id'], page=1)])
     checkpoint = api().request_checkpoint(f.ws)
     brief = (f.ws.store.root / checkpoint['brief_path']).read_text(encoding='utf-8')
-    assert '提交的资料当前仅用于规划' in brief
-    assert '拟纳入对象：' + '、'.join(o['object_id'] for o in f.cs.read(ref)['payload']['objects'] if o['included']) in brief
-    versions = f.cs.read(pinned)['payload']['versions']
-    assert extra['id'] in {row['source_id'] for row in versions}
-    for row in versions:
-        assert row['source_id'] + ' / ' + row['immutable_version_digest'] in brief
+    assert '一次回复确认本表' in brief
+    assert proposal['id'] in brief and indicator in brief
+    assert payload['source_metadata']['title'] + ' / page 1' in brief
+    assert all(o['object_id'] + ' — ' + o['label'] in brief for o in saved['payload']['objects'] if o['included'])
 
 
 def test_declined_checkpoint_never_emits_approved_confirmation_checklist(method_commission):

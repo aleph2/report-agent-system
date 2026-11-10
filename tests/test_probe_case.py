@@ -151,21 +151,22 @@ def test_business_payload_integrity_is_checked_before_acceptance(assigned, targe
     assert not (target / 'probe-import.json').exists()
 
 
-def test_approved_policy_crosses_as_an_exact_input_without_old_task_grants(method_commission, target):
-    from report_agent.source_use import report_binding
+def test_supplied_boundary_and_owner_reply_copy_without_file_policy_or_old_task_grants(method_commission, target):
     from test_m1_commission_plan import approve, save
 
     f = method_commission
     saved = save(f)
-    ref = commission_imports.source_policy_ref(f.ws.store)
-    assert ref
+    assert commission_imports.source_policy_ref(f.ws.store) is None
+    inputs = f.cs.read(saved['plan_ref'])['plan_input_refs']
+    assert inputs and all(r['type'] != 'CommissionSourceUsePolicy' for r in inputs)
     checkpoint, _ = approve(f, saved)
-    f.ws.store.set('source_use_task_binding:old', ref)
+    f.ws.store.set('source_use_task_binding:old', 'historical-task-grant')
     receipt = prepare(f, target)
     store = Store(target)
-    assert report_binding(store) == ref
+    assert commission_imports.source_policy_ref(store) is None
     assert commission_assertions.checkpoint_answer(store, 'plan', checkpoint['issue_id']) == receipt['decision_ref']
-    assert ContentStore(store).read(ref) == f.cs.read(ref)
+    for ref in inputs:
+        assert ContentStore(store).read(ref) == f.cs.read(ref)
     assert store.get('source_use_task_binding:old') is None
 
 

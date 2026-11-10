@@ -175,7 +175,7 @@ def assert_probe_preserved(setup, result):
     assert result['investigation_threshold_basis']=='settled_stage_tokens'
     assert result['investigation_threshold_reached']==(result['budget']['recorded_tokens']>=1_000_000)
     assert json.loads((setup['evidence']/'probe-launch.json').read_text())==result
-    assert set(result['tools'])=={'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue'}
+    assert set(result['tools'])=={'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue','assert_source','record_conflict'}
     tasks = ContentStore(Store(setup['case'])).list_objects('DelegatedTask')
     assert len(tasks)==1 and tasks[0]['payload']['assessment_object_id']=='SYNTHETIC-SLOPE-A'
     assert result['object_id']=='SYNTHETIC-SLOPE-A'

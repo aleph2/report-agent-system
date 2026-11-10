@@ -44,7 +44,7 @@ def test_direct_content_commit_cannot_bypass_unanswered_checkpoint(commission, r
     saved = save(commission)
     actor = commission.co
     if role == 'writer':
-        with pytest.raises(ActionRejected, match='SOURCE_USE_OWNER_APPROVAL_REQUIRED'):
+        with pytest.raises(ActionRejected, match='COMMISSION_CHECKPOINT_CONFIRMATION_REQUIRED'):
             writer(commission, saved)
         actor = unapproved_writer(commission, saved)
     with pytest.raises((ActionForbidden, ActionRejected), match='(?i)(commission|checkpoint)'):

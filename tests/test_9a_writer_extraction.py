@@ -124,3 +124,56 @@ def test_extracted_page_disambiguates_quote_repeated_elsewhere(mini):
     with ws.store.connect() as db:
         result=resolve_judgment_sources(cs,db,co,context,[quote])
     assert len(result)==1 and result[0]["locator"].startswith("page 1")
+
+
+def test_native_writer_records_conflict_and_quote_refusal_without_a_receipt(mini):
+    from uuid import NAMESPACE_URL, uuid5
+    from report_agent.operation_identity import bound_native_id
+    from report_agent.errors import ActionRejected
+    from report_agent.writer_assessment import read_indicator_step, save_indicator_outcome
+    from report_agent.writer_runtime import writer_tools
+    ws, binding, _ = mini
+    cs, host = ContentStore(ws.store), AssertionHost(ws.store.root)
+    with writer_session(ws, "坡段 A", None, assessment_only=True, indicator_steps=True, section_id="3") as run:
+        first = read_indicator_step(cs, run.actor)
+        save_indicator_outcome(cs, run.actor, "height-open", first["indicator_id"],
+            dict(kind="gap", missing="Bench heights unavailable", question="Provide the bench heights?"))
+        step = read_indicator_step(cs, run.actor)
+        assert step["indicator_id"] == "X12"
+        tools = {t.name: t for t in writer_tools(ws, run.actor, include_images=False, assessment_only=True)}
+        principal = str(uuid5(NAMESPACE_URL, run.actor.id))
+        facts = []
+        for title, value in [("design", "1:0.75"), ("survey", "1:1.0")]:
+            offered = next(s for s in step["sources"] if title in s["title"].lower())
+            with ws.store.connect() as db:
+                scope = bound_assignment(cs, db, run.actor)
+                ref = next(r for r in scope["sources"] if title in cs._read(db, r)["payload"]["source_metadata"].get("title", "").lower())
+                payload = cs._read(db, ref)["payload"]
+                quote = db.execute("SELECT text FROM source_blocks WHERE source_id=? AND locator LIKE 'page 1%'",
+                                   (payload["source_id"],)).fetchone()[0].strip()
+            assert value in quote
+            version = immutable_version_digest(payload)
+            proposal = assertions.record_convention(issue(host, "coordinator", "record_convention", "bind-" + title, [version]),
+                subject="A", claim=dict(kind="convention", scope="source_page_binding", rule=encode(binding.plan_ref),
+                page_binding=dict(indicator_id="X12", pages=[dict(source_version=version, page=1)])))
+            assertions.confirm(issue(host, "owner", "confirm", "confirm-" + title, [proposal["id"]]), subject="A",
+                claim=dict(kind="act", effect="confirm", target=proposal["id"], reason="Synthetic page confirmation"))
+            def invoke(name, call, args):
+                return tools[name].invoke(dict(type="tool_call", id=call, name=name, args=args))
+            invoke("read_assigned_page", "read-" + title, dict(source_handle=offered["source_handle"], page=1))
+            args = dict(source_handle=offered["source_handle"], page=1, quote=quote,
+                        predicate="slope_ratio", state="value", coverage="A", value=value)
+            result = invoke("assert_source", "extract-" + title, args)
+            saved = json.loads(result.content)
+            assert host.recover_receipt(bound_native_id(principal, "assert_source", "extract-" + title))["result"] == saved
+            assert json.loads(invoke("assert_source", "extract-" + title, args).content) == saved
+            facts.append(saved["id"])
+            with pytest.raises(ActionRejected, match="C2"):
+                invoke("assert_source", "bad-quote-" + title, {**args, "quote": "This text is not in the supplied page."})
+            assert host.recover_receipt(bound_native_id(principal, "assert_source", "bad-quote-" + title)) is None
+        conflict = json.loads(invoke("record_conflict", "compare", dict(observations=facts)).content)
+        assert conflict["claim"]["observations"] == facts
+        assert host.recover_receipt(bound_native_id(principal, "record_conflict", "compare"))["result"] == conflict
+        with pytest.raises(ActionRejected, match="C4"):
+            invoke("record_conflict", "foreign-conflict", dict(observations=[facts[0], "outside"]))
+        assert host.recover_receipt(bound_native_id(principal, "record_conflict", "foreign-conflict")) is None

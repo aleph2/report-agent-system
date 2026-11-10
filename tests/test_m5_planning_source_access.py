@@ -19,6 +19,8 @@ def case(tmp_path):
         'sources': [{'id': n, 'title': n, 'coverage': 'complete', 'content': 'matched ' + secret}
                     for n,secret in [('B', 'excluded-private-text'), ('A', 'allowed-text')]],
         'source_use': {'source_ids': ['A'], 'authorization_origin': 'Supplied for planning'}})
+    from support.source_policy import restrict_supplied_case_files
+    restrict_supplied_case_files(store, ['A'])
     ws = Workspace(store)
     cs = ContentStore(store)
     tools = {t.__name__: t for t in business_tools(ws, 'coordinator', None, None) if hasattr(t, '__name__')}
@@ -33,7 +35,7 @@ def test_private_source_is_refused_before_receipt(case, name):
             'read_context': {'target_ref': Ref.model_validate(excluded)}, 'observe_evidence': {'kind': 'source','source_id': 'B'},
             'read_source_page': {'source_id':'B'}, 'inspect_source_page': {'source_id':'B','page':1},
             'search_sources': {'source_id':'B','query':'matched'}}[name]
-    with pytest.raises(ActionRejected, match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
+    with pytest.raises(ActionRejected, match='CASE_SOURCE_NOT_SUPPLIED'):
         tools[name](**args)
     with cs.store.connect() as db:
         assert db.execute('SELECT COUNT(*) FROM content_observations').fetchone()[0] == 0

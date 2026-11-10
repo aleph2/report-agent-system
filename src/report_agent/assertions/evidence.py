@@ -69,7 +69,7 @@ def _eligible(record):
     return _active(record) or record.get("source_eligible", False)
 
 
-def _bound_source(envelope, records, indicator=None, plan_ref=None):
+def _bound_source(envelope, records, criterion_id=None, plan_ref=None):
     claim = envelope["claim"]
     if claim["state"] == "unknown" or not claim.get("citation"):
         return False
@@ -85,7 +85,7 @@ def _bound_source(envelope, records, indicator=None, plan_ref=None):
                 continue
         if (ground["purpose"] == "context" and spec and _active(binding)
                 and binding["subject"] == envelope["subject"]
-                and (indicator is None or spec["indicator_id"] == indicator)
+                and (criterion_id is None or spec["indicator_id"] == criterion_id)
                 and {"source_version": citation["source_version"], "page": citation["page"]} in spec["pages"]):
             return True
     return False
@@ -230,16 +230,16 @@ def evidence_projection(db, row: Assertion, resources: dict, states: dict):
                         record[key] = binding[key]
         if claim["kind"] == "conflict" and record.get("status") not in ("retracted","superseded"):
             conflicts.append((identifier,claim))
-    indicator = plan_ref = None
+    criterion_id = plan_ref = None
     if isinstance(row.claim, Judgment):
         method = criteria.get(row.claim.warrant.criterion, {})
         plan_ref = method.get("authority", {}).get("plan_ref")
-        indicator = method.get("authority", {}).get("rule", {}).get("id") or records.get(
+        criterion_id = method.get("authority", {}).get("rule", {}).get("id") or records.get(
             row.claim.warrant.criterion, {}).get("indicator_id")
     for identifier in sources:
         record = records[identifier]
         record["source_eligible"] = (not record.get("stale") and record["status"] in ("proposed", "endorsed")
-                                     and _bound_source(envelopes[identifier], records, indicator, plan_ref))
+                                     and _bound_source(envelopes[identifier], records, criterion_id, plan_ref))
         if record["source_eligible"]:
             record["strength_rank"] = _strength(sources[identifier])
     if isinstance(row.claim, Source) and row.claim.state != "unknown" and row.grounds:

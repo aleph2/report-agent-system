@@ -72,9 +72,9 @@ def test_export_preflight_rejects_superseded_input_even_without_a_new_export_cal
     from report_agent.commission_requirements import export_preflight
     store, cs, actor, node, snapshot = case(tmp_path)
     host = AssertionHost(tmp_path)
-    principal = str(uuid5(NAMESPACE_URL, 'synthetic-coordinator'))
+    principal = str(uuid5(NAMESPACE_URL, 'synthetic-writer'))
     def source(call, subject='A'):
-        grant = Grant(principal, 'coordinator', 'source', call, 'plan',
+        grant = Grant(principal, 'writer', 'source', call, 'plan',
             frozenset([subject]), frozenset(), frozenset(['assert_source']))
         return assertions.assert_source(host.issue_once(grant, 'assert_source', call),
             subject=subject, claim=dict(kind='source', predicate='condition', state='unknown', coverage=subject))

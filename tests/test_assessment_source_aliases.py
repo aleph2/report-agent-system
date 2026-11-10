@@ -77,13 +77,18 @@ def test_irrelevant_capture_metadata_does_not_change_guideline_identity(alias_co
     assert persist(f, f.actor, f.assessment)['assessment_ref']['type'] == 'Assessment'
 
 
-def test_changed_title_is_a_different_frozen_source_version(alias_commission):
+def test_changed_title_is_a_new_frozen_version_without_file_reapproval(alias_commission):
     f = alias_commission
-    metadata = {**f.cs.read(f.alias)['payload']['source_metadata'], 'title': 'Changed after owner approval'}
-    f.applied['sources'][1]['source_ref'] = variant(f, 'source_metadata', metadata)
-    with pytest.raises(ActionRejected, match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
-        persist(f, f.actor, f.assessment)
-    assert not f.cs.list_objects('Assessment')
+    from report_agent.source_use import immutable_version_digest
+    original = deepcopy(f.cs.read(f.alias))
+    metadata = {**original['payload']['source_metadata'], 'title': 'A new display title'}
+    changed = variant(f, 'source_metadata', metadata)
+    assert immutable_version_digest(original['payload']) != immutable_version_digest(f.cs.read(changed)['payload'])
+    f.applied['sources'][1]['source_ref'] = changed
+    saved = persist(f, f.actor, f.assessment)
+    actual = f.cs.read(saved['assessment_ref'])['payload']
+    assert any(c['source_ref'] == changed for r in actual['indicators'] for c in r['sources'])
+    assert f.cs.read(f.alias) == original
 
 
 def test_guideline_alias_in_section_sources_cannot_satisfy_project_facts(alias_commission):
@@ -118,14 +123,14 @@ def test_guideline_alias_does_not_expand_host_source_authorization(alias_commiss
     from report_agent.catalog import Catalog
     f = alias_commission
     # A newly catalogued copy can have identical guideline text but was not enrolled
-    # in the source set the owner approved for this plan.
+    # in the supplied-file boundary of this case.
     text = f.cs.read(f.alias)['payload']['content']
     other_id = Catalog(f.ws.store).import_file('extra-guideline.txt', text.encode())['source']['id']
     other = f.cs.capture_sources(f.co, 'new-guideline-copy', [other_id])['result']['source_refs'][0]
     source = f.applied['sources'][1]
     source['source_ref'] = other
     source['locator'] = Catalog(f.ws.store).read(other_id, 0, 1)['blocks'][0]['locator']
-    with pytest.raises((ActionRejected, ActionForbidden), match='SOURCE_USE_VERSION_NOT_AUTHORIZED'):
+    with pytest.raises((ActionRejected, ActionForbidden), match='CASE_SOURCE_NOT_SUPPLIED'):
         persist(f, f.actor, f.assessment)
     assert not f.cs.list_objects('Assessment')
 
