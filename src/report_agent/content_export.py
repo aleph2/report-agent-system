@@ -328,7 +328,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                     presentation.emit_text(doc, body["text"], image_renderer, controls, table_formatter=format_embedded_table)
             if body.get('section_heading') and body['text'].split(' ', 1)[-1] == '待核事项':
                 doc.add_paragraph(f'本草稿共{len(issue_records)}项待核事项，详见随附 Excel 问题清单；本文件批注记录相同事项。')
-            if kind == 'report' and depth == 0 and not (plan and plan.get('format_source')):
+            if kind == 'report' and depth == 0 and plan and plan.get('report_title') and not plan.get('format_source'):
                 doc.add_paragraph('编制日期：' + snapshot['created_at'][:10])
             if kind != 'table':
                 for issue in issues:
