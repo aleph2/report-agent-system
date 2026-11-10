@@ -1,0 +1,460 @@
+{
+  "recorded_utc": "2026-11-10T00:41:30.366203+00:00",
+  "regression": {
+    "implementation": "6c680af50191e8de907c1207429401ba67849a78",
+    "statistical_utc": "2026-11-10T00:38:25.227822+00:00",
+    "final_collected": 6181,
+    "outcomes": {
+      "passed": 6172,
+      "skipped": 9
+    },
+    "missing": [],
+    "unexpected": [],
+    "duplicates_in_original_full_run": [],
+    "single_clean_invocation": false,
+    "full_run": {
+      "expected": 6175,
+      "outcomes": {
+        "passed": 6162,
+        "skipped": 9,
+        "failed": 4
+      },
+      "failed": [
+        "tests/test_prototype.py::test_adk_can_reuse_without_analysis",
+        "tests/test_prototype.py::test_selected_result_survives_tail_failure_without_replay",
+        "tests/test_prototype.py::test_selected_result_survives_actual_task_cancellation[normal-startup]",
+        "tests/test_prototype.py::test_selected_result_survives_actual_task_cancellation[slow-startup]"
+      ],
+      "missing": [],
+      "duplicates": [],
+      "unexpected": [],
+      "collection_errors": [],
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "coverage_exit": 0,
+      "started_utc": "2026-11-09T23:52:41.309969+00:00",
+      "finished_utc": "2026-11-10T00:26:26.380869+00:00",
+      "elapsed_seconds": 2025.1
+    },
+    "overlays": {
+      "group-0.json": 851,
+      "final-integration.json": 54,
+      "release-green2.json": 116,
+      "group-1.json": 711,
+      "group-2.json": 985,
+      "final-checks.json": 114,
+      "group-3.json": 806,
+      "group-4.json": 745,
+      "group-5.json": 841,
+      "group-6.json": 948,
+      "group-7.json": 10
+    },
+    "renamed_component_cases": {
+      "tests/assertions/test_authority.py::test_public_release_lifecycle_binds_review_pair_scope_and_human_authority[record_finding]": "tests/assertions/test_authority.py::test_component_release_lifecycle_binds_review_pair_scope_and_human_authority[record_finding]",
+      "tests/assertions/test_authority.py::test_public_release_lifecycle_binds_review_pair_scope_and_human_authority[endorse]": "tests/assertions/test_authority.py::test_component_release_lifecycle_binds_review_pair_scope_and_human_authority[endorse]"
+    },
+    "new_cases": [
+      "tests/test_m8_release_gate.py::test_formal_release_attempt_is_refused_without_a_record[bind-coordinator]",
+      "tests/test_m8_release_gate.py::test_formal_release_attempt_is_refused_without_a_record[bind-owner]",
+      "tests/test_m8_release_gate.py::test_formal_release_attempt_is_refused_without_a_record[issue-coordinator]",
+      "tests/test_m8_release_gate.py::test_formal_release_attempt_is_refused_without_a_record[issue-owner]",
+      "tests/test_m8_release_gate.py::test_formal_release_attempt_is_refused_without_a_record[issue_once-coordinator]",
+      "tests/test_m8_release_gate.py::test_formal_release_attempt_is_refused_without_a_record[issue_once-owner]"
+    ],
+    "corrected_full_run_cases": [
+      "tests/test_prototype.py::test_adk_can_reuse_without_analysis",
+      "tests/test_prototype.py::test_selected_result_survives_tail_failure_without_replay",
+      "tests/test_prototype.py::test_selected_result_survives_actual_task_cancellation[normal-startup]",
+      "tests/test_prototype.py::test_selected_result_survives_actual_task_cancellation[slow-startup]"
+    ],
+    "explanation": "Full fixed f75204f run plus corrected prototype cases and final-code policy/integration cases; one final result per collected node. Original failures and intermediate fixture diagnostics retained. No test skipped to pass."
+  },
+  "unchanged_skip_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "coverage": {
+    "totals": {
+      "covered_lines": 30289,
+      "num_statements": 33357,
+      "percent_covered": 90.80253020355548,
+      "percent_covered_display": "91",
+      "missing_lines": 3068,
+      "excluded_lines": 4,
+      "percent_statements_covered": 90.80253020355548,
+      "percent_statements_covered_display": "91"
+    },
+    "affected_m0_floors": [
+      {
+        "file": "src/report_agent/content_delivery.py",
+        "m0_floor": 97.65625,
+        "current": 97.67441860465117,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/content_store.py",
+        "m0_floor": 95.43817527010805,
+        "current": 95.57625145518044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/hierarchical_review.py",
+        "m0_floor": 86.76470588235294,
+        "current": 86.95652173913044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/hierarchical_tools.py",
+        "m0_floor": 93.99538106235566,
+        "current": 94.07744874715262,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/rescue_projection.py",
+        "m0_floor": 88.41698841698842,
+        "current": 88.47583643122677,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/review_status.py",
+        "m0_floor": 96.52777777777777,
+        "current": 96.55172413793103,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/system_assembler.py",
+        "m0_floor": 87.27984344422701,
+        "current": 87.40458015267176,
+        "met": true
+      }
+    ],
+    "all_floors_met": true,
+    "new_module_coverage": {
+      "src/report_agent/assertion_host.py": {
+        "covered_lines": 132,
+        "num_statements": 140,
+        "percent_covered": 94.28571428571429,
+        "percent_covered_display": "94",
+        "missing_lines": 8,
+        "excluded_lines": 0,
+        "percent_statements_covered": 94.28571428571429,
+        "percent_statements_covered_display": "94"
+      },
+      "src/report_agent/report_state.py": {
+        "covered_lines": 102,
+        "num_statements": 103,
+        "percent_covered": 99.02912621359224,
+        "percent_covered_display": "99",
+        "missing_lines": 1,
+        "excluded_lines": 0,
+        "percent_statements_covered": 99.02912621359224,
+        "percent_statements_covered_display": "99"
+      }
+    },
+    "method": "coverage.py line-data union under final-source aliases; old full-run assertion_host excluded because policy inserted lines; current host coverage comes only from post-change focused runs. Three nullable-expression edits retain identical statement locations and have final-source integration coverage. Raw full-run data retained.",
+    "discarded_old_host_files": [
+      "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/src-tree/src/report_agent/assertion_host.py"
+    ]
+  },
+  "type_comparison": {
+    "baseline_errors": 676,
+    "current_errors": 676,
+    "new_diagnostics": [],
+    "removed_diagnostics": [],
+    "exit_code": 1
+  },
+  "source_integrity": {
+    "implementation": "6c680af50191e8de907c1207429401ba67849a78",
+    "matched_final_snapshot_files": 985,
+    "mismatches": [],
+    "verified_fixture_files": 51,
+    "fixture_checks": {
+      "src-tree": true,
+      "final-tree": true
+    },
+    "protected_equal_to_accepted_M7": [
+      {
+        "file": "src/report_agent/assertions/__init__.py",
+        "sha256": "27f86be30159754f030d0ec6e4ec30196bbe6be53a86f7531485839c4afa1a43"
+      },
+      {
+        "file": "src/report_agent/assertions/actions.py",
+        "sha256": "54999f04a50157c1d0e6c2dffd7639dd7124f2451002e76caffd248edd432ddc"
+      },
+      {
+        "file": "src/report_agent/assertions/authority.py",
+        "sha256": "58caa5e2f469c05b40be656640b641e8ff9d777f2a276ed9641ac9f908d77033"
+      },
+      {
+        "file": "src/report_agent/assertions/evidence.py",
+        "sha256": "483155de53b6fbe7a71458ef63a843a470ccef93328256ec852b3ef63054686d"
+      },
+      {
+        "file": "src/report_agent/assertions/export.py",
+        "sha256": "97f7868ef5d03998cb69d65d0f0bde9c685451ae65af9a2bd325feda02802261"
+      },
+      {
+        "file": "src/report_agent/assertions/ids.py",
+        "sha256": "57f4c08bda7cd534b92b0536ee7d8eca0d63450b965dedf96af4cd6eaeaadc43"
+      },
+      {
+        "file": "src/report_agent/assertions/launch.py",
+        "sha256": "ef5527a3fd2f225e962309b791a7ca8f7ca7db20c727b6790a9b6e8e55d20d61"
+      },
+      {
+        "file": "src/report_agent/assertions/queries.py",
+        "sha256": "7b8d88dc3a1f99615870592ec8337133ddd0f1d06193c6fce6f9588865678a27"
+      },
+      {
+        "file": "src/report_agent/assertions/refusals.py",
+        "sha256": "e4aa73007a52257a82634f8d62bc9281b67b5bbebdc38e5d94f539dcdb96c638"
+      },
+      {
+        "file": "src/report_agent/assertions/schema/actions.json",
+        "sha256": "324b61faedaa94b63aaee0c039fadc59e8c9de036b0be98c3ed3d5d72482bb54"
+      },
+      {
+        "file": "src/report_agent/assertions/schema/checks.sql",
+        "sha256": "7a251238174ac30ee301e854130ef5fc00acc4bc4a59529c5b8df558a6ffd568"
+      },
+      {
+        "file": "src/report_agent/assertions/schema/kinds.py",
+        "sha256": "6112a6c09e3fc5a0df7c8cde6c2df740f27654172f6d644b876755c97e8756c6"
+      },
+      {
+        "file": "src/report_agent/assertions/store.py",
+        "sha256": "adae1b4b59fe9e8e5534897047fa2eaff273a8a6b3f9d6cfc52f62bbd2b2d44d"
+      },
+      {
+        "file": "src/report_agent/deep_runtime.py",
+        "sha256": "a2c366e57aae730f7f2ceb7b7a204f08bbf9e9d8ecf7e8e5130e6d945a18b21f"
+      },
+      {
+        "file": "src/report_agent/task_supervision.py",
+        "sha256": "3fdb9277bf198ea578b4525f7bb8b855ea9dfae9aa6e1a4d2a2a72a5ebd5f43d"
+      },
+      {
+        "file": "scripts/report_host.py",
+        "sha256": "b8b76c2afc446cda3d7062900dabe68fce5cc102be40f44e2f89ead00791ec9b"
+      }
+    ],
+    "ase_git_diff_empty": true,
+    "full_snapshot_overlay": " src/report_agent/assertion_host.py   |  6 ++++--\n src/report_agent/content_delivery.py |  2 +-\n src/report_agent/review_status.py    |  4 ++--\n tests/assertions/test_authority.py   | 19 +++++++++++++++++--\n tests/test_m8_release_gate.py        | 25 +++++++++++++++++++++++++\n tests/test_prototype.py              |  9 +++++++++\n 6 files changed, 58 insertions(+), 7 deletions(-)\n"
+  },
+  "cleanup": [
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-collection",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-final-checks",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-final-integration",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-0",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 122745
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-1",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 81858
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-2",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 112294
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-3",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 100316
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-4",
+      "database_files": 29,
+      "database_bytes": 4558848,
+      "locations": [
+        "pytest-of-dysun/pytest-0/independent-probe0/case",
+        "pytest-of-dysun/pytest-0/independent-probe1/case",
+        "pytest-of-dysun/pytest-0/independent-probe10/case",
+        "pytest-of-dysun/pytest-0/independent-probe11/case",
+        "pytest-of-dysun/pytest-0/independent-probe12/case",
+        "pytest-of-dysun/pytest-0/independent-probe8/case",
+        "pytest-of-dysun/pytest-0/production-fake030",
+        "pytest-of-dysun/pytest-0/test_adk_can_reuse_without_ana0",
+        "pytest-of-dysun/pytest-0/test_import_is_runtime_indepen0-unavailable",
+        "pytest-of-dysun/pytest-0/test_selected_result_survives_0",
+        "pytest-of-dysun/pytest-0/test_selected_result_survives_1",
+        "pytest-of-dysun/pytest-0/test_selected_result_survives_2"
+      ],
+      "all_remaining_bytes": 6271124
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-5",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 96605
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-6",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 115452
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq/tmp-group-7",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 1573
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-cleanup",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-focused",
+      "database_files": 1,
+      "database_bytes": 90112,
+      "locations": [
+        "pytest-of-dysun/pytest-0/test_selection_write_is_not_ne0"
+      ],
+      "all_remaining_bytes": 90112
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-null-guards",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-release",
+      "database_files": 7,
+      "database_bytes": 1630208,
+      "locations": [
+        "pytest-of-dysun/pytest-1/production-fake030",
+        "pytest-of-dysun/pytest-1/test_component_release_lifecyc0",
+        "pytest-of-dysun/pytest-1/test_component_release_lifecyc1"
+      ],
+      "all_remaining_bytes": 1662976
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-release-repair",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-reuse",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-selection-green",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-selection-green2",
+      "database_files": 0,
+      "database_bytes": 0,
+      "locations": [],
+      "all_remaining_bytes": 0
+    },
+    {
+      "temporary_root": "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o/tmp-selection-red",
+      "database_files": 5,
+      "database_bytes": 450560,
+      "locations": [
+        "pytest-of-dysun/pytest-0/test_changed_selection_preserv0",
+        "pytest-of-dysun/pytest-0/test_changed_selection_preserv1",
+        "pytest-of-dysun/pytest-0/test_delivery_and_output_rollb0",
+        "pytest-of-dysun/pytest-0/test_native_clear_does_not_rev0",
+        "pytest-of-dysun/pytest-0/test_native_clear_does_not_rev1"
+      ],
+      "all_remaining_bytes": 450560
+    }
+  ],
+  "cleanup_policy": {
+    "tmp_path_retention_policy": "failed",
+    "tmp_path_retention_count": 1,
+    "final_passing_check_database_files": 0,
+    "limit": "Failed/red run roots retain their shared factory fixtures as well as failed test cases; passing shards/check runs retain no case databases. Raw failure logs remain."
+  },
+  "review": {
+    "scope": "M8 only",
+    "mode": "independent read-only source/test review; reviewer did not execute tests",
+    "result": "no blocking correctness finding",
+    "Main_executed_tests": true
+  },
+  "retired_storage_parameter_cases": {
+    "test_no_legacy_state::test_accessor_preserves_storage_key_and_rollback[content_delivery]": [
+      "test_m8_historical_selections_remain_read_only[content_delivery]",
+      "test_native_clear_does_not_revive_a_historical_selection[content_delivery]",
+      "test_changed_selection_preserves_previous_version_and_context_privacy[content_delivery]",
+      "test_delivery_and_output_rollback_together"
+    ],
+    "test_no_legacy_state::test_accessor_preserves_storage_key_and_rollback[content_final_review]": [
+      "test_m8_historical_selections_remain_read_only[content_final_review]",
+      "test_native_clear_does_not_revive_a_historical_selection[content_final_review]",
+      "test_changed_selection_preserves_previous_version_and_context_privacy[content_final_review]",
+      "test_delivery_and_output_rollback_together"
+    ]
+  },
+  "s2_and_dispatcher_changed": false,
+  "paid_model_calls": 0,
+  "main_stays_at": "5dfe6073f2db7d2c0d1fd31c63749d8e188d2014",
+  "privacy": "Public-history privacy remains unresolved; no .ase deletion, history rewrite or visibility change performed. No addresses/raw sources copied into this record.",
+  "local_raw_evidence": [
+    "/home/dysun/report-agent-m1/verification/stage1-m8-final-20261109-rw5n1isq",
+    "/home/dysun/report-agent-m1/verification/stage1-m8-work-1bdqwl9o"
+  ]
+}
