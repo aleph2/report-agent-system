@@ -23,7 +23,7 @@ Follow a–f with a separate tag and review per part, bringing f forward only fo
 
 Accepted a/b/c, the measured inventory and the required offline/rendered verification qualify the draft trunk for an owner-authorized test. Parts d/e are not prerequisites. Leave FORMAL_RELEASE_DEFERRED_TO_9A in place until e is accepted; a draft does not need a waiver or formal-release machinery.
 
-Before asking to launch, freeze the answer key, expected numeric coverage and run scope. If numeric scoring is part of that expectation, bring f forward and review its acceptance first. Otherwise numeric rules not yet implemented remain explicit capability limitations, never invented grades or false “missing source” diagnoses. A draft test must not be described as numeric-scoring certification.
+Before asking to launch, freeze the answer key, expected numeric coverage and run scope. The new frozen key must require Chinese for every reader-facing reason and question, preserving exact source quotations and system identifiers; model compliance remains unmeasured until that authorized run. Historical frozen keys stay intact. If numeric scoring is part of that expectation, bring f forward and review its acceptance first. Otherwise numeric rules not yet implemented remain explicit capability limitations, never invented grades or false “missing source” diagnoses. A draft test must not be described as numeric-scoring certification.
 
 No launch is granted here. Paid Fake03 and the one-slope real-report test each still need their own owner-approved scope/cap within the aggregate limits. G5 remains stopped and originals, ledgers, holds and unknown outcomes remain untouched.
 
@@ -47,3 +47,5 @@ No launch is granted here. Paid Fake03 and the one-slope real-report test each s
 ## Before candidate tags for b and c
 
 Owner process correction after the part-a full run: search application and tests for the retired names and old tool-set literals before tagging. For b/c this includes source_policy_ref, SOURCE_USE_VERSION_NOT_AUTHORIZED and Coordinator assert_source assumptions, plus the behavior each part retires. Classify each match as an intentional historical reader/test, a negative assertion of the new rule, or an active migration gap. Run every affected test module before the candidate tag. Keep required historical coverage; do not weaken a guard or remove a test merely because a retired name appears. This is a review habit, not a new scanner or runtime check.
+
+Part b accepted on 2026-11-10: main fast-forwards to fdf8f93 after Main re-inspected all six regenerated pages. Owner visual inspection is not claimed. The pending-section role correction stays in part d; c proceeds under its existing scope. See stage1-9a-b-acceptance.md.

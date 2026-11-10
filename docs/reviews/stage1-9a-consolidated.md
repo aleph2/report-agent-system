@@ -46,3 +46,10 @@ Rendered-page QA of the paired Word/Excel output is a required 9a exit criterion
 - One owner reply to the versioned scope/binding confirmation sheet emits all the individual confirm acts. Retry completes the saved reply's missing acts only; no extra owner click per slope or indicator, no silent approval of later-added bindings.
 - Part e waivers are per plan version, object and indicator, valid until withdrawal or effective inputs change. Compare existing input references directly, without an input digest. A cosmetic snapshot change does not invalidate them. Each release records the waiver IDs it relied on.
 - Part f is new numeric functionality with its own small acceptance test; bring it before paid Fake03 only if the frozen run scope requires numeric scoring.
+
+## Owner follow-ups at part-b acceptance
+
+Part b is accepted at `fdf8f93`; main advances to that exact reviewed commit. [Acceptance record](stage1-9a-b-acceptance.md).
+
+- Part d: replace the pending-items heading-text match with a skeleton section role, alongside the typed-reference changes. Keep this out of c.
+- Paid Fake03 answer-key gate: every reader-facing reason and question must be Chinese; exact quoted source text and system identifiers retain their original spelling. Freeze this requirement in the new key before requesting launch approval. Do not edit historical frozen keys or claim real-model compliance from the scripted replay.
