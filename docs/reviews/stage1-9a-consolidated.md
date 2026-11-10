@@ -1,6 +1,6 @@
 # Consolidated section 9a handoff
 
-Current execution order is the owner's 2026-11-10 split in [9a entry](stage1-9a-entry.md) and the corrected [amendment](stage1-9a-s2-proposal.md). It supersedes earlier all-of-9a-before-paid wording. Parts a/b/c and the measured check inventory precede paid Fake03; d/e may follow, and f follows unless that run's scoring depends on it. Each part has its own tag/review and size figures. This is no paid-launch authority.
+Current execution order is the owner's 2026-11-10 split in [9a entry](stage1-9a-entry.md) and the corrected [amendment](stage1-9a-s2-proposal.md). It supersedes earlier all-of-9a-before-paid wording. Parts a/b/c/b2 and the measured check inventory precede paid Fake03; d/e may follow, and f follows unless that run's scoring depends on it. Each part has its own tag/review and size figures. This is no paid-launch authority.
 
 1. Retire file-level source-use approval. Case access is the boundary. Keep historical decisions and source originals intact.
 2. Review a typed version-reference field to replace structured JSON in text: the M4 plan proposal and owner decision; the M5 checkpoint question and requirements interpretation. Follow the S2 amendment process for a vocabulary change. M6 runtime answers use the existing reference-in-reason pattern and belong in this same sweep. Part a adds two explicit replacements for part d: the plan reference encoded in a page-binding convention's rule, and the page-sheet checkpoint marker parsed from question text. Keep the module-boundary review of local/private imports alongside the affected c/d adapters; this note authorizes no unrelated refactor.
@@ -53,3 +53,9 @@ Part b is accepted at `fdf8f93`; main advances to that exact reviewed commit. [A
 
 - Part d: replace the pending-items heading-text match with a skeleton section role, alongside the typed-reference changes. Keep this out of c.
 - Paid Fake03 answer-key gate: every reader-facing reason and question must be Chinese; exact quoted source text and system identifiers retain their original spelling. Freeze this requirement in the new key before requesting launch approval. Do not edit historical frozen keys or claim real-model compliance from the scripted replay.
+
+Part-b final rendered acceptance: owner confirmed the six corrected pages without reservation. Batch three cosmetics into d: complete the heading-number hierarchy, normalize punctuation before conditional grade descriptions, and add spaces around PDF in readable source/page labels. They do not reopen b or widen c.
+
+## Owner b2 sequence (supersedes the earlier round-2 timing)
+
+Accepted b remains accepted. Finish and accept c, advance main, then start b2 from main using the existing branch. No concurrent c/b2 edits. The paid Fake03 gate is a, b, c, b2 plus the measured inventory and a separately approved launch. The format/cosmetic work moves to b2; general typed references and formal release remain d/e. C lists the two b2 guards as planned until their code and tests land. Full plan: stage1-9a-b2-format-spec.md.

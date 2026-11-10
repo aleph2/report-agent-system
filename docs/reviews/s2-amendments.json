@@ -113,6 +113,18 @@
       "summary": "C3 and source-ground C6 use applicable page-bound quote eligibility without changing Source status. Binding page versions remain C4 references; C5 and formal release authority unchanged.",
       "owner_record": "Owner chat 2026-11-10: revised plan accepted; four corrections and a-f split acknowledged; review part a at its tag.",
       "status": "acknowledged"
+    },
+    {
+      "id": "9a-c-projection-digest",
+      "date": "2026-11-10",
+      "file": "kinds.py",
+      "category": "vocabulary",
+      "revision": "212b60d396688d8274f5f23e0d1cf971f57ee2d9",
+      "before_sha256": "8de86459885607903723460af151f6dd9e04e7c95e70b120a62d3558b6f45011",
+      "after_sha256": "71b93779e18c827646f83e5aab533cbbe890a2eb0465a887856b9388ae21e500",
+      "summary": "New calculator results omit the auxiliary projection digest and neither redo nor report projection compares it. The optional field remains serializable for already-accepted M3 records; no new claim field, actor or authority is introduced. Existing calculator/operation/plan/subject/input/staleness checks remain.",
+      "owner_record": "Owner-approved 9a consolidated item 4 removes the submission-receipt link and projection digest; the accepted a-f plan places touched cleanup in c. Owner reconfirmed after part-b rendered acceptance on 2026-11-10: c removes receipts/digests where a touched them.",
+      "status": "acknowledged"
     }
   ]
 }

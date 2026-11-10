@@ -104,7 +104,7 @@ These are requirement-backed adapter/projection changes, not permission to rebui
 - Source correction/replacement makes affected calculations and prose stale; prior files and records remain intact.
 - Word/Excel share one frozen snapshot; required issue comments match rows one-to-one; fixed text, citations, internal-content checks and rendered pages/tables/TOC pass.
 - Field/check sweep includes every active agent-facing field/check and actual refusal measurements, including measured zeroes. Missing instrumentation is marked unmeasured, not zero.
-- 9a-a/c: business copies carry completed facts, not another run's grants/receipts. Image-delivery checks survive. Applicable offline verification and acceptance of a/b/c precede a separately authorized paid launch; this is not a requirement to finish d/e/f first. Full regressions still require explicit authorization.
+- 9a-a/c: business copies carry completed facts, not another run's grants/receipts. Image-delivery checks survive. Applicable offline verification and acceptance of a/b/c/b2 precede a separately authorized paid launch; this is not a requirement to finish d/e/f first. Full regressions still require explicit authorization.
 
 ## Initial inventory status
 
@@ -149,3 +149,5 @@ The envelope supplies the authenticated owner and object subject. Existing groun
 This table is scope clarity, not approval of a larger refactor. The exact field/check inventory determines unnecessary code removed within these boundaries. Paid-launch authorization and engineering interpretation of the unresolved criteria remain separate.
 
 [Initial field inventory](../verification/stage1-9a-inventory/agent-fields-initial.tsv), [current S2 check clauses](../verification/stage1-9a-inventory/s2-checks-initial.tsv), [scope and unfinished measurements](../verification/stage1-9a-inventory/status.json).
+
+Owner sequencing amendment: b2 is a distinct post-c acceptance follow-up, based on main after c. Accepted a/b/c/b2 and the measured inventory precede paid Fake03. B2 puts format/source-comment policy in the existing spec/renderer and does not change scores or judgments; no new S2 authority is implied. Its two guards are planned in c, implemented/verified in b2. See stage1-9a-b2-format-spec.md.
