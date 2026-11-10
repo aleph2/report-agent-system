@@ -33,6 +33,8 @@ Owner-approved M10 acceptance separates the native Fake03 refusal from a complet
 - Show the slope risk level as “not determined”; do not invent an adopted score.
 - Export the draft Word and Excel pair normally from the same snapshot and issue records.
 - Formal release still refuses until every required indicator is scored or explicitly waived by the owner. Implement this alongside the required 9a release integration; the current temporary release refusal remains until its replacement is accepted.
-- Include required conflict issues, comment bindings and routes. The M10 Fake03 replay also lacks three planning-conflict issue records/routes; draft support must not suppress these requirements.
+- Include required conflict issues, comment bindings and routes. The M10 Fake03 replay omitted the normal Writer issue proposals and the two trusted reconciliation routes. The identical pre-M6/M10 diagnostic proves this is fixture coverage, not an M6 regression. Keep the three obligations; complete their fixture stage and derive the inventory route when unscored assessments become draft-admissible.
 
 History: M3 added native unscored results and explicit score_blocker refusal. Before M3, the Writer only produced a scored canonical assessment when all indicators were saved without gaps, and assembly required that receipt. No verified pre-M3 unscored draft-export route exists; the historical comparison is source inspection, not execution.
+
+Rendered-page QA of the paired Word/Excel output is a required 9a exit criterion before any paid run. Structural package checks alone do not satisfy it.

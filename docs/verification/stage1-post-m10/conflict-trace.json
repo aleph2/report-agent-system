@@ -1,0 +1,57 @@
+{
+  "classification": "Fixture omission, not M6 issue migration regression",
+  "severity": "P2 fixture coverage; unscored draft admission remains required 9a work",
+  "revisions": {
+    "m10": "e86284a80f71ff21f6164122cf12797225ffdd6b",
+    "before-m6": "7e19856fced68b9912fa34cd9d462470062cd29b"
+  },
+  "same_test_passed_on_both": true,
+  "paid_model_calls": 0,
+  "source_code_changed": false,
+  "trace": [
+    {
+      "issue": "design-survey",
+      "origin": "reconciliation 0",
+      "content_producer": "Writer propose_material_issue on current owned prose node",
+      "binding_producer": "same proposal transaction",
+      "route_producer": "trusted record_issue_routes",
+      "destination": "section 3"
+    },
+    {
+      "issue": "date-revision",
+      "origin": "reconciliation 1",
+      "content_producer": "Writer propose_material_issue on current owned prose node",
+      "binding_producer": "same proposal transaction",
+      "route_producer": "trusted record_issue_routes",
+      "destination": "section 2"
+    },
+    {
+      "issue": "A-ratio",
+      "origin": "inventory A / 坡率",
+      "content_producer": "Writer propose_material_issue on current owned prose node",
+      "binding_producer": "same proposal transaction",
+      "route_producer": "system assembler after admitting A assessment",
+      "destination": "assessment section for A"
+    }
+  ],
+  "asserted_counts": {
+    "before": {
+      "missing_records": 3,
+      "missing_bindings": 3,
+      "missing_routes": 3
+    },
+    "after_writer_proposals": {
+      "missing_records": 0,
+      "missing_bindings": 0,
+      "missing_routes": 3
+    },
+    "after_two_trusted_routes": {
+      "missing_records": 0,
+      "missing_bindings": 0,
+      "missing_routes": 1
+    }
+  },
+  "remaining_route": "A inventory route requires an admitted assessment; both diagnostic cases intentionally have no admitted scores",
+  "test": "tests/test_planning_conflict_trace.py::test_confirmed_planning_conflicts_need_writer_records_and_routes",
+  "independent_review": "Pending; Main executed both offline comparisons"
+}
