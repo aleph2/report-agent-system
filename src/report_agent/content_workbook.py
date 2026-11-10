@@ -249,9 +249,9 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
         for index, row in enumerate(rows, 1):
             height = 24
             for value, width in zip(row, widths):
-                lines = sum(max(1, math.ceil(sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in line) / (width * .85)))
+                line_count = sum(max(1, math.ceil(sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in line) / (width * .85)))
                             for line in str(value).split('\n'))
-                height = max(height, 15 * lines + 8)
+                height = max(height, 15 * line_count + 8)
             if height > 409:
                 unverified_annotation_rows.append(dict(sheet=name, row=index))
             ws.row_dimensions[index].height = min(height, 409)

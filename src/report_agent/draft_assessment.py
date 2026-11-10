@@ -3,7 +3,7 @@ from .errors import ActionRejected
 from .store import digest
 
 
-def display_rows(result):
+def display_rows(result) -> list[dict]:
     opened = [dict(**row, value='未评分', score='未评分', basis_kind='missing',
         rationale=row['reason'] + ('；条件分级：' + '、'.join(row['alternatives']) if row['alternatives'] else ''),
         rank_reason='已确认的重要性排序') for row in result.get('open_rows', [])]
