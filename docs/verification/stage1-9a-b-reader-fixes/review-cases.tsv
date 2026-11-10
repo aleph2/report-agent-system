@@ -1,0 +1,6 @@
+Finding	Root cause	Change	Verification
+English and internal labels	Scripted gap text was English; alternatives printed IDs	Translate replay text; require Chinese narrative in step prompt; render approved Chinese grade descriptions/ranges	test_run06_claim_replay; test_open_alternatives_display_method_descriptions_instead_of_internal_ids
+Internal and duplicate issue citations	IssueSource did not recognize character suffixes and source_text repeated equal displays	Read page/line/paragraph locations and deduplicate formatted sources	test_issue_citations_use_reader_locations_and_deduplicate; Word/Excel mapping
+Repeated body citations	Structural headings inherited section evidence; consecutive nodes printed identical sources	Keep frozen citations, suppress structural display and print identical adjacent citations after last passage	test_all_run06_rows_through_native_tools; six rendered pages
+Hidden open items	Only comments contained the issue list	Print issue count and Excel pointer in the existing pending-items section	test_all_run06_rows_through_native_tools; rendered page 6
+Wording headings and cover	Runtime wording; object blocks were not chapters; plan contract lacked existing report_title consumer	Reader wording, numbered chapter nodes, TOC depth 3, optional report_title, frozen snapshot date	test_all_run06_rows_through_native_tools; rendered pages 1-6

@@ -1,5 +1,7 @@
 # 9a-b — disclosed draft delivery (review candidate)
 
+Reader-facing corrections and the failed full-run record are in [the current review candidate](stage1-9a-b-reader-fixes.md). The record below describes the original candidate.
+
 Production source **+150 / −53 / net +97 lines**. Explicit raise sites **+1 / −0** (108 → 109 in touched source; AST expressions, not a semantic inventory). No SQL/check-family change or new legacy fallback. [Measurements](../verification/stage1-9a-b/results.json).
 
 **Tested source `5277891`**, existing branch `codex/stage1-9a`. **Main remains accepted part a `5e6c2ee`.** No part-b full regression, paid model call, install, dispatcher/S2 amendment or historical case/ledger/hold change. New Excel print-format code and its tests were removed after the owner clarified that Excel layout is outside scope; `content_workbook.py` is byte-identical to part a.

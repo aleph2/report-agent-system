@@ -1,0 +1,16 @@
+# 9a-b reader fixes — review candidate
+
+Production Python **+43 / −23 / net +20 lines** since `335f9f5`; Writer step prompt **+2 / −0**. Explicit raise expressions **237 → 237** across touched Python modules; no added rejection-check family, SQL check or legacy fallback. [Measurements](../verification/stage1-9a-b-reader-fixes/results.json).
+
+**Source/test commit `25cd16c`. Main remains accepted part a `5e6c2ee`.** The owner’s five rendered-page findings are fixed. Dispatcher, S2, judgments/scores, original records and Excel layout are unchanged. No paid calls or installs occurred.
+
+- Scripted reasons and the X51 question are Chinese; the Writer step requests Chinese explanations while preserving exact quotations. Alternatives use the method’s Chinese descriptions and score ranges instead of internal band IDs.
+- Word comments and Excel issue rows share reader-facing locations and deduplicate identical displayed sources. Stored evidence locators are untouched. Structural citations are not printed; identical adjacent body citations print once.
+- Section 4 prints **23 pending items** and points to Excel. All **23 Word comments match 23 issue rows** from the same snapshot.
+- Open rows say “本指标尚未评定”. Numbered slope headings match their tables and the six-entry TOC. The cover shows the supplied project/report title and snapshot date. Generic documents and formatted-cover contracts retain their earlier behavior.
+
+**Verification:** red tests reproduced the citation/band defects and absent headings. Focused checks passed (401, then 117 after review adjustments). The corrected paths pass **139 focused checks**; **22 artifact/delivery checks** preserve the pinned historical image and Fake03 output; another **21 private-fixture checks** pass. Counts overlap and are not added together. The final-source replay/export passes. Six final Word pages are pixel-identical to the inspected pages. No independent review of these corrections is claimed. [Finding-to-test map](../verification/stage1-9a-b-reader-fixes/review-cases.tsv).
+
+**The authorized full run failed:** frozen `3f3493c`, **6,114 passed / 61 failed / 9 skipped**, 27m21s. I omitted 51 separately provisioned private files from its copy, causing 56 failures. Their hashes now match the prior clean-run manifest. Three failures caught an overbroad cover date, one caught a citation caller without a body, and one retained an unnumbered-heading expectation. Replaying private fixtures exposed two additional failures of that same date bug. The corrected source limits the date to titled commissions and preserves the citation caller contract. All 61 originally failed cases now pass in targeted rechecks. The failed full run stays failed; source-copy hashes are unchanged and its test processes are absent. [Per-case classification](../verification/stage1-9a-b-reader-fixes/failed-full-cases.json).
+
+A **replacement clean full run on the corrected commit requires fresh owner authorization** under AGENTS.md. Until it passes, the full gate and owner acceptance stay open; main does not move. Private artifacts/logs: `.private/stage1-9a-b-reader-fixes-20261110/`. Word rendering is verified; Excel layout is out of scope and real-model language compliance remains unmeasured. No engineering acceptance or formal release is claimed.

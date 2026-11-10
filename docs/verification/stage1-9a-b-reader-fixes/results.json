@@ -1,0 +1,154 @@
+{
+  "source_commit": "25cd16c9fbc696e58bfd8b177ab3776c4f1ad8d6",
+  "baseline": "335f9f5f684a94467d4d080699f12515b4192995",
+  "production_python_lines": {
+    "added": 43,
+    "removed": 23,
+    "net": 20
+  },
+  "writer_prompt_lines": {
+    "added": 2,
+    "removed": 0
+  },
+  "raise_expressions": {
+    "before": 237,
+    "after": 237
+  },
+  "new_guard_families": 0,
+  "new_legacy_fallbacks": 0,
+  "full_regression": {
+    "source_commit": "3f3493c56fc3f60409f058461186410ddcfdb505",
+    "status": "failed",
+    "outcomes": {
+      "passed": 6114,
+      "failed": 61,
+      "skipped": 9
+    },
+    "expected": 6184,
+    "elapsed_seconds": 1641.2,
+    "finished_utc": "2026-11-10T17:15:17.447846+00:00",
+    "missing": [],
+    "duplicates": [],
+    "classification": {
+      "fixture_copy_omission": 56,
+      "cover_date_scope": 3,
+      "citation_caller_contract": 1,
+      "numbered_heading_expectation": 1
+    },
+    "historical_artifact_regression_found_in_focused_replay": 2,
+    "all_61_failed_cases_passed_in_targeted_rechecks": true,
+    "private_fixtures_verified_against_prior_clean_manifest": 51,
+    "replacement_full_run": "requires fresh owner authorization"
+  },
+  "focused_records": [
+    {
+      "record": "fixture-correction/writer-adoption.json",
+      "exit_code": 0,
+      "passed": 7
+    },
+    {
+      "record": "fixture-correction/affected.json",
+      "exit_code": 0,
+      "passed": 10
+    },
+    {
+      "record": "fixture-correction/remaining.json",
+      "exit_code": 1,
+      "passed": 27
+    },
+    {
+      "record": "date-correction/focused.json",
+      "exit_code": 0,
+      "passed": 22
+    },
+    {
+      "record": "remaining-full-fixes.json",
+      "exit_code": 0,
+      "passed": 139
+    },
+    {
+      "record": "fixture-correction-final/focused.json",
+      "exit_code": 0,
+      "passed": 21
+    }
+  ],
+  "artifacts": {
+    "source_commit": "25cd16c9fbc696e58bfd8b177ab3776c4f1ad8d6",
+    "word_pages": 6,
+    "pixel_identical_to_inspected_pages": true,
+    "word_comments": 23,
+    "internal_character_locations": 0,
+    "internal_page_locations": 0,
+    "artifacts": {
+      "fake03-draft.docx": "2f7da17f2c196f0fdfc1f9cb514115b020ee32fde1d48a3fcf155d66f88c39f4",
+      "fake03-draft.xlsx": "e8bd592226586094461acce17a2d5003ce0f97b0fa7219207621c52d18c0bfca",
+      "fake03-draft.pdf": "8c29a676678a3340fa425649729f60ab1a07f4c34a2656f1f9dec3beadf354bd"
+    },
+    "excel_material_issue_rows": 23,
+    "same_snapshot_pair": true
+  },
+  "failed_run_coverage": {
+    "total_percent": 90.56995433248325,
+    "m0_module_floors": [
+      {
+        "module": "src/report_agent/commission_plan.py",
+        "m0": 93.49240780911063,
+        "failed_full": 93.7375745526839
+      },
+      {
+        "module": "src/report_agent/commission_requirements.py",
+        "m0": 91.40625,
+        "failed_full": 92.44851258581235
+      },
+      {
+        "module": "src/report_agent/content_store.py",
+        "m0": 95.43817527010805,
+        "failed_full": 95.57625145518044
+      },
+      {
+        "module": "src/report_agent/g3_export.py",
+        "m0": 91.54518950437318,
+        "failed_full": 92.5
+      },
+      {
+        "module": "src/report_agent/rescue_projection.py",
+        "m0": 88.41698841698842,
+        "failed_full": 88.47583643122677
+      },
+      {
+        "module": "src/report_agent/risk_scoring.py",
+        "m0": 94.3566591422122,
+        "failed_full": 94.63220675944333
+      },
+      {
+        "module": "src/report_agent/section_writing.py",
+        "m0": 90.19607843137256,
+        "failed_full": 90.29126213592232
+      },
+      {
+        "module": "src/report_agent/system_assembler.py",
+        "m0": 87.27984344422701,
+        "failed_full": 88.06818181818181
+      },
+      {
+        "module": "src/report_agent/writer_issues.py",
+        "m0": 90.12345679012346,
+        "failed_full": 90.1840490797546
+      }
+    ],
+    "is_clean_full_gate": false
+  },
+  "protected_scope": {
+    "dispatcher_changed": false,
+    "s2_changed": false,
+    "excel_layout_changed": false,
+    "paid_model_calls": 0,
+    "main": "5e6c2ee"
+  },
+  "limitations": [
+    "No clean full run on corrected source yet",
+    "Model Chinese-language adherence unmeasured",
+    "Owner acceptance pending",
+    "Excel layout outside scope"
+  ]
+}

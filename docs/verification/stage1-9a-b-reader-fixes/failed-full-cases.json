@@ -1,0 +1,246 @@
+[
+  {
+    "nodeid": "tests/test_writer_issue_tools.py::test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair[with-owner-ranks]",
+    "classification": "numbered-heading-expectation"
+  },
+  {
+    "nodeid": "tests/test_layout_typography.py::test_v7_cover_alignment_isolated_and_mapped[False]",
+    "classification": "cover-date-scope"
+  },
+  {
+    "nodeid": "tests/test_layout_typography.py::test_v7_cover_alignment_isolated_and_mapped[True]",
+    "classification": "cover-date-scope"
+  },
+  {
+    "nodeid": "tests/test_layout_typography.py::test_default_margins_and_long_report_title_selected_without_split",
+    "classification": "cover-date-scope"
+  },
+  {
+    "nodeid": "tests/test_duty_remaining_consumers_adapter.py::test_native_remaining_consumer_sdk_fidelity_and_saved_state[revision-wire]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_remaining_consumers_adapter.py::test_native_remaining_consumer_sdk_fidelity_and_saved_state[revision-saved-before-refusal]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer.py::test_recorded_two_scope_result_reaches_native_reviewer_and_parent[full]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer.py::test_recorded_two_scope_result_reaches_native_reviewer_and_parent[missing]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer.py::test_recorded_two_scope_result_reaches_native_reviewer_and_parent[false-all-pass]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer.py::test_recorded_two_scope_result_reaches_native_reviewer_and_parent[public-limit-loss]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer_adapter.py::test_reviewer_consumer_sdk_preserves_actual_result_and_local_refusal[full-wire]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer_adapter.py::test_reviewer_consumer_sdk_preserves_actual_result_and_local_refusal[missing-wire]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_reviewer_consumer_adapter.py::test_reviewer_consumer_sdk_preserves_actual_result_and_local_refusal[missing-zero-dispatch]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_revision_consumer.py::test_r7_recorded_revision_native_writer_consumption[exact-adoption]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_revision_consumer.py::test_r7_recorded_revision_native_writer_consumption[received-not-adopted]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_ref_contract.py::test_r12_received_artifact_ref_contract_through_public_tool[original-artifact-field]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_ref_contract.py::test_r12_received_artifact_ref_contract_through_public_tool[declared-render-only]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_ref_contract.py::test_actual_model_schema_expresses_existing_artifact_ref_type_constraint[ContentNode]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_ref_contract.py::test_actual_model_schema_expresses_existing_artifact_ref_type_constraint[SourceArtifact]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[pending-False-False-True-PENDING_NATIVE_CONTINUATION_REQUIRED]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[pending-True-True-True-PENDING_NATIVE_CONTINUATION_REQUIRED]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-True-False-True-TERMINAL_NATIVE_THREAD_REQUIRED]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-False-True-True-TERMINAL_NATIVE_THREAD_REQUIRED]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[new_turn-False-False-False-EXISTING_NATIVE_THREAD_REQUIRED]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_wrong_entry_never_registers_or_dispatches[invalid-False-False-True-UNKNOWN_NATIVE_ENTRY_MODE]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_unbound_new_turn_never_registers_or_dispatches",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_bound_mode_uses_normal_entry_once_and_captures_truth[pending]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_validation_native_entry.py::test_bound_mode_uses_normal_entry_once_and_captures_truth[new_turn]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_artifact_failures.py::test_received_artifact_output_error_is_not_attributed_to_valid_reviewer_arguments",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_repro_artifacts.py::test_a02_standard_effective_properties_after_native_refresh_and_render[False]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_repro_artifacts.py::test_a02_standard_effective_properties_after_native_refresh_and_render[True]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_repro_artifacts.py::test_a02_old_layout_is_rejected_by_independent_standard_not_old_equivalence",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_repro_artifacts.py::test_p11_exact_body_selector_cannot_borrow_single_spaced_cover_exception[1.5]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_repro_artifacts.py::test_p11_exact_body_selector_cannot_borrow_single_spaced_cover_exception[1.0]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_coordinator_review_commission.py::test_native_coordinator_commission_is_preserved_and_omission_remains_visible[both-objects]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_coordinator_review_commission.py::test_native_coordinator_commission_is_preserved_and_omission_remains_visible[omit-second]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_coordinator_review_outcome.py::test_coordinator_receives_completed_negative_scopes_without_false_final_changing_records[honest-negative]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_coordinator_review_outcome.py::test_coordinator_receives_completed_negative_scopes_without_false_final_changing_records[false-acceptance]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_review_consumers_adapter.py::test_p09_configured_sdk_completed_negative_consumer",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_review_consumers_adapter.py::test_p09_zero_remaining_refuses_before_transport",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_review_consumers_adapter.py::test_p12_configured_sdk_rejected_checker_honest_final",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_review_consumers_adapter.py::test_p12_zero_remaining_refuses_before_transport",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_review_consumers_adapter.py::test_p12_native_followup_vision_shares_three_mock_http_and_budget",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_error_consumer.py::test_r3_rejected_artifact_native_reviewer_final_calibration[honest-incomplete]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_error_consumer.py::test_r3_rejected_artifact_native_reviewer_final_calibration[known-false-acceptance]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_artifact_error_consumer.py::test_r3_legacy_identity_replay_rejected_before_review_save",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_real_response_regressions.py::test_r2_received_table_footnote_survives_native_adoption_and_word[unchanged_real_table]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_real_response_regressions.py::test_r2_received_table_footnote_survives_native_adoption_and_word[explicit_block_control]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_learning_source_handoff.py::test_native_learning_source_selection_is_not_implicit_read_history[feedback-only-after-source-read]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_agent_duty_learning_source_handoff.py::test_native_learning_source_selection_is_not_implicit_read_history[source-explicitly-selected]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_adoption.py::test_native_writer_adoption_fake_controls[full-adopt]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_adoption.py::test_native_writer_adoption_fake_controls[missing-adopt]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_adoption.py::test_native_writer_adoption_fake_controls[missing-read-handoff]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_adoption.py::test_native_writer_adoption_fake_controls[missing-incomplete]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_adoption.py::test_native_writer_adoption_uses_configured_sdk_binding_without_network",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_writer_adoption.py::test_native_writer_replays_r10_recovery_paths_before_exact_adoption",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_layout_received_replay.py::test_received_layout_action_reaches_actual_word_without_parameter_repair[layout-standard]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_layout_received_replay.py::test_received_layout_action_reaches_actual_word_without_parameter_repair[layout-old-reference]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_coordinator_review_commission_adapter.py::test_c5_configured_sdk_preserves_assignment_and_partial_saved_state[normal-wire]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_duty_coordinator_review_commission_adapter.py::test_c5_configured_sdk_preserves_assignment_and_partial_saved_state[task-saved-before-local-refusal]",
+    "classification": "fixture-copy-omission"
+  },
+  {
+    "nodeid": "tests/test_writer_assessment.py::test_resolved_manifest_quote_remains_export_readable",
+    "classification": "citation-caller-contract"
+  }
+]
