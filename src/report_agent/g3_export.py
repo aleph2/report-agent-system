@@ -3,7 +3,7 @@ from . import report_state
 from copy import deepcopy
 import re
 
-from .assessment_projection import assessment_receipt, score_blocker
+from .assessment_projection import assessment_receipt, draft_blocker
 from . import content_layout as layout
 from .content_models import Ref
 from .errors import ActionRejected
@@ -144,7 +144,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             if assessment:
                 selected_assessments.add(_key(assessment))
                 receipt = pinned(assessment)
-                if receipt and (blocker := score_blocker(receipt)):
+                if receipt and (blocker := draft_blocker(receipt)):
                     problems.append(outcome_ref['id'] + ': assessment score unavailable: ' + blocker)
                 elif not receipt or any(not receipt.get(name) or _key(receipt[name]) not in selected for name in ('ranking_ref', 'evaluation_ref', 'level_ref')):
                     problems.append(outcome_ref['id'] + ': frozen outcome requires all three generated assessment nodes')
@@ -227,7 +227,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
         assessment = body.get('assessment_ref')
         if cs is not None and assessment:
             receipt = pinned(assessment)
-            if receipt and (blocker := score_blocker(receipt)):
+            if receipt and (blocker := draft_blocker(receipt)):
                 problems.append(location + ': assessment score unavailable: ' + blocker)
             part = body.get('assessment_part')
             if (not receipt or part not in {'ranking', 'evaluation', 'level'}
@@ -265,7 +265,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                     saved = pinned(bound)
                     if not saved:
                         problems.append(location + ': derived section assessment receipt missing')
-                    elif blocker := score_blocker(saved):
+                    elif blocker := draft_blocker(saved):
                         problems.append(location + ': derived section assessment score unavailable: ' + blocker)
         if section['kind'] == 'fixed':
             if node['kind'] in {'table', 'figure'}:

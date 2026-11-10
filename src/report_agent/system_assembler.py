@@ -4,7 +4,7 @@ from . import legacy_state as legacy
 from copy import deepcopy
 import json
 
-from .assessment_projection import assessment_receipt, score_blocker, selected_assessment
+from .assessment_projection import assessment_receipt, draft_blocker, selected_assessment
 from .commission_plan import _confirmed, _state, outside_boundary
 from .content_models import ContentNode, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
@@ -189,7 +189,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
         if not receipt or receipt.get('assessment_ref') != ref:
             problem('assessment_canonical_receipt_missing', ref=ref, object_id=obj)
             continue
-        blocker = score_blocker(receipt)
+        blocker = draft_blocker(receipt)
         if blocker:
             problem('assessment_score_unavailable', ref=ref, object_id=obj, status=blocker)
             continue
@@ -204,7 +204,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             problem('assessment_section_invalid', ref=ref, section_id=sid)
             continue
         from .risk_scoring import validate_outcome
-        validate_outcome(cs, db, plan, obj, receipt['evaluation_ref'], receipt['level_ref'], [receipt['evidence_ref']], [])
+        validate_outcome(cs, db, plan, obj, receipt['evaluation_ref'], receipt['level_ref'], [receipt['evidence_ref']], receipt['result'].get('missing_indicators', []), draft=True)
         assessments[obj] = (record, receipt, sid)
     assessments = {o['object_id']: assessments[o['object_id']] for o in plan['payload']['objects']
                    if o['object_id'] in assessments}
@@ -343,6 +343,8 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
     missing_routes = sorted(required.keys() - routes.keys() - template_ids)
     missing_required_sections = sorted({r['section_id'] for r in routes.values() if r['section_id'] not in sections})
     for issue_id, route in routes.items():
+        if issue_id in inventory_ids and issue_bindings.get(issue_id) == {'section_id': route['section_id']}:
+            issue_bindings[issue_id] = route
         if issue_id in issue_bindings and issue_bindings[issue_id] != route:
             problem('issue_route_conflicts_with_system', issue_id=issue_id, expected=route,
                     supplied=issue_bindings[issue_id])
@@ -477,12 +479,12 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
     from .risk_scoring import validate_outcome
     outcomes = []
     for obj, (record, receipt, sid) in assessments.items():
-        assessment_ref = validate_outcome(cs, db, plan, obj, receipt['evaluation_ref'], receipt['level_ref'], [receipt['evidence_ref']], [])
+        assessment_ref = validate_outcome(cs, db, plan, obj, receipt['evaluation_ref'], receipt['level_ref'], [receipt['evidence_ref']], receipt['result'].get('missing_indicators', []), draft=True)
         object_ref = next(r for r in plan['payload']['inventory_refs']
                           if cs._read(db, r)['payload']['inventory_object']['object_id'] == obj)
         outcome = cs._insert(db, actor, 'CommissionOutcome', {'object_id': obj,
             'section_ref': object_heads[obj], 'score_ref': receipt['evaluation_ref'], 'level_ref': receipt['level_ref'],
-            'basis_refs': [receipt['evidence_ref']], 'unresolved': [], 'commission_plan_ref': plan['ref'],
+            'basis_refs': [receipt['evidence_ref']], 'unresolved': receipt['result'].get('missing_indicators', []), 'commission_plan_ref': plan['ref'],
             'object_ref': object_ref, 'assessment_ref': assessment_ref})
         report_state.select_outcome(db, plan['ref'], obj, [actor.id, root], outcome, actor=actor)
         outcomes.append(outcome)
@@ -561,7 +563,7 @@ def _current_identity(cs, db):
     selections = _current_selections(cs, db)
     for ref in selections['assessment_refs']:
         receipt = assessment_receipt(db, ref)
-        if receipt and (reason := score_blocker(receipt)):
+        if receipt and (reason := draft_blocker(receipt)):
             raise ActionRejected('ASSEMBLY_CURRENT_SCORE_UNAVAILABLE: ' + reason)
     return digest([selections, proposals, routes])
 

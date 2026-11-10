@@ -1,7 +1,7 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
 from . import legacy_state as legacy, report_state
 from .assessment_results import score_band
-from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker
+from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker, draft_blocker
 from typing import Literal
 
 from pydantic import Field, ValidationError
@@ -481,7 +481,7 @@ def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, cand
         qualification = '本草稿尚有未评分指标，不采用综合评分或风险等级。'
         text = obj['label'] + '：未评分，风险等级未确定。' + qualification
     else:
-        qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result['affects_level'] else ''
+        qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result.get('affects_level') else ''
         level = (plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
                  if table_records else result['adopted']['level'])
         if result.get('status') == 'legacy_draft':
@@ -512,13 +512,14 @@ def save_assessment(cs, actor, operation_id, assessment):
         binding_identity=lambda db, result: _confirmed(cs, db)[0]['ref'])
 
 
-def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved):
+def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved, *, draft=False):
     assessment_ref = cs._read(db, score_ref)['payload']['body'].get('assessment_ref')
     receipt = assessment_receipt(db, assessment_ref) if assessment_ref else None
-    if receipt and (reason := score_blocker(receipt)):
+    if receipt and (reason := (draft_blocker if draft else score_blocker)(receipt)):
         raise ActionRejected('COMMISSION_OUTCOME_REVIEWED_SCORE_REQUIRED: ' + reason)
     if (not receipt or receipt['evaluation_ref'] != score_ref or receipt['level_ref'] != level_ref
-            or receipt['evidence_ref'] not in basis_refs or unresolved):
+            or receipt['evidence_ref'] not in basis_refs
+            or unresolved != (receipt['result'].get('missing_indicators', []) if draft else [])):
         raise ActionRejected('COMMISSION_OUTCOME_SYSTEM_ASSESSMENT_REQUIRED')
     saved = cs._read(db, assessment_ref)['payload']
     if saved['object_id'] != object_id or saved['commission_plan_ref'] != plan['ref']:
@@ -562,7 +563,7 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         if obj in bound:
             raise ActionRejected('PLANNED_SECTION_DUPLICATE_ASSESSMENT')
         receipt = assessment_receipt(db, ref)
-        if receipt and (reason := score_blocker(receipt)):
+        if receipt and (reason := draft_blocker(receipt)):
             raise ActionRejected('PLANNED_SECTION_REVIEWED_SCORE_REQUIRED: ' + reason)
         if not receipt:
             raise ActionRejected('PLANNED_SECTION_SYSTEM_RECEIPT_REQUIRED')
@@ -609,7 +610,7 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         if text.count(slot['old']) != 1:
             raise ActionRejected('PLANNED_SECTION_RESULT_PASSAGE_AMBIGUOUS')
         if slot['field'] in ('object_count', 'level_count'):
-            value = str(len(bound) if slot['field'] == 'object_count' else sum(r['adopted']['level'] == slot['level'] for r in bound.values()))
+            value = str(len(bound) if slot['field'] == 'object_count' else sum(r.get('adopted', {}).get('level') == slot['level'] for r in bound.values()))
             text = text.replace(slot['old'], value, 1)
             continue
         result = bound[slot['object_id']]
@@ -617,11 +618,11 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         if slot['field'] == 'assessment_text':
             value = cs._read(db, receipt['level_ref'])['payload']['body']['text']
         else:
-            value = result['adopted'][slot['field']]
+            value = ('未评分' if slot['field'] == 'total' else '未确定') if result.get('status') == 'unscored' else result['adopted'][slot['field']]
             if slot['field'] == 'level':
-                if plan['payload'].get('table_specs'):
+                if plan['payload'].get('table_specs') and result.get('status') != 'unscored':
                     value = plan['payload']['table_specs']['evaluation']['level_labels'][value]
-                value += '。' + cs._read(db, receipt['level_ref'])['payload']['body']['level_qualification'] if result['affects_level'] else ''
+                value += '。' + cs._read(db, receipt['level_ref'])['payload']['body']['level_qualification'] if result.get('affects_level') else ''
         text = text.replace(slot['old'], value, 1)
     payload = ContentNode.model_validate({'kind': 'block', 'body': {'text': text,
         'section_id': section_id, 'planned_section': True, 'commission_plan_ref': plan['ref'],

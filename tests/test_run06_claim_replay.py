@@ -223,40 +223,104 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     restored = tmp_path / "restored.jsonl"
     cold.export(restored)
     assert restored.read_bytes() == archive.read_bytes()
-    # M10 keeps the honest unscored refusal; draft rendering is required in 9a.
+    # Part b completes the normal Writer issue and trusted route stages, without new judgments.
     from report_agent.errors import ActionRejected
+    from report_agent.content_store import Actor
     from report_agent.content_tasks import delegated_task
     from report_agent.hierarchical_tools import actor_for
-    from report_agent.section_writing import save_section_prose
-    from report_agent.system_assembler import assemble_current_report
+    from report_agent.section_writing import save_section_prose, propose_material_issue
+    from report_agent.system_assembler import assemble_current_report, record_issue_routes
+    from report_agent.content_export import export_snapshot
     plan = reopened.read(prepared['plan_ref'])['payload']
+    required = reopened.read(prepared['decision_ref'])['payload']['required_material_issues']
+    reconciliation = [digest([prepared['plan_ref'], ['reconciliation', i, 0]]) for i in range(2)]
+    destinations = {reconciliation[0]: ('3', plan['reconciliations'][0]['result']),
+                    reconciliation[1]: ('2', plan['reconciliations'][1]['result'])}
+    destinations.update({item['id']: ('3', plan['reconciliations'][0]['result'])
+                         for item in required if item['id'] not in destinations})
     co = actor_for('coordinator')
-    call = {'name': 'task', 'id': 'm10-report-context', 'args': {
-        'subagent_type': 'writer', 'description': 'Quote supplied section context for the offline draft.',
+    call = {'name': 'task', 'id': 'draft-report-context', 'args': {
+        'subagent_type': 'writer', 'description': 'Quote supplied context and preserve confirmed planning conflicts.',
         'section_ids': ['2', '3', '4']}}
     with delegated_task(ws, 'coordinator', call) as (_, actor):
+        nodes = {}
         for section in plan['sections']:
-            if section['section_id'] not in ['2', '3', '4']:
+            sid = section['section_id']
+            if sid not in ['2', '3', '4']:
                 continue
             citation = section['sources'][0]
-            save_section_prose(reopened, actor, 'm10-context-' + section['section_id'],
-                section['section_id'], citation['quote'], [citation])
+            nodes[sid] = save_section_prose(reopened, actor, 'draft-context-' + sid,
+                sid, citation['quote'], [citation])['result']['refs']['prose']
+        for item in required:
+            sid, adopted = destinations[item['id']]
+            proposal = {**item, 'adopted_value': adopted, 'affects_level': False}
+            if item['id'] not in reconciliation:
+                propose_material_issue(reopened, actor, 'draft-wrong-section', nodes['2'], proposal)
+                from report_agent.system_assembler import _prepare, _current_selections
+                with reopened.store.connect() as db:
+                    check = _prepare(reopened, db, co, **_current_selections(reopened, db), current=True)[0]
+                assert any(p['code']=='issue_route_conflicts_with_system' and p['issue_id']==item['id']
+                           for p in check['problems'])
+            propose_material_issue(reopened, actor, 'draft-issue-' + item['id'], nodes[sid], proposal)
     before = reopened.list_objects()
     with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
-        assemble_current_report(reopened, co, 'm10-assembly')
+        assemble_current_report(reopened, co, 'before-trusted-routes')
     diagnostic = exc.value.diagnostic
-    unavailable = [p for p in diagnostic['problems'] if p['code'] == 'assessment_score_unavailable']
-    assert {(p['object_id'], p['status']) for p in unavailable} == {('A', 'unscored'), ('B', 'unscored')}
-    assert diagnostic['missing_assessments'] == ['A', 'B']
-    assert not diagnostic['missing_prose_bindings']
-    required = reopened.read(prepared['decision_ref'])['payload']['required_material_issues']
-    issue_ids = {issue['id'] for issue in required}
-    assert len(issue_ids) == 3
-    for key in ('missing_issue_records', 'missing_issue_bindings', 'missing_issue_routes'):
-        assert set(diagnostic[key]) == issue_ids
-    assert reopened.list_objects() == before
-    assert not reopened.list_objects('ExportArtifact')
-    report['m10_assembly_refusal'] = {'code': str(exc.value), 'diagnostic': diagnostic,
-        'required_material_issues': required, 'exported': False}
-    if dest:=os.environ.get('FAKE03_OFFLINE_REPLAY_RECORD'):
-        Path(dest).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+    assert diagnostic['missing_assessments'] == []
+    assert diagnostic['missing_issue_records'] == diagnostic['missing_issue_bindings'] == []
+    assert set(diagnostic['missing_issue_routes']) == set(reconciliation)
+    assert reopened.list_objects() == before and not reopened.list_objects('ExportArtifact')
+    record_issue_routes(reopened, Actor('operator', 'operator', 'draft-routing'), 'trusted-conflict-routes',
+        {key: dict(section_id=destinations[key][0], reason='Confirmed reconciliation is discussed in this section.')
+         for key in reconciliation}, note='Synthetic fixture routes; no new engineering or owner decision.')
+    try:
+        snapshot = assemble_current_report(reopened, co, 'draft-assembly')['result']['snapshot_ref']
+    except ActionRejected as error:
+        pytest.fail(str(error) + ': ' + json.dumps(error.diagnostic, ensure_ascii=False))
+    exported = export_snapshot(reopened, co, 'draft-pair', snapshot, {'toc': True})['result']
+    assert reopened.read(exported['workbook']['export_ref'])['payload']['snapshot_ref'] == snapshot
+    from zipfile import ZipFile
+    from lxml import etree
+    from openpyxl import load_workbook
+    ids = reopened.read(exported['export_ref'])['payload']['export_config']['material_issue_ids']
+    with ZipFile(ws.store.root / exported['file_ref']) as package:
+        comments = etree.fromstring(package.read('word/comments.xml'))
+        assert len(comments) == len(ids)
+    book = load_workbook(ws.store.root / exported['workbook']['file_ref'])
+    assert set(item['id'] for item in required) <= set(ids)
+    mapping = reopened.read(exported['workbook']['mapping_ref'])['payload']['anchor_records']
+    issue_rows = [m for m in mapping if m.get('kind') == 'material-issue']
+    assert Counter(m['issue_id'] for m in issue_rows) == Counter(ids)
+    from report_agent.material_issues import rendered_issues
+    frozen = reopened.read(snapshot)['payload']
+    records = {tuple(ref[k] for k in ('type','id','version')): reopened.read(ref) for ref in frozen['refs']}
+    issues = {issue.id: issue for _, issue in rendered_issues(records, frozen['root_ref'])}
+    for item in issue_rows:
+        row = book[item['sheet']][item['row_start']]
+        assert row[4].value == issues[item['issue_id']].basis
+        assert row[6].value == issues[item['issue_id']].question
+    texts = [''.join(comment.itertext()) for comment in comments]
+    assert Counter(texts) == Counter(''.join(issues[key].comment().splitlines()) for key in ids)
+    book.close()
+    report['draft_pair'] = dict(snapshot_ref=snapshot, word=exported['export_ref'],
+        excel=exported['workbook']['export_ref'], material_issue_ids=ids, issue_rows=issue_rows,
+        preflight_before_routes=diagnostic, adopted_scores=False)
+    if destination := os.environ.get('FAKE03_DRAFT_DELIVERY_DIR'):
+        import shutil
+        target = Path(destination); target.mkdir(parents=True, exist_ok=True)
+        for name, source in [('fake03-draft.docx', exported['file_ref']), ('fake03-draft.xlsx', exported['workbook']['file_ref'])]:
+            shutil.copy2(ws.store.root / source, target / name)
+        # Retain one purposeful synthetic delivery case, backing up each SQLite file under Linux.
+        import sqlite3
+        saved_case = target / 'case'
+        shutil.copytree(ws.store.root, saved_case, ignore=shutil.ignore_patterns('*.db*', '*.sqlite3*'))
+        for db_path in [*ws.store.root.rglob('*.db'), *ws.store.root.rglob('*.sqlite3')]:
+            backup = saved_case / db_path.relative_to(ws.store.root)
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            with sqlite3.connect(db_path.resolve().as_uri() + '?mode=ro', uri=True) as source_db, sqlite3.connect(backup) as target_db:
+                source_db.execute('PRAGMA query_only=ON')
+                source_db.backup(target_db)
+        (target / 'snapshot.json').write_text(json.dumps(reopened.read(snapshot), ensure_ascii=False, indent=2))
+        (target / 'verification.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    if dest := os.environ.get('FAKE03_OFFLINE_REPLAY_RECORD'):
+        Path(dest).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
