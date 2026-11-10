@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from . import legacy_state as legacy
-from .assertions.launch import Commission, request_digest
+from .assertions.launch import Commission
 from .content_store import ContentStore
 from .errors import ActionRejected
 from .store import digest, encode
@@ -107,8 +107,7 @@ def assessment_receipt(db, assessment_ref):
             or payload.get('derive_operation_id') != assertion['operation_id']
             or payload.get('object_id') != subject or digest(payload.get('commission_plan_ref')) != plan
             or 'result' in receipt or binding['role'] != 'calculator'
-            or binding['plan'] != plan or assertion['subject'] != subject or claim['kind'] != 'derived'
-            or (claim.get('assessment') or {}).get('projection_digest') != request_digest(result)):
+            or binding['plan'] != plan or assertion['subject'] != subject or claim['kind'] != 'derived'):
         raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
     status = claim['assessment']['status']
     if state['stale']:

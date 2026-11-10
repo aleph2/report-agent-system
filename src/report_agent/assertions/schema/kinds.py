@@ -158,7 +158,7 @@ class AssessmentCalculation(Shape):
     level_robust: bool | None = None
     missing_indicators: tuple[Id, ...] = ()
     interrupted_indicators: tuple[Id, ...] = ()
-    projection_digest: Digest
+    projection_digest: Digest | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class Derived(Shape):

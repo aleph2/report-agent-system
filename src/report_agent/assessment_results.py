@@ -150,8 +150,6 @@ def commit_derivation(cs, scope, operation_id, strategy, entries, result, *, req
         result['review_status'] = claim['assessment']['status']
         if require_reviewed and result['review_status'] != 'scored':
             raise ActionRejected('ASSESSMENT_REVIEW_REQUIRED')
-        if resource_digest(result) != claim['assessment']['projection_digest']:
-            raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
         # Replay still requires the original calculator grant to be live.
         with ctx.read() as (_, live):
             if 'derive_result' not in live.actions:
@@ -173,8 +171,7 @@ def commit_derivation(cs, scope, operation_id, strategy, entries, result, *, req
     result['review_status'] = status
     summary = dict(status=status, low=result['low'], high=result['high'], level_robust=result['level_robust'],
                    missing_indicators=result.get('missing_indicators', []),
-                   interrupted_indicators=result.get('interrupted_indicators', []),
-                   projection_digest=resource_digest(result))
+                   interrupted_indicators=result.get('interrupted_indicators', []))
     strength, value = 'undetermined', None
     if status == 'scored':
         summary['adopted'] = result['adopted']

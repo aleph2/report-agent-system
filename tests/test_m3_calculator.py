@@ -60,6 +60,7 @@ def test_native_derivation_keeps_draft_distinct_and_recomputes_from_immutable_su
     assert original['binding']['role'] == 'calculator' and calc != str(uuid5(NAMESPACE_URL, f.actor.id))
     assert claim['strength'] == 'undetermined' and claim['value'] is None
     assert claim['assessment']['status'] == 'pending_review' and 'adopted' not in claim['assessment']
+    assert 'projection_digest' not in claim['assessment']
     assert claim['assessment']['draft_arithmetic'] == projected['result']['adopted']
     with f.cs.store.connect() as db:
         scope = bound_assignment(f.cs, db, f.actor)
@@ -143,3 +144,11 @@ def test_legacy_g3_score_cannot_be_promoted_by_switching_the_case_to_native_writ
     f.cs.store.set('manifest', manifest)
     with f.cs.store.connect() as db:
         assert score_blocker(assessment_receipt(db, raw['assessment_ref'])) == 'legacy_draft'
+
+
+def test_projection_digest_is_optional_for_history_and_absent_from_new_calculations():
+    from report_agent.assertions.schema.kinds import AssessmentCalculation
+    current = dict(status='unscored', missing_indicators=['A'])
+    assert 'projection_digest' not in AssessmentCalculation(**current).model_dump(mode='json')
+    historical = {**current, 'projection_digest':'f'*64}
+    assert AssessmentCalculation(**historical).model_dump(mode='json')['projection_digest'] == 'f'*64
