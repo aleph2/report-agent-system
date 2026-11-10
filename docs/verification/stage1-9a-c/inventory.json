@@ -1,0 +1,71 @@
+{
+  "scope": "Current five-role factory schemas plus explicit historical variants; repository Python guard census and all 12 S2 families. No claim that every check was exercised.",
+  "source_revision": "2c31486b70470f6189bdd71347717d68f3051743",
+  "samples": [
+    {
+      "name": "inventory-audit-v2-observations.json",
+      "sha256": "b81b4ff04569ddf66a9f20d3b78a34df59faf89f09731227157ca96ad2926cbf"
+    },
+    {
+      "name": "catalog-five-roles-observations.json",
+      "sha256": "c12c49b5d202064206adac8e31bc2f499111c7402be6b46050635e1f23b7c859"
+    }
+  ],
+  "schema_variants": 255,
+  "fields_including_nested": 3320,
+  "native_variants": 172,
+  "python_check_sites": 3054,
+  "sql_families": 12,
+  "sql_clauses": 13,
+  "sdk_tool_invocations": 83,
+  "attributed_invocations": 82,
+  "unique_rejected_calls": 16,
+  "unattributed_invocations": 1,
+  "unfinished": 0,
+  "instrumentation_errors": 0,
+  "by_role": {
+    "coordinator": {
+      "invocations": 1,
+      "rejected_calls": 1,
+      "measurement": "observed offline sample"
+    },
+    "layout": {
+      "invocations": 0,
+      "rejected_calls": null,
+      "measurement": "unmeasured"
+    },
+    "reviewer": {
+      "invocations": 5,
+      "rejected_calls": 2,
+      "measurement": "observed offline sample"
+    },
+    "rubric_grader": {
+      "invocations": 0,
+      "rejected_calls": null,
+      "measurement": "unmeasured"
+    },
+    "writer": {
+      "invocations": 76,
+      "rejected_calls": 13,
+      "measurement": "observed offline sample"
+    }
+  },
+  "field_specific_rejection_rates": "unmeasured; tool totals are not field counts",
+  "evaluation_coverage": "unmeasured; zero observed is not proof a check ran",
+  "paid_model_calls": 0,
+  "production_checks_added": 0,
+  "b2_guards": [
+    {
+      "id": "b2-assessment-format-ownership",
+      "status": "planned for b2",
+      "result": null,
+      "requirement": "Assessment headers/captions come only from spec through the renderer"
+    },
+    {
+      "id": "b2-word-format-source-comment-contract",
+      "status": "planned for b2",
+      "result": null,
+      "requirement": "Spec-conformant Word tables, comment authors/anchors/issue correspondence, no inline or instruction citations"
+    }
+  ]
+}

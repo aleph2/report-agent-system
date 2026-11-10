@@ -52,3 +52,5 @@ Owner process correction after the part-a full run: search application and tests
 Part b accepted on 2026-11-10: main fast-forwards to fdf8f93 after Main re-inspected all six regenerated pages. Owner visual inspection is not claimed. The pending-section role correction stays in part d; c proceeds under its existing scope. See stage1-9a-b-acceptance.md.
 
 Owner revised sequence: accepted b stays accepted. Finish and accept c, advance main, then start b2 from main. Paid Fake03 requires a/b/c/b2 plus the measured inventory. C lists b2 guards as planned, not passed.
+
+Part c focused candidate: see [receipt/inventory review](stage1-9a-c-receipts-inventory.md). New Reviewer schemas now inject the native ID and derive the frozen row; the paragraph above records the initial finding, not the current schema. Full c regression and acceptance remain pending; b2 follows.
