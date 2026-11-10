@@ -65,7 +65,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
         members = _closure(cs, db, seeds)
         source = {'payload': {'refs': members, 'manifest_digest': digest(sorted(members, key=_key)),
             'commission_plan_ref': plan['ref'], 'commission_confirmation_ref': decision['ref']},
-            'root_payload': {'kind': 'report', 'body': {'text': plan['payload'].get('report_title') or '报告'},
+            'root_payload': {'kind': 'report', 'body': {'text': plan['payload'].get('report_title') or '报告草稿'},
                              'qualifiers': {}, 'citations': [], 'claim_kind': 'structure'}}
     else:
         if source_snapshot_ref is None:

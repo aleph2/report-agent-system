@@ -381,7 +381,7 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
         if body.get('section_heading'):
             control.setdefault('heading_level', min(6, str(body['section_id']).count('.') + 1))
         if opened:
-            control.setdefault('column_weights', [2.5, 1, 1, 1, 1, 8])
+            control.setdefault('column_weights', [2, 1.1, 1.4, 1.4, 1.4, 8])
             control.setdefault('allow_row_split', True)
     if nodes:
         raw['nodes'] = nodes

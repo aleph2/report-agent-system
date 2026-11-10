@@ -3,6 +3,7 @@ import hashlib
 import json
 import math
 import re
+import unicodedata
 from io import BytesIO
 from pathlib import Path
 
@@ -86,6 +87,7 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
         raise ActionRejected('WORD_EXPORT_REQUIRED_FOR_MATERIAL_ISSUES')
     if system_companion and not report_export_ref:
         raise ActionRejected('WORD_EXPORT_REQUIRED')
+    word_controls = {}
     if report_export_ref:
         linked = contents._read(db, report_export_ref)
         if system_companion and linked['created_by'] != actor.id:
@@ -94,6 +96,7 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
             raise ActionRejected('WORD_EXPORT_REQUIRED')
         if linked['payload']['snapshot_ref'] != snapshot_ref:
             raise ActionRejected('WORD_WORKBOOK_SNAPSHOT_MISMATCH')
+        word_controls = {Ref.model_validate(n['node_ref']).key(): n for n in linked['payload'].get('export_config', {}).get('layout', {}).get('nodes', [])}
         _bytes(contents.store, linked['payload']['file_ref'], linked['payload']['file_digest'])
         if linked['payload'].get('export_config', {}).get('material_issue_ids', []) != [issue.id for _, issue in issue_records]:
             raise ActionRejected('WORD_WORKBOOK_MATERIAL_ISSUE_MISMATCH')
@@ -176,8 +179,9 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
                 if header_row <= row_index < header_row + header_count:
                     cell.font = Font(bold=True, color='FFFFFF')
                     cell.fill = PatternFill('solid', fgColor='244A63')
+        weights = word_controls.get(Ref.model_validate(ref).key(), {}).get('column_weights', [])
         for index in range(1, max(map(len, rows)) + 1):
-            ws.column_dimensions[get_column_letter(index)].width = 28
+            ws.column_dimensions[get_column_letter(index)].width = max(10, 140 * weights[index-1] / sum(weights)) if weights and index <= len(weights) else 28
         for merge in header_merges:
             ws.merge_cells(start_row=header_row + merge.start_row,
                 end_row=header_row + merge.end_row, start_column=merge.start_col + 1,
@@ -239,8 +243,25 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
                 if row_index == 1:
                     cell.font = Font(bold=True, color='FFFFFF')
                     cell.fill = PatternFill('solid', fgColor='244A63')
-        for index in range(1, 10):
-            ws.column_dimensions[get_column_letter(index)].width = 28
+        widths = [6, 13, 23, 35, 60, 15, 45, 24, 27]
+        for index, width in enumerate(widths, 1):
+            ws.column_dimensions[get_column_letter(index)].width = width
+        for index, row in enumerate(rows, 1):
+            height = 24
+            for value, width in zip(row, widths):
+                lines = sum(max(1, math.ceil(sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in line) / (width * .85)))
+                            for line in str(value).split('\n'))
+                height = max(height, 15 * lines + 8)
+            if height > 409:
+                unverified_annotation_rows.append(dict(sheet=name, row=index))
+            ws.row_dimensions[index].height = min(height, 409)
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_setup.orientation = 'landscape'
+        ws.page_setup.paperSize = ws.PAPERSIZE_A3
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.oddHeader.center.text = name
+        ws.oddFooter.center.text = '第 &P 页 / 共 &N 页'
         ws.freeze_panes = 'A2'
         ws.auto_filter.ref = f'A1:I{len(rows)}'
         ws.print_title_rows = '1:1'
@@ -281,8 +302,9 @@ def read_workbook(data):
 def companion_sheets(snapshot, records, rendered_keys):
     """Project frozen channel, or rendered tables, without authoring any content."""
     channel = snapshot['payload'].get('workbook_refs')
-    refs = channel if channel else [record['ref'] for key, record in records.items()
-        if key in rendered_keys and record['ref']['type'] == 'ContentNode']
+    from .g3_export import _order
+    refs = channel if channel else [records[key]['ref'] for key in _order(snapshot, records)[0]
+        if key in rendered_keys and records[key]['ref']['type'] == 'ContentNode']
     tables, notes = [], []
     for ref in refs:
         record = records[Ref.model_validate(ref).key()]
