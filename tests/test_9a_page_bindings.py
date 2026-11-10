@@ -2,6 +2,7 @@
 from uuid import NAMESPACE_URL, uuid5
 import pytest
 from report_agent import assertions
+from report_agent.store import encode
 from report_agent.assertion_host import AssertionHost, Grant
 
 
@@ -13,18 +14,19 @@ def issue(host, role, action, call, packet=(), resources=None):
 
 def test_bound_quote_and_method_evaluate_without_confirming_the_value(tmp_path):
     host = AssertionHost(tmp_path)
+    current_ref = dict(type="CommissionPlan", id="current", version=1)
     page = dict(source_version="design-v1", page=1)
     binding = assertions.record_convention(
         issue(host, "coordinator", "record_convention", "bind", ["design-v1"]),
         subject="A", claim=dict(kind="convention", scope="source_page_binding",
-        rule="plan", page_binding=dict(indicator_id="height", pages=[page])))
+        rule=encode(current_ref), page_binding=dict(indicator_id="height", pages=[page])))
     def confirm(key, call):
         return assertions.confirm(issue(host,"owner","confirm",call,[key]), subject="A",
             claim=dict(kind="act",effect="confirm",target=key,reason="One sheet reply"))
     source_claim = dict(kind="source",predicate="height",state="value",value=18,
                         coverage="A",citation={**page,"quote":"Height 18 m"})
     ground = [dict(assertion_id=binding["id"],purpose="context",proposition="source_page_binding")]
-    resources = {"sources":{"design-v1":{"pages":{"1":"Height 18 m","2":"Height 18 m"}}}}
+    resources = {"sources":{"design-v1":{"pages":{"1":"Height 18 m","2":"Height 18 m; Height 19 m"}}}}
     def extract(call, claim=source_claim):
         return assertions.assert_source(issue(host,"writer","assert_source",call,
             [binding["id"],"design-v1"],resources), subject="A",claim=claim,grounds=ground)
@@ -36,13 +38,22 @@ def test_bound_quote_and_method_evaluate_without_confirming_the_value(tmp_path):
     bad = {**source_claim,"citation":{**page,"page":2,"quote":"Height 18 m"}}
     with pytest.raises(ValueError,match="C3"):
         extract("wrong-page",bad)
+    old_binding = assertions.record_convention(issue(host,"coordinator","record_convention","older-binding",["design-v1"]),
+        subject="A", claim=dict(kind="convention",scope="source_page_binding",
+            rule=encode(dict(type="CommissionPlan",id="older",version=1)),
+            page_binding=dict(indicator_id="height",pages=[dict(source_version="design-v1",page=2)])))
+    confirm(old_binding["id"],"confirm-older-binding")
+    assertions.assert_source(issue(host,"writer","assert_source","older-fact",
+        [old_binding["id"],"design-v1"],resources),subject="A",
+        claim={**source_claim,"value":19,"citation":dict(source_version="design-v1",page=2,quote="Height 19 m")},
+        grounds=[dict(assertion_id=old_binding["id"],purpose="context",proposition="source_page_binding")])
     criterion = assertions.record_convention(issue(host,"coordinator","record_convention","criterion"),
         subject="A",claim=dict(kind="convention",scope="criterion",rule="height",criterion_version="v1"))
     confirm(criterion["id"],"confirm-criterion")
-    method = dict(version="v1", bands={"low":{"min":"0","max":"24"}},
+    method = dict(version="v1", authority=dict(plan_ref=current_ref), bands={"low":{"min":"0","max":"24"},"high":{"min":"25","max":"49"}},
         value_policy="confirmed_midpoint",purposes={"classification":["height"],"adjustment":["height"]},
         adjustments=[dict(direction="higher",when=[dict(predicate="height",value=18)])],
-        readings=[[dict(classification="low",when=[dict(predicate="height",value=18)])]])
+        readings=[[dict(classification="low",when=[dict(predicate="height",value=18)]),dict(classification="high",when=[dict(predicate="height",value=19)])]])
     row = assertions.save_judgment(issue(host,"writer","save_judgment","save",
         [source["id"],criterion["id"]],{"criteria":{criterion["id"]:method}}),
         subject="A", claim=dict(kind="judgment",basis="evidence",classification="low",value="12",
