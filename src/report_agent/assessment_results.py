@@ -78,7 +78,7 @@ def immutable_entries(cs, db, actor, scope, draft):
         key = entry.get('assertion_id')
         if key not in known:
             raise ActionRejected('ASSESSMENT_JUDGMENT_BINDING_MISMATCH')
-        item = host.commission.submission_receipt(key)
+        item = host.commission.judgment_details(key)
         if not item:
             raise ActionRejected('ASSESSMENT_NATIVE_JUDGMENT_REQUIRED')
         operation = bound_native_id(principal, 'save_judgment', item['operation'])
@@ -92,7 +92,7 @@ def immutable_entries(cs, db, actor, scope, draft):
             raise ActionRejected('ASSESSMENT_JUDGMENT_BINDING_MISMATCH')
         verified[indicator] = project(saved, item)
     for key in known - {r['assertion_id'] for r in verified.values()}:
-        item = host.commission.submission_receipt(key)
+        item = host.commission.judgment_details(key)
         if item and item.get('assignment') == scope['assignment_digest']:
             raise ActionRejected('ASSESSMENT_PROGRESS_MISMATCH')
     saved_draft = read_progress(cs.store, scope['assignment_digest'], db)

@@ -1,10 +1,10 @@
-"""Task-side progress points to immutable Writer judgments and their verified submission receipts."""
+"""Task-side progress points to immutable Writer judgments and their completed business details."""
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 import json
 
 from . import assertions, legacy_state as legacy
-from .assertion_host import AssertionHost, Grant, resource_digest
+from .assertion_host import AssertionHost, Grant
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 
@@ -27,8 +27,6 @@ def submission_for(scope, indicator, operation, original, entry) -> dict[str, An
 
 def project(row, submission) -> dict[str, Any]:
     claim = row["claim"]
-    if claim.get("submission_receipt") != resource_digest(submission):
-        raise ActionRejected("WRITER_SUBMISSION_RECEIPT_MISMATCH")
     kind = "gap" if claim["basis"] == "conditional" else claim["basis"]
     value = dict(submission["input"])
     if kind != value["kind"]:
@@ -61,9 +59,8 @@ def _saved(host, operation, expected_id, assignment):
     binding, row = saved["binding"], saved["result"]
     if row["was_attributed_to"] != binding["actor"] or row["was_generated_by"] != binding["task"]:
         raise ActionForbidden("WRITER_JUDGMENT_RECEIPT_SCOPE")
-    ref = row["claim"]["submission_receipt"]
-    item = host.commission.submission_receipt(expected_id)
-    if not item or resource_digest(item) != ref or item["assignment"] != assignment:
+    item = host.commission.judgment_details(expected_id)
+    if not item or item["assignment"] != assignment:
         raise ActionRejected("WRITER_SUBMISSION_RECEIPT_MISMATCH")
     return row, item
 
@@ -177,11 +174,11 @@ def commit(cs, db, actor, scope, rule, operation, original, entry):
         disclosures = disclosed_context(cs, db, actor, scope, rule["id"], original)
         if disclosures:
             submission["disclosed_context"] = disclosures
-        key = resource_digest(submission)
         ctx, claim, grounds, accompanying_question = prepare_judgment(
-            cs, db, actor, scope, rule, operation, entry, submission_receipt=key, submission=submission)
+            cs, db, actor, scope, rule, operation, entry, submission=submission)
         row = assertions.save_judgment(ctx, subject=scope["object"]["object_id"], claim=claim,
-                                       grounds=grounds, accompanying_question=accompanying_question)
+                                       grounds=grounds, accompanying_question=accompanying_question,
+                                       judgment_details=submission)
     except (ValueError, PermissionError) as exc:
         raise ActionRejected("WRITER_JUDGMENT_REFUSED: " + str(exc)) from exc
     return row, project(row, submission)

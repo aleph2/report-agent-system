@@ -374,7 +374,7 @@ def ground_details(cs, db, actor, scope, rule, original, entry):
     ]
 
 
-def prepare_judgment(cs, db, actor, scope, rule, operation_id, entry, *, submission_receipt, submission):
+def prepare_judgment(cs, db, actor, scope, rule, operation_id, entry, *, submission):
     from .writer_assessment import _grade
 
     host = AssertionHost(cs.store.root)
@@ -430,7 +430,6 @@ def prepare_judgment(cs, db, actor, scope, rule, operation_id, entry, *, submiss
     claim = dict(
         kind="judgment",
         basis="conditional" if review else kind,
-        submission_receipt=submission_receipt,
         question=question,
         warrant=dict(
             criterion=criterion,
@@ -459,14 +458,14 @@ def prepare_judgment(cs, db, actor, scope, rule, operation_id, entry, *, submiss
             )
             if "ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW" not in claim["review_flags"]:
                 claim["review_flags"].append("ADJUSTMENT_REQUIRES_SEMANTIC_REVIEW")
-    packet = {criterion, submission_receipt, *[g["assertion_id"] for g in grounds], *conventions}
+    packet = {criterion, *[g["assertion_id"] for g in grounds], *conventions}
     if question:
         packet.add(question)
     return (
         bind(
             "save_judgment",
             packet,
-            dict(criteria={criterion: method}, conventions=conventions, receipts={submission_receipt: submission}),
+            dict(criteria={criterion: method}, conventions=conventions),
         ),
         claim,
         grounds,

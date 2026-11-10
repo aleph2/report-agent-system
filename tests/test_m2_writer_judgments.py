@@ -30,6 +30,8 @@ def test_save_and_interrupt_have_distinct_durable_effects(mini, tmp_path):
         row, = [r for r in rows if r["claim"]["kind"] == "judgment"]
         assert row["subject"] == "A" and row["was_generated_by"] == run.actor.task_id
         assert row["claim"]["basis"] == "gap" and row["claim"]["value"] is None and row["grounds"]
+        assert "submission_receipt" not in row["claim"]
+        assert host.commission.judgment_details(row["id"])["original"] == outcome
         second = read_indicator_step(cs, run.actor)
         refusals = [dict(tool="save_gap", code="bad", tool_call_id=f"r-{n}") for n in (1,2)]
         interrupt_indicator_step(cs, run.actor, second["indicator_id"], refusals)
@@ -187,7 +189,7 @@ def test_foreign_or_undelivered_visual_is_rejected_before_judgment(assigned, tmp
                                read_locations=[dict(source_handle=source["source_handle"], page=3,
                                                     delivery=text.artifact["writer_page_delivery"])])
         rows = {r["operation_id"]:r for r in records(host, tmp_path/"both.jsonl") if r["claim"]["kind"] == "judgment"}
-        receipts = [host.commission.submission_receipt(row["id"]) for row in rows.values()]
+        receipts = [host.commission.judgment_details(row["id"]) for row in rows.values()]
         first_receipt, = next(r["evidence_receipts"] for r in receipts if r["operation"]=="valid-image")
         second_receipt, = next(r["evidence_receipts"] for r in receipts if r["operation"]=="same-page-text")
         assert first_receipt["id"] == actual and first_receipt["modality"] == "image"
