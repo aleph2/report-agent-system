@@ -1,0 +1,23 @@
+{
+  "fixture": "complete synthetic four-indicator S1; not Fake03",
+  "snapshot_ref": {
+    "type": "DocumentSnapshot",
+    "id": "8fcd469d-5e91-42e7-a2bb-8489e5daee83",
+    "version": 1
+  },
+  "word_ref": {
+    "type": "ExportArtifact",
+    "id": "437a85db-df69-4670-90cf-1b941be9ea7a",
+    "version": 1
+  },
+  "excel_ref": {
+    "type": "ExportArtifact",
+    "id": "6683c69d-d446-4c2e-9462-bff30d8ee92d",
+    "version": 1
+  },
+  "bytes": [
+    38967,
+    7627
+  ],
+  "engineering_acceptance": false
+}

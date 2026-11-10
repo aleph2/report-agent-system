@@ -1,0 +1,35 @@
+family	disposition	current_home
+fake03_qualitative_profile	retired M1	source assertions and confirmed conventions
+fake03_qualitative_actor:	retired M1	authenticated task grants
+writer_indicator_steps:	M2 runtime	writer_step_receipts
+writer_page_read:	M2 runtime	writer_page_deliveries
+writer_assessment_draft:	M2 judgments/runtime	assertion judgments plus runtime progress
+assessment_receipt:	M3 projections	assessment_projections
+g6_assessment:	M3 selection	assessment_projections
+g6_assessment_producer:	M2/M3 runtime	producer binding
+commission_plan	M4 case/authority	immutable case records and proposal/owner acts
+commission_confirmation	M4 case/authority	immutable case records and proposal/owner acts
+commission_skeleton	M4 case/authority	immutable case records and proposal/owner acts
+commission_planning_draft	M4 case/authority	immutable case records and proposal/owner acts
+commission_text_profiles	M4 case/authority	immutable case records and proposal/owner acts
+commission_requirements	M5 case/interpretations	immutable imports/content; interpretation and real-answer assertions
+commission_requirements_checkpoint:	M5 case/interpretations	immutable imports/content; interpretation and real-answer assertions
+commission_source_roles	M5 case/interpretations	immutable imports/content; interpretation and real-answer assertions
+commission_owner_records	M5 case/interpretations	immutable imports/content; interpretation and real-answer assertions
+commission_checkpoint:	M5 case/interpretations	immutable imports/content; interpretation and real-answer assertions
+report_issues	M6 case/answer authority	immutable issue records; question, retract and answer acts
+g6_issue_record:	M6 case/answer authority	immutable issue records; question, retract and answer acts
+g6_issue_binding:	M6 case/answer authority	immutable issue records; question, retract and answer acts
+g6_issue_route:	M6 case/answer authority	immutable issue records; question, retract and answer acts
+planned_section_receipt:	M7 immutable case records	report_state; historical read paths retained
+assembly_receipt:	M7 immutable case records	report_state; historical read paths retained
+commission_outcome:	M7 immutable case records	report_state; historical read paths retained
+rescue_projection:	M7 immutable case records	report_state; historical read paths retained
+g6_section_prose:	M7 immutable case records	report_state; historical read paths retained
+g6_object_prose:	M7 immutable case records	report_state; historical read paths retained
+content_delivery	M8 immutable case selections	delivery_state; formal release deferred to 9a
+content_final_review	M8 immutable case selections	delivery_state; formal release deferred to 9a
+corrections	M9 retain O5	existing legacy_state accessors and current readers
+source_changes	M9 retain O5	existing legacy_state accessors and current readers
+result_impact_assessments	M9 retain O5	existing legacy_state accessors and current readers
+decision_observation	M9 retain O5	existing legacy_state accessors and current readers

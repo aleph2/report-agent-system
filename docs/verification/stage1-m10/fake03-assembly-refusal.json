@@ -1,0 +1,105 @@
+{
+  "code": "ASSEMBLY_INPUT_INCOMPLETE",
+  "diagnostic": {
+    "ready": false,
+    "source_snapshot_ref": null,
+    "missing_assessments": [
+      "A",
+      "B"
+    ],
+    "missing_prose_bindings": [],
+    "missing_issue_records": [
+      "139ef0cea664d57411023d0341b1ed5d7c8256d69a7482c6c359d73fd3dc38e7",
+      "4160fb9ba11e450290672fee6402741a8a48b0ce27a7426730b23070222a8b54",
+      "9454efb322ff95f72609e845b428b40d72f558466347ae4c9fe96fabce31b356"
+    ],
+    "missing_issue_bindings": [
+      "139ef0cea664d57411023d0341b1ed5d7c8256d69a7482c6c359d73fd3dc38e7",
+      "4160fb9ba11e450290672fee6402741a8a48b0ce27a7426730b23070222a8b54",
+      "9454efb322ff95f72609e845b428b40d72f558466347ae4c9fe96fabce31b356"
+    ],
+    "missing_required_sections": [],
+    "unbound_source_nodes": [],
+    "missing_issue_routes": [
+      "139ef0cea664d57411023d0341b1ed5d7c8256d69a7482c6c359d73fd3dc38e7",
+      "4160fb9ba11e450290672fee6402741a8a48b0ce27a7426730b23070222a8b54",
+      "9454efb322ff95f72609e845b428b40d72f558466347ae4c9fe96fabce31b356"
+    ],
+    "problems": [
+      {
+        "code": "assessment_score_unavailable",
+        "ref": {
+          "id": "768a3a4c-ea64-4bcb-b8fa-e3ac447d5189",
+          "type": "Assessment",
+          "version": 1
+        },
+        "object_id": "A",
+        "status": "unscored"
+      },
+      {
+        "code": "assessment_score_unavailable",
+        "ref": {
+          "id": "29fd0f5f-efbd-4f7a-b159-85fc81532073",
+          "type": "Assessment",
+          "version": 1
+        },
+        "object_id": "B",
+        "status": "unscored"
+      }
+    ]
+  },
+  "required_material_issues": [
+    {
+      "basis": "地勘实测为 1:1.0，差异保留。",
+      "id": "139ef0cea664d57411023d0341b1ed5d7c8256d69a7482c6c359d73fd3dc38e7",
+      "kind": "conflict",
+      "object_label": "资料核对",
+      "question": "请确认该资料差异及报告采用的解释。",
+      "sources": [
+        {
+          "document": "04_design",
+          "page": "PDF第1页"
+        },
+        {
+          "document": "05_survey",
+          "page": "PDF第1页"
+        }
+      ]
+    },
+    {
+      "basis": "初始版本日期被更正。",
+      "id": "4160fb9ba11e450290672fee6402741a8a48b0ce27a7426730b23070222a8b54",
+      "kind": "conflict",
+      "object_label": "资料核对",
+      "question": "请确认该资料差异及报告采用的解释。",
+      "sources": [
+        {
+          "document": "01_initial",
+          "page": "PDF第1页"
+        },
+        {
+          "document": "02_revision",
+          "page": "PDF第1页"
+        }
+      ]
+    },
+    {
+      "basis": "坡率：1:0.75（按设计优先约定采用。）；1:1.0（地勘值，仅记录差异。）",
+      "id": "9454efb322ff95f72609e845b428b40d72f558466347ae4c9fe96fabce31b356",
+      "kind": "conflict",
+      "object_label": "坡段 A",
+      "question": "请确认坡率的采用值及其依据。",
+      "sources": [
+        {
+          "document": "04_design",
+          "page": "PDF第1页"
+        },
+        {
+          "document": "05_survey",
+          "page": "PDF第1页"
+        }
+      ]
+    }
+  ],
+  "exported": false
+}

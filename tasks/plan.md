@@ -1275,3 +1275,15 @@ The approved Stage 1 plan (section 3 O5; section 9 M9/M10) retains old Coordinat
 Main ran 137 focused offline tests on an isolated source copy; all passed, and all 6,159 tests collect. The unchanged scanner records 868 static sites, including 87 in the 16 M9-classified families; 28 are explicit core getter/setter calls. Static counts are not runtime usage. All 962 tracked code/script/test/config files are byte-identical to the accepted base. Source/check/fallback changes: zero; no tests deleted; dispatcher and S2 unchanged. Automatic failed-only/count-one test cleanup remains enabled. No full regression or paid call ran.
 
 Review: docs/reviews/stage1-m9-old-routes.md and docs/verification/stage1-m9/. Main remains at the accepted base pending owner review. M10 must retain live task storage and O4/O5 families, and may use the authorized single clean full offline run only after M10 and before 9a.
+
+## 2026-11-09 · M9 accepted; M10 closeout candidate
+
+Owner accepted M9 at 7563917. Main fast-forwarded to that exact commit and the M9 branch was deleted. M10 is on codex/stage1-m10; accepted main remains M9 until review.
+
+M10's fresh native Fake03 acceptance exposed a plan mismatch: both calculator results are intentionally unscored, and current assembly refuses them. Owner approved changing M10 acceptance to the explicit Fake03 refusal plus a complete, separate synthetic Word/Excel pair. Unscored draft export is mandatory in 9a before any paid run: each open row states 未评分 and its reason, slope level remains not determined, drafts export normally, formal release still needs every required indicator scored or explicitly owner-waived. Three missing planning-conflict issues/routes are recorded, not bypassed.
+
+M3 added native unscored representation and explicit refusal; pre-M3 only produced canonical scored receipts for complete non-gap rows, which assembly required. No prior successful incomplete draft export was demonstrated. Record this as an explicit M3 representation/admission change and a pre-existing capability gap, based on historical code rather than an old-run replay.
+
+M10 retains 40 application-declared tables, framework checkpoints and remaining accessors because task/runtime/current or O4/O5/historical readers remain. No table, source check or fallback was added/removed. The unused four-line get_commission_outcome wrapper was deleted; its historical iterator remains. Main ran 46 focused tests plus 15 structural/S2 guards; all 6159 tests collect. No full regression or paid call. Dispatcher/S2/config unchanged; other application sources unchanged apart from that unused wrapper; three test modules updated, no tests removed. See docs/reviews/stage1-m10-closeout.md.
+
+The first-report procedure now requires assertion-only fact corrections/source replacements, with Workspace notice/disablement in 9a. One clean offline full run remains authorized on accepted main after M10, before 9a. Engineering review of 11 criteria and page 115 remains unresolved. This entry authorizes no paid launch.

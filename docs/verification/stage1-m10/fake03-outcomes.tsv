@@ -1,0 +1,17 @@
+row	kind	grade	value	disposition
+A/X21	evidence	强风化层基岩 [25–49]	37	control retained
+A/X22	gap			control retained
+A/X23	gap			control retained
+A/X32	assumption	自然灾害偶发 [25–49]	27	assumption preserved; original question flagged
+A/X41	evidence	锚固工程 [50–74]	62	control retained
+A/X42	gap			original refused; scripted gap saved
+A/X51	gap			owner-deferred unscored gap with conditional low and moderate
+A/X52	gap			original refused; scripted gap saved
+B/X21	gap			control retained
+B/X22	gap			control retained
+B/X23	gap			control retained
+B/X32	gap			original refused; scripted gap saved
+B/X41	gap			control retained
+B/X42	gap			control retained
+B/X51	gap			original refused; scripted gap saved
+B/X52	gap			control retained

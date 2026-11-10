@@ -101,6 +101,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     baseline = json.loads(FIXTURE.read_bytes())
     original = baseline['rows']
     case = tmp_path/'case'
+    assert not case.exists()
     prepared = prepare_mini_commission(REGISTER.parent/'inputs', case)
     ws = Workspace(Store(case))
     profile = qualitative_profile(hashlib.sha256(REGISTER.read_bytes()).hexdigest())
@@ -147,8 +148,11 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     report = {'source_run':baseline['run_id'], 'receipt_sha256':baseline['receipt_sha256'],
               'register_sha256':profile['register_sha256'], 'rows':{},'writer_task_refs':{}}
     report['reviewer_views'] = {}
-    with ws.store.connect() as db:
-        tasks = [json.loads(v) for v, in db.execute("SELECT data FROM content_versions WHERE type='DelegatedTask' AND version=1")]
+    from report_agent.content_store import ContentStore
+    reopened = ContentStore(Store(case))
+    tasks = reopened.list_objects('DelegatedTask')
+    assert len(tasks) == 2
+    assert all(reopened.read(task['ref']) == task for task in tasks)
     for task in tasks:
         oid = task['payload']['assessment_object_id']
         report['writer_task_refs'][oid] = task['ref']
@@ -219,5 +223,40 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     restored = tmp_path / "restored.jsonl"
     cold.export(restored)
     assert restored.read_bytes() == archive.read_bytes()
+    # M10 keeps the honest unscored refusal; draft rendering is required in 9a.
+    from report_agent.errors import ActionRejected
+    from report_agent.content_tasks import delegated_task
+    from report_agent.hierarchical_tools import actor_for
+    from report_agent.section_writing import save_section_prose
+    from report_agent.system_assembler import assemble_current_report
+    plan = reopened.read(prepared['plan_ref'])['payload']
+    co = actor_for('coordinator')
+    call = {'name': 'task', 'id': 'm10-report-context', 'args': {
+        'subagent_type': 'writer', 'description': 'Quote supplied section context for the offline draft.',
+        'section_ids': ['2', '3', '4']}}
+    with delegated_task(ws, 'coordinator', call) as (_, actor):
+        for section in plan['sections']:
+            if section['section_id'] not in ['2', '3', '4']:
+                continue
+            citation = section['sources'][0]
+            save_section_prose(reopened, actor, 'm10-context-' + section['section_id'],
+                section['section_id'], citation['quote'], [citation])
+    before = reopened.list_objects()
+    with pytest.raises(ActionRejected, match='ASSEMBLY_INPUT_INCOMPLETE') as exc:
+        assemble_current_report(reopened, co, 'm10-assembly')
+    diagnostic = exc.value.diagnostic
+    unavailable = [p for p in diagnostic['problems'] if p['code'] == 'assessment_score_unavailable']
+    assert {(p['object_id'], p['status']) for p in unavailable} == {('A', 'unscored'), ('B', 'unscored')}
+    assert diagnostic['missing_assessments'] == ['A', 'B']
+    assert not diagnostic['missing_prose_bindings']
+    required = reopened.read(prepared['decision_ref'])['payload']['required_material_issues']
+    issue_ids = {issue['id'] for issue in required}
+    assert len(issue_ids) == 3
+    for key in ('missing_issue_records', 'missing_issue_bindings', 'missing_issue_routes'):
+        assert set(diagnostic[key]) == issue_ids
+    assert reopened.list_objects() == before
+    assert not reopened.list_objects('ExportArtifact')
+    report['m10_assembly_refusal'] = {'code': str(exc.value), 'diagnostic': diagnostic,
+        'required_material_issues': required, 'exported': False}
     if dest:=os.environ.get('FAKE03_OFFLINE_REPLAY_RECORD'):
         Path(dest).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')

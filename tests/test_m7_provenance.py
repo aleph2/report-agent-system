@@ -108,6 +108,28 @@ def test_cached_word_excel_pair_rechecks_transitive_judgment_withdrawal(reviewed
     pair = export_snapshot(f.cs, f.co, 'frozen-pair', snapshot, {'toc': False})['result']
     paths = [f.cs.store.root / pair['file_ref'], f.cs.store.root / pair['workbook']['file_ref']]
     original = [path.read_bytes() for path in paths]
+    # M10's complete synthetic pair complements Fake03's intentional refusal.
+    from docx import Document
+    from openpyxl import load_workbook
+    from zipfile import ZipFile
+    import json
+    import os
+    assert all(path.is_file() for path in paths)
+    assert all(cs_ref['payload']['snapshot_ref'] == snapshot for cs_ref in (
+        f.cs.read(pair['export_ref']), f.cs.read(pair['workbook']['export_ref'])))
+    with ZipFile(paths[0]) as package:
+        assert package.testzip() is None
+    doc = Document(paths[0])
+    assert doc.tables and any('S1' in cell.text for table in doc.tables for row in table.rows for cell in row.cells)
+    book = load_workbook(paths[1])
+    assert book.sheetnames
+    book.close()
+    if dest := os.environ.get('M10_SYNTHETIC_PAIR_RECORD'):
+        from pathlib import Path
+        Path(dest).write_text(json.dumps({'fixture': 'complete synthetic four-indicator S1; not Fake03',
+            'snapshot_ref': snapshot, 'word_ref': pair['export_ref'],
+            'excel_ref': pair['workbook']['export_ref'],
+            'bytes': [len(data) for data in original], 'engineering_acceptance': False}, indent=2))
     assert export_snapshot(f.cs, f.co, 'frozen-pair', snapshot, {'toc': False})['result'] == pair
     host = AssertionHost(f.cs.store.root)
     derived = host.recover_receipt(assessment['derive_operation_id'])['result']

@@ -137,10 +137,6 @@ def get_assembly_receipt(storage, suffix, default=_MISSING):
     return _get(storage, 'assembly_receipt:' + suffix, default)
 
 
-def get_commission_outcome(storage, suffix, default=_MISSING):
-    return _get(storage, 'commission_outcome:' + suffix, default)
-
-
 def get_rescue_projection(storage, suffix, default=_MISSING):
     return _get(storage, 'rescue_projection:' + suffix, default)
 

@@ -242,8 +242,15 @@ def test_m7_historical_receipts_remain_read_only(tmp_path, family):
     from report_agent.store import Store
     store = Store(tmp_path)
     name = family.rstrip(':')
-    store.set(family + 'old', {'historical': True})
-    assert getattr(legacy_state, 'get_' + name)(store, 'old') == {'historical': True}
+    if name == 'commission_outcome':
+        from report_agent import report_state
+        from report_agent.store import digest
+        store.set(family + digest(['plan', 'object']) + ':slot', {'historical': True})
+        with store.connect() as db:
+            assert report_state.outcomes(db, 'plan', 'object') == [{'historical': True}]
+    else:
+        store.set(family + 'old', {'historical': True})
+        assert getattr(legacy_state, 'get_' + name)(store, 'old') == {'historical': True}
     assert not hasattr(legacy_state, 'set_' + name)
 
 

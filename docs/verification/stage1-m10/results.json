@@ -1,0 +1,96 @@
+{
+  "source_lines_added": 0,
+  "source_lines_removed": 4,
+  "production_checks_added": 0,
+  "production_checks_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "base_revision": "7563917780230b82c6f87ab0b14a3a937dbc3323",
+  "milestone": "M10 storage closeout review candidate",
+  "acceptance_amendment": "Owner approved Fake03 explicit refusal plus separate complete synthetic pair; unscored draft support mandatory in 9a before any paid run",
+  "declared_application_tables_retained": 40,
+  "framework_checkpoint_storage": "LangGraph AsyncSqliteSaver checkpoints.db retained; framework schema not included in 40 source SQL declarations",
+  "state_census_sites": 867,
+  "retired_tables": [],
+  "retired_accessors": [
+    "legacy_state.get_commission_outcome"
+  ],
+  "reason_for_retention": "Tables still have task/runtime/current or deferred O4/O5/historical readers; one unused accessor removed after full caller search",
+  "focused_passed": 46,
+  "structural_contract_guard_passed": 15,
+  "tests_collected": 6159,
+  "tests_added": 0,
+  "tests_deleted": 0,
+  "test_retirement_mapping": [],
+  "source_config_test_files_unchanged": 957,
+  "modified_existing_tests": [
+    "tests/test_m7_provenance.py",
+    "tests/test_run06_claim_replay.py",
+    "tests/test_no_legacy_state.py"
+  ],
+  "dispatcher_unchanged": true,
+  "s2_unchanged": true,
+  "full_regression_run": false,
+  "coverage_remeasured": false,
+  "fake03": {
+    "rows_saved": 16,
+    "reviewer_views": 16,
+    "archive_roundtrip": "byte identical",
+    "A_X32_value": "27",
+    "A_X51": "unscored gap; low and moderate conditional",
+    "slopes_unscored": [
+      "A",
+      "B"
+    ],
+    "missing_indicators_each": [
+      "X11",
+      "X12",
+      "X31"
+    ],
+    "assembly_refusal": "ASSEMBLY_INPUT_INCOMPLETE",
+    "additional_required_issue_records_missing": 3,
+    "word_excel_exported": false
+  },
+  "synthetic_pair": {
+    "fixture": "complete synthetic four-indicator S1; not Fake03",
+    "snapshot_ref": {
+      "type": "DocumentSnapshot",
+      "id": "8fcd469d-5e91-42e7-a2bb-8489e5daee83",
+      "version": 1
+    },
+    "word_ref": {
+      "type": "ExportArtifact",
+      "id": "437a85db-df69-4670-90cf-1b941be9ea7a",
+      "version": 1
+    },
+    "excel_ref": {
+      "type": "ExportArtifact",
+      "id": "6683c69d-d446-4c2e-9462-bff30d8ee92d",
+      "version": 1
+    },
+    "bytes": [
+      38967,
+      7627
+    ],
+    "engineering_acceptance": false
+  },
+  "retention": {
+    "policy": "failed",
+    "count": 1,
+    "frozen_source_copy_database_files": 0
+  },
+  "paid_model_calls": 0,
+  "original_runs_or_ledgers_modified": false,
+  "review": "Main self-review and offline checks; independent owner review pending",
+  "clean_full_run": "Owner authorized on accepted main after M10 and before 9a; not started",
+  "statistical_timestamp_utc": "2026-11-10T06:44:24.629202+00:00",
+  "modified_application_source": "src/report_agent/legacy_state.py: remove unused wrapper; report_state still reads historical iter_commission_outcomes",
+  "historical_test_mapping": [
+    {
+      "case": "tests/test_no_legacy_state.py::test_m7_historical_receipts_remain_read_only[commission_outcome:]",
+      "change": "same node ID now exercises retained report_state.outcomes; unused point getter removed"
+    }
+  ],
+  "intermediate_failure": "One dynamic getter test failed after unused wrapper deletion; same historical case now tests report_state.outcomes; final combined focused run passed all 61",
+  "final_combined_focused_passed": 61,
+  "final_focused_seconds": 26.9
+}

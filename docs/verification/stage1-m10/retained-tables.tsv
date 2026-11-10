@@ -1,0 +1,41 @@
+table	creator_file	line	consumer_and_reason	disposition
+grants	src/report_agent/assertion_host.py	77	Authenticated grants and source-delivery payloads; AssertionHost issue/bind/recover	retain; no table drop authorized while readers remain
+source_payloads	src/report_agent/assertion_host.py	84	Authenticated grants and source-delivery payloads; AssertionHost issue/bind/recover	retain; no table drop authorized while readers remain
+assertions	src/report_agent/assertions/store.py	14	Claims, operation receipts and resource/producer pins; public assertion actions and queries	retain; no table drop authorized while readers remain
+operations	src/report_agent/assertions/store.py	14	Claims, operation receipts and resource/producer pins; public assertion actions and queries	retain; no table drop authorized while readers remain
+resource_pins	src/report_agent/assertions/store.py	14	Claims, operation receipts and resource/producer pins; public assertion actions and queries	retain; no table drop authorized while readers remain
+submission_receipts	src/report_agent/assertions/store.py	14	Claims, operation receipts and resource/producer pins; public assertion actions and queries	retain; no table drop authorized while readers remain
+producers	src/report_agent/assertions/store.py	14	Claims, operation receipts and resource/producer pins; public assertion actions and queries	retain; no table drop authorized while readers remain
+assessment_producers	src/report_agent/assessment_producers.py	14	Per-plan/slope producer binding; save/submit paths	retain; no table drop authorized while readers remain
+assessment_projections	src/report_agent/assessment_projection.py	15	Calculator selection and frozen rendering receipts; assembler and export	retain; no table drop authorized while readers remain
+source_versions	src/report_agent/catalog.py	21	Original-source versions and extracted blocks; Catalog import/page/read consumers	retain; no table drop authorized while readers remain
+source_blocks	src/report_agent/catalog.py	21	Original-source versions and extracted blocks; Catalog import/page/read consumers	retain; no table drop authorized while readers remain
+content_versions	src/report_agent/content_store.py	33	Immutable case versions, selections, redo receipts and dependencies; ContentStore; DelegatedTask still read by task_supervision	retain; no table drop authorized while readers remain
+content_heads	src/report_agent/content_store.py	33	Immutable case versions, selections, redo receipts and dependencies; ContentStore; DelegatedTask still read by task_supervision	retain; no table drop authorized while readers remain
+content_operations	src/report_agent/content_store.py	33	Immutable case versions, selections, redo receipts and dependencies; ContentStore; DelegatedTask still read by task_supervision	retain; no table drop authorized while readers remain
+content_observations	src/report_agent/content_store.py	33	Immutable case versions, selections, redo receipts and dependencies; ContentStore; DelegatedTask still read by task_supervision	retain; no table drop authorized while readers remain
+content_edges	src/report_agent/content_store.py	33	Immutable case versions, selections, redo receipts and dependencies; ContentStore; DelegatedTask still read by task_supervision	retain; no table drop authorized while readers remain
+fake_continuations	src/report_agent/fake_verification_budget.py	127	Paid test authorization/request/continuation records; existing fake verification launch guards	retain; no table drop authorized while readers remain
+fake_comparison_terminals	src/report_agent/fake_verification_budget.py	213	Paid test authorization/request/continuation records; existing fake verification launch guards	retain; no table drop authorized while readers remain
+fake_comparison_requests	src/report_agent/fake_verification_budget.py	231	Paid test authorization/request/continuation records; existing fake verification launch guards	retain; no table drop authorized while readers remain
+fake_run_attempts	src/report_agent/fake_verification_budget.py	62	Paid test authorization/request/continuation records; existing fake verification launch guards	retain; no table drop authorized while readers remain
+learning_feedback	src/report_agent/learning.py	32	Deferred old-route learning state; LearningStore public methods and active learning readers	retain; no table drop authorized while readers remain
+learning_versions	src/report_agent/learning.py	32	Deferred old-route learning state; LearningStore public methods and active learning readers	retain; no table drop authorized while readers remain
+learning_release	src/report_agent/learning.py	32	Deferred old-route learning state; LearningStore public methods and active learning readers	retain; no table drop authorized while readers remain
+learning_audit	src/report_agent/learning.py	32	Deferred old-route learning state; LearningStore public methods and active learning readers	retain; no table drop authorized while readers remain
+learning_queue	src/report_agent/learning.py	32	Deferred old-route learning state; LearningStore public methods and active learning readers	retain; no table drop authorized while readers remain
+verification_runs	src/report_agent/o6_budget.py	30	O6 verification request records; existing approved-run guard and reconciliation	retain; no table drop authorized while readers remain
+verification_requests	src/report_agent/o6_budget.py	31	O6 verification request records; existing approved-run guard and reconciliation	retain; no table drop authorized while readers remain
+imported_historical_plan	src/report_agent/plan_authority.py	44	Explicit imported historical-plan marker; historical import reader	retain; no table drop authorized while readers remain
+state	src/report_agent/store.py	63	Case manifest, runtime state, assets, analysis operations and events; Store public methods	retain; no table drop authorized while readers remain
+artifacts	src/report_agent/store.py	63	Case manifest, runtime state, assets, analysis operations and events; Store public methods	retain; no table drop authorized while readers remain
+analyses	src/report_agent/store.py	63	Case manifest, runtime state, assets, analysis operations and events; Store public methods	retain; no table drop authorized while readers remain
+events	src/report_agent/store.py	63	Case manifest, runtime state, assets, analysis operations and events; Store public methods	retain; no table drop authorized while readers remain
+authorization_amendments	src/report_agent/token_budget.py	140	Budget authority, requests and holds; guarded model adapter and reconciliation	retain; no table drop authorized while readers remain
+authorization	src/report_agent/token_budget.py	165	Budget authority, requests and holds; guarded model adapter and reconciliation	retain; no table drop authorized while readers remain
+attempts	src/report_agent/token_budget.py	166	Budget authority, requests and holds; guarded model adapter and reconciliation	retain; no table drop authorized while readers remain
+work_items	src/report_agent/workspace.py	22	Existing work items/results and replacements; Workspace, dispatcher and retained O5 routes	retain; no table drop authorized while readers remain
+results	src/report_agent/workspace.py	22	Existing work items/results and replacements; Workspace, dispatcher and retained O5 routes	retain; no table drop authorized while readers remain
+result_replacements	src/report_agent/workspace.py	22	Existing work items/results and replacements; Workspace, dispatcher and retained O5 routes	retain; no table drop authorized while readers remain
+writer_step_receipts	src/report_agent/writer_judgments.py	99	Task-side step/page delivery receipts; native Writer save/read and image-delivery checks	retain; no table drop authorized while readers remain
+writer_page_deliveries	src/report_agent/writer_judgments.py	191	Task-side step/page delivery receipts; native Writer save/read and image-delivery checks	retain; no table drop authorized while readers remain
