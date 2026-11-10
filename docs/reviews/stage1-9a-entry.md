@@ -54,3 +54,6 @@ Part b accepted on 2026-11-10: main fast-forwards to fdf8f93 after Main re-inspe
 Owner revised sequence: accepted b stays accepted. Finish and accept c, advance main, then start b2 from main. Paid Fake03 requires a/b/c/b2 plus the measured inventory. C lists b2 guards as planned, not passed.
 
 Part c focused candidate: see [receipt/inventory review](stage1-9a-c-receipts-inventory.md). New Reviewer schemas now inject the native ID and derive the frozen row; the paragraph above records the initial finding, not the current schema. Full c regression and acceptance remain pending; b2 follows.
+
+## Owner acceptance of c and b2 entry (2026-11-10)
+Owner accepted c, including its net +53 source lines and explicit accepted-history reader. Main fast-forwarded to 2133225; b2 starts from that accepted baseline on the existing branch. The inventory is an index: rerun refusal measurement on the paid Fake03 traces, deduplicate actor/native-call IDs, preserve unattributed cases and distinguish zero from unmeasured, then decide check removals from real failures rather than designed rejections. Freeze the Chinese reader-facing-text requirement in the answer key before requesting launch scope/cap. QUALITATIVE_REVIEW_FROZEN_DIGEST_MISMATCH stays on part e's review list; do not change it in b2.

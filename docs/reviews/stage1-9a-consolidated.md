@@ -59,3 +59,6 @@ Part-b final rendered acceptance: owner confirmed the six corrected pages withou
 ## Owner b2 sequence (supersedes the earlier round-2 timing)
 
 Accepted b remains accepted. Finish and accept c, advance main, then start b2 from main using the existing branch. No concurrent c/b2 edits. The paid Fake03 gate is a, b, c, b2 plus the measured inventory and a separately approved launch. The format/cosmetic work moves to b2; general typed references and formal release remain d/e. C lists the two b2 guards as planned until their code and tests land. Full plan: stage1-9a-b2-format-spec.md.
+
+## Owner acceptance follow-ups for c
+C is accepted at 2133225. Paid Fake03 must repeat the refusal measurement on actual model/native-call traces (reason, authenticated actor/native call ID, retries, and retained unattributed events). The scripted 16/83 result is not a production rate or evidence for deleting checks. Compare failures with actual bad outputs before deciding removals. Add Chinese reader-facing reasons/questions to the frozen key before requesting launch authority. Leave QUALITATIVE_REVIEW_FROZEN_DIGEST_MISMATCH for e's Reviewer redesign; no b2 change.
