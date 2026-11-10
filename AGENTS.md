@@ -37,7 +37,7 @@ document it links. If a rule here conflicts with a task the owner gives, ask.
 ## 3. Data that must be preserved
 
 - Historical run databases, G5 originals and source originals are never modified.
-  Read old cases on a copy; October-format cases open with tag
+  Read old cases on a copy; October-format cases open with the original private tag
   `regression-20261028-ocr-fake01`.
 - Each run owns its own input snapshot, state and outputs, and never depends on
   another run's writable directory. Reuse a verified snapshot by explicit import
@@ -45,6 +45,9 @@ document it links. If a rule here conflicts with a task the owner gives, ask.
 - Live WSL SQLite files (cases, ledgers) are read only from WSL Python with
   `mode=ro`, closed promptly. Windows tools never open them, even read-only:
   copy through SQLite backup in WSL first. (Reproduced SQLITE_IOERR_DELETE.)
+
+- Case-derived content (real values, quotes and page excerpts) is stored privately.
+  Repository records refer to it by private path; tests use synthetic values.
 
 ## 4. Complexity defaults
 
@@ -103,8 +106,7 @@ named requirement or reproduced bug and the code that reads the result.
 ## 7. Round-completion email
 
 After each report-generation test round reaches a terminal state and Neo has
-reviewed it, send one concise summary from private-contact@example.invalid to
-private-contact@example.invalid: flow and artifacts, token use, first failures and
+reviewed it, send one concise summary using the private contact policy: flow and artifacts, token use, first failures and
 corrections, open issues, next steps; label failed rounds honestly. Never resend
 a sent message; reconcile Sent before retrying an unknown send.
-Policy: `.analysis/task059-mail/round-summary-policy-20261026.json`.
+Private policy: `/home/dysun/report-agent-private-archives/ase-retirement-20261110T011447Z/round-summary-policy-20261026.json`.

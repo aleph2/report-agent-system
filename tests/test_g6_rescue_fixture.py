@@ -1,4 +1,4 @@
-"""Anonymized G5 numerical evidence must not bypass canonical input checks."""
+"""Synthetic display arithmetic must not bypass canonical input checks."""
 from contextlib import contextmanager
 from copy import deepcopy
 from decimal import Decimal

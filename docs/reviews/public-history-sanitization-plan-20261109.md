@@ -32,3 +32,11 @@ Commit/tag IDs and signatures can change. Do not silently claim rewritten tags a
 A rejected private candidate is discarded without affecting the originals or remote. After a publication problem, stop and recover privately from the bundle; do not publicly roll back by re-exposing sensitive originals. Cached GitHub views, PR references, forks and other clones need separate handling; a rewrite cannot erase copies held by others. These limitations and the maintained-tool procedure are covered by [GitHub's official guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
 
 Pending before execution: approved content classification/path list, private contact-policy verification, tool-install authority, private candidate checks and final approval of the exact ref update. No installation, sanitization or visibility change has occurred.
+
+## Preparation status, owner authority of 9 November
+
+The owner authorized the isolated pinned tool installation and private candidate preparation.
+The repository was temporarily made private under the owner-delegated visibility decision.
+Current files and historical objects are included in classification. Original records
+remain in the verified private archives. No rewritten ref has been published.
+See `privacy-candidate-20261109.md` and the private exact ref map before approving publication.

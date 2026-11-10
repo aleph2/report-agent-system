@@ -116,9 +116,9 @@ def test_policy_immutable_after_binding_and_errors_are_not_hidden(ws):
 def test_search_retains_whole_return_and_all_32_output_qualifiers_survive(ws):
     seed(ws);activate(ws)
     prefix='Unrelated page header. '*100
-    raw={'matches':[{'source_id':'s','ordinal':3,'locator':'page4','text':prefix+'K9020+380 actual matched condition.'+' remainder'*3000}]}
+    raw={'matches':[{'source_id':'s','ordinal':3,'locator':'page4','text':prefix+'K9020+560 actual matched condition.'+' remainder'*3000}]}
     message=ToolMessage(content=json.dumps(raw),name='search_sources',tool_call_id='search')
-    bounded=TaskContext(ws,'coordinator').bound_result(message,{'query':'K9020+380'})
+    bounded=TaskContext(ws,'coordinator').bound_result(message,{'query':'K9020+560'})
     actual=json.loads(bounded.content)['metadata']['matches'][0]['text']
     assert actual==raw['matches'][0]['text']
     payload={'kind':'block','body':{'text':'Exact unchanged output.'*100},'claim_kind':'fact',

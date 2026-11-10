@@ -54,8 +54,8 @@ class QuotedPlanningCitation(PlanningCitation):
 
 
 class BoundaryInput(Contract):
-    start_meter: str = Field(max_length=128, description='Plain decimal metres or document chainage, e.g. K9010+000. System converts chainage to metres.')
-    end_meter: str = Field(max_length=128, description='Plain decimal metres or chainage, e.g. K9026+320+12.5. Must be greater than start_meter.')
+    start_meter: str = Field(max_length=128, description='Plain decimal metres or document chainage, e.g. K9000+000. System converts chainage to metres.')
+    end_meter: str = Field(max_length=128, description='Plain decimal metres or chainage, e.g. K9002+450+12.5. Must be greater than start_meter.')
     source: QuotedPlanningCitation
     customer_basis_anchor_id: str = Field(min_length=1, description='ID of a scope requirement returned by read_planning_draft. System uses its verified quotation and locator.')
     expected_object_count: int | None = Field(default=None, strict=True, ge=1)

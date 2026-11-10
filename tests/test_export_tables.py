@@ -35,14 +35,14 @@ def render_technical(body):
 
 
 def test_technical_table_font_widths_and_identifiers_not_equal_columns():
-    body = "| \u5e8f\u53f7 | \u6869\u53f7 | \u4fa7\u522b | \u5761\u9ad8 | \u7c7b\u578b | \u5206\u503c | \u7b49\u7ea7 | \u5907\u6ce8 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 1 | K9019+910\uff5eK9020+160 | \u5de6 | 26.0 | A | 73.25 | III | \u5f85\u6838\u5bf9 |"
+    body = "| \u5e8f\u53f7 | \u6869\u53f7 | \u4fa7\u522b | \u5761\u9ad8 | \u7c7b\u578b | \u5206\u503c | \u7b49\u7ea7 | \u5907\u6ce8 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 1 | K9019+450\uff5eK9020+350 | \u5de6 | 26.0 | A | 73.25 | III | \u5f85\u6838\u5bf9 |"
     table = render_technical(body).tables[0]
     assert table.autofit is False
     widths = [column.width for column in table.columns]
     assert abs(sum(widths) - Mm(170)) < Mm(0.1)
     assert widths[1] > widths[0]
-    assert widths[1] - Pt(14.4) >= Pt(len("K9019+910") * 6.3)
-    assert table.cell(1, 1).text == "K9019+910\uff5eK9020+160"
+    assert widths[1] - Pt(14.4) >= Pt(len("K9019+450") * 6.3)
+    assert table.cell(1, 1).text == "K9019+450\uff5eK9020+350"
     assert not table.cell(1, 1)._tc.xpath(".//w:br")
     for row in table.rows:
         for index, cell in enumerate(row.cells):

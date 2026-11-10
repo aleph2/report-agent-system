@@ -63,7 +63,7 @@ from test_m1_commission_plan import save, approve
 @pytest.fixture
 def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     f = method_commission
-    f.plan['objects'][0].update(object_id='HP-02-K9023p670-L', label='HP02 synthetic slope')
+    f.plan['objects'][0].update(object_id='SYNTHETIC-SLOPE-A', label='HP02 synthetic slope')
     f.ws.store.set('manifest', {**f.ws.store.manifest, 'assembly_contract':'system-assembler-v1'})
     if 'Owner rank order: B, A, D, C.' in f.ws.store.manifest['goal']:
         from test_writer_indicator_outcomes import attach_ranks
@@ -101,7 +101,7 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     hold_id = budget.reserve('glm-5.3')
     stage = read_finance(ledger)
     hold = next(r for r in stage['rows'] if r[0]==hold_id)
-    authority = {'writer_workflow':'indicator-steps-v1','hard_probe_tokens':2_200_000,'investigation_threshold_tokens':1_000_000,
+    authority = {'object_id':'SYNTHETIC-SLOPE-A', 'writer_workflow':'indicator-steps-v1','hard_probe_tokens':2_200_000,'investigation_threshold_tokens':1_000_000,
         'overall_rescue_tokens':20_000_000,
         'preserve_unknown_hold_tokens':2_000_000,'no_other_slopes_cleanup_export_or_model_tests':True}
     (evidence/'owner-authority.json').write_text(json.dumps(authority))
@@ -110,7 +110,7 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
         'ledger':str(ledger),'stage_baseline':stage,'original_baseline':original,
         'preserved_hold':hold,'request_bound_proof':proof(env,url),
         'plan_ref':imported['plan_ref'],'decision_ref':imported['decision_ref'],
-        'object_id':'HP-02-K9023p670-L'}
+        'object_id':'SYNTHETIC-SLOPE-A'}
     (evidence/'probe-inputs.json').write_text(json.dumps(inputs))
     return {'case':case,'evidence':evidence,'env':env,'ledger':ledger,
         'inputs':inputs,'hold':hold,'source':f.ws.store.root,
@@ -177,8 +177,8 @@ def assert_probe_preserved(setup, result):
     assert json.loads((setup['evidence']/'probe-launch.json').read_text())==result
     assert set(result['tools'])=={'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue'}
     tasks = ContentStore(Store(setup['case'])).list_objects('DelegatedTask')
-    assert len(tasks)==1 and tasks[0]['payload']['assessment_object_id']=='HP-02-K9023p670-L'
-    assert result['object_id']=='HP-02-K9023p670-L'
+    assert len(tasks)==1 and tasks[0]['payload']['assessment_object_id']=='SYNTHETIC-SLOPE-A'
+    assert result['object_id']=='SYNTHETIC-SLOPE-A'
     assert result['budget']['model_reservation_bounds']=={'glm-5.3':1_179_648}
     assert 'receipt_error_type' not in result
     return now
@@ -396,7 +396,7 @@ def test_cli_returns_closed_with_gaps_after_all_assigned_indicators(prepared_pro
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('field,changed,expected', [
-    ('object_id', 'HP-03', 'PROBE_APPROVED_HP02_ID_REQUIRED'),
+    ('object_id', 'HP-03', 'PROBE_APPROVED_OBJECT_ID_REQUIRED'),
     ('plan_ref', {'type':'CommissionPlan','id':'other-plan','version':1}, 'PROBE_APPROVED_BINDING_CHANGED'),
     ('import_sha256', '0'*64, 'PROBE_FRESH_BUSINESS_IMPORT_REQUIRED'),
 ])

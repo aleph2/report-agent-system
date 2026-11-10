@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 
 from report_agent.deep_models import configured_model, model_client_ownership
-from report_agent.extraction_probe import SUBJECT, prepare, extract
+from report_agent.extraction_probe import prepare, extract
 from report_agent.model_config import load_mixed_services, bind_role_services, role_service
 from report_agent.o6_budget import O6Budget, MODEL, CAMPAIGN_LIMIT, RUN_LIMIT
 from report_agent.store import Store
@@ -55,11 +55,12 @@ async def run(args):
     budget = O6Budget(args.grant)
     args.evidence.mkdir(mode=0o700, exist_ok=False)
     case = args.evidence / "case"
-    prepare(args.library, case)
+    scope = json.loads(args.scope.read_bytes())
+    prepare(args.library, case, scope)
     store = Store(case)
     bind_role_services(store)
     opened = datetime.now(timezone.utc)
-    public = dict(subject=SUBJECT, code=revision, gate_sha256=sha256(args.gate.read_bytes()).hexdigest(),
+    public = dict(subject=scope['subject'], code=revision, gate_sha256=sha256(args.gate.read_bytes()).hexdigest(),
                   model=MODEL, start=opened.isoformat(), run_cap=RUN_LIMIT, verification_cap=CAMPAIGN_LIMIT,
                   sdk_retries=0, automatic_relaunch=False)
     record = args.evidence / "operator-result.json"
@@ -84,7 +85,7 @@ async def run(args):
         save("running")
         try:
             with token_budget(budget):
-                result = await extract(case, model)
+                result = await extract(case, model, scope)
             public.update(model_invocations=result["model_invocations"],
                           tool_attempts=len(result["tool_attempts"]), saved_assertions=len(result["assertions"]))
             used, held = budget.run_totals()
@@ -99,6 +100,6 @@ async def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("gate", "env", "library", "grant", "evidence"):
+    for name in ("gate", "env", "library", "grant", "evidence", "scope"):
         parser.add_argument("--" + name, type=Path, required=True)
     asyncio.run(run(parser.parse_args()))

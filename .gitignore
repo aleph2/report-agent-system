@@ -19,3 +19,7 @@ __pycache__/
 /deliveries/
 /.financial-records/
 .ase/
+
+# Private case history and operator data (owner privacy requirement).
+.memory/
+.operator/instructions.json

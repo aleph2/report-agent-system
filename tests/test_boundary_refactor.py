@@ -1,7 +1,7 @@
 """Deterministic boundary oracles, not model/engineering acceptance.
 
 Run the real graph, middleware, task contracts and DOCX writer with local fake
-models. Historical payloads keep provenance; new adversarial cases are synthetic.
+models. All payloads are synthetic; original historical traces are preserved privately.
 """
 import json
 import hashlib

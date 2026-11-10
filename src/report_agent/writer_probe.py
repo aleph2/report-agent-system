@@ -142,8 +142,8 @@ async def _run_probe_locked(case, inputs, authority, env, launch_path):
             or plan['ref'] != inputs['plan_ref'] or decision['ref'] != inputs['decision_ref']):
         raise ValueError('PROBE_APPROVED_BINDING_CHANGED')
     object_id = inputs.get('object_id')
-    if object_id != 'HP-02-K9023p670-L':
-        raise ValueError('PROBE_APPROVED_HP02_ID_REQUIRED')
+    if not object_id or object_id != authority.get('object_id'):
+        raise ValueError('PROBE_APPROVED_OBJECT_ID_REQUIRED')
     selected = [o for o in plan['payload']['objects'] if o['object_id']==object_id]
     if len(selected)!=1 or load_recovery_policy(store):
         raise ValueError('PROBE_FRESH_HP02_ONLY_REQUIRED')

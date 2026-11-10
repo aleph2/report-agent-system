@@ -426,3 +426,10 @@ Optional `REPORT_REVIEWER_REASONING_EFFORT=high` selects Reviewer alone for a fr
 compatible DeepSeek service. It uses the existing immutable generation binding;
 unset preserves the previous behavior and other roles retain their own settings.
 It does not change an old case, authorize a retry, or establish equivalence with max.
+
+### Sanitized public history
+
+Public tags in this candidate are sanitized derivatives, not the original accepted
+or tested commit hashes. Historical case recovery uses the original private bundle
+and its original tags, on a copy of the case. See [private records](docs/private-records.md)
+and [the candidate review](docs/reviews/privacy-candidate-20261109.md).

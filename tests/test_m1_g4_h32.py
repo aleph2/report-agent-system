@@ -76,7 +76,7 @@ def test_authority_validation_never_repairs_saved_citation(linked):
     assert caught.value.diagnostic['fields'][0]['field'] == 'boundary.source.locator'
 
 
-@pytest.mark.parametrize('notation,expected', [('K9010+000', '1310000'), ('K9026+320+12.5', '1326332.5'), ('0.125', '0.125'), ('-5.25', '-5.25')])
+@pytest.mark.parametrize('notation,expected', [('K9000+000', '9000000'), ('K9002+450+12.5', '9002462.5'), ('0.125', '0.125'), ('-5.25', '-5.25')])
 def test_chainage_conversion_is_decimal_exact(notation, expected):
     from report_agent.planning_inputs import metres
     assert metres(notation) == expected
