@@ -1,0 +1,210 @@
+{
+  "source_lines_added": 0,
+  "source_lines_removed": 0,
+  "production_checks_added": 0,
+  "production_checks_removed": 0,
+  "legacy_fallback_paths_added": 0,
+  "tested_revision": "cac8ca69155c8a04aaab8bb7281162d467a61c99",
+  "clean_full_pass": true,
+  "single_unreconciled_full_run": true,
+  "gate": {
+    "expected": 6160,
+    "outcomes": {
+      "passed": 6151,
+      "skipped": 9
+    },
+    "failed": [],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-10T07:47:56.588161+00:00",
+    "finished_utc": "2026-11-10T08:16:08.067237+00:00",
+    "elapsed_seconds": 1691.5
+  },
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_unchanged": true,
+  "coverage": {
+    "totals": {
+      "covered_lines": 30293,
+      "num_statements": 33357,
+      "percent_covered": 90.81452168960038,
+      "percent_covered_display": "91",
+      "missing_lines": 3064,
+      "excluded_lines": 4,
+      "percent_statements_covered": 90.81452168960038,
+      "percent_statements_covered_display": "91"
+    },
+    "previous_m0_floors": [
+      {
+        "file": "src/report_agent/commission_plan.py",
+        "m0_floor": 93.49240780911063,
+        "current": 93.89389389389389,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/commission_requirements.py",
+        "m0_floor": 91.40625,
+        "current": 92.44851258581235,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/content_delivery.py",
+        "m0_floor": 97.65625,
+        "current": 97.67441860465117,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/content_store.py",
+        "m0_floor": 95.43817527010805,
+        "current": 95.57625145518044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/g3_export.py",
+        "m0_floor": 91.54518950437318,
+        "current": 91.91374663072776,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/hierarchical_review.py",
+        "m0_floor": 86.76470588235294,
+        "current": 86.95652173913044,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/hierarchical_tools.py",
+        "m0_floor": 93.99538106235566,
+        "current": 94.07744874715262,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/rescue_projection.py",
+        "m0_floor": 88.41698841698842,
+        "current": 88.47583643122677,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/review_status.py",
+        "m0_floor": 96.52777777777777,
+        "current": 96.55172413793103,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/risk_scoring.py",
+        "m0_floor": 94.3566591422122,
+        "current": 94.61077844311377,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/section_writing.py",
+        "m0_floor": 90.19607843137256,
+        "current": 90.29126213592232,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/system_assembler.py",
+        "m0_floor": 87.27984344422701,
+        "current": 87.78625954198473,
+        "met": true
+      },
+      {
+        "file": "src/report_agent/writer_issues.py",
+        "m0_floor": 90.12345679012346,
+        "current": 90.1840490797546,
+        "met": true
+      }
+    ],
+    "all_13_floors_met": true
+  },
+  "frozen_inputs": {
+    "files": 1217,
+    "changed": [],
+    "verified_private_fixture_files": 51
+  },
+  "cleanup": {
+    "policy": "failed",
+    "count": 1,
+    "phases": [
+      {
+        "phase": "tmp-collection",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-0",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-1",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-2",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-3",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-4",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-5",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-6",
+        "database_files": 0,
+        "database_bytes": 0
+      },
+      {
+        "phase": "tmp-group-7",
+        "database_files": 0,
+        "database_bytes": 0
+      }
+    ],
+    "retained_case_database_files": 0
+  },
+  "prior_type_comparison": {
+    "source_identical": true,
+    "baseline_errors": 676,
+    "current_errors": 676,
+    "new_diagnostics": 0,
+    "remeasured_in_this_run": false
+  },
+  "paid_model_calls": 0,
+  "historical_runs_or_ledgers_modified": false,
+  "review": "Main ran and reconciled collection/outcomes; no independent rerun claimed",
+  "next": "9a check inventory and S2 amendment proposal; active contract and dispatcher unchanged",
+  "statistical_timestamp_utc": "2026-11-10T08:22:16.398810+00:00"
+}

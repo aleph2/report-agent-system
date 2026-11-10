@@ -1,0 +1,36 @@
+{
+  "status": "Initial inventory, not completed sweep or removal decision",
+  "base_revision": "cac8ca6",
+  "sampled_paths": [
+    "planning assertion tools",
+    "native Writer indicator/prose tools",
+    "qualitative Reviewer tools"
+  ],
+  "schema_sets": {
+    "writer": 6,
+    "coordinator": 3,
+    "reviewer": 2
+  },
+  "top_level_field_occurrences": 76,
+  "sql_check_families": 12,
+  "sql_clauses": 13,
+  "candidate_native_raise_sites": 285,
+  "native_modules_surveyed": 20,
+  "not_yet_complete": [
+    "all nested/business field consumers",
+    "full active-versus-retained route classification",
+    "refusal measurements including measured zeros",
+    "requirement mapping for all candidate native guards"
+  ],
+  "observed_requirement_gap": {
+    "tool": "record_qualitative_finding",
+    "model_supplied": [
+      "operation_id",
+      "row_digest"
+    ],
+    "evidence": "Actual tool schema exposes both; operation_identity.NATIVE_WRITES omits this tool. Writer save tools inject operation IDs.",
+    "planned_change": "Host injects native identity and binds the frozen review target; retain exact recovery/version checks"
+  },
+  "paid_model_calls": 0,
+  "active_contract_changes": false
+}

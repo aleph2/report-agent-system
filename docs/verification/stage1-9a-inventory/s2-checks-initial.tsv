@@ -1,0 +1,14 @@
+code	current_reason	requirement_or_reproduced_bug	refusal_count	status
+C1	Use the catalog action that produces this kind	Approved S2 action/kind and meaningful shape; no implicit scoring of open outcomes	unmeasured	initial inventory; active check unchanged
+C2	Explicit absence needs its own quoted source and stated coverage	Owner: missing supplied material is not evidence of absence; exact source/page/quote and actual image delivery	unmeasured	initial inventory; active check unchanged
+C3	Direct evidence needs applicable confirmed, current observations bound to the classification	Approved 9a role split: owner confirms page bindings, Writer extracts cited values	unmeasured	initial inventory; active check unchanged
+C4	A reference was outside the issued packet	Owner-approved reference scope and exact native packet	unmeasured	initial inventory; active check unchanged
+C5	Cross-subject support needs a current confirmed transfer with matching scope	Run06 cross-object/frequency misbinding; no implicit transfer between subjects	unmeasured	initial inventory; active check unchanged
+C6	Select a confirmed versioned criterion and its permitted classification and value	Approved method/grade/value bands and midpoint; unsupported adjustments retain the supported grade/value	unmeasured	initial inventory; active check unchanged
+C6	Retain the effective midpoint unless the directional adjustment has specifically entitled grounds	Approved method/grade/value bands and midpoint; unsupported adjustments retain the supported grade/value	unmeasured	initial inventory; active check unchanged
+C7	Record the unresolved alternatives when applicable readings differ or cannot be exhausted	Owner X51 deferral and unresolved multiple readings must remain unscored	unmeasured	initial inventory; active check unchanged
+C8	Identify what could overturn this assumption	Approved assumption rationale, alternatives and engineer follow-up	unmeasured	initial inventory; active check unchanged
+C9	Resolve conflicting grounds through the confirmed precedence before claiming evidence	Owner-confirmed source precedence; retained conflicting evidence and readable comment/Excel issue	unmeasured	initial inventory; active check unchanged
+C10	Derived strength cannot exceed any input; undetermined results remain unscored	M3 calculator only; undetermined results have no adopted score	unmeasured	initial inventory; active check unchanged
+C11	Role, target status, scope or operation authority does not permit this action	Authenticated identity, role/packet scope, producer binding, exact redo; reproduced release bypass/self-review cases	unmeasured	initial inventory; active check unchanged
+C12	Formal release needs every confirmed output reviewed on the exact eligible frozen pair	O7: every required output, independent exact-snapshot review, paired digests; explicit owner waiver for open score	unmeasured	initial inventory; active check unchanged

@@ -1,0 +1,77 @@
+role	tool	field	required	requirement	initial_disposition	refusal_count
+writer	save_evidence	visual_pages	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_evidence	quotes	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_evidence	contrary_evidence	False	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	save_evidence	context_fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	contrary_fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	grade_claim	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	external_support	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	adjustment_claim	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	event_frequency	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	investigation_counts	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	question_effect	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	grade	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	value	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	rationale	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	value_reason	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_evidence	basis_kind	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	visual_pages	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_assumption	quotes	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_assumption	contrary_evidence	False	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	save_assumption	context_fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	contrary_fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	grade_claim	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	external_support	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	adjustment_claim	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	event_frequency	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	investigation_counts	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	question_effect	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	assumption_basis	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	grade	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	value	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	rationale	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	value_reason	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	plausible_grades	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_assumption	question	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_gap	visual_pages	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_gap	quotes	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_gap	contrary_evidence	False	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	save_gap	context_fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_gap	contrary_fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_gap	fact_ids	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_gap	missing	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_gap	question	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_gap	rationale	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	propose_material_issue	kind	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	propose_material_issue	basis	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	propose_material_issue	quotes	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	propose_material_issue	visual_pages	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	propose_material_issue	adopted_value	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	propose_material_issue	question	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	propose_material_issue	affects_level	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+writer	save_section_prose	text	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+writer	save_section_prose	quotes	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	save_section_prose	visual_pages	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	read_assigned_page	source_handle	True	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	read_assigned_page	page	True	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+writer	read_assigned_page	view	False	C2/C3/C4; exact source/page/quote and image-delivery boundary	Keep evidence/read choice; compile actual IDs from confirmed page bindings	unmeasured
+coordinator	assert_source	subject	True	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	predicate	True	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	state	True	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	coverage	True	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	value	False	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	unit	False	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	period	False	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	source_id	False	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	page	False	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	assert_source	quote	False	Approved 9a role split	Move value extraction to Writer; new Coordinator binding adapter replaces this tool on the new route	unmeasured
+coordinator	record_conflict	subject	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+coordinator	record_conflict	observations	True	Owner: retain conflicts in Word comments and Excel rows	Keep actual conflict and adopted basis; host assigns IDs and comment positions	unmeasured
+coordinator	ask	subject	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+coordinator	ask	text	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+coordinator	ask	affects	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+reviewer	read_qualitative_row	indicator_id	False	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+reviewer	record_qualitative_finding	operation_id	True	Owner: system supplies identifiers; exact native-call recovery	Inject existing native identity in the new Reviewer adapter; do not remove redo authority	unmeasured
+reviewer	record_qualitative_finding	indicator_id	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
+reviewer	record_qualitative_finding	row_digest	True	9a typed case reference; immutable reviewed version	Replace model copying with host-bound typed frozen target	unmeasured
+reviewer	record_qualitative_finding	finding	True	Pending full active-field sweep	Field-specific consumer review pending; not a removal decision	unmeasured
