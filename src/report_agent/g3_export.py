@@ -65,7 +65,7 @@ def _source(citation, records):
 
 
 def citation_text(node, records, plan=None):
-    if node['body'].get('section_heading') or (node['kind'] == 'chapter' and '\n' not in node['body']['text']):
+    if node.get('body', {}).get('section_heading') or (node['kind'] == 'chapter' and '\n' not in node['body']['text']):
         return ''
     if plan and plan.get('format_source') and (node['kind'] == 'report' or node['body'].get('page_role') == 'title_page'):
         # Front-matter source bindings stay in the audit, outside the prescribed cover fields.

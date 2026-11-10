@@ -136,13 +136,13 @@ def test_object_prose_and_typed_issues_assemble_to_one_word_excel_pair(reviewed_
     records=[f.cs.read(ref) for ref in f.cs.read(assembled['snapshot_ref'])['payload']['refs']]
     nodes=[r for r in records if r['ref']['type']=='ContentNode']
     byid={i['id']:r for r in nodes for i in r['payload']['body'].get('material_issues',[])}
-    assert byid[ids[0]]['payload']['body']['text']=='Slope 1'
+    assert byid[ids[0]]['payload']['body']['text']=='4.2.1 Slope 1'
     assert byid[ids[1]]['payload']['body']['text']=='4 Assessment'
     edges=[r['payload'] for r in records if r['ref']['type']=='Relation']
     for n in range(2):
         prose=next(r for r in nodes if r['payload']['body'].get('text')=='Slope '+str(n+1)+' unique prose.')
         parent=next(e['subject_ref'] for e in edges if e['object_ref']==prose['ref'])
-        assert f.cs.read(parent)['payload']['body']['text']=='Slope '+str(n+1)
+        assert f.cs.read(parent)['payload']['body']['text']=='4.2.'+str(n+1)+' Slope '+str(n+1)
     exported=export_snapshot(f.cs,f.co,'export',assembled['snapshot_ref'],{'toc':False})['result']
     assert exported['file_ref'].endswith('.docx') and exported['workbook']['file_ref'].endswith('.xlsx')
     from zipfile import ZipFile
