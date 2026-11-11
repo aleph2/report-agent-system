@@ -17,6 +17,7 @@ STEP_NAMES = {'read_planning_draft', 'set_requirement_status', 'link_convention'
               'set_scope_boundary', 'set_planning_details', 'add_object', 'add_section',
               'add_substitution', 'add_reconciliation', 'add_question'}
 ASSERTION_STEPS = {'propose_page_binding', 'record_conflict', 'ask'}
+PUBLICATION_STEPS = {'publish_planning_draft'}
 
 
 def tools(f):
@@ -61,7 +62,7 @@ def assert_fields(error):
 @pytest.mark.parametrize('name', sorted(STEP_NAMES))
 def test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed(draft_case, name):
     offered = tools(draft_case)
-    assert set(offered) == STEP_NAMES | ASSERTION_STEPS
+    assert set(offered) == STEP_NAMES | ASSERTION_STEPS | PUBLICATION_STEPS
     tool = offered[name]
     arguments = inputs(draft_case)[name]
     schema = convert_to_openai_tool(tool)['function']['parameters']
@@ -193,3 +194,15 @@ async def test_native_missing_quote_returns_nested_field_diagnostic(draft_case):
     assert payload['code'] == 'NATIVE_TOOL_VALIDATION_ERROR'
     fields = payload['diagnostic']['fields']
     assert any('boundary' in str(f['field']) and 'source' in str(f['field']) and 'quote' in str(f['field']) for f in fields)
+
+
+def test_publication_schema_and_incomplete_plan_refusal(draft_case):
+    tool = tools(draft_case)['publish_planning_draft']
+    schema = convert_to_openai_tool(tool)['function']['parameters']
+    assert not {'operation_id', 'actor', 'task'} & schema['properties'].keys()
+    Draft202012Validator(schema).validate({})
+    assert plan_authority.plan_ref(draft_case.ws.store) is None
+    with pytest.raises(ActionRejected, match='COMMISSION_REQUIREMENTS_INCOMPLETE') as caught:
+        invoke(tool, {}, 'parity-incomplete-publication')
+    assert caught.value.diagnostic['gaps']
+    assert plan_authority.plan_ref(draft_case.ws.store) is None

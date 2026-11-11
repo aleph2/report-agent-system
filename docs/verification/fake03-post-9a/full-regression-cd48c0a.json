@@ -1,0 +1,167 @@
+{
+  "tested_revision": "cd48c0a90e9aefbb34907330d6167f3eac8d753d",
+  "statistical_utc": "2026-11-11T16:52:35.580930+00:00",
+  "run": {
+    "expected": 6204,
+    "outcomes": {
+      "passed": 6184,
+      "failed": 11,
+      "skipped": 9
+    },
+    "failed": [
+      "tests/test_no_legacy_state.py::test_new_family_literals_require_review",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_object]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_question]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_reconciliation]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_section]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[add_substitution]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[link_convention]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[read_planning_draft]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_planning_details]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_requirement_status]",
+      "tests/test_m1_g4_h32_parity.py::test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed[set_scope_boundary]"
+    ],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-11T16:10:35.373457+00:00",
+    "finished_utc": "2026-11-11T16:51:47.226313+00:00",
+    "elapsed_seconds": 2471.9
+  },
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_unchanged": true,
+  "coverage": {
+    "total_percent": 90.67849223946784,
+    "m0_floors": [
+      {
+        "module": "src/report_agent/commission_plan.py",
+        "floor": 93.49240780911063,
+        "actual": 93.7375745526839,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/commission_requirements.py",
+        "floor": 91.40625,
+        "actual": 93.18181818181819,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/content_store.py",
+        "floor": 95.43817527010805,
+        "actual": 95.57625145518044,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/g3_export.py",
+        "floor": 91.54518950437318,
+        "actual": 92.26804123711341,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/rescue_projection.py",
+        "floor": 88.41698841698842,
+        "actual": 88.47583643122677,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/risk_scoring.py",
+        "floor": 94.3566591422122,
+        "actual": 94.66357308584686,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/section_writing.py",
+        "floor": 90.19607843137256,
+        "actual": 90.29126213592232,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/system_assembler.py",
+        "floor": 87.27984344422701,
+        "actual": 88.06818181818181,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/writer_issues.py",
+        "floor": 90.12345679012346,
+        "actual": 90.1840490797546,
+        "passed": true
+      }
+    ]
+  },
+  "cleanup": {
+    "source_files_checked": 1281,
+    "source_files_changed": [],
+    "clean_pass": false,
+    "source_copy_removed": false,
+    "failed_coverage_floors": [],
+    "skips_unchanged": true,
+    "retained_test_database_files": 30,
+    "temporary_directories_removed": []
+  },
+  "active_run_processes": [],
+  "paid_model_calls": 0,
+  "main_revision": "14484f80f1f6879ad5ed249819e56bad4567ab39",
+  "dispatcher_unchanged": true,
+  "clean_pass": false,
+  "status": "failed; not reconciled to green",
+  "fixture_files_verified": 57,
+  "private_fixture_files_verified": 51,
+  "private_evidence": ".private/fake03-full-flow-regression-20261111/",
+  "failure_classification": [
+    {
+      "id": "F1",
+      "severity": "P2",
+      "module": "tests/test_m1_g4_h32_parity.py",
+      "failed_nodes": 10,
+      "cause": "Exact offered-tool inventory omitted owner-required publish_planning_draft; every failure occurred before tool-specific checks.",
+      "blocks": "clean full regression gate"
+    },
+    {
+      "id": "F2",
+      "severity": "P2",
+      "module": "tests/test_no_legacy_state.py",
+      "failed_nodes": 1,
+      "cause": "Reviewed public-field inventory omitted canonical commission_plan operation request in commission_planning.submit_plan; no legacy storage access.",
+      "blocks": "clean full regression gate"
+    }
+  ],
+  "correction": {
+    "production_lines_added": 0,
+    "production_lines_removed": 0,
+    "test_lines_added": 16,
+    "test_lines_removed": 1,
+    "new_tests": 1,
+    "retired_tests": 0,
+    "new_skips": 0,
+    "focused_passed": 58,
+    "focused_elapsed_seconds": 37.61091923713684,
+    "replacement_full_authorized": false,
+    "files_sha256": {
+      "tests/test_m1_g4_h32_parity.py": "20528471f343f92040c119adcdb069ca0d4f8aa97ff0969aa7c7ab83d7e8a2ae",
+      "tests/test_no_legacy_state.py": "05bad4b5123a1bce3f6bc5d0ba7c2cfcf92b2a8b2405c4a857d8613ae708a028"
+    }
+  }
+}

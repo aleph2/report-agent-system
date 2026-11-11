@@ -1360,3 +1360,6 @@ Owner accepted 9a-b2 (2026-11-11): main fast-forwarded to 14484f8. Four later re
 
 
 2026-11-11: Owner selected the full live Fake03 draft flow. Offline operator integration and the current native planning path are under review; see docs/reviews/fake03-full-draft-flow-offline-20261111.md. Freeze Coordinator page expectations in verifier v2, stop for the saved owner page-sheet reply before Writer requests, and keep the prior Writer-only paid launcher out of this scope. No launch authority or full regression is inferred.
+
+
+2026-11-11: Authorized full regression on cd48c0a completed: 6,184 passed, 9 unchanged skips, 11 failures from two stale test inventories. Frozen files unchanged; all nine coverage floors pass. Test-only correction +16/−1 passes 58 focused checks; original full remains failed. See docs/reviews/fake03-full-flow-regression-20261111.md. Main stays accepted b2; one replacement clean full requires a fresh owner authorization.

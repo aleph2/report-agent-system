@@ -33,3 +33,6 @@ The test also proves its script-data builder writes no case objects. Failed atte
 1. Review frozen [key v2](../verification/fake03-post-9a/answer-key-v2.json) and its [manifest](../verification/fake03-post-9a/manifest-v2.json): 22 Coordinator bindings, 16 qualitative expectations, six unscored numeric positions, Chinese text and real-trace refusal measurement. V1 is unchanged. Real-model quality remains unmeasured.
 2. One separately authorized full offline regression; none is inferred from this flow choice.
 3. A trusted multi-role launch envelope with exact models, command, scope and cap. Read-only reconciliation found separate DeepSeek-only and GLM-only ledgers, not a shared full-flow guard. Both budgets and all holds remain unchanged. The old 16-row pilot scope cannot silently become 22 paid steps; no numeric-rule certification or formal release is claimed.
+
+
+Full-regression follow-up: the authorized `cd48c0a` run finished with 6,184 passed, 9 unchanged skips and 11 failed test-inventory assertions. The run remains failed. A test-only correction passes 58 focused checks; see [failure record and correction](fake03-full-flow-regression-20261111.md). No replacement full run, paid launch or main move is authorized by that result.

@@ -84,6 +84,7 @@ def test_guard_detects_storage_bypasses(source):
 
 def test_guard_permits_public_fields_and_unrelated_tables():
     assert not direct_accesses("""payload.get('content_delivery')
+cs.operation(actor, 'id', {'commission_plan': proposed}, lambda db: response)
 db.execute("SELECT 'corrections' FROM figures")
 """)
 
@@ -107,6 +108,7 @@ PUBLIC_USES = {
     ("plan_authority", "propose", "keyword"): {"commission_plan"},
     ("commission_assertions", "record_interpretation", "Dict"): {"commission_requirements"},
     ("commission_plan", "save_plan", "Dict"): {"commission_plan"},
+    ("commission_planning", "submit_plan", "Dict"): {"commission_plan"},  # Canonical operation request, not a state key.
     ("commission_plan", "request_checkpoint", "Dict"): {"corrections", "commission_plan"},
     ("content_export", "execute", "Tuple"): {"commission_owner_records"},
     ("content_workbook", "_export_workbook", "Tuple"): {"commission_owner_records"},
