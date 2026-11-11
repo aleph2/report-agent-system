@@ -1,6 +1,6 @@
 {
   "part": "9a-b2",
-  "status": "candidate; full regression and owner acceptance pending",
+  "status": "full offline verification passed; owner code/page acceptance pending",
   "snapshot_ref": {
     "type": "DocumentSnapshot",
     "id": "f2995532-cbd3-4a43-ac79-a9e9d01e683c",
@@ -101,11 +101,12 @@
   "verification": {
     "affected_tests": "1008 passed in 487.69s; product AST unchanged by final whitespace correction",
     "mutation_checks": "2 expected test failures; product files unchanged",
-    "full_regression": "not authorized or run for b2",
+    "full_regression": "One clean authorized run: 6187 passed, nine unchanged skips, zero failures on exact 41826ec; 3028.2s; all 6196 nodes once; all nine M0 coverage floors passed; overall 90.62%",
     "independent_review": "Main self-review and all 13 rendered pages; independent owner code/page acceptance pending",
     "additional_fixture_checks": "152 passed / 1 failed before fixture correction; 37 final fixture-dependent tests passed in 176.44s. Counts overlap and are not summed.",
     "protected_source": "Scoring function ASTs, calculator/method-pack code, dispatcher and assertion/S2 package unchanged; final production edit after the large test run changes line endings only.",
-    "final_fixture_cause": "The separate eleven-indicator fixture omitted TableSpec; the eleventh save correctly refused TABLE_SPEC_CONFIRMED_TYPE_REQUIRED. Shared spec preparation fixes the fixture; all scoring and zero-refusal expectations remain."
+    "final_fixture_cause": "The separate eleven-indicator fixture omitted TableSpec; the eleventh save correctly refused TABLE_SPEC_CONFIRMED_TYPE_REQUIRED. Shared spec preparation fixes the fixture; all scoring and zero-refusal expectations remain.",
+    "clean_full_record": "clean-full.json"
   },
-  "statistical_utc": "2026-11-11T03:01:40.135900+00:00"
+  "statistical_utc": "2026-11-11T13:05:28.257032+00:00"
 }

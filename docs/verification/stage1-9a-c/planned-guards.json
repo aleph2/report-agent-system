@@ -1,17 +1,17 @@
 {
-  "scope": "C planned these guards; b2 candidate implements them; full b2 regression and acceptance pending",
+  "scope": "C planned these guards; b2 implements both and passes its full offline run; owner b2 acceptance pending",
   "tests": [
     {
       "id": "b2-assessment-format-ownership",
-      "status": "implemented in b2 candidate",
-      "result": "focused check passed; full b2 run pending",
+      "status": "implemented in b2",
+      "result": "focused and full b2 offline checks passed",
       "requirement": "Assessment headers/captions come only from spec through the renderer",
       "test": "tests/test_9a_b2_format.py::test_assessment_format_definitions_live_only_in_the_renderer"
     },
     {
       "id": "b2-word-format-source-comment-contract",
-      "status": "implemented in b2 candidate",
-      "result": "focused check passed; full b2 run pending",
+      "status": "implemented in b2",
+      "result": "focused and full b2 offline checks passed",
       "requirement": "Spec-conformant Word tables, comment authors/anchors/issue correspondence, no inline or instruction citations",
       "test": "tests/test_9a_b2_format.py::test_exported_word_matches_spec_and_open_comments_match_excel"
     }

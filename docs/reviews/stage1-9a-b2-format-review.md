@@ -2,7 +2,7 @@
 
 Production Python **+135 / −202, net −67**; spec data **+18 / −2**; tests **+306 / −123**. Total excluding documentation: **+459 / −327, net +132**. Explicit raise/assert sites +1 / −2 (duplicate title checks consolidated, shared check retained); two requested test guards added. Two table-layout fallback paths removed; no new legacy fallback.
 
-**Candidate only.** Main stays at accepted c (`2133225`). Full b2 regression and owner page acceptance remain pending. No model calls, dispatcher/S2 changes, score/judgment changes, installs or original-case/ledger changes.
+**Full offline verification passed; owner code/page acceptance pending.** Main stays at accepted c (`2133225`). No model calls, dispatcher/S2 changes, score/judgment changes, installs or original-case/ledger changes.
 
 ## Result and scope
 
@@ -15,8 +15,10 @@ Production Python **+135 / −202, net −67**; spec data **+18 / −2**; tests 
 
 Main inspected all 13 LibreOffice-rendered PDF pages. Earlier equal/narrow-column previews remain as failed layout evidence; the final spec keeps decimal weights and 未评分 readable. Word bytes were unchanged by PDF conversion. Native Word rendering has not been checked; Excel print layout is out of scope.
 
+The one authorized full run on exact `41826ec` passed **6,187 tests, nine unchanged skips, zero failures**, all 6,196 nodes once, in **50m28s**. All nine M0 coverage floors passed; overall coverage **90.62%**. All 1,270 frozen files were unchanged; the source copy was automatically removed, no temporary test databases remain, and the exact run processes are absent. [Full record](../verification/stage1-9a-b2/clean-full.json). Post-run reporting corrected an inherited floor-key lookup; no source/test edit or test rerun.
+
 Focused results and exact file hashes are in [candidate.json](../verification/stage1-9a-b2/candidate.json). The two guards check format ownership and real Word/Excel output. Test-only mutations restoring instruction-source citation and old numbering both fail the intended tests; repository source stays unchanged. [Two renamed width cases and four explicit historical cases](../verification/stage1-9a-b2/retired-tests.tsv) retain explicit replacements; no test is silently dropped.
 
-The first broad affected run failed on outdated assertions/fixtures and is retained as failed. A later process disappeared without a terminal record and is recorded as interrupted, not passed; the attached replacement passed 1,008 tests. The remaining fixture-dependent run found one omission: the independent eleven-indicator fixture had no table specs. Its final save correctly refused TABLE_SPEC_CONFIRMED_TYPE_REQUIRED; the fixture now uses shared presentation data, with scores and zero-refusal expectations preserved. The seven final fixture-dependent modules passed all 37 tests; counts overlap and are not summed. Private raw evidence and review files: `.private/stage1-9a-b2-20261110/`.
+Earlier fixture/layout failures and the interrupted focused run remain as failed/interrupted evidence. The attached affected run passed 1,008 tests; final fixture-dependent checks passed 37. Counts overlap. Private evidence: `.private/stage1-9a-b2-20261110/`.
 
-Next: finish affected checks, freeze/tag/push the candidate, obtain explicit authority for one clean full offline regression, then owner page acceptance and main fast-forward. Paid Fake03 remains a separate gate with a frozen Chinese-text answer key and owner scope/cap. Actual paid-trace refusal measurement precedes removal decisions; the qualitative frozen-digest check stays in e.
+Next: owner code/page acceptance, then main fast-forward. Paid Fake03 remains a separate gate with a frozen Chinese-text answer key and owner scope/cap. Actual paid-trace refusal measurement precedes removal decisions; the qualitative frozen-digest check stays in e.
