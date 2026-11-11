@@ -2,7 +2,7 @@
 
 Production Python **+135 / −202, net −67**; spec data **+18 / −2**; tests **+306 / −123**. Total excluding documentation: **+459 / −327, net +132**. Explicit raise/assert sites +1 / −2 (duplicate title checks consolidated, shared check retained); two requested test guards added. Two table-layout fallback paths removed; no new legacy fallback.
 
-**Full offline verification passed; owner code/page acceptance pending.** Main stays at accepted c (`2133225`). No model calls, dispatcher/S2 changes, score/judgment changes, installs or original-case/ledger changes.
+**Owner accepted b2 on 2026-11-11.** Main fast-forwarded to `14484f8`; [acceptance and later list](stage1-9a-b2-acceptance.md). No model calls, dispatcher/S2 changes, score/judgment changes, installs or original-case/ledger changes.
 
 ## Result and scope
 
@@ -21,4 +21,4 @@ Focused results and exact file hashes are in [candidate.json](../verification/st
 
 Earlier fixture/layout failures and the interrupted focused run remain as failed/interrupted evidence. The attached affected run passed 1,008 tests; final fixture-dependent checks passed 37. Counts overlap. Private evidence: `.private/stage1-9a-b2-20261110/`.
 
-Next: owner code/page acceptance, then main fast-forward. Paid Fake03 remains a separate gate with a frozen Chinese-text answer key and owner scope/cap. Actual paid-trace refusal measurement precedes removal decisions; the qualitative frozen-digest check stays in e.
+Next: prepare the frozen key and live-trace measurement for the chosen paid scope. Paid Fake03 remains a separate gate with a frozen Chinese-text answer key and owner scope/cap. Actual paid-trace refusal measurement precedes removal decisions; the qualitative frozen-digest check stays in e.

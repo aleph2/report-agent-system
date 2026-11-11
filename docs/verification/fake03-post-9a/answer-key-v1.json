@@ -1,0 +1,326 @@
+{
+  "version": "fake03-post-9a-v1",
+  "status": "frozen verifier candidate; launch and scope not authorized",
+  "base_accepted_revision": "14484f80f1f6879ad5ed249819e56bad4567ab39",
+  "provenance": [
+    "owner-accepted fact register and method conventions",
+    "owner A/X51 engineering deferral",
+    "owner-approved severity rule and six historical defect/ten control replays"
+  ],
+  "model_access": "Verifier only; never import into the case or include in any model prompt/tool result",
+  "qualitative_indicators": [
+    "X21",
+    "X22",
+    "X23",
+    "X32",
+    "X41",
+    "X42",
+    "X51",
+    "X52"
+  ],
+  "rank_order": [
+    "X11",
+    "X23",
+    "X21",
+    "X22",
+    "X12",
+    "X31",
+    "X32",
+    "X41",
+    "X51",
+    "X52",
+    "X42"
+  ],
+  "rows": [
+    {
+      "object_id": "A",
+      "indicator_id": "X21",
+      "expected_kind": "evidence",
+      "expected_grade": "moderate",
+      "default_value": 37,
+      "rank": 3,
+      "required_reason": "强风化岩质边坡，现有事实足以确定中等分级；不得从未载明岩性推断更好或更差状态。",
+      "verifier_fact_ids": [
+        "F03-A-MATERIAL",
+        "F03-A-WEATHERING"
+      ]
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X22",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 4,
+      "required_reason": "结构面产状、与坡向关系及组合发育情况未建立；不得把没有描述当作有利结构。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X23",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 2,
+      "required_reason": "地下水情况未知；不得把未提及当作没有地下水。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X32",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 7,
+      "required_reason": "区域落石发生于坡段 A 外，且没有该事件的观测时段，不能据此测得 A 的灾害频率。",
+      "verifier_fact_ids": [
+        "F03-OFFSITE-ROCKFALL",
+        "F03-ROCKFALL-LOCATION"
+      ],
+      "conditional_alternative": {
+        "kind": "assumption",
+        "requires": [
+          "明确写出区域事实向 A 的转用理由及其局限",
+          "保持事件时段未知，不能借用降雨的五年时段",
+          "保留可能分级和待核问题，由独立复核判断是否有依据"
+        ],
+        "automatic_pass": false
+      }
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X41",
+      "expected_kind": "evidence",
+      "expected_grade": "high",
+      "default_value": 62,
+      "rank": 8,
+      "required_reason": "锚杆框架梁按当前已审查方法解释归入锚固工程；不凭未核查的图像声称知道其他措施。",
+      "verifier_fact_ids": [
+        "F03-A-PROTECTION",
+        "F03-A-DRAINAGE"
+      ]
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X42",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 11,
+      "required_reason": "受影响设施及距离、调查覆盖范围未知；无记录不能作为无设施的证据。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X51",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 9,
+      "required_reason": "工程解释待复核；一个断面和三个钻孔已知，探坑及物探数量未报告，不能默认为零。",
+      "verifier_fact_ids": [
+        "F03-A-SURVEY-SECTIONS",
+        "F03-A-BOREHOLES"
+      ],
+      "conditional_grades": [
+        "low",
+        "moderate"
+      ],
+      "engineering_review_required": true
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X52",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 10,
+      "required_reason": "文字材料和图纸引用不能证明未读图纸的实际内容或设计完整性。",
+      "verifier_fact_ids": [],
+      "conditional_alternative": {
+        "kind": "assumption",
+        "requires": [
+          "给出明确来源及其实际覆盖内容，明确未核查图像",
+          "只能使用有依据的有限候选分级",
+          "不得从未提供材料推断文件不存在或图纸完整；独立复核必须确认推断有依据"
+        ],
+        "automatic_pass": false
+      }
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X21",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 3,
+      "required_reason": "材料类型及风化程度未知，不能把 A 的地质情况移到 B。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X22",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 4,
+      "required_reason": "B 的结构面关系没有建立；不能把 A 的说明或资料沉默作为 B 的结构证据。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X23",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 2,
+      "required_reason": "B 未提供地下水调查记录，实际地下水条件未知。",
+      "verifier_fact_ids": [
+        "F03-B-WATER-RECORD"
+      ]
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X32",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 7,
+      "required_reason": "A 外的区域落石不证明 B 的灾害频率或影响；未建立转用依据和事件时段。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X41",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 8,
+      "required_reason": "B 的支护和排水措施未知，不能从未列明推断措施类型或不存在。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X42",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 11,
+      "required_reason": "B 的设施位置、距离及调查覆盖未知；不等于没有受影响设施。",
+      "verifier_fact_ids": []
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X51",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 9,
+      "required_reason": "调查页只覆盖 A，B 的断面及勘探数量未知，不等于零。",
+      "verifier_fact_ids": [
+        "F03-SURVEY-COVERAGE"
+      ]
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X52",
+      "expected_kind": "gap",
+      "expected_grade": null,
+      "default_value": null,
+      "rank": 10,
+      "required_reason": "一坡一图一说明及横断面图引用不能证明图像所含内容或文件完整性。",
+      "verifier_fact_ids": [
+        "F03-B-DRAWING-REFERENCE"
+      ]
+    }
+  ],
+  "numeric_slots": [
+    {
+      "object_id": "A",
+      "indicator_id": "X11",
+      "status": "not_scored_in_this_qualitative_scope",
+      "reason": "X11 requires the larger of total-height and bench-height scores; individual bench heights are unknown"
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X12",
+      "status": "not_scored_in_this_qualitative_scope",
+      "reason": "X12 needs the natural reference slope angle, which is unknown"
+    },
+    {
+      "object_id": "A",
+      "indicator_id": "X31",
+      "status": "not_scored_in_this_qualitative_scope",
+      "reason": "Known rainfall is not missing: numeric calculator functionality is excluded pending separately accepted part f"
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X11",
+      "status": "not_scored_in_this_qualitative_scope",
+      "reason": "X11 requires the larger of total-height and bench-height scores; individual bench heights are unknown"
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X12",
+      "status": "not_scored_in_this_qualitative_scope",
+      "reason": "X12 needs the natural reference slope angle, which is unknown"
+    },
+    {
+      "object_id": "B",
+      "indicator_id": "X31",
+      "status": "not_scored_in_this_qualitative_scope",
+      "reason": "Known rainfall is not missing: numeric calculator functionality is excluded pending separately accepted part f"
+    }
+  ],
+  "source_and_conflict_checks": {
+    "revised_start": "2026-04-15",
+    "revision_changes_geometry": false,
+    "preferred_design_ratio": "1:0.75",
+    "retained_survey_ratio": "1:1.0",
+    "excluded_object": "C",
+    "groundwater_unknown": [
+      "A",
+      "B"
+    ],
+    "drawing_route": "Text-only; drawing content stays visually unverified",
+    "facts_not_owner_confirmed_merely_because_page_is_confirmed": true
+  },
+  "pass_rules": {
+    "required_qualitative_outcomes": 16,
+    "critical_errors_max": 0,
+    "minor_errors_max": 2,
+    "interrupted_rows": 0,
+    "all_gap_result": "fail; A/X21 and A/X41 have positive support",
+    "conditional_rows": "A/X32 and A/X52 require independent support adjudication under the written alternatives; no post-run widening of the key",
+    "chinese_text": "Every reader-facing reason, explanation and question is Chinese. Exact source quotes, identifiers, units and proper names remain verbatim. Human field-by-field check; no regex-only certification.",
+    "quotes": "Exact source version/page/quote; support must belong to the claim and subject, with qualifiers and observation periods preserved",
+    "uncertainty": "Missing from supplied material never proves absence, a zero count or complete coverage",
+    "midpoint": "Use agreed band midpoint unless the directional adjustment is supported; retain any refused adjustment and supported grade separately",
+    "no_adopted_total_or_level": true
+  },
+  "historical_controls": {
+    "six_defects": "blocked or flagged, as recorded; not all six refused",
+    "ten_controls": "still valid",
+    "A_X32": "Replay keeps 27 and its question/flag. This is not a requirement that a fresh Writer must output 27.",
+    "A_X51": "Current key is unscored with low/moderate possibilities; old 37/49 replay remains historical"
+  },
+  "delivery_checks": {
+    "snapshot_pair": "Word and Excel share one frozen snapshot and issue set",
+    "issue_count": "Derived from actual saved outcomes; do not require the old replay count of 23",
+    "required_conflicts": [
+      "start-date revision",
+      "design/survey ratio disagreement",
+      "A ratio inventory route"
+    ],
+    "comments": "Source/open authors 来源/待核; every open issue one to one with Excel and indicator comment anchored on 取值",
+    "body": "Chinese unscored reasons and risk not determined, no invented total/level; fixed text/citation/internal-content checks stay",
+    "formal_release": "remains deferred to part e",
+    "rendered_pages": "inspect all generated pages, record renderer and exact file hashes; no fixed expected page count"
+  },
+  "known_nonblocking_render_findings": [
+    "template cited as evidence in a source comment",
+    "two working-instruction sentences remain in the body",
+    "long explanation cells; brief basis/full reasoning comment style deferred before real report",
+    "gamma bracket clipping, split label and A height placement; native Word check pending"
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "scope": "C planned these guards; b2 implements both and passes its full offline run; owner b2 acceptance pending",
+  "scope": "C planned these guards; b2 implements both, passes full offline verification and is owner accepted",
   "tests": [
     {
       "id": "b2-assessment-format-ownership",

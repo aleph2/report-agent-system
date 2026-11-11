@@ -57,3 +57,6 @@ Part c focused candidate: see [receipt/inventory review](stage1-9a-c-receipts-in
 
 ## Owner acceptance of c and b2 entry (2026-11-10)
 Owner accepted c, including its net +53 source lines and explicit accepted-history reader. Main fast-forwarded to 2133225; b2 starts from that accepted baseline on the existing branch. The inventory is an index: rerun refusal measurement on the paid Fake03 traces, deduplicate actor/native-call IDs, preserve unattributed cases and distinguish zero from unmeasured, then decide check removals from real failures rather than designed rejections. Freeze the Chinese reader-facing-text requirement in the answer key before requesting launch scope/cap. QUALITATIVE_REVIEW_FROZEN_DIGEST_MISMATCH stays on part e's review list; do not change it in b2.
+
+## Accepted b2 and paid preparation (2026-11-11)
+Owner accepted b2; main is 14484f8. [Acceptance/later list](stage1-9a-b2-acceptance.md). [Paid preparation and measurement design](fake03-post-9a-paid-preparation.md) freezes the verifier key and records the existing Writer-only launch limitation. Scope clarification and chosen offline operator integration precede any scope/cap launch request. Do not treat the current Writer-only command or this preparation as end-to-end or paid-launch authority.
