@@ -1,0 +1,90 @@
+{
+  "status": "passed",
+  "exit_code": 0,
+  "revision": "7da4f9483a08a3a975ce05f7b559a56d9f626511",
+  "estimator": "cl100k_base over compact JSON messages and function tools; proxy only, not GLM server accounting or a reservation bound",
+  "provider_requests": 0,
+  "provider_tokens": 0,
+  "roles": {
+    "coordinator": {
+      "calls": 61,
+      "input_total": 5028850,
+      "input_median": 82381,
+      "input_max": 119902,
+      "scripted_output_total": 10185
+    },
+    "reviewer": {
+      "calls": 48,
+      "input_total": 1069508,
+      "input_median": 22424.5,
+      "input_max": 41398,
+      "scripted_output_total": 2950
+    },
+    "text_tool": {
+      "calls": 3,
+      "input_total": 16864,
+      "input_median": 5763,
+      "input_max": 5817,
+      "scripted_output_total": 491
+    },
+    "writer": {
+      "calls": 39,
+      "input_total": 659958,
+      "input_median": 6432,
+      "input_max": 63729,
+      "scripted_output_total": 3916
+    }
+  },
+  "input_estimate_total": 6775180,
+  "scripted_output_total": 17542,
+  "statistical_utc": "2026-11-11T21:11:49.014631+00:00",
+  "campaign_budget": {
+    "settled": 1991060,
+    "held": 1179648,
+    "available": 6829292,
+    "attempt_count": 316
+  },
+  "campaign_maximum": 10000000,
+  "per_request_bound": 1179648,
+  "full_run_cap_current": 3700000,
+  "independent_cost_repeat_input_total": 6785599,
+  "public_scope": "synthetic Fake03 only; no source content or credentials",
+  "accepted_revision": "7da4f9483a08a3a975ce05f7b559a56d9f626511",
+  "coordinator_context_breakdown": [
+    {
+      "ordinal": 1,
+      "estimated_input_tokens": 33688,
+      "tools_tokens": 18702,
+      "message_count": 4,
+      "message_kind_tokens": {
+        "system": 3085,
+        "human": 11900
+      }
+    },
+    {
+      "ordinal": 31,
+      "estimated_input_tokens": 82310,
+      "tools_tokens": 18702,
+      "message_count": 94,
+      "message_kind_tokens": {
+        "system": 3085,
+        "human": 25754,
+        "ai": 3264,
+        "tool": 31564
+      }
+    },
+    {
+      "ordinal": 61,
+      "estimated_input_tokens": 120081,
+      "tools_tokens": 18702,
+      "message_count": 184,
+      "message_kind_tokens": {
+        "system": 3085,
+        "human": 45547,
+        "ai": 10509,
+        "tool": 42357
+      }
+    }
+  ],
+  "private_evidence": ".private/fake03-launch-preparation-20261111/"
+}
