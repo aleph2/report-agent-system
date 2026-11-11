@@ -44,7 +44,13 @@ def propose(cs, actor, operation, subject, indicator, pages):
         validate_source_versions(cs, actor, source_ids=[item["source_id"]])
         version, material = source_version_material(cs, item["source_id"])
         if str(item["page"]) not in material["pages"]:
-            raise ActionRejected("PAGE_BINDING_PHYSICAL_PAGE_REQUIRED")
+            # A scanned/drawing page can exist without a frozen text block.
+            from .document_tools import source_page_info
+            from .workspace import Workspace
+            try:
+                source_page_info(Workspace(cs.store), item["source_id"], item["page"])
+            except ActionRejected:
+                raise ActionRejected("PAGE_BINDING_PHYSICAL_PAGE_REQUIRED") from None
         bound.append(dict(source_version=version, page=item["page"]))
     if pages:
         cs.capture_sources(actor, "page-binding-sources:" + operation, list(dict.fromkeys(p["source_id"] for p in pages)))

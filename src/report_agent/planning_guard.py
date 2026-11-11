@@ -16,7 +16,7 @@ from .store import encode
 
 TOOLS = frozenset({'set_requirement_status', 'link_convention', 'set_scope_boundary', 'set_planning_details',
     'add_object', 'add_section', 'add_substitution', 'add_reconciliation', 'add_question', 'submit_plan',
-    'save_commission_plan', 'request_commission_confirmation'})
+    'publish_planning_draft', 'save_commission_plan', 'request_commission_confirmation'})
 KEY = 'commission_planning_rejections'
 
 

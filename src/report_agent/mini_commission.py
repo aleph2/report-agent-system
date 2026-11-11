@@ -55,8 +55,8 @@ def _method_material():
     return method, '\n'.join(text)
 
 
-def prepare_mini_commission(inputs, destination):
-    """Stage verified originals; submit and approve exactly one scripted fake plan for A and B."""
+def prepare_mini_commission(inputs, destination, *, planning_only=False, runtime_profiles=None):
+    """Stage originals; the historical Writer pilot also installs its scripted approval."""
     inputs, destination = Path(inputs).absolute(), Path(destination).absolute()
     if (not inputs.is_dir() or destination.exists() or destination.is_relative_to(inputs)
             or any(p.is_symlink() for base in (inputs, destination) for p in (base,*base.parents))):
@@ -81,7 +81,7 @@ def prepare_mini_commission(inputs, destination):
             'sources':[{'id':'system-method','title':METHOD_SOURCE_NAME,'filename':METHOD_SOURCE_NAME,
                         'content':method_text,'sha256':method_hash,'coverage':'complete'}],
             'content_contract':'hierarchical-review-v1','coverage_contract':'object-coverage-v1',
-            'commission_checkpoint_required':True,'assembly_contract':'system-assembler-v1'})
+            'commission_checkpoint_required':True,'assembly_contract':'system-assembler-v1', **(runtime_profiles or {})})
         ws, cs, co = Workspace(store), ContentStore(store), actor_for('coordinator')
         ws.initialize()
         catalog = Catalog(store)
@@ -93,12 +93,14 @@ def prepare_mini_commission(inputs, destination):
         from report_agent.commission_imports import install_source_roles
         install_source_roles(store, {n:{'id':sid,'purpose':'commission' if n in {'00_scope.md', '03_requirements.pdf'}
                   else 'template' if n=='08_template.docx' else 'source_or_applicable_standard'} for n,sid in ids.items()})
-        plan, requirements_ref = _plan(ws, cs, co, ids, refs, catalog, method)
-        plan_ref = save_plan(cs,co,'mini-scripted-plan',plan)['result']['plan_ref']
-        checkpoint = request_checkpoint(ws)
-        reply(ws,checkpoint['issue_id'],{'plan_ref':plan_ref,'requirements_ref':requirements_ref,'approved':True,
-              'corrections':'','reductions':[{'object_id':'C','reason':'中心桩号 K0+620 超出委托界线 K0+500。'}]})
-        decision_ref = plan_authority.decision_ref(store)
+        plan_ref = requirements_ref = decision_ref = None
+        if not planning_only:
+            plan, requirements_ref = _plan(ws, cs, co, ids, refs, catalog, method)
+            plan_ref = save_plan(cs,co,'mini-scripted-plan',plan)['result']['plan_ref']
+            checkpoint = request_checkpoint(ws)
+            reply(ws,checkpoint['issue_id'],{'plan_ref':plan_ref,'requirements_ref':requirements_ref,'approved':True,
+                  'corrections':'','reductions':[{'object_id':'C','reason':'中心桩号 K0+620 超出委托界线 K0+500。'}]})
+            decision_ref = plan_authority.decision_ref(store)
         if destination.exists():
             raise FileExistsError(destination)
         case.rename(destination)
@@ -106,10 +108,27 @@ def prepare_mini_commission(inputs, destination):
             'decision_ref':decision_ref,'requirements_ref':requirements_ref,'object_ids':['A','B'],
             'assessment_section_id':'3','fixture_sha256':dict(INPUT_SHA256),'method_catalog_sha256':METHOD_CATALOG_SHA256,
             'method_source_name':METHOD_SOURCE_NAME,'method_source_sha256':method_hash,
-            'coordinator':'scripted_fixture','owner':'scripted_fixture','assessment_outcomes_supplied':0}
+            'coordinator':'live_pending' if planning_only else 'scripted_fixture',
+            'owner':'pending' if planning_only else 'scripted_fixture','assessment_outcomes_supplied':0}
 
 
-def _plan(ws, cs, co, ids, refs, catalog, method):
+def prepare_method(cs, cite, method):
+    header = '模拟委托引用的方法摘录：' + method['metadata']['name']
+    pack={'method_id':'mini-commission-reviewed-high-slope','version':1,'sources':[cite(METHOD_SOURCE_NAME,header)],
+          'indicators':[{k:v for k,v in r.items() if k != 'source_pages'} for r in method['indicators']],
+          'display_labels':method['display_labels'], 'presentation_sources':[cite(METHOD_SOURCE_NAME,header)],
+          'risk_bands':[{k:v for k,v in b.items() if k!='label'} for b in method['risk_bands']],
+          'weight_tables':[{'id':t['id'],'source':cite(METHOD_SOURCE_NAME,'表 '+t['id']+'：'),
+                            'rows':t['rows']} for t in method['weight_tables']]}
+    register_reviewed_method_pack(cs.store,pack,'Synthetic Writer verification; unaltered definitions and numerical rules from the pinned reviewed repository transcription.')
+    table_specs = json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text())['table_specs']
+    for spec in table_specs.values():
+        spec.pop('source_pages')
+        spec['sources'] = [cite(METHOD_SOURCE_NAME, '评估表及权重表格式：')]
+    return pack, table_specs
+
+
+def _plan(ws, cs, co, ids, refs, catalog, method, *, interpret=True):
     rows = {name:catalog.read(sid,0,50) for name,sid in ids.items()}
     def cite(name, quote):
         matches = [b for b in rows[name]['blocks'] if quote and quote in b['text']]
@@ -140,19 +159,9 @@ def _plan(ws, cs, co, ids, refs, catalog, method):
         else:
             caps=['fixed_text'] if a.get('section_id')=='1' else []
         items.append({'anchor_id':a['id'],'status':'required','interpretation':a['source']['quote'],'capabilities':caps})
-    req=propose_requirements(cs,co,'mini-scripted-requirements',commissioned,items)['result']['requirements_ref']
-    header = '模拟委托引用的方法摘录：' + method['metadata']['name']
-    pack={'method_id':'mini-commission-reviewed-high-slope','version':1,'sources':[cite(METHOD_SOURCE_NAME,header)],
-          'indicators':[{k:v for k,v in r.items() if k != 'source_pages'} for r in method['indicators']],
-          'display_labels':method['display_labels'], 'presentation_sources':[cite(METHOD_SOURCE_NAME,header)],
-          'risk_bands':[{k:v for k,v in b.items() if k!='label'} for b in method['risk_bands']],
-          'weight_tables':[{'id':t['id'],'source':cite(METHOD_SOURCE_NAME,'表 '+t['id']+'：'),
-                            'rows':t['rows']} for t in method['weight_tables']]}
-    register_reviewed_method_pack(ws.store,pack,'Synthetic Writer verification; unaltered definitions and numerical rules from the pinned reviewed repository transcription.')
-    table_specs = json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text())['table_specs']
-    for spec in table_specs.values():
-        spec.pop('source_pages')
-        spec['sources'] = [cite(METHOD_SOURCE_NAME, '评估表及权重表格式：')]
+    req=(propose_requirements(cs,co,'mini-scripted-requirements',commissioned,items)['result']['requirements_ref']
+         if interpret else commissioned)
+    pack, table_specs = prepare_method(cs, cite, method)
     weight=cite(scope,'按表 A.3-1（n=11）计算权重')
     conventions.append({'source':weight,'interpretation':'采用委托指定的 n=11 权重行。'})
     boundary=cite(scope,'界外对象列入排除清单并随计划提交业主确认。')
@@ -194,7 +203,8 @@ def _plan(ws, cs, co, ids, refs, catalog, method):
                         'reason':'中心桩号在委托范围内。' if oid!='C' else '范围外，提交业主确认排除。','sources':locs})
     # The real public read and its located blocks are available for the ordinary exclusion check.
     page = rows[design]
-    issue(ws,co,'read_source_page',json.dumps(page,ensure_ascii=False),block_material(page))
+    if interpret:
+        issue(ws,co,'read_source_page',json.dumps(page,ensure_ascii=False),block_material(page))
     return {'report_title':'青禾路堑工程\n施工安全风险评估报告（草稿）',
             'requirements_ref':req,'sections':plan_sections,'inventory_attributes':['中心桩号','坡高（m）','坡长（m）','施工开始日期','坡率','地下水调查记录'],
             'objects':objects,'conventions':conventions,'deliverables':['Word','Excel'],

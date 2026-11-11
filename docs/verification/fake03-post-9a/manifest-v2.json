@@ -1,0 +1,26 @@
+{
+  "version": "fake03-post-9a-v2",
+  "created_utc": "2026-11-11T15:28:32.111766+00:00",
+  "answer_key_file": "answer-key-v2.json",
+  "answer_key_sha256": "d49c4e15157b9649105d6d93c685e90ec73ff304f46ce5a00146e03d37abe907",
+  "fixture_files_sha256": {
+    "README.md": "cddf4622c8f4c6415aaba906907bca8de638eed681d1af93418d5f927f1014ed",
+    "writer-conventions.json": "62e3a2afdb2c7452351a9d2ecb6a0a501476745b2e6eb20648f7b1af41d9006d",
+    "confirmed-facts.json": "2815c134887ae9e3fe12ae6c3ef130a3d53a94a6d8205778bc493ee669915fa1",
+    "attestations.json": "7b10f6ad8163013558f7807db67e1e3739e3bc8f8d95985b5c42b5289953ddc8",
+    "engineering-review.json": "8c1eac2cd870e5e6c7aae7c14d83e3d02eed7f22acd5b16be52a9075f074cc4a",
+    "inputs/04_design.pdf": "8b7587d9c31c6ecc0c8af6558aece8f317c698b69be37b4e0bba5a8e6a826a1c",
+    "inputs/08_template.docx": "97e15102a603fa36daa387f6715796706db2ffdc651d8dad523122fa0c2728f6",
+    "inputs/05_survey.pdf": "a7b8b8f79ba7f19eca64bb2f0051278a595945a4d93ec3d936ebca4754dbacd0",
+    "inputs/00_scope.md": "04deb3abc4784b49d47c6d7bf41aa7f34d3a0141d7d79a35f2e1dca5d3633d83",
+    "inputs/07_region.pdf": "cedb480a6c3df5bd82adff6b0cba6df349e6f4e02577863a7e8a475f1351e890",
+    "inputs/02_revision.pdf": "54f9d3e543eb1e271f6af17df1f2a5ee03a1f5586a9376fcb7931c0dace366aa",
+    "inputs/01_initial.pdf": "a36128335a49345fde678591e409e0731898f3a37e52c9f478f02bbfbfb0b7da",
+    "inputs/06_drawing.pdf": "01d13ae492e6ef96b7c75ea0f969e247045e90ee4cfe94e12307a2b7cfae9852",
+    "inputs/03_requirements.pdf": "971eac1d289175272f6566e62486e859616eae21f726821dd96c38593d86324a"
+  },
+  "authority": "preparation only; no grant creation, run launch, hold release or usage reset",
+  "previous_answer_key_sha256": "562505e7ddf6cea112822c7d1018fd8d124c6f1f5387369055108d6c2f92e376",
+  "launch_authorized": false,
+  "live_case_imports": "inputs/* plus reviewed method definitions/conventions only; confirmed-facts.json, attestations.json and verifier key excluded"
+}

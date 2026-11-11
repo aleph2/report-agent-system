@@ -132,6 +132,9 @@ def prepare_request(ws, role, request):
         return _co_request(ws, request)
     if role != 'reviewer':
         return request, None
+    from .content_tasks import qualitative_review_active
+    if qualitative_review_active():
+        return request, None
     from .content_store import ContentStore
     from .content_tasks import bound_actor
     from .review_message import bind_review_message

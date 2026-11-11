@@ -12,7 +12,7 @@ ATOMIC_WRITES = frozenset({
     'export_content_workbook', 'request_layout_capability', 'select_content_delivery',
     'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome',
     'set_requirement_status', 'link_convention', 'set_scope_boundary', 'set_planning_details',
-    'add_object', 'add_section', 'add_substitution', 'add_reconciliation', 'add_question', 'submit_plan', 'request_requirement_resolution'})
+    'publish_planning_draft', 'add_object', 'add_section', 'add_substitution', 'add_reconciliation', 'add_question', 'submit_plan', 'request_requirement_resolution'})
 NATIVE_WRITES = ATOMIC_WRITES | {'render_content_export'}
 
 

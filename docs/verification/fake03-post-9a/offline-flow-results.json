@@ -1,0 +1,60 @@
+{
+  "status": "scripted_offline_plumbing_passed",
+  "semantic_quality_measured": false,
+  "provider_requests": 0,
+  "tokens": 0,
+  "coordinator_calls": 61,
+  "role_calls": {
+    "writer": 39,
+    "reviewer": 48,
+    "text_tool": 3
+  },
+  "rows_saved": 22,
+  "independent_findings": 22,
+  "fresh_extracted_facts": 2,
+  "fact_status": "proposed",
+  "word_open_comments": 23,
+  "excel_issue_rows": 23,
+  "source_comments": 5,
+  "formal_release": false,
+  "hashes": {
+    "fake03-offline.xlsx": "dbcc6d41c2170b568fbf9379884985b03b5c2fd31579af8d85f546ad0207ce5c",
+    "fake03-offline.docx": "4e358d9be82fba3977bfbcff4554e8664db856673dc54dbc896faec36588d6ca",
+    "fake03-offline.pdf": "4cd0e4c0e34b7d9df2502d057f609991c0ccff0e312177ab1dc1b1ea441e2d2f"
+  },
+  "render_pages": 11,
+  "render_tool": "installed LibreOffice + pypdfium2; packaged renderer lacks pdf2image",
+  "visual_review": "all 11 previous page images inspected; final page pixels compared",
+  "pixels_match_inspected": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "full_regression_run": false,
+  "focused_tests_passed": 148,
+  "focused_failures": 0,
+  "focused_elapsed_seconds": 235.7275493144989,
+  "guards_added": 3,
+  "guards_removed": 0,
+  "tools_added": [
+    "publish_planning_draft"
+  ],
+  "new_fallbacks": [
+    "original physical PDF lookup for empty frozen-text pages"
+  ],
+  "writer_charged_scripted_calls": 42,
+  "notes": [
+    "Only model answers are scripted; real native tools and writes execute.",
+    "This is not paid model-quality acceptance.",
+    "No full repository regression or native Word rendering was run.",
+    "Dispatcher and S2 byte-identical to accepted b2."
+  ]
+}

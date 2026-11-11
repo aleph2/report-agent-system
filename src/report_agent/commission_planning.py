@@ -389,6 +389,7 @@ class CandidateDisposition(Contract):
 
 
 class PlanDetails(Contract):
+    report_title: str = ''
     inventory_attributes: list[str] = Field(min_length=1)
     deliverables: list[str] = Field(min_length=1)
 
@@ -718,7 +719,18 @@ def submit_plan(cs, actor, operation_id):
     draft = read_draft(cs, actor)
     if draft['gaps']:
         raise ActionRejected('COMMISSION_REQUIREMENTS_INCOMPLETE', diagnostic={'gaps': draft['gaps']})
-    return save_plan(cs, actor, operation_id, draft['plan'])
+    from .commission_plan import CommissionPlan
+    from . import plan_authority
+    proposed = CommissionPlan.model_validate(draft['plan']).model_dump()
+    with cs.store.connect() as db:
+        ref = plan_authority.plan_ref(db)
+        saved = cs._read(db, ref) if ref else None
+    # A new submit command may reuse unchanged content; its own operation ID still binds the request.
+    if saved and CommissionPlan.model_validate({k:v for k,v in saved['payload'].items()
+            if k in CommissionPlan.model_fields}).model_dump() == proposed:
+        return cs.operation(actor, operation_id, {'commission_plan': proposed},
+            lambda db: {'plan_ref': ref, 'inventory_refs': saved['payload']['inventory_refs']})
+    return save_plan(cs, actor, operation_id, proposed)
 
 
 def requirement_lines(cs, db, record):
@@ -900,6 +912,14 @@ def planning_tools(cs, actor):
     from .planning_assertions import planning_assertion_tools
     assertion_tools = planning_assertion_tools(cs, actor)
 
+    def publish_planning_draft(operation_id: str) -> dict:
+        """Publish a complete saved draft as a plan version for page-binding proposals.
+
+        Returns plan_ref without asking for approval or authorizing writing.
+        After proposing page bindings, submit_plan publishes the owner confirmation sheet.
+        """
+        return submit_plan(cs, actor(), operation_id)
+
     def read_planning_draft(collection: DRAFT_COLLECTIONS = 'summary',
             page: Annotated[int, Field(ge=1)] = 1, page_size: Annotated[int, Field(ge=1, le=10)] = 5,
             item_id: str = '', offset: Annotated[int, Field(ge=0)] = 0,
@@ -944,12 +964,12 @@ def planning_tools(cs, actor):
 
     def add_section(operation_id: str, section_id: str, title: str, kind: Literal['fixed', 'extracted', 'derived'],
                     outline_anchor_id: Annotated[str, Field(min_length=1, description='The section requirement ID returned by read_planning_draft for this section_id; use its ID, never its locator or heading text.')],
-                    source_span: Annotated[SourceSpan | None, Field(description='Reviewed source page/endpoint selector, required for fixed template sections. Mutually exclusive with sources. Its profile_id must be offered for this exact source_ref.')] = None,
-                    sources: Annotated[list[PlanningCitation], Field(description='Source citations for an extracted section (or derived evidence). Supply these and omit source_span; do not attach a template text profile to a design source.')] = [],
+                    source_span: Annotated[SourceSpan | None, Field(description='Reviewed PDF page/endpoint selector for fixed template sections. For Word templates, use exact paragraph quotations in sources. Mutually exclusive with sources. Its profile_id must be offered for this exact source_ref.')] = None,
+                    sources: Annotated[list[PlanningCitation], Field(description='Source citations for extracted sections, derived evidence, or exact fixed Word-template paragraphs. Omit source_span; do not attach a template profile to a design source.')] = [],
                     pending_sources: list[str] = [], derived_from: list[str] = [], rule: str = '',
                     result_bindings: list[ResultBinding] = [], replacements: list[LiteralReplacement] = [],
                     source_views: list[SourceView] = [], examples: list[PlanningCitation] = []) -> dict:
-        """Save one outline section. Fixed text uses template page/end-sentence selectors; the system extracts it. Derived summaries bind saved result fields and their producing section IDs. No model-written fixed body or proof is accepted."""
+        """Save one outline section. Fixed PDF text uses template page/end-sentence selectors; fixed Word text uses exact template quotations. The system copies either form. Derived summaries bind saved result fields and their producing section IDs. No model-written fixed body or proof is accepted."""
         from .commission_requirements import read_requirements
         available_anchors = read_requirements(cs)['payload']['anchors']
         anchor = next((a for a in available_anchors if a['id'] == outline_anchor_id and
@@ -959,7 +979,9 @@ def planning_tools(cs, actor):
                    [a['id'] for a in available_anchors if a['kind'] == 'section' and a['section_id'] == section_id],
                    message='Choose the returned section requirement ID matching section_id. A source locator or heading text is not an anchor ID.')
         if kind == 'fixed' and source_span is None:
-            raise ActionRejected('FIXED_SECTION_SOURCE_SPAN_REQUIRED')
+            records = [cs.read(c.source_ref.model_dump()) for c in sources]
+            if not records or any(not r['payload']['source_metadata'].get('filename','').lower().endswith('.docx') for r in records):
+                raise ActionRejected('FIXED_SECTION_SOURCE_SPAN_REQUIRED')
         value = {'section_id': section_id, 'title': title, 'kind': kind, 'outline': anchor['source'],
                  'pending_sources': pending_sources, 'derived_from': derived_from, 'rule': rule,
                  'result_bindings': [b.model_dump(mode='json') for b in result_bindings],
@@ -974,6 +996,8 @@ def planning_tools(cs, actor):
             value['source_span'] = source_span.model_dump(mode='json')
         else:
             value['sources'] = [s.model_dump(mode='json') for s in sources]
+            if kind == 'fixed':
+                value['text'] = '\n'.join(s.quote for s in sources)
         return save_item(cs, actor(), operation_id, 'section', value)
 
     def add_substitution(operation_id: str, section_id: str, substitution: PlanningSubstitution) -> dict:
@@ -1008,9 +1032,9 @@ def planning_tools(cs, actor):
         return review(cs, actor(), operation_id, [r.model_dump(mode='json') for r in reviews])
 
     if plan_inputs.get_skeleton(cs.store):
-        return assertion_tools + [expose(f) for f in [read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
+        return assertion_tools + [expose(f) for f in [publish_planning_draft, read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
             set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question, review_carried_items]]
-    return assertion_tools + [expose(function) for function in [read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
+    return assertion_tools + [expose(function) for function in [publish_planning_draft, read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
             add_object, add_section, add_substitution, add_reconciliation, add_question]]
 
 
