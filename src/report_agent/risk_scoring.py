@@ -140,7 +140,10 @@ def _table_records(pack, result, label, prefix):
     """Save source descriptions and calculated values before presentation can reference them."""
     definitions = {i['id']: i for i in pack['indicators']}
     ranking, evaluation = [], []
-    for row in result['rows']:
+    from .draft_assessment import display_rows
+    order = {key:i for i,key in enumerate(definitions)}
+    displayed = sorted(display_rows(result, pack), key=lambda row: order[row['indicator_id']])
+    for row in displayed:
         definition = definitions[row['indicator_id']]
         ranking.append({'rank': row['rank'], 'indicator_id': row['indicator_id'],
             'indicator': definition['display_label'], 'weight': row['weight'], 'rank_reason': row['rank_reason']})
@@ -154,54 +157,11 @@ def _table_records(pack, result, label, prefix):
                 'value': row['value'], 'weight': row['weight'], 'score': row['score'],
                 'explanation': row['rationale']})
     total = {key: '' for key in TABLE_RECORD_CONTRACT['rows']['evaluation.total_rows']}
-    total.update(category=pack['display_labels']['total'], score=result['adopted']['total'],
-                 weight=sum_products([['1', row['weight']] for row in result['rows']])['total'])
+    total.update(category=pack['display_labels']['total'], score=result.get('adopted', {}).get('total', '未评分'),
+                 weight=sum_products([['1', row['weight']] for row in displayed])['total'])
     return {'object_label': label, 'ranking': {'number': prefix + '-1', 'rows': ranking},
             'evaluation': {'number': prefix + '-2', 'rows': evaluation, 'total_rows': [total]}}
 
-
-def _projected_tables(cs, db, plan, assessment_ref, table_records, result, label):
-    from .table_spec import render_saved_table
-    from .store import digest
-    bodies, origins = {}, {}
-    for role in ('ranking', 'evaluation'):
-        spec = plan['payload']['table_specs'][role]
-        bodies[role] = render_saved_table(cs, db, plan['ref'], assessment_ref, spec['table_type'])
-        origins[role] = bodies[role].pop('row_origins')
-        bodies[role]['assessment_part'] = role
-    # Semantic field bindings locate annotations even when a specification reorders columns or rows.
-    def column(role, field):
-        spec = plan['payload']['table_specs'][role]
-        from .table_spec import column_keys
-        keys = column_keys(spec)
-        matches = [n for n, key in enumerate(keys) if spec['column_bindings'][key] == field]
-        if len(matches) != 1:
-            raise ActionRejected('TABLE_SPEC_ANNOTATION_BINDING_REQUIRED: ' + field)
-        return matches[0]
-    issues, citations = [], []
-    for row in result['rows']:
-        sources = []
-        for citation in row['sources']:
-            title = cs._read(db, citation['source_ref'])['payload']['source_metadata'].get('title')
-            if not title:
-                raise ActionRejected('ASSESSMENT_READABLE_SOURCE_TITLE_REQUIRED')
-            sources.append({'document': title, 'page': citation['locator']})
-            if citation not in citations:
-                citations.append(citation)
-        if not row['basis_kind'].endswith('assumption'):
-            continue
-        positions = [n for n, origin in enumerate(origins['evaluation'])
-                     if origin['binding'] == 'evaluation.rows' and
-                     table_records['evaluation']['rows'][origin['index']]['indicator_id'] == row['indicator_id']]
-        if not positions:
-            raise ActionRejected('TABLE_SPEC_ASSUMPTION_ROW_REQUIRED')
-        issues.append({'id': digest([assessment_ref, row['indicator_id']]), 'kind': row['basis_kind'],
-            'object_label': label, 'basis': row['rationale'], 'sources': sources,
-            'adopted_value': row['value'], 'question': row['question'],
-            'anchor': {'row': min(positions), 'column': column('evaluation', 'value')},
-            'affects_level': result['affects_level']})
-    bodies['evaluation']['material_issues'] = issues
-    return bodies['ranking'], bodies['evaluation'], citations
 
 
 def _prepare_indicator(pack, row):
@@ -407,74 +367,25 @@ def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, cand
     from .content_models import ContentNode
     from .store import digest
     pack = plan['payload']['method_pack']
-    definitions = {i['id']: i for i in pack['indicators']}
+    if not {'ranking', 'evaluation'} <= set(plan['payload'].get('table_specs', {})):
+        raise ActionRejected('TABLE_SPEC_CONFIRMED_TYPE_REQUIRED')
     index = plan['payload']['objects'].index(obj) + 1
-    parts = section_id.split('.')
-    table_prefix = '.'.join((parts + ['2'])[:2] + [str(index)])
+    table_prefix = section_id + '.' + str(index)
     unscored = result.get('status') == 'unscored'
-    table_records = (_table_records(pack, result, obj['label'], table_prefix)
-                     if plan['payload'].get('table_specs') and not unscored else None)
+    table_records = _table_records(pack, result, obj['label'], table_prefix)
     assessment_ref = cs._insert(db, actor, 'Assessment', {'commission_plan_ref': plan['ref'], **candidate,
-        'result': result, **native, **({'table_records': table_records} if table_records else {})})
+        'result': result, **native, 'table_records': table_records})
     evidence_ref = cs._insert(db, actor, 'Evidence', {'source_refs': [], 'locator': 'system calculation',
         'excerpt': '', 'input_refs': [assessment_ref, plan['ref']], 'method': 'reviewed method table lookup and decimal sum_products',
         'tool_receipt': operation_id, 'result': result})
-    if unscored:
-        from .draft_assessment import tables
-        ranking_body, evaluation_body, citations = tables(cs, db, plan, obj, assessment_ref, result, table_prefix)
-    elif table_records:
-        ranking_body, evaluation_body, citations = _projected_tables(
-            cs, db, plan, assessment_ref, table_records, result, obj['label'])
-    else:
-        rows, merges, issues, ranking, citations = [], [], [], [], []
-        for row in result['rows']:
-            definition = definitions[row['indicator_id']]
-            start = len(rows)
-            source_texts = []
-            for citation in row['sources']:
-                source = cs._read(db, citation['source_ref'])['payload']
-                title = source['source_metadata'].get('title')
-                if not title:
-                    raise ActionRejected('ASSESSMENT_READABLE_SOURCE_TITLE_REQUIRED')
-                source_texts.append({'document': title, 'page': citation['locator']})
-                if citation not in citations:
-                    citations.append(citation)
-            note = definition['notes']
-            if not row['basis_kind'].endswith('assumption'):
-                note += '\n取值说明：' + row['rationale']
-                note += '\n依据：' + '；'.join(s['document'] + '（' + s['page'].replace('page ', '第') + ('页' if s['page'].startswith('page ') else '') + '）' for s in source_texts)
-            for grade in definition['grades']:
-                rows.append([definition['category'], definition['label'], grade['description'],
-                    grade['min_value'] + '–' + grade['max_value'], row['value'], row['weight'], row['score'], note])
-            end = len(rows) - 1
-            if end > start:
-                for column in (1, 4, 5, 6, 7):
-                    merges.append({'start_row': start, 'end_row': end, 'start_col': column, 'end_col': column})
-            ranking.append([definition['label'], str(row['rank']), row['weight']])
-            if row['basis_kind'].endswith('assumption'):
-                issues.append({'id': digest([assessment_ref, row['indicator_id']]), 'kind': row['basis_kind'],
-                    'object_label': obj['label'], 'basis': row['rationale'], 'sources': source_texts,
-                    'adopted_value': row['value'], 'question': row['question'], 'anchor': {'row': start, 'column': 4},
-                    'affects_level': result['affects_level']})
-        start = 0
-        while start < len(rows):
-            end = start
-            while end + 1 < len(rows) and rows[end + 1][0] == rows[start][0]:
-                end += 1
-            if end > start:
-                merges.append({'start_row': start, 'end_row': end, 'start_col': 0, 'end_col': 0})
-            start = end + 1
+    from .table_spec import assessment_tables
+    ranking_body, evaluation_body, citations = assessment_tables(
+        cs, db, plan, assessment_ref, table_records, result, obj['label'])
     base = {'qualifiers': {}, 'claim_kind': 'calculation', 'citations': citations}
     def node(kind, body):
         payload = ContentNode.model_validate({**base, 'kind': kind, 'body': {
             **body, 'section_id': section_id, 'assessment_ref': assessment_ref}}).model_dump(mode='json')
         return cs._insert(db, actor, 'ContentNode', payload)
-    if not table_records and not unscored:
-        ranking_body = {'columns': ['指标', '重要性排序', '权重'], 'rows': ranking,
-            'caption': table_prefix + '-1 ' + obj['label'] + '指标重要性排序表', 'assessment_part': 'ranking'}
-        evaluation_body = {'columns': ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释'],
-            'caption': table_prefix + '-2 ' + obj['label'] + '施工安全风险评价表',
-            'rows': rows, 'merges': merges, 'material_issues': issues, 'assessment_part': 'evaluation'}
     ranking_ref = node('table', ranking_body)
     evaluation_ref = node('table', evaluation_body)
     if unscored:
@@ -482,8 +393,7 @@ def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, cand
         text = obj['label'] + '：未评分，风险等级未确定。' + qualification
     else:
         qualification = '假设指标按现有依据取值，补充相关资料后需复核风险等级。' if result['affects_level'] else ''
-        level = (plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
-                 if table_records else result['adopted']['level'])
+        level = plan['payload']['table_specs']['evaluation']['level_labels'][result['adopted']['level']]
         if result.get('status') == 'legacy_draft':
             qualification = '批量录入的试算草稿，需按已确认的方法逐项复核。' + qualification
         if result.get('review_status') == 'pending_review':

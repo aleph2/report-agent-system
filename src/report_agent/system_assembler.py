@@ -461,9 +461,9 @@ def _execute_assembly(cs, db, actor, request, *, current=False):
         for obj, (record, receipt, assessment_sid) in assessments.items():
             if assessment_sid != sid:
                 continue
-            label = next(o['label'] for o in plan['payload']['objects'] if o['object_id'] == obj)
-            table = cs._read(db, receipt['ranking_ref'])['payload']['body']
-            subsection = table['caption'].split('-')[0].removeprefix('表').strip()
+            item = next(o for o in plan['payload']['objects'] if o['object_id'] == obj)
+            label = item['label']
+            subsection = sid + '.' + str(plan['payload']['objects'].index(item) + 1)
             body = {'text': subsection + ' ' + label, 'section_id': sid}
             issues = bound_issues(sid, obj)
             if issues:

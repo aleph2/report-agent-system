@@ -248,13 +248,13 @@ async def test_complete_current_scripted_report_checkpoint_calculation_exports_r
     word_bytes = (ws.store.root / seen['word']['file_ref']).read_bytes()
     excel_bytes = (ws.store.root / seen['excel']['file_ref']).read_bytes()
     doc, book = Document(BytesIO(word_bytes)), load_workbook(BytesIO(excel_bytes))
-    assert len(doc.comments) == 3 and book['资料澄清清单'].max_row == 4
+    assert len([c for c in doc.comments if c.author == '待核']) == 3 and book['资料澄清清单'].max_row == 4
     texts = '\n'.join(p.text for p in doc.paragraphs)
     assert 'Project NEW.' in texts and 'Exact method sentence.' in texts
     assert cs.read(seen['assessment']['assessment_ref'])['payload']['table_records']
     evidence = {'mode': 'scripted_current_deepagents_tools', 'semantic_acceptance': False,
         'plan_ref': saved['ref'], 'snapshot_ref': seen['snapshot'], 'review_tasks': seen['review_tasks'],
-        'word': seen['word'], 'excel': seen['excel'], 'comments': len(doc.comments),
+        'word': seen['word'], 'excel': seen['excel'], 'comments': len([c for c in doc.comments if c.author == '待核']),
         'excel_clarification_rows': book['资料澄清清单'].max_row - 1,
         'delivery': delivery, 'tool_errors': errors,
         'tools_called': sorted({c['name'] for _, _, batch in driver.calls for m in batch

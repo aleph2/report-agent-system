@@ -1,0 +1,111 @@
+{
+  "part": "9a-b2",
+  "status": "candidate; full regression and owner acceptance pending",
+  "snapshot_ref": {
+    "type": "DocumentSnapshot",
+    "id": "f2995532-cbd3-4a43-ac79-a9e9d01e683c",
+    "version": 1
+  },
+  "model_calls": 0,
+  "pages": 13,
+  "visual_pages_inspected": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+  ],
+  "comments": {
+    "来源": 8,
+    "待核": 23
+  },
+  "indicator_comments_at_value_cell": 20,
+  "planning_comments": 3,
+  "excel_issue_rows": 23,
+  "unique_issue_ids": 23,
+  "open_indicators": 19,
+  "trial_values": [
+    37,
+    27,
+    62
+  ],
+  "adopted_scores": false,
+  "inline_citations": false,
+  "commission_instruction_citations": false,
+  "source_word_unchanged_by_pdf_conversion": true,
+  "files": {
+    "fake03-draft.docx": {
+      "sha256": "d0f9c7cb20c05117e3f516b491b8b2679fbfbb574ece87b5d5414ab72ee50f4d",
+      "bytes": 52525
+    },
+    "word-comments.json": {
+      "sha256": "1d6c2520ac19444fb401a166fd8cf7c82981356b47f89fa420a861dd17fd6a25",
+      "bytes": 18325
+    },
+    "fake03-draft.xlsx": {
+      "sha256": "b2711de5759980d1f3fadbc67c490f5b116d5855082a80337b5f3340a696ecad",
+      "bytes": 24152
+    },
+    "word-comments.md": {
+      "sha256": "2c06378a8361e7b6b7c8736830082eb73b217574aaa62487aa836946ae624a1a",
+      "bytes": 14676
+    },
+    "fake03-draft.pdf": {
+      "sha256": "5dc6b4f4d808ab217f81567d10ee456cb27d73d731047bbdc328323de28fef17",
+      "bytes": 467229
+    }
+  },
+  "limits": [
+    "LibreOffice PDF inspected; Microsoft Word rendering not independently checked",
+    "Excel print layout out of scope",
+    "No paid Fake03 or full b2 regression yet"
+  ],
+  "size": {
+    "source_python": {
+      "added": 135,
+      "removed": 202,
+      "net": -67
+    },
+    "spec_data": {
+      "added": 18,
+      "removed": 2,
+      "net": 16
+    },
+    "tests": {
+      "added": 306,
+      "removed": 123,
+      "net": 183
+    },
+    "total_excluding_documentation": {
+      "added": 459,
+      "removed": 327,
+      "net": 132
+    }
+  },
+  "checks": {
+    "explicit_raise_assert_added": 1,
+    "explicit_raise_assert_removed": 2,
+    "explanation": "Two duplicate title checks disappear with old render paths; the shared renderer retains the title check. One legacy-format condition becomes a spec-presence condition.",
+    "test_guards_added": 2,
+    "legacy_fallbacks_added": 0,
+    "table_layout_fallbacks_removed": 2
+  },
+  "verification": {
+    "affected_tests": "1008 passed in 487.69s; product AST unchanged by final whitespace correction",
+    "mutation_checks": "2 expected test failures; product files unchanged",
+    "full_regression": "not authorized or run for b2",
+    "independent_review": "Main self-review and all 13 rendered pages; independent owner code/page acceptance pending",
+    "additional_fixture_checks": "152 passed / 1 failed before fixture correction; 37 final fixture-dependent tests passed in 176.44s. Counts overlap and are not summed.",
+    "protected_source": "Scoring function ASTs, calculator/method-pack code, dispatcher and assertion/S2 package unchanged; final production edit after the large test run changes line endings only.",
+    "final_fixture_cause": "The separate eleven-indicator fixture omitted TableSpec; the eleventh save correctly refused TABLE_SPEC_CONFIRMED_TYPE_REQUIRED. Shared spec preparation fixes the fixture; all scoring and zero-refusal expectations remain."
+  },
+  "statistical_utc": "2026-11-11T03:01:40.135900+00:00"
+}

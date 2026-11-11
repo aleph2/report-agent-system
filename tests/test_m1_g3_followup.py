@@ -1,3 +1,4 @@
+from support.plan_fixture import synthetic_pilot_plan
 """G3 follow-up: immutable known-conflict obligations and source-exact tables."""
 from report_agent import issue_state
 from copy import deepcopy
@@ -234,7 +235,7 @@ def test_table_spec_rejects_data_and_unsupported_operations(mutation):
     from report_agent.table_spec import TableSpec
     spec = alternate_table_spec()
     if mutation == 'literal_rows': spec['rows'] = [['invented', '1', '99']]
-    elif mutation == 'widths': spec['column_weights'] = [1, 2, 3]
+    elif mutation == 'widths': spec['column_weights'] = {'first': 1}
     elif mutation == 'formula': spec['column_bindings']['result'] = {'formula': 'rank * 2'}
     elif mutation == 'binding_literal': spec['column_bindings']['result'] = {'value': '99'}
     elif mutation == 'numeric_binding': spec['column_bindings']['result'] = '99'
@@ -324,60 +325,6 @@ def test_overlapping_projection_merges_refuse_even_when_all_text_is_identical():
     with pytest.raises(ActionRejected, match='TABLE_SPEC.*OVERLAP'):
         saved.render()
 
-
-def synthetic_pilot_plan(fixture):
-    """Synthetic reviewed presentation data; source transcription is tested separately."""
-    plan = deepcopy(fixture.plan)
-    pack = plan['method_pack']
-    pack['version'] = 2
-    pack['presentation_sources'] = [fixture.cite('template')]
-    pack['display_labels'] = {'total': '合计'}
-    for indicator in pack['indicators']:
-        indicator['display_label'] = '指标 ' + indicator['id']
-        indicator['category_display_label'] = '地质条件'
-        indicator['presentation_rows'] = []
-        for grade in indicator['grades']:
-            conditions = ['条件甲', '条件乙'] if indicator['id'] == 'C' and grade['id'] in ('g2', 'g3') else ['']
-            for condition in conditions:
-                indicator['presentation_rows'].append({'grade_id': grade['id'],
-                    'description': grade['description'], 'condition': condition,
-                    'description_group_id': grade['id']})
-    from report_agent.method_pack import register_reviewed_method_pack
-    register_reviewed_method_pack(fixture.cs.store, pack, 'Independent synthetic table contract fixture.')
-    common = {'version': 1, 'sources': [fixture.cite('template')], 'sort': [],
-              'level_labels': {'I': 'Ⅰ级（低度风险）', 'II': 'Ⅱ级（中度风险）',
-                               'III': 'Ⅲ级（高度风险）', 'IV': 'Ⅳ级（极高风险）'}}
-    rank = {**deepcopy(common), 'table_type': 'synthetic_rank',
-        'headers': [{'text': text, 'columns': [key]} for key, text in (
-            ('rank', '序号'), ('indicator', '评估指标'), ('weight', '权重系数'))],
-        'column_bindings': {key: key for key in ('rank', 'indicator', 'weight')},
-        'row_groups': [{'binding': 'ranking.rows', 'merges': []}],
-        'caption_pattern': '表{number} {object_label}权重系数排序',
-        'caption_bindings': {'number': 'ranking.number', 'object_label': 'object_label'},
-        'sort': [{'binding': 'rank', 'direction': 'ascending'}]}
-    keys = ['category', 'indicator', 'description', 'condition', 'range', 'value', 'weight', 'score', 'explanation']
-    evaluation = {**deepcopy(common), 'table_type': 'synthetic_evaluation',
-        'headers': [{'text': '分类', 'columns': ['category']},
-                    {'text': '评估指标', 'columns': ['indicator']},
-                    {'text': '分级', 'columns': ['description', 'condition']},
-                    {'text': '基本分值（Rᵢⱼ）', 'children': [
-                        {'text': '分值范围', 'columns': ['range']}, {'text': '取值', 'columns': ['value']}]},
-                    {'text': '权重系数（γᵢⱼ）', 'columns': ['weight']},
-                    {'text': '评估分值（Xᵢⱼ）', 'columns': ['score']},
-                    {'text': '说明', 'columns': ['explanation']}],
-        'column_bindings': {key: key for key in keys},
-        'row_groups': [{'binding': 'evaluation.rows', 'merges': [
-            {'axis': 'vertical', 'columns': ['category'], 'group_by': ['category_id']},
-            {'axis': 'vertical', 'columns': ['indicator', 'value', 'weight', 'score', 'explanation'], 'group_by': ['indicator_id']},
-            {'axis': 'vertical', 'columns': ['range'], 'group_by': ['indicator_id', 'grade_id']},
-            {'axis': 'vertical', 'columns': ['description'], 'group_by': ['indicator_id', 'description_group_id']},
-            {'axis': 'horizontal', 'columns': ['description', 'condition'], 'when_empty': 'condition'}]},
-            {'binding': 'evaluation.total_rows', 'merges': [
-                {'axis': 'horizontal', 'columns': keys[:6]}]}],
-        'caption_pattern': '表{number} {object_label}施工安全总体风险评估表',
-        'caption_bindings': {'number': 'evaluation.number', 'object_label': 'object_label'}}
-    plan['table_specs'] = {'ranking': rank, 'evaluation': evaluation}
-    return plan
 
 
 def test_v2_assessment_saves_source_rows_and_projects_both_confirmed_table_types(method_commission):

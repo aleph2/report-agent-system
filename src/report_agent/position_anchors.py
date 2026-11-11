@@ -21,17 +21,17 @@ class ParagraphAnchor(BaseModel):
         return self
 
 
-def comment_position(doc, paragraphs, issue, node_ref):
+def comment_position(doc, paragraphs, issue, node_ref, excluded=()):
     """The caller supplies only this node's rendered paragraph range."""
     anchor = issue.anchor
     if not isinstance(anchor, ParagraphAnchor) or anchor.paragraph_index >= len(paragraphs):
         raise ActionRejected(f"MATERIAL_ISSUE_POSITION_INVALID: {issue.id}; node={node_ref}")
     paragraph = paragraphs[anchor.paragraph_index]
     end = len(paragraph.text) if anchor.end is None else anchor.end
-    comment_range(doc, paragraph, anchor.start, end, issue, node_ref)
+    comment_range(doc, paragraph, anchor.start, end, issue, node_ref, excluded)
 
 
-def comment_range(doc, paragraph, start, end, issue, node_ref):
+def comment_range(doc, paragraph, start, end, issue, node_ref, excluded=()):
     """Split touched plain-text runs at numeric offsets; validate before mutation."""
     text = paragraph.text
     if type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text):
@@ -70,4 +70,4 @@ def comment_range(doc, paragraph, start, end, issue, node_ref):
             last = fragment._r
             if included:
                 selected.append(fragment)
-    doc.add_comment(selected, issue.comment(), author="工程资料澄清", initials="审")
+    doc.add_comment(selected, issue.comment(excluded), author="待核", initials="核")

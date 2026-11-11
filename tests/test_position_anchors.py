@@ -13,7 +13,7 @@ NODE = {"type": "ContentNode", "id": "own-node", "version": 4}
 
 def issue(**position):
     return SimpleNamespace(id="MI-3-2-01", anchor=ParagraphAnchor(**position),
-                           comment=lambda: "Original issue explanation")
+                           comment=lambda excluded=(): "Original issue explanation")
 
 def selected_text(paragraph):
     children = list(paragraph._p)

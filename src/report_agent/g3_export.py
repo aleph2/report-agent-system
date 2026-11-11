@@ -64,17 +64,17 @@ def _source(citation, records):
     return records[key]['payload']
 
 
-def citation_text(node, records, plan=None):
+def citation_text(node, records, plan=None, excluded=()):
     if node.get('body', {}).get('section_heading') or (node['kind'] == 'chapter' and '\n' not in node['body']['text']):
         return ''
     if plan and plan.get('format_source') and (node['kind'] == 'report' or node['body'].get('page_role') == 'title_page'):
         # Front-matter source bindings stay in the audit, outside the prescribed cover fields.
         return ''
-    if plan and any(s['section_id'] == node['body'].get('section_id') and s['kind'] == 'fixed' for s in plan['sections']):
-        return ''
     values = []
     for citation in node.get('citations', []):
         source = _source(citation, records)
+        if source.get('source_id') in excluded:
+            continue
         title = source.get('source_metadata', {}).get('title', '').strip()
         locator = citation['locator'].strip()
         page = re.fullmatch(r'page ([1-9][0-9]*)(?:;.*)?', locator)
@@ -82,7 +82,7 @@ def citation_text(node, records, plan=None):
         if text_location and text_location[3] and int(text_location[3]) > int(text_location[4]):
             raise ActionRejected('G3_CITATION_LOCATION_NOT_READABLE')
         if page:
-            place = f'PDF第{page[1]}页'
+            place = f'第{page[1]}页'
         elif text_location:
             place = (f'第{text_location[2]}行' if text_location[1] == 'line' else f'正文第{text_location[2]}段')
         elif locator == 'manifest text':
@@ -93,10 +93,10 @@ def citation_text(node, records, plan=None):
             raise ActionRejected('G3_CITATION_LOCATION_NOT_READABLE')
         if not title or _INTERNAL.search(title) or re.search(r'[/\\]', title):
             raise ActionRejected('G3_CITATION_READABLE_SOURCE_TITLE_REQUIRED')
-        text = title + place
+        text = '《' + title + '》' + place
         if text not in values:
             values.append(text)
-    return '（' + '；'.join(values) + '）' if values else ''
+    return '；'.join(values)
 
 
 def _visible(node):
@@ -172,9 +172,8 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 or section_receipt.get('section_id') != body.get('section_id')):
             problems.append(location + ': planned section receipt mismatch')
         if (node['kind'] == 'table' and body.get('assessment_ref')
-                and body.get('assessment_part') == 'ranking'
-                and body.get('columns') == ['指标', '重要性排序', '权重', '排序理由']):
-            problems.append(location + ': legacy ranking reasons require regeneration from saved assessment')
+                and body.get('assessment_part') not in plan.get('table_specs', {})):
+            problems.append(location + ': assessment table spec required')
         if body.get('source_views'):
             receipt = section_receipt if native_cs else report_state.planned_section(cs.store, records[key]['ref']) if cs is not None else None
             section = sections.get(body.get('section_id'), {})
@@ -371,24 +370,21 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
     for key in rendered_keys:
         node = records[key]['payload']
         body = node.get('body', {})
-        ref = body.get('assessment_ref')
-        assessment = records.get(_key(ref), {}).get('payload', {}) if ref else {}
-        opened = body.get('assessment_part') == 'evaluation' and assessment.get('result', {}).get('status') == 'unscored'
+        weighted_table = node['kind'] == 'table' and body.get('column_weights')
         numbered_chapter = node['kind'] == 'chapter' and re.fullmatch(r'[1-9][0-9]*(?:\.[0-9]+)*', body['text'].split(' ', 1)[0])
-        if not body.get('section_heading') and not numbered_chapter and not opened:
+        if not body.get('section_heading') and not numbered_chapter and not weighted_table:
             continue
         if key not in controls:
             controls[key] = dict(node_ref=records[key]['ref'])
             nodes.append(controls[key])
         control = controls[key]
+        if weighted_table:
+            control.setdefault('column_weights', body['column_weights'])
         if body.get('section_heading') or numbered_chapter:
             number = body['text'].split(' ', 1)[0] if node['kind'] == 'chapter' else str(body['section_id'])
             control.setdefault('heading_level', min(6, number.count('.') + 1))
             if numbered_chapter:
                 raw.setdefault('toc_depth', 3)
-        if opened:
-            control.setdefault('column_weights', [2, 1.1, 1.4, 1.4, 1.4, 8])
-            control.setdefault('allow_row_split', True)
     if nodes:
         raw['nodes'] = nodes
     if not plan.get('format_source'):
@@ -418,7 +414,7 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
     for key in ordered:
         node = records[key]['payload']
         if node['kind'] == 'table':
-            if not re.fullmatch(r'(?:表)?\d+\.\d+\.\d+-\d+\s+\S.*', layout.caption(node)):
+            if not re.fullmatch(r'(?:表)?\d+(?:\.\d+){0,2}-\d+\s+\S.*', layout.caption(node)):
                 raise ActionRejected('G3_TABLE_CAPTION_REQUIRED: ' + key[1])
             node_options[key] = dict(node_ref=records[key]['ref'], table_font_size=10.5)
         elif node['kind'] == 'figure' and not re.fullmatch(r'图\d+\.\d+-\d+\s+\S.*', node['body']['caption']):
@@ -467,17 +463,6 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
         node_options[key] = _merge_required(prior, item, key[1])
         if existing:
             node_options[key]['paragraphs'] = list(existing.values())
-    # Preserve v1 readability defaults; source-specified v2 tables use generic caller layout.
-    for key in ordered:
-        node = records[key]['payload']
-        body = node['body']
-        if (plan['method_pack'].get('version', 1) != 1 or node['kind'] != 'table'
-                or not body.get('assessment_ref') or node_options[key].get('column_weights')):
-            continue
-        if body.get('assessment_part') == 'ranking' and body['columns'] == ['指标', '重要性排序', '权重']:
-            node_options[key]['column_weights'] = [1.4, .8, .8]
-        elif body.get('assessment_part') == 'evaluation' and body['columns'] == ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释']:
-            node_options[key]['column_weights'] = [.8, 1.1, 3.5, 1.4, 1, 1.2, 1.3, 4.9]
     result.update(styles=list(styles.values()), nodes=list(node_options.values()))
     options = layout.LayoutOptions.model_validate(result)
     layout.validate_layout(options, records, rendered_keys)

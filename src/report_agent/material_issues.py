@@ -25,7 +25,7 @@ class IssueSource(StrictRecord):
 
     def readable(self):
         if isinstance(self.page, int):
-            locator = f"PDF第{self.page}页"
+            locator = f"第{self.page}页"
         else:
             locator = self.page.strip()
             if locator == "manifest text":
@@ -33,10 +33,10 @@ class IssueSource(StrictRecord):
             elif match := re.fullmatch(r"(line|body/paragraph) ([1-9][0-9]*)(?:; chars [1-9][0-9]*-[1-9][0-9]*)?", locator):
                 locator = f"第{match[2]}{'行' if match[1] == 'line' else '段'}"
             else:
-                match = re.fullmatch(r"(?:page\s+)?(\d+)(?:;.*)?", locator, re.IGNORECASE)
+                match = re.fullmatch(r"(?:page\s+)?(\d+)(?:;.*)?|(?:PDF)?第(\d+)页", locator, re.IGNORECASE)
                 if match:
-                    locator = f"PDF第{match[1]}页"
-        return f"{self.document}（{locator}）"
+                    locator = f"第{match[1] or match[2]}页"
+        return f"《{self.document}》{locator}"
 
 
 class CellAnchor(StrictRecord):
@@ -75,16 +75,16 @@ class MaterialIssue(StrictRecord):
             raise ValueError("no-evidence assumption cannot claim source evidence")
         return self
 
-    def source_text(self):
-        return "；".join(dict.fromkeys(source.readable() for source in self.sources)) or "无可用证据"
+    def source_text(self, excluded=()):
+        return "；".join(dict.fromkeys(source.readable() for source in self.sources if source.document not in excluded)) or "无可用证据"
 
     def impact_text(self):
         if self.kind in {'indirect_assumption', 'no_evidence_assumption'}:
             return '是' if self.affects_level else '否'
         return '待复核（不能排除）' if self.affects_level else '本次评分未计入该事项；不评价实际工程风险'
 
-    def comment(self):
-        return (f"{LABELS[self.kind]}｜{self.object_label}\n依据：{self.basis}\n资料：{self.source_text()}"
+    def comment(self, excluded=()):
+        return (f"待核：{LABELS[self.kind]}｜{self.object_label}\n依据：{self.basis}\n资料：{self.source_text(excluded)}"
                 f"\n采用值：{self.adopted_value}\n待确认：{self.question}"
                 + ("\n影响等级：" if self.kind in {'indirect_assumption', 'no_evidence_assumption'} else "\n等级影响：")
                 + self.impact_text()
@@ -275,9 +275,9 @@ def validate_required_issues(contents, db, snapshot, records, issue_records):
             raise ActionRejected('REQUIRED_MATERIAL_ISSUE_MISMATCH: ' + expected['id'])
 
 
-def comment_passage(doc, paragraphs, issue, node_ref):
+def comment_passage(doc, paragraphs, issue, node_ref, excluded=()):
     if isinstance(issue.anchor, ParagraphAnchor):
-        return comment_position(doc, paragraphs, issue, node_ref)
+        return comment_position(doc, paragraphs, issue, node_ref, excluded)
     """Split existing runs at exact anchor boundaries, preserving their formatting."""
     from copy import deepcopy
     from docx.text.run import Run
@@ -308,7 +308,7 @@ def comment_passage(doc, paragraphs, issue, node_ref):
         position = end
     if "".join(run.text for run in selected) != target:
         raise ActionRejected(f"MATERIAL_ISSUE_RENDERED_RUNS_UNSUPPORTED: {issue.id}; node={node_ref}")
-    doc.add_comment(selected, issue.comment(), author="工程资料澄清", initials="审")
+    doc.add_comment(selected, issue.comment(excluded), author="待核", initials="核")
 
 
 def export_issue_records(contents, db, snapshot, records):
@@ -330,3 +330,12 @@ def export_issue_records(contents, db, snapshot, records):
                 or target[1].model_dump(exclude={'anchor'}) != expected.model_dump(exclude={'anchor'})):
             raise ActionRejected('ASSEMBLED_OWNER_ISSUE_MISMATCH: ' + expected.id)
     return issues, []
+
+
+def instruction_sources(db, records):
+    """Import roles are immutable; suppress instruction citations, not their saved records."""
+    from .commission_imports import source_roles
+    ids = {r['id'] for r in source_roles(db, {}).values() if r['purpose'] == 'commission'}
+    titles = {r['payload']['source_metadata']['title'] for r in records.values()
+              if r['ref']['type'] == 'SourceArtifact' and r['payload']['source_id'] in ids}
+    return ids, titles

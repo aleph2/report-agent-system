@@ -55,8 +55,6 @@ def method_commission(tmp_path, request):
     pack['sources'] = [cite('guideline')]
     for table in pack['weight_tables']:
         table['source'] = cite('guideline')
-    from report_agent.method_pack import register_reviewed_method_pack
-    register_reviewed_method_pack(store, pack, 'Synthetic test method independently reviewed by Main.')
     convention = cite('scope', 'Use rank-lookup weights from the supplied synthetic guideline.'
                       if 'Use rank-lookup' in texts['scope'] else 'Assess S1.')
     plan = {
@@ -80,7 +78,14 @@ def method_commission(tmp_path, request):
         'method_conventions': [{'key': 'weights', 'source': convention,
             'interpretation': 'Use the four-indicator row without recalculation.',
             'status': 'specified', 'method_id': pack['method_id'], 'strategy_id': 'rank-lookup'}]}
-    return SimpleNamespace(ws=ws, cs=cs, co=co, plan=plan, sources=sources, cite=cite)
+    fixture = SimpleNamespace(ws=ws, cs=cs, co=co, plan=plan, sources=sources, cite=cite)
+    from support.plan_fixture import synthetic_pilot_plan
+    if getattr(request, 'param', None) != 'historical-without-spec':
+        fixture.plan = synthetic_pilot_plan(fixture, version=1)
+    else:
+        from report_agent.method_pack import register_reviewed_method_pack
+        register_reviewed_method_pack(store, pack, 'Reviewed synthetic historical fixture.')
+    return fixture
 
 
 def brief_text(fixture, checkpoint):
@@ -218,7 +223,7 @@ def test_v1_ranking_keeps_reasons_only_in_immutable_assessment_audit(method_comm
     receipt = persist(fixture, writer(fixture, saved))
     assessment = fixture.cs.read(receipt['assessment_ref'])['payload']
     ranking = fixture.cs.read(receipt['ranking_ref'])['payload']['body']
-    assert ranking['columns'] == ['指标', '重要性排序', '权重']
+    assert ranking['columns'] == ['序号', '评估指标', '权重系数']
     assert all(len(row) == 3 for row in ranking['rows'])
     assert not ranking.get('cell_comments')
     for rows in (assessment['indicators'], assessment['result']['rows']):
@@ -245,12 +250,12 @@ def test_assessment_receipt_is_repeatable_and_bounds_come_from_plausible_grade_e
     assert (by_id['C']['low'], by_id['C']['high']) == ('25', '74')
     assert (by_id['D']['low'], by_id['D']['high']) == ('0', '100')
     evaluation = fixture.cs.read(receipt['evaluation_ref'])['payload']['body']
-    assert len(evaluation['rows']) == 16
+    assert len(evaluation['rows']) == sum(len(r['presentation_rows']) for r in fixture.plan['method_pack']['indicators']) + 1
     assert [merge for merge in evaluation['merges'] if merge['start_col'] == merge['end_col'] == 0] == [
-        {'start_row': 0, 'end_row': 15, 'start_col': 0, 'end_col': 0}]
+        {'start_row': 0, 'end_row': len(evaluation['rows']) - 2, 'start_col': 0, 'end_col': 0}]
     assert len(evaluation['material_issues']) == 2
     assert all(issue['affects_level'] for issue in evaluation['material_issues'])
-    assert all(issue['anchor']['column'] == 4 for issue in evaluation['material_issues'])
+    assert all(issue['anchor']['column'] == 5 for issue in evaluation['material_issues'])
     assert fixture.cs.read(receipt['level_ref'])['payload']['body']['level_qualification']
     for key in ('assessment_ref', 'evidence_ref', 'ranking_ref', 'evaluation_ref', 'level_ref'):
         assert receipt[key] in receipt['refs'].values()
@@ -518,7 +523,7 @@ def test_derived_chapter_keeps_chapter4_result_and_qualification(method_commissi
     assert text.count(level_body['level_qualification']) == 1
     if separate_slots:
         assert receipt['result']['adopted']['total'] in text
-        assert receipt['result']['adopted']['level'] in text
+        assert fixture.plan['table_specs']['evaluation']['level_labels'][receipt['result']['adopted']['level']] in text
     else:
         assert text == 'Summary: ' + level_body['text']
     assert result['assessment_refs'] == [receipt['assessment_ref']]

@@ -283,7 +283,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     from docx import Document
     word = Document(ws.store.root / exported['file_ref'])
     assert any(p.style.name == 'Heading 1' for p in word.paragraphs)
-    assert {'3.2.1 坡段 A', '3.2.2 坡段 B'} <= {p.text for p in word.paragraphs if p.style.name == 'Heading 3'}
+    assert {'3.1 坡段 A', '3.2 坡段 B'} <= {p.text for p in word.paragraphs if p.style.name == 'Heading 2'}
     assert '青禾路堑工程' in word.paragraphs[0].text
     assert any(p.text.startswith('编制日期：') for p in word.paragraphs)
     assert any('共23项待核事项' in p.text and 'Excel' in p.text for p in word.paragraphs)
@@ -297,16 +297,17 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     for i, paragraph in enumerate(word.paragraphs):
         if '风险等级未确定。本草稿' in paragraph.text:
             assert not word.paragraphs[i-1].text.startswith('（')
-    evaluation_tables = [table for table in word.tables if len(table.columns) == 6]
+    evaluation_tables = [table for table in word.tables if len(table.columns) == 9]
     assert len(evaluation_tables) == 2
-    assert all(table.columns[-1].width > table.columns[0].width * 2 for table in evaluation_tables)
     from zipfile import ZipFile
     from lxml import etree
     from openpyxl import load_workbook
     ids = reopened.read(exported['export_ref'])['payload']['export_config']['material_issue_ids']
     with ZipFile(ws.store.root / exported['file_ref']) as package:
         comments = etree.fromstring(package.read('word/comments.xml'))
-        assert len(comments) == len(ids)
+        assert {c.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author') for c in comments} == {'来源','待核'}
+        open_comments = [c for c in comments if c.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author') == '待核']
+        assert len(open_comments) == len(ids)
         assert all('chars ' not in ''.join(c.itertext()) and 'page 1' not in ''.join(c.itertext()) for c in comments)
     book = load_workbook(ws.store.root / exported['workbook']['file_ref'])
     assert set(item['id'] for item in required) <= set(ids)
@@ -321,8 +322,12 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
         row = book[item['sheet']][item['row_start']]
         assert row[4].value == issues[item['issue_id']].basis
         assert row[6].value == issues[item['issue_id']].question
-    texts = [''.join(comment.itertext()) for comment in comments]
-    assert Counter(texts) == Counter(''.join(issues[key].comment().splitlines()) for key in ids)
+    from report_agent.material_issues import instruction_sources
+    with reopened.store.connect() as db:
+        _, excluded_titles = instruction_sources(db, records)
+    texts = [''.join(comment.itertext()) for comment in open_comments]
+    assert Counter(texts) == Counter(''.join(issues[key].comment(excluded_titles).splitlines()) for key in ids)
+    assert all('《'+title+'》' not in ''.join(comment.itertext()) for title in excluded_titles for comment in comments)
     book.close()
     report['draft_pair'] = dict(snapshot_ref=snapshot, word=exported['export_ref'],
         excel=exported['workbook']['export_ref'], material_issue_ids=ids, issue_rows=issue_rows,

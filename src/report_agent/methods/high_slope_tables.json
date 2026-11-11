@@ -54,7 +54,12 @@
         "template": [
           33
         ]
-      }
+      },
+      "column_weights": [
+        0.6,
+        3.5,
+        1
+      ]
     },
     "evaluation": {
       "table_type": "slope_evaluation",
@@ -218,7 +223,18 @@
           34,
           37
         ]
-      }
+      },
+      "column_weights": [
+        7,
+        13,
+        14,
+        24,
+        16,
+        16,
+        14,
+        16,
+        40
+      ]
     }
   }
 }

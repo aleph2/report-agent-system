@@ -612,7 +612,7 @@ Use the supplied record set; no engineering boundary calculation is commissioned
     fixture.requirements_ref = proposed['result']['requirements_ref']
     fixture.anchors = anchors
     plan = deepcopy(fixture.plan)
-    plan.pop('method_pack'); plan.pop('method_conventions')
+    plan.pop('method_pack'); plan.pop('method_conventions'); plan.pop('table_specs')
     plan['requirements_ref'] = fixture.requirements_ref
     plan['conventions'] = [{'requirement_anchor_id': a['id'], 'source': a['source'],
         'interpretation': 'No scoring requested; subject to owner confirmation.'}

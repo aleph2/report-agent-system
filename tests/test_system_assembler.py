@@ -164,7 +164,7 @@ def test_required_issue_receives_position_anchor_and_word_excel_match(assembly_i
     output = export_snapshot(f.cs, f.co, 'assembled-pair', assembled['snapshot_ref'], {'toc': False})['result']
     with ZipFile(f.ws.store.root / output['file_ref']) as archive:
         comments = ET.fromstring(archive.read('word/comments.xml'))
-        texts = [''.join(c.itertext()) for c in comments]
+        texts = [''.join(c.itertext()) for c in comments if c.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}author') == '待核']
     assert len(texts) == len(issues)
     assert any('Design has 30 metres' in t for t in texts)
     book = load_workbook(f.ws.store.root / output['workbook']['file_ref'])

@@ -8,7 +8,7 @@ Private raw evidence: `.private/stage1-9a-c-20261110/`; original ledgers, cases 
 - [Refusals](refusals.tsv): actual LangChain SDK errors from the controlled replay, deduplicated by case + authenticated actor + native call ID. Retry invocations remain in the private raw sample. A reason/site can overlap another reason/site for the same refused call; do not add them as independent failures.
 - [Summary](inventory.json): 83 SDK invocations, 82 attributed, **16 distinct rejected calls**, one unattributed successful observation retained privately; no unfinished observations or recorder errors. Writer: 76 invocations / 13 rejected calls. Reviewer: 5 / 2. Coordinator: 1 / 1. Layout and rubric-grader schemas were enumerated, but their refusal rates are **unmeasured**, not zero.
 - A site with zero observed refusals gets **0 observed** and **evaluation coverage unmeasured**. An uninvoked tool/role is unmeasured. A tool's total is never represented as a field-specific rejection count. These are deliberately exercised offline failures, not production refusal rates, judgment-quality results or token measurements.
-- [B2 guards](planned-guards.json) are **planned**, not implemented, measured or passed. B2 starts only after c acceptance and main advancement.
+- [B2 guards](planned-guards.json) were **planned at c acceptance**. The later b2 candidate now implements both and passes focused checks; full b2 verification and acceptance remain pending. C’s measured inventory and scripted refusal counts are unchanged.
 
 ## Reproduction
 

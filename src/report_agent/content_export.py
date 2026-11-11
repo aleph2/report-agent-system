@@ -139,6 +139,8 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         from .material_issues import export_issue_records
         issue_records, owner_issues = export_issue_records(contents, db, snapshot, records)
         validate_required_issues(contents, db, snapshot, records, issue_records)
+        from .material_issues import instruction_sources
+        excluded_ids, excluded_titles = instruction_sources(db, records)
         from .g3_export import prepare_export, citation_text
         selected_layout = prepare_export(contents, snapshot, records, rendered_keys, selected_layout)
         options = presentation.LayoutOptions.model_validate(selected_layout or {})
@@ -220,7 +222,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             from docx.oxml.ns import qn
             for border in doc.styles[name].element.iter(qn("w:pBdr")):
                 border.getparent().remove(border)
-        def emit(ref, depth, following=None):
+        def emit(ref, depth):
             node = records[Ref.model_validate(ref).key()]["payload"]
             body, kind = node["body"], node["kind"]
             issues, merges = validate_node(node, ref)
@@ -282,7 +284,7 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                                 run.bold = True
                 for issue in issues:
                     cell = table.cell(issue.anchor.row + header_count, issue.anchor.column)
-                    doc.add_comment(cell.paragraphs[0].runs, issue.comment(), author="工程资料澄清", initials="审")
+                    doc.add_comment(cell.paragraphs[0].runs, issue.comment(excluded_titles), author="待核", initials="核")
                 footnote = presentation.table_footnote(body)
                 if footnote is not None:
                     doc.add_paragraph(footnote)
@@ -332,11 +334,15 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 doc.add_paragraph('编制日期：' + snapshot['created_at'][:10])
             if kind != 'table':
                 for issue in issues:
-                    comment_passage(doc, doc.paragraphs[paragraph_start:], issue, ref)
-            citation = citation_text(node, records, plan=plan)
-            next_citation = citation_text(records[Ref.model_validate(following).key()]['payload'], records, plan=plan) if following else ''
-            if citation and citation != next_citation:
-                doc.add_paragraph(citation)
+                    comment_passage(doc, doc.paragraphs[paragraph_start:], issue, ref, excluded_titles)
+            citation = citation_text(node, records, plan=plan, excluded=excluded_ids)
+            if citation:
+                paragraphs = [p for p in doc.paragraphs[paragraph_start:] if not p.style.name.startswith('Heading')]
+                if kind == 'table':
+                    paragraphs = paragraphs[:1]
+                runs = [run for p in paragraphs for run in p.runs]
+                if runs:
+                    doc.add_comment(runs, '来源：' + citation, author='来源', initials='源')
             visible = {k: v for k, v in node["qualifiers"].items() if k not in presentation.STRUCTURAL}
             # Suppress only a full literal qualifier line already emitted in this node.
             body_lines = body['text'].splitlines() if kind not in {'table', 'figure'} else []
@@ -383,14 +389,14 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                     presentation.section(doc, options, False)
             children = [child for _, child in sorted(edges.get(Ref.model_validate(ref).key(), []), key=lambda p: p[0])
                         if not (depth == 0 and child in title_pages)]
-            for i, child in enumerate(children):
-                emit(child, depth + 1, children[i+1] if i+1 < len(children) else None)
+            for child in children:
+                emit(child, depth + 1)
         emit(snapshot["payload"]["root_ref"], 0)
         if owner_issues:
             doc.add_paragraph("业主范围决定", "Heading 1")
             for issue in owner_issues:
                 paragraph = doc.add_paragraph(issue.adopted_value)
-                doc.add_comment(paragraph.runs, issue.comment(), author="工程资料澄清", initials="审")
+                doc.add_comment(paragraph.runs, issue.comment(excluded_titles), author="待核", initials="核")
         if end_notes:
             notes_heading = doc.add_paragraph('说明', 'Title')
             notes_heading.paragraph_format.keep_with_next = True

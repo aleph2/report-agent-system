@@ -49,6 +49,8 @@ def _method_material():
         text.extend(g['description'] + f" [{g['min_value']}–{g['max_value']}]" for g in rule['grades'])
     for table in method['weight_tables']:
         text.append('表 ' + table['id'] + '：' + json.dumps(table['rows'], ensure_ascii=False))
+    table_specs = json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text())['table_specs']
+    text.append('评估表及权重表格式：' + json.dumps({k:v['headers'] for k,v in table_specs.items()}, ensure_ascii=False))
     text.append('总体风险分级：' + json.dumps(method['risk_bands'], ensure_ascii=False))
     return method, '\n'.join(text)
 
@@ -89,7 +91,7 @@ def prepare_mini_commission(inputs, destination):
         captured = cs.import_inputs(co,'mini-capture',list(ids.values()))['result']['source_refs']
         refs = {name:ref for name,ref in zip(ids,captured,strict=True)}
         from report_agent.commission_imports import install_source_roles
-        install_source_roles(store, {n:{'id':sid,'purpose':'commission' if n=='00_scope.md'
+        install_source_roles(store, {n:{'id':sid,'purpose':'commission' if n in {'00_scope.md', '03_requirements.pdf'}
                   else 'template' if n=='08_template.docx' else 'source_or_applicable_standard'} for n,sid in ids.items()})
         plan, requirements_ref = _plan(ws, cs, co, ids, refs, catalog, method)
         plan_ref = save_plan(cs,co,'mini-scripted-plan',plan)['result']['plan_ref']
@@ -141,11 +143,16 @@ def _plan(ws, cs, co, ids, refs, catalog, method):
     req=propose_requirements(cs,co,'mini-scripted-requirements',commissioned,items)['result']['requirements_ref']
     header = '模拟委托引用的方法摘录：' + method['metadata']['name']
     pack={'method_id':'mini-commission-reviewed-high-slope','version':1,'sources':[cite(METHOD_SOURCE_NAME,header)],
-          'indicators':[{k:r[k] for k in ('id','label','category','notes','grades')} for r in method['indicators']],
+          'indicators':[{k:v for k,v in r.items() if k != 'source_pages'} for r in method['indicators']],
+          'display_labels':method['display_labels'], 'presentation_sources':[cite(METHOD_SOURCE_NAME,header)],
           'risk_bands':[{k:v for k,v in b.items() if k!='label'} for b in method['risk_bands']],
           'weight_tables':[{'id':t['id'],'source':cite(METHOD_SOURCE_NAME,'表 '+t['id']+'：'),
                             'rows':t['rows']} for t in method['weight_tables']]}
     register_reviewed_method_pack(ws.store,pack,'Synthetic Writer verification; unaltered definitions and numerical rules from the pinned reviewed repository transcription.')
+    table_specs = json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text())['table_specs']
+    for spec in table_specs.values():
+        spec.pop('source_pages')
+        spec['sources'] = [cite(METHOD_SOURCE_NAME, '评估表及权重表格式：')]
     weight=cite(scope,'按表 A.3-1（n=11）计算权重')
     conventions.append({'source':weight,'interpretation':'采用委托指定的 n=11 权重行。'})
     boundary=cite(scope,'界外对象列入排除清单并随计划提交业主确认。')
@@ -196,6 +203,6 @@ def _plan(ws, cs, co, ids, refs, catalog, method):
                 {'sources':[cite(initial,'施工开始日期：2026-03-01'),cite(revision,'改为 2026-04-15')],
                  'result':'开工日期依更正通知采用 2026-04-15。','differences':['初始版本日期被更正。']}],
             'open_questions':[],'scope_boundary':{'start_meter':'0','end_meter':'500','source':bounds,'customer_basis':boundary},
-            'method_pack':pack,'method_conventions':[{'key':'weights','source':weight,'interpretation':'采用 11 指标对应行。',
+            'method_pack':pack,'table_specs':table_specs,'method_conventions':[{'key':'weights','source':weight,'interpretation':'采用 11 指标对应行。',
                 'status':'specified','method_id':pack['method_id'],'strategy_id':'A.3-1'}],
             'indicator_rank_order':_owner_rank_binding(conventions,pack['indicators'])}, req

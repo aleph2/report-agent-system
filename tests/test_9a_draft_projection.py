@@ -22,7 +22,7 @@ def test_unscored_projection_has_every_indicator_and_actual_gap_reason(ranked, a
     assert 'adopted' not in receipt['result']
     assert all(receipt.get(k) for k in ('ranking_ref', 'evaluation_ref', 'level_ref', 'evidence_ref'))
     table = f.cs.read(receipt['evaluation_ref'])['payload']['body']
-    assert len(table['rows']) == 4
+    assert len(table['rows']) == sum(len(r['presentation_rows']) for r in f.plan['method_pack']['indicators']) + 1
     assert all(any(rule['label'] in str(cell) for row in table['rows'] for cell in row)
                for rule in f.cs.read(f.plan_ref)['payload']['method_pack']['indicators'])
     row = next(row for row in table['rows'] if 'Deferred for engineering review' in str(row))

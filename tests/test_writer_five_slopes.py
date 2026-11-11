@@ -17,7 +17,6 @@ from report_agent.catalog import Catalog
 from report_agent.content_store import ContentStore
 from report_agent.errors import ActionForbidden, ActionRejected
 from report_agent.hierarchical_tools import actor_for
-from report_agent.method_pack import register_reviewed_method_pack
 from report_agent.store import Store, digest
 from report_agent.workspace import Workspace
 from report_agent.writer_assessment import read_indicator_step
@@ -66,7 +65,6 @@ def five(tmp_path, monkeypatch, request):
     pack['sources']=[cite('guideline')]
     pack['weight_tables']=[{'id':'rank-lookup','source':cite('guideline'),
         'rows':[{'indicator_count':11,'weights':WEIGHTS}]}]
-    register_reviewed_method_pack(store,pack,'Hand-derived synthetic acceptance oracle; no engineering judgments claimed.')
     install_source_roles(store, {name:{'id':pdf_id if name == 'design' else name,'purpose':'commission' if name=='scope' else 'source_or_applicable_standard'} for name in texts})
     plan = {'sections':[{'section_id':'4','title':'Assessment','kind':'extracted','outline':cite('outline'),'sources':[cite('design')]},
         {'section_id':'5','title':'Conclusion','kind':'derived','outline':cite('outline'),'sources':[cite('design')],
@@ -83,7 +81,9 @@ def five(tmp_path, monkeypatch, request):
     if ranked:
         plan['indicator_rank_order'] = {'indicator_ids':ids,
             'source':{**cite('scope'),'quote':rank_quote}}
-    f=SimpleNamespace(ws=ws,cs=cs,co=co,plan=plan,sources=sources)
+    f=SimpleNamespace(ws=ws,cs=cs,co=co,plan=plan,sources=sources,cite=cite)
+    from support.plan_fixture import synthetic_pilot_plan
+    f.plan=synthetic_pilot_plan(f,version=1,presentation_source='guideline')
     saved=save(f);approve(f,saved);f.plan_ref=saved['plan_ref']
     store.set('manifest',{**store.manifest,'assembly_contract':'system-assembler-v1'})
     if ranked:

@@ -90,6 +90,7 @@ class TableSpec(Contract):
     caption_bindings: dict[str, str] = Field(default_factory=dict)
     sort: list[SortRule] = Field(default_factory=list)
     level_labels: dict[str, str] = Field(default_factory=dict)
+    column_weights: list[float] | None = Field(default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode='after')
     def contract(self):
@@ -187,6 +188,8 @@ def compile_table(spec, saved_table_records):
     """Trusted projection core; production callers use render_saved_table's pinned refs."""
     spec = TableSpec.model_validate(spec)
     result = compile_header(spec)
+    if spec.column_weights is not None:
+        result['column_weights'] = spec.column_weights
     keys = column_keys(spec)
     rows, merges, origins, occupied = [], [], [], set()
     def merge(r0, r1, c0, c1):
@@ -246,6 +249,51 @@ def render_saved_table(cs, db, plan_ref, assessment_ref, table_type):
     if not isinstance(assessment.get('table_records'), dict):
         raise ActionRejected('TABLE_SPEC_SAVED_RECORDS_REQUIRED')
     return compile_table(matches[0], assessment['table_records'])
+
+
+def assessment_tables(cs, db, plan, assessment_ref, table_records, result, label):
+    from .store import digest
+    bodies, origins = {}, {}
+    for role in ('ranking', 'evaluation'):
+        spec = plan['payload']['table_specs'][role]
+        bodies[role] = render_saved_table(cs, db, plan['ref'], assessment_ref, spec['table_type'])
+        origins[role] = bodies[role].pop('row_origins')
+        bodies[role]['assessment_part'] = role
+    # Semantic field bindings locate annotations even when a specification reorders columns or rows.
+    def column(role, field):
+        spec = plan['payload']['table_specs'][role]
+        keys = column_keys(spec)
+        matches = [n for n, key in enumerate(keys) if spec['column_bindings'][key] == field]
+        if len(matches) != 1:
+            raise ActionRejected('TABLE_SPEC_ANNOTATION_BINDING_REQUIRED: ' + field)
+        return matches[0]
+    issues, citations = [], []
+    definitions = {r['id']:r for r in plan['payload']['method_pack']['indicators']}
+    from .draft_assessment import display_rows
+    for row in display_rows(result, plan['payload']['method_pack']):
+        sources = []
+        for citation in row['sources']:
+            title = cs._read(db, citation['source_ref'])['payload']['source_metadata'].get('title')
+            if not title:
+                raise ActionRejected('ASSESSMENT_READABLE_SOURCE_TITLE_REQUIRED')
+            sources.append({'document': title, 'page': citation['locator']})
+            if citation not in citations:
+                citations.append(citation)
+        if row['basis_kind'] != 'missing' and not row['basis_kind'].endswith('assumption'):
+            continue
+        positions = [n for n, origin in enumerate(origins['evaluation'])
+                     if origin['binding'] == 'evaluation.rows' and
+                     table_records['evaluation']['rows'][origin['index']]['indicator_id'] == row['indicator_id']]
+        if not positions:
+            raise ActionRejected('TABLE_SPEC_ASSUMPTION_ROW_REQUIRED')
+        issues.append({'id': digest([assessment_ref, row['indicator_id']]), 'kind': 'unclear' if row['basis_kind'] == 'missing' else row['basis_kind'],
+            'object_label': label + ' / ' + definitions[row['indicator_id']].get('display_label', definitions[row['indicator_id']]['label']),
+            'basis': row['rationale'], 'sources': sources,
+            'adopted_value': row['value'], 'question': row['question'],
+            'anchor': {'row': min(positions), 'column': column('evaluation', 'value')},
+            'affects_level': result.get('affects_level', not result.get('level_robust', False))})
+    bodies['evaluation']['material_issues'] = issues
+    return bodies['ranking'], bodies['evaluation'], citations
 
 
 def read_prepared_tables(guideline_ref, guideline_digest, template_ref, template_digest):

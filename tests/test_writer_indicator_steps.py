@@ -135,13 +135,15 @@ async def test_plain_answer_interrupts_without_fabricating_gap(ranked,monkeypatc
 
 from test_writer_five_slopes import five, action
 from test_deep_runtime import Driver
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('five',['with-owner-ranks'],indirect=True)
 async def test_eleventh_save_auto_submits_selected_canonical_assessment(five):
     def judge(messages):
+        errors=[m.content for m in messages if isinstance(m,ToolMessage) and m.status=='error']
+        assert not errors, errors
         step=json.loads(next(m.content for m in messages if isinstance(m,HumanMessage)))
         rank=step['rank']
         assert rank==step['progress']['recorded']+1

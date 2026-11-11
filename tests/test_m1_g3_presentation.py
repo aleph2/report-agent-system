@@ -128,7 +128,7 @@ def test_readable_citations_do_not_fallback_to_private_ids():
     from report_agent.g3_export import citation_text
     _, _, records, _ = fixture()
     node = records[('ContentNode', 'extracted', 1)]['payload']
-    assert citation_text(node, records) == '（设计文件PDF第96页）'
+    assert citation_text(node, records) == '《设计文件》第96页'
     records[('SourceArtifact', 'source', 1)]['payload']['source_metadata'] = {}
     with pytest.raises(ActionRejected):
         citation_text(node, records)
@@ -140,7 +140,7 @@ def test_genuine_markdown_source_line_is_rendered_as_chinese_location():
     node = records[('ContentNode', 'extracted', 1)]['payload']
     node['citations'][0]['locator'] = 'line 23'
     records[('SourceArtifact', 'source', 1)]['payload']['source_metadata']['title'] = '报告编写范围说明'
-    assert citation_text(node, records) == '（报告编写范围说明第23行）'
+    assert citation_text(node, records) == '《报告编写范围说明》第23行'
     node['citations'][0]['locator'] = 'line 0'
     with pytest.raises(ActionRejected, match='LOCATION_NOT_READABLE'):
         citation_text(node, records)
@@ -150,7 +150,7 @@ def test_fixed_section_citations_not_appended_and_same_source_version_required()
     from report_agent.g3_export import citation_text, validate_export
     args = fixture()
     plan = args[2][('CommissionPlan', 'plan', 1)]['payload']
-    assert citation_text(args[2][('ContentNode', 'fixed', 1)]['payload'], args[2], plan) == ''
+    assert citation_text(args[2][('ContentNode', 'fixed', 1)]['payload'], args[2], plan) == '《设计文件》第96页'
     assert citation_text(args[2][('ContentNode', 'root', 1)]['payload'], args[2], plan) == ''
     assert citation_text(args[2][('ContentNode', 'title', 1)]['payload'], args[2], plan) == ''
     args[2][('ContentNode', 'extracted', 1)]['payload']['citations'][0]['source_ref']['version'] = 2
@@ -248,39 +248,32 @@ def test_serialized_layout_roundtrip_preserves_same_mandatory_format():
     assert LayoutOptions.model_validate(prepare_export(*args, selected)).model_dump() == selected
 
 
-@pytest.mark.parametrize('part,columns,expected', [
-    ('ranking', ['指标', '重要性排序', '权重'], [1.4, .8, .8]),
-    ('evaluation', ['因素', '指标', '分级描述', '分值范围', '采用值', '权重', '得分', '指南注释'],
-     [.8, 1.1, 3.5, 1.4, 1, 1.2, 1.3, 4.9]),
-])
-def test_generated_assessment_widths_are_source_format_defaults_not_constraints(part, columns, expected):
+@pytest.mark.parametrize('part', ['ranking','evaluation'])
+def test_assessment_tables_do_not_infer_legacy_widths(part):
+    import json
+    from importlib.resources import files
     from report_agent.content_layout import LayoutOptions
     from report_agent.g3_export import prepare_export
+    from report_agent.table_spec import compile_header
     args = fixture()
+    plan = args[2][('CommissionPlan', 'plan', 1)]['payload']
+    specs = json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text())['table_specs']
+    for spec in specs.values():
+        spec.pop('source_pages')
+        spec['sources'] = [plan['format_source']]
+    plan['table_specs'] = specs
     node = args[2][('ContentNode', 'extracted', 1)]['payload']
+    columns = compile_header(specs[part])['columns']
     node['kind'] = 'table'
-    node['body'] = {'section_id': '2', 'assessment_ref': ref('Assessment', 'score'),
-                    'assessment_part': part, 'columns': columns, 'rows': [['值'] * len(columns)],
-                    'caption': '4.2.1-1 坡甲评价表'}
+    node['body'] = dict(section_id='2', assessment_ref=ref('Assessment','score'),assessment_part=part,
+                        columns=columns,rows=[['值']*len(columns)],caption='表4.1-1 坡甲评价表')
     def selected(raw=None):
-        return next(n for n in prepare_export(*args, raw)['nodes'] if n['node_ref']['id'] == 'extracted')
-    assert selected()['column_weights'] == expected
-    custom = [2] * len(columns)
-    assert selected({'nodes': [{'node_ref': ref('ContentNode', 'extracted'), 'column_weights': custom}]})['column_weights'] == custom
-    serialized = LayoutOptions.model_validate(prepare_export(*args, None)).model_dump()
-    assert LayoutOptions.model_validate(prepare_export(*args, serialized)).model_dump() == serialized
-    method = args[2][('CommissionPlan', 'plan', 1)]['payload']['method_pack']
-    method['version'] = 2
+        return next(n for n in prepare_export(*args,raw)['nodes'] if n['node_ref']['id']=='extracted')
     assert not selected().get('column_weights')
-    assert selected({'nodes': [{'node_ref': ref('ContentNode', 'extracted'), 'column_weights': custom}]})['column_weights'] == custom
-    method['version'] = 1
-    del node['body']['assessment_ref']
-    assert not selected().get('column_weights')
-    node['body']['assessment_ref'] = ref('Assessment', 'score')
-    node['body']['columns'] = ['其他'] * len(columns)
-    assert not selected().get('column_weights')
-    del args[2][('CommissionPlan', 'plan', 1)]['payload']['format_source']
-    assert prepare_export(*args, None) == {}
+    custom = [2]*len(columns)
+    assert selected({'nodes':[dict(node_ref=ref('ContentNode','extracted'),column_weights=custom)]})['column_weights']==custom
+    serialized = LayoutOptions.model_validate(prepare_export(*args,None)).model_dump()
+    assert LayoutOptions.model_validate(prepare_export(*args,serialized)).model_dump()==serialized
 
 
 def test_historical_generated_ranking_requires_regeneration_without_mutating_saved_body():
@@ -293,7 +286,7 @@ def test_historical_generated_ranking_requires_regeneration_without_mutating_sav
                     'assessment_part': 'ranking', 'columns': ['指标', '重要性排序', '权重', '排序理由'],
                     'rows': [['坡高', '1', '0.2', '设计控制因素']], 'caption': '排序表'}
     before = deepcopy(node['body'])
-    with pytest.raises(ActionRejected, match='legacy ranking'):
+    with pytest.raises(ActionRejected, match='assessment table spec required'):
         validate_export(*args)
     assert node['body'] == before
 

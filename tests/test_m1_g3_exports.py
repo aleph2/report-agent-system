@@ -190,9 +190,9 @@ def test_paragraph_comment_matches_actual_unique_rendered_value(ws, passage):
     assert len(list(load_workbook(BytesIO(excel))["资料澄清清单"].values)) == 2
 
 
-@pytest.mark.parametrize("page, expected", [("page 12", "勘察文件（PDF第12页）"),
-    (12, "勘察文件（PDF第12页）"), ("PDF第12页", "勘察文件（PDF第12页）"),
-    ("manifest text", "勘察文件（全文）"), ("line 17", "勘察文件（第17行）")])
+@pytest.mark.parametrize("page, expected", [("page 12", "《勘察文件》第12页"),
+    (12, "《勘察文件》第12页"), ("PDF第12页", "《勘察文件》第12页"),
+    ("manifest text", "《勘察文件》全文"), ("line 17", "《勘察文件》第17行")])
 def test_material_issue_accepts_readable_scoring_source_locator(page, expected):
     from report_agent.material_issues import validate_node
     annotation = issue()
@@ -374,7 +374,7 @@ def test_customer_comments_match_all_material_issue_rows_despite_saved_rank_comm
         else:
             assert impact in {'待复核（不能排除）', '本次评分未计入该事项；不评价实际工程风险'}
             suffix = '等级影响：' + impact
-        expected.append(f'{kind}｜{label}\n依据：{basis}\n资料：{sources}\n采用值：{value}\n待确认：{question}\n{suffix}')
+        expected.append(f'待核：{kind}｜{label}\n依据：{basis}\n资料：{sources}\n采用值：{value}\n待确认：{question}\n{suffix}')
     assert sorted(comment.text for comment in doc.comments) == sorted(expected)
     assert {row[2] for row in clarification} == {'坡' + str(i) for i in range(5)}
     ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}

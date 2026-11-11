@@ -22,6 +22,15 @@ def qualitative_profile(pin):
 def install(ws, plan, profile=None, section_id="3"):
     pin = hashlib.sha256(REGISTER.read_bytes()).hexdigest()
     register, typed, reviews, selection = reviewed_register(REGISTER.parent, pin)
+    from report_agent.content_store import ContentStore
+    from report_agent.writer_judgment_authority import rule_pin
+    rules = {r['id']:r for r in ContentStore(ws.store).read(plan)['payload']['method_pack']['indicators']}
+    for key, interpretation in selection.get('criteria', {}).items():
+        rule = rules[key]
+        semantics = {k:v for k,v in rule.items() if k not in
+                     {'display_label', 'category_display_label', 'presentation_rows'}}
+        assert rule_pin(semantics) == interpretation['rule_digest'], 'Synthetic criterion semantics changed'
+        interpretation['rule_digest'] = rule_pin(rule)
     if profile is None:
         return install_facts(ws.store, plan, section_id, register, typed, reviews, selection, pin)
     facts = profile["facts"]

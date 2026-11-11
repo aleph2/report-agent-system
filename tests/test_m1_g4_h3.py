@@ -445,7 +445,7 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
     assert set(errors) == {'h3-native-1', linked_submit_id}, errors
     document = Document(BytesIO((ws.store.root / seen['word']['file_ref']).read_bytes()))
     workbook = load_workbook(BytesIO((ws.store.root / seen['excel']['file_ref']).read_bytes()))
-    assert len(document.comments) == 2 and workbook['资料澄清清单'].max_row == 3
+    assert len([c for c in document.comments if c.author == '待核']) == 2 and workbook['资料澄清清单'].max_row == 3
     assert {'Ranking', 'Evaluation'} <= set(workbook.sheetnames)
     stored = cs.read(seen['assessment']['assessment_ref'])['payload']
     assert len(stored['indicators']) == 4 and stored['table_records']
@@ -455,6 +455,6 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
     evidence = {'mode': 'scripted_h2_steps_to_calculation_and_exports', 'semantic_acceptance': False,
         'initial_gap_list': seen['initial_gap_list'], 'classified_gap_list': seen['classified_gap_list'],
         'plan_ref': record['ref'], 'snapshot_ref': seen['snapshot'],
-        'word': seen['word'], 'excel': seen['excel'], 'comment_count': len(document.comments),
+        'word': seen['word'], 'excel': seen['excel'], 'comment_count': len([c for c in document.comments if c.author == '待核']),
         'provider_calls': 0, 'initial_rejection_count': 2}
     (ws.store.root / 'h3-scripted-evidence.json').write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf-8')

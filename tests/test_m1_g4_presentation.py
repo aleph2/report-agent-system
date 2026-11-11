@@ -24,16 +24,20 @@ def test_new_host_requires_specs_only_when_an_assessment_method_is_used(tmp_path
     assert Store(state['CASE']).manifest['assessment_presentation'] == 'table-spec-v1'
 
 
+@pytest.mark.parametrize('method_commission', ['historical-without-spec'], indirect=True)
 def test_new_plan_cannot_choose_method_without_table_specs(method_commission):
     fixture = method_commission
+    fixture.plan.pop('table_specs', None)
     new_contract(fixture)
     with pytest.raises(ActionRejected, match='(?i)(table.*spec|spec.*table)'):
         save(fixture)
     assert not fixture.cs.list_objects('CommissionPlan')
 
 
+@pytest.mark.parametrize('method_commission', ['historical-without-spec'], indirect=True)
 def test_new_contract_refuses_confirmation_of_old_plan_without_rewriting_it(method_commission):
     fixture = method_commission
+    fixture.plan.pop('table_specs', None)
     saved = save(fixture)
     before = deepcopy(fixture.cs.read(saved['plan_ref']))
     new_contract(fixture)
@@ -43,8 +47,10 @@ def test_new_contract_refuses_confirmation_of_old_plan_without_rewriting_it(meth
     assert fixture.cs.read(saved['plan_ref']) == before
 
 
+@pytest.mark.parametrize('method_commission', ['historical-without-spec'], indirect=True)
 def test_new_contract_refuses_legacy_assessment_before_any_calculated_records(method_commission):
     fixture = method_commission
+    fixture.plan.pop('table_specs', None)
     saved = save(fixture)
     approve(fixture, saved)
     actor = writer(fixture, saved)
@@ -55,8 +61,10 @@ def test_new_contract_refuses_legacy_assessment_before_any_calculated_records(me
     assert fixture.cs.list_objects() == before
 
 
+@pytest.mark.parametrize('method_commission', ['historical-without-spec'], indirect=True)
 def test_new_contract_does_not_reissue_legacy_confirmation_on_operator_replay(method_commission):
     fixture = method_commission
+    fixture.plan.pop('table_specs', None)
     saved = save(fixture)
     checkpoint, decision = approve(fixture, saved)
     historical = deepcopy(plan_authority.decision_ref(fixture.ws.store))
@@ -70,11 +78,17 @@ def test_historical_assessment_path_remains_readable_and_unchanged(method_commis
     fixture = method_commission
     saved = save(fixture)
     approve(fixture, saved)
-    receipt = persist(fixture, writer(fixture, saved))
-    historical = deepcopy(fixture.cs.read(receipt['assessment_ref']))
+    actor = writer(fixture, saved)
+    receipt = persist(fixture, actor)
+    payload = deepcopy(fixture.cs.read(receipt['assessment_ref'])['payload'])
+    payload.pop('table_records')
+    # Seed the accepted historical shape; current writers always use the table spec.
+    with fixture.cs.store.connect() as db:
+        historical_ref = fixture.cs._insert(db, actor, 'Assessment', payload)
+    historical = deepcopy(fixture.cs.read(historical_ref))
     assert 'table_records' not in historical['payload']
     new_contract(fixture)
-    assert fixture.cs.read(receipt['assessment_ref']) == historical
+    assert fixture.cs.read(historical_ref) == historical
 
 
 def test_new_specified_assessment_uses_saved_records_for_both_tables(method_commission):

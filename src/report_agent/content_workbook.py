@@ -60,6 +60,8 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
     from .material_issues import export_issue_records
     issue_records, owner_issues = export_issue_records(contents, db, snapshot, records)
     validate_required_issues(contents, db, snapshot, records, issue_records)
+    from .material_issues import instruction_sources
+    excluded_ids, excluded_titles = instruction_sources(db, records)
     from .g3_export import validate_export, citation_text
     validate_export(contents, snapshot, records)
     plan_ref = snapshot['payload'].get('commission_plan_ref')
@@ -141,7 +143,7 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
             annotation_rows.append((start, 1))
             mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'table-footnote',
                              'row_start': start, 'row_stop': len(rows) + 1})
-        citation = citation_text(node, records, plan=plan)
+        citation = citation_text(node, records, plan=plan, excluded=excluded_ids)
         if citation:
             rows.append([citation])
             annotation_rows.append((len(rows), 1))
@@ -158,7 +160,7 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
                 raise ActionRejected('WORKBOOK_TEXT_NOTE_REQUIRED')
             start = len(rows) + 1
             rows += [[note_label, line] for line in note['body']['text'].split('\n')]
-            citation = citation_text(note, records, plan=plan)
+            citation = citation_text(note, records, plan=plan, excluded=excluded_ids)
             if citation:
                 rows.append([note_label, citation])
             rows += qualifier_rows(note)
@@ -225,7 +227,7 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
         rows = [['编号', '类型', '边坡或章节', '文件与页码', '问题与依据', '采用值', '待确认问题', '答复', '影响等级']]
         ordered = sorted(issue_records, key=lambda pair: 0 if pair[1].kind == 'no_evidence_assumption' else 1)
         for number, (ref, issue) in enumerate(ordered, 1):
-            rows.append([number, LABELS[issue.kind], issue.object_label, issue.source_text(), issue.basis,
+            rows.append([number, LABELS[issue.kind], issue.object_label, issue.source_text(excluded_titles), issue.basis,
                          issue.adopted_value, issue.question, '', issue.impact_text()])
             mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'material-issue',
                              'issue_id': issue.id, 'row_start': number + 1, 'row_stop': number + 2})
