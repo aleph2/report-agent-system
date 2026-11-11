@@ -50,7 +50,7 @@
   },
   "criteria": {
     "X21": {
-      "rule_digest": "e94864b66eac48c7ba8c06c735cf805676ffe7fe9ece98855543a5c66c7a183f",
+      "rule_digest": "48dbd1f7eee9775b13d0d09caf8d6f245da4000034707e6af368e30122ce5c3f",
       "purposes": {
         "classification": [
           "material",
@@ -76,7 +76,7 @@
       ]
     },
     "X22": {
-      "rule_digest": "f1bef659055af01586486f897a38f7750ae65a8eacc2c0ea132ea6a9145d0eaa",
+      "rule_digest": "a4baa791f1c9da2aaf774d135e977440bc66ef66ee87a7305f75140d64113ecb",
       "purposes": {
         "classification": [
           "slope_structure"
@@ -87,7 +87,7 @@
       }
     },
     "X23": {
-      "rule_digest": "f661317e1d27d36341ce1c549080ba4f25de03f3370c281d18fea87aa101a4b0",
+      "rule_digest": "a9b2653efd03d5fdeb9a449274eb0773da859f4f511174c67fa521302f50b1d8",
       "purposes": {
         "classification": [
           "groundwater_condition"
@@ -98,7 +98,7 @@
       }
     },
     "X32": {
-      "rule_digest": "467383dee0edc644b21afc969936709d3eee9a1a01eac84ae4b892ad77fa4feb",
+      "rule_digest": "8db8fc8f004ff158840d790430485a8bd66fc2328103789599994b5213688a07",
       "purposes": {
         "classification": [
           "hazard_frequency",
@@ -127,7 +127,7 @@
       "question_effect": "value"
     },
     "X41": {
-      "rule_digest": "4911992b08846be4d86c7df9e1c9618bc6afbbe81297ca7ffd7a1ee8e2ad985d",
+      "rule_digest": "f0cd21b56ace0db04177f78c56240c70977f042a8322b035a1a0cefb4c2b9ce4",
       "purposes": {
         "classification": [
           "engineering_measure"
@@ -151,7 +151,7 @@
       ]
     },
     "X42": {
-      "rule_digest": "dea84455bdd12350927a20fe3a0c1a7c483b0109ca59a123ce0b3741732efb69",
+      "rule_digest": "faeb64815b9945127a75319590d6e3a9a45a622c2fe1a3893a29e403a5b26c17",
       "purposes": {
         "classification": [
           "facility_presence"
@@ -162,7 +162,7 @@
       }
     },
     "X51": {
-      "rule_digest": "cb73d5412f78fca2d48eddd493ef448d29afd5e02d8c633f9de7bdf210ab3375",
+      "rule_digest": "c3bb6bfb51f53ad1492d8bd2b9075230a9c4e75456d2affbe7091c9876adf310",
       "purposes": {
         "classification": [
           "borehole_count",
@@ -196,7 +196,7 @@
       ]
     },
     "X52": {
-      "rule_digest": "33a8232d10f543d64d62c8adb3897e2848ecd95b4719182ffadd6b40bcfa45ef",
+      "rule_digest": "53fcce34ad5f1b14da2441e4d4181b3c0e720bdb5faa9d343e681b7b93545659",
       "purposes": {
         "classification": [
           "design_file_coverage",

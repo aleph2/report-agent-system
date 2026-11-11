@@ -100,3 +100,22 @@ def test_qualitative_operator_cli_seals_profile_and_verifies_fresh_binding(pair,
     assert budget.snapshot()['reserved_or_unknown_upper_bounds']==host.BOUND
     with budget.connect() as db:
         assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='fake_comparison_terminals'").fetchone()
+
+
+def test_real_prepared_writer_admits_reviewed_criteria_before_any_model_call(pair):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from report_agent.store import Store
+    from report_agent.workspace import Workspace
+    from report_agent.content_store import ContentStore
+    from report_agent.writer_runtime import writer_session
+    from report_agent.writer_assessment import read_indicator_step
+    from support.fake03 import REGISTER
+    path, data, grant, comparison = pair
+    approved = pilot(data, comparison, host._sha(REGISTER))
+    receipt = host.prepare(path, write_json(path, approved))
+    workspace = Workspace(Store(Path(receipt['case_path'])))
+    with writer_session(workspace, '坡段 A', SimpleNamespace(profile={'image_inputs':False}),
+                        assessment_only=True, indicator_steps=True, section_id='3') as run:
+        packet = read_indicator_step(ContentStore(workspace.store), run.actor)
+    assert packet['indicator_id'] == 'X21' and packet['progress'] == {'recorded':0,'total':8}
