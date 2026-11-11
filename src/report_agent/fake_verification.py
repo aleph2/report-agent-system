@@ -73,13 +73,13 @@ def identify():
     return {'candidate_commit': _candidate_commit(), 'fixture_manifest_sha256': digest(_fixture())}
 
 
-def preflight(approval_file, approval_sha256):
+def preflight(approval_file, approval_sha256, *, workflow=WORKFLOW, per_run_tokens=RUN_LIMIT, comparison_count=None):
     path = Path(approval_file)
     raw = path.read_bytes()
     if hashlib.sha256(raw).hexdigest() != approval_sha256:
         raise ValueError('FAKE_AUTHORITY_PIN_MISMATCH')
     authority = json.loads(raw)
-    expected = {**identify(), 'workflow': WORKFLOW, 'per_run_tokens': RUN_LIMIT, 'aggregate_tokens': CAMPAIGN_LIMIT}
+    expected = {**identify(), 'workflow': workflow, 'per_run_tokens': per_run_tokens, 'aggregate_tokens': CAMPAIGN_LIMIT}
     if (not isinstance(authority,dict) or any(authority.get(k) != v for k,v in expected.items())
             or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}', str(authority.get('run_id','')))
             or not isinstance(authority.get('run_id'),str)
@@ -101,12 +101,12 @@ def preflight(approval_file, approval_sha256):
                 or 'fresh_comparison' not in authority):
             raise ValueError('FAKE_QUALITATIVE_AUTHORITY_REQUIRED')
     if 'fresh_comparison' in authority:
-        _verify_comparison(authority, grant)
+        _verify_comparison(authority, grant, count=comparison_count)
     return authority
 
 
-def _verify_comparison(authority, grant):
-    count = 1 if 'qualitative_pilot' in authority else 2
+def _verify_comparison(authority, grant, *, count=None):
+    count = count if count is not None else (1 if 'qualitative_pilot' in authority else 2)
     c = authority['fresh_comparison']
     required = {'run_ids','previous_run_id','previous_attempt','settled_retry_attempt','retry_result_sha256'}
     if (not isinstance(c,dict) or set(c)!=required or not isinstance(c['run_ids'],list)

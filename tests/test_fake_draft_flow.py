@@ -50,16 +50,9 @@ PAGES = {
     "X51": [("05_survey.pdf",1)], "X52": [("04_design.pdf",1),("06_drawing.pdf",1)]}
 
 
-async def checkpoint(tmp_path):
-    import json
-    from report_agent.fake_draft_flow import prepare, plan
-    from report_agent.store import Store
-    from report_agent.workspace import Workspace
+def coordinator_script(ws):
     from report_agent.content_store import ContentStore
-    from report_agent import plan_authority, page_bindings
     from test_deep_runtime import Driver, invoke, observation
-    prepared = prepare(Path(__file__).parent / "fake_data/mini_commission/inputs",tmp_path / "case", PROFILES)
-    ws = Workspace(Store(Path(prepared["case_path"])))
     proposal,ids = scripted_plan(ws)
     from report_agent.commission_requirements import read_requirements
     cs=ContentStore(ws.store)
@@ -98,6 +91,20 @@ async def checkpoint(tmp_path):
     driver=Driver(coordinator=scripts)
     for i,message in enumerate(scripts):
         if not callable(message):message.tool_calls[0]["id"] = "planning-"+str(i)
+    return driver,proposal
+
+
+async def checkpoint(tmp_path):
+    import json
+    from report_agent.fake_draft_flow import prepare, plan
+    from report_agent.store import Store
+    from report_agent.workspace import Workspace
+    from report_agent.content_store import ContentStore
+    from report_agent import plan_authority, page_bindings
+    from test_deep_runtime import Driver, invoke, observation
+    prepared = prepare(Path(__file__).parent / "fake_data/mini_commission/inputs",tmp_path / "case", PROFILES)
+    ws = Workspace(Store(Path(prepared["case_path"])))
+    driver,proposal = coordinator_script(ws)
     result=await plan(ws,driver)
     offered={t["name"]:t for t in driver.bindings["coordinator"][0]}
     assert "operation_id" not in offered["publish_planning_draft"]["parameters"]["properties"]

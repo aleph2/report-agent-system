@@ -1,5 +1,7 @@
 # Fake03 full-flow launch proposal — no spending authority
 
+> Owner update: proceed with the Coordinator-only probe path, not context reduction first. The earlier 10M/14M suggestion below was not approved or applied. Current safety candidate and commands: [probe review](fake03-planning-probe-safety-20261111.md). Probe cap and paid launch authority remain pending.
+
 Production source +0 / −0; tests +0 / −0; runtime checks/guards +0 / −0; fallback changes 0. This is a proposal, not an executable paid launcher or an authorization.
 
 ## Accepted baseline

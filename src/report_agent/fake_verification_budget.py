@@ -133,7 +133,7 @@ class FakeContinuationBudget(FakeVerificationBudget):
         if current and normalize(current[0]) == normalize(_RESERVATION_TRIGGER):
             db.execute('DROP TRIGGER fake_reservation')
             db.execute(_CONTINUATION_TRIGGER)
-        elif not current or normalize(current[0]) not in {normalize(_CONTINUATION_TRIGGER), normalize(_COMPARISON_TRIGGER)}:
+        elif not current or normalize(current[0]) not in {normalize(_CONTINUATION_TRIGGER), normalize(_COMPARISON_TRIGGER), normalize(_FLOW_TRIGGER)}:
             raise RequestBudgetExceeded('FAKE_CONTINUATION_GUARD_MISMATCH')
         if db.execute('SELECT 1 FROM fake_continuations WHERE previous_id=? OR retry_id=?',
                       (self.previous_attempt,self.previous_attempt)).fetchone():
@@ -232,7 +232,7 @@ class FakeComparisonBudget(FakeVerificationBudget):
                 request_id TEXT PRIMARY KEY, held_id TEXT NOT NULL, run_id TEXT NOT NULL)""")
             db.execute('DROP TRIGGER fake_reservation')
             db.execute(_COMPARISON_TRIGGER)
-        elif not current or normalize(current[0]) != normalize(_COMPARISON_TRIGGER):
+        elif not current or normalize(current[0]) not in {normalize(_COMPARISON_TRIGGER),normalize(_FLOW_TRIGGER)}:
             raise RequestBudgetExceeded('FAKE_COMPARISON_GUARD_MISMATCH')
         identity = super()._reservation_id(db, model, bound)
         db.execute('INSERT INTO fake_comparison_requests VALUES (?,?,?)',
@@ -250,3 +250,45 @@ def fake_verification_budget(grant_dir, run_id, *, comparison=None, comparison_s
               else FakeVerificationBudget(grant_dir, run_id))
     with token_budget(budget):
         yield budget
+
+
+_FLOW_TRIGGER = _COMPARISON_TRIGGER.replace(str(RUN_LIMIT),
+    f"COALESCE((SELECT maximum FROM fake_flow_runs WHERE run_id=fake_run_id()), {RUN_LIMIT})")
+
+
+class FakeFlowBudget(FakeComparisonBudget):
+    """One owner-capped full-flow run alongside the named preserved hold."""
+    def __init__(self, grant_dir, run_id, comparison, authority_sha256, *, maximum_tokens):
+        if type(maximum_tokens) is not int or maximum_tokens not in (RUN_LIMIT, 5_500_000):
+            raise ValueError('FAKE_FLOW_LIMIT_INVALID')
+        super().__init__(grant_dir, run_id, comparison, authority_sha256, qualitative_only=True)
+        self.run_limit = maximum_tokens
+
+    def _reservation_id(self, db, model, bound):
+        # The existing campaign transaction serializes all roles and preserves the old hold.
+        self._check_hold(db, model, bound)
+        db.execute('CREATE TABLE IF NOT EXISTS fake_flow_runs '
+                   '(run_id TEXT PRIMARY KEY, maximum INTEGER NOT NULL, authority TEXT NOT NULL)')
+        binding = (self.run_limit, self.comparison_sha256)
+        prior = db.execute('SELECT maximum,authority FROM fake_flow_runs WHERE run_id=?',
+                           (self.run_id,)).fetchone()
+        if prior is not None and prior != binding:
+            raise RequestBudgetExceeded('FAKE_FLOW_AUTHORITY_CHANGED')
+        normalize = lambda sql: ' '.join(sql.rstrip(';').split())
+        current = db.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='fake_reservation'").fetchone()
+        if not current or normalize(current[0]) not in {normalize(sql) for sql in
+                (_RESERVATION_TRIGGER, _CONTINUATION_TRIGGER, _COMPARISON_TRIGGER, _FLOW_TRIGGER)}:
+            raise RequestBudgetExceeded('FAKE_COMPARISON_GUARD_MISMATCH')
+        db.execute('INSERT OR IGNORE INTO fake_flow_runs VALUES (?,?,?)', (self.run_id, *binding))
+        db.execute('CREATE TABLE IF NOT EXISTS fake_comparison_requests '
+                   '(request_id TEXT PRIMARY KEY, held_id TEXT NOT NULL, run_id TEXT NOT NULL)')
+        if normalize(current[0]) != normalize(_FLOW_TRIGGER):
+            db.execute('DROP TRIGGER fake_reservation')
+            db.execute(_FLOW_TRIGGER)
+        identity = TokenBudget._reservation_id(self, db, model, bound)
+        db.execute('INSERT INTO fake_comparison_requests VALUES (?,?,?)',
+                   (identity, self.comparison['previous_attempt'], self.run_id))
+        return identity
+
+    def run_snapshot(self):
+        return {**super().run_snapshot(), 'maximum_tokens': self.run_limit}

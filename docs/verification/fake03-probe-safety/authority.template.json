@@ -1,0 +1,42 @@
+{
+  "candidate_commit": "FROM_IDENTIFY",
+  "fixture_manifest_sha256": "FROM_IDENTIFY",
+  "answer_key_sha256": "FROM_IDENTIFY",
+  "workflow": "fake03-coordinator-page-sheet-probe-v1",
+  "model": "glm-5.3",
+  "objects": [
+    "A",
+    "B"
+  ],
+  "proposed_exclusions": [
+    "C"
+  ],
+  "stop_at": "page_sheet",
+  "run_id": "OWNER_APPROVED_NEW_RUN_ID",
+  "grant_dir": "/PRIVATE/EXISTING_FAKE_CAMPAIGN",
+  "per_run_tokens": null,
+  "aggregate_tokens": 10000000,
+  "owner_authority_ref": "PENDING_OWNER_LAUNCH_APPROVAL",
+  "fresh_comparison": {
+    "run_ids": [
+      "OWNER_APPROVED_NEW_RUN_ID"
+    ],
+    "previous_run_id": "FROM_PRIVATE_HOLD_RECEIPT",
+    "previous_attempt": "FROM_PRIVATE_HOLD_RECEIPT",
+    "settled_retry_attempt": "FROM_PRIVATE_HOLD_RECEIPT",
+    "retry_result_sha256": "FROM_PRIVATE_HOLD_RECEIPT"
+  },
+  "request_bound_proof": {
+    "model": "glm-5.3",
+    "input_limit": 1048576,
+    "output_limit": 131072,
+    "basis": "documented_model_ceiling_not_measured_request_fit",
+    "env_sha256": "FROM_PRIVATE_CONFIG",
+    "base_url_sha256": "FROM_PRIVATE_CONFIG",
+    "request_url_sha256": "FROM_PRIVATE_CONFIG",
+    "sources": [
+      "https://docs.z.ai/guides/llm/glm-5.3",
+      "https://help.aliyun.com/zh/model-studio/glm-5-3"
+    ]
+  }
+}

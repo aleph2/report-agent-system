@@ -1,0 +1,80 @@
+{
+  "statistical_utc": "2026-11-11T22:40:33.017050+00:00",
+  "status": "focused checks passed; full regression pending",
+  "change": {
+    "source_added": 384,
+    "source_removed": 7,
+    "test_added": 327,
+    "test_removed": 8,
+    "explicit_rejection_sites_added": 14,
+    "explicit_rejection_sites_removed": 0,
+    "fallbacks_added": 1,
+    "new_tests": 24,
+    "retired_tests": 0
+  },
+  "focused": {
+    "passed": 105,
+    "failed": 0,
+    "skipped": 0,
+    "collected": 105,
+    "all_nodes_once": true,
+    "elapsed_seconds": 252.1,
+    "modules": [
+      "tests/test_fake_draft_flow.py",
+      "tests/test_fake_fresh_comparison.py",
+      "tests/test_fake_hold_continuation.py",
+      "tests/test_fake_planning_probe.py",
+      "tests/test_fake_qualitative_launch.py",
+      "tests/test_fake_verification_budget.py",
+      "tests/test_fake_verification_launcher.py",
+      "tests/test_no_domain_terms.py",
+      "tests/test_no_legacy_state.py",
+      "tests/test_token_budget.py",
+      "tests/test_tool_trace.py"
+    ],
+    "wrapper_elapsed_seconds": 257.288147687912
+  },
+  "tested_files_sha256": {
+    "src/report_agent/fake_verification.py": "13be5f397eff16da660418a582844a226052ad7148851edc247268f835b33b01",
+    "src/report_agent/fake_verification_budget.py": "d25930e9856ca2b51e508215c7729ad65b7552440f5011fbb6b2683a9551d762",
+    "src/report_agent/fake_planning_probe.py": "a9c38326bbdb751c1b0d1185be0e0098cf68c36a7ef08aaddeb6a6b4817b80ca",
+    "src/report_agent/tool_trace.py": "a959e24fb2792a5ebb09545ded00f41e7ef620118dfc07758f142a902e2c4482",
+    "tests/test_fake_draft_flow.py": "3c1d0928b09066d74489ce526cf284f6fd417d15b0a8762b8bcb9ce60e60f8b8",
+    "tests/test_fake_planning_probe.py": "7b7a7abb44dc95dd5204e48eaa2bcb7949f934bb359c750295a079f229affc8b",
+    "tests/test_tool_trace.py": "838b402288843ef815e675776b4e8a549953b5da78417c459adb0071219e2edd"
+  },
+  "functional_scenarios": {
+    "native_checkpoint_requests": 61,
+    "proposed_bindings": 22,
+    "deliberate_refusal_requests": 62,
+    "captured_deliberate_refusals": 1,
+    "unknown_outcome_requests": 1,
+    "unknown_new_hold": 1179648,
+    "budget_stop_requests": 3,
+    "premature_writer_sent_requests": 0,
+    "early_question_distinguished": true,
+    "accepted_writer_after_probe": true
+  },
+  "mutation": {
+    "mutation": "disable Coordinator-only request guard in isolated copy",
+    "test": "premature Writer request through real operator/HTTP path",
+    "exit_code": 1,
+    "killed": true,
+    "canonical_source_unchanged": true,
+    "synthetic_forbidden_request_settled_tokens": 10
+  },
+  "dispatcher_and_s2_unchanged": true,
+  "live_ledger_rows_unchanged": 316,
+  "live_campaign_authorization_unchanged": true,
+  "source_tests_unchanged_during_final_run": true,
+  "owner_selected_probe_cap": null,
+  "paid_launch_authorized": false,
+  "real_provider_requests": 0,
+  "real_provider_tokens": 0,
+  "full_regression_run": false,
+  "main_revision": "7da4f9483a08a3a975ce05f7b559a56d9f626511",
+  "private_evidence": ".private/fake03-probe-safety-20261111/",
+  "review": "Main self-review; owner/Neo review pending",
+  "retention": "Passing pytest case data automatically cleaned; mutation source copy removed; mutation/RED logs and designated failed synthetic fixtures retained.",
+  "cli_source_checkout": "PYTHONPATH=<checkout>/src; no editable install required"
+}
