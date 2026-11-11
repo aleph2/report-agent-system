@@ -1363,3 +1363,6 @@ Owner accepted 9a-b2 (2026-11-11): main fast-forwarded to 14484f8. Four later re
 
 
 2026-11-11: Authorized full regression on cd48c0a completed: 6,184 passed, 9 unchanged skips, 11 failures from two stale test inventories. Frozen files unchanged; all nine coverage floors pass. Test-only correction +16/−1 passes 58 focused checks; original full remains failed. See docs/reviews/fake03-full-flow-regression-20261111.md. Main stays accepted b2; one replacement clean full requires a fresh owner authorization.
+
+
+2026-11-11: Owner-authorized replacement full run on exact f35ea76 passed cleanly: 6,196 passed, nine unchanged skips, zero failures, all 6,205 nodes once in 33m26s. Coverage 90.68%; all nine floors pass; 1,283 frozen files unchanged; 57 supplemental fixtures verified (51 private); automatic cleanup leaves zero temporary databases; processes absent; no paid calls. Original cd48c0a full remains failed and preserved. Review: docs/reviews/fake03-full-flow-clean-20261111.md. Main stays accepted b2; multi-role budget/paid-launch binding, independent review and explicit paid scope/cap remain pending.

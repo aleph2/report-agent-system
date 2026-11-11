@@ -1,0 +1,150 @@
+{
+  "tested_revision": "f35ea764588735d666f36f32f66b488fcde49e59",
+  "statistical_utc": "2026-11-11T20:47:43.819326+00:00",
+  "run": {
+    "expected": 6205,
+    "outcomes": {
+      "passed": 6196,
+      "skipped": 9
+    },
+    "failed": [],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-11T20:13:07.020850+00:00",
+    "finished_utc": "2026-11-11T20:46:33.127860+00:00",
+    "elapsed_seconds": 2006.1
+  },
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_unchanged": true,
+  "coverage": {
+    "total_percent": 90.68440502586844,
+    "m0_floors": [
+      {
+        "module": "src/report_agent/commission_plan.py",
+        "floor": 93.49240780911063,
+        "actual": 93.7375745526839,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/commission_requirements.py",
+        "floor": 91.40625,
+        "actual": 93.18181818181819,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/content_store.py",
+        "floor": 95.43817527010805,
+        "actual": 95.57625145518044,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/g3_export.py",
+        "floor": 91.54518950437318,
+        "actual": 92.26804123711341,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/rescue_projection.py",
+        "floor": 88.41698841698842,
+        "actual": 88.47583643122677,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/risk_scoring.py",
+        "floor": 94.3566591422122,
+        "actual": 94.66357308584686,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/section_writing.py",
+        "floor": 90.19607843137256,
+        "actual": 90.29126213592232,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/system_assembler.py",
+        "floor": 87.27984344422701,
+        "actual": 88.06818181818181,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/writer_issues.py",
+        "floor": 90.12345679012346,
+        "actual": 90.1840490797546,
+        "passed": true
+      }
+    ]
+  },
+  "cleanup": {
+    "source_files_checked": 1283,
+    "source_files_changed": [],
+    "clean_pass": true,
+    "source_copy_removed": true,
+    "failed_coverage_floors": [],
+    "skips_unchanged": true,
+    "retained_test_database_files": 0,
+    "temporary_directories_removed": [
+      "tmp-group-4",
+      "tmp-group-6",
+      "tmp-group-3",
+      "tmp-collection",
+      "tmp-group-5",
+      "tmp-group-1",
+      "tmp-group-7",
+      "tmp-group-2",
+      "tmp-group-0"
+    ]
+  },
+  "active_run_processes": [],
+  "paid_model_calls": 0,
+  "fixture_preflight": {
+    "verified_files": 57,
+    "private_imports": 51,
+    "all_match_prior_clean_full": true,
+    "import_provenance": "Copied verified immutable bytes from retained cd48c0a test snapshot; no writable dependency on it."
+  },
+  "main_revision": "14484f80f1f6879ad5ed249819e56bad4567ab39",
+  "dispatcher_unchanged": true,
+  "clean_pass": true,
+  "status": "clean pass on exact frozen revision; separate replacement run",
+  "private_evidence": ".private/fake03-full-flow-replacement-20261111/full/",
+  "owner_authority": {
+    "recorded_utc": "2026-11-11T20:10:24.354289+00:00",
+    "commit": "f35ea764588735d666f36f32f66b488fcde49e59",
+    "question_item_id": "[\"request_user_input_async\",\"call_79ba81d17fe74c4f9fd13554d6c7025a\",0]",
+    "owner_answer": "Authorize one replacement full run",
+    "scope": "One replacement full offline regression on f35ea76; verified fixtures and automatic cleanup; no paid launch or main move.",
+    "paid_calls_authorized": false
+  },
+  "original_failed_result": "full-regression-cd48c0a.json",
+  "original_failed_result_unchanged": true,
+  "independent_review": "pending",
+  "driver": {
+    "driver_exit": 0,
+    "cleanup_exit": 0,
+    "utc": "2026-11-11T20:46:33.301960+00:00"
+  }
+}

@@ -36,3 +36,6 @@ The test also proves its script-data builder writes no case objects. Failed atte
 
 
 Full-regression follow-up: the authorized `cd48c0a` run finished with 6,184 passed, 9 unchanged skips and 11 failed test-inventory assertions. The run remains failed. A test-only correction passes 58 focused checks; see [failure record and correction](fake03-full-flow-regression-20261111.md). No replacement full run, paid launch or main move is authorized by that result.
+
+
+Replacement full verification (2026-11-11): the separately authorized exact f35ea76 run passed cleanly, 6,196 passed / nine unchanged skips / zero failures. [Clean full record](fake03-full-flow-clean-20261111.md). The original cd48c0a run remains failed; no paid launch or main move is inferred.
