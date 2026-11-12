@@ -171,8 +171,10 @@ async def test_native_vision_local_refusal_replay_is_failed_observation_without_
     client=AsyncOpenAI(api_key='offline',base_url='https://offline.invalid/v1',http_client=transport,max_retries=5)
     monkeypatch.setenv('REPORT_VISION_MODEL','glm-5.3')
     monkeypatch.setattr('report_agent.vision.configured_vision_client',lambda:client)
-    monkeypatch.setattr('report_agent.document_tools.vision_source_image',
-        lambda workspace,source,page,crop:(b'offline-image',{'source_id':source,'page':page,'crop':crop}))
+    def image(workspace, source, page, crop, *, max_edge):
+        assert max_edge == 1024
+        return b'offline-image', {'source_id':source,'page':page,'crop':crop}
+    monkeypatch.setattr('report_agent.document_tools.vision_source_image', image)
     def after_replay(messages):
         observed=observation(messages,'analyze_source_image')
         assert observed['status']=='failed' and observed['provider_outcome']=='not_dispatched'

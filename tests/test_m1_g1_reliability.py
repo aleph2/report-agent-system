@@ -303,9 +303,10 @@ async def test_native_graph_observes_retryable_storage_error_and_continues(ws, m
 
     client = VisionModel()
     monkeypatch.setattr('report_agent.vision.configured_vision_client', lambda: client)
-    monkeypatch.setattr('report_agent.document_tools.vision_source_image',
-        lambda workspace, source, page, crop: (b'synthetic-image',
-            {'source_id': source, 'sha256': 'f' * 64, 'page': page, 'crop': crop}))
+    def image(workspace, source, page, crop, *, max_edge):
+        assert max_edge == 1024
+        return b'synthetic-image', {'source_id': source, 'sha256': 'f' * 64, 'page': page, 'crop': crop}
+    monkeypatch.setattr('report_agent.document_tools.vision_source_image', image)
     original = vision_admission.reserve_vision
     attempted = []
 
