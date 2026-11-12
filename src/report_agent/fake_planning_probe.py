@@ -52,8 +52,9 @@ def identify():
 
 def preflight(path, pin):
     data=json.loads(Path(path).read_bytes())
-    cap=data.get('per_run_tokens');smoke=data.get('workflow')==VISION_WORKFLOW
-    if (type(cap) is not int or (not VISION_RESERVATION<=cap<=host.CAMPAIGN_LIMIT if smoke else cap!=6_000_000)
+    cap=data.get('per_run_tokens');aggregate=data.get('aggregate_tokens');smoke=data.get('workflow')==VISION_WORKFLOW
+    if (type(cap) is not int or type(aggregate) is not int
+            or not (VISION_RESERVATION if smoke else 1)<=cap<=aggregate
             or data.get('model')!=(VISION_MODEL if smoke else host.MODEL)
             or data.get('vision_model')!=VISION_MODEL
             or data.get('vision_thinking') not in {'enabled','disabled'}
@@ -124,7 +125,8 @@ async def launch(path,pin,prepared_pin,env_file):
     ws=Workspace(Store(case))
     if load_recovery_policy(ws.store):raise ValueError('FAKE_RECOVERY_DISABLED_REQUIRED')
     budget=FakeFlowBudget(authority['grant_dir'],authority['run_id'],authority['fresh_comparison'],pin,
-                          maximum_tokens=authority['per_run_tokens'],model_bounds={VISION_MODEL:visual_bound.total})
+                          maximum_tokens=authority['per_run_tokens'],model_bounds={VISION_MODEL:visual_bound.total},
+                          aggregate_tokens=authority['aggregate_tokens'])
     budget.check_fresh()
     if budget.snapshot()['remaining_for_new_reservations']<bound.total:
         raise RequestBudgetExceeded('AUTHORIZED_TOKEN_BUDGET_REACHED')

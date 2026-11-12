@@ -77,10 +77,16 @@ def test_existing_campaign_cap_still_applies(pair):
 
 
 def test_unselected_caps_and_authority_reuse_are_refused(pair):
-    for cap in [True,3_700_001,10_000_000]:
+    for cap in [True,0,-1,10_000_001]:
         with pytest.raises(ValueError):flow(pair,cap)
+    assert flow(pair,4_500_000).run_limit == 4_500_000
     budget=flow(pair);send(budget)
     _,_,grant,c=pair
+    from report_agent.fake_verification_budget import fake_verification_budget
+    with pytest.raises(ValueError, match='AUTHORIZATION_MISMATCH'):
+        with fake_verification_budget(grant, 'probe', comparison={**c, 'run_ids':['probe']},
+                comparison_sha256='a'*64, qualitative_only=True, aggregate_tokens=10_000_001):
+            pytest.fail('stale comparison campaign authorization was accepted')
     other=FakeFlowBudget(grant,'probe',{**c,'run_ids':['probe']},'b'*64,maximum_tokens=3_700_000)
     with pytest.raises(RequestBudgetExceeded):other.reserve(host.MODEL)
 
@@ -103,8 +109,9 @@ def test_probe_authority_caps_scope_and_empty_preparation(planning_packet):
     from report_agent.content_store import ContentStore
     from report_agent.store import Store
     path,pin,data=planning_packet
-    for key,bad in [('stop_at','export'),('model','other'),('per_run_tokens',6_000_001),('objects',['A','B','C'])]:
+    for key,bad in [('stop_at','export'),('model','other'),('per_run_tokens',0),('objects',['A','B','C'])]:
         with pytest.raises(ValueError):probe.preflight(path,write_json(path,{**data,key:bad}))
+    data['per_run_tokens']=4_500_000
     pin=write_json(path,data);prepared=probe.prepare(path,pin)
     cs=ContentStore(Store(Path(prepared['case_path'])))
     assert not cs.list_objects('CommissionPlan') and not cs.list_objects('CommissionDecision')

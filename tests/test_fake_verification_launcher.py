@@ -37,12 +37,28 @@ def test_authority_hash_candidate_manifest_and_limits_are_pinned(packet):
     assert operator.preflight(path, pin)['run_id'] == 'test-01'
     with pytest.raises(ValueError, match='AUTHORITY_PIN'):
         operator.preflight(path, '0'*64)
-    for key, value in [('per_run_tokens', 3_700_001), ('aggregate_tokens', 10_000_001),
+    for key, value in [('per_run_tokens', 3_700_001), ('aggregate_tokens', 0),
                        ('candidate_commit', '0'*40), ('fixture_manifest_sha256', '0'*64),
                        ('run_id', '../outside')]:
         digest = write_json(path, {**data, key: value})
         with pytest.raises(ValueError):
             operator.preflight(path, digest)
+    from report_agent.fake_verification_budget import FakeVerificationBudget
+    from report_agent.token_budget import TokenBudget
+    grant = Path(data['grant_dir'])
+    FakeVerificationBudget.initialize(grant, {operator.MODEL: operator.BOUND}, maximum_tokens=10_000_000)
+    TokenBudget.increase_authorization(grant / 'fake-verification-token-budget.db',
+        previous_maximum=10_000_000, new_maximum=20_000_000,
+        authorization_id='synthetic-owner-amendment', authorization_sha256='b' * 64)
+    pin = write_json(path, data)
+    with pytest.raises(ValueError, match='AUTHORIZATION_MISMATCH'):
+        operator.preflight(path, pin)
+    data['aggregate_tokens'] = 20_000_000
+    pin = write_json(path, data)
+    assert operator.preflight(path, pin)['aggregate_tokens'] == 20_000_000
+    data['aggregate_tokens'] = True
+    with pytest.raises(ValueError):
+        operator.preflight(path, write_json(path, data))
 
 
 def test_input_hash_mismatch_and_verifier_in_inputs_fail_closed(packet, monkeypatch):
@@ -92,7 +108,7 @@ async def test_launch_claim_is_single_use_and_accounts_at_real_client_boundary(p
         'sources':['https://docs.z.ai/guides/llm/glm-5.3','https://help.aliyun.com/zh/model-studio/glm-5-3'],
     }
     pin = write_json(path, data)
-    FakeVerificationBudget.initialize(Path(data['grant_dir']), {operator.MODEL:operator.BOUND})
+    FakeVerificationBudget.initialize(Path(data['grant_dir']), {operator.MODEL:operator.BOUND}, maximum_tokens=10_000_000)
     from types import SimpleNamespace
     from report_agent import mini_commission
     from report_agent.content_store import ContentStore

@@ -15,7 +15,7 @@ BOUND = 1_179_648
 
 @pytest.fixture
 def grant(tmp_path):
-    FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND})
+    FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND}, maximum_tokens=10_000_000)
     return tmp_path
 
 
@@ -93,11 +93,27 @@ def test_missing_or_already_initialized_grant_is_never_reset(tmp_path):
     with pytest.raises((FileNotFoundError, ValueError)):
         FakeVerificationBudget(tmp_path, 'run')
     assert not list(tmp_path.iterdir())
-    FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND})
+    FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND}, maximum_tokens=10_000_000)
     spent(tmp_path, 'run', 1000)
     with pytest.raises(FileExistsError):
-        FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND})
+        FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND}, maximum_tokens=10_000_000)
     assert FakeVerificationBudget(tmp_path, 'run').run_snapshot()['settled'] == 1000
+    from report_agent.token_budget import TokenBudget
+    dispatch(tmp_path, 'unknown-before-amendment', lambda _: httpx.Response(200, json={}))
+    before = FakeVerificationBudget(tmp_path, 'inspect').snapshot()
+    TokenBudget.increase_authorization(tmp_path / 'fake-verification-token-budget.db',
+        previous_maximum=10_000_000, new_maximum=20_000_000,
+        authorization_id='synthetic-owner-amendment', authorization_sha256='a' * 64)
+    after = FakeVerificationBudget(tmp_path, 'inspect').snapshot()
+    assert after['maximum_tokens'] == 20_000_000
+    assert after['recorded_tokens'] == before['recorded_tokens'] == 1000
+    assert after['reserved_or_unknown_upper_bounds'] == before['reserved_or_unknown_upper_bounds'] == BOUND
+    assert after['attempt_states'] == before['attempt_states']
+    with pytest.raises(ValueError, match='AUTHORIZATION_MISMATCH'):
+        with fake_verification_budget(tmp_path, 'inspect', aggregate_tokens=10_000_000):
+            pytest.fail('stale campaign authorization was accepted')
+    with pytest.raises(RequestBudgetExceeded, match='FAKE_REQUEST_PENDING'):
+        dispatch(tmp_path, 'never-replay-unknown', must_not_send)
 
 @pytest.mark.asyncio
 async def test_configured_writer_and_vision_sdk_use_the_same_fake_grant(tmp_path, monkeypatch):
@@ -115,7 +131,7 @@ async def test_configured_writer_and_vision_sdk_use_the_same_fake_grant(tmp_path
                               'API_KEY': 'synthetic'}.items():
             monkeypatch.setenv(f'REPORT_{role.upper()}_{suffix}', value)
     pool = tmp_path / 'campaign'
-    FakeVerificationBudget.initialize(pool, {model_id: 2_000_000 for model_id in models.values()})
+    FakeVerificationBudget.initialize(pool, {model_id: 2_000_000 for model_id in models.values()}, maximum_tokens=10_000_000)
     writer = configured_model(Store(tmp_path / 'workspace'), 'writer')
     vision = configured_vision_client()
     writer_wire, vision_wire = AsyncTLSBackend(), AsyncTLSBackend()

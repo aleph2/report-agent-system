@@ -12,7 +12,7 @@
   "run_id": "OWNER_APPROVED_NEW_RUN_ID",
   "grant_dir": "/PRIVATE/EXISTING_FAKE_CAMPAIGN",
   "per_run_tokens": null,
-  "aggregate_tokens": 10000000,
+  "aggregate_tokens": null,
   "owner_authority_ref": "OWNER_EXACT_CHECK_CAP_PENDING",
   "fresh_comparison": {
     "run_ids": [

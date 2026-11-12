@@ -9,8 +9,7 @@ from .token_budget import TokenBudget, current_token_observation, token_budget
 
 
 RUN_LIMIT = 3_700_000
-CAMPAIGN_LIMIT = 10_000_000
-_FILENAME = 'fake-verification-token-budget.db'
+LEDGER_FILENAME = 'fake-verification-token-budget.db'
 _APPLICATION_ID = 0x46564231  # FVB1
 _USAGE = """COALESCE(SUM(a.used), 0),
     COALESCE(SUM(CASE WHEN a.state IN ('reserved','unknown') THEN a.reserved ELSE 0 END), 0)"""
@@ -50,12 +49,12 @@ class FakeVerificationBudget(TokenBudget):
     """Run ids come from the trusted host and stay the same when inspecting a retry."""
 
     @staticmethod
-    def initialize(grant_dir, model_bounds):
+    def initialize(grant_dir, model_bounds, *, maximum_tokens):
         """Explicit one-time bootstrap. All fake cases must share this durable directory."""
-        path = Path(grant_dir).absolute() / _FILENAME
+        path = Path(grant_dir).absolute() / LEDGER_FILENAME
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(mode=0o600, exist_ok=False)
-        account = TokenBudget(path, CAMPAIGN_LIMIT, model_bounds)
+        account = TokenBudget(path, maximum_tokens, model_bounds)
         with closing(account.connect()) as db, db:
             # Run attribution and both guards commit in the same transaction as
             # TokenBudget._reserve's BEGIN IMMEDIATE, including across processes.
@@ -70,22 +69,25 @@ class FakeVerificationBudget(TokenBudget):
                 COMMIT;
             """)
 
-    def __init__(self, grant_dir, run_id):
+    def __init__(self, grant_dir, run_id, *, aggregate_tokens=None):
         if not isinstance(run_id, str) or not run_id.strip():
             raise ValueError('FAKE_RUN_ID_REQUIRED')
         self.run_id = run_id
-        self.path = Path(grant_dir).absolute() / _FILENAME
+        self.path = Path(grant_dir).absolute() / LEDGER_FILENAME
         if not self.path.is_file() or self.path.is_symlink():
             raise ValueError('FAKE_VERIFICATION_GRANT_REQUIRED')
-        with closing(self.connect()) as db:
+        with closing(self.connect(read_only=True)) as db:
             self.maximum, bounds = db.execute('SELECT maximum,bounds FROM authorization WHERE id=1').fetchone()
-            if self.maximum != CAMPAIGN_LIMIT:
+            if (type(self.maximum) is not int or self.maximum < 1
+                    or aggregate_tokens is not None and self.maximum != aggregate_tokens):
                 raise ValueError('FAKE_VERIFICATION_AUTHORIZATION_MISMATCH')
             self.model_bounds = json.loads(bounds)
 
-    def connect(self):
+    def connect(self, *, read_only=False):
         # Opening for inspection or retry must never re-create a missing ledger.
-        db = sqlite3.connect(self.path.as_uri() + '?mode=rw', uri=True, timeout=30)
+        db = sqlite3.connect(self.path.as_uri() + ('?mode=ro' if read_only else '?mode=rw'), uri=True, timeout=30)
+        if read_only:
+            db.execute('PRAGMA query_only=ON')
         if db.execute('PRAGMA application_id').fetchone()[0] != _APPLICATION_ID:
             db.close()
             raise ValueError('FAKE_VERIFICATION_GRANT_REQUIRED')
@@ -111,8 +113,8 @@ class FakeVerificationBudget(TokenBudget):
 class FakeContinuationBudget(FakeVerificationBudget):
     """One fresh reservation beside one named unresolved attempt in the same run."""
 
-    def __init__(self, grant_dir, run_id, previous_attempt):
-        super().__init__(grant_dir, run_id)
+    def __init__(self, grant_dir, run_id, previous_attempt, *, aggregate_tokens=None):
+        super().__init__(grant_dir, run_id, aggregate_tokens=aggregate_tokens)
         self.previous_attempt = previous_attempt
 
     def _reservation_id(self, db, model, bound):
@@ -146,8 +148,8 @@ class FakeContinuationBudget(FakeVerificationBudget):
 class FakeComparisonBudget(FakeVerificationBudget):
     """Fresh runs under one pinned campaign with an identified historical hold."""
 
-    def __init__(self, grant_dir, run_id, comparison, comparison_sha256, *, qualitative_only=False):
-        super().__init__(grant_dir, run_id)
+    def __init__(self, grant_dir, run_id, comparison, comparison_sha256, *, qualitative_only=False, aggregate_tokens=None):
+        super().__init__(grant_dir, run_id, aggregate_tokens=aggregate_tokens)
         if (len(comparison['run_ids']) != (1 if qualitative_only else 2)
                 or run_id not in comparison['run_ids'] or run_id == comparison['previous_run_id']):
             raise ValueError('FAKE_COMPARISON_RUN_MISMATCH')
@@ -242,13 +244,13 @@ class FakeComparisonBudget(FakeVerificationBudget):
 
 
 @contextmanager
-def fake_verification_budget(grant_dir, run_id, *, comparison=None, comparison_sha256=None, qualitative_only=False):
+def fake_verification_budget(grant_dir, run_id, *, comparison=None, comparison_sha256=None, qualitative_only=False, aggregate_tokens=None):
     """Use around the trusted fake host's complete invocation, including its vision calls."""
     if current_token_observation() is not None:
         raise ValueError('FAKE_VERIFICATION_REQUIRES_SEPARATE_GRANT')
     budget = (FakeComparisonBudget(grant_dir, run_id, comparison, comparison_sha256,
-                                   qualitative_only=qualitative_only) if comparison is not None
-              else FakeVerificationBudget(grant_dir, run_id))
+                                   qualitative_only=qualitative_only, aggregate_tokens=aggregate_tokens) if comparison is not None
+              else FakeVerificationBudget(grant_dir, run_id, aggregate_tokens=aggregate_tokens))
     with token_budget(budget):
         yield budget
 
@@ -259,11 +261,10 @@ _FLOW_TRIGGER = _COMPARISON_TRIGGER.replace(str(RUN_LIMIT),
 
 class FakeFlowBudget(FakeComparisonBudget):
     """One owner-capped full-flow run alongside the named preserved hold."""
-    def __init__(self, grant_dir, run_id, comparison, authority_sha256, *, maximum_tokens, model_bounds=None):
-        if (type(maximum_tokens) is not int or not 0 < maximum_tokens <= CAMPAIGN_LIMIT
-                or (model_bounds is None and maximum_tokens not in (RUN_LIMIT, 6_000_000))):
+    def __init__(self, grant_dir, run_id, comparison, authority_sha256, *, maximum_tokens, model_bounds=None, aggregate_tokens=None):
+        super().__init__(grant_dir, run_id, comparison, authority_sha256, qualitative_only=True, aggregate_tokens=aggregate_tokens)
+        if type(maximum_tokens) is not int or not 0 < maximum_tokens <= self.maximum:
             raise ValueError('FAKE_FLOW_LIMIT_INVALID')
-        super().__init__(grant_dir, run_id, comparison, authority_sha256, qualitative_only=True)
         self.run_limit = maximum_tokens
         if model_bounds is not None:
             if (not model_bounds or any(not isinstance(k, str) or not k.strip() or type(v) is not int or v <= 0

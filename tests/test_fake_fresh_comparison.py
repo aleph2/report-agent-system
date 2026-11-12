@@ -14,7 +14,7 @@ from test_fake_verification_launcher import packet, write_json
 def pair(packet, request):
     path, _, data = packet
     grant = Path(data['grant_dir'])
-    FakeVerificationBudget.initialize(grant, {host.MODEL: host.BOUND})
+    FakeVerificationBudget.initialize(grant, {host.MODEL: host.BOUND}, maximum_tokens=10_000_000)
     for i in range(getattr(request,'param',0)):
         earlier=FakeVerificationBudget(grant,'early-'+str(i))
         earlier.settle(earlier.reserve(host.MODEL),{'total_tokens':1_000_000})

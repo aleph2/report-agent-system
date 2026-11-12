@@ -155,7 +155,8 @@ async def launch(authority_path, authority_sha):
             and not any(gate[k] for k in ('missing','extra','duplicate_nodes','collection_errors')),
             'RETRY_REGRESSION_REQUIRED')
     require(current_token_observation() is None,'RETRY_SEPARATE_GRANT_REQUIRED')
-    budget=FakeContinuationBudget(grant,a['run_id'],a['previous_attempt'])
+    budget=FakeContinuationBudget(grant,a['run_id'],a['previous_attempt'],
+                                  aggregate_tokens=original['aggregate_tokens'])
     require(budget.model_bounds=={MODEL:BOUND} and old['budget']==budget.run_snapshot(),'RETRY_BUDGET_CHANGED')
     env=Path(a['service_env'])
     load_mixed_services(env)

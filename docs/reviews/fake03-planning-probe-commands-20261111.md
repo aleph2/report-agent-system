@@ -1,13 +1,15 @@
-# Fake03 planning probe — commands for owner review
+# Fake03 planning probe — current operator commands
 
-**Not a launch authorization.** Run only under the owning Linux user/Python. No command below initializes or resets a grant. No live authority file has been generated.
+**Not a launch authorization.** Use the owning Linux user/Python and a reviewed immutable candidate. Historical proposals/results keep their original limits and observations.
 
-## Before launch
+## Authority configuration
 
-1. C2/C3 is accepted and the clean full regression passed on d0984f9. Use the accepted main revision and the [Step 6 scope/cap proposal](fake03-planning-probe-step6-20261111.md); pin the actual revision with identify.
-2. Owner separately selects the probe hard cap (**5,500,000 recommended**) and explicitly authorizes one Fake03 Coordinator planning launch with text-only `glm-5.3`, A/B and C proposed for exclusion, stopping at the page-sheet checkpoint, all holds preserved. This is not plan approval or engineering sign-off.
-3. Copy [the invalid template](../verification/fake03-probe-safety/authority.template.json) into private operator storage. Replace every placeholder using the actual launch revision, existing grant and private held-request/retry receipt. Record the direct owner launch authority. Do not import an old plan or fake a new grant.
-4. Pin the existing external GLM service configuration and full-model proof. The file's GLM Writer bundle supplies the approved GLM service for the probe; the process maps constructible roles to that same service, while the request hook admits only Coordinator calls. Never print keys. The template/answer key stays outside case inputs.
+The existing separately pinned private authority file configures both limits:
+
+- `aggregate_tokens` must equal the current authorized maximum in the existing campaign ledger. Preflight reads it without creating or changing the ledger, and runtime checks the same value again. Extend an existing grant only through the authorized additive amendment API; preserve every attempt, hold and amendment receipt.
+- `per_run_tokens` is the explicitly authorized cap for this run, bounded by that campaign. The probe does not maintain a separate list of allowed amounts. A one-image check must cover its verified full request reservation.
+
+Fill every placeholder in the [planning template](../verification/fake03-probe-safety/authority.template.json) or [one-image template](../verification/fake03-probe-safety/vision-check-authority.template.json), including both limits. Templates deliberately have no chosen amounts. Pin candidate/fixtures, answer key v3, the authorized scope/models, existing grant, preserved hold and comparison receipt, and both GLM/vision service proofs as applicable. Keep keys local and authority/answer-key records out of case inputs. Preparation and a successful dry-run preflight do not authorize dispatch.
 
 ## Commands
 
@@ -35,19 +37,8 @@ export REPORT_SDK_RETRIES=0 REPORT_CONNECT_RETRIES=2
 
 SDK retries are zero. The retained two connection retries are the existing pre-HTTP connection policy, not permission to replay an unknown request. The command records its actual PID/UID/start ticks and claims result.json once. A failed or unknown result is inspected, never automatically restarted.
 
-## Limits and checkpoint
+## Admission and checkpoint
 
-| Owner cap option | Settled headroom for admitting another full request, with no new-run hold |
-| --- | ---: |
-| 3,700,000 | 2,520,352 |
-| 5,500,000 | 4,320,352 |
+Before any separately authorized launch, reconcile settled usage plus all holds against both the campaign and applicable verification/real-report aggregate allowances. A delegation ceiling does not reset usage or replace a category ceiling. Confirm the remaining campaign allowance can cover the authorized run and each full provider reservation; no token estimate substitutes for a hard bound.
 
-The last admitted request may settle above that headroom, up to the hard cap. The full reservation is temporary and is not multiplied by all calls. Every request also counts existing campaign settled/held exposure. The read-only preparation snapshot showed 6,829,292 available; 5.5M fits but is **not** the mathematical maximum, and it does not guarantee planning completes. Recheck the ledger before actual authorization/launch. No campaign amendment is part of this probe.
-
-At `page_sheet_checkpoint`, spending ends with the proposed bindings and the original native planning wait saved. `other_human_checkpoint` means a different decision is required. `budget_stop` and `unknown_outcome_held` are distinct outcomes. There is no automatic approval, follow-on Writer or retry. A later reply/continuation decision needs a separately authorized stage under the same preserved accounting; no continuation command is exposed here.
-
-## Report to review
-
-Read private `GRANT/runs/RUN_ID/result.json`, `tool-trace.jsonl`, and the case's existing `runtime-metrics.jsonl` (native Linux; database reads only `mode=ro/query_only`). Return per-call actual usage/growth, observed logical/HTTP attempt distinctions, held exposure, reason/role refusals, exact native checkpoint and pending bindings. Compare A/B page proposals, A-only survey, document-role restrictions and proposed C exclusion with frozen key v2. Review Chinese text field by field; do not claim engineering correctness from quote matches or zero refusals. No paid result is available yet.
-
-Callbacks use existing [LangChain BaseCallbackHandler](https://reference.langchain.com/python/langchain-core/callbacks/base/BaseCallbackHandler) and [inherited configure hooks](https://reference.langchain.com/python/langchain-core/tracers/context/register_configure_hook); no Langfuse SDK, upload or additional model is introduced.
+At `page_sheet_checkpoint`, spending ends with the proposed bindings and original native planning wait saved. No approval, follow-on Writer, continuation or retry follows automatically. `budget_stop`, another human checkpoint and an unknown held outcome remain distinct terminal results. Preserve the actual result, traces, usage and all holds; compare actual proposals with the frozen answer key and report missing or unverified work honestly.

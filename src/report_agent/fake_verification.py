@@ -20,7 +20,7 @@ import sqlite3
 import subprocess
 
 from .assessment_completion import claim_launch, _save
-from .fake_verification_budget import CAMPAIGN_LIMIT, RUN_LIMIT, FakeVerificationBudget, fake_verification_budget
+from .fake_verification_budget import LEDGER_FILENAME, RUN_LIMIT, FakeVerificationBudget, fake_verification_budget
 from .store import digest
 from .token_budget import current_model_token_bound, request_token_bound
 from .writer_probe import verified_request_bound
@@ -79,7 +79,10 @@ def preflight(approval_file, approval_sha256, *, workflow=WORKFLOW, per_run_toke
     if hashlib.sha256(raw).hexdigest() != approval_sha256:
         raise ValueError('FAKE_AUTHORITY_PIN_MISMATCH')
     authority = json.loads(raw)
-    expected = {**identify(), 'workflow': workflow, 'per_run_tokens': per_run_tokens, 'aggregate_tokens': CAMPAIGN_LIMIT}
+    expected = {**identify(), 'workflow': workflow, 'per_run_tokens': per_run_tokens}
+    aggregate = authority.get('aggregate_tokens') if isinstance(authority, dict) else None
+    if type(aggregate) is not int or aggregate < per_run_tokens:
+        raise ValueError('FAKE_AUTHORITY_SCOPE_MISMATCH')
     if (not isinstance(authority,dict) or any(authority.get(k) != v for k,v in expected.items())
             or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}', str(authority.get('run_id','')))
             or not isinstance(authority.get('run_id'),str)
@@ -90,6 +93,8 @@ def preflight(approval_file, approval_sha256, *, workflow=WORKFLOW, per_run_toke
     if (not grant.is_absolute() or grant.resolve() != grant or grant.is_relative_to(_REPO)
             or path.resolve().is_relative_to(grant / 'runs')):
         raise ValueError('FAKE_SEPARATE_GRANT_REQUIRED')
+    if (grant / LEDGER_FILENAME).exists():
+        FakeVerificationBudget(grant, authority['run_id'], aggregate_tokens=aggregate)
     run = grant/'runs'/authority['run_id']
     if run.resolve() != run:
         raise ValueError('FAKE_RUN_PATH_INVALID')
@@ -272,7 +277,7 @@ async def launch(approval_file, approval_sha256, prepared_sha256, env_file):
     qualitative = 'qualitative_pilot' in authority
     comparison_pin = _comparison_identity(authority) if comparison is not None else None
     with fake_verification_budget(authority['grant_dir'],authority['run_id'],comparison=comparison,
-                                  comparison_sha256=comparison_pin,qualitative_only=qualitative) as budget, request_token_bound(bound):
+                                  comparison_sha256=comparison_pin,qualitative_only=qualitative,aggregate_tokens=authority['aggregate_tokens']) as budget, request_token_bound(bound):
         if comparison is not None:
             budget.check_fresh()
         account=budget.snapshot()
@@ -340,8 +345,8 @@ def main():
         if args.action=='init-grant':
             if 'fresh_comparison' in auth:
                 raise ValueError('FAKE_COMPARISON_REQUIRES_EXISTING_GRANT')
-            FakeVerificationBudget.initialize(Path(auth['grant_dir']),{MODEL:BOUND})
-            result={'status':'initialized','maximum_tokens':CAMPAIGN_LIMIT}
+            FakeVerificationBudget.initialize(Path(auth['grant_dir']),{MODEL:BOUND},maximum_tokens=auth['aggregate_tokens'])
+            result={'status':'initialized','maximum_tokens':auth['aggregate_tokens']}
         elif args.action=='run':
             if not args.env or not args.prepared_sha256:parser.error('external service config and pinned preparation receipt required')
             result=asyncio.run(launch(args.authority,args.authority_sha256,args.prepared_sha256,args.env))

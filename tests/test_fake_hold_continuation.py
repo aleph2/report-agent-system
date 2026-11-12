@@ -11,7 +11,7 @@ BOUND = 1179648
 
 
 def setup(tmp_path):
-    FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND})
+    FakeVerificationBudget.initialize(tmp_path, {MODEL: BOUND}, maximum_tokens=10_000_000)
     budget = FakeVerificationBudget(tmp_path, '04')
     old = budget.reserve(MODEL)
     return budget, old
@@ -52,7 +52,7 @@ def test_wrong_parent_run_and_cap_refuse_atomically(tmp_path):
 
 
 def test_campaign_limit_checked_before_exception(tmp_path):
-    FakeVerificationBudget.initialize(tmp_path,{MODEL:BOUND})
+    FakeVerificationBudget.initialize(tmp_path,{MODEL:BOUND}, maximum_tokens=10_000_000)
     for run in ('one','two'):
         b=FakeVerificationBudget(tmp_path,run)
         for usage in (BOUND,BOUND,3_700_000-3*BOUND,BOUND):
@@ -63,3 +63,10 @@ def test_campaign_limit_checked_before_exception(tmp_path):
     with pytest.raises(RequestBudgetExceeded,match='AUTHORIZED_TOKEN_BUDGET_REACHED'):
         FakeContinuationBudget(tmp_path,'04',old).reserve(MODEL)
     assert b.run_snapshot()=={'maximum_tokens':3_700_000,'settled':400_000,'held':BOUND}
+    from report_agent.token_budget import TokenBudget
+    TokenBudget.increase_authorization(tmp_path / 'fake-verification-token-budget.db',
+        previous_maximum=10_000_000, new_maximum=20_000_000,
+        authorization_id='synthetic-continuation-amendment', authorization_sha256='c' * 64)
+    with pytest.raises(ValueError, match='AUTHORIZATION_MISMATCH'):
+        FakeContinuationBudget(tmp_path, '04', old, aggregate_tokens=10_000_000)
+    assert FakeContinuationBudget(tmp_path, '04', old, aggregate_tokens=20_000_000).maximum == 20_000_000
