@@ -83,6 +83,13 @@ named requirement or reproduced bug and the code that reads the result.
    added/removed, and legacy fallback paths; keep the record to one page and
    link details. Documentation-only commits need no change-size header.
 
+
+9. Owner decisions (caps, models, scopes, limits) are read from the
+   authorization or configuration at run time and checked against safety
+   bounds; never written into code as constants. Changing a constant or
+   setting updates the existing tests that use it in place; do not add a test
+   that only restates its value.
+
 ## 5. Design rules
 
 - Greenfield system: do not copy, import, wrap or modify the legacy application,
