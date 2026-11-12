@@ -421,3 +421,9 @@ Details: docs/reviews/context-fix-step1-20261111.md. Main/dispatcher, original r
 
 
 Context C1 Step 2 candidate (2026-11-11): implementation and clean focused V1/V2/V6 complete (200 passed). Neo technical review cleared; owner candidate acceptance pending. Step 3 must compare stock C2 with the two existing clearers before implementation. Main/full-run/paid gates unchanged. See docs/reviews/context-fix-c1-20261111.md.
+
+
+Context update (2026-11-11): C1 346f1ba accepted by owner; Step 2 complete. Same-estimator baseline and Step 3 C2 inventory complete; independent packet review pending. One full offline regression on accepted C1 is running under this turn's explicit owner grant, with automatic passing-data cleanup. No paid probe/main move/C2 runtime edit. Details: docs/reviews/context-fix-c2-inventory-20261111.md.
+
+
+2026-11-11 owner turn / 2026-11-12 UTC completion: One authorized C1 full on exact 346f1ba finished 6,206 passed, 3 failed, 9 unchanged skips, 36m30s; all 6,218 nodes once, nine coverage floors pass (90.72%), 1,300 frozen files unchanged. Two stale SDK frame expectations fixed at a412688 (2 focused pass); two retired frame-access census rows removed at 3eeb5e6 (4 focused pass). Neo reviewed both as stale test/inventory defects, not product defects. Full remains failed and evidence retained; no replacement full started. Step 3 C2 inventory independently reviewed after keeping task offered and marking catalog trimming separately scoped. Source/config unchanged; C2 remains unimplemented, main 7da4f94, no paid calls/hold changes. Records: docs/reviews/context-fix-c1-full-20261111.md and context-fix-c2-inventory-20261111.md.

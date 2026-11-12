@@ -1,0 +1,12 @@
+tool	sufficient_absence_condition	existing_reader_or_guard	status	constraint
+assess_change_impact	No DocumentSnapshot exists	hierarchical_tools.py:438-440	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+read_content_export	No ExportArtifact exists	content_export.py:489-494	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+read_content_index	No DocumentSnapshot exists	content_selection.py:72-76	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+read_content_selection	No DocumentSnapshot exists	hierarchical_tools.py:231-243	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+read_delivery_review_context	No Snapshot/ExportArtifact pair exists	hierarchical_tools.py:376-390	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+read_review_obligation_coverage	No DocumentSnapshot exists	hierarchical_tools.py:153-159	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+read_review_status	No DocumentSnapshot exists	hierarchical_tools.py:202-214	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+render_content_export	No ExportArtifact exists	content_export.py:512-518	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+request_layout_capability	No DocumentSnapshot exists	hierarchical_tools.py:517-526	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+request_system_delivery	No active confirmed plan/decision	system_assembler.py:40; commission_plan.py:762-772	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused
+select_content_delivery	No eligible Snapshot/ExportArtifact pair exists	hierarchical_tools.py:624-628	candidate; existing admission remains authoritative	Restore when prerequisites become available; never hide only because a tool was unused

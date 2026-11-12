@@ -1,0 +1,60 @@
+{
+  "statistical_utc": "2026-11-12T02:50:12.423438+00:00",
+  "full_tested_commit": "346f1baf8de12fdb3242651351e5594498d36a0d",
+  "correction_tip": "3eeb5e621a7a878b0b1146575dd725237993db12",
+  "production_diff": {
+    "added": 0,
+    "removed": 0
+  },
+  "tests_diff": {
+    "added": 9,
+    "removed": 5
+  },
+  "census_diff": {
+    "added": 0,
+    "removed": 2
+  },
+  "runtime_checks_guards_changed": 0,
+  "new_legacy_fallbacks": 0,
+  "bugs": [
+    {
+      "severity": "P2",
+      "cause": "Two SDK wire cases require a persisted host-state frame retired by accepted C1",
+      "fix": "Require no saved frame and exactly one call-local current tail after the intact tool batch; latest feedback asserted",
+      "requirement": "Context Fix C1 and existing SDK reasoning/tool pairing",
+      "blocks": "clean full-suite claim until corrected candidate is fully tested"
+    },
+    {
+      "severity": "P2",
+      "cause": "Census still lists two state-frame receipt access sites deleted by C1",
+      "fix": "Remove exactly those two rows; scanner and census guard unchanged",
+      "requirement": "M0 census must match real access sites",
+      "blocks": "clean full-suite claim until corrected candidate is fully tested"
+    }
+  ],
+  "focused_runs": [
+    {
+      "scope": "host-delivery-green",
+      "passed": 2,
+      "failed": 0,
+      "pytest_seconds": 8.37,
+      "wall_seconds": 10.93,
+      "commit": "a412688831102722c92ff1d2e9fc94ba28504328",
+      "network": "offline wrapper and mock transport only"
+    },
+    {
+      "scope": "census-green",
+      "passed": 4,
+      "failed": 0,
+      "pytest_seconds": 3.3,
+      "wall_seconds": 4.1,
+      "commit": "3eeb5e621a7a878b0b1146575dd725237993db12",
+      "network": "offline wrapper and mock transport only"
+    }
+  ],
+  "focused_passed_total": 6,
+  "independent_review": "Neo inspected both diffs and saved red evidence; no product defect found; Main ran focused checks",
+  "full_status": "original run remains failed; not rerun or reconciled",
+  "paid_model_calls": 0,
+  "private_evidence": ".private/context-fix-c2-20261111/"
+}

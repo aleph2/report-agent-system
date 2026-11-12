@@ -1,0 +1,56 @@
+{
+  "scope": "separate C1 replay, unchanged scripted outcomes; local proxy only",
+  "totals_by_path_and_tool": {
+    "coordinator": {
+      "read_source_page": 563692,
+      "read_planning_draft": 326142,
+      "set_requirement_status": 38702,
+      "link_convention": 8549,
+      "set_planning_details": 3298,
+      "set_scope_boundary": 4752,
+      "add_section": 10980,
+      "add_object": 7209,
+      "add_reconciliation": 4655,
+      "publish_planning_draft": 3887,
+      "propose_page_binding": 61960
+    },
+    "indicator_writer": {
+      "read_assigned_page": 1284,
+      "assert_source": 496
+    },
+    "qualitative_reviewer": {
+      "read_qualitative_row": 452058,
+      "record_qualitative_finding": 25410
+    },
+    "prose_writer": {
+      "process_report_content": 10452,
+      "save_section_prose": 2328,
+      "read_commission_plan": 174909,
+      "propose_material_issue": 738
+    },
+    "text_tool": {}
+  },
+  "coordinator_frozen_source_read_upper_bound": 563692,
+  "reviewer_frozen_row_read_upper_bound": 452058,
+  "prose_current_plan_alias_excluded": 174909,
+  "catalog_sizing_only": {
+    "measured_catalog_proxy": 23767,
+    "hypothetical_subset_proxy": 20852,
+    "removed": [
+      "assess_change_impact",
+      "read_content_export",
+      "read_content_index",
+      "read_content_selection",
+      "read_delivery_review_context",
+      "read_review_obligation_coverage",
+      "read_review_status",
+      "render_content_export",
+      "request_layout_capability",
+      "request_system_delivery",
+      "select_content_delivery"
+    ],
+    "saving_if_eligibility_confirmed": 2915,
+    "status": "sizing only; no tools filtered, not a measured flow saving",
+    "review_correction": "Keep task offered: fresh generic Writer and saved_work Reviewer paths disprove the absent-plan/snapshot predicate. Remaining 11 candidates still need exact predicate review."
+  }
+}

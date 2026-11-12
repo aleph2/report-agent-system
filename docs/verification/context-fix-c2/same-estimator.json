@@ -1,0 +1,352 @@
+{
+  "baseline_commit": "ead8bf5096f000d677df288ae253c9a2a29e1df8",
+  "accepted_c1_commit": "346f1baf8de12fdb3242651351e5594498d36a0d",
+  "same_observer_sha256": "150521eb2f96abd9b3ce7da6a0bc1a1176cedc6507d5b44f6f7e6f27b6312cec",
+  "same_estimator": "langchain_core.messages.utils.count_tokens_approximately; defaults; tools included",
+  "installed_versions": {
+    "langchain": "1.4.2",
+    "langchain-core": "1.6.5",
+    "deepagents": "0.7.19"
+  },
+  "same_script_inputs_role_prompts_and_fixture_verified": true,
+  "each_flow_calls": 151,
+  "each_flow_result": "passed; exact saved outcomes and draft Word/Excel checks unchanged",
+  "root_catalog_identical": true,
+  "before": {
+    "coordinator": {
+      "calls": 61,
+      "total_proxy_tokens": 3799615,
+      "maximum_proxy_tokens": 84636,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 75335,
+          "first": 1235,
+          "last": 1235
+        },
+        "tool_result_proxy_tokens": {
+          "total": 1033826,
+          "first": 0,
+          "last": 24719
+        },
+        "human_proxy_tokens": {
+          "total": 1074277,
+          "first": 7757,
+          "last": 28971
+        },
+        "model_proxy_tokens": {
+          "total": 166390,
+          "first": 0,
+          "last": 5944
+        },
+        "tools_proxy_tokens": {
+          "total": 1449787,
+          "first": 23767,
+          "last": 23767
+        }
+      }
+    },
+    "indicator_writer": {
+      "calls": 26,
+      "total_proxy_tokens": 138964,
+      "maximum_proxy_tokens": 5791,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 18980,
+          "first": 730,
+          "last": 730
+        },
+        "tool_result_proxy_tokens": {
+          "total": 1780,
+          "first": 0,
+          "last": 0
+        },
+        "human_proxy_tokens": {
+          "total": 40406,
+          "first": 1579,
+          "last": 1661
+        },
+        "model_proxy_tokens": {
+          "total": 296,
+          "first": 0,
+          "last": 0
+        },
+        "tools_proxy_tokens": {
+          "total": 77502,
+          "first": 2868,
+          "last": 3366
+        }
+      }
+    },
+    "qualitative_reviewer": {
+      "calls": 48,
+      "total_proxy_tokens": 533952,
+      "maximum_proxy_tokens": 21210,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 27072,
+          "first": 564,
+          "last": 564
+        },
+        "tool_result_proxy_tokens": {
+          "total": 477468,
+          "first": 0,
+          "last": 18525
+        },
+        "human_proxy_tokens": {
+          "total": 960,
+          "first": 20,
+          "last": 20
+        },
+        "model_proxy_tokens": {
+          "total": 20580,
+          "first": 0,
+          "last": 874
+        },
+        "tools_proxy_tokens": {
+          "total": 7872,
+          "first": 164,
+          "last": 164
+        }
+      }
+    },
+    "prose_writer": {
+      "calls": 13,
+      "total_proxy_tokens": 316972,
+      "maximum_proxy_tokens": 37228,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 7930,
+          "first": 610,
+          "last": 610
+        },
+        "tool_result_proxy_tokens": {
+          "total": 188439,
+          "first": 0,
+          "last": 26799
+        },
+        "human_proxy_tokens": {
+          "total": 286,
+          "first": 22,
+          "last": 22
+        },
+        "model_proxy_tokens": {
+          "total": 5072,
+          "first": 0,
+          "last": 932
+        },
+        "tools_proxy_tokens": {
+          "total": 115245,
+          "first": 8865,
+          "last": 8865
+        }
+      }
+    },
+    "text_tool": {
+      "calls": 3,
+      "total_proxy_tokens": 14198,
+      "maximum_proxy_tokens": 4948,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 2550,
+          "first": 850,
+          "last": 850
+        },
+        "tool_result_proxy_tokens": {
+          "total": 0,
+          "first": 0,
+          "last": 0
+        },
+        "human_proxy_tokens": {
+          "total": 11648,
+          "first": 3801,
+          "last": 3749
+        },
+        "model_proxy_tokens": {
+          "total": 0,
+          "first": 0,
+          "last": 0
+        },
+        "tools_proxy_tokens": {
+          "total": 0,
+          "first": 0,
+          "last": 0
+        }
+      }
+    }
+  },
+  "after": {
+    "coordinator": {
+      "calls": 61,
+      "total_proxy_tokens": 3357633,
+      "maximum_proxy_tokens": 66852,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 71553,
+          "first": 1173,
+          "last": 1173
+        },
+        "tool_result_proxy_tokens": {
+          "total": 1033826,
+          "first": 0,
+          "last": 24719
+        },
+        "human_proxy_tokens": {
+          "total": 636077,
+          "first": 7726,
+          "last": 11249
+        },
+        "model_proxy_tokens": {
+          "total": 166390,
+          "first": 0,
+          "last": 5944
+        },
+        "tools_proxy_tokens": {
+          "total": 1449787,
+          "first": 23767,
+          "last": 23767
+        }
+      }
+    },
+    "indicator_writer": {
+      "calls": 26,
+      "total_proxy_tokens": 138964,
+      "maximum_proxy_tokens": 5791,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 18980,
+          "first": 730,
+          "last": 730
+        },
+        "tool_result_proxy_tokens": {
+          "total": 1780,
+          "first": 0,
+          "last": 0
+        },
+        "human_proxy_tokens": {
+          "total": 40406,
+          "first": 1579,
+          "last": 1661
+        },
+        "model_proxy_tokens": {
+          "total": 296,
+          "first": 0,
+          "last": 0
+        },
+        "tools_proxy_tokens": {
+          "total": 77502,
+          "first": 2868,
+          "last": 3366
+        }
+      }
+    },
+    "qualitative_reviewer": {
+      "calls": 48,
+      "total_proxy_tokens": 533952,
+      "maximum_proxy_tokens": 21210,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 27072,
+          "first": 564,
+          "last": 564
+        },
+        "tool_result_proxy_tokens": {
+          "total": 477468,
+          "first": 0,
+          "last": 18525
+        },
+        "human_proxy_tokens": {
+          "total": 960,
+          "first": 20,
+          "last": 20
+        },
+        "model_proxy_tokens": {
+          "total": 20580,
+          "first": 0,
+          "last": 874
+        },
+        "tools_proxy_tokens": {
+          "total": 7872,
+          "first": 164,
+          "last": 164
+        }
+      }
+    },
+    "prose_writer": {
+      "calls": 13,
+      "total_proxy_tokens": 316972,
+      "maximum_proxy_tokens": 37228,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 7930,
+          "first": 610,
+          "last": 610
+        },
+        "tool_result_proxy_tokens": {
+          "total": 188439,
+          "first": 0,
+          "last": 26799
+        },
+        "human_proxy_tokens": {
+          "total": 286,
+          "first": 22,
+          "last": 22
+        },
+        "model_proxy_tokens": {
+          "total": 5072,
+          "first": 0,
+          "last": 932
+        },
+        "tools_proxy_tokens": {
+          "total": 115245,
+          "first": 8865,
+          "last": 8865
+        }
+      }
+    },
+    "text_tool": {
+      "calls": 3,
+      "total_proxy_tokens": 14198,
+      "maximum_proxy_tokens": 4948,
+      "components": {
+        "system_proxy_tokens": {
+          "total": 2550,
+          "first": 850,
+          "last": 850
+        },
+        "tool_result_proxy_tokens": {
+          "total": 0,
+          "first": 0,
+          "last": 0
+        },
+        "human_proxy_tokens": {
+          "total": 11648,
+          "first": 3801,
+          "last": 3749
+        },
+        "model_proxy_tokens": {
+          "total": 0,
+          "first": 0,
+          "last": 0
+        },
+        "tools_proxy_tokens": {
+          "total": 0,
+          "first": 0,
+          "last": 0
+        }
+      }
+    }
+  },
+  "coordinator_proxy_reduction": {
+    "tokens": 441982,
+    "percent": 11.632
+  },
+  "system_change_explanation": "C1 shortened STATE_EXPLANATION (1235 to 1173 proxy tokens); role prompt files unchanged",
+  "limits": [
+    "local approximate counts, not provider spending",
+    "one paired scripted replay; small ID/timestamp size variation possible",
+    "original launch-cost estimator is not used as the before value",
+    "cache effectiveness and real-model behavior unmeasured"
+  ],
+  "private_evidence": ".private/context-fix-c2-20261111/",
+  "observer_hash_normalization": "SHA256 of UTF-8 observer source after rstrip; same value recorded by both executed harnesses"
+}
