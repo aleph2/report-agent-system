@@ -35,7 +35,7 @@ async def test_v4_deepseek_strict_sdk_wire_roundtrips_legal_business_choices(cas
         wires.append(json.loads(request.content))
         return completion(request, '', ('task', encoded))
     client = httpx.AsyncClient(transport=httpx.MockTransport(transport))
-    model = GLMChatOpenAI(model='deepseek-v4-pro', api_key='fixture-only',
+    model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='fixture-only',
         base_url='https://fixture.invalid/beta', http_async_client=client,
         use_responses_api=False, max_retries=0, disable_streaming=True, deepseek_strict=True)
     try:

@@ -430,8 +430,8 @@ async def test_local_recovery_refusal_preserves_exact_zero_send_and_old_financia
     store,model=await active_model(tmp_path,monkeypatch)
     seen=[]
     await use_mock(model,lambda request:seen.append(request) or httpx.Response(200,json=body()))
-    ledger=TokenBudget(tmp_path/'local-cap.db',200,{'deepseek-v4.1-flash':40})
-    old=ledger.reserve('deepseek-v4.1-flash')
+    ledger=TokenBudget(tmp_path/'local-cap.db',200,{'deepseek-v4.1-flash-1017':40})
+    old=ledger.reserve('deepseek-v4.1-flash-1017')
     with ledger.connect() as db:before=db.execute('SELECT * FROM attempts WHERE id=?',(old,)).fetchone()
     def refuse():
         if mode=='persistence':raise sqlite3.OperationalError('synthetic durable write unavailable')
@@ -512,7 +512,7 @@ async def test_first_sent_attempt_then_local_cap_refusal_remains_unknown(tmp_pat
         if reserved:raise RequestBudgetExceeded('RECOVERY_OBSERVATION_HTTP_LIMIT')
         reserved.append(True)
     await use_mock(model,transport)
-    ledger=TokenBudget(tmp_path/'sent-then-local.db',200,{'deepseek-v4.1-flash':40})
+    ledger=TokenBudget(tmp_path/'sent-then-local.db',200,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(ledger),request_budget(RequestBudget(3)),request_reservation_observer(reserve):
             with pytest.raises(RequestBudgetExceeded):await model.ainvoke('Sent fixture then refused extra.')

@@ -16,7 +16,7 @@ from test_transport_observation import use_mock,close,body
 async def test_outer_host_latch_only_observes_final_model_failure(tmp_path,monkeypatch,mode):
     monkeypatch.setenv('REPORT_SDK_RETRIES','0')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES','0')
-    for suffix,value in [('MODEL','deepseek-v4.1-flash'),('BASE_URL','https://fixture.invalid/v1'),
+    for suffix,value in [('MODEL','deepseek-v4.1-flash-1017'),('BASE_URL','https://fixture.invalid/v1'),
                          ('API_KEY','fixture-only')]:
         monkeypatch.setenv('REPORT_COORDINATOR_'+suffix,value)
     store=Store(tmp_path/'fresh-synthetic')
@@ -32,7 +32,7 @@ async def test_outer_host_latch_only_observes_final_model_failure(tmp_path,monke
             raise httpx.ConnectError('Synthetic TLS connection failure; no real socket',request=request)
         return httpx.Response(200,json=body())
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'synthetic-budget.db',300,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'synthetic-budget.db',300,{'deepseek-v4.1-flash-1017':40})
     def admission():
         snapshot=budget.snapshot();admissions.append({'failed':state['failed'],**snapshot})
         # Same guard as the historical host, without a new recovery exception.

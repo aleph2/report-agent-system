@@ -103,7 +103,7 @@ async def test_legacy_summary_gets_visible_provenance_without_rewriting_notes_or
     assert history == before and calls == []
     assert await mw.abefore_model({'messages':history}, None) is None
     assert await effective_messages(mw, updated) == updated
-    for key, value in [('MODEL','deepseek-v4.1-flash'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','synthetic')]:
+    for key, value in [('MODEL','deepseek-v4.1-flash-1017'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','synthetic')]:
         monkeypatch.setenv('REPORT_'+key, value)
     adapters = [configured_model(ws.store, 'coordinator'),
         GLMChatOpenAI(model='glm-5.3', api_key='synthetic', base_url='https://offline.invalid/v1',

@@ -85,7 +85,7 @@ async def test_native_localhost_sdk_phases_and_single_flush(tmp_path, monkeypatc
                         expire()
                 request.extensions['trace'] = trace
             model.http_async_client.event_hooks['request'][hook_index] = observe_start
-        budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+        budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
         try:
             with token_budget(budget):
                 task = asyncio.create_task(model.ainvoke('synthetic-private-input'))
@@ -186,7 +186,7 @@ async def test_existing_callback_failure_is_preserved_not_suppressed(tmp_path, m
         with pytest.raises(type(failure)) as caught:
             # Check the HTTPX boundary itself; the SDK/LC may wrap ordinary
             # callback exceptions using their existing retry/error policies.
-            await model.http_async_client.post('https://offline.invalid/v1/chat/completions', json={'model': 'deepseek-v4.1-flash'})
+            await model.http_async_client.post('https://offline.invalid/v1/chat/completions', json={'model': 'deepseek-v4.1-flash-1017'})
         assert caught.value is failure
         assert len(traces(store)) == 1
         assert 'PRIVATE' not in json.dumps(traces(store))
@@ -207,7 +207,7 @@ async def test_new_observation_failures_do_not_alter_result_or_settlement(tmp_pa
             raise OSError('PRIVATE')
         return original(kind, data)
     monkeypatch.setattr(store, 'event', broken)
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     try:
         with token_budget(budget):
             assert (await model.ainvoke('offline')).content == 'unchanged result'
@@ -432,7 +432,7 @@ async def test_sdk_physical_attempts_link_to_one_logical_call(tmp_path, monkeypa
                 else httpx.Response(200, json=body()))
     await use_mock(model, respond)
     monkeypatch.setattr(model.root_async_client, '_calculate_retry_timeout', lambda *args: 0)
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     try:
         with token_budget(budget):
             assert (await model.ainvoke('offline')).content == 'unchanged result'

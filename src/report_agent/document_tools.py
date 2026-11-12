@@ -189,6 +189,9 @@ def source_page_info(workspace, source_id: str, page: int) -> dict:
     ]
     if not text.strip():
         limitations.append("No native text on this page; this does not establish missing information. Existing OCR is unchanged.")
+    view = source_tables(workspace, source_id, [page])[0]
+    from .page_facts import unavailable
+    facts = {**view.pop("page_facts", unavailable()), "native_text_characters": len(text)}
     return {
         "source_id": source_id,
         "sha256": source["sha256"].lower(),
@@ -196,7 +199,8 @@ def source_page_info(workspace, source_id: str, page: int) -> dict:
         "page_count": count,
         "locator": f"PDF physical page {page} of {count}",
         "native_text": text,
-        "table_view": source_tables(workspace, source_id, [page])[0],
+        "table_view": view,
+        "page_facts": facts,
         "frozen_text_blocks": _frozen_page_blocks(workspace, source_id, page),
         "frozen_text_note": "Existing stored extraction/OCR matched by explicit physical-page locator, not block ordinal. No OCR rerun; no match does not establish absent OCR.",
         "image_ref": f"source-page://{quote(source_id, safe='')}/{page}",
@@ -237,7 +241,7 @@ def source_page_png(workspace, source_id: str, page: int) -> bytes:
             raise ActionRejected("SOURCE_PAGE_RENDER_FAILED") from None
 
 
-def vision_source_image(workspace, source_id: str, page: int = 1, crop=None) -> tuple[bytes, dict]:
+def vision_source_image(workspace, source_id: str, page: int = 1, crop=None, *, max_edge=_MAX_IMAGE_EDGE) -> tuple[bytes, dict]:
     """Return one bounded PNG plus provenance, without OCR or a model invocation.
 
     crop is None or [x0, y0, x1, y1] in normalized top-left coordinates on the
@@ -246,6 +250,9 @@ def vision_source_image(workspace, source_id: str, page: int = 1, crop=None) -> 
     """
     from PIL import Image
     from .ingestion import _decode_image, _ParseError, MAX_IMAGE_EDGE, MAX_IMAGE_PIXELS, MAX_UPLOAD_BYTES
+
+    if type(max_edge) is not int or not 1 <= max_edge <= _MAX_IMAGE_EDGE:
+        raise ActionRejected("SOURCE_IMAGE_INVALID_OUTPUT_LIMIT")
 
     if type(page) is not int or page < 1:
         raise ActionRejected("SOURCE_PAGE_REQUIRES_POSITIVE_INTEGER")
@@ -298,7 +305,7 @@ def vision_source_image(workspace, source_id: str, page: int = 1, crop=None) -> 
             image = opaque
             limitations.append("Transparency composited onto white for the returned image.")
         selected_size = image.size
-        image.thumbnail((_MAX_IMAGE_EDGE, _MAX_IMAGE_EDGE), Image.Resampling.LANCZOS)
+        image.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
         # Strip source metadata from the generated rendition, retaining provenance below.
         image.info.clear()
         output = BytesIO()
@@ -312,7 +319,7 @@ def vision_source_image(workspace, source_id: str, page: int = 1, crop=None) -> 
             "image_sha256": hashlib.sha256(png).hexdigest(), "mime_type": "image/png",
             "coverage": "region_only" if crop is not None else "full_page_image" if is_pdf else "full_image",
             "locator": f"PDF physical page {page}" if is_pdf else "single image 1",
-            "render_limits": {"max_output_edge": _MAX_IMAGE_EDGE, "pdf_max_dpi": 144,
+            "render_limits": {"max_output_edge": max_edge, "pdf_max_dpi": 144,
                               "max_raster_input_pixels": MAX_IMAGE_PIXELS, "max_raster_input_edge": MAX_IMAGE_EDGE,
                               "max_raster_input_bytes": MAX_UPLOAD_BYTES, "raster_upscale": False},
             "limitations": limitations,

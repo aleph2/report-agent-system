@@ -108,7 +108,7 @@ async def test_wire_history_preserved_and_decode_error_is_feedback(ws, monkeypat
         args = encoded if len(wires) == 1 else {'body': {'entries': [
             {'key': 'x', 'value': 1}, {'key': 'x', 'value': 2}]}}
         return httpx.Response(200, json={'id': 's', 'object': 'chat.completion', 'created': 1,
-            'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'tool_calls', 'message': {
+            'model': 'deepseek-v4.1-flash-1017', 'choices': [{'index': 0, 'finish_reason': 'tool_calls', 'message': {
                 'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'actual-call', 'type': 'function',
                 'function': {'name': 'save', 'arguments': json.dumps(args)}}]}}]})
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
@@ -141,7 +141,7 @@ def test_actual_union_failure_reports_missing_wire_field(ws):
 
 async def test_actual_http_audit_excludes_headers_messages_and_reasoning(ws):
     schema = {'type': 'function', 'function': {'name': 'x', 'strict': True, 'parameters': {'type': 'object'}}}
-    payload = {'model': 'deepseek-flash', 'thinking': {'type': 'enabled'}, 'reasoning_effort': 'max',
+    payload = {'model': 'deepseek-v4.1-flash-1017', 'thinking': {'type': 'enabled'}, 'reasoning_effort': 'max',
         'tools': [schema], 'messages': [{'role': 'assistant', 'reasoning_content': 'private-test-reasoning'}]}
     request = httpx.Request('POST', 'https://api.deepseek.com/beta/chat/completions',
         headers={'Authorization': 'Bearer secret-test-key'}, json=payload)

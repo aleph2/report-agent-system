@@ -78,7 +78,7 @@ def prepared_probe(method_commission, tmp_path_factory, monkeypatch):
     env.write_text('\n'.join([
         'HIGHWAY_MODEL_NAME=glm-5.3', 'HIGHWAY_MODEL_BASE_URL='+url,
         'HIGHWAY_MODEL_API_KEY=synthetic-key',
-        'HIGHWAY_MODEL_DEEPSEEK_NAME=deepseek-v4.1-flash',
+        'HIGHWAY_MODEL_DEEPSEEK_NAME=deepseek-v4.1-flash-1017',
         'HIGHWAY_MODEL_DEEPSEEK_BASE_URL=https://synthetic-deepseek.invalid/v1',
         'HIGHWAY_MODEL_DEEPSEEK_API_KEY=synthetic-key',
         'REPORT_REASONING_EFFORT=high',

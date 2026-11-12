@@ -249,7 +249,7 @@ async def test_legal_strict_codec_transform_keeps_offered_and_final_schema_hashe
     client = model_async_client(ws.store, 'text_tool')
     client._transport = httpx.MockTransport(lambda r: completion(r))
     client._mounts.clear()
-    model = GLMChatOpenAI(model='deepseek-v4-pro', api_key='fixture-only', base_url='https://fixture.invalid/beta',
+    model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='fixture-only', base_url='https://fixture.invalid/beta',
         use_responses_api=False, http_async_client=client, max_retries=0, disable_streaming=True, deepseek_strict=True)
     try:
         with prompt_call(ws.store, 'evidence-analysis', sources=['evidence-analysis'], offered=payload):

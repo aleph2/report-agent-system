@@ -151,13 +151,14 @@ class FakeComparisonBudget(FakeVerificationBudget):
         if (len(comparison['run_ids']) != (1 if qualitative_only else 2)
                 or run_id not in comparison['run_ids'] or run_id == comparison['previous_run_id']):
             raise ValueError('FAKE_COMPARISON_RUN_MISMATCH')
+        self._campaign_model_bounds = dict(self.model_bounds)
         self.comparison = comparison
         self.comparison_sha256 = comparison_sha256
         self.qualitative_only = qualitative_only
 
     def _check_hold(self, db, model, bound):
         c = self.comparison
-        if self.model_bounds != {model: bound} or model != 'glm-5.3' or bound != 1_179_648:
+        if self._campaign_model_bounds != {model: bound} or model != 'glm-5.3' or bound != 1_179_648:
             raise RequestBudgetExceeded('FAKE_COMPARISON_BOUND_MISMATCH')
         pending = db.execute("""SELECT a.id,r.run_id,a.model,a.reserved,a.used
             FROM attempts a LEFT JOIN fake_run_attempts r ON r.attempt_id=a.id
@@ -258,11 +259,23 @@ _FLOW_TRIGGER = _COMPARISON_TRIGGER.replace(str(RUN_LIMIT),
 
 class FakeFlowBudget(FakeComparisonBudget):
     """One owner-capped full-flow run alongside the named preserved hold."""
-    def __init__(self, grant_dir, run_id, comparison, authority_sha256, *, maximum_tokens):
-        if type(maximum_tokens) is not int or maximum_tokens not in (RUN_LIMIT, 5_500_000):
+    def __init__(self, grant_dir, run_id, comparison, authority_sha256, *, maximum_tokens, model_bounds=None):
+        if (type(maximum_tokens) is not int or not 0 < maximum_tokens <= CAMPAIGN_LIMIT
+                or (model_bounds is None and maximum_tokens not in (RUN_LIMIT, 5_500_000))):
             raise ValueError('FAKE_FLOW_LIMIT_INVALID')
         super().__init__(grant_dir, run_id, comparison, authority_sha256, qualitative_only=True)
         self.run_limit = maximum_tokens
+        if model_bounds is not None:
+            if (not model_bounds or any(not isinstance(k, str) or not k.strip() or type(v) is not int or v <= 0
+                                       for k, v in model_bounds.items())
+                    or any(k in self.model_bounds and self.model_bounds[k] != v for k, v in model_bounds.items())):
+                raise ValueError('FAKE_FLOW_MODEL_BOUNDS_INVALID')
+            self.model_bounds = {**self.model_bounds, **model_bounds}
+
+    def _check_hold(self, db, model, bound):
+        super()._check_hold(db, 'glm-5.3', 1_179_648)
+        if self.model_bounds.get(model) != bound:
+            raise RequestBudgetExceeded('FAKE_FLOW_MODEL_BOUND_MISMATCH')
 
     def _reservation_id(self, db, model, bound):
         # The existing campaign transaction serializes all roles and preserves the old hold.

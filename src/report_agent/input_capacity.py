@@ -195,7 +195,7 @@ def profile_for_service(model_name, endpoint):
     """
     host = urlsplit(str(endpoint)).hostname or ''
     limits = {
-        'deepseek-v4.1-flash': (1000000, 393216, 'https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash'),
+        'deepseek-v4.1-flash-1017': (1000000, 393216, 'https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash'),
         'glm-5.3': (1048576, 131072, 'https://help.aliyun.com/zh/model-studio/glm-5-3'),
     }
     known = limits.get(model_name) if host.endswith('.maas.aliyuncs.com') else None

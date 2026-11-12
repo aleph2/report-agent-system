@@ -8,7 +8,7 @@ from report_agent.store import Store
 
 
 def write_config(path, endpoint='https://workspace.maas.aliyuncs.com/compatible-mode/v1'):
-    path.write_text('HIGHWAY_MODEL_DEEPSEEK_NAME=deepseek-v4.1-flash\n'
+    path.write_text('HIGHWAY_MODEL_DEEPSEEK_NAME=deepseek-v4.1-flash-1017\n'
                     f'HIGHWAY_MODEL_DEEPSEEK_BASE_URL={endpoint}\n'
                     'HIGHWAY_MODEL_DEEPSEEK_API_KEY=synthetic-deep-key\n'
                     'HIGHWAY_MODEL_NAME=glm-5.3\n'
@@ -24,13 +24,13 @@ async def test_custom_deepseek_bundle_routes_all_deep_services_without_official_
     assert os.environ['REPORT_DEEPSEEK_STRICT'] == '0'
     endpoint = 'https://workspace.maas.aliyuncs.com/compatible-mode/v1'
     for role in ['coordinator', 'reviewer', 'text_tool', 'vision', 'rubric_grader', 'grader_diagnostic']:
-        assert role_service(role) == ('deepseek-v4.1-flash', endpoint, 'synthetic-deep-key')
+        assert role_service(role) == ('deepseek-v4.1-flash-1017', endpoint, 'synthetic-deep-key')
         model = configured_model(Store(tmp_path/role), role)
-        assert model.model_name == 'deepseek-v4.1-flash'
+        assert model.model_name == 'deepseek-v4.1-flash-1017'
         assert model.openai_api_base == endpoint
         assert model.openai_api_key.get_secret_value() == 'synthetic-deep-key'
         payload = model._get_request_payload([HumanMessage(content='offline')])
-        assert payload['model'] == 'deepseek-v4.1-flash'
+        assert payload['model'] == 'deepseek-v4.1-flash-1017'
         assert payload['extra_body'] == {'enable_thinking': True}
         assert not model.deepseek_strict and 'max_completion_tokens' not in payload
         assert model.max_retries == 0
@@ -78,7 +78,7 @@ async def test_configured_vision_transport_failure_is_not_automatically_retried(
         return httpx.Response(503, json={'error': {'message': 'offline transient failure', 'type': 'server_error'}})
     from report_agent import transport_observation
     client_type = transport_observation.ObservedAsyncClient
-    monkeypatch.setattr(model_config, 'role_service', lambda role: ('deepseek-v4.1-flash', 'https://offline.invalid/v1', 'synthetic'))
+    monkeypatch.setattr(model_config, 'role_service', lambda role: ('deepseek-v4.1-flash-1017', 'https://offline.invalid/v1', 'synthetic'))
     class OfflineClient(client_type):
         def __init__(self, **kwargs):
             super().__init__(transport=httpx.MockTransport(fail), **kwargs)
@@ -92,7 +92,7 @@ async def test_configured_vision_transport_failure_is_not_automatically_retried(
         await client.close()
 
 
-@pytest.mark.parametrize('model_name', ['deepseek-v4.1-flash', 'glm-5.3'])
+@pytest.mark.parametrize('model_name', ['deepseek-v4.1-flash-1017', 'glm-5.3'])
 async def test_configured_chat_sdk_failure_is_not_retried(tmp_path, monkeypatch, model_name):
     import httpx
     import openai

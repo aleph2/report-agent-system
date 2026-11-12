@@ -37,9 +37,9 @@ from test_task_supervision import ws
 @pytest.mark.parametrize('cap', [6, 5], ids=['normal-wire', 'current-saved-before-local-refusal'])
 async def test_layout_comparison_actual_sdk_handoffs_files_and_shared_budget(ws, request, monkeypatch, cap):
     ws.store.set('layout_revision_limit', 1)
-    roles = {'coordinator': 'deepseek-v4.1-flash', 'writer': 'glm-5.3',
-             'reviewer': 'deepseek-v4.1-flash', 'layout': 'glm-5.3',
-             'text_tool': 'deepseek-v4.1-flash', 'vision': 'deepseek-v4.1-flash'}
+    roles = {'coordinator': 'deepseek-v4.1-flash-1017', 'writer': 'glm-5.3',
+             'reviewer': 'deepseek-v4.1-flash-1017', 'layout': 'glm-5.3',
+             'text_tool': 'deepseek-v4.1-flash-1017', 'vision': 'deepseek-v4.1-flash-1017'}
     for role, model in roles.items():
         for key, value in {'MODEL': model, 'BASE_URL': 'https://offline.invalid/v1',
                            'API_KEY': 'synthetic-key'}.items():
@@ -129,7 +129,7 @@ async def test_layout_comparison_actual_sdk_handoffs_files_and_shared_budget(ws,
     monkeypatch.setattr(adapter, 'configured_vision_client', fresh_vision)
     calls = RequestBudget(cap)
     tokens = TokenBudget(ws.store.root / 'comparison-sdk-budget.db', 20000000,
-                         {'glm-5.3': 2000000, 'deepseek-v4.1-flash': 2000000})
+                         {'glm-5.3': 2000000, 'deepseek-v4.1-flash-1017': 2000000})
     try:
         with request_budget(calls), token_budget(tokens):
             result = await adapter.probe_native_decision(ws, folder, adapter.LAYOUT_COMPARISON_CASE, live=True)

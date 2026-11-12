@@ -22,10 +22,10 @@ async def test_default_factory_legacy_guard_follows_review_contract(tmp_path, mo
         'content_contract': 'hierarchical-review-v1', 'review_entrypoint': entrypoint})
     for key, value in history.items():
         store.set(key, value)
-    monkeypatch.setenv('REPORT_MODEL', 'deepseek-v4.1-flash')
+    monkeypatch.setenv('REPORT_MODEL', 'deepseek-v4.1-flash-1017')
     monkeypatch.delenv('REPORT_GRADER_MODEL', raising=False)
     if explicit:
-        monkeypatch.setenv('REPORT_GRADER_MODEL', 'deepseek-v4.1-flash')
+        monkeypatch.setenv('REPORT_GRADER_MODEL', 'deepseek-v4.1-flash-1017')
     monkeypatch.setattr(deep_runtime, 'require_native_runtime', lambda *_: None)
     from report_agent import operator_instructions, decision_data, source_search, review_context, model_config
     monkeypatch.setattr(operator_instructions, 'sync_operator_instructions', lambda *_: None)

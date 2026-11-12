@@ -91,7 +91,8 @@ def planning_packet(pair,tmp_path):
     from test_fake_verification_launcher import write_json
     path,data,grant,c=pair
     data.update(workflow=probe.WORKFLOW,model=host.MODEL,objects=['A','B'],proposed_exclusions=['C'],
-                stop_at='page_sheet',answer_key_sha256=probe.identify()['answer_key_sha256'],
+                stop_at='page_sheet',per_run_tokens=5_500_000,vision_model=probe.VISION_MODEL,
+                vision_thinking='enabled',vision_request_bound_proof={},answer_key_sha256=probe.identify()['answer_key_sha256'],
                 run_id='probe',fresh_comparison={**c,'run_ids':['probe']})
     return path,write_json(path,data),data
 
@@ -111,7 +112,7 @@ def test_probe_authority_caps_scope_and_empty_preparation(planning_packet):
     assert probe.check_prepared(path,pin,prepared['prepared_sha256'])==prepared
 
 
-@pytest.mark.parametrize('scenario',['checkpoint','refusal','unknown','budget','writer','partial_sheet'])
+@pytest.mark.parametrize('scenario',['checkpoint','refusal','unknown','budget','writer','partial_sheet','scope','failed','vision','catalog','smoke'])
 async def test_probe_real_native_operator_reaches_owner_checkpoint_without_writer(planning_packet,tmp_path,monkeypatch,scenario):
     from report_agent import fake_planning_probe as probe,deep_models,model_config
     from report_agent.workspace import Workspace
@@ -128,17 +129,29 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
         'basis':'documented_model_ceiling_not_measured_request_fit','env_sha256':host._sha(env),
         'base_url_sha256':sha(url),'request_url_sha256':sha(url+'/chat/completions'),
         'sources':['https://docs.z.ai/guides/llm/glm-5.3','https://help.aliyun.com/zh/model-studio/glm-5-3']}
+    vision_url='https://synthetic.maas.aliyuncs.com/v1'
+    data['vision_request_bound_proof']={'model':probe.VISION_MODEL,'input_limit':1_000_000,
+        'output_limit':8202,'wire_output_limit':8192,'image_max_edge':1024,
+        'basis':'documented_service_ceiling_not_measured_request_fit','env_sha256':host._sha(env),
+        'base_url_sha256':sha(vision_url),'request_url_sha256':sha(vision_url+'/chat/completions'),
+        'sources':['https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash',
+                   'https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions']}
+    if scenario=='smoke':
+        data.update(workflow=probe.VISION_WORKFLOW,model=probe.VISION_MODEL,objects=['B'],
+                    proposed_exclusions=[],stop_at='one_vision_observation',per_run_tokens=probe.VISION_RESERVATION+1024)
     pin=write_json(path,data);prepared=probe.prepare(path,pin)
     driver=None
     for suffix,value in {'MODEL':host.MODEL,'BASE_URL':url,'API_KEY':'synthetic'}.items():monkeypatch.setenv('REPORT_WRITER_'+suffix,value)
+    for suffix,value in {'MODEL':probe.VISION_MODEL,'BASE_URL':vision_url,'API_KEY':'synthetic'}.items():monkeypatch.setenv('REPORT_VISION_'+suffix,value)
     monkeypatch.setenv('REPORT_SDK_RETRIES','0');monkeypatch.setenv('REPORT_CONNECT_RETRIES','2')
     monkeypatch.setattr(model_config,'load_mixed_services',lambda _:None)
-    original=deep_models.configured_model;sent=[]
+    original=deep_models.configured_model;sent=[];catalogs=[];visual_sent=[]
     async def provider(request):
         body=__import__('json').loads(request.content);sent.append(body)
         assert body['model']==host.MODEL
+        catalogs.append({t['function']['name'] for t in body.get('tools',[])})
         if scenario=='unknown':raise httpx.ReadError('synthetic unknown delivery')
-        assert not any('expected' in str(m) or 'answer-key' in str(m) for m in body['messages'])
+        assert not any(data['answer_key_sha256'] in str(m) or 'answer-key' in str(m) for m in body['messages'])
         messages=[_convert_dict_to_message(m) for m in body['messages']]
         names={c['id']:c['name'] for m in messages for c in getattr(m,'tool_calls',[])}
         from langchain_core.messages import ToolMessage
@@ -157,9 +170,51 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
                 from test_deep_runtime import invoke
                 message=invoke('publish_planning_draft');message.tool_calls[0]['id']='probe-refusal'
                 driver.scripts['coordinator'].insert(0,message)
+            if scenario=='scope':
+                from test_deep_runtime import invoke
+                driver.scripts['coordinator'][0:0]=[
+                    invoke('task',description='Not delegated',subagent_type='writer'),
+                    invoke('export_content_snapshot',snapshot_ref={}),invoke('export_content_workbook'),
+                    invoke('render_content_export'),invoke('request_system_delivery'),invoke('select_content_delivery')]
+            if scenario=='vision':
+                from test_deep_runtime import invoke
+                from report_agent.catalog import Catalog
+                sid=next(s['id'] for s in Catalog(store).metadata() if s.get('filename')=='06_drawing.pdf')
+                driver.scripts['coordinator'].insert(0,invoke('analyze_source_image',source_id=sid,question='Identify the labelled subject, not dimensions'))
         model=original(store,role);monkeypatch.setattr(model.http_async_client._transport,'handle_async_request',provider)
         return model
     monkeypatch.setattr(deep_models,'configured_model',configured)
+    async def vision_provider(request):
+        body=__import__('json').loads(request.content);visual_sent.append(body)
+        assert body['model']==probe.VISION_MODEL and body['max_completion_tokens']==8192
+        return httpx.Response(200,json={'id':'vision-offline','object':'chat.completion','created':1,
+            'model':probe.VISION_MODEL,'choices':[{'index':0,'finish_reason':'stop',
+            'message':{'role':'assistant','content':'坡段 B 横断面示意图；无尺寸标注。'}}],
+            'usage':{'prompt_tokens':90,'completion_tokens':10,'total_tokens':100}})
+    original_vision=deep_models.configured_vision_client
+    def vision_client():
+        client=original_vision();monkeypatch.setattr(client._client._transport,'handle_async_request',vision_provider)
+        return client
+    monkeypatch.setattr(deep_models,'configured_vision_client',vision_client)
+    monkeypatch.setattr('report_agent.vision.configured_vision_client',vision_client)
+    captured=[]
+    if scenario=='catalog':
+        from report_agent import tool_selection
+        actual_check=tool_selection.validate_catalog
+        def check_only(tools):
+            actual_check(tools);captured.extend(tools)
+            raise RuntimeError('STATIC_CATALOG_CHECK_COMPLETE')
+        monkeypatch.setattr(tool_selection,'validate_catalog',check_only)
+    if scenario=='failed':
+        from report_agent import fake_draft_flow
+        async def failed_plan(ws,factory):
+            return {'status':'failed','last_error':{'type':'RequestBudgetExceeded',
+                'message':'SCOPED_REQUEST_WIRE_MISMATCH'}}
+        monkeypatch.setattr(fake_draft_flow,'plan',failed_plan)
+        result=await probe.launch(path,pin,prepared['prepared_sha256'],env)
+        assert result['status']=='planning_failed' and result['stop_code']=='SCOPED_REQUEST_WIRE_MISMATCH'
+        assert result['budget']['settled']==0 and result['budget']['held']==0 and sent==[]
+        return
     if scenario=='partial_sheet':
         from report_agent import fake_draft_flow,page_bindings,plan_authority
         async def early_question(ws,factory):return {'status':'needs_human'}
@@ -178,21 +233,49 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
         assert sent==[]
         return
     result=await probe.launch(path,pin,prepared['prepared_sha256'],env)
+    if scenario=='smoke':
+        assert result['status']=='vision_observed' and len(visual_sent)==1 and sent==[]
+        assert result['budget']=={'maximum_tokens':probe.VISION_RESERVATION+1024,'settled':100,'held':0}
+        assert result['campaign_budget']['reserved_or_unknown_upper_bounds']==host.BOUND
+        metrics=result['runtime_metrics']['roles']['coordinator']
+        assert metrics['tokens']==100 and metrics['invocations']==1
+        return
+    if scenario=='catalog':
+        from report_agent.tool_selection import TOOL_BACKENDS
+        assert result['status']=='planning_failed' and captured and sent==[] and visual_sent==[]
+        assert all(t['function']['name'] in TOOL_BACKENDS for t in captured)
+        assert 'analyze_source_image' in {t['function']['name'] for t in captured}
+        assert result['budget']['settled']==result['budget']['held']==0
+        return
     if scenario in ('unknown','budget'):
         assert result['status']==('unknown_outcome_held' if scenario=='unknown' else 'budget_stop'),result
-        assert len(sent)==(1 if scenario=='unknown' else 3)
+        assert len(sent)==(1 if scenario=='unknown' else 4)
         assert result['budget']['held']==(host.BOUND if scenario=='unknown' else 0)
         with pytest.raises(FileExistsError):await probe.launch(path,pin,prepared['prepared_sha256'],env)
         return
-    expected=62 if scenario=='refusal' else 61
+    expected=67 if scenario=='scope' else 62 if scenario in {'refusal','vision'} else 61
+    if scenario=='scope':
+        forbidden=set(probe.PROBE_UNAVAILABLE_TOOLS)
+        assert catalogs and all(not (catalog & forbidden) for catalog in catalogs)
     assert result['status']=='page_sheet_checkpoint',result
-    assert len(sent)==expected and result['budget']['settled']==expected*10 and result['budget']['held']==0
+    assert len(sent)==expected and result['budget']['settled']==expected*10+(100 if scenario=='vision' else 0) and result['budget']['held']==0
     assert result['campaign_budget']['reserved_or_unknown_upper_bounds']==host.BOUND
+    if scenario=='vision':
+        assert len(visual_sent)==1
+        metrics=result['runtime_metrics']['roles']['coordinator']
+        assert metrics['tokens']==result['budget']['settled']==720
+        assert metrics['invocations']==metrics['completed_invocations']==63
+        assert metrics['usage_attempts']==63
+        events=Store(Path(prepared['case_path'])).events(limit=2000)
+        visual=[e['data'] for e in events if e['kind']=='model_invocation_outcome'
+                and e['data']['role']=='coordinator'
+                and any(a.get('recorded_tokens')==100 for a in e['data'].get('observed_attempts',[]))]
+        assert len(visual)==1 and visual[0]['observed_attempts'][0]['token_reservation_id']
     assert len(result['page_bindings'])==22
     cs=ContentStore(Store(Path(prepared['case_path'])))
     assert not cs.list_objects('CommissionDecision') and not cs.list_objects('DelegatedTask')
     summary=summarize_trace(Path(prepared['case_path']).parent/'tool-trace.jsonl')
-    assert summary['roles']['coordinator']['model_calls']==expected and summary['roles']['coordinator']['tool_rejections']==(1 if scenario=='refusal' else 0)
+    assert summary['roles']['coordinator']['model_calls']==expected and summary['roles']['coordinator']['tool_rejections']==(6 if scenario=='scope' else 1 if scenario=='refusal' else 0)
     assert summary['unattributed_tool_outcomes']==0
     with pytest.raises(FileExistsError):await probe.launch(path,pin,prepared['prepared_sha256'],env)
     assert len(sent)==expected

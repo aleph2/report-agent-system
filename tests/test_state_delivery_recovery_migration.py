@@ -26,14 +26,14 @@ from test_transport_observation import use_mock, close
 async def test_legacy_system_unknown_cannot_be_redispatched_as_new_history_layout(ws, tmp_path, monkeypatch):
     monkeypatch.setenv('REPORT_SDK_RETRIES', '0')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
-    for suffix, value in [('MODEL', 'deepseek-v4.1-flash'),
+    for suffix, value in [('MODEL', 'deepseek-v4.1-flash-1017'),
                           ('BASE_URL', 'https://offline.invalid/v1'), ('API_KEY', 'offline-only')]:
         monkeypatch.setenv('REPORT_COORDINATOR_' + suffix, value)
     model = configured_model(ws.store, 'coordinator')
     policy = activate_recovery(ws.store, authorization='synthetic historical-layout fence',
                                extra_per_call=0, backoff_seconds=0)
     ledger = TokenBudget(tmp_path / 'independent-finance' / 'token-budget.db', 1000,
-                         {'deepseek-v4.1-flash': 40})
+                         {'deepseek-v4.1-flash-1017': 40})
     physical = []
     def timeout(request):
         physical.append(request.content)
@@ -64,7 +64,7 @@ async def test_legacy_system_unknown_cannot_be_redispatched_as_new_history_layou
                 old_rows = db.execute('SELECT * FROM attempts ORDER BY id').fetchall()
             assert len(old_records) == len(old_rows) == 1
             assert ledger.snapshot()['attempt_states'] == {'reserved': 1}
-            ledger.reserve('deepseek-v4.1-flash')  # A separate legitimate hold changes current budget.
+            ledger.reserve('deepseek-v4.1-flash-1017')  # A separate legitimate hold changes current budget.
             async def new_layout(request):
                 answer = await model.ainvoke([request.system_message, *request.messages])
                 return ModelResponse(result=[answer])

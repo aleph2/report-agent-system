@@ -13,7 +13,7 @@ from test_hierarchical_content import ws, seed
 
 
 def configured(tmp_path, monkeypatch):
-    for key, value in {"REPORT_MODEL": "deepseek-flash", "REPORT_BASE_URL": "https://api.deepseek.com",
+    for key, value in {"REPORT_MODEL": "deepseek-v4.1-flash-1017", "REPORT_BASE_URL": "https://api.deepseek.com",
                        "REPORT_API_KEY": "test-key", "REPORT_REASONING_EFFORT": "max"}.items():
         monkeypatch.setenv(key, value)
     monkeypatch.delenv("REPORT_GRADER_MODEL", raising=False)
@@ -26,7 +26,7 @@ async def test_official_wire_parameters_and_opaque_tool_turn_roundtrip(tmp_path,
     async def handle(request):
         sent.append(json.loads(request.content))
         return httpx.Response(200, json={"id": "test", "object": "chat.completion", "created": 1,
-            "model": "deepseek-flash", "choices": [{"index": 0, "finish_reason": "stop",
+            "model": "deepseek-v4.1-flash-1017", "choices": [{"index": 0, "finish_reason": "stop",
             "message": {"role": "assistant", "content": "ok", "reasoning_content": "opaque-test-field"}}],
             "usage": {"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3}})
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
@@ -59,10 +59,10 @@ def test_official_trial_requires_explicit_isolation_and_preserves_binding(tmp_pa
 async def test_official_vision_uses_official_alias(tmp_path):
     model = VisionModel()
     model.base_url = "https://api.deepseek.com"
-    model.returned_model = "deepseek-flash"
+    model.returned_model = "deepseek-v4.1-flash-1017"
     result = await _observe(Store(tmp_path), b"fake-png", {"source_id": "s"}, "Read", model)
     assert result["status"] == "observed"
-    assert model.calls[0]["model"] == "deepseek-flash"
+    assert model.calls[0]["model"] == "deepseek-v4.1-flash-1017"
 
 
 @pytest.mark.parametrize('strict', [False, True])
@@ -125,7 +125,7 @@ async def test_native_structured_grader_uses_supported_auto_then_persists_review
             assert "output_schema" in supplied
             message = {"role": "assistant", "content": json.dumps(checker)}
         response = {"id": "current-review-wire", "object": "chat.completion", "created": 1,
-            "model": "deepseek-flash", "choices": [{"index": 0,
+            "model": "deepseek-v4.1-flash-1017", "choices": [{"index": 0,
             "finish_reason": "tool_calls" if message.get("tool_calls") else "stop", "message": message}],
             "usage": {"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3}}
         responses.append(response)

@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=18140)
     parser.add_argument("--credential-container", default="hunan-highway-trial067-api-1")
     parser.add_argument("--authorization-note", help="Record the existing user authorization for this invocation")
-    parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash"],
+    parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash-1017"],
                         help="Grader-only trial override; DeepSeek requires a fresh isolated review fork")
     parser.add_argument("--review-input-mode", choices=["transcript", "artifact"],
                         help="Opt into a context comparison on a fresh isolated review fork")

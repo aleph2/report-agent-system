@@ -37,7 +37,7 @@ async def sdk_request(request, value, strict, requests, tool_name='submit_review
         async def handle(wire):
             requests.append(json.loads(wire.content))
             return httpx.Response(200, json={'id': 'offline-live-save', 'object': 'chat.completion',
-                'created': 1, 'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
+                'created': 1, 'model': 'deepseek-v4.1-flash-1017', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
                 'message': {'role': 'assistant', 'content': '', 'tool_calls': calls}}],
                 'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15}})
         async def admit(wire):
@@ -83,7 +83,7 @@ async def test_live_request_sdk_and_native_tool_save(case, monkeypatch, strict):
     with bound(cs, assignment(output, criteria)) as (ws, actor, receipt):
         tools = native_write_tools(ws, 'reviewer', [t for t in content_tools(ws, 'reviewer')
             if t.__name__ in {'submit_review', live_messages.CHECK_TOOL}])
-        model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta',
+        model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta',
                              deepseek_strict=strict)
         try:
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
@@ -191,7 +191,7 @@ async def test_co_flat_task_runs_real_sdk_and_original_delegation(case, strict):
     middleware = SubAgentMiddleware(backend=StateBackend(), subagents=[CompiledSubAgent(
         name=role, description='Perform assigned work.', runnable=child) for role in ('reviewer','writer','layout')])
     tool = next(t for t in middleware.tools if t.name == 'task')
-    model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta',
+    model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta',
                          deepseek_strict=strict)
     try:
         request = ModelRequest(model=model, tools=[tool], state={'messages': []},
@@ -245,7 +245,7 @@ def live_graph(ws, tools, saver=None, interrupt=False):
 
 async def live_answer(ws, tools, assessment='Real synthetic assessment.'):
     from report_agent.deep_models import GLMChatOpenAI
-    model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta')
+    model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta')
     try:
         request = ModelRequest(model=model, tools=tools, state={'messages': []},
             system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4')), messages=[HumanMessage(content='Check.')])
@@ -354,7 +354,7 @@ async def test_final_prompt_boundary_preserves_the_offered_flat_schema(case, pro
         text = role_prompt('reviewer', interface_profile='review-interfaces-v4',
             expression_profile='reader-expression-v2', prompt_profile=profile,
             review_submission_contract=SELECTORS)
-        model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta', deepseek_strict=strict)
+        model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta', deepseek_strict=strict)
         try:
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
                 system_message=SystemMessage(content=text), messages=[HumanMessage(content='Check assigned material.')])
@@ -442,7 +442,7 @@ async def test_native_source_receipts_keep_real_source_and_block_selection(case)
         for index, (source, offset) in enumerate([('s', 0), ('second-private-key', 0), ('second-private-key', 1)]):
             result = read(source, offset=offset, limit=1, runtime=SimpleNamespace(tool_call_id='source-read-'+str(index)))
             observations.append(json.loads(result.content)['receipt_id'])
-        model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta')
+        model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta')
         try:
             tools = live_tools(ws)
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
@@ -521,7 +521,7 @@ async def test_multiple_findings_in_one_response_keep_evidence_and_survive_later
         source = cs.list_objects('SourceArtifact')[0]['ref']
         extra_receipt = cs.read_context(actor, source)['receipt_id']
         tools = live_tools(ws)
-        model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta', deepseek_strict=strict)
+        model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta', deepseek_strict=strict)
         try:
             request = ModelRequest(model=model, tools=tools, state={'messages': []},
                 system_message=SystemMessage(content=role_prompt('reviewer', interface_profile='review-interfaces-v4')), messages=[HumanMessage(content='Save actual judgments.')])

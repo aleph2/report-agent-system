@@ -148,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--arms", nargs="+", choices=list(ARMS), required=True)
     parser.add_argument("--repeats", type=int, choices=range(1, 11), default=1)
-    parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash"], default="deepseek-v4.1-flash")
+    parser.add_argument("--grader-model", choices=["glm-5.3", "deepseek-v4.1-flash-1017"], default="deepseek-v4.1-flash-1017")
     parser.add_argument("--credential-container", default="hunan-highway-trial067-api-1")
     parser.add_argument("--authorization-note", required=True)
     asyncio.run(main(parser.parse_args()))

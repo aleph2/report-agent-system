@@ -28,8 +28,8 @@ from test_task_supervision import ws
 
 @pytest.mark.parametrize('cap', [6, 5], ids=['selected-normal-wire', 'saved-review-before-local-refusal'])
 async def test_reviewer_source_actual_sdk_handoff_and_shared_budget(ws, request, monkeypatch, cap):
-    roles = {'coordinator': 'deepseek-v4.1-flash', 'writer': 'glm-5.3',
-             'reviewer': 'deepseek-v4.1-flash', 'layout': 'glm-5.3', 'text_tool': 'deepseek-v4.1-flash'}
+    roles = {'coordinator': 'deepseek-v4.1-flash-1017', 'writer': 'glm-5.3',
+             'reviewer': 'deepseek-v4.1-flash-1017', 'layout': 'glm-5.3', 'text_tool': 'deepseek-v4.1-flash-1017'}
     for role, name in roles.items():
         for key, value in {'MODEL': name, 'BASE_URL': 'https://offline.invalid/v1', 'API_KEY': 'synthetic-key'}.items():
             monkeypatch.setenv('REPORT_' + role.upper() + '_' + key, value)
@@ -102,7 +102,7 @@ async def test_reviewer_source_actual_sdk_handoff_and_shared_budget(ws, request,
     monkeypatch.setattr(adapter, 'configured_vision_client', no_vision)
     calls = RequestBudget(cap)
     tokens = TokenBudget(ws.store.root / 'reviewer-source-sdk-budget.db', 20000000,
-                         {'glm-5.3': 2000000, 'deepseek-v4.1-flash': 2000000})
+                         {'glm-5.3': 2000000, 'deepseek-v4.1-flash-1017': 2000000})
     try:
         with request_budget(calls), token_budget(tokens):
             result = await adapter.probe_native_decision(ws, folder, adapter.REVIEWER_SOURCE_CASE, live=True)

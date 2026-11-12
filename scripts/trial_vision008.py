@@ -19,7 +19,7 @@ from run_deepagents_trial import load_service_environment
 async def main(output):
     root = Path(output)
     root.mkdir(parents=True, exist_ok=False)
-    intent = {'model': 'deepseek-v4.1-flash', 'scope': 'synthetic scan OCR and cropped image observation',
+    intent = {'model': 'deepseek-v4.1-flash-1017', 'scope': 'synthetic scan OCR and cropped image observation',
               'status': 'intent', 'report_resume': False, 'engineering_sources': False}
     (root / 'intent.json').write_text(json.dumps(intent), encoding='utf-8')
     load_service_environment('hunan-highway-trial067-api-1')

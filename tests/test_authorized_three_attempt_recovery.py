@@ -54,7 +54,7 @@ async def test_three_attempts_sdk_owner_and_holds(tmp_path, monkeypatch, role, s
             raise httpx.ReadTimeout('offline timeout', request=request)
         return httpx.Response(200, json=body())
     await use_mock(model, respond)
-    budget = TokenBudget(tmp_path/'budget.db', 200_000_000, {'deepseek-v4.1-flash':2_000_000})
+    budget = TokenBudget(tmp_path/'budget.db', 200_000_000, {'deepseek-v4.1-flash-1017':2_000_000})
     try:
         with token_budget(budget), recovery_owner(store, Actor('actor', role, 'task'), 'model-op'):
             if succeeds:
@@ -96,7 +96,7 @@ async def test_new_full_deadline_per_attempt_without_waiting_six_hundred_seconds
             await asyncio.Event().wait()
         return httpx.Response(200,json=body())
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             assert (await model.ainvoke('deadline recovery')).content=='unchanged result'
@@ -119,7 +119,7 @@ async def test_no_unapproved_case_retry_subquota_and_budget_still_blocks(tmp_pat
             raise httpx.ReadTimeout('offline',request=request)
         return httpx.Response(200,json=body())
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'budget.db',200_000_000,{'deepseek-v4.1-flash':2_000_000})
+    budget=TokenBudget(tmp_path/'budget.db',200_000_000,{'deepseek-v4.1-flash-1017':2_000_000})
     try:
         with token_budget(budget):
             for i in range(5):
@@ -127,7 +127,7 @@ async def test_no_unapproved_case_retry_subquota_and_budget_still_blocks(tmp_pat
         assert len(seen)==15 and store.get(STATE_KEY)['extra_calls']==10
         assert store.get(STATE_KEY)['extra_token_bounds']==20_000_000
         assert budget.snapshot()['reserved_or_unknown_upper_bounds']==20_000_000
-        near=TokenBudget(tmp_path/'near.db',200_000_000,{'deepseek-v4.1-flash':2_000_000,'prior':198_000_000})
+        near=TokenBudget(tmp_path/'near.db',200_000_000,{'deepseek-v4.1-flash-1017':2_000_000,'prior':198_000_000})
         prior=near.reserve('prior')
         near.settle(prior,{'total_tokens':198_000_000})
         with token_budget(near),pytest.raises(RequestBudgetExceeded):
@@ -144,7 +144,7 @@ async def test_vision_three_attempts_with_same_persistent_owner(tmp_path,monkeyp
     from report_agent.vision import _observe
     monkeypatch.setenv('REPORT_SDK_RETRIES','0')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES','0')
-    for suffix,value in [('MODEL','deepseek-v4.1-flash'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','offline')]:
+    for suffix,value in [('MODEL','deepseek-v4.1-flash-1017'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','offline')]:
         monkeypatch.setenv('REPORT_VISION_'+suffix,value)
     store=Store(tmp_path/'vision');activate(store);client=configured_vision_client();seen=[]
     def respond(request):
@@ -154,7 +154,7 @@ async def test_vision_three_attempts_with_same_persistent_owner(tmp_path,monkeyp
             raise httpx.ReadTimeout('offline',request=request)
         return httpx.Response(200,json=body())
     client._client._transport=httpx.MockTransport(respond);client._client._mounts={}
-    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             result=await _observe(store,b'fake-image',{'source_id':'s','page':1,'sha256':'a'*64},

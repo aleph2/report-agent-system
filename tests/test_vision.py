@@ -24,7 +24,7 @@ class VisionModel:
         self.content, self.finish, self.error = content, finish, error
         self.calls = []
         self.chat = self.completions = self
-        self.returned_model = 'deepseek-v4.1-flash'
+        self.returned_model = 'deepseek-v4.1-flash-1017'
         self.refusal = None
         self.tool_calls = None
         self.closed = False
@@ -210,7 +210,7 @@ async def test_real_sdk_debug_payload_is_suppressed_only_inside_visual_call(tmp_
         payload = json.loads(request.content)
         requests.append(payload)
         return httpx.Response(200, json={'id': 'test-vision', 'object': 'chat.completion',
-            'created': 1, 'model': 'deepseek-v4.1-flash',
+            'created': 1, 'model': 'deepseek-v4.1-flash-1017',
             'choices': [{'index': 0, 'finish_reason': 'stop',
                          'message': {'role': 'assistant', 'content': 'Observed.'}}]})
 
@@ -222,9 +222,26 @@ async def test_real_sdk_debug_payload_is_suppressed_only_inside_visual_call(tmp_
                                                     'private-image-question', client=client)
                 logging.getLogger('openai._base_client').debug('outside-visual-call')
     assert result['status'] == 'observed'
-    assert requests[0]['model'] == 'deepseek-v4.1-flash'
+    assert requests[0]['model'] == 'deepseek-v4.1-flash-1017'
     assert requests[0]['messages'][1]['content'][1]['image_url']['url'].startswith('data:image/png;base64,')
     assert 'data:image/' not in caplog.text
     assert 'private-image-question' not in caplog.text
     assert 'private-key' not in caplog.text
     assert 'outside-visual-call' in caplog.text
+
+
+async def test_host_vision_output_and_image_limits_include_reasoning(tmp_path,monkeypatch):
+    from io import BytesIO
+    import base64
+    from PIL import Image
+    from pypdf import PdfWriter
+    writer=PdfWriter();writer.add_blank_page(width=2000,height=1000)
+    raw=BytesIO();writer.write(raw);ws=workspace(tmp_path,raw.getvalue());client=VisionModel()
+    monkeypatch.setenv('REPORT_VISION_THINKING','enabled')
+    result=await observe_source_image(ws,'original','Identify the drawing subject only',client=client)
+    call=client.calls[0]
+    assert call['max_completion_tokens']==8192 and 'max_tokens' not in call
+    assert call['extra_body']['enable_thinking'] is True
+    png=base64.b64decode(call['messages'][1]['content'][1]['image_url']['url'].split(',',1)[1])
+    with Image.open(BytesIO(png)) as image:assert max(image.size)<=1024
+    assert result['source']['render_limits']['max_output_edge']==1024

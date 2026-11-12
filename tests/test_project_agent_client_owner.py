@@ -79,7 +79,7 @@ async def test_default_owner_closes_raw_clients_if_model_construction_fails(ws, 
         def close(self):
             closed.append('sync')
     service = ('glm-5.3','https://fixture.invalid/v1','fake') if provider == 'glm' else (
-        'deepseek-v4','https://api.deepseek.com','fake')
+        'deepseek-v4.1-flash-1017','https://api.deepseek.com','fake')
     monkeypatch.setattr('report_agent.model_config.role_service', lambda role: service)
     monkeypatch.setattr('report_agent.model_config.role_generation', lambda *args: {})
     monkeypatch.setattr('report_agent.input_capacity.profile_for_service', lambda *args: None)

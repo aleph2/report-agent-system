@@ -37,7 +37,7 @@ async def test_actual_sdk_timeout_then_success_keeps_first_hold_and_reuses_priva
             raise httpx.ReadTimeout('synthetic', request=request)
         return httpx.Response(200, json=body())
     await use_mock(model, respond)
-    budget = TokenBudget(tmp_path/'budget.db', 200, {'deepseek-v4.1-flash':40})
+    budget = TokenBudget(tmp_path/'budget.db', 200, {'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             assert (await model.ainvoke('synthetic input')).content == 'unchanged result'
@@ -74,7 +74,7 @@ async def test_completed_body_timeout_before_sdk_conversion_reparsed_without_new
             'function':{'name':'add','arguments':'{"x":1}'}}]
         return httpx.Response(200,json=result)
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             result=await model.ainvoke('synthetic')
@@ -101,7 +101,7 @@ async def test_received_invalid_and_http_status_never_recomputed(tmp_path,monkey
         result['choices'][0]['finish_reason']='length' if mode=='length' else 'stop'
         return httpx.Response(200,json=result)
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             try:await model.ainvoke('synthetic')
@@ -215,7 +215,7 @@ async def test_vision_real_sdk_uses_same_recovery_and_preserves_unknown_domain_f
     from report_agent.errors import ActionRejected
     monkeypatch.setenv('REPORT_SDK_RETRIES','0')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES','0')
-    for suffix,value in [('MODEL','deepseek-v4.1-flash'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','synthetic')]:
+    for suffix,value in [('MODEL','deepseek-v4.1-flash-1017'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','synthetic')]:
         monkeypatch.setenv('REPORT_VISION_'+suffix,value)
     store=Store(tmp_path/'case')
     client=configured_vision_client()
@@ -227,7 +227,7 @@ async def test_vision_real_sdk_uses_same_recovery_and_preserves_unknown_domain_f
     client._client._transport=httpx.MockTransport(respond)
     client._client._mounts={}
     activate_recovery(store,authorization='synthetic')
-    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash-1017':40})
     source={'source_id':'synthetic','page':1,'sha256':'a'*64}
     try:
         with token_budget(budget):
@@ -296,7 +296,7 @@ async def test_cached_result_marks_historical_usage_not_new_provider_usage(tmp_p
         seen.append(request)
         return httpx.Response(200,json=body())
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             first=await model.ainvoke('synthetic')
@@ -373,7 +373,7 @@ async def test_historical_wire_fence_precedes_new_token_reservation(tmp_path,mon
         seen.append(request)
         return httpx.Response(200,json=body())
     await use_mock(model,respond)
-    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):
             await model.ainvoke('same exact wire')
@@ -448,7 +448,7 @@ async def test_control_read_failure_is_typed_closed_before_sdk_retry_and_reserva
         if failure=='db':raise OSError('synthetic inaccessible control DB')
         with original() as db:yield db
     monkeypatch.setattr(store,'connect',count_read)
-    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',100,{'deepseek-v4.1-flash-1017':40})
     before=budget.snapshot()
     async with openai.AsyncOpenAI(api_key='synthetic',base_url='https://offline.invalid/v1',http_client=transport,max_retries=5) as client:
         monkeypatch.setattr(client,'_calculate_retry_timeout',lambda *a:0)
@@ -459,7 +459,7 @@ async def test_control_read_failure_is_typed_closed_before_sdk_retry_and_reserva
         monkeypatch.setattr(client,'_send_request',counted_send)
         with token_budget(budget):
             with pytest.raises(RecoveryBlocked,match='POLICY_READ_FAILED') as error:
-                await client.chat.completions.create(model='deepseek-v4.1-flash',messages=[{'role':'user','content':'synthetic'}])
+                await client.chat.completions.create(model='deepseek-v4.1-flash-1017',messages=[{'role':'user','content':'synthetic'}])
     assert not transient(error.value)
     # One policy read plus a best-effort diagnostic flush can both connect.
     # Count actual SDK sends, not shared storage accesses, to prove no retry.
@@ -476,7 +476,7 @@ async def test_diagnostic_get_fault_does_not_break_active_recovery_control(tmp_p
     await use_mock(model,respond)
     def broken_get(*a,**k):raise OSError('synthetic diagnostic get sink failure')
     monkeypatch.setattr(store,'get',broken_get)
-    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash':40})
+    budget=TokenBudget(tmp_path/'budget.db',200,{'deepseek-v4.1-flash-1017':40})
     try:
         with token_budget(budget):result=await model.ainvoke('synthetic')
         assert result.content=='unchanged result' and len(seen)==2

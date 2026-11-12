@@ -221,7 +221,11 @@ def observe_provider_usage(response, store=None, role=None):
             if count(raw.get('prompt_cache_miss_tokens')):
                 usage['prompt_cache_miss_tokens'] = raw['prompt_cache_miss_tokens']
         call = _CALL.get()
-        observe_event(store, 'prompt_provider_usage', {'role': role,
+        usage_store, usage_role = store, role
+        if store is None:
+            from .transport_observation import current_observation_store, current_observation_role
+            usage_store, usage_role = current_observation_store(), current_observation_role()
+        observe_event(usage_store, 'prompt_provider_usage', {'role': usage_role,
             'purpose': call['purpose'] if call else 'unattributed:' + str(role),
             'call_id': call['call_id'] if call else None,
             'attempt_id': (response.request.extensions.get('report_token_budget') or (None, None))[1],
@@ -419,6 +423,8 @@ class AgentPromptBoundary(AgentMiddleware):
             except RuntimeError:
                 pass  # Direct middleware fixtures use the explicit host manifest.
         # Provenance and the handler receive the same description-only projection.
+        from .tool_selection import validate_catalog
+        validate_catalog(tools)
         tool_text = encode(tools)
         tool_files = [('native-content-index-tool-v4' if text_profile == CONCISE_PROMPTS else 'native-content-index-tool')] if any(
             t.get('function', {}).get('name') == 'read_content_index' for t in tools) and native_reviewer(self.workspace.store) else []

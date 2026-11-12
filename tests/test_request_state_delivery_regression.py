@@ -351,13 +351,13 @@ async def test_actual_sdk_unknown_retry_keeps_old_hold_and_dispatches_no_second_
     from test_transport_observation import use_mock, close
     monkeypatch.setenv('REPORT_SDK_RETRIES', '0')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
-    for suffix, value in [('MODEL', 'deepseek-v4.1-flash'),
+    for suffix, value in [('MODEL', 'deepseek-v4.1-flash-1017'),
                           ('BASE_URL', 'https://offline.invalid/v1'), ('API_KEY', 'offline-only')]:
         monkeypatch.setenv('REPORT_COORDINATOR_' + suffix, value)
     model = configured_model(ws.store, 'coordinator')
     activate_recovery(ws.store, authorization='synthetic SDK fence fixture', extra_per_call=0, backoff_seconds=0)
     ledger = TokenBudget(tmp_path / 'independent-finance' / 'token-budget.db', 1000,
-                         {'deepseek-v4.1-flash': 40})
+                         {'deepseek-v4.1-flash-1017': 40})
     physical = []
     def timeout(request):
         physical.append(json.loads(request.content))
@@ -379,7 +379,7 @@ async def test_actual_sdk_unknown_retry_keeps_old_hold_and_dispatches_no_second_
             assert len(first_records) == 1 and ledger.snapshot()['attempt_states'] == {'reserved': 1}
             # A separate legitimate hold changes live budget observations. It
             # cannot turn the old unknown pure inference into a new primary.
-            unrelated = ledger.reserve('deepseek-v4.1-flash')
+            unrelated = ledger.reserve('deepseek-v4.1-flash-1017')
             with pytest.raises(RecoveryBlocked, match='PRIOR_ATTEMPT_UNRESOLVED'):
                 await deliver(ws, history, model=model, handler=sdk)
             assert len(physical) == 1

@@ -89,7 +89,7 @@ exports remain readable. Historical descriptions below do not authorize replay.
 - Code tools expose source reading, literal search, task state, issues and committed results.
 - Independent text tools make bounded model requests and return to the agent.
   It cannot write artifacts, delegate agents or fetch extra data.
-- The optional `analyze_source_image` tool uses `deepseek-v4.1-flash` on the same
+- The optional `analyze_source_image` tool uses `deepseek-v4.1-flash-1017` on the same
   configured account for a stated visual/OCR question. GLM5.3 remains the agent model.
   It reads hash-verified project PDF pages or single PNG/JPEG/WebP images, optionally
   cropped. Located observations are cached separately; existing OCR and shared facts

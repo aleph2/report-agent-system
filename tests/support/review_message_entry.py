@@ -44,13 +44,13 @@ async def sdk_response(function, value, packet, strict, requests, raw_calls, cal
         requests.append(json.loads(request.content))
         await asyncio.sleep(0)  # Exercise interleaved SDK responses, not only sequential mocks.
         return httpx.Response(200, json={'id': 'offline-' + call_id, 'object': 'chat.completion',
-            'created': 1, 'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
+            'created': 1, 'model': 'deepseek-v4.1-flash-1017', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
                 'message': {'role': 'assistant', 'content': '', 'tool_calls': calls}}],
             'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15}})
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
         async with AsyncOpenAI(api_key='offline-not-a-secret', base_url='https://model.invalid/beta',
                                http_client=client) as sdk:
-            model = GLMChatOpenAI(model='deepseek-flash', api_key='offline-not-a-secret',
+            model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline-not-a-secret',
                 base_url='https://model.invalid/beta', use_responses_api=False, deepseek_strict=strict)
             model.async_client = sdk.chat.completions
             try:
@@ -91,7 +91,7 @@ class ReviewEntryProbe:
         from langchain.agents.middleware.types import ModelRequest, ModelResponse
         from langchain_core.messages import SystemMessage
         from langchain_core.utils.function_calling import convert_to_openai_tool
-        model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta',
+        model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta',
                              deepseek_strict=strict)
         request = ModelRequest(model=model, tools=self.tools, state={'messages': []},
             system_message=SystemMessage(role_prompt('reviewer')), messages=[])
@@ -156,7 +156,7 @@ async def delegate(workspace, arguments, child, strict, requests, call_id='co-de
         name='reviewer', description='Actual independent assigned review.', runnable=RunnableLambda(child))])
     tools = [t for t in middleware.tools if t.name == 'task']
     boundary = BusinessBoundary(workspace, 'coordinator')
-    model = GLMChatOpenAI(model='deepseek-flash', api_key='offline', base_url='https://model.invalid/beta',
+    model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline', base_url='https://model.invalid/beta',
                          deepseek_strict=strict)
     async def handler(changed):
         function = convert_to_openai_tool(changed.tools[0])['function']

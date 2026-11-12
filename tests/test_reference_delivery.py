@@ -67,7 +67,7 @@ def test_sdk_retries_cannot_send_past_budget():
 def test_configured_clients_install_budget_hook(monkeypatch,tmp_path):
     from report_agent.deep_models import configured_model, configured_vision_client
     from report_agent import model_config
-    monkeypatch.setattr(model_config,'role_service',lambda role:('deepseek-flash','https://api.deepseek.com','synthetic'))
+    monkeypatch.setattr(model_config,'role_service',lambda role:('deepseek-v4.1-flash-1017','https://api.deepseek.com','synthetic'))
     monkeypatch.setenv('REPORT_BASE_URL','https://api.deepseek.com')
     monkeypatch.setenv('REPORT_API_KEY','synthetic')
     monkeypatch.setenv('REPORT_DEEPSEEK_STRICT','0')

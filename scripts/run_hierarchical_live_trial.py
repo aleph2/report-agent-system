@@ -27,7 +27,7 @@ def service(env_file, mixed=False):
         return {"roles": load_mixed_services(env_file), "review_entrypoint": "delegated-reviewer-v1"}
     config = dotenv_values(env_file)
     values = {k: config.get("HIGHWAY_MODEL_DEEPSEEK_" + k) for k in ("NAME", "BASE_URL", "API_KEY")}
-    if values["NAME"] != "deepseek-flash" or (values["BASE_URL"] or "").rstrip("/") != "https://api.deepseek.com" or not values["API_KEY"]:
+    if values["NAME"] != "deepseek-v4.1-flash-1017" or (values["BASE_URL"] or "").rstrip("/") != "https://api.deepseek.com" or not values["API_KEY"]:
         raise ValueError("OFFICIAL_DEEPSEEK_CONFIGURATION_REQUIRED")
     for target, source in (("REPORT_MODEL", "NAME"), ("REPORT_BASE_URL", "BASE_URL"), ("REPORT_API_KEY", "API_KEY")):
         os.environ[target] = values[source]

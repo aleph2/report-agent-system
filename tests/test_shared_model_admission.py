@@ -47,7 +47,7 @@ def test_full_request_bounds_not_bytes(lower, upper, status):
 
 
 def test_documented_service_keeps_uncertified_template_and_image_uncertainty():
-    bound = profile_for_service('deepseek-v4.1-flash',
+    bound = profile_for_service('deepseek-v4.1-flash-1017',
                                 'https://fixture.cn-beijing.maas.aliyuncs.com/compatible-mode/v1')
     payload = {'model': bound.model_name, 'max_tokens': 65536, 'messages': [
         {'role': 'user', 'content': [{'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,large'}}]}]}

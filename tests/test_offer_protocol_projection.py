@@ -38,12 +38,12 @@ def offline(monkeypatch):
 CASES = [
     pytest.param('glm-5.3', False, 'plain', id='glm-plain'),
     pytest.param('glm-5.3', False, 'reasoning', id='glm-reasoning'),
-    pytest.param('deepseek-flash', True, 'plain', id='deepseek-plain'),
-    pytest.param('deepseek-flash', True, 'reasoning', id='deepseek-reasoning'),
-    pytest.param('deepseek-flash', True, 'strict', id='deepseek-strict'),
-    pytest.param('deepseek-flash', True, 'both', id='deepseek-both'),
+    pytest.param('deepseek-v4.1-flash-1017', True, 'plain', id='deepseek-plain'),
+    pytest.param('deepseek-v4.1-flash-1017', True, 'reasoning', id='deepseek-reasoning'),
+    pytest.param('deepseek-v4.1-flash-1017', True, 'strict', id='deepseek-strict'),
+    pytest.param('deepseek-v4.1-flash-1017', True, 'both', id='deepseek-both'),
     pytest.param('glm-5.3', False, 'v1', id='glm-native-v1-blocks'),
-    pytest.param('deepseek-flash', True, 'v1', id='deepseek-native-v1-blocks'),
+    pytest.param('deepseek-v4.1-flash-1017', True, 'v1', id='deepseek-native-v1-blocks'),
 ]
 
 

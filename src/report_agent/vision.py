@@ -7,7 +7,6 @@ import hashlib
 import logging
 import os
 from contextvars import ContextVar
-from urllib.parse import urlparse
 
 from .deep_models import configured_vision_client, error_data
 from .model_invocation import model_invocation
@@ -20,8 +19,9 @@ from .prompt_provenance import PromptCompositionError
 
 VISION_INSTRUCTION = load_prompt('source-vision')
 
-VISION_MODEL = "deepseek-v4.1-flash"
-MAX_OUTPUT_TOKENS = 32768
+VISION_MODEL = "deepseek-v4.1-flash-1017"
+MAX_OUTPUT_TOKENS = 8192
+MAX_IMAGE_EDGE = 1024
 
 _PRIVATE_REQUEST = ContextVar("vision_private_request", default=False)
 
@@ -83,7 +83,7 @@ async def observe_source_image(workspace, source_id: str, question: str,
     # Source resolution happens before a request. No arbitrary local path or remote URL.
     from .source_use import validate_source_versions
     policy_ref = validate_source_versions(workspace, actor, [source_id])
-    png, provenance = vision_source_image(workspace, source_id, page, crop)
+    png, provenance = vision_source_image(workspace, source_id, page, crop, max_edge=MAX_IMAGE_EDGE)
     owns_client = client is None
     try:
         client = client or configured_vision_client()
@@ -105,10 +105,15 @@ async def _observe(store, png, provenance, question, client, actor=None, *, poli
     from .request_budget import logical_request_admission
     from .vision_admission import reserve_vision
     # Explicit provider configuration takes priority over historical test defaults.
-    model = os.environ.get("REPORT_VISION_MODEL") or (
-        "deepseek-flash" if urlparse(str(client.base_url)).netloc == "api.deepseek.com" else VISION_MODEL)
-    settings = {"model": model, "endpoint_hash": digest(str(client.base_url)),
-                "max_tokens": MAX_OUTPUT_TOKENS, "instruction": VISION_INSTRUCTION,
+    model = os.environ.get("REPORT_VISION_MODEL") or VISION_MODEL
+    thinking = os.environ.get('REPORT_VISION_THINKING', 'enabled')
+    if thinking not in {'enabled', 'disabled'}:
+        raise ActionRejected('VISION_THINKING_MODE_INVALID')
+    from urllib.parse import urlparse
+    options = ({'thinking': {'type': thinking}} if urlparse(str(client.base_url)).hostname == 'api.deepseek.com'
+               else {'enable_thinking': thinking == 'enabled'})
+    settings = {"thinking": thinking, "model": model, "endpoint_hash": digest(str(client.base_url)),
+                "max_completion_tokens": MAX_OUTPUT_TOKENS, "instruction": VISION_INSTRUCTION,
                 "contract": "source-vision-v2"}
     if policy_ref:
         settings['source_use_policy_ref'] = policy_ref
@@ -138,7 +143,7 @@ async def _observe(store, png, provenance, question, client, actor=None, *, poli
         try:
             # Bound the entire logical call, including the sole SDK retry loop.
             with logical_request_admission() as admission:
-                payload = dict(model=model, max_tokens=MAX_OUTPUT_TOKENS, stream=False,
+                payload = dict(model=model, max_completion_tokens=MAX_OUTPUT_TOKENS, stream=False, extra_body=options,
                         messages=[{"role": "system", "content": VISION_INSTRUCTION},
                         {"role": "user", "content": [{"type": "text", "text": question},
                             {"type": "image_url", "image_url": {

@@ -128,7 +128,7 @@ def test_role_service_bundles_do_not_mix_credentials(tmp_path,monkeypatch):
     from report_agent.deep_models import configured_model
     from report_agent.store import Store
     path=tmp_path/"config.env"
-    path.write_text("HIGHWAY_MODEL_DEEPSEEK_NAME=deepseek-flash\nHIGHWAY_MODEL_DEEPSEEK_BASE_URL=https://api.deepseek.com\nHIGHWAY_MODEL_DEEPSEEK_API_KEY=ds-test\nHIGHWAY_MODEL_NAME=glm-5.3\nHIGHWAY_MODEL_BASE_URL=https://glm.example/v1\nHIGHWAY_MODEL_API_KEY=glm-test\n")
+    path.write_text("HIGHWAY_MODEL_DEEPSEEK_NAME=deepseek-v4.1-flash-1017\nHIGHWAY_MODEL_DEEPSEEK_BASE_URL=https://api.deepseek.com\nHIGHWAY_MODEL_DEEPSEEK_API_KEY=ds-test\nHIGHWAY_MODEL_NAME=glm-5.3\nHIGHWAY_MODEL_BASE_URL=https://glm.example/v1\nHIGHWAY_MODEL_API_KEY=glm-test\n")
     # Restore process environment after loader mutation.
     import os
     with monkeypatch.context() as m:
@@ -142,7 +142,7 @@ def test_role_service_bundles_do_not_mix_credentials(tmp_path,monkeypatch):
         assert role_service("coordinator")[2]=="ds-test"
         store=Store(tmp_path/"store")
         assert configured_model(store,"writer").model_name=="glm-5.3"
-        assert configured_model(store,"reviewer").model_name=="deepseek-flash"
+        assert configured_model(store,"reviewer").model_name=="deepseek-v4.1-flash-1017"
         del os.environ["REPORT_WRITER_API_KEY"]
         with pytest.raises(RuntimeError,match="INCOMPLETE_ROLE_SERVICE"):
             configured_model(store,"writer")

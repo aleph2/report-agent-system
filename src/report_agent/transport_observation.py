@@ -303,6 +303,11 @@ def current_observation_store():
     return scope.store if scope is not None else None
 
 
+def current_observation_role():
+    scope = _ACTIVE.get()
+    return scope.role if scope is not None else None
+
+
 def has_http_observer(request):
     return _KEY in request.extensions
 

@@ -78,7 +78,7 @@ async def test_layout_comparison_preserves_actual_page_identity_and_cache(ws, re
     held, clients = {}, []
     choose = comparison_script(folder, wrong_current, held)
     driver = Driver(layout=[choose] * 12)
-    monkeypatch.setenv('REPORT_VISION_MODEL', 'deepseek-v4.1-flash')
+    monkeypatch.setenv('REPORT_VISION_MODEL', 'deepseek-v4.1-flash-1017')
     def fresh_vision():
         service = VisionModel(content=VISION_TEXT); clients.append(service); return service
     capture = await capture_layout_comparison(ws, folder, driver, vision_client_factory=fresh_vision)

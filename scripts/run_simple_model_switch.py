@@ -52,7 +52,7 @@ def prepare(env_path):
     previous = read(ROOT / '.analysis/task042/actual-parameters.json')
     config = dotenv_values(env_path)
     model, url, key = (config.get('HIGHWAY_MODEL_' + k) for k in ('NAME', 'BASE_URL', 'API_KEY'))
-    if model != 'deepseek-flash' or url.rstrip('/') != 'https://api.deepseek.com' or not key:
+    if model != 'deepseek-v4.1-flash-1017' or url.rstrip('/') != 'https://api.deepseek.com' or not key:
         raise ValueError('USER_SELECTED_DEEPSEEK_CONFIGURATION_REQUIRED')
     payload = dict(model=model, messages=[{'role': k, 'content': inputs[k]} for k in ('system', 'user')],
                    tools=previous['tools'], tool_choice='auto', parallel_tool_calls=False,

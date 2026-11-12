@@ -79,7 +79,7 @@ async def test_native_vision_denial_pauses_before_extra_decision_and_cannot_be_a
     client=VisionModel(error=httpx.ReadTimeout('synthetic'))
     monkeypatch.setattr('report_agent.vision.configured_vision_client',lambda:client)
     monkeypatch.setattr('report_agent.document_tools.vision_source_image',
-        lambda workspace,source,page,crop:(b'synthetic-image',{'source_id':source,'sha256':'f'*64,'page':page,'crop':crop}))
+        lambda workspace,source,page,crop,**limits:(b'synthetic-image',{'source_id':source,'sha256':'f'*64,'page':page,'crop':crop}))
     driver=Driver(coordinator=[invoke('analyze_source_image',source_id='s',question='read'),
         invoke('analyze_source_image',source_id='s',question='read again'),
         AIMessage(content='Must not reach another decision after denial')])
@@ -132,8 +132,8 @@ async def test_real_sdk_budget_stop_propagates_without_dispatch_or_false_unknown
     transport._mounts={}
     # Only this MockTransport-backed instance uses the real SDK send path.
     monkeypatch.setattr(transport,'send',_HTTPX_ASYNC_SEND.__get__(transport))
-    budget=TokenBudget(tmp_path/'budget.db',60,{'deepseek-v4.1-flash':40})
-    budget.reserve('deepseek-v4.1-flash')  # Existing unknown remains held.
+    budget=TokenBudget(tmp_path/'budget.db',60,{'deepseek-v4.1-flash-1017':40})
+    budget.reserve('deepseek-v4.1-flash-1017')  # Existing unknown remains held.
     before=budget.snapshot()
     async with AsyncOpenAI(api_key='synthetic',base_url='https://offline.invalid/v1',
                            http_client=transport,max_retries=5) as client:
@@ -153,7 +153,7 @@ async def test_malformed_sdk_response_keeps_private_extras_out_of_native_observa
     def respond(request):
         seen.append(request)
         return httpx.Response(200,json={'id':'malformed-synthetic','object':'chat.completion',
-            'created':0,'model':'deepseek-v4.1-flash',
+            'created':0,'model':'deepseek-v4.1-flash-1017',
             'reasoning_content':sentinel,
             'choices':[{'index':0,'finish_reason':'stop','message':None}],
             'usage':{'prompt_tokens':3,'completion_tokens':2,'total_tokens':5,
@@ -165,7 +165,7 @@ async def test_malformed_sdk_response_keeps_private_extras_out_of_native_observa
                        http_client=transport,max_retries=0)
     monkeypatch.setattr('report_agent.vision.configured_vision_client',lambda:client)
     monkeypatch.setattr('report_agent.document_tools.vision_source_image',
-        lambda workspace,source,page,crop:(b'synthetic-image',{'source_id':source,'page':page,'crop':crop}))
+        lambda workspace,source,page,crop,**limits:(b'synthetic-image',{'source_id':source,'page':page,'crop':crop}))
     ws.store.set('context_policy','stateful-tools-v1')
     def inspect(messages):
         from test_deep_runtime import observation

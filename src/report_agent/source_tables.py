@@ -118,6 +118,8 @@ def source_tables(workspace, source_id, pages, *, compact=False):
                 for page in document.pages:
                     item = views[page.page_number]
                     try:
+                        from .page_facts import observe
+                        item["page_facts"] = observe(page)
                         tables = []
                         for index, table in enumerate(page.find_tables(SETTINGS), 1):
                             rows = table.extract()
@@ -171,6 +173,11 @@ def with_source_tables(workspace, result):
                     unresolved.append(entry)
             else:
                 located.setdefault(source_id, {})[page] = None
+    # An image-only import has no text-block locator; inspect its first physical
+    # page without converting a block offset into a page cursor.
+    if (not blocks and 'source' in result and result.get('offset', 0) == 0
+            and result['source'].get('filename', '').lower().endswith('.pdf')):
+        located[result['source']['id']] = {1: None}
     views = [view for source_id, pages in located.items()
              for view in source_tables(workspace, source_id, pages, compact=compact)]
     return {**result, "source_table_views": views, "table_view_unlocated": unresolved}

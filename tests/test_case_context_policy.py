@@ -32,7 +32,7 @@ async def test_summary_wrapper_does_not_multiply_failed_sdk_requests():
     assert len(calls)==1
 
 async def test_summary_mode_changes_only_summary_instance(tmp_path,monkeypatch):
-    for suffix,value in [('MODEL','deepseek-v4.1-flash'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','offline-key')]:monkeypatch.setenv('REPORT_'+suffix,value)
+    for suffix,value in [('MODEL','deepseek-v4.1-flash-1017'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','offline-key')]:monkeypatch.setenv('REPORT_'+suffix,value)
     normal=configured_model(Store(tmp_path/'normal'),'coordinator')
     summary=working_summary(normal,Store(tmp_path/'summary')).model
     try:
@@ -47,7 +47,7 @@ async def test_summary_mode_changes_only_summary_instance(tmp_path,monkeypatch):
 
 async def test_changed_summary_output_policy_keeps_old_failure_and_does_not_replay_it(tmp_path, monkeypatch):
     from report_agent.working_summary import SummaryRepairRequired
-    for suffix, value in [('MODEL','deepseek-v4.1-flash'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','offline-key')]:
+    for suffix, value in [('MODEL','deepseek-v4.1-flash-1017'),('BASE_URL','https://offline.invalid/v1'),('API_KEY','offline-key')]:
         monkeypatch.setenv('REPORT_'+suffix, value)
     store = Store(tmp_path/'summary')
     normal = configured_model(store, 'coordinator')

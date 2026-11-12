@@ -196,7 +196,7 @@ async def test_recovery_keeps_actual_provider_capacity_response_without_extra_in
         sent.append(request)
         return httpx.Response(400, json={'error': {'code': 'context_length_exceeded', 'message': 'Synthetic oversized input'}})
     await use_mock(native, handle)
-    budget = TokenBudget(tmp_path/'tokens.db', 200, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path/'tokens.db', 200, {'deepseek-v4.1-flash-1017': 40})
     try:
         with token_budget(budget), pytest.raises(openai.APIStatusError):
             await native.ainvoke('Synthetic unchanged required material')

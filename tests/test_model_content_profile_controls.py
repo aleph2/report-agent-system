@@ -27,7 +27,7 @@ async def test_builtin_does_not_globally_disable_vision_or_relabel_unknown(profi
 
 
 async def test_glm_capability_binding_does_not_mark_other_model_text_only(configured, monkeypatch):
-    for suffix, value in {"MODEL": "deepseek-v4.1-flash", "BASE_URL": "https://offline.invalid/v1", "API_KEY": "synthetic-key"}.items():
+    for suffix, value in {"MODEL": "deepseek-v4.1-flash-1017", "BASE_URL": "https://offline.invalid/v1", "API_KEY": "synthetic-key"}.items():
         monkeypatch.setenv("REPORT_REVIEWER_" + suffix, value)
     model = configured_model(configured, "reviewer")
     try:

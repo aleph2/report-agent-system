@@ -134,7 +134,7 @@ async def test_tool_overview_omits_bodies_and_targeted_detail_recovers_exact_mes
 def test_normal_models_install_status_only(monkeypatch, tmp_path):
     from report_agent.deep_models import configured_model, RuntimeStatus, LocalAudit
     from report_agent.store import Store
-    monkeypatch.setattr("report_agent.model_config.role_service",lambda role:("deepseek-flash","https://api.deepseek.com","synthetic-test-key"))
+    monkeypatch.setattr("report_agent.model_config.role_service",lambda role:("deepseek-v4.1-flash-1017","https://api.deepseek.com","synthetic-test-key"))
     model=configured_model(Store(tmp_path/"model"),"coordinator")
     assert any(isinstance(c,RuntimeStatus) for c in model.callbacks)
     assert not any(isinstance(c,LocalAudit) for c in model.callbacks)

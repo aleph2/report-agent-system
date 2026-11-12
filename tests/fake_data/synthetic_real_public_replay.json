@@ -11,7 +11,7 @@
     "limits": "Fake replay checks local parser/cache/tool protocol; does not establish model capability, native HTTP accounting or engineering review."
   },
   "ds": {
-    "model": "deepseek-v4.1-flash",
+    "model": "deepseek-v4.1-flash-1017",
     "packet": {
       "task_id": "synthetic-task",
       "evidence": [

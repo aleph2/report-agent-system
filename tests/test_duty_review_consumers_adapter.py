@@ -38,7 +38,7 @@ from test_task_supervision import ws
 
 P09 = 'coordinator-review-outcome'
 P12 = 'artifact-error-consumer'
-VISION_MODEL = 'deepseek-v4.1-flash'
+VISION_MODEL = 'deepseek-v4.1-flash-1017'
 QUESTION = ('On this same physical page, transcribe the table header cells and '
             'state any unreadable text. This observation alone cannot complete the review.')
 VISUAL_OBSERVATION = ('Synthetic SDK response: the visible headers are Indicator, '

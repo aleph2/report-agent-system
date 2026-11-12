@@ -342,11 +342,11 @@ of dispatch; the existing parent transport/token ledgers remain authoritative.
             else:
                 # The fake vision service has its own identity. This fixture
                 # override is local, restored and never affects live clients.
-                with patch.dict(os.environ, {'REPORT_VISION_MODEL': 'deepseek-v4.1-flash'}):
+                with patch.dict(os.environ, {'REPORT_VISION_MODEL': 'deepseek-v4.1-flash-1017'}):
                     capture = await capture_layout_comparison(ws, folder, factory,
                         vision_client_factory=selected_vision_factory)
                 result['fake_vision_responses'] = sum(len(s.calls) for s in comparison_services)
-                result['offline_fake_vision_model'] = 'deepseek-v4.1-flash'
+                result['offline_fake_vision_model'] = 'deepseek-v4.1-flash-1017'
             result.update(capture_file='capture.json', fixture_limits=capture['fixture']['limits'],
                           initial_parent_and_pair_preparation_are_fake=True,
                           saved_export_refs=[r['ref'] for r in capture['objects'] if r['ref']['type'] == 'ExportArtifact'],

@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 import httpx
 import openai
-from .request_budget import account_request, RequestBudgetExceeded, HOST_ADMISSION_REASONS
+from .request_budget import account_request, RequestBudgetExceeded, HOST_ADMISSION_REASONS, SCOPED_REQUEST_REASONS
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
@@ -71,7 +71,8 @@ def error_data(exc):
         code=str(budget_error)
         if code not in {'MODEL_REQUEST_BUDGET_REACHED','AUTHORIZED_TOKEN_BUDGET_REACHED',
                         'MODEL_TOKEN_BOUND_NOT_VERIFIED','TOKEN_BOUND_VIOLATION_REQUIRES_DIAGNOSIS',
-                        'STREAM_USAGE_BUDGET_NOT_SUPPORTED','TOKEN_LEDGER_SETTLEMENT_FAILED'} | HOST_ADMISSION_REASONS:
+                        'STREAM_USAGE_BUDGET_NOT_SUPPORTED','TOKEN_LEDGER_SETTLEMENT_FAILED',
+                        'SCOPED_REQUEST_WIRE_MISMATCH'} | HOST_ADMISSION_REASONS | SCOPED_REQUEST_REASONS:
             code='MODEL_REQUEST_BUDGET_REACHED'
         return {"type": "RequestBudgetExceeded", "http_status": None,
                 "message": code}
@@ -212,12 +213,12 @@ class GLMChatOpenAI(ChatOpenAI):
         payload = super()._get_request_payload(messages, stop=stop, **kwargs)
         if payload.get('stream') or 'messages' not in payload:
             raise ValueError('GLM_ADAPTER_REQUIRES_NONSTREAMING_CHAT_COMPLETIONS')
-        if self.model_name in {'deepseek-v4.1-flash', 'deepseek-flash'} and 'max_completion_tokens' in payload:
+        if self.model_name == 'deepseek-v4.1-flash-1017' and 'max_completion_tokens' in payload:
             payload['max_tokens'] = payload.pop('max_completion_tokens')
         # Official thinking mode rejects forced tool selection. The harness may
         # bind `any`/`required` for structured responses; keep tools and thinking,
         # with the supported auto selection instead of disabling reasoning.
-        if self.model_name == 'deepseek-flash' and (
+        if self.model_name == 'deepseek-v4.1-flash-1017' and urlparse(str(self.openai_api_base)).hostname == 'api.deepseek.com' and (
                 isinstance(payload.get('tool_choice'), dict) or payload.get('tool_choice') in {'any', 'required'}):
             payload['tool_choice'] = 'auto'
         if self.deepseek_strict:
@@ -446,7 +447,7 @@ def configured_model(store, role):
         raise RuntimeError("AUTHORIZED_GLM53_CONFIGURATION_REQUIRED")
     if role in {"rubric_grader", "grader_diagnostic"} and "REPORT_GRADER_MODEL" in os.environ:
         name = os.environ["REPORT_GRADER_MODEL"]
-        if name not in {"glm-5.3", "deepseek-v4.1-flash"}:
+        if name not in {"glm-5.3", "deepseek-v4.1-flash-1017"}:
             raise RuntimeError("AUTHORIZED_GRADER_MODEL_REQUIRED")
     is_deepseek = name.startswith("deepseek-")
     generation = role_generation(store, role, name, url)
@@ -496,12 +497,13 @@ def bind_grader_trial(store):
         if selected != bound["model"]:
             raise RuntimeError("GRADER_MODEL_SWITCH_REQUIRES_FRESH_REVIEW_FORK")
         return
-    if selected == "deepseek-flash":
+    from .model_config import role_service
+    if selected == "deepseek-v4.1-flash-1017" and urlparse(role_service("rubric_grader")[1]).hostname == "api.deepseek.com":
         if store.manifest.get("trial_service") != "deepseek-official":
             raise RuntimeError("DEEPSEEK_REQUIRES_ISOLATED_TRIAL_PROJECT")
         store.set("grader_model_trial", {"model": selected, "scope": "isolated_official_deepseek_trial"})
         return
-    if selected == "deepseek-v4.1-flash":
+    if selected == "deepseek-v4.1-flash-1017":
         receipt = store.get("review_import017") or {}
         if (receipt.get("next") != ["FeedbackRubric.after_agent"] or not store.get("checkpoint_resume")
                 or store.get("rubric_targets") or store.get("rubric_reviews")):
@@ -518,6 +520,6 @@ def configured_vision_client():
     if not url or not key:
         raise RuntimeError("VISION_SERVICE_CONFIGURATION_REQUIRED")
     return openai.AsyncOpenAI(base_url=url, api_key=key,
-                             http_client=model_async_client(role="vision", capacity_profile=profile_for_service(model.removeprefix("openai/"), url)),
+                             http_client=model_async_client(capacity_profile=profile_for_service(model.removeprefix("openai/"), url)),
                              max_retries=sdk_retry_count(),
                              timeout=model_request_timeout())

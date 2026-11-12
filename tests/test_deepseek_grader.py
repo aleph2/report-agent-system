@@ -13,7 +13,7 @@ from report_agent.store import Store
 @pytest.fixture
 def configured(tmp_path, monkeypatch):
     monkeypatch.setenv('REPORT_MODEL', 'glm-5.3')
-    monkeypatch.setenv('REPORT_GRADER_MODEL', 'deepseek-v4.1-flash')
+    monkeypatch.setenv('REPORT_GRADER_MODEL', 'deepseek-v4.1-flash-1017')
     monkeypatch.setenv('REPORT_API_KEY', 'synthetic-secret')
     monkeypatch.setenv('REPORT_BASE_URL', 'https://model.invalid/v1')
     return Store(tmp_path)
@@ -27,7 +27,7 @@ def test_only_explicit_grader_roles_change(configured, monkeypatch):
     for role in ('rubric_grader', 'grader_diagnostic'):
         model = configured_model(configured, role)
         wire = model._get_request_payload([HumanMessage('synthetic')])
-        assert wire['model'] == 'deepseek-v4.1-flash'
+        assert wire['model'] == 'deepseek-v4.1-flash-1017'
         assert wire['extra_body'] == {'enable_thinking': True}
         assert wire['max_tokens'] == 65536 and 'max_completion_tokens' not in wire
         assert wire['reasoning_effort'] == 'high' and wire['parallel_tool_calls'] is False
@@ -48,7 +48,7 @@ async def test_deepseek_tool_turn_preserves_opaque_field_and_redacts_audit(confi
                     'tool_calls': [{'id':'t1','type':'function','function':{'name':'observe','arguments':'{}'}}]}
                    if len(requests) == 1 else {'role':'assistant','content':'OK','reasoning_content':marker})
         return httpx.Response(200,json={'id':'response','object':'chat.completion','created':1,
-            'model':'deepseek-v4.1-flash','choices':[{'index':0,'finish_reason':'tool_calls' if len(requests)==1 else 'stop','message':message}],
+            'model':'deepseek-v4.1-flash-1017','choices':[{'index':0,'finish_reason':'tool_calls' if len(requests)==1 else 'stop','message':message}],
             'usage':{'prompt_tokens':2,'completion_tokens':1,'total_tokens':3}})
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
         model = configured_model(configured,'rubric_grader')
@@ -74,7 +74,7 @@ def test_switch_cannot_reuse_old_approval_and_resume_cannot_change_model(configu
     configured.set('checkpoint_resume',True)
     configured.set('rubric_reviews',[])
     bind_grader_trial(configured)
-    assert configured.get('grader_model_trial')['model'] == 'deepseek-v4.1-flash'
+    assert configured.get('grader_model_trial')['model'] == 'deepseek-v4.1-flash-1017'
     configured.set('rubric_reviews',[{'result':'needs_revision'}])
     bind_grader_trial(configured)
     monkeypatch.delenv('REPORT_GRADER_MODEL')

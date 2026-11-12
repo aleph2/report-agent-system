@@ -171,7 +171,7 @@ async def test_actual_sdk_strict_wire_keeps_history_and_rejects_invalid_business
         requests.append(json.loads(request.content))
         value = encoded if len(requests) == 1 else bad
         response = {"id": "strict-local", "object": "chat.completion", "created": 1,
-            "model": "deepseek-flash", "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
+            "model": "deepseek-v4.1-flash-1017", "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
                 "role": "assistant", "content": None, "tool_calls": [{"id": "received", "type": "function",
                     "function": {"name": f["name"], "arguments": json.dumps(value)}}]}}]}
         responses.append(deepcopy(response))

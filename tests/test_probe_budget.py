@@ -448,3 +448,17 @@ def test_fresh_stage_keeps_rescue_wide_model_and_bound_violation_guards(tmp_path
                       preserved_hold=hold,writer_model=MODEL)
     with pytest.raises(RequestBudgetExceeded,match=code):
         guard.check()
+
+
+def test_scoped_wire_refusal_keeps_reason_in_public_error_and_no_dispatch_proof(tmp_path):
+    from report_agent.deep_models import error_data
+    from report_agent.request_budget import logical_request_admission
+    b, _, stage, _, guard = setup_probe(tmp_path)
+    with logical_request_admission() as admission:
+        with pytest.raises(RequestBudgetExceeded) as caught:
+            send(b, guard, payload(model='unauthorized-vision'))
+        assert error_data(caught.value)['message'] == 'SCOPED_REQUEST_WIRE_MISMATCH'
+        proof = admission.not_dispatched_proof(caught.value)
+        assert proof['reason_code'] == 'SCOPED_REQUEST_WIRE_MISMATCH'
+        assert proof['admitted_http_attempts'] == 0
+    assert finance(b) == stage

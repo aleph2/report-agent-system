@@ -88,7 +88,7 @@ def main(models, output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', action='append', required=True,
-                        choices=['deepseek-v4-flash', 'deepseek-v4-flash-0731', 'deepseek-v4.1-flash'])
+                        choices=['deepseek-v4.1-flash-1017'])
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
     main(args.model, args.output)

@@ -118,11 +118,11 @@ async def test_final_offer_matches_current_system_and_moved_controls_and_refuses
             call = {'id': f'ac9-{role}-{len(wires)}', 'type': 'function', 'function': {
                 'name': tool_name, 'arguments': json.dumps(encoded_arguments[-1])}}
             return httpx.Response(200, request=request, json={'id': 'offline-ac9', 'object': 'chat.completion',
-                'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
+                'model': 'deepseek-v4.1-flash-1017', 'choices': [{'index': 0, 'finish_reason': 'tool_calls',
                     'message': {'role': 'assistant', 'content': '', 'tool_calls': [call]}}],
                 'usage': {'prompt_tokens': 8, 'completion_tokens': 2, 'total_tokens': 10}})
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport), event_hooks={'request': [admit]}) as client:
-            model = GLMChatOpenAI(model='deepseek-flash', api_key='offline-only',
+            model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline-only',
                 base_url='https://offline.invalid/beta' if strict else 'https://offline.invalid/v1', http_async_client=client,
                 deepseek_strict=strict, use_responses_api=False, max_retries=0, disable_streaming=True)
             try:
@@ -194,11 +194,11 @@ async def test_current_instruction_and_progress_receipts_capture_actual_final_mo
     def transport(request):
         wires.append(json.loads(request.content))
         return httpx.Response(200, request=request, json={'id': 'offline-instruction', 'object': 'chat.completion',
-            'model': 'deepseek-flash', 'choices': [{'index': 0, 'finish_reason': 'stop',
+            'model': 'deepseek-v4.1-flash-1017', 'choices': [{'index': 0, 'finish_reason': 'stop',
                 'message': {'role': 'assistant', 'content': 'Offline successful handler; quality not assessed.'}}],
             'usage': {'prompt_tokens': 8, 'completion_tokens': 2, 'total_tokens': 10}})
     async with httpx.AsyncClient(transport=httpx.MockTransport(transport), event_hooks={'request': [admit]}) as client:
-        model = GLMChatOpenAI(model='deepseek-flash', api_key='offline-only',
+        model = GLMChatOpenAI(model='deepseek-v4.1-flash-1017', api_key='offline-only',
             base_url='https://offline.invalid/v1', http_async_client=client,
             max_retries=0, use_responses_api=False, disable_streaming=True)
         try:
@@ -281,7 +281,7 @@ async def test_local_offer_without_success_is_not_recorded_as_delivered_instruct
     assert not cs.list_objects('ReviewRecord')
 
 
-@pytest.mark.parametrize('model_name,strict', [('glm-5.3', False), ('deepseek-flash', True)])
+@pytest.mark.parametrize('model_name,strict', [('glm-5.3', False), ('deepseek-v4.1-flash-1017', True)])
 async def test_real_sdk_complete_tool_batch_precedes_current_host_controls_and_tail(case, tmp_path, model_name, strict):
     """Offline protocol shape, not proof that either service accepts the request."""
     from importlib.metadata import version

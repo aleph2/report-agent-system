@@ -31,12 +31,17 @@ class RequestBound:
     input_limit: int
     output_limit: int
     proof_sha256: str
+    image_max_edge: int | None = None
+    wire_output_limit: int | None = None
 
     def __post_init__(self):
         if (not isinstance(self.model, str) or not self.model.strip()
                 or any(type(n) is not int or n < 1 for n in (self.input_limit, self.output_limit))
                 or any(not isinstance(h, str) or not re.fullmatch(r'[0-9a-f]{64}', h)
                        for h in (self.request_url_sha256, self.proof_sha256))):
+            raise ValueError('VERIFIED_REQUEST_TOKEN_BOUND_REQUIRED')
+        if ((self.image_max_edge is not None and (type(self.image_max_edge) is not int or not 1 <= self.image_max_edge <= 4096))
+                or (self.wire_output_limit is not None and (type(self.wire_output_limit) is not int or not 0 < self.wire_output_limit <= self.output_limit))):
             raise ValueError('VERIFIED_REQUEST_TOKEN_BOUND_REQUIRED')
 
     @property
@@ -47,7 +52,9 @@ class RequestBound:
 @contextmanager
 def request_token_bound(bound):
     """Host-only lexical override; nested recovery cannot replace its limits."""
-    if not isinstance(bound, RequestBound):
+    policies = (bound,) if isinstance(bound, RequestBound) else bound
+    if (not isinstance(policies, tuple) or not policies or not all(isinstance(p, RequestBound) for p in policies)
+            or len({p.model for p in policies}) != len(policies)):
         raise TypeError('VERIFIED_REQUEST_TOKEN_BOUND_REQUIRED')
     outer = _request_bound.get()
     if outer is not None and outer != bound:
@@ -59,10 +66,18 @@ def request_token_bound(bound):
         _request_bound.reset(token)
 
 
+def _selected_bound(model):
+    scoped = _request_bound.get()
+    policies = (scoped,) if isinstance(scoped, RequestBound) else scoped or ()
+    return next((p for p in policies if p.model == model), None)
+
+
 def _effective_bound(budget, model):
-    bound = _request_bound.get()
+    bound = _selected_bound(model)
     registered = budget.model_bounds.get(model)
     if bound is None:
+        if _request_bound.get() is not None:
+            raise RequestBudgetExceeded('SCOPED_REQUEST_BOUND_NOT_VERIFIED')
         return registered
     if model != bound.model or registered is None or bound.total > registered:
         raise RequestBudgetExceeded('SCOPED_REQUEST_BOUND_NOT_VERIFIED')
@@ -77,17 +92,20 @@ def _contains_multimodal(value):
 
 
 def _validate_bounded_request(request, body):
-    bound = _request_bound.get()
-    if bound is None:
+    if _request_bound.get() is None:
         return
-    if (not isinstance(body, dict) or body.get('model') != bound.model
+    bound = _selected_bound(body.get('model')) if isinstance(body, dict) else None
+    if (bound is None or not isinstance(body, dict) or body.get('model') != bound.model
             or hashlib.sha256(str(request.url).encode()).hexdigest() != bound.request_url_sha256
             or body.get('stream', False) is not False
             or type(body.get('n', 1)) is not int or body.get('n', 1) != 1):
         raise RequestBudgetExceeded('SCOPED_REQUEST_WIRE_MISMATCH')
     outputs = [body[k] for k in ('max_tokens', 'max_completion_tokens') if k in body]
-    if not outputs or any(type(n) is not int or not 0 < n <= bound.output_limit for n in outputs):
+    if not outputs or any(type(n) is not int or not 0 < n <= (bound.wire_output_limit or bound.output_limit) for n in outputs):
         raise RequestBudgetExceeded('SCOPED_REQUEST_OUTPUT_LIMIT_REQUIRED')
+    if bound.image_max_edge is not None:
+        _validate_image_request(body, bound)
+        return
     messages = body.get('messages')
     if not isinstance(messages, list) or not messages:
         raise RequestBudgetExceeded('SCOPED_REQUEST_TEXT_ONLY')
@@ -107,6 +125,47 @@ def _validate_bounded_request(request, body):
     if _contains_multimodal(body) or any(key in body for key in ('modalities', 'image', 'images')):
         raise RequestBudgetExceeded('SCOPED_REQUEST_TEXT_ONLY')
 
+
+
+def _validate_image_request(body, bound):
+    """One bounded inline PNG in a trusted vision request, not arbitrary modalities."""
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    try:
+        if 'max_tokens' in body or 'max_completion_tokens' not in body or body.get('tools'):
+            raise ValueError('Unexpected vision request')
+        images = 0
+        cleaned = []
+        for message in body['messages']:
+            content = message['content']
+            if isinstance(content, str):
+                cleaned.append(message)
+                continue
+            parts = []
+            for part in content:
+                if set(part) == {'type', 'text'} and part['type'] == 'text' and isinstance(part['text'], str):
+                    parts.append(part)
+                    continue
+                if set(part) != {'type', 'image_url'} or part['type'] != 'image_url':
+                    raise ValueError('Unsupported modality')
+                url = part['image_url']['url']
+                if not url.startswith('data:image/png;base64,'):
+                    raise ValueError('Inline PNG required')
+                png = base64.b64decode(url.split(',',1)[1], validate=True)
+                if len(png) > bound.image_max_edge ** 2 * 4 + 1024:
+                    raise ValueError('Oversized PNG')
+                with Image.open(BytesIO(png)) as image:
+                    if (image.format != 'PNG' or max(image.size) > bound.image_max_edge
+                            or getattr(image, 'n_frames', 1) != 1):
+                        raise ValueError('Image outside host envelope')
+                    image.verify()
+                images += 1
+            cleaned.append({**message, 'content': parts})
+        if images != 1 or _contains_multimodal({**body, 'messages': cleaned}):
+            raise ValueError('One image only')
+    except Exception as error:
+        raise RequestBudgetExceeded('SCOPED_REQUEST_IMAGE_POLICY_MISMATCH') from error
 
 
 def current_model_token_bound(model):

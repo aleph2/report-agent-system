@@ -16,7 +16,7 @@ def phases(store):
     return [e['data'] for e in store.events() if e['kind'] == 'model_http_phase']
 
 
-def body(model='deepseek-v4.1-flash', usage=None):
+def body(model='deepseek-v4.1-flash-1017', usage=None):
     return {'id': 'offline-response', 'object': 'chat.completion', 'created': 1,
             'model': model, 'choices': [{'index': 0, 'finish_reason': 'stop',
              'message': {'role': 'assistant', 'content': 'unchanged result'}}],
@@ -27,7 +27,7 @@ def setup_model(tmp_path, monkeypatch, role='text_tool', endpoint='https://offli
     monkeypatch.setenv('REPORT_SDK_RETRIES', '5')
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')
     monkeypatch.setenv('REPORT_REASONING_EFFORT', 'max')
-    for suffix, value in [('MODEL', 'deepseek-v4.1-flash'), ('BASE_URL', endpoint), ('API_KEY', 'test-secret')]:
+    for suffix, value in [('MODEL', 'deepseek-v4.1-flash-1017'), ('BASE_URL', endpoint), ('API_KEY', 'test-secret')]:
         monkeypatch.setenv('REPORT_' + role.upper() + '_' + suffix, value)
     store = Store(tmp_path / role)
     return store, configured_model(store, role)
@@ -61,7 +61,7 @@ async def test_old_and_new_observer_io_failure_never_resends_received_response(t
         return httpx.Response(200, json=body())
     await use_mock(model, respond)
     monkeypatch.setattr(model.root_async_client, '_calculate_retry_timeout', lambda *args: 0)
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     try:
         with token_budget(budget):
             assert (await model.ainvoke('offline')).content == 'unchanged result'
@@ -89,12 +89,12 @@ async def test_strict_wire_observation_io_never_changes_sdk_dispatch(tmp_path, m
         return httpx.Response(200, json=body())
     transport._transport = httpx.MockTransport(respond)
     transport._mounts = {}
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     async with openai.AsyncOpenAI(api_key='synthetic', base_url='https://offline.invalid/v1',
                                  http_client=transport, max_retries=5) as client:
         monkeypatch.setattr(client, '_calculate_retry_timeout', lambda *args: 0)
         with token_budget(budget):
-            result = await client.chat.completions.create(model='deepseek-v4.1-flash',
+            result = await client.chat.completions.create(model='deepseek-v4.1-flash-1017',
                 messages=[{'role': 'user', 'content': 'offline'}])
     assert result.choices[0].message.content == 'unchanged result'
     assert len(seen) == 1 and budget.snapshot()['attempt_states'] == {'settled': 1}
@@ -130,7 +130,7 @@ async def test_actual_adapter_stall_phase_and_reservation(tmp_path, monkeypatch,
         await asyncio.Event().wait()
 
     await use_mock(model, respond)
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     try:
         with token_budget(budget):
             task = asyncio.create_task(model.ainvoke('private synthetic prompt'))
@@ -159,7 +159,7 @@ async def test_actual_adapter_stall_phase_and_reservation(tmp_path, monkeypatch,
 async def test_complete_response_preserves_result_exact_settlement_and_phase_order(tmp_path, monkeypatch):
     store, model = setup_model(tmp_path, monkeypatch)
     await use_mock(model, lambda r: httpx.Response(200, json=body(), headers={'x-request-id': 'req-ok'}))
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     original = budget.settle
     settled = []
 
@@ -195,7 +195,7 @@ async def test_sdk_attempts_have_distinct_budget_ids_same_body_hash(tmp_path, mo
 
     await use_mock(model, respond)
     monkeypatch.setattr(model.root_async_client, '_calculate_retry_timeout', lambda *args: 0)
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     try:
         with token_budget(budget):
             await model.ainvoke('offline')
@@ -229,7 +229,7 @@ async def test_diagnostic_or_accounting_edge_does_not_retry(tmp_path, monkeypatc
         return httpx.Response(200, json=payload)
 
     await use_mock(model, respond)
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     if failure == 'settlement':
         def fail(*args):
             raise OSError('synthetic ledger issue')
@@ -303,12 +303,12 @@ def test_sync_budget_and_body_stall(tmp_path, monkeypatch, stall):
     client._transport.close()
     client._transport = httpx.MockTransport(lambda r: httpx.Response(200, stream=FailingBody()) if stall else httpx.Response(200, json=body()))
     client._mounts = {}
-    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash': 40})
+    budget = TokenBudget(tmp_path / 'budget.db', 100, {'deepseek-v4.1-flash-1017': 40})
     with client, token_budget(budget):
         if stall:
             with pytest.raises(httpx.ReadTimeout):
-                client.post('https://offline.invalid/v1', json={'model': 'deepseek-v4.1-flash'})
+                client.post('https://offline.invalid/v1', json={'model': 'deepseek-v4.1-flash-1017'})
         else:
-            assert client.post('https://offline.invalid/v1', json={'model': 'deepseek-v4.1-flash'}).json()['id'] == 'offline-response'
+            assert client.post('https://offline.invalid/v1', json={'model': 'deepseek-v4.1-flash-1017'}).json()['id'] == 'offline-response'
     assert [r['phase'] for r in phases(store)] == ['request_started', 'headers_received'] + ([] if stall else ['body_read_completed', 'usage_accounted'])
     assert budget.snapshot()['reserved_or_unknown_upper_bounds'] == (40 if stall else 0)

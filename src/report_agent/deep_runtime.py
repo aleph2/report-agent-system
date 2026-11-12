@@ -170,6 +170,8 @@ class BusinessBoundary(InvalidToolFeedback):
                     'operation_id': prepared['proof']['operation_id'], 'receipt_state': 'known_success'}}),
                 'repetition/known_write_state')
         from .live_messages import prepare_request, model_offer, bind_response
+        from .tool_selection import scope_catalog
+        request = scope_catalog(request)
         request, offer = prepare_request(self.workspace, self.role, request)
         with model_offer(offer):
             response = await handler(request)
@@ -641,12 +643,16 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
 
     async def analyze_source_image(source_id: str, question: str, page: int = 1,
                                    crop: list[float] | None = None, runtime: ToolRuntime = None) -> dict:
-        """Ask a visual model about a project PDF page or PNG/JPEG/WebP image, including OCR.
+        """Inspect a specific page/crop when native text and tables leave a relevant question unresolved.
 
-        page is a 1-based physical PDF page (1 for images). Optional crop is normalized
-        [left, top, right, bottom] within that page/image. Ask what you need to observe;
-        reuse existing extraction when suitable. Returns located, cached observations,
-        not verified facts. Does not edit sources, existing OCR, shared knowledge or reports.
+        Coordinator: discover subjects, page relevance, conflicts and material types;
+        do not adopt engineering measurements, values or scores from the observation.
+        Returns located, unverified observations, limitations and provider usage.
+        An uncached call uses the configured paid vision backend and the calling role's
+        shared run budget. Prefer adequate existing text/tables; exact saved results
+        may be reused. The host bounds image resolution and total reasoning+answer
+        output. page is a 1-based physical PDF page (1 for images); crop is normalized
+        [left,top,right,bottom]. Does not confirm facts or modify sources or OCR.
         """
         from .vision import observe_source_image
         from .hierarchical_tools import enabled as content_enabled

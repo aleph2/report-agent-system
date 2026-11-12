@@ -33,8 +33,8 @@ def deadline_at_stage(monkeypatch, seconds):
 
 @pytest.mark.parametrize('model_name,url', [
     ('glm-5.3', 'https://offline.invalid/v1'),
-    ('deepseek-v4.1-flash', 'https://offline.invalid/v1'),
-    ('deepseek-flash', 'https://api.deepseek.com'),
+    ('deepseek-v4.1-flash-1017', 'https://offline.invalid/v1'),
+    ('deepseek-v4.1-flash-1017', 'https://api.deepseek.com'),
 ])
 async def test_timeout_reaches_constructed_chat_clients_and_request(tmp_path, monkeypatch, model_name, url):
     monkeypatch.setenv('REPORT_CONNECT_RETRIES', '0')

@@ -86,7 +86,7 @@ def coordinator_script(ws):
     for oid in ("A","B"):
         for rule in proposal["method_pack"]["indicators"]:
             scripts.append(invoke("propose_page_binding",subject=oid,indicator_id=rule["id"],
-                pages=[dict(source_id=ids[name],page=page or (1 if oid=="A" else 2)) for name,page in PAGES[rule["id"]]],))
+                pages=[dict(source_id=ids[name],page=page or (1 if oid=="A" else 2)) for name,page in PAGES[rule["id"]] if oid=="B" or name!="06_drawing.pdf"],))
     scripts.append(invoke("submit_plan"))
     driver=Driver(coordinator=scripts)
     for i,message in enumerate(scripts):
@@ -316,10 +316,11 @@ async def test_complete_native_draft_flow(tmp_path,partial_review):
         (out/"verification.json").write_text(json.dumps(evidence,ensure_ascii=False,indent=2))
 
 
-def test_v2_key_and_fixture_are_frozen_outside_live_inputs():
+@pytest.mark.parametrize("filename", ["manifest-v2.json", "manifest-v3-vision.json"])
+def test_key_and_fixture_are_frozen_outside_live_inputs(filename):
     import hashlib
     base=Path(__file__).parents[1]/"docs/verification/fake03-post-9a"
-    manifest=json.loads((base/"manifest-v2.json").read_text())
+    manifest=json.loads((base/filename).read_text())
     key=json.loads((base/manifest["answer_key_file"]).read_text())
     assert hashlib.sha256((base/manifest["answer_key_file"]).read_bytes()).hexdigest()==manifest["answer_key_sha256"]
     assert len(key["coordinator"]["bindings"])==22

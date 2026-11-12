@@ -1,0 +1,58 @@
+{
+  "candidate_commit": "FROM_IDENTIFY",
+  "fixture_manifest_sha256": "FROM_IDENTIFY",
+  "answer_key_sha256": "FROM_IDENTIFY",
+  "workflow": "fake03-one-drawing-vision-check-v1",
+  "model": "deepseek-v4.1-flash-1017",
+  "objects": [
+    "B"
+  ],
+  "proposed_exclusions": [],
+  "stop_at": "one_vision_observation",
+  "run_id": "OWNER_APPROVED_NEW_RUN_ID",
+  "grant_dir": "/PRIVATE/EXISTING_FAKE_CAMPAIGN",
+  "per_run_tokens": null,
+  "aggregate_tokens": 10000000,
+  "owner_authority_ref": "OWNER_EXACT_CHECK_CAP_PENDING",
+  "fresh_comparison": {
+    "run_ids": [
+      "OWNER_APPROVED_NEW_RUN_ID"
+    ],
+    "previous_run_id": "FROM_PRIVATE_HOLD_RECEIPT",
+    "previous_attempt": "FROM_PRIVATE_HOLD_RECEIPT",
+    "settled_retry_attempt": "FROM_PRIVATE_HOLD_RECEIPT",
+    "retry_result_sha256": "FROM_PRIVATE_HOLD_RECEIPT"
+  },
+  "vision_model": "deepseek-v4.1-flash-1017",
+  "vision_thinking": "enabled",
+  "vision_request_bound_proof": {
+    "model": "deepseek-v4.1-flash-1017",
+    "input_limit": 1000000,
+    "output_limit": 8202,
+    "wire_output_limit": 8192,
+    "image_max_edge": 1024,
+    "basis": "documented_service_ceiling_not_measured_request_fit",
+    "env_sha256": "FROM_PRIVATE_CONFIG",
+    "base_url_sha256": "FROM_PRIVATE_CONFIG",
+    "request_url_sha256": "FROM_PRIVATE_CONFIG",
+    "sources": [
+      "https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash",
+      "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions"
+    ]
+  },
+  "request_bound_proof": {
+    "model": "deepseek-v4.1-flash-1017",
+    "input_limit": 1000000,
+    "output_limit": 8202,
+    "wire_output_limit": 8192,
+    "image_max_edge": 1024,
+    "basis": "documented_service_ceiling_not_measured_request_fit",
+    "env_sha256": "FROM_PRIVATE_CONFIG",
+    "base_url_sha256": "FROM_PRIVATE_CONFIG",
+    "request_url_sha256": "FROM_PRIVATE_CONFIG",
+    "sources": [
+      "https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash",
+      "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions"
+    ]
+  }
+}
