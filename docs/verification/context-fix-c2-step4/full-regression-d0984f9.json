@@ -1,0 +1,153 @@
+{
+  "tested_revision": "d0984f9037d2e6099664f66f45fbaf4f937270f3",
+  "tested_tag": "context-fix-c2-c3-20261111",
+  "statistical_utc": "2026-11-12T06:08:17.337021+00:00",
+  "status": "clean unreconciled full pass on exact authorized revision",
+  "run": {
+    "expected": 6239,
+    "outcomes": {
+      "passed": 6230,
+      "skipped": 9
+    },
+    "failed": [],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-12T05:29:09.454123+00:00",
+    "finished_utc": "2026-11-12T06:05:59.603413+00:00",
+    "elapsed_seconds": 2210.1
+  },
+  "skipped_nodes": [
+    "tests/test_knowledge.py::test_real_graph_atomic_rollback",
+    "tests/test_knowledge.py::test_real_graph_concurrent_duplicate_write",
+    "tests/test_knowledge.py::test_real_graph_cross_project_and_producer_boundaries",
+    "tests/test_knowledge.py::test_real_graph_links_traversal_and_text_paging",
+    "tests/test_knowledge.py::test_real_graph_read_many_rejects_partial_missing_and_foreign",
+    "tests/test_knowledge.py::test_real_graph_read_many_versions_order_and_single_session",
+    "tests/test_knowledge.py::test_real_graph_recovery_does_not_repeat_embedding",
+    "tests/test_knowledge.py::test_real_graph_versions_receipts_and_provenance",
+    "tests/test_knowledge.py::test_real_local_multilingual_vector_and_hybrid"
+  ],
+  "skips_unchanged": true,
+  "coverage": {
+    "total_percent": 90.70891672807664,
+    "m0_floors": [
+      {
+        "module": "src/report_agent/commission_plan.py",
+        "floor": 93.49240780911063,
+        "actual": 93.7375745526839,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/commission_requirements.py",
+        "floor": 91.40625,
+        "actual": 93.18181818181819,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/content_store.py",
+        "floor": 95.43817527010805,
+        "actual": 95.57625145518044,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/g3_export.py",
+        "floor": 91.54518950437318,
+        "actual": 92.26804123711341,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/rescue_projection.py",
+        "floor": 88.41698841698842,
+        "actual": 88.47583643122677,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/risk_scoring.py",
+        "floor": 94.3566591422122,
+        "actual": 94.66357308584686,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/section_writing.py",
+        "floor": 90.19607843137256,
+        "actual": 90.29126213592232,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/system_assembler.py",
+        "floor": 87.27984344422701,
+        "actual": 88.06818181818181,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/writer_issues.py",
+        "floor": 90.12345679012346,
+        "actual": 90.1840490797546,
+        "passed": true
+      }
+    ]
+  },
+  "cleanup": {
+    "source_files_checked": 1316,
+    "source_files_changed": [],
+    "clean_pass": true,
+    "source_copy_removed": true,
+    "failed_coverage_floors": [],
+    "skips_unchanged": true,
+    "retained_test_database_files": 0,
+    "temporary_directories_removed": [
+      "tmp-group-4",
+      "tmp-group-6",
+      "tmp-group-3",
+      "tmp-collection",
+      "tmp-group-5",
+      "tmp-group-1",
+      "tmp-group-7",
+      "tmp-group-2",
+      "tmp-group-0"
+    ]
+  },
+  "temporary_databases_after_cleanup": 0,
+  "active_run_processes": [],
+  "supervisor_proc_absent": true,
+  "driver": {
+    "driver_exit": 0,
+    "cleanup_exit": 0,
+    "finished_utc": "2026-11-12T06:05:59.805034+00:00"
+  },
+  "fixture_preflight": {
+    "verified_files": 57,
+    "private_imports": 51,
+    "all_match_prior_verified_bytes": true
+  },
+  "owner_authority": {
+    "recorded_utc": "2026-11-12T05:29:09.410264+00:00",
+    "commit": "d0984f9037d2e6099664f66f45fbaf4f937270f3",
+    "tag": "context-fix-c2-c3-20261111",
+    "question_item_id": "[\"request_user_input_async\",\"call_d1add0efe9294a43bd194e2aac1eef64\",0]",
+    "owner_answer": "Authorize one full offline regression",
+    "scope": "One full offline regression on d0984f9; 57 verified fixtures; automatic passing-data cleanup; no paid launch or main move",
+    "paid_calls_authorized": false,
+    "main_move_authorized": false
+  },
+  "paid_report_model_calls": 0,
+  "main_revision": "7da4f9483a08a3a975ce05f7b559a56d9f626511",
+  "source_or_test_change_during_verification": false,
+  "original_c1_full_stays_failed": true,
+  "original_c1_public_record_unchanged": true,
+  "independent_review": "Neo independently aggregated8group records, compared authority/gate/cleanup/coverage/fixture data, confirmed9floors and0remaining process/data, and verified original C1 failed record unchanged. Main ran tests; Neo reran none.",
+  "private_evidence": ".private/context-fix-c2-c3-full-20261111/full/"
+}
