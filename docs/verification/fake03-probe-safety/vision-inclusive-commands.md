@@ -11,7 +11,7 @@ These commands do not create a grant or release any hold. Use the existing priva
 
 3. Prepare private authority from [check template](vision-check-authority.template.json) or [probe template](authority.template.json). Preserve the existing grant path and fresh-comparison hold/retry proof. Record the actual owner chat authority privately. Hash the authority file separately; never put credentials, real service URLs or raw case material in Git.
 4. Bind service proof to the exact external configuration and exact request URL. GLM retains 1,048,576 input + 131,072 output = 1,179,648. Vision uses the conservative documented Ali ceiling: 1,000,000 input + 8,202 output = 1,008,202, with host PNG edge 1,024 and wire max_completion_tokens 8,192. The output reservation includes the documented possible 10-token overrun. Thinking is explicit; no automatic mode fallback or output-limit increase.
-5. The proposed single-check cap is 1,009,226 (reservation + 1,024 margin), **pending the owner’s exact-cap disposition**. The authorized probe cap is 5,500,000 shared by GLM/vision/support calls, within the unchanged campaign. Cached input counts in full. Actual expected vision usage has not been measured.
+5. The proposed single-check cap is 1,009,226 (reservation + 1,024 margin), **pending the owner’s exact-cap disposition**. The proposed next probe cap is 5,500,000 shared by GLM/vision/support calls, within the unchanged campaign. Cached input counts in full. Actual expected vision usage has not been measured.
 
 Official bounds: [Ali model limits](https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash), [completion limit and overrun](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions). No provider-specific tight image token formula has been verified. A 40K hard bound must not be substituted.
 
@@ -25,7 +25,7 @@ Run from the accepted candidate checkout, with the external service configuratio
 
 Before run, inspect the prepared import and exact effective models, retries and proof pins. SDK retries must be zero; the existing two transport connect retries never replay a sent HTTP request. The check directly calls the image tool for 06_drawing.pdf page 1 and makes no Coordinator model call. The probe prepares a separate fresh import, runs only Coordinator planning/support, and stops at the real page-sheet checkpoint; it does not approve the sheet.
 
-Proceed past the check only after a complete non-truncated observation from the declared backend, settled usage, no new unknown hold, and Neo’s review. Any failure stops further paid stages; investigate offline without replaying unknown calls. A received incomplete result remains incomplete. No automatic retry/continuation.
+Proceed past the check only after a complete non-truncated observation from the declared backend, settled usage, no new unknown hold, and Neo’s review. After the small check settles, recheck the campaign’s actual available tokens using owning WSL Python. Proceed only if at least 5,500,000 remain, so the full proposed probe ceiling is available; otherwise stop for owner disposition without amending a grant, changing the cap or releasing holds. The 5.5M cap is not earmarked at preparation. Any failure stops further paid stages; investigate offline without replaying unknown calls. A received incomplete result remains incomplete. No automatic retry/continuation.
 
 ## Report back
 

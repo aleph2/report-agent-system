@@ -1,0 +1,236 @@
+{
+  "tested_commit": "80f1875dcdc02056369c8c63b6a5ec87330b5306",
+  "production_identical_to": "7b76dbeaff1f81ba95d937890e82a51b31ca4afa",
+  "followup_change_size": {
+    "source_added": 0,
+    "source_removed": 0,
+    "tests_added_lines": 25,
+    "tests_removed_lines": 7,
+    "runtime_guards_added": 0,
+    "runtime_guards_removed": 0,
+    "test_assertions_added": 3,
+    "test_assertions_removed": 0,
+    "test_retirements": 0,
+    "new_fallbacks": 0
+  },
+  "initial_focused": {
+    "status": "interrupted by WSL kernel restart; no terminal result",
+    "observed_passes": 615,
+    "observed_failures": 0
+  },
+  "original_full": {
+    "commit": "7b76dbeaff1f81ba95d937890e82a51b31ca4afa",
+    "status": "failed; preserved",
+    "outcomes": {
+      "passed": 6264,
+      "failed": 10,
+      "skipped": 9
+    },
+    "elapsed_seconds": 2237.5,
+    "failures": [
+      {
+        "node": "tests/test_m1_g1_reliability.py::test_native_graph_observes_retryable_storage_error_and_continues[False]",
+        "cause": "Test image-reader mock did not accept the new keyword-only max_edge",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_m1_g1_reliability.py::test_native_graph_observes_retryable_storage_error_and_continues[True]",
+        "cause": "Test image-reader mock did not accept the new keyword-only max_edge",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_not_dispatched_recovery.py::test_native_vision_local_refusal_replay_is_failed_observation_without_dispatch",
+        "cause": "Test image-reader mock did not accept the new keyword-only max_edge",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_delegation_prompt_separation.py::test_new_release_has_short_co_description_and_unchanged_child_system[writer]",
+        "cause": "Approved vision-tool description: stale full catalog/digest expectation",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_delegation_prompt_separation.py::test_new_release_has_short_co_description_and_unchanged_child_system[reviewer]",
+        "cause": "Approved vision-tool description: stale full catalog/digest expectation",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_delegation_prompt_separation.py::test_new_release_has_short_co_description_and_unchanged_child_system[layout]",
+        "cause": "Approved vision-tool description: stale full catalog/digest expectation",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_delegation_prompt_separation.py::test_old_release_keeps_full_role_descriptions_and_does_not_migrate[None]",
+        "cause": "Approved vision-tool description: stale full catalog/digest expectation",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_delegation_prompt_separation.py::test_old_release_keeps_full_role_descriptions_and_does_not_migrate[full-role-description-v1]",
+        "cause": "Approved vision-tool description: stale full catalog/digest expectation",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_compact_tables.py::test_compact_cells_are_lossless_and_raw_access_stays_raw",
+        "cause": "Page facts moved once to the top-level source-page observation, not duplicated inside table_view",
+        "replacement_outcome": "passed"
+      },
+      {
+        "node": "tests/test_review_handle_reads.py::test_default_read_shape_and_schema_remain_legacy_and_handle_path_is_explicit",
+        "cause": "Approved vision-tool description: stale full catalog/digest expectation",
+        "replacement_outcome": "passed"
+      }
+    ]
+  },
+  "focused_followups": [
+    {
+      "cases_passed": 5,
+      "scope": "five native catalog comparisons"
+    },
+    {
+      "cases_passed": 22,
+      "scope": "both complete recovery-test modules"
+    },
+    {
+      "cases_passed": 28,
+      "scope": "both complete reader-expectation modules"
+    }
+  ],
+  "replacement_full": {
+    "status": "clean pass",
+    "expected": 6283,
+    "outcomes": {
+      "passed": 6274,
+      "skipped": 9
+    },
+    "elapsed_seconds": 2248.3,
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "source_files_checked": 1334,
+    "source_files_changed": [],
+    "coverage_floors": [
+      {
+        "module": "src/report_agent/commission_plan.py",
+        "floor": 93.49240780911063,
+        "actual": 93.7375745526839,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/commission_requirements.py",
+        "floor": 91.40625,
+        "actual": 93.18181818181819,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/content_store.py",
+        "floor": 95.43817527010805,
+        "actual": 95.57625145518044,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/g3_export.py",
+        "floor": 91.54518950437318,
+        "actual": 92.26804123711341,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/rescue_projection.py",
+        "floor": 88.41698841698842,
+        "actual": 88.47583643122677,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/risk_scoring.py",
+        "floor": 94.3566591422122,
+        "actual": 94.66357308584686,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/section_writing.py",
+        "floor": 90.19607843137256,
+        "actual": 90.29126213592232,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/system_assembler.py",
+        "floor": 87.27984344422701,
+        "actual": 88.06818181818181,
+        "passed": true
+      },
+      {
+        "module": "src/report_agent/writer_issues.py",
+        "floor": 90.12345679012346,
+        "actual": 90.1840490797546,
+        "passed": true
+      }
+    ],
+    "skips_unchanged": true,
+    "source_copy_removed": true,
+    "temporary_directories_removed": 9,
+    "retained_test_database_files": 0
+  },
+  "review": {
+    "test_execution": "Main",
+    "independent_code_and_record_review": "Neo; no independent test rerun",
+    "terminal_review": "passed; independent read-only verification of complete results, source/test trees, coverage, cleanup and frozen key"
+  },
+  "vision": {
+    "model": "deepseek-v4.1-flash-1017",
+    "max_image_edge": 1024,
+    "wire_completion_limit": 8192,
+    "documented_output_overrun": 10,
+    "reserved_tokens": 1008202,
+    "proposed_check_cap": 1009226,
+    "bound_is_expected_usage": false,
+    "probe_models": [
+      "glm-5.3",
+      "deepseek-v4.1-flash-1017"
+    ],
+    "probe_cap": 5500000,
+    "continue_condition": "Complete settled check, no new unknown hold, Neo review; recheck remaining campaign allowance and stop if below5500000"
+  },
+  "frozen_key": {
+    "sha256": "eb7fb10ab8237e2cd2656e2c3768252474aa1e666ca3689ed7c90d875a1106b4",
+    "fixture_hashes_verified": 14,
+    "expected_pages": [
+      {
+        "document": "06_drawing.pdf",
+        "page": 1,
+        "native_text_characters": 0,
+        "images": 1,
+        "facts": [
+          "B-labelled cross-section",
+          "schematic without dimensions",
+          "stepped profile"
+        ],
+        "not_adoptable": [
+          "A-specific facts",
+          "dimensions or slope ratio",
+          "material",
+          "support/drainage",
+          "scores"
+        ]
+      }
+    ],
+    "writer_outcomes_changed": false
+  },
+  "paid_model_calls": 0,
+  "paid_launch_authority": "await new staged owner authorization",
+  "main_changed": false,
+  "private_evidence": [
+    ".private/fake03-vision-inclusive-20261112/",
+    ".private/fake03-vision-inclusive-full-20261112/full/",
+    ".private/fake03-vision-inclusive-full-replacement-20261112/full/"
+  ]
+}

@@ -1,28 +1,25 @@
-# Fake03 vision-inclusive candidate
+# Fake03 vision-inclusive verification
 
-Production +370 / −77 lines (including separately authorized model-ID normalization). One shared backend declaration, final-catalog check and scoped image-envelope admission added; partial image blacklist replaced. No fallback, migration or test retirement. Full regression pending separate authority; main remains 2289ce1.
+Vision candidate vs main 2289ce1: production +370 / −77. This verification follow-up vs 7b76dbe: production +0 / −0; tests +25 / −7; runtime guards +0 / −0; test assertions +3 / −0. No fallback or test retirement.
 
-## Delivered
-
-- Catalog and guessed-call eligibility use the same backend declaration, including framework tools. Planning permits GLM-5.3 and deepseek-v4.1-flash-1017; delegation and delivery remain unavailable. Provider admission is retained.
-- Both models charge one campaign/run ledger and 5.5M run cap; the GLM 1,179,648 reservation and original authorization/holds are unchanged. Unknown outcomes stop further dispatches and retain reservations.
-- Reader facts are computed on read: native-text/glyph counts, detected tables, 200×200 grid coverage of clipped image/vector bounding boxes, and the explicit scan-like predicate. Parse failures are unknown. No OCR, ingestion writes or source changes.
-- Host sends one PNG with maximum edge 1,024. Vision output is limited to 8,192 completion tokens, including reasoning. The observation stays unverified; Coordinator use is discovery, not adoption of measurements.
-- Real scoped refusal codes survive formatting. A failed native plan is reported as failed, distinct from a budget stop.
-- Neo reproduced a P2 metrics defect: the vision SDK client lost the calling role/store. The shared observation hook now inherits the enclosing authenticated invocation. The ledger was correct throughout. New native tests fail before this fix and pass after it.
+Runtime code remains byte-identical to 7b76dbe; corrected AGENTS.md remains as approved at aca3e81.
 
 ## Verification
 
-Main’s earlier focused suites passed: 116 reader cases, 55 vision/admission cases, 68 mixed-budget cases, 39 operator/catalog cases. After the metrics fix, 25 cases passed, including direct smoke (100 tokens / 1 Coordinator invocation) and combined flow (720 / 63); both are mocked, not paid. Neo inspected code and records without running tests and found no remaining confirmed issue. Final frozen focused verification is pending.
+**Clean replacement full run on 80f1875: 6,274 passed, 0 failed, 9 unchanged skips; 2,248.3 seconds.** Every collected test accounted for; nine coverage floors passed; all 1,334 frozen files unchanged. Automatic cleanup removed the passing source copy and all nine temporary directories, leaving zero test databases.
 
-Private raw evidence: `.private/fake03-vision-inclusive-20261112/`. Passing temporary cases are automatically removed; failed evidence stays. The final copy contains 51 hash-verified supplemental fixtures. Historical cases and live ledgers were not opened for writing.
+The initial focused run was interrupted by a WSL restart after 615 passing calls, without a terminal result. The original full run stays **failed: 6,264 passed, 10 failed, 9 skipped**. Neo traced all ten to stale test expectations: six image-description/catalog cases, three image-reader mocks, one page-facts placement case. Their replacements retain exact schemas, historical fixtures, complete geometry, and no-dispatch/recovery checks. Focused follow-ups passed 5, 22 and 28 cases; all ten originally failing cases passed in the replacement full run.
 
-## Frozen key and paid gates
+Main ran tests. Neo independently inspected code, captured requests, manifests, drawing pixels and records; the terminal recheck passed. Neo did not rerun tests. [Detailed results and failure map](../verification/fake03-probe-safety/vision-inclusive-full-20261112.json). Original failed/interrupted evidence is retained privately.
 
-The [v3 manifest](../verification/fake03-post-9a/manifest-v3-vision.json) pins answer-key SHA-256 `eb7fb10ab8237e2cd2656e2c3768252474aa1e666ca3689ed7c90d875a1106b4`. Writer outcomes are unchanged from v2. Source inspection and Neo’s independent visual read established that only 06_drawing.pdf page 1 is the expected visual page: B-labelled cross-section, schematic, no dimensions. A’s candidate bindings no longer include B’s drawing. Suitable-use rules are frozen before any paid result.
+## Bound and frozen drawing
 
-The owner has authorized one 5.5M Coordinator+vision probe, stopping at the page sheet, after verification and the vision check. This does not authorize Writer/Reviewer/export continuation.
+One DeepSeek-1017 call sends a PNG with maximum edge 1,024 and completion limit 8,192, including reasoning. Conservative reservation: **1,000,000 + 8,192 + 10 = 1,008,202 tokens**. Proposed one-check cap: **1,009,226**, including 1,024 margin. This is an upper allowance, not expected usage; no tighter Ali image-token bound is verified. [Provider limits](https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash) and [completion allowance](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions).
 
-The exact small-check cap remains pending: the configured Ali service has no verified small-image token formula. Its documented maximum input (1,000,000) plus bounded completion allowance (8,192 + documented possible 10-token overrun) gives **1,008,202 reserved tokens**. The proposed one-call cap is **1,009,226** including a 1,024-token margin; this is a conservative reservation, not an expected usage estimate. No 40K bound is claimed. Neither paid check has launched.
+The [frozen v3 manifest](../verification/fake03-post-9a/manifest-v3-vision.json) pins key SHA-256 eb7fb10ab8237e2cd2656e2c3768252474aa1e666ca3689ed7c90d875a1106b4; all 14 fixture hashes match. Only **06_drawing.pdf page 1** is expected to need vision: zero native-text characters, one image; B-labelled cross-section, schematic without dimensions, stepped profile. It supplies no A facts, dimensions, geology, support/drainage or scores. Writer expectations are unchanged.
 
-[Operator commands and limits](../verification/fake03-probe-safety/vision-inclusive-commands.md). Public code-review publication is authorized; private authority/configuration/financial evidence are excluded.
+## Next gate
+
+New staged owner authorization is pending. First: one direct image-tool check, no Coordinator model call. A complete, settled result, no new unknown hold and Neo review are required before the separate Coordinator-only GLM-5.3 plus vision probe, capped at shared 5.5M and stopping at the page sheet. Recheck campaign availability after the check; stop if the full 5.5M is unavailable. Preserve every existing hold. **No paid call or main move occurred.**
+
+Next development item before another model change: consolidate model identifiers/limits/bounds using existing profile infrastructure; preserve current GLM request bytes. Parallel reads and source-result redesign stay deferred. [Operator commands](../verification/fake03-probe-safety/vision-inclusive-commands.md).
