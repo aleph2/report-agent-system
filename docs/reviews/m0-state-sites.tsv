@@ -745,8 +745,6 @@ src/report_agent/task_context.py	267	exact_task_context	store	read	'context_proj
 src/report_agent/task_context.py	356	save_observation	sql	write	'tool_observation:' + ref	tool_observation:*
 src/report_agent/task_context.py	379	read_observation	store	read	'tool_observation:' + observation_ref	tool_observation:*
 src/report_agent/task_context.py	466	__init__	store	read	'context_projection_binding'	context_projection_binding
-src/report_agent/task_state_delivery.py	237	verified_frame	store	read	key	task_state_frame:*
-src/report_agent/task_state_delivery.py	293	persist_frame	helper	write	message.additional_kwargs[FRAME]['receipt']	task_state_frame:*
 src/report_agent/task_supervision.py	261	review_readiness	property	read	contents.store.manifest	manifest
 src/report_agent/task_supervision.py	505	source_extents_in_observation	store	read	'source_material:' + native	source_material:*
 src/report_agent/task_supervision.py	508	source_extents_in_observation	store	read	'tool_observation:' + stored['body_ref']	tool_observation:*
