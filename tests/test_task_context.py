@@ -80,7 +80,8 @@ async def test_native_context_keeps_every_recovery_range_and_latest_tool_result(
     driver = Driver(coordinator=[
         invoke('read_tool_observation', observation_ref=ref, offset=offset, characters=6000)
         for offset in (0, 6000, 12000)] + [finish])
-    await run_report(ws, driver)
+    result = await run_report(ws, driver)
+    assert result["last_error"] is None, result
     assert len(driver.calls) == 4
     assert read_observation(ws, 'coordinator', ref)['text'] == raw[:6000]
 

@@ -141,17 +141,18 @@ async def test_visible_field_coordinates_survive_native_compaction_serialization
         assert result['text']==original[path[0]][start:start+4000]
 
 
-async def test_actual_native_registered_tool_and_clear_keep_field_address(ws):
+async def test_actual_native_registered_tool_keeps_visible_field_address(ws):
     seed(ws);activate(ws);body='实际原文😀'*4000
     ref,_=saved(ws,{'padding':'x'*2000,'observation':body})
     def finish(messages):
         pages=[json.loads(m.content) for m in messages if isinstance(m,ToolMessage) and m.name=='read_tool_observation']
-        assert pages[0]['preview_cleared'] and pages[0]['field_path']==['observation']
+        assert pages[0]['text']==body[:6000] and pages[0]['field_path']==['observation']
         assert pages[-1]['text']==body[12000:18000] and pages[-1]['cursor_scope']=='json_string_value'
         return AIMessage('Synthetic interface verification only.')
     driver=Driver(coordinator=[invoke('read_tool_observation',observation_ref=ref,field_path=['observation'],offset=n,characters=6000)
         for n in (0,6000,12000)]+[finish])
-    await run_report(ws,driver)
+    result = await run_report(ws,driver)
+    assert result["last_error"] is None, result
     for binding in driver.bindings['coordinator']:
         schema=next(t for t in binding if t['name']=='read_tool_observation')['parameters']
         assert 'field_path' in schema['properties']

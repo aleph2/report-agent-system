@@ -21,13 +21,12 @@ async def test_compacted_preview_ranges_are_not_full_reading(ws):
     for i in range(3):
         ai,msg=pair(str(i),'A'*13000)
         history.extend([ai,middleware.bound_result(msg)])
-    cleared=await middleware.abefore_model({'messages':history},None)
-    history[1]=cleared['messages'][0]
+    assert await middleware.abefore_model({'messages':history},None) is None
     records=capture(ws,'coordinator',history)
     assert records[0]['recoverable_characters']==13000
-    assert records[0]['delivery']['preview_cleared'] is True
+    assert records[0]['delivery']['preview_cleared'] is False
     assert records[0]['delivery']['original_delivery']['end']==6000
-    assert 'compacted_message_range' not in records[0]['delivery']
+    assert records[0]['delivery']['compacted_message_range']['end']==6000
     assert records[1]['delivery']['compacted_message_range']['complete_tool_result'] is False
     assert 'provided_preview' in continuation_index(records)
     assert read_observation(ws,'coordinator',records[0]['observation_ref'],12000,1000)['text']=='A'*1000

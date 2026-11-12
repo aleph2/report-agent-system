@@ -386,7 +386,7 @@ async def test_resumed_pending_reviewer_first_effective_system_has_both_scope_ga
     assert not any(role == 'text_tool' for role, _, _ in driver.calls)
 
 
-async def test_metadata_survives_navigation_preview_clear_and_exact_recovery(ws):
+async def test_metadata_stays_visible_with_exact_navigation_recovery(ws):
     from types import SimpleNamespace
     from langchain_core.messages import ToolMessage
     from report_agent.task_context import TaskContext, read_observation
@@ -401,9 +401,10 @@ async def test_metadata_survives_navigation_preview_clear_and_exact_recovery(ws)
         followers = [context.bound_result(ToolMessage('navigation ' * 1000, name='project_status',
                       tool_call_id='later-' + str(i))) for i in range(2)]
         update = await context.abefore_model({'messages': [shown, *followers]}, None)
-        cleared = next(m for m in update['messages'] if m.tool_call_id == 'assignment')
-        packet = json.loads(cleared.content)
-        assert packet['preview_cleared'] and packet['decision_metadata'] == first['decision_metadata']
+        assert update is None
+        packet = json.loads(shown.content)
+        assert not shown.additional_kwargs.get('report_preview_cleared')
+        assert packet['decision_metadata'] == first['decision_metadata']
         chunks, offset = [], 0
         while True:
             page = read_observation(ws, 'reviewer', first['observation_ref'], offset, 6000)

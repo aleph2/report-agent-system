@@ -165,7 +165,8 @@ async def test_final_native_input_keeps_all_receipt_and_body_pages(ws):
         assert all('text' in json.loads(m.content) for m in bodies[1:])
         return AIMessage(content='Public identity recovery only; no report acceptance.')
     driver=Driver(coordinator=[*calls,inspect])
-    await run_report(ws,driver)
+    result = await run_report(ws,driver)
+    assert result["last_error"] is None, result
     assert len(driver.calls)==len(calls)+1 and all(role=='coordinator' for role,_,_ in driver.calls)
     schema=next(t for t in driver.bindings['coordinator'][0] if t['name']=='read_summary_observations')
     props=schema['parameters']['properties']

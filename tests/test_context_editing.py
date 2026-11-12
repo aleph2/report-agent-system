@@ -116,7 +116,8 @@ async def test_native_stack_clears_real_immutable_index_and_rereads_it(ws, monke
         assert len(tails) == 1
         return AIMessage("Frozen index re-read; not a content review.")
     models = Driver(coordinator=[*[invoke("read_content_index", snapshot_ref=snapshot) for _ in range(7)], finish])
-    await run_report(ws, models)
+    result = await run_report(ws, models)
+    assert result["last_error"] is None, result
     import sqlite3
     with sqlite3.connect(f"file:{ws.store.root / 'checkpoints.db'}?mode=ro", uri=True) as db:
         db.execute("PRAGMA query_only=ON")
