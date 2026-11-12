@@ -7,10 +7,17 @@ document it links. If a rule here conflicts with a task the owner gives, ask.
 
 ## 1. Authority and money
 
-- No installs, uploads, paid model runs, full regressions, report restarts or
-  replay of unknown requests without explicit owner authorization for that action.
-- Each paid launch needs explicit owner authorization naming its scope and spending cap;
-  one launch per authorization.
+- No installs, uploads, paid model runs, report restarts or replay of unknown
+  requests without explicit owner authorization for that action.
+- Standing permission: the offline full regression may run on any candidate
+  without asking, provided it makes no network or paid calls, writes only to
+  temporary directories and cleans them up. Report the result; a failed run stays
+  recorded as failed.
+- Each paid run needs the owner's authorization naming its scope, models and token
+  cap. One authorization may cover several stages in a fixed order (for example a
+  small check, then a probe) if it states each stage's cap and the conditions for
+  going on; any failed condition stops everything. Nothing is retried, continued or
+  extended without a new authorization.
 - Existing aggregate limits are 100,000,000 verification/test tokens and 200,000,000
   real-report tokens. These totals do not authorize launches or reset usage/holds.
 - Never release the historical 2M hold. Never reset usage, invent a grant, or
@@ -26,6 +33,8 @@ document it links. If a rule here conflicts with a task the owner gives, ask.
   code, traces and actual results. Main implements and supplies the evidence.
   Neo decides whether a reported issue is real and needs fixing; review findings
   are inputs, not automatic stop orders. Neo cannot expand owner permissions.
+- One reviewer per kind of change: Neo reviews code and verification; the owner's
+  advisor reviews design changes and plans. Small code fixes need only Neo.
 - Main is the only Git operator (index, commit, tag, push, branch moves).
 - One writing chat per source file at a time; read
   `.analysis/session-skills-coordination-20261025/ownership.md` before writing and
@@ -72,7 +81,7 @@ named requirement or reproduced bug and the code that reads the result.
    reads it. Keep it short; it is scope clarity, not a new approval stage.
 8. Verification records start with source lines added/removed, checks and guards
    added/removed, and legacy fallback paths; keep the record to one page and
-   link details.
+   link details. Documentation-only commits need no change-size header.
 
 ## 5. Design rules
 
