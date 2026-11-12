@@ -1,0 +1,11 @@
+{
+  "src/report_agent/deep_runtime.py": {
+    "only_shared_policy_import_and_wiring": true
+  },
+  "src/report_agent/fake_draft_flow.py": {
+    "only_shared_policy_import_and_wiring": true
+  },
+  "s2_budget_dispatch_routing_scoring_exports_unchanged": true,
+  "main_revision": "7da4f9483a08a3a975ce05f7b559a56d9f626511",
+  "git_diff_check_passed": true
+}

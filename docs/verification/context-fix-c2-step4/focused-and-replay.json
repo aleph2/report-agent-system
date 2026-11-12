@@ -1,0 +1,204 @@
+{
+  "candidate": "f6f7050d93a7e4257264db77a7992589063c4193",
+  "baseline_runtime": "b6bcbc7b1e146483b99b8f3e4497538ac14fbb54",
+  "statistical_utc": "2026-11-12T04:31:07.603320+00:00",
+  "source_lines": {
+    "added": 60,
+    "removed": 163,
+    "net": -103
+  },
+  "if_predicate_sites": {
+    "added": 5,
+    "removed": 22,
+    "definition": "AST If.test signatures by touched production file; not a count of every boolean subexpression"
+  },
+  "explicit_raise_site_delta": 0,
+  "new_legacy_fallbacks": 0,
+  "focused": {
+    "passed": 341,
+    "failed": 0,
+    "skipped": 0,
+    "modules": 23,
+    "collected_once": true,
+    "pytest_seconds": 206.29,
+    "execution": {
+      "exit": 0,
+      "seconds": 211.14,
+      "frozen_commit": "6d4f8132e171b42b0a1504fec6eb55e84f837db3",
+      "source_files_checked": 1311,
+      "source_files_changed": [],
+      "source_copy_removed": true,
+      "retained_test_database_files": 0
+    },
+    "fixtures": {
+      "verified_files": 57,
+      "private_imports": 51,
+      "all_match_prior_verified_bytes": true
+    },
+    "active_run_processes": []
+  },
+  "original_failed_focused": {
+    "candidate": "c4bfee82f080da10566a32415426a5d36803b4c4",
+    "passed": 288,
+    "failed": 1,
+    "cause": "Run06 scripted fixture parsed the new final host tail as a tool diagnostic",
+    "correction": "Select latest ToolMessage; row/refusal/control expectations unchanged",
+    "preserved_as_failed": true
+  },
+  "flow": {
+    "scripted_calls": 151,
+    "before_proxy_input": 4361707,
+    "after_proxy_input": 4255497,
+    "proxy_reduction_percent": 2.435,
+    "roles": {
+      "coordinator": {
+        "scripted_calls": 61,
+        "before_proxy_input": 3357621,
+        "after_proxy_input": 3357595,
+        "before_max_proxy_input": 66851,
+        "after_max_proxy_input": 66851,
+        "cleared_appearances": 0,
+        "cleared_call_ids_by_session": 0
+      },
+      "indicator_writer": {
+        "scripted_calls": 26,
+        "before_proxy_input": 138964,
+        "after_proxy_input": 143670,
+        "before_max_proxy_input": 5791,
+        "after_max_proxy_input": 5972,
+        "cleared_appearances": 0,
+        "cleared_call_ids_by_session": 0
+      },
+      "prose_writer": {
+        "scripted_calls": 13,
+        "before_proxy_input": 316972,
+        "after_proxy_input": 316972,
+        "before_max_proxy_input": 37228,
+        "after_max_proxy_input": 37228,
+        "cleared_appearances": 0,
+        "cleared_call_ids_by_session": 0
+      },
+      "qualitative_reviewer": {
+        "scripted_calls": 48,
+        "before_proxy_input": 533952,
+        "after_proxy_input": 423062,
+        "before_max_proxy_input": 21210,
+        "after_max_proxy_input": 15399,
+        "cleared_appearances": 80,
+        "cleared_call_ids_by_session": 8
+      },
+      "text_tool": {
+        "scripted_calls": 3,
+        "before_proxy_input": 14198,
+        "after_proxy_input": 14198,
+        "before_max_proxy_input": 4948,
+        "after_max_proxy_input": 4948,
+        "cleared_appearances": 0,
+        "cleared_call_ids_by_session": 0
+      }
+    },
+    "prefix_groups_checked": 27,
+    "prefix_bytes_stable_with_unchanged_session_and_tool_definitions": true,
+    "execution": {
+      "exit": 0,
+      "seconds": 50.21,
+      "checked_files": 926,
+      "changed_files": [],
+      "commit": "3be0413b2888d662b0145b71f04dafbde666caf1"
+    },
+    "same_observer_sha256": "150521eb2f96abd9b3ce7da6a0bc1a1176cedc6507d5b44f6f7e6f27b6312cec",
+    "role_outcomes_and_word_excel_checks": "passed; not a live judgment-quality test"
+  },
+  "v7": {
+    "configured_trigger": [
+      "tokens",
+      170000
+    ],
+    "stored_proxy_tokens": 174842,
+    "outgoing_proxy_tokens_without_summary": 163140,
+    "summary_fired": true,
+    "trigger_changed": false
+  },
+  "superseded_reads": {
+    "matched_estimator": "same pinned C1 V1 observer",
+    "results": {
+      "coordinator": {
+        "distinct_logical_read_scopes": 5,
+        "calls_by_scope": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "superseded_result_proxy_tokens": 0,
+        "all_equivalent_prose_returns_identical": null
+      },
+      "prose_writer": {
+        "distinct_logical_read_scopes": 1,
+        "calls_by_scope": [
+          3
+        ],
+        "superseded_result_proxy_tokens": 91619,
+        "all_equivalent_prose_returns_identical": true
+      }
+    },
+    "decision": "No custom supersession edit: zero Coordinator opportunity in this scripted flow; 91619 prose proxy tokens (~2.1% whole flow), identical repeated plan bodies, excluded current aliases remain visible.",
+    "limits": "Same logical scope uses exact collection/page/item/offset/view arguments; different partial pages never treated as superseding. Counts are local proxy upper bounds, not provider usage."
+  },
+  "scope": {
+    "clearable": [
+      "read_qualitative_row",
+      "read_content_index outside native Reviewer"
+    ],
+    "source_readers": "excluded: mutable public current/provenance wrapper despite frozen text",
+    "catalog_filtering": "dropped by owner",
+    "custom_mutable_clearer": false,
+    "summary_trigger_change": false,
+    "indicator_clearing": false,
+    "budget_or_hold_change": false,
+    "dispatcher_routing_change": false,
+    "s2_change": false,
+    "main_move": false
+  },
+  "limits": [
+    "local approximate counts, not provider spending",
+    "Coordinator Fake03 has no eligible reads and therefore no C2 clearing or savings; separate real native immutable-index case proves clearing/re-read mechanics",
+    "indicator input rises due required static explanation plus call-local read allowance",
+    "provider cache effectiveness and real-model quality unmeasured",
+    "full repository regression on this candidate not yet authorized or run"
+  ],
+  "renamed_test_functions": 12,
+  "renamed_test_cases": 25,
+  "paid_report_model_calls": 0,
+  "private_evidence": ".private/context-fix-c2-step4-20261111/",
+  "protected": {
+    "src/report_agent/deep_runtime.py": {
+      "only_shared_policy_import_and_wiring": true
+    },
+    "src/report_agent/fake_draft_flow.py": {
+      "only_shared_policy_import_and_wiring": true
+    },
+    "s2_budget_dispatch_routing_scoring_exports_unchanged": true,
+    "main_revision": "7da4f9483a08a3a975ce05f7b559a56d9f626511",
+    "git_diff_check_passed": true
+  },
+  "independent_review": "Neo reviewed runtime policy/wiring/C3/fixture changes and final accounting/scope; independently verified AST equality after line-ending cleanup and25case/12function mapping. Main ran tests and checked node coverage/process absence.",
+  "post_test_cleanup": {
+    "file": "tests/test_review_readiness.py",
+    "change": "Restore unchanged original line endings after test edit",
+    "ast_identical_to_frozen_6d4f813": true,
+    "runtime_source_change": false,
+    "commit": "f6f7050d93a7e4257264db77a7992589063c4193"
+  },
+  "earlier_green_focused": {
+    "candidate": "3be0413",
+    "passed": 289,
+    "limit": "Pre-tag search later exposed two stale assertions outside this batch plus one native callback false-pass; final341-case result strengthens terminal-success checks"
+  },
+  "pretag_diagnosis": {
+    "reproduced_failures": 3,
+    "scope": "Two retired persistent-clear expectations and one swallowed callback KeyError; six focused checks pass after fixes",
+    "runtime_change": false
+  }
+}

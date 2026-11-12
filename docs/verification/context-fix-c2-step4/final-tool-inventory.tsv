@@ -1,0 +1,88 @@
+tool	paths	clearing_decision	basis
+add_object	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+add_question	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+add_reconciliation	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+add_section	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+add_substitution	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+analyze_evidence	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Repeating the original call may invoke a model again; a new native call ID is not an exact paid-call replay
+analyze_source_image	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Repeating the original call may invoke a model again; a new native call ID is not an exact paid-call replay
+analyze_text	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Repeating the original call may invoke a model again; a new native call ID is not an exact paid-call replay
+ask	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+ask_human	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+assert_source	indicator_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+assess_change_impact	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+calculate	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Read result/receipt shape varies by role; several allocate fresh observation IDs. No generic whole-result clear in initial policy
+calculate_assessment	native_writer;prose_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+capture_review_sources	native_reviewer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+confirm_review_reuse	native_reviewer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+content_status	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+correct_own_review	native_reviewer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+edit_file	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+export_content_snapshot	native_layout	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+get_operation_receipt	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+glob	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Filesystem path can change; read and write tools share that backend
+grep	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Filesystem path can change; read and write tools share that backend
+import_source_versions	coordinator;native_coordinator;native_writer;prose_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+inspect_rendered_page	native_layout;native_reviewer;native_writer;prose_writer	excluded	Repeating the original call may invoke a model again; a new native call ID is not an exact paid-call replay
+inspect_source_page	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Frozen text has mutable public metadata/provenance wrapper; confirmed source-wrapper regression
+link_convention	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+list_supervision_plugins	coordinator;native_coordinator	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+ls	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Filesystem path can change; read and write tools share that backend
+observe_evidence	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Read result/receipt shape varies by role; several allocate fresh observation IDs. No generic whole-result clear in initial policy
+process_report_content	coordinator;native_coordinator;native_writer;prose_writer	excluded	Repeating the original call may invoke a model again; a new native call ID is not an exact paid-call replay
+project_status	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+propose_material_issue	indicator_writer;native_writer;prose_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+propose_page_binding	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+publish_planning_draft	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+read_assigned_page	indicator_writer	excluded	Indicator session: keep every page; read tool disappears after three attempts
+read_commission_plan	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_content_export	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Read result/receipt shape varies by role; several allocate fresh observation IDs. No generic whole-result clear in initial policy
+read_content_index	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	clearable outside native Reviewer	Version-pinned immutable index; native Reviewer receipt variant stays excluded
+read_content_selection	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Read result/receipt shape varies by role; several allocate fresh observation IDs. No generic whole-result clear in initial policy
+read_context	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Read result/receipt shape varies by role; several allocate fresh observation IDs. No generic whole-result clear in initial policy
+read_decision_state	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_delivery_review_context	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_execution_trace	coordinator	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_feedback	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_file	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Filesystem path can change; read and write tools share that backend
+read_layout_capabilities	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_object_index	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_planning_draft	coordinator;native_coordinator	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_prepared_method	native_coordinator:nonincremental_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+read_prepared_tables	native_coordinator:nonincremental_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+read_qualitative_row	qualitative_reviewer	clearable	Frozen assigned row; success/text/no fresh receipt, exact reader still offered
+read_result	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_review_obligation_coverage	coordinator;native_coordinator	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_review_status	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_source_page	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Frozen text has mutable public metadata/provenance wrapper; confirmed source-wrapper regression
+read_summary_observations	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_task_assignment	native_reviewer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_task_supervision	coordinator;native_coordinator	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+read_tool_observation	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Mixed identity/prose recovery ranges; retain all when deleting the two old clearers
+record_conflict	coordinator;indicator_writer;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+record_execution_decision	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+record_handoff	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+record_qualitative_finding	qualitative_reviewer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+render_content_export	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+request_layout_capability	coordinator;native_coordinator;native_layout	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+request_requirement_resolution	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+request_system_delivery	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+resolve_skeleton_choice	native_coordinator:skeleton_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+review_carried_items	native_coordinator:skeleton_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+save_assumption	indicator_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+save_commission_plan	native_coordinator:nonincremental_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+save_evidence	indicator_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+save_gap	indicator_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+save_section_prose	native_writer;prose_writer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+search_sources	coordinator;native_coordinator;native_layout;native_reviewer;native_writer;prose_writer	excluded	Returns current status, mutable head/draft/search or outcome; same arguments do not pin the old result
+select_content_delivery	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+set_candidate_disposition	native_coordinator:skeleton_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+set_planning_details	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+set_requirement_status	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+set_scope_boundary	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+set_section_judgment	native_coordinator:skeleton_variant	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+submit_plan	coordinator;native_coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+submit_review	native_reviewer	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+task	coordinator	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+write_file	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
+write_todos	coordinator; native Writer/Reviewer/Layout present but unmeasured	excluded	Write, decision, delegation, render or checkpoint result; repeat is not an immutable read
