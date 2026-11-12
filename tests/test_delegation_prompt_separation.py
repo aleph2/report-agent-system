@@ -77,6 +77,17 @@ def reviewed_schema_tools():
     node['properties']['qualifiers']['description'] = (
         'Report-visible technical qualifications. Material gaps and conflicts belong in body.material_issues '
         'for anchored Word comments and the Excel list. Execution notes belong in working_notes.')
+    image = next(t['function'] for t in tools if t['function']['name'] == 'analyze_source_image')
+    image['description'] = (
+        'Inspect a specific page/crop when native text and tables leave a relevant question unresolved.\n\n'
+        '        Coordinator: discover subjects, page relevance, conflicts and material types;\n'
+        '        do not adopt engineering measurements, values or scores from the observation.\n'
+        '        Returns located, unverified observations, limitations and provider usage.\n'
+        "        An uncached call uses the configured paid vision backend and the calling role's\n"
+        '        shared run budget. Prefer adequate existing text/tables; exact saved results\n'
+        '        may be reused. The host bounds image resolution and total reasoning+answer\n'
+        '        output. page is a 1-based physical PDF page (1 for images); crop is normalized\n'
+        '        [left,top,right,bottom]. Does not confirm facts or modify sources or OCR.')
     return tools
 
 
