@@ -447,3 +447,16 @@ C2 pre-tag completion: retired-marker search reproduced two more stale visibilit
 
 
 2026-11-11 owner revision/publication: vision change list now requires on-read image/vector bounding-box union coverage and explicit full-page-image/no-native-text structuralflag; no ingestion/store/OCR-quality-estimator additions. Hostvisionoutput8192 includesreasoning; visioncheck approvalmustquote boundedinput+image+outputreservation+margin(about40Kestimateonly), notdefault32768output. Staticfinalcatalogcheck and combined5.5Mprobe unchanged; all paidstagesseparatelygated. Documentation-only publication onexistingreviewbranch; main2289ce1 and uncommittedcode/test edits retained. Plan:docs/reviews/fake03-vision-probe-change-list-20261111.md.
+
+## Context Fix Phase2, 2026-11-12
+
+- [x] Steps1–3 offline measurements and answer-key review; private reports emailed.
+- [x] Budget configuration/campaign amendment reviewed; existing usage and holds preserved.
+- [x] Add AGENTS4.9 in a separate documentation commit.
+- [x] Item1 atomic planning list backend, native schemas and current callers;175focusedpasses plus10diagnostic rechecks;Neo reviewed.
+- [ ] Item2 atomic binding lists/multiple indicators with whole-request replay identity.
+- [ ] Item3 whole small planning collection with existing version/observation limits.
+- [ ] Item4 Coordinator current accepted IDs.
+- [ ] Item5 record-local soft numeric-literal warnings and owner checkpoint display.
+- [ ] Offline full regression and actual-candidate replay comparison.
+- [ ] Reviewed candidate tag and draft authorization preflight; satisfy standing-paid activation gates.

@@ -1081,13 +1081,13 @@ def native_rejections(*, sibling=False):
         'name': 'add_section', 'id': identity, 'args': '{', 'error': 'Incomplete JSON'}])
     scripts = [malformed('bad-json-1'),
         AIMessage(content='', tool_calls=[call('add_section', {}, 'missing-schema-2')]),
-        AIMessage(content='', tool_calls=[call('set_requirement_status', {'anchor_id': 'not-in-source',
-            'status': 'required', 'interpretation': 'This identity is deliberately invalid.'}, 'domain-3')]),
+        AIMessage(content='', tool_calls=[call('set_requirement_status', {'items': [{'anchor_id': 'not-in-source',
+            'status': 'required', 'interpretation': 'This identity is deliberately invalid.'}]}, 'domain-3')]),
         malformed('bad-json-4')]
     final = malformed('bad-json-5')
     if sibling:
-        final.tool_calls.append(call('add_question', {'question': {'question_id': 'sibling',
-            'text': 'A valid sibling must not reset an already reached cap.', 'resolved': False}}, 'valid-sibling'))
+        final.tool_calls.append(call('add_question', {'items': [{'question_id': 'sibling',
+            'text': 'A valid sibling must not reset an already reached cap.', 'resolved': False}]}, 'valid-sibling'))
     return [*scripts, final]
 
 
@@ -1164,7 +1164,7 @@ async def test_native_real_edit_resets_but_read_and_same_value_edit_do_not(draft
     current_native_profiles(fixture)
     question = {'question_id': 'known', 'text': 'A genuinely saved planning edit.', 'resolved': False}
     error = lambda identity: AIMessage(content='', tool_calls=[call('add_section', {}, identity)])
-    write = lambda identity: AIMessage(content='', tool_calls=[call('add_question', {'question': question}, identity)])
+    write = lambda identity: AIMessage(content='', tool_calls=[call('add_question', {'items': [question]}, identity)])
     scripts = [error('before-1'), error('before-2'), write('actual-edit'),
         error('after-1'), error('after-2'), write('same-value'),
         AIMessage(content='', tool_calls=[call('read_planning_draft', {}, 'read-only')]),
@@ -1222,8 +1222,10 @@ async def test_current_native_planning_wire_has_small_inputs_and_no_operator_aut
     assert expected <= schemas.keys()
     assert not ({'save_commission_plan', 'propose_commission_requirements', 'reply_requirements',
         'resume_planning', 'install_classifications', 'install_reviewed_entries', 'install_text_profile'} & schemas.keys())
-    assert 'capabilities' not in schemas['set_requirement_status']['parameters']['properties']
-    section = schemas['add_section']['parameters']['properties']
+    assert 'capabilities' not in schemas['set_requirement_status']['parameters']['properties']['items']['items']['properties']
+    for name in ('set_requirement_status', 'add_section', 'add_object', 'add_reconciliation', 'add_question'):
+        assert set(schemas[name]['parameters']['properties']) == {'items'}
+    section = schemas['add_section']['parameters']['properties']['items']['items']['properties']
     assert {'section_id', 'outline_anchor_id', 'source_span'} <= section.keys()
     assert not {'text', 'extraction', 'method_pack', 'table_specs'} & section.keys()
     assert 'operation_id' not in section  # Current native runtime owns operation identity.
@@ -1268,9 +1270,9 @@ async def test_fifth_rejection_blocks_paid_sibling_until_typed_owner_resume(draf
     if fifth_kind == 'schema':
         scripts[-1] = AIMessage(content='', tool_calls=[call('add_section', {}, 'fifth-reject')])
     elif fifth_kind == 'domain':
-        scripts[-1] = AIMessage(content='', tool_calls=[call('set_requirement_status', {
+        scripts[-1] = AIMessage(content='', tool_calls=[call('set_requirement_status', {'items': [{
             'anchor_id': 'missing-final-anchor', 'status': 'required',
-            'interpretation': 'This is a source-bound domain rejection.'}, 'fifth-reject')])
+            'interpretation': 'This is a source-bound domain rejection.'}]}, 'fifth-reject')])
     else:
         scripts[-1].invalid_tool_calls[0]['id'] = 'fifth-reject'
     source_id = fixture.cs.read(fixture.scope_ref)['payload']['source_id']
@@ -1298,3 +1300,50 @@ async def test_fifth_rejection_blocks_paid_sibling_until_typed_owner_resume(draf
     assert resumed['last_error'] is None, resumed
     assert starts == ['helper-started'] and len(resumed_driver.calls) == 1
     assert not reopened.store.get(guard().KEY)['waiting']
+
+
+def test_planning_item_batch_is_atomic_and_pins_the_whole_request(draft_case):
+    fixture = draft_case
+    items = [dict(question_id='batch-a', text='Check first source.', resolved=False),
+             dict(question_id='batch-b', text='Check second source.', resolved=False)]
+    result = planning().save_items(fixture.cs, fixture.co, 'question-batch', 'question', items)
+    saved = planning().read_draft(fixture.cs, fixture.co)
+    assert saved['plan']['open_questions'] == [item['text'] for item in items]
+    assert planning().save_items(fixture.cs, fixture.co, 'question-batch', 'question', deepcopy(items)) == result
+    with pytest.raises(ActionRejected, match='OPERATION_CONFLICT'):
+        planning().save_items(fixture.cs, fixture.co, 'question-batch', 'question',
+            items + [dict(question_id='batch-c', text='An appended item.', resolved=False)])
+    assert planning().read_draft(fixture.cs, fixture.co) == saved
+
+
+def test_planning_item_batch_reports_each_bad_index_and_rolls_back_prefix(draft_case):
+    fixture = draft_case
+    before = planning().read_draft(fixture.cs, fixture.co)
+    items = [dict(question_id='batch-a', text='A valid prefix.', resolved=False),
+             dict(question_id='batch-b', text='', resolved=False),
+             dict(question_id='batch-c', text='Wrong resolved type.', resolved='yes'),
+             dict(question_id='batch-a', text='Duplicate ID.', resolved=False)]
+    with pytest.raises(ActionRejected) as exc:
+        planning().save_items(fixture.cs, fixture.co, 'bad-question-batch', 'question', items)
+    assert {error['index'] for error in exc.value.diagnostic['items']} == {1, 2, 3}
+    assert planning().read_draft(fixture.cs, fixture.co) == before
+
+
+def test_requirement_status_batch_preserves_unmentioned_items_and_rejects_prefix(draft_case):
+    fixture = draft_case
+    before, by_id = current_items(fixture)
+    chosen = list(by_id)[:2]
+    items = [dict(anchor_id=identity, status=by_id[identity]['status'], interpretation='Current source interpretation.')
+             for identity in chosen]
+    result = planning().set_requirement_statuses(fixture.cs, fixture.co, 'status-batch', items)
+    after, updated = current_items(fixture)
+    assert after['ref'] == result['result']['requirements_ref']
+    assert all(updated[key] == by_id[key] for key in by_id if key not in chosen)
+    assert all(updated[key]['interpretation'] == 'Current source interpretation.' for key in chosen)
+    assert planning().set_requirement_statuses(fixture.cs, fixture.co, 'status-batch', deepcopy(items)) == result
+    bad = [dict(items[0], interpretation='This must roll back.'),
+           dict(items[1], anchor_id='missing-one'), dict(items[1], anchor_id='missing-two')]
+    with pytest.raises(ActionRejected) as exc:
+        planning().set_requirement_statuses(fixture.cs, fixture.co, 'bad-status-batch', bad)
+    assert {error['index'] for error in exc.value.diagnostic['items']} == {1, 2}
+    assert requirements().read_requirements(fixture.cs) == after

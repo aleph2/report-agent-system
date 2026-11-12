@@ -276,7 +276,7 @@ def test_exposed_section_schema_explains_anchor_and_exclusive_source_modes(linke
     current_native_profiles(linked)
     tools = native_write_tools(linked.ws, 'coordinator', planning.planning_tools(linked.cs, lambda: linked.co))
     tool = next(tool for tool in tools if getattr(tool, 'name', None) == 'add_section')
-    properties = convert_to_openai_tool(tool)['function']['parameters']['properties']
+    properties = convert_to_openai_tool(tool)['function']['parameters']['properties']['items']['items']['properties']
     assert 'ID' in properties['outline_anchor_id']['description']
     assert 'locator' in properties['outline_anchor_id']['description']
     assert 'sources' in properties['source_span']['description']
@@ -288,14 +288,14 @@ def test_both_section_source_modes_explain_exact_exclusive_choice(linked):
     fn = next(f for f in planning.planning_tools(linked.cs, lambda: linked.co) if f.__name__ == 'add_section')
     anchor = next(a for a in linked.anchors if a['kind'] == 'section' and a['section_id'] == '4')
     with pytest.raises(ActionRejected) as caught:
-        fn(operation_id='h32-both-source-modes', section_id='4', title='Assessment', kind='extracted',
+        fn(operation_id='h32-both-source-modes', items=[dict(section_id='4', title='Assessment', kind='extracted',
            outline_anchor_id=anchor['id'], sources=[linked.cite('design')],
            source_span={'source_ref': linked.cite('design')['source_ref'], 'start_page': 1, 'end_page': 1,
-                        'start_sentence': 'start', 'end_sentence': 'end', 'profile_id': 'profile'})
+                        'start_sentence': 'start', 'end_sentence': 'end', 'profile_id': 'profile'})])
     issue = caught.value.diagnostic['fields'][0]
-    assert issue['field'] == 'sources'
+    assert issue['field'] == 'items.0.sources'
     assert issue['choices'] == ['source_span', 'sources']
-    assert issue['related_fields'] == ['source_span']
+    assert issue['related_fields'] == ['items.0.source_span']
     assert 'omit source_span' in issue['message']
 
 
@@ -314,10 +314,10 @@ def test_typed_outline_locator_is_rejected_with_actual_anchor_ids(linked):
     fn = next(f for f in planning.planning_tools(linked.cs, lambda: linked.co) if f.__name__ == 'add_section')
     anchor = next(a for a in linked.anchors if a['kind'] == 'section' and a['section_id'] == '4')
     with pytest.raises(ActionRejected) as caught:
-        fn(operation_id='h32-locator-as-anchor', section_id='4', title='Assessment', kind='extracted',
-           outline_anchor_id=anchor['source']['locator'], sources=[linked.cite('design')])
+        fn(operation_id='h32-locator-as-anchor', items=[dict(section_id='4', title='Assessment', kind='extracted',
+           outline_anchor_id=anchor['source']['locator'], sources=[linked.cite('design')])])
     issue = caught.value.diagnostic['fields'][0]
-    assert issue['field'] == 'outline_anchor_id'
+    assert issue['field'] == 'items.0.outline_anchor_id'
     assert issue['choices'] == [anchor['id']]
     assert 'locator' in issue['message'] and 'ID' in issue['message']
 

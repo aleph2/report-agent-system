@@ -31,7 +31,7 @@ def tools(f):
 def inputs(f):
     scope = next(a for a in f.anchors if a['kind'] == 'scope')
     outline = next(a for a in f.anchors if a['kind'] == 'section')
-    return {
+    values = {
         'read_planning_draft': {},
         'set_requirement_status': {'anchor_id': scope['id'], 'status': 'required', 'interpretation': 'Use the declared scope.'},
         'link_convention': {'anchor_id': f.weight_anchor['id'], 'entry_id': f.entries[1]['id'], 'interpretation': 'Use the reviewed weights.'},
@@ -47,6 +47,11 @@ def inputs(f):
             'sources': [deepcopy(scope['source']), deepcopy(f.weight_anchor['source'])], 'result': 'Retain distinct purposes.', 'differences': []}},
         'add_question': {'question': {'question_id': 'question', 'text': 'Confirm scope at checkpoint.', 'resolved': False}},
     }
+    for name in ('set_requirement_status', 'add_section'):
+        values[name] = {'items': [values[name]]}
+    for name, key in [('add_object', 'object'), ('add_reconciliation', 'reconciliation'), ('add_question', 'question')]:
+        values[name] = {'items': [values[name][key]]}
+    return values
 
 
 def invoke(tool, arguments, identity):
@@ -135,16 +140,16 @@ def test_schema_valid_domain_fault_names_the_actual_field(draft_case, name):
     arguments = inputs(draft_case)[name]
     expected = ''
     if name == 'set_requirement_status':
-        arguments['anchor_id'] = 'absent-anchor'; expected = 'anchor_id'
+        arguments['items'][0]['anchor_id'] = 'absent-anchor'; expected = 'anchor_id'
     elif name == 'link_convention':
         arguments['entry_id'] = 'absent-entry'; expected = 'entry_id'
     elif name == 'set_scope_boundary':
         arguments['boundary']['customer_basis_anchor_id'] = 'absent-anchor'; expected = 'customer_basis_anchor_id'
     elif name == 'add_section':
-        arguments['outline_anchor_id'] = 'absent-anchor'; expected = 'outline_anchor_id'
+        arguments['items'][0]['outline_anchor_id'] = 'absent-anchor'; expected = 'outline_anchor_id'
     else:
-        target = arguments['object']['sources'][0] if name == 'add_object' else (
-            arguments['substitution']['customer_basis'] if name == 'add_substitution' else arguments['reconciliation']['sources'][0])
+        target = arguments['items'][0]['sources'][0] if name == 'add_object' else (
+            arguments['substitution']['customer_basis'] if name == 'add_substitution' else arguments['items'][0]['sources'][0])
         target['quote'] = 'This exact quotation does not exist in the registered source.'
         expected = 'quote'
     Draft202012Validator(convert_to_openai_tool(tool)['function']['parameters']).validate(arguments)
@@ -152,7 +157,13 @@ def test_schema_valid_domain_fault_names_the_actual_field(draft_case, name):
         invoke(tool, arguments, 'parity-domain-' + name)
     assert_fields(caught.value)
     fields = caught.value.diagnostic['fields']
-    assert any(expected in str(item['field']) for item in fields), fields
+    batch_paths = {'set_requirement_status': 'items.0.anchor_id',
+        'add_section': 'items.0.outline_anchor_id', 'add_object': 'items.0.sources[0].quote',
+        'add_reconciliation': 'items.0.sources[0].quote'}
+    if name in batch_paths:
+        assert any(item['field'] == batch_paths[name] for item in fields), fields
+    else:
+        assert any(expected in str(item['field']) for item in fields), fields
 
 @pytest.mark.parametrize('name', ['submit_plan', 'request_requirement_resolution'])
 def test_runtime_planning_actions_preserve_structured_gaps_or_fields(draft_case, name):

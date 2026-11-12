@@ -67,21 +67,26 @@ def coordinator_script(ws):
             return response
         scripts.append(read_page)
     scripts.append(invoke("read_planning_draft",collection="settings"))
-    for anchor in raw["anchors"]:
-        classification=raw["classifications"][anchor["id"]]
-        if classification["entry_ids"]:
-            scripts.append(invoke("link_convention",anchor_id=anchor["id"],entry_id=classification["entry_ids"][0],interpretation=anchor["source"]["quote"]))
-        else:scripts.append(invoke("set_requirement_status",anchor_id=anchor["id"],status="required",interpretation=anchor["source"]["quote"]))
+    statuses = [dict(anchor_id=a['id'], status='required', interpretation=a['source']['quote'])
+                for a in raw['anchors'] if not raw['classifications'][a['id']]['entry_ids']]
+    if statuses:
+        scripts.append(invoke('set_requirement_status', items=statuses))
+    for anchor in raw['anchors']:
+        classification = raw['classifications'][anchor['id']]
+        if classification['entry_ids']:
+            scripts.append(invoke('link_convention', anchor_id=anchor['id'],
+                entry_id=classification['entry_ids'][0], interpretation=anchor['source']['quote']))
     scripts.append(invoke("set_planning_details",details={k:proposal[k] for k in ["report_title","inventory_attributes","deliverables"]}))
     boundary=proposal["scope_boundary"]
     scripts.append(invoke("set_scope_boundary",boundary=dict(start_meter=boundary["start_meter"],end_meter=boundary["end_meter"],source=boundary["source"],
         customer_basis_anchor_id=next(a["id"] for a in raw["anchors"] if a.get("scope_section")=="4"))))
-    for section in proposal["sections"]:
-        scripts.append(invoke("add_section",section_id=section["section_id"],title=section["title"],kind=section["kind"],sources=section["sources"],
-            outline_anchor_id=next(a["id"] for a in raw["anchors"] if a["kind"]=="section" and a["section_id"]==section["section_id"])))
-    for obj in proposal["objects"]:scripts.append(invoke("add_object",object=obj))
-    for i,row in enumerate(proposal["reconciliations"]):
-        scripts.append(invoke("add_reconciliation",reconciliation={**row,"reconciliation_id":str(i)}))
+    scripts.append(invoke('add_section', items=[dict(section_id=section['section_id'],
+        title=section['title'], kind=section['kind'], sources=section['sources'],
+        outline_anchor_id=next(a['id'] for a in raw['anchors'] if a['kind']=='section' and a['section_id']==section['section_id']))
+        for section in proposal['sections']]))
+    scripts.append(invoke('add_object', items=proposal['objects']))
+    scripts.append(invoke('add_reconciliation', items=[{**row, 'reconciliation_id':str(i)}
+        for i,row in enumerate(proposal['reconciliations'])]))
     scripts.append(invoke("publish_planning_draft"))
     for oid in ("A","B"):
         for rule in proposal["method_pack"]["indicators"]:

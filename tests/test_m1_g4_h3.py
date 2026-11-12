@@ -302,13 +302,13 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
         paths = ' '.join(g['path'] for g in seen['initial_gap_list'])
         assert all(key in paths for key in ('requirements.', 'sections', 'objects'))
         assert not cs.list_objects('CommissionPlan') and plan_authority.decision_ref(ws.store) is None
-        return invoke('set_requirement_status', anchor_id=first_anchor['id'], status='required',
-            interpretation='Resolve the exact source requirement without changing its classification.')
+        return invoke('set_requirement_status', items=[dict(anchor_id=first_anchor['id'], status='required',
+            interpretation='Resolve the exact source requirement without changing its classification.')])
 
     steps.append(after_incomplete)
     for anchor in fixture.anchors[1:]:
-        steps.append(invoke('set_requirement_status', anchor_id=anchor['id'], status='required',
-            interpretation='Retain this independently extracted source requirement.'))
+        steps.append(invoke('set_requirement_status', items=[dict(anchor_id=anchor['id'], status='required',
+            interpretation='Retain this independently extracted source requirement.')]))
     for row in rows:
         if row['entry_ids']:
             steps.append(invoke('link_convention', anchor_id=row['anchor_id'], entry_id=row['entry_ids'][0],
@@ -335,15 +335,15 @@ async def test_incomplete_plan_is_corrected_through_native_steps_then_calculated
             'result_bindings', 'replacements', 'source_views', 'examples'}}
         values['outline_anchor_id'] = next(a['id'] for a in fixture.anchors
             if a['kind'] == 'section' and a['section_id'] == section['section_id'])
-        steps.append(invoke('add_section', **values))
-    steps.extend(invoke('add_object', object=obj) for obj in plan['objects'])
+        steps.append(invoke('add_section', items=[values]))
+    steps.extend(invoke('add_object', items=[obj]) for obj in plan['objects'])
     boundary = deepcopy(plan['scope_boundary'])
     basis = boundary.pop('customer_basis', boundary['source'])
     anchor = next(a for a in fixture.anchors if a['kind'] == 'scope' and a['source'] == basis)
     assert anchor['source'] == plan['scope_boundary'].get('customer_basis', plan['scope_boundary']['source'])
     boundary['customer_basis_anchor_id'] = anchor['id']
     steps.append(invoke('set_scope_boundary', boundary=boundary))
-    steps.extend(invoke('add_reconciliation', reconciliation={'reconciliation_id': 'source-pair-' + str(i), **row})
+    steps.extend(invoke('add_reconciliation', items=[{'reconciliation_id': 'source-pair-' + str(i), **row}])
         for i, row in enumerate(plan['reconciliations']))
     steps.append(invoke('set_planning_details', details={key: plan[key] for key in ('inventory_attributes', 'deliverables')}))
     steps.append(invoke('submit_plan'))

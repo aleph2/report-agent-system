@@ -369,9 +369,78 @@ def set_requirement_status(cs, actor, operation_id, anchor_id, status, interpret
     return _edit_requirement(cs, actor, operation_id, anchor_id, change)
 
 
+
+class RequirementStatusInput(Contract):
+    anchor_id: str
+    status: Literal['required', 'not_applicable', 'unresolved']
+    interpretation: str
+
+
+def set_requirement_statuses(cs, actor, operation_id, items):
+    from .commission_requirements import read_requirements, _write_items
+    if actor.role != 'coordinator' or actor.id != 'content:coordinator':
+        raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
+    if not isinstance(items, list) or not items:
+        raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
+    def save(db):
+        if plan_inputs.get_skeleton(db):
+            raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
+        previous = read_requirements(cs, db=db)
+        values = deepcopy(previous['payload']['items'])
+        errors, seen = [], set()
+        for index, raw in enumerate(items):
+            db.execute('SAVEPOINT planning_status')
+            try:
+                item = model_value(RequirementStatusInput, raw, 'status').model_dump()
+                identity = item.pop('anchor_id')
+                if identity in seen:
+                    raise ActionRejected('PLANNING_DUPLICATE_ITEM_ID')
+                seen.add(identity)
+                proposed = deepcopy(values)
+                target = next((v for v in proposed if v['anchor_id'] == identity), None)
+                if target is None:
+                    reject('anchor_id', 'COMMISSION_REQUIREMENT_ANCHOR_UNKNOWN', [v['anchor_id'] for v in values])
+                target.update(item)
+                if enabled(cs.store):
+                    target['capabilities'] = []
+                # Reuse the complete-list checks, then commit just one final revision.
+                _write_items(cs, db, actor, previous, proposed)
+                values = proposed
+            except (ActionRejected, ActionForbidden, ValidationError) as error:
+                errors.append(_batch_error(index, error, 'status'))
+            finally:
+                db.execute('ROLLBACK TO planning_status')
+                db.execute('RELEASE planning_status')
+        if errors:
+            _reject_batch(errors)
+        ref = _write_items(cs, db, actor, previous, values)
+        return {'requirements_ref': ref, 'changed': ref != previous['ref']}
+    result = cs.operation(actor, operation_id, {'requirement_statuses': deepcopy(items)}, save)
+    if result['result']['changed']:
+        publish_interpretation(cs, actor, operation_id, result['result']['requirements_ref'])
+    return result
+
+
 def link_convention(cs, actor, operation_id, anchor_id, entry_id, interpretation):
     return _edit_requirement(cs, actor, operation_id, anchor_id,
         {'status': 'required', 'interpretation': interpretation, 'reviewed_entry_id': entry_id}, relink=True)
+
+
+
+class PlanningSectionInput(Contract):
+    section_id: str
+    title: str
+    kind: Literal['fixed', 'extracted', 'derived']
+    outline_anchor_id: str = Field(min_length=1, description='Returned section requirement ID matching section_id, not its locator or heading.')
+    source_span: SourceSpan | None = Field(default=None, description='Reviewed fixed PDF template selector; mutually exclusive with sources.')
+    sources: list[PlanningCitation] = Field(default_factory=list, description='Source citations for extracted sections, derived evidence, or exact fixed Word-template paragraphs. Omit source_span; do not attach a template profile to a design source.')
+    pending_sources: list[str] = Field(default_factory=list)
+    derived_from: list[str] = Field(default_factory=list)
+    rule: str = ''
+    result_bindings: list[ResultBinding] = Field(default_factory=list)
+    replacements: list[LiteralReplacement] = Field(default_factory=list)
+    source_views: list[SourceView] = Field(default_factory=list)
+    examples: list[PlanningCitation] = Field(default_factory=list)
 
 
 class SectionJudgment(Contract):
@@ -630,88 +699,166 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
         'total_characters': len(text), 'next_page': next_page, 'complete_page': offset == 0 and end == len(text)}
     return result
 
-def save_item(cs, actor, operation_id, kind, item):
+def _save_item(cs, actor, db, kind, item):
     from .commission_plan import SectionPlan, ScopeBoundary, Reconciliation, SourceSubstitution, _validate_sources, fixed_section_text
     from .content_models import InventoryObject
+    value = deepcopy(item)
+    if kind == 'section' and 'outline_anchor_id' in value:
+        from .commission_requirements import read_requirements
+        available = read_requirements(cs, db=db)['payload']['anchors']
+        identity = value.pop('outline_anchor_id')
+        anchor = next((a for a in available if a['id'] == identity and
+                       a['kind'] == 'section' and a['section_id'] == value['section_id']), None)
+        if anchor is None:
+            reject('outline_anchor_id', 'SECTION_OUTLINE_ANCHOR_REQUIRED',
+                [a['id'] for a in available if a['kind'] == 'section' and a['section_id'] == value['section_id']],
+                message='Choose the returned section requirement ID matching section_id. A source locator or heading text is not an anchor ID.')
+        value['outline'] = anchor['source']
+        if value.get('source_span') is None:
+            value.pop('source_span', None)
+            if value['kind'] == 'fixed':
+                records = [cs._read(db, c['source_ref']) for c in value['sources']]
+                if not records or any(not r['payload']['source_metadata'].get('filename', '').lower().endswith('.docx') for r in records):
+                    raise ActionRejected('FIXED_SECTION_SOURCE_SPAN_REQUIRED')
+                value['text'] = '\n'.join(c['quote'] for c in value['sources'])
+        elif value['sources']:
+            reject('sources', 'SOURCE_SPAN_OR_CITATIONS_REQUIRED', ['source_span', 'sources'], related_fields=['source_span'],
+                message='Choose one source mode. For extracted sections, supply sources and omit source_span. For fixed sections, use the reviewed template source_span and omit sources; the system produces the canonical citations.')
+        else:
+            value.pop('sources')
+    if plan_inputs.get_skeleton(db) and kind in ('section', 'details'):
+        raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
+    if kind in ('section_judgment', 'disposition') and not plan_inputs.get_skeleton(db):
+        raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
+    if kind == 'section_judgment':
+        if set(value) - {'section_id', 'sources', 'examples', 'notes'}:
+            raise ActionRejected('SKELETON_JUDGMENT_FIELDS_ONLY')
+        original = next((s for s in plan_inputs.get_skeleton(db)['sections'] if s['section_id'] == value.get('section_id')), None)
+        if not original or original['kind'] == 'fixed' or original.get('extraction'):
+            raise ActionRejected('SKELETON_JUDGMENT_SECTION_INVALID')
+    if kind == 'disposition':
+        value = model_value(CandidateDisposition, value, 'disposition').model_dump(mode='json', exclude_none=True)
+        if value['status'] == 'owner_excluded':
+            raise ActionRejected('OWNER_EXCLUSION_IS_SYSTEM_OWNED')
+    if kind == 'section' and 'source_span' in value:
+        if any(key in value for key in ('text', 'extraction', 'sources')):
+            raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
+        selection = SourceSpan.model_validate(value.pop('source_span')).model_dump(mode='json')
+        resolved = resolve_source_span(cs, selection)
+        value.update(sources=resolved['sources'], extraction={'selection': selection, **resolved})
+        value['text'] = fixed_section_text(value)
+    elif kind == 'section' and value.get('extraction'):
+        raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
+    models = {'section': SectionPlan, 'object': InventoryObject, 'boundary': ScopeBoundary,
+              'reconciliation': PlanningReconciliation, 'details': PlanDetails, 'question': PlanningQuestion}
+    basis_binding = None
+    if kind == 'boundary' and 'customer_basis_anchor_id' in value:
+        from .commission_requirements import read_requirements
+        boundary = model_value(BoundaryInput, value, 'boundary').model_dump(mode='json')
+        record = read_requirements(cs, db=db)
+        anchors = {a['id']: a for a in record['payload']['anchors'] if a['kind'] == 'scope'}
+        identity = boundary.pop('customer_basis_anchor_id')
+        if identity not in anchors or (anchors[identity].get('parse_error') and identity not in record['payload'].get('parse_resolutions', {})):
+            reject('boundary.customer_basis_anchor_id', 'current_scope_anchor_required', anchors)
+        boundary['chainage_inputs'] = {key: boundary[key] for key in ('start_meter', 'end_meter')}
+        boundary['start_meter'], boundary['end_meter'] = metres(boundary['start_meter']), metres(boundary['end_meter'])
+        basis = anchors[identity]['source']
+        pins = [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
+        if len(pins) != 1 or cs._read(db, basis['source_ref'])['payload']['file_digest'] != pins[0]['file_digest']:
+            reject('boundary.customer_basis_anchor_id', 'requirement_source_pin_mismatch', anchors)
+        boundary['customer_basis'] = deepcopy(basis)
+        basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
+        value = boundary
+    from .commission_owner_records import decorate_plan, refuse
+    if commission_imports.owner_records(db):
+        if kind == 'section':
+            value = decorate_plan(cs, db, {'sections': [value], 'objects': []})['sections'][0]
+        if kind == 'substitution' and not value.get('substitution', {}).get('document_id'):
+            refuse(value.get('section_id'), 'source_substitutions', value.get('substitution', {}).get('requested_source', 'unknown'), 'document ID required')
+    resolutions = resolve_citations(cs, db, actor, value, kind, planning=True)
+    if kind in models:
+        value = model_value(models[kind], value, kind).model_dump(mode='json')
+    elif kind == 'substitution':
+        if set(value) != {'section_id', 'substitution'} or not isinstance(value['section_id'], str) or not value['section_id'].strip():
+            raise ActionRejected('SECTION_SUBSTITUTION_TARGET_REQUIRED')
+        value['substitution'] = model_value(SourceSubstitution, value['substitution'], 'substitution').model_dump(mode='json')
+    elif kind == 'section_judgment':
+        value = model_value(SectionJudgment, value, 'section_judgment').model_dump(mode='json', exclude_unset=True)
+    elif kind != 'disposition':
+        raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
+    _validate_sources(cs, db, actor, value, planning=True)
+    key = (value['section_id'] if kind in ('section', 'section_judgment') else value['object_id'] if kind in ('object', 'disposition') else
+           kind if kind in ('details', 'boundary') else
+           value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
+           value['question_id'] if kind == 'question' else value['reconciliation_id'])
+    draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
+    previous = draft['items'].setdefault(kind, {}).get(key)
+    changed = previous != value
+    if changed:
+        draft['items'][kind][key] = value
+        draft['revision'] += 1
+        plan_inputs.save_draft(db, draft, actor=actor)
+    return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions, 'customer_basis_binding': basis_binding}
+
+
+def save_item(cs, actor, operation_id, kind, item):
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
-    request = {'kind': kind, 'item': deepcopy(item)}
+    return cs.operation(actor, operation_id, {'kind': kind, 'item': deepcopy(item)},
+        lambda db: _save_item(cs, actor, db, kind, item))
+
+
+def _batch_error(index, error, item_kind):
+    diagnostic = deepcopy(getattr(error, 'diagnostic', None))
+    def relative(path):
+        return '' if path == item_kind else path.removeprefix(item_kind + '.')
+    for field in (diagnostic or {}).get('fields', []):
+        field['field'] = relative(field['field'])
+        if field.get('related_fields'):
+            field['related_fields'] = [relative(value) for value in field['related_fields']]
+    return {'index': index, 'code': str(error).split(':')[0],
+            'message': str(error), 'diagnostic': diagnostic}
+
+
+def _reject_batch(errors):
+    fields = []
+    for error in errors:
+        prefix = 'items.' + str(error['index'])
+        details = (error['diagnostic'] or {}).get('fields') or [{'field': '', 'reason': error['code'], 'message': error['message']}]
+        for field in details:
+            fields.append({**field, 'field': prefix + ('.' + field['field'] if field['field'] else ''),
+                **({'related_fields': [prefix + '.' + value for value in field['related_fields']]}
+                   if field.get('related_fields') else {})})
+    raise ActionRejected('PLANNING_BATCH_INVALID', diagnostic={'items': errors, 'fields': fields})
+
+
+def save_items(cs, actor, operation_id, kind, items):
+    if actor.role != 'coordinator':
+        raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
+    key_field = {'section': 'section_id', 'object': 'object_id',
+                 'question': 'question_id', 'reconciliation': 'reconciliation_id'}.get(kind)
+    if not key_field or not isinstance(items, list) or not items:
+        raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
     def save(db):
-        value = deepcopy(item)
-        if plan_inputs.get_skeleton(db) and kind in ('section', 'details'):
-            raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
-        if kind in ('section_judgment', 'disposition') and not plan_inputs.get_skeleton(db):
-            raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
-        if kind == 'section_judgment':
-            if set(value) - {'section_id', 'sources', 'examples', 'notes'}:
-                raise ActionRejected('SKELETON_JUDGMENT_FIELDS_ONLY')
-            original = next((s for s in plan_inputs.get_skeleton(db)['sections'] if s['section_id'] == value.get('section_id')), None)
-            if not original or original['kind'] == 'fixed' or original.get('extraction'):
-                raise ActionRejected('SKELETON_JUDGMENT_SECTION_INVALID')
-        if kind == 'disposition':
-            value = model_value(CandidateDisposition, value, 'disposition').model_dump(mode='json', exclude_none=True)
-            if value['status'] == 'owner_excluded':
-                raise ActionRejected('OWNER_EXCLUSION_IS_SYSTEM_OWNED')
-        if kind == 'section' and 'source_span' in value:
-            if any(key in value for key in ('text', 'extraction', 'sources')):
-                raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
-            selection = SourceSpan.model_validate(value.pop('source_span')).model_dump(mode='json')
-            resolved = resolve_source_span(cs, selection)
-            value.update(sources=resolved['sources'], extraction={'selection': selection, **resolved})
-            value['text'] = fixed_section_text(value)
-        elif kind == 'section' and value.get('extraction'):
-            raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
-        models = {'section': SectionPlan, 'object': InventoryObject, 'boundary': ScopeBoundary,
-                  'reconciliation': PlanningReconciliation, 'details': PlanDetails, 'question': PlanningQuestion}
-        basis_binding = None
-        if kind == 'boundary' and 'customer_basis_anchor_id' in value:
-            from .commission_requirements import read_requirements
-            boundary = model_value(BoundaryInput, value, 'boundary').model_dump(mode='json')
-            record = read_requirements(cs, db=db)
-            anchors = {a['id']: a for a in record['payload']['anchors'] if a['kind'] == 'scope'}
-            identity = boundary.pop('customer_basis_anchor_id')
-            if identity not in anchors or (anchors[identity].get('parse_error') and identity not in record['payload'].get('parse_resolutions', {})):
-                reject('boundary.customer_basis_anchor_id', 'current_scope_anchor_required', anchors)
-            boundary['chainage_inputs'] = {key: boundary[key] for key in ('start_meter', 'end_meter')}
-            boundary['start_meter'], boundary['end_meter'] = metres(boundary['start_meter']), metres(boundary['end_meter'])
-            basis = anchors[identity]['source']
-            pins = [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
-            if len(pins) != 1 or cs._read(db, basis['source_ref'])['payload']['file_digest'] != pins[0]['file_digest']:
-                reject('boundary.customer_basis_anchor_id', 'requirement_source_pin_mismatch', anchors)
-            boundary['customer_basis'] = deepcopy(basis)
-            basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
-            value = boundary
-        from .commission_owner_records import decorate_plan, refuse
-        if commission_imports.owner_records(db):
-            if kind == 'section':
-                value = decorate_plan(cs, db, {'sections': [value], 'objects': []})['sections'][0]
-            if kind == 'substitution' and not value.get('substitution', {}).get('document_id'):
-                refuse(value.get('section_id'), 'source_substitutions', value.get('substitution', {}).get('requested_source', 'unknown'), 'document ID required')
-        resolutions = resolve_citations(cs, db, actor, value, kind, planning=True)
-        if kind in models:
-            value = model_value(models[kind], value, kind).model_dump(mode='json')
-        elif kind == 'substitution':
-            if set(value) != {'section_id', 'substitution'} or not isinstance(value['section_id'], str) or not value['section_id'].strip():
-                raise ActionRejected('SECTION_SUBSTITUTION_TARGET_REQUIRED')
-            value['substitution'] = model_value(SourceSubstitution, value['substitution'], 'substitution').model_dump(mode='json')
-        elif kind == 'section_judgment':
-            value = model_value(SectionJudgment, value, 'section_judgment').model_dump(mode='json', exclude_unset=True)
-        elif kind != 'disposition':
-            raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
-        _validate_sources(cs, db, actor, value, planning=True)
-        key = (value['section_id'] if kind in ('section', 'section_judgment') else value['object_id'] if kind in ('object', 'disposition') else
-               kind if kind in ('details', 'boundary') else
-               value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
-               value['question_id'] if kind == 'question' else value['reconciliation_id'])
-        draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
-        previous = draft['items'].setdefault(kind, {}).get(key)
-        changed = previous != value
-        if changed:
-            draft['items'][kind][key] = value
-            draft['revision'] += 1
-            plan_inputs.save_draft(db, draft, actor=actor)
-        return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions, 'customer_basis_binding': basis_binding}
-    return cs.operation(actor, operation_id, request, save)
+        errors, saved, seen = [], [], set()
+        for index, item in enumerate(items):
+            db.execute('SAVEPOINT planning_item')
+            try:
+                identity = item.get(key_field)
+                if isinstance(identity, str) and identity in seen:
+                    raise ActionRejected('PLANNING_DUPLICATE_ITEM_ID')
+                if isinstance(identity, str):
+                    seen.add(identity)
+                saved.append(_save_item(cs, actor, db, kind, item))
+            except (ActionRejected, ActionForbidden, ValidationError) as error:
+                db.execute('ROLLBACK TO planning_item')
+                errors.append(_batch_error(index, error, kind))
+            finally:
+                db.execute('RELEASE planning_item')
+        if errors:
+            _reject_batch(errors)
+        return {'revision': saved[-1]['revision'], 'changed': any(r['changed'] for r in saved), 'items': saved}
+    return cs.operation(actor, operation_id, {'kind': kind, 'items': deepcopy(items)}, save)
 
 
 def submit_plan(cs, actor, operation_id):
@@ -940,9 +1087,9 @@ def planning_tools(cs, actor):
         """
         return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page)
 
-    def set_status(operation_id: str, anchor_id: str, status: Literal['required', 'not_applicable', 'unresolved'], interpretation: str) -> dict:
-        """Set one requirement's proposed status and interpretation. Capabilities come from reviewed source classification; not-applicable remains subject to owner confirmation."""
-        return set_requirement_status(cs, actor(), operation_id, anchor_id, status, interpretation)
+    def set_status(operation_id: str, items: Annotated[list[RequirementStatusInput], Field(min_length=1)]) -> dict:
+        """Set requirement statuses atomically. Every item passes the existing checks; any error refuses the whole list with indexed problems. Capabilities remain system-owned; reductions need owner confirmation."""
+        return set_requirement_statuses(cs, actor(), operation_id, [i.model_dump(mode='json') for i in items])
     set_status.__name__ = 'set_requirement_status'
 
     def link(operation_id: str, anchor_id: str, entry_id: str, interpretation: str) -> dict:
@@ -958,59 +1105,25 @@ def planning_tools(cs, actor):
         """Save the commissioned inventory attribute names and deliverables; this does not submit or approve a plan."""
         return save_item(cs, actor(), operation_id, 'details', details.model_dump(mode='json'))
 
-    def add_object(operation_id: str, object: PlanningInventoryObject) -> dict:
-        """Add or revise one discovered object by its stable ID, retaining sources, unknowns and exclusion reasons. Only the owner approves reductions."""
-        return save_item(cs, actor(), operation_id, 'object', object.model_dump(mode='json'))
+    def add_object(operation_id: str, items: Annotated[list[PlanningInventoryObject], Field(min_length=1)]) -> dict:
+        """Add or revise objects atomically by stable IDs, retaining sources, unknowns and exclusion reasons. All problems are indexed; no partial object list is saved. Only the owner approves reductions."""
+        return save_items(cs, actor(), operation_id, 'object', [i.model_dump(mode='json') for i in items])
 
-    def add_section(operation_id: str, section_id: str, title: str, kind: Literal['fixed', 'extracted', 'derived'],
-                    outline_anchor_id: Annotated[str, Field(min_length=1, description='The section requirement ID returned by read_planning_draft for this section_id; use its ID, never its locator or heading text.')],
-                    source_span: Annotated[SourceSpan | None, Field(description='Reviewed PDF page/endpoint selector for fixed template sections. For Word templates, use exact paragraph quotations in sources. Mutually exclusive with sources. Its profile_id must be offered for this exact source_ref.')] = None,
-                    sources: Annotated[list[PlanningCitation], Field(description='Source citations for extracted sections, derived evidence, or exact fixed Word-template paragraphs. Omit source_span; do not attach a template profile to a design source.')] = [],
-                    pending_sources: list[str] = [], derived_from: list[str] = [], rule: str = '',
-                    result_bindings: list[ResultBinding] = [], replacements: list[LiteralReplacement] = [],
-                    source_views: list[SourceView] = [], examples: list[PlanningCitation] = []) -> dict:
-        """Save one outline section. Fixed PDF text uses template page/end-sentence selectors; fixed Word text uses exact template quotations. The system copies either form. Derived summaries bind saved result fields and their producing section IDs. No model-written fixed body or proof is accepted."""
-        from .commission_requirements import read_requirements
-        available_anchors = read_requirements(cs)['payload']['anchors']
-        anchor = next((a for a in available_anchors if a['id'] == outline_anchor_id and
-                       a['kind'] == 'section' and a['section_id'] == section_id), None)
-        if not anchor:
-            reject('outline_anchor_id', 'SECTION_OUTLINE_ANCHOR_REQUIRED',
-                   [a['id'] for a in available_anchors if a['kind'] == 'section' and a['section_id'] == section_id],
-                   message='Choose the returned section requirement ID matching section_id. A source locator or heading text is not an anchor ID.')
-        if kind == 'fixed' and source_span is None:
-            records = [cs.read(c.source_ref.model_dump()) for c in sources]
-            if not records or any(not r['payload']['source_metadata'].get('filename','').lower().endswith('.docx') for r in records):
-                raise ActionRejected('FIXED_SECTION_SOURCE_SPAN_REQUIRED')
-        value = {'section_id': section_id, 'title': title, 'kind': kind, 'outline': anchor['source'],
-                 'pending_sources': pending_sources, 'derived_from': derived_from, 'rule': rule,
-                 'result_bindings': [b.model_dump(mode='json') for b in result_bindings],
-                 'replacements': [r.model_dump(mode='json') for r in replacements],
-                 'source_views': [v.model_dump(mode='json') for v in source_views],
-                 'examples': [e.model_dump(mode='json') for e in examples]}
-        if source_span:
-            if sources:
-                reject('sources', 'SOURCE_SPAN_OR_CITATIONS_REQUIRED', ['source_span', 'sources'],
-                       related_fields=['source_span'],
-                       message='Choose one source mode. For extracted sections, supply sources and omit source_span. For fixed sections, use the reviewed template source_span and omit sources; the system produces the canonical citations.')
-            value['source_span'] = source_span.model_dump(mode='json')
-        else:
-            value['sources'] = [s.model_dump(mode='json') for s in sources]
-            if kind == 'fixed':
-                value['text'] = '\n'.join(s.quote for s in sources)
-        return save_item(cs, actor(), operation_id, 'section', value)
+    def add_section(operation_id: str, items: Annotated[list[PlanningSectionInput], Field(min_length=1)]) -> dict:
+        """Save outline sections atomically; any invalid section refuses the entire list. Fixed PDF text uses template page/end-sentence selectors, fixed Word text exact template quotations; the system copies it. Derived sections bind saved result fields. No model-written fixed body or proof is accepted."""
+        return save_items(cs, actor(), operation_id, 'section', [i.model_dump(mode='json') for i in items])
 
     def add_substitution(operation_id: str, section_id: str, substitution: PlanningSubstitution) -> dict:
         """Save a proposed document replacement for one section, with the customer's exact permission and source evidence. Requires final owner confirmation."""
         return save_item(cs, actor(), operation_id, 'substitution', {'section_id': section_id, 'substitution': substitution.model_dump(mode='json')})
 
-    def add_reconciliation(operation_id: str, reconciliation: PlanningReconciliationInput) -> dict:
-        """Add or revise one source comparison by its stable ID; preserve factual differences and the proposed interpretation."""
-        return save_item(cs, actor(), operation_id, 'reconciliation', reconciliation.model_dump(mode='json'))
+    def add_reconciliation(operation_id: str, items: Annotated[list[PlanningReconciliationInput], Field(min_length=1)]) -> dict:
+        """Add or revise source comparisons atomically by stable IDs. Preserve factual differences and interpretations; any invalid comparison refuses the whole list with indexed problems."""
+        return save_items(cs, actor(), operation_id, 'reconciliation', [i.model_dump(mode='json') for i in items])
 
-    def add_question(operation_id: str, question: PlanningQuestion) -> dict:
-        """Add, revise or mark answered one question by stable ID. This records planning progress, not an owner authorization."""
-        return save_item(cs, actor(), operation_id, 'question', question.model_dump(mode='json'))
+    def add_question(operation_id: str, items: Annotated[list[PlanningQuestion], Field(min_length=1)]) -> dict:
+        """Add, revise or answer questions atomically by stable IDs. Any invalid question refuses the whole list. This records planning progress, not owner authorization."""
+        return save_items(cs, actor(), operation_id, 'question', [i.model_dump(mode='json') for i in items])
 
     def set_section_judgment(operation_id: str, judgment: SectionJudgment) -> dict:
         """Attach section evidence and notes; outline, fixed text and result bindings are system-owned."""
