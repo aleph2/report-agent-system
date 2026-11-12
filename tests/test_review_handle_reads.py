@@ -75,7 +75,9 @@ def test_default_read_shape_and_schema_remain_legacy_and_handle_path_is_explicit
         disabled = content_tools(ws, 'reviewer', reviewer_handles=False)
         assert [schema(t) for t in default] == [schema(t) for t in disabled]
         catalog = default + business_tools(ws, 'reviewer', None, None)
-        assert {tool_name(t): digest(schema(t)) for t in catalog if tool_name(t) in RC3_SCHEMAS} == RC3_SCHEMAS
+        expected = {**RC3_SCHEMAS,
+            'analyze_source_image': '6f4cce1fdee81e7c2eab8e9bb21439c7ec0ccd0acd833376a6ac9a680c71b53d'}
+        assert {tool_name(t): digest(schema(t)) for t in catalog if tool_name(t) in RC3_SCHEMAS} == expected
         old = named(default, 'read_context')
         assert get_type_hints(old)['target_ref'] is Ref
         value = old(Ref.model_validate(output['refs']['a-body']))

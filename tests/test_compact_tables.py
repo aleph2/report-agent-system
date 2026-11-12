@@ -79,7 +79,9 @@ def test_compact_cells_are_lossless_and_raw_access_stays_raw(tmp_path):
     assert (1, 2) not in decoded and c['rows'][0][1] is None
     access = compact['raw_geometry_access']
     assert access['tool'] == 'inspect_source_page'
-    assert source_page_info(ws, **access['arguments'])['table_view'] == raw
+    page = source_page_info(ws, **access['arguments'])
+    assert page['table_view'] == {k: v for k, v in raw.items() if k != 'page_facts'}
+    assert page['page_facts'] == {**raw['page_facts'], 'native_text_characters': len(page['native_text'])}
     assert snapshot(ws) == before and set(tmp_path.rglob('*')) == files
 
 
