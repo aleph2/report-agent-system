@@ -16,7 +16,7 @@ from test_task_supervision import ws, offline, review_call
 from test_hierarchical_content import seed
 
 
-async def test_exact_recovery_pages_use_existing_owner_ref_and_clear_old_checkpoint_ranges(ws):
+async def test_exact_recovery_pages_keep_existing_owner_ref_and_visible_ranges(ws):
     from report_agent.task_context import save_observation
     from report_agent.store import encode
     seed(ws)
@@ -24,17 +24,16 @@ async def test_exact_recovery_pages_use_existing_owner_ref_and_clear_old_checkpo
     original = '精确原文与限定条件。' * 3000
     ref, saved = save_observation(ws, 'coordinator', ToolMessage(
         original, name='read_source', tool_call_id='source'))
-    # Historic messages have no new metadata. Reopening must recognize the
-    # original owned ranges without copying them into new nested observations.
+    # Tag newly delivered owned ranges without archiving another body copy.
     history = [ToolMessage(encode(read_observation(ws, 'coordinator', ref, offset, 6000)),
         name='read_tool_observation', tool_call_id=str(offset), id='range-'+str(offset))
         for offset in (0, 6000, 12000)]
     update = await mw.abefore_model({'messages': history}, None)
     by_id = {m.id: m for m in update['messages']}
     first = json.loads(by_id['range-0'].content)
-    assert first['preview_cleared'] and first['observation_ref'] == ref
-    assert first['previously_presented_range']['offset'] == 0
-    assert first['previously_presented_range']['end'] == 6000
+    assert first['text'] == original[:6000] and first['observation_ref'] == ref
+    assert first['offset'] == 0 and first['end'] == 6000
+    assert not by_id['range-0'].additional_kwargs.get('report_preview_cleared')
     assert first['sha256'] == saved['sha256']
     for offset in (6000, 12000):
         message = by_id['range-'+str(offset)]
@@ -64,7 +63,7 @@ async def test_unverified_recovery_text_is_never_hidden_as_an_exact_owned_page(w
     assert mw.recoverable_page(image) is image
 
 
-async def test_native_context_clears_old_recovery_ranges_without_losing_latest_tool_result(ws):
+async def test_native_context_keeps_every_recovery_range_and_latest_tool_result(ws):
     from report_agent.deep_runtime import run_report
     from report_agent.task_context import save_observation
     from test_deep_runtime import Driver, invoke, observation
@@ -75,7 +74,7 @@ async def test_native_context_clears_old_recovery_ranges_without_losing_latest_t
         result = observation(messages, 'read_tool_observation')
         assert result['text'] == raw[12000:18000]
         pages = [m for m in messages if isinstance(m, ToolMessage) and m.name == 'read_tool_observation']
-        assert json.loads(pages[0].content)['preview_cleared']
+        assert json.loads(pages[0].content)['text'] == raw[:6000]
         assert json.loads(pages[1].content)['text'] == raw[6000:12000]
         return AIMessage(content='Synthetic recovered pages only; no report acceptance.')
     driver = Driver(coordinator=[
@@ -108,7 +107,7 @@ async def test_one_line_output_recovery_is_exact_and_command_channels_survive(ws
     assert reopened.bound_result(message).additional_kwargs['report_observation_ref']==ref
 
 
-async def test_masked_history_keeps_pairs_and_does_not_change_business_evidence(ws):
+async def test_history_keeps_pairs_and_never_hides_recovery_or_business_evidence(ws):
     seed(ws)
     mw=TaskContext(ws,'coordinator')
     history=[]
@@ -116,9 +115,8 @@ async def test_masked_history_keeps_pairs_and_does_not_change_business_evidence(
         history.extend([AIMessage(content='',tool_calls=[{'id':str(i),'name':'read_file','args':{},'type':'tool_call'}]),
             mw.bound_result(ToolMessage('x'*9000,name='read_file',tool_call_id=str(i),id='result'+str(i)))])
     update=await mw.abefore_model({'messages':history},None)
-    assert len(update['messages'])==2
-    assert {m.tool_call_id for m in update['messages']}=={'0','1'}
-    assert all(m.additional_kwargs['report_preview_cleared'] for m in update['messages'])
+    assert update is None
+    assert all(not m.additional_kwargs.get('report_preview_cleared') for m in history)
     # Bodies that can establish a business read, and actual images, are untouched.
     evidence=ToolMessage('x'*9000,name='read_context',tool_call_id='body')
     assert mw.bound_result(evidence) is evidence
@@ -146,9 +144,9 @@ async def test_large_history_pages_offload_with_exact_actor_scoped_recovery(ws):
             read_observation(ws,'rubric_grader',packet['observation_ref'])
         history.extend([AIMessage(content='',tool_calls=[{'id':str(i),'name':'read_execution_trace','args':{},'type':'tool_call'}]),result])
     update=await mw.abefore_model({'messages':history},None)
-    assert len(update['messages'])==1 and update['messages'][0].tool_call_id=='0'
-    first=json.loads(update['messages'][0].content)
-    assert first['preview_cleared']
+    assert update is None
+    first=json.loads(history[1].content)
+    assert not history[1].additional_kwargs.get('report_preview_cleared')
     assert ws.store.get('tool_observation:'+first['observation_ref'])['text']==raw
 
 

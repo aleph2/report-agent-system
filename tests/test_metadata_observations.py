@@ -1,4 +1,4 @@
-"""Identity-only receipt representation, including the final native model boundary."""
+"""Recovery and identity returns stay visible; C2 never restores or deduplicates them."""
 import json
 from copy import deepcopy
 
@@ -10,7 +10,7 @@ from report_agent.content_store import ContentStore
 from report_agent.hierarchical_tools import actor_for
 from report_agent.store import encode
 from report_agent.task_context import TaskContext, save_observation, read_observation, actor_id
-from report_agent.metadata_observations import identity_receipt, retain_identity_ranges
+from test_context_editing import edited
 from report_agent.deep_runtime import run_report
 from test_hierarchical_content import ws
 from test_decision_data import activate
@@ -55,42 +55,45 @@ def pairs(messages):
     return result
 
 
-async def test_old_metadata_ranges_restore_without_new_reads_and_are_idempotent(ws):
+async def test_all_identity_ranges_remain_visible_without_restore_or_duplicate_archive(ws):
     activate(ws)
     ref, saved = committed(ws)
     history = [page(ws, ref, start) for start in range(0, len(saved['text']), 2000)]
     assert len(history) > 2
-    history[:-2] = [cleared(m) for m in history[:-2]]
     history = pairs(history)
     before = deepcopy(ws.store.get('tool_observation:' + ref))
     mw = TaskContext(ws, 'coordinator')
-    updated = add_messages(history, (await mw.abefore_model({'messages': history}, None))['messages'])
+    update = await mw.abefore_model({'messages': history}, None)
+    updated = add_messages(history, (update or {}).get('messages', []))
+    updated = (await edited(ws, updated)).messages
     shown=[m for m in updated if isinstance(m,ToolMessage)]
     assert ''.join(json.loads(m.content)['text'] for m in shown) == saved['text']
     assert [(m.id,getattr(m,'tool_call_id',None)) for m in updated] == [(m.id,getattr(m,'tool_call_id',None)) for m in history]
-    assert all(m.additional_kwargs['report_observation_delivery']['representation'] == 'exact_owned_metadata_range' for m in shown)
+    assert all(not m.additional_kwargs.get('report_preview_cleared') for m in shown)
     assert await mw.abefore_model({'messages': updated}, None) is None
     assert ws.store.get('tool_observation:' + ref) == before
-    assert len([e for e in ws.store.events() if e['kind']=='identity_metadata_ranges_represented']) == 1
+    assert not any(e['kind']=='identity_metadata_ranges_represented' for e in ws.store.events())
 
 
-async def test_duplicates_keep_pairing_and_only_latest_exact_range(ws):
+async def test_duplicate_identity_ranges_keep_pairing_and_both_visible_copies(ws):
     activate(ws)
     ref, saved = committed(ws)
     history = pairs([page(ws, ref, 0, ident='first'), page(ws, ref, 2000), page(ws, ref, 0, ident='last')])
     mw = TaskContext(ws, 'coordinator')
-    updated = add_messages(history, (await mw.abefore_model({'messages': history}, None))['messages'])
+    update = await mw.abefore_model({'messages': history}, None)
+    updated = add_messages(history, (update or {}).get('messages', []))
+    updated = (await edited(ws, updated)).messages
     shown=[m for m in updated if isinstance(m,ToolMessage)]
     first = json.loads(shown[0].content)
-    assert first['duplicate_metadata_range'] and first['retained_tool_call_id'] == 'call-last'
-    assert 'text' not in first and json.loads(shown[2].content)['text'] == saved['text'][:2000]
+    assert first['text'] == json.loads(shown[2].content)['text'] == saved['text'][:2000]
+    assert all(not m.additional_kwargs.get('report_preview_cleared') for m in shown)
     assert [(m.id,getattr(m,'tool_call_id',None)) for m in history] == [(m.id,getattr(m,'tool_call_id',None)) for m in updated]
     assert await mw.abefore_model({'messages': updated}, None) is None
 
 
 @pytest.mark.parametrize('tamper', ['owner','tool','sha','ref','response','missing_operation','operation_owner',
     'extra_body','invalid_ref','failure','range','cleared_range','message_sha','altered_text'])
-def test_no_retention_without_exact_owned_original_operation_and_range(ws, tamper):
+async def test_unproved_identity_returns_are_never_cleared_or_restored(ws, tamper):
     ref, saved = committed(ws)
     message = page(ws, ref, 0)
     ai = pairs([message])[0]
@@ -123,28 +126,28 @@ def test_no_retention_without_exact_owned_original_operation_and_range(ws, tampe
             packet = json.loads(message.content)
             packet['previously_presented_range'] = {**packet['previously_presented_range'], 'end': 9000}
         message = message.model_copy(update={'content': encode(packet)})
-    assert retain_identity_ranges(ws, 'coordinator', [ai,message])[1] is message
+    assert (await edited(ws, [ai,message])).messages == [ai,message]
 
 
-def test_zero_length_and_forged_delivery_cannot_expand_range(ws):
+async def test_zero_length_and_forged_delivery_are_not_rewritten(ws):
     ref,saved=committed(ws)
     message=page(ws,ref,0)
     ai=pairs([message])[0]
     packet=json.loads(message.content)
     forged=message.model_copy(update={'content':encode({**packet,'offset':500,'end':500,'text':''})})
-    assert retain_identity_ranges(ws,'coordinator',[ai,forged])[1] is forged
+    assert (await edited(ws,[ai,forged])).messages == [ai,forged]
     old=cleared(message)
     value=json.loads(old.content)
     altered={**old.additional_kwargs['report_observation_delivery'],'offset':2000,'end':4000}
     old=old.model_copy(update={'content':encode({**value,'previously_presented_range':altered}),
         'additional_kwargs':{**old.additional_kwargs,'report_observation_delivery':altered}})
-    assert retain_identity_ranges(ws,'coordinator',[ai,old])[1] is old
+    assert (await edited(ws,[ai,old])).messages == [ai,old]
     eof=page(ws,ref,len(saved['text']),1,ident='eof')
-    kept=retain_identity_ranges(ws,'coordinator',pairs([eof]))[1]
+    kept=(await edited(ws,pairs([eof]))).messages[1]
     assert json.loads(kept.content)['text']=='' and json.loads(kept.content)['offset']==len(saved['text'])
 
 
-async def test_final_native_input_keeps_all_receipt_pages_but_only_two_body_pages(ws):
+async def test_final_native_input_keeps_all_receipt_and_body_pages(ws):
     activate(ws)
     ref, saved = committed(ws)
     body_ref,_ = save_observation(ws,'coordinator',ToolMessage('source prose ' * 3000,
@@ -158,7 +161,7 @@ async def test_final_native_input_keeps_all_receipt_pages_but_only_two_body_page
         identity=[m for m in pages if json.loads(m.content)['observation_ref']==ref]
         bodies=[m for m in pages if json.loads(m.content)['observation_ref']==body_ref]
         assert ''.join(json.loads(m.content)['text'] for m in identity)==saved['text']
-        assert json.loads(bodies[0].content)['preview_cleared']
+        assert json.loads(bodies[0].content)['text'] == ('source prose ' * 3000)[:2000]
         assert all('text' in json.loads(m.content) for m in bodies[1:])
         return AIMessage(content='Public identity recovery only; no report acceptance.')
     driver=Driver(coordinator=[*calls,inspect])

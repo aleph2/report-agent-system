@@ -17,6 +17,7 @@ async def test_third_read_retains_all_pages_and_still_offers_one_issue(assigned,
     f.ws.store.set('manifest',{**f.ws.store.manifest,'assembly_contract':'system-assembler-v1'})
     steps=[]
     issues=[]
+    step_prefix=[]
     from report_agent import writer_issues
     def record_issue(*args):
         issues.append(args[-1])
@@ -36,6 +37,20 @@ async def test_third_read_retains_all_pages_and_still_offers_one_issue(assigned,
     monkeypatch.setattr(wa,'step_outcome_schema',lambda *args:schema,raising=False)
     def decide(turn,body):
         if turn<=3:
+            system = next(m for m in body['messages'] if m['role']=='system')
+            assert 'Page read attempts left' not in str(system)
+            if turn==1:
+                step_prefix.append(system)
+            else:
+                assert system == step_prefix[0]
+            tails = [m for m in body['messages'] if m['role']=='user' and
+                     str(m.get('content','')).startswith('[host-observations]')]
+            assert len(tails)==1
+            packet = json.loads(tails[0]['content'].split('\n',1)[1])
+            allowances = [p for p in packet['moved_blocks'] if p['source']=='indicator_step/reading_allowance']
+            assert len(allowances)==1
+            assert allowances[0]['text'] == f"Page read attempts left for this indicator: {4-turn}."
+            assert '"current_state"' not in str(tails[0])
             return reply([(f'page-{turn}','read_assigned_page',{'source_handle':'source-1','page':turn+1})])
         if turn==4:
             assert {t['function']['name'] for t in body['tools']}=={'save_evidence','save_assumption','save_gap','propose_material_issue','assert_source','record_conflict'}

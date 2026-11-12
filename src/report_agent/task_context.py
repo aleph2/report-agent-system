@@ -492,14 +492,9 @@ class TaskContext(AgentMiddleware):
         except (ValueError, TypeError, KeyError, ActionForbidden, ActionRejected):
             # An unverified range must stay visible, never be silently discarded.
             return message
-        representation = 'exact_owned_range'
-        if exact.get('field_path') is None and message.additional_kwargs.get('report_observation_delivery', {}).get('representation') == 'exact_owned_metadata_range':
-            from .metadata_observations import identity_receipt
-            if identity_receipt(self.workspace, actor_id(self.workspace, self.role), exact['observation_ref']):
-                representation = 'exact_owned_metadata_range'
         metadata = {**message.additional_kwargs,
             'report_observation_ref': exact['observation_ref'],
-            'report_observation_delivery': {'representation': representation,
+            'report_observation_delivery': {'representation': 'exact_owned_range',
                 'offset': start, 'end': end, 'characters': len(exact['text']),
                 **{k:exact[k] for k in ('field_path','cursor_scope','field_sha256','complete_field') if k in exact},
                 'complete_tool_result': exact['complete_tool_result']}}
@@ -617,7 +612,7 @@ class TaskContext(AgentMiddleware):
         return self.bound_result(await handler(request),request.tool_call.get('args',{}))
 
     async def abefore_model(self,state,runtime):
-        """Clear older recoverable previews; keep recent exchanges and all images."""
+        """Retain the current task and verify deliveries before summarization."""
         # Native before-model order captures direct input before summarization.
         user_task = current_user_task(self.workspace, self.role, state, state['messages'])
         update = ({'report_current_user_task': user_task}
@@ -627,40 +622,16 @@ class TaskContext(AgentMiddleware):
         from .decision_data import refresh_history_observations
         messages = [self.recoverable_page(m) for m in
                     refresh_history_observations(self.workspace, self.role, state['messages'])]
-        from .metadata_observations import retain_identity_ranges
-        messages = retain_identity_ranges(self.workspace, self.role, messages)
         if progress_enabled(self.workspace):
             from .summary_recovery import capture
-            # Capture/verify before removing any sole visible preview. Failure
-            # propagates with the original checkpoint history still intact.
+            # Verify the original history before outgoing-only edits.
             try:
-                capture(self.workspace, self.role, messages, phase='before_preview_clear')
+                capture(self.workspace, self.role, messages, phase='before_context_edit')
             except Exception as error:
                 if not self.focused or isinstance(error, (ActionForbidden, ActionRejected)):
                     raise
                 projection_gap(self.workspace, self.role, error)
                 return update or None
-        candidates = [i for i,m in enumerate(messages) if isinstance(m,ToolMessage)
-            and m.additional_kwargs.get('report_observation_ref')
-            and m.additional_kwargs.get('report_observation_delivery',{}).get('representation')
-                not in {'metadata_and_literal_fragments', 'exact_owned_metadata_range', 'exact-public-result-v2',
-                        'focused-capability-v1'}]
-        for i in candidates[:-2]:
-            message = messages[i]
-            if message.additional_kwargs.get('report_preview_cleared'): continue
-            ref=message.additional_kwargs['report_observation_ref']
-            # Recoverability is verified before changing the working history.
-            field_path=message.additional_kwargs.get('report_observation_delivery',{}).get('field_path')
-            saved=read_observation(self.workspace,self.role,ref,0,1,field_path)
-            packet={k:v for k,v in saved.items() if k not in {'text','offset','end','next_offset','complete_tool_result','complete_field'}}
-            packet.update(preview_cleared=True,read_tool='read_tool_observation',
-                previously_presented_range=message.additional_kwargs.get('report_observation_delivery'),
-                note='Old navigation preview removed; exact original remains available. Not a source absence or completed check.')
-            metadata = navigation_metadata(message, saved['sha256'])
-            if metadata is not None:
-                packet['decision_metadata'] = metadata
-            messages[i] = message.model_copy(update={'content':encode(packet),
-                'additional_kwargs':{**message.additional_kwargs,'report_preview_cleared':True}})
         updates = [m for i,m in enumerate(messages) if m is not state['messages'][i]]
         if updates:
             update['messages'] = updates

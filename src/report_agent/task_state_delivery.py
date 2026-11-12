@@ -18,7 +18,8 @@ DYNAMIC_SOURCES = frozenset({
     'task_supervision/current_state', 'acceptance/current_criteria',
     'repetition/actual_observation', 'repetition/known_write_state',
     'execution_progress/repetition', 'execution_progress/recovery_condition',
-    'native_todos/current_child_state', 'field_dictionary/current_request'})
+    'native_todos/current_child_state', 'field_dictionary/current_request',
+    'indicator_step/reading_allowance'})
 HISTORY_FORMAT_VERSION = 2
 STATE_EXPLANATION = (
     'The final [host-observations] message carries current host-bound state, request context '

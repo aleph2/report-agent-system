@@ -207,13 +207,17 @@ async def test_c1_full_flow_measurement_and_effective_state(tmp_path, monkeypatc
             "model_proxy_tokens":count_tokens_approximately([m for m in messages if m.type=="ai"]),
             "current_state_characters":sum(len(json.dumps(v,ensure_ascii=False)) for v in states),
             "review_material_characters":sum(len(json.dumps(v.get("review_materials"),ensure_ascii=False)) for v in states if "review_materials" in v),
-            "saved_state_frames":sum("report_task_state_frame" in m.additional_kwargs for m in messages)})
+            "saved_state_frames":sum("report_task_state_frame" in m.additional_kwargs for m in messages),
+            "cleared_tool_results":sum(m.type=="tool" and
+                bool(m.response_metadata.get("context_editing",{}).get("cleared")) for m in messages)})
         return await original(self,messages,**kwargs)
     monkeypatch.setattr(ScriptedChat,"_agenerate",observed)
     await test_complete_native_draft_flow(tmp_path,False)
     assert {"coordinator","writer","reviewer","text_tool"} <= {r["role"] for r in measurements}
     assert all(r["saved_state_frames"]==0 for r in measurements)
     assert comparisons and all(role=="coordinator" for role in comparisons)
+    assert any(r["cleared_tool_results"] for r in measurements if r["path"]=="qualitative_reviewer")
+    assert all(not r["cleared_tool_results"] for r in measurements if r["path"]=="indicator_writer")
     record_property("v1_full_flow_calls",json.dumps(measurements))
     record_property("v2_state_comparisons",json.dumps(dict(Counter(comparisons))))
 

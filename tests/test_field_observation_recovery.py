@@ -15,7 +15,6 @@ from report_agent.errors import ActionRejected, ActionForbidden
 from report_agent.store import Store, encode
 from report_agent.workspace import Workspace
 from report_agent.content_tasks import delegated_task
-from report_agent.metadata_observations import retain_identity_ranges
 from test_task_supervision import ws, offline
 from test_hierarchical_content import seed
 from test_decision_data import activate
@@ -106,7 +105,7 @@ def test_schema_strict_paths_and_owner_original_hash_enforced(ws):
         with pytest.raises(ActionRejected,match='INTEGRITY'):read_observation(ws,'coordinator',ref,field_path=path)
 
 
-async def test_field_coordinates_survive_clear_native_compaction_serialization_and_reopen(ws):
+async def test_visible_field_coordinates_survive_native_compaction_serialization_and_reopen(ws):
     seed(ws);activate(ws)
     original={'first':'甲😀'*9000,'second':'乙'*9000}
     ref,_=saved(ws,original)
@@ -116,13 +115,13 @@ async def test_field_coordinates_survive_clear_native_compaction_serialization_a
         history.extend([AIMessage('',id=f'a{i}',tool_calls=[{'name':'read_tool_observation','id':str(i),'args':args,'type':'tool_call'}]),
             mw.bound_result(ToolMessage(encode(observation_tool(ws,'coordinator')(**args)),id=f't{i}',name='read_tool_observation',tool_call_id=str(i)))])
     updates=await mw.abefore_model({'messages':history},None)
-    history=add_messages(history,updates['messages'])
+    history=add_messages(history,(updates or {}).get('messages',[]))
     first=next(m for m in history if m.id=='t0');cleared=json.loads(first.content)
     assert cleared['field_path']==['first'] and cleared['cursor_scope']=='json_string_value'
-    assert cleared['previously_presented_range']['offset']==1200
-    assert cleared['previously_presented_range']['field_path']==['first']
+    assert cleared['offset']==1200 and cleared['end']==5200
+    assert cleared['text']==original['first'][1200:5200]
     assert cleared['field_sha256']==hashlib.sha256(original['first'].encode()).hexdigest()
-    assert retain_identity_ranges(ws,'coordinator',history)==history
+    assert not first.additional_kwargs.get('report_preview_cleared')
     history.append(HumanMessage('Continue'))
     summary=WorkingSummary(model=RunnableLambda(lambda _:AIMessage('Continue from recorded observations.')),
         store=ws.store,role='coordinator',trigger=('messages',3),keep=('messages',1),

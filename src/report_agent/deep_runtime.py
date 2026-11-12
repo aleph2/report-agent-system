@@ -1089,6 +1089,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
 
     def middleware(role, subagent_descriptions=()):
         from .task_context import enabled as context_enabled, TaskContext
+        from .context_editing import ToolResultEditing
         from .working_summary import working_summary
         from .prompt_sources import native_reviewer
         from .prompt_provenance import AgentPromptBoundary, CurrentReviewPlan
@@ -1104,7 +1105,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
                 *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
                   [TodoListMiddleware()] if role == 'coordinator' else []),
-                *([TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
+                *([ToolResultEditing(workspace, role), TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
                 *([ExecutionProgress(workspace,role)]
                     if workspace.store.manifest.get('execution_progress_policy') is not None else []),
                 # Use the already selected coordinator service for summaries.

@@ -65,13 +65,13 @@ def test_v2_reuses_context_policy_without_migrating_v1(ws):
     assert ws.store.get('context_policy') is None
 
 
-async def test_before_clearing_retains_identity_and_does_not_change_authority_token(ws):
+async def test_before_context_edit_retains_identity_and_does_not_change_authority_token(ws):
     activate(ws); seed(ws); mw = TaskContext(ws, 'coordinator')
     state_before = exact_task_context(ws, 'coordinator')['state_digest']
     history = sum((exchange(mw, str(i), ('Exact returned qualifier. '+str(i))*500) for i in range(3)), [])
     update = await mw.abefore_model({'messages': history}, None)
-    history = add_messages(history, update['messages'])
-    assert history[1].additional_kwargs['report_preview_cleared']
+    history = add_messages(history, (update or {}).get('messages', []))
+    assert not history[1].additional_kwargs.get('report_preview_cleared')
     packet = await presented(mw, history)
     index = packet['received_returns']
     assert index['total'] == 3
@@ -270,10 +270,10 @@ async def test_capture_time_delivery_is_immutable_and_host_index_not_model_notes
     activate(ws); seed(ws); mw=TaskContext(ws,'coordinator')
     history=sum((exchange(mw,str(i),('Qualifier '+str(i))*1100) for i in range(3)),[])
     update=await mw.abefore_model({'messages':history},None)
-    history=add_messages(history,update['messages'])
-    assert history[1].additional_kwargs['report_preview_cleared']
+    history=add_messages(history,(update or {}).get('messages',[]))
+    assert not history[1].additional_kwargs.get('report_preview_cleared')
     before=recovery_tool(ws,'coordinator')()['observations'][0]
-    assert before['delivery']['capture_phase']=='before_preview_clear'
+    assert before['delivery']['capture_phase']=='before_context_edit'
     from report_agent.working_summary import WorkingSummary
     async def summary(prompt): return AIMessage('Model hypothesis, unverified; exact returns remain available.')
     result=await WorkingSummary(model=RunnableLambda(summary),store=ws.store,role='coordinator',

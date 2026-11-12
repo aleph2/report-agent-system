@@ -64,6 +64,7 @@ async def complete(workspace, model_factory, issue_routes, criteria):
     from .writer_judgment_authority import grant_judgment_inputs
     from .prompt_provenance import AgentPromptBoundary
     from .qualitative_review import qualitative_reviewer_session
+    from .context_editing import ToolResultEditing
     from .system_assembler import record_issue_routes, assemble_current_report
     from .content_export import export_snapshot
     from .errors import ActionRejected
@@ -94,7 +95,7 @@ async def complete(workspace, model_factory, issue_routes, criteria):
         with qualitative_reviewer_session(workspace,task) as tools:
             assigned = tools["read_qualitative_row"]()
             review = create_agent(model_factory("reviewer"),list(tools.values()),
-                system_prompt=role_prompt("reviewer"),middleware=[BusinessBoundary(workspace,"reviewer"), AgentPromptBoundary(workspace,"reviewer")])
+                system_prompt=role_prompt("reviewer"),middleware=[ToolResultEditing(workspace,"reviewer"), BusinessBoundary(workspace,"reviewer"), AgentPromptBoundary(workspace,"reviewer")])
             await review.ainvoke({"messages":[HumanMessage(
                 "逐项独立核对本任务全部已保存指标、原文引述、依据、假设及问题，逐项记录中文复核发现。不得修改 Writer 判断或声明正式发布。") ]}, {"recursion_limit":100})
             findings = {r["payload"]["indicator_id"] for r in cs.list_objects("QualitativeRowFinding")
@@ -105,7 +106,7 @@ async def complete(workspace, model_factory, issue_routes, criteria):
                 description="Write source-grounded draft section prose and preserve every approved planning conflict as a material issue; do not change judgments."))
     with delegated_task(workspace,"coordinator",call):
         prose = create_agent(model_factory("writer"),business_tools(workspace,"writer",None,model_factory("text_tool")),
-            system_prompt=role_prompt("writer"),middleware=[BusinessBoundary(workspace,"writer"), AgentPromptBoundary(workspace,"writer")])
+            system_prompt=role_prompt("writer"),middleware=[ToolResultEditing(workspace,"writer"), BusinessBoundary(workspace,"writer"), AgentPromptBoundary(workspace,"writer")])
         await prose.ainvoke({"messages":[HumanMessage(
             "读取已批准计划，保存各提取章节的中文报告正文及引用，并为批准计划的每一项必需待核事项保存问题。只写本任务章节；不得重新评分、批准计划或导出。") ]})
     record_issue_routes(cs,Actor("operator","operator","fake-draft-routing"),"fake-draft-routes",issue_routes,

@@ -213,6 +213,7 @@ src/report_agent/content_tasks.py	402	register	sql	write	'source_use_task_bindin
 src/report_agent/content_tasks.py	424	delegated_task	store	read	'source_use_task_binding:' + resumed	source_use_task_binding:*
 src/report_agent/content_tasks.py	427	delegated_task	store	read	'source_use_task_binding:' + prior_task	source_use_task_binding:*
 src/report_agent/content_tasks.py	539	register	sql	write	'source_use_task_binding:' + task_id	source_use_task_binding:*
+src/report_agent/context_editing.py	19	awrap_model_call	property	read	self.workspace.store.manifest	manifest
 src/report_agent/decision_data.py	21	enabled	property	read	workspace.store.manifest	manifest
 src/report_agent/decision_data.py	24	bind	property	read	workspace.store.manifest	manifest
 src/report_agent/decision_data.py	26	bind	store	read	'decision_data_binding'	decision_data_binding
@@ -468,7 +469,6 @@ src/report_agent/live_messages.py	399	bind_response	store	read	ref	message_offer
 src/report_agent/live_messages.py	410	bind_response	helper	write	'message_call:' + digest([offer['owner'], call['id']])	message_call:*
 src/report_agent/live_messages.py	426	tool_binding	store	read	'message_call:' + digest([owner, call['id']])	message_call:*
 src/report_agent/live_messages.py	436	tool_binding	store	read	link['offer']	message_offer:*
-src/report_agent/metadata_observations.py	13	identity_receipt	store	read	'tool_observation:' + ref	tool_observation:*
 src/report_agent/method_pack.py	183	register_reviewed_method_pack	sql	read	identity	reviewed_method_identity:*
 src/report_agent/method_pack.py	186	register_reviewed_method_pack	sql	write	identity	reviewed_method_identity:*
 src/report_agent/method_pack.py	187	register_reviewed_method_pack	sql	write	'reviewed_method_pack:' + pack_digest	reviewed_method_pack:*
