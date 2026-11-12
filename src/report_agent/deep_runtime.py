@@ -1040,6 +1040,12 @@ def require_native_runtime(workspace):
     if not enabled(workspace) or workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1":
         raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: use a fresh native hierarchical project with independent text tools; saved historical data remains readable")
 
+    from .native_trace import inspect_checkpoint
+    from .task_state_delivery import HISTORY_FORMAT_VERSION
+    history = inspect_checkpoint(workspace.store.root)
+    if history['found'] and history['history_format_version'] != HISTORY_FORMAT_VERSION:
+        raise ActionRejected('HISTORY_FORMAT_REQUIRES_FRESH_RUN: redo on a fresh authorized run; view originals on their writing tag')
+
 
 def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules="", *, decision_only=False):
     require_native_runtime(workspace)
@@ -1058,6 +1064,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     from .review_scope_selectors import bind_contract as bind_submission_contract
     submission_contract = bind_submission_contract(workspace, manifest)
     from .prompt_sources import record_runtime_version
+    from .task_state_delivery import HISTORY_FORMAT_VERSION
     runtime_version_ref = record_runtime_version(workspace.store)
     from .prompt_sources import delegation_profile, SEPARATE_DESCRIPTION, validate_review_interface_profile
     prompt_profile = delegation_profile(workspace.store)
@@ -1149,7 +1156,8 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     diagnostics = FailureDiagnostics(workspace.store)
     from .handoff_release import release
     agent = agent.with_config(callbacks=[diagnostics],
-        metadata={'report_runtime_version_ref':runtime_version_ref,
+        metadata={'history_format_version': HISTORY_FORMAT_VERSION,
+                  'report_runtime_version_ref':runtime_version_ref,
                   'report_delegation_prompt_profile':prompt_profile,
                   'report_review_interface_profile':interface_profile,
                   'report_operation_identity_profile':identity_profile,
@@ -1159,8 +1167,6 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                   **({'report_review_submission_contract':submission_contract} if submission_contract else {}),
                   **({'report_handoff_release': release(manifest)} if interface_profile == 'review-interfaces-v4' else {})})
     agent.report_failure_diagnostics = diagnostics
-    # Retain the configured native instance for one-time legacy checkpoint upgrade.
-    agent.report_review_middleware = review_middleware[0] if review_middleware else None
     return agent
 
 
@@ -1258,12 +1264,6 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 if delegated_review and snapshot.values and (snapshot.values.get("_active_rubric") or snapshot.values.get("rubric")):
                     raise RuntimeError("LEGACY_REVIEW_CHECKPOINT_REQUIRES_EXPLICIT_LEGACY_ENTRYPOINT")
                 review_update = {"rubric": rules} if rules else {}
-                if rules and agent.report_review_middleware is not None and snapshot.next and not snapshot.values.get("_active_rubric"):
-                    initialized = agent.report_review_middleware.before_agent(
-                        {**snapshot.values, "rubric": rules}, None)
-                    review_update.update(initialized or {})
-                    store.event("native_rubric_checkpoint_initialized", {
-                        "grading_run_id": review_update.get("_current_grading_run_id")})
                 store.set("checkpoint_resume", bool(snapshot.next))
                 interrupts = snapshot.interrupts
                 if interrupts:

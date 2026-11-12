@@ -37,14 +37,9 @@ async def test_task_context_preserves_extended_command_and_structured_result_whe
     assert response.command is original.command
     assert response.command.update['messages'][0].additional_kwargs.get('report_model_command_message')
     assert response.model_response.structured_response == original.model_response.structured_response
-    assert len(response.model_response.result) == 2
-    frame, actual_answer = response.model_response.result
-    assert isinstance(frame, HumanMessage) and frame.additional_kwargs.get('report_task_state_frame')
-    from support.task_state_contract import state_frames
-    from report_agent.task_state_delivery import verified_frame
-    assert verified_frame(ws.store, frame) is not None
-    assert state_frames([frame])[0]['kind'] == 'full'
-    assert actual_answer is answer
+    assert response.model_response.result == [answer]
+    from support.task_state_contract import current_task
+    assert current_task(seen[0])['current_user_task'] == history[0].text
     assert original.model_response.result == [answer]
     assert len(seen) == 1 and business == [history]
     assert business[0][0] is history[0]

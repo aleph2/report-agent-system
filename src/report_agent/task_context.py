@@ -442,11 +442,11 @@ class TaskContextState(AgentState):
 
 def current_user_task(workspace, role, state, messages):
     """Retain the direct root instruction independently of model-generated notes."""
-    from .task_state_delivery import FRAME, MODEL_COMMAND
+    from .task_state_delivery import MODEL_COMMAND
     if role != 'coordinator':
         return None
     for message in reversed(messages):
-        if (isinstance(message, HumanMessage) and FRAME not in message.additional_kwargs
+        if (isinstance(message, HumanMessage)
                 and not message.additional_kwargs.get(MODEL_COMMAND)
                 and message.additional_kwargs.get('lc_source') != 'summarization'):
             return {'actor_id': actor_id(workspace, role), 'text': message.text}
@@ -545,29 +545,18 @@ class TaskContext(AgentMiddleware):
                 conflicting_instruction_refs=[r['ref'] for c in packet['conflicts'] for r in c['instructions']],
                 overridden_refs=packet['overridden_refs'])
         from .prompt_provenance import append_declared_system
-        from .task_state_delivery import (prepare_delivery, persist_frame, frame_delivery,
+        from .task_state_delivery import (escape_markers, business_messages, model_response,
             observation_delivery, finalize_observations, STATE_EXPLANATION)
-        messages, bindings, new_frame = prepare_delivery(self.workspace.store, messages, context)
+        messages = [escape_markers(m) for m in business_messages(self.workspace.store, messages)]
         projected = append_declared_system(request,
             STATE_EXPLANATION,
             'task_context/current_server_bound_state', references=references)
-        system = projected.system_message
-        with frame_delivery(self.workspace.store, context['actor_id'], bindings), observation_delivery(
-                self.workspace.store, context['actor_id'], self.role, packet):
-            projected = finalize_observations(request.override(system_message=system, messages=messages),
-                                             self.workspace, self.role, resources=resources)
+        with observation_delivery(self.workspace.store, context['actor_id'], self.role, packet,
+                                  state=context):
+            projected = finalize_observations(projected.override(messages=messages),
+                                              self.workspace, self.role, resources=resources)
             result = await handler(projected)
-        from .task_state_delivery import model_response
-        inner = model_response(result)
-        if new_frame is not None:
-            from dataclasses import replace
-            from langchain.agents.middleware.types import ExtendedModelResponse, ModelResponse
-            from langchain_core.messages import AIMessage
-            persist_frame(self.workspace.store, context['actor_id'], new_frame)
-            if isinstance(inner, AIMessage):
-                inner = ModelResponse(result=[inner])
-            inner = replace(inner, result=[new_frame, *inner.result])
-            result = replace(result, model_response=inner) if isinstance(result, ExtendedModelResponse) else inner
+        model_response(result)  # Retain program-authored Command note identity.
         return result
 
     def bound_result(self,result,tool_args=None):

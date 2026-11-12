@@ -226,14 +226,13 @@ async def test_native_protection_precedes_summary_model_invocation(ws,monkeypatc
     from langchain_core.runnables import RunnableLambda
     from langchain_core.messages import AIMessage
     from report_agent.working_summary import WorkingSummary
-    from report_agent.task_state_delivery import verified_frame
     invoked=[]
     async def summarize(prompt):invoked.append(prompt);return AIMessage('Notes.')
     monkeypatch.setattr('report_agent.working_summary.working_summary',lambda model,store,role:
         WorkingSummary(model=RunnableLambda(summarize),store=store,role=role,
             # Preserve the original business-message boundary despite added host controls.
             trigger=('tokens',11),keep=('messages',3),
-            token_counter=lambda messages: sum(verified_frame(store, m) is None for m in messages),
+            token_counter=len,
             trim_tokens_to_summarize=None))
     async with sdk_case(ws,monkeypatch) as case:
         await deep_runtime.run_report(ws,case['factory'])
@@ -242,7 +241,7 @@ async def test_native_protection_precedes_summary_model_invocation(ws,monkeypatc
         async with deep_runtime.project_agent(ws,case['factory']) as agent:
             paused = await agent.aget_state({'configurable': {'thread_id': 'report'}})
         assert paused.interrupts
-        assert sum(verified_frame(ws.store, m) is None for m in paused.values['messages']) >= 11
+        assert len(paused.values['messages']) >= 11
 
 
 async def test_arbitrary_native_resume_does_not_release_protection(ws,monkeypatch):

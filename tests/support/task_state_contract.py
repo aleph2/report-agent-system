@@ -5,48 +5,7 @@ wire oracle relies on separate provenance/adversarial tests to establish that
 untrusted quoted markers were escaped by the production delivery boundary.
 """
 from copy import deepcopy
-import hashlib
 import json
-
-
-def _sha(value):
-    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
-
-
-def state_frames(value):
-    if hasattr(value, 'system_message'):
-        value = [value.system_message, *value.messages]
-    elif hasattr(value, 'content_blocks') or isinstance(value, str):
-        value = [value]
-    frames = []
-    for item in value:
-        role = getattr(item, 'type', None)
-        if hasattr(item, 'content_blocks'):
-            blocks = item.content_blocks
-        elif isinstance(item, dict) and 'role' in item:
-            role = item['role']
-            content = item.get('content', '')
-            blocks = content if isinstance(content, list) else [content]
-        else:
-            role, blocks = 'system', [item]
-        for block in blocks:
-            text = block.get('text', '') if isinstance(block, dict) else block
-            if not isinstance(text, str):
-                continue
-            marked = role in ('human', 'user') and text.startswith('[host-state]')
-            if marked:
-                text = text[len('[host-state]'):].lstrip()
-            elif role != 'system':
-                continue
-            try:
-                packet = json.loads(text)
-            except ValueError:
-                continue
-            candidates = ([packet] if marked else packet.get('task_state_frames', [])
-                          if isinstance(packet, dict) else [])
-            frames.extend(frame for frame in candidates if isinstance(frame, dict)
-                          and frame.get('kind') in ('full', 'delta', 'delta2') and 'state_digest' in frame)
-    return frames
 
 
 def moved_blocks(value):
@@ -65,59 +24,18 @@ def moved_blocks(value):
     return found
 
 
-def _apply(state, frame):
-    if frame['kind'] == 'full':
-        state = deepcopy(frame['state'])
-        if not isinstance(state, dict):
-            raise ValueError('Full state must be a mapping')
-    else:
-        if state is None or frame['base_digest'] != _sha(state):
-            raise ValueError('Missing or broken state-control predecessor')
-        state = deepcopy(state)
-        if frame['kind'] == 'delta':
-            for path in frame['removed_paths']:
-                parent = state
-                for key in path[:-1]:
-                    parent = parent[key]
-                del parent[path[-1]]
-            state.update(deepcopy(frame['changes']))
-        else:
-            for operation in frame['ops']:
-                path = operation['path']
-                if not isinstance(path, list) or not path:
-                    raise ValueError('Invalid nested control path')
-                parent = state
-                for key in path[:-1]:
-                    parent = parent[key]
-                key = path[-1]
-                if operation['op'] == 'set':
-                    parent[key] = deepcopy(operation['value'])
-                elif operation['op'] == 'delete':
-                    del parent[key]
-                elif operation['op'] == 'splice':
-                    target, start, count = parent[key], operation['start'], operation['delete_count']
-                    if (not isinstance(target, list) or type(start) is not int or type(count) is not int
-                            or not 0 <= start <= len(target) or not 0 <= count <= len(target) - start):
-                        raise ValueError('Invalid list splice')
-                    target[start:start + count] = deepcopy(operation['items'])
-                else:
-                    raise ValueError('Unknown control operation')
-    if _sha(state) != frame['state_digest']:
-        raise ValueError('State digest differs from reconstructed control')
-    return state
-
-
 def current_task(value):
-    controls = state_frames(value)
-    assert controls, 'Effective request has no host full/delta state controls'
-    state = None
-    for frame in controls:
-        try:
-            state = _apply(state, frame)
-        except (ValueError, KeyError, TypeError, IndexError):
-            state = None
-    assert state is not None, 'Effective request has no valid current state base'
-    return state
+    messages = value.messages if hasattr(value, 'messages') else value
+    packets = []
+    for message in messages:
+        role = getattr(message, 'type', None) if not isinstance(message, dict) else message.get('role')
+        text = message.text if hasattr(message, 'text') else message.get('content', '') if isinstance(message, dict) else ''
+        if role in ('human', 'user') and isinstance(text, str) and text.startswith('[host-observations]\n'):
+            packet = json.loads(text.split('\n', 1)[1])
+            if 'current_state' in packet:
+                packets.append(packet['current_state'])
+    assert len(packets) == 1, 'One current host-state tail is required; history is not an authority fallback'
+    return packets[0]
 
 
 def native_model_call_record(role, messages, functions):
@@ -171,20 +89,6 @@ def current_public_capture(store, record):
     return captured, actors[0]
 
 
-def authenticated_state_frame(store, message, actor_id):
-    """Independent receipt/type/content/actor check, never a prefix filter."""
-    from langchain_core.messages import HumanMessage
-    if not isinstance(message, HumanMessage):
-        return False
-    metadata = message.additional_kwargs.get('report_task_state_frame')
-    key = metadata.get('receipt') if isinstance(metadata, dict) else None
-    if not isinstance(key, str) or not key.startswith('task_state_frame:'):
-        return False
-    receipt = store.get(key)
-    return bool(isinstance(receipt, dict) and receipt.get('actor_id') == actor_id
-                and receipt.get('content_digest') == _sha(message.content))
-
-
 def assert_native_tool_then_host_suffix(store, record, messages, tools, *, expected_tool):
     """Keep the real last tool exchange; permit only the same-call host suffix."""
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -208,7 +112,5 @@ def assert_native_tool_then_host_suffix(store, record, messages, tools, *, expec
     packet = json.loads(tail.text.split('\n', 1)[1])
     assert packet['origin'] == 'server_bound_execution_observations'
     assert packet['actor_id'] == actor and packet['role'] == record['role']
-    for frame in messages[last + 1:-1]:
-        assert authenticated_state_frame(store, frame, actor), 'Non-host or foreign message after the tool'
-        assert frame.text.startswith('[host-state]')
+    assert messages[last + 1:] == [tail], 'Only this call tail may follow a complete tool batch'
     return tool

@@ -418,3 +418,6 @@ Owner b2 sequence (2026-11-10): b remains accepted. Finish/accept c and advance 
 - [ ] Steps 6–7: newly sized probe proposal and separate owner launch scope/cap.
 
 Details: docs/reviews/context-fix-step1-20261111.md. Main/dispatcher, original records and financial holds unchanged.
+
+
+Context C1 Step 2 candidate (2026-11-11): implementation and clean focused V1/V2/V6 complete (200 passed). Neo technical review cleared; owner candidate acceptance pending. Step 3 must compare stock C2 with the two existing clearers before implementation. Main/full-run/paid gates unchanged. See docs/reviews/context-fix-c1-20261111.md.

@@ -166,19 +166,14 @@ async def test_r02_current_commission_survives_real_native_compaction(ws, monkey
     first_after = captured[1]['wire']
     # Original Human must have left the retained window: otherwise this is not
     # the designed recovery counterexample. Summary-role Humans remain allowed.
-    from support.task_state_contract import current_public_capture, authenticated_state_frame
-    from langchain_core.messages import HumanMessage, ToolMessage
+    from support.task_state_contract import current_public_capture
+    from langchain_core.messages import HumanMessage
     _, actor = current_public_capture(ws.store, live_calls[1])
-    frames = [m for m in live_calls[1]['messages'] if authenticated_state_frame(ws.store, m, actor)]
-    assert frames, 'Real compaction must retain or rebuild an authenticated state base'
-    assert not authenticated_state_frame(ws.store, frames[-1], actor + '-foreign')
-    assert not authenticated_state_frame(ws.store,
-        frames[-1].model_copy(update={'content':frames[-1].text + ' '}), actor)
-    assert not authenticated_state_frame(ws.store, ToolMessage(content=frames[-1].content,
-        tool_call_id='copied-frame', additional_kwargs=deepcopy(frames[-1].additional_kwargs)), actor)
-    assert not any(isinstance(m, HumanMessage) and current in json.dumps(m.content, ensure_ascii=False)
-                   and not m.additional_kwargs.get('lc_source')
-                   and not authenticated_state_frame(ws.store, m, actor)
+    tails = [m for m in live_calls[1]['messages'] if isinstance(m,HumanMessage) and m.text.startswith('[host-observations]\n')]
+    assert len(tails)==1
+    assert json.loads(tails[0].text.split('\n',1)[1])['actor_id']==actor
+    assert not any(isinstance(m,HumanMessage) and current in json.dumps(m.content,ensure_ascii=False)
+                   and not m.additional_kwargs.get('lc_source') and m is not tails[0]
                    for m in live_calls[1]['messages']), 'FIXTURE_INVALID: original business Human was never compacted'
     _, recovered_actor = current_public_capture(ws.store, live_calls[2])
     assert recovered_actor == actor

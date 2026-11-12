@@ -62,7 +62,9 @@ class ToolTrace(BaseCallbackHandler):
             stream.flush()
 
     def on_chat_model_start(self, serialized, messages, *, run_id, **kwargs):
-        actor = self.actor()
+        from .prompt_provenance import _CALL
+        call = _CALL.get()
+        actor = {**self.actor(), 'prompt_call_id': call['call_id'] if call else None}
         self.turns[actor['actor']] += 1
         self.models[str(run_id)] = {**actor,'turn':self.turns[actor['actor']], 'started':monotonic()}
         self.write('model_started', callback_id=str(run_id), **actor, turn=self.turns[actor['actor']])

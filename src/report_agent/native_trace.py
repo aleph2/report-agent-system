@@ -164,6 +164,9 @@ def inspect_checkpoint(root, thread_id="report"):
     if not path.exists():
         return {"found": False, "thread_id": thread_id}
     with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as conn:
+        conn.execute("PRAGMA query_only=ON")
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='checkpoints'").fetchone():
+            return {"found": False, "thread_id": thread_id}
         saver = SqliteSaver(conn)
         saver.is_setup = True
         row = saver.get_tuple({"configurable": {"thread_id": thread_id}})
@@ -171,6 +174,7 @@ def inspect_checkpoint(root, thread_id="report"):
         return {"found": False, "thread_id": thread_id}
     return {"found": True, "thread_id": thread_id, "checkpoint_id": row.config["configurable"].get("checkpoint_id"),
             "at": row.checkpoint.get("ts"), "step": row.metadata.get("step"),
+            "history_format_version": row.metadata.get("history_format_version"),
             "channels": sorted(row.checkpoint.get("channel_values", {})),
             "pending_write_count": len(row.pending_writes or []),
             "note": "Stored checkpoint metadata only; no execution, status transition or resume."}

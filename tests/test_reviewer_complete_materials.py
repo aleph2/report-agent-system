@@ -20,7 +20,7 @@ def configure(cs, profile='review-materials-v1'):
     return Workspace(cs.store)
 
 
-async def test_full_bound_materials_survive_repeated_calls_without_inventing_review(case):
+async def test_full_bound_materials_survive_repeated_calls_without_inventing_review(case, record_property):
     cs, declared, criteria, originals = prepared(case)
     workspace = configure(cs)
     with delegated_task(workspace, 'coordinator', review_call(criteria)) as (_, actor):
@@ -31,6 +31,7 @@ async def test_full_bound_materials_survive_repeated_calls_without_inventing_rev
         first = await presented(middleware, [])
         again = await presented(middleware, [])  # History can be compacted away entirely.
         packet = first['review_materials']
+        record_property('v1_review_material_characters',len(json.dumps(packet,ensure_ascii=False)))
         assert packet == again['review_materials']
         assert packet['semantic_acceptance'] is False
         assert packet['objects_complete'] is True
@@ -150,9 +151,8 @@ async def test_materials_on_final_sdk_after_history_cleanup_and_store_reopen(cas
                     # Compact business history, not this request's authenticated
                     # authority/tail; arbitrary deletion of all controls is not
                     # a native summarization contract.
-                    from report_agent.task_state_delivery import verified_frame, trusted_observation
-                    controls = [m for m in projected.messages if verified_frame(current.workspace.store, m)
-                                or trusted_observation(current.workspace.store, m)]
+                    from report_agent.task_state_delivery import trusted_observation
+                    controls = [m for m in projected.messages if trusted_observation(current.workspace.store, m)]
                     return await model.ainvoke([projected.system_message,
                         HumanMessage('History compacted; preserve the real task.'), *controls])
                 await current.awrap_model_call(request, late_cleanup)

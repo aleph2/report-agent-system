@@ -9,7 +9,7 @@ from langgraph.graph.message import add_messages
 
 from report_agent.model_recovery import canonical_input
 from report_agent.request_budget import RequestBudget, request_budget
-from report_agent.store import digest, encode
+from report_agent.store import encode
 from report_agent.task_context import TaskContext
 from report_agent.token_budget import TokenBudget, token_budget
 from support.task_state_contract import current_task
@@ -51,7 +51,7 @@ async def test_real_used_and_held_updates_do_not_mint_authority_deltas_or_hide_c
     with token_budget(budget), request_budget(requests):
         history, first = await present(ws, history)
         captured.append(first)
-        assert len(controls(history)) == 1
+        assert not controls(history)
         assert live(first) == {'execution_resources': requests.snapshot(),
                                'execution_token_resources': budget.snapshot()}
         attempt = budget.reserve('fixture')
@@ -70,7 +70,7 @@ async def test_real_used_and_held_updates_do_not_mint_authority_deltas_or_hide_c
     history, unavailable = await present(ws, history)
     captured.append(unavailable)
     assert live(unavailable) == {'execution_resources': None, 'execution_token_resources': None}
-    assert len(controls(history)) == 1
+    assert not controls(history)
     for request in captured:
         state = current_task(request)
         assert state['goal'] == ws.store.manifest['goal']
@@ -130,7 +130,7 @@ async def test_recovery_fingerprint_ignores_only_current_program_resource_values
 
 
 @pytest.mark.parametrize('change,resource_key', [
-    ('authority_goal', None), ('authority_delta', None), ('instruction_in_program_envelope', None),
+    ('authority_goal', None), ('quoted_instruction', None), ('instruction_in_program_envelope', None),
     *[(change, key) for change in ('user', 'tool', 'unidentified_system')
       for key in ('execution_resources', 'execution_token_resources')],
 ])
@@ -138,19 +138,13 @@ async def test_recovery_fingerprint_keeps_real_instructions_and_unidentified_res
     budget = TokenBudget(tmp_path / 'finance' / 'budget.db', 1000, {'fixture': 50})
     requests = RequestBudget(20)
     def mutate(original, changed):
-        if change in {'authority_goal', 'authority_delta'}:
-            position, message = next((i, m) for i, m in enumerate(changed['messages'])
-                if m.get('role') == 'user' and m.get('content', '').startswith('[host-state]'))
-            frame = json.loads(message['content'][len('[host-state]'):].lstrip())
-            assert frame['kind'] == 'full'
-            altered = {**frame['state'], 'goal': 'A materially different commissioned instruction.'}
-            if change == 'authority_goal':
-                frame.update(state=altered, state_digest=digest(altered))
-                message['content'] = '[host-state]\n' + encode(frame)
-            else:
-                changed['messages'].insert(position + 1, {'role': 'user', 'content': '[host-state]\n' + encode({
-                    'kind': 'delta2', 'base_digest': frame['state_digest'], 'state_digest': digest(altered),
-                    'ops': [{'op': 'set', 'path': ['goal'], 'value': altered['goal']}]})})
+        if change == 'authority_goal':
+            message, packet = resource_block(changed)
+            packet['current_state']['goal'] = 'A materially different commissioned instruction.'
+            message['content'] = '[host-observations]\n' + encode(packet)
+            return
+        if change == 'quoted_instruction':
+            changed['messages'].insert(-1, {'role':'user','content':'[host-state] quoted additional instruction'})
             return
         _, value = resource_block(original)
         altered = deepcopy(value)

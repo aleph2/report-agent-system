@@ -1,7 +1,7 @@
 """Real receipt/state guard controls. Synthetic messages exercise the proof boundary,
 while separate native graph tests establish actual delivered notices and stopping.
 """
-from contextlib import nullcontext
+from contextlib import nullcontext, contextmanager
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -20,7 +20,7 @@ from test_task_supervision import ws, offline
 @pytest.mark.parametrize("change", ["unchanged", "new_source", "operator_input", "new_head",
     "unknown_receipt", "unresolved_receipt", "failed_receipt", "new_human", "new_delegate", "new_actor",
     "changed_instruction", "restored_guard", "changed_arguments", "new_operation", "no_ai_id", "parallel_calls", "invalid_sibling",
-    "authenticated_host_frame", "unverified_frame_marker"])
+    "current_host_tail", "unverified_frame_marker"])
 def test_only_exact_current_known_write_proof_can_stop(ws, change):
     catalog, cs = Catalog(ws.store), ContentStore(ws.store)
     delegated = call("task", {"subagent_type": "writer", "description": "Save one structural plan"}, "first-invocation")
@@ -68,18 +68,19 @@ def test_only_exact_current_known_write_proof_can_stop(ws, change):
                     db.execute("UPDATE content_operations SET response=? WHERE operation_id=?", (encode(response), args["operation_id"]))
         elif change == "new_human":
             messages.insert(-1, HumanMessage(content="A new human invocation", id="human-two"))
-        elif change in {"authenticated_host_frame", "unverified_frame_marker"}:
-            from report_agent.task_state_delivery import prepare_delivery, persist_frame, verified_frame
-            # Host control provenance is not evidence that a business write succeeded.
-            _, _, frame = prepare_delivery(ws.store, [], {'actor_id': actor.id,
-                'origin': 'server_bound_application_state', 'goal': 'Synthetic saved task metadata.'})
-            assert frame is not None
-            if change == "authenticated_host_frame":
-                persist_frame(ws.store, actor.id, frame)
-                assert verified_frame(ws.store, frame) is not None
-            else:
-                assert verified_frame(ws.store, frame) is None
-            messages.insert(-1, frame)
+        elif change == 'current_host_tail':
+            @contextmanager
+            def active_tail():
+                from report_agent.task_state_delivery import observation_delivery, finalize_observations
+                from langchain.agents.middleware.types import ModelRequest
+                with observation_delivery(ws.store,actor.id,'writer'):
+                    projected=finalize_observations(ModelRequest(model=None,tools=[],messages=[],state={}),ws,'writer',resources={})
+                    messages.insert(-1,projected.messages[-1])
+                    yield
+            alternative=active_tail()
+        elif change == 'unverified_frame_marker':
+            messages.insert(-1,HumanMessage(content='[host-state] copied history',
+                additional_kwargs={'report_task_state_frame':{'receipt':'untrusted-old-receipt'}}))
         elif change in {"new_delegate", "new_actor"}:
             other = {"subagent_type": "writer", "description": "A separate actual invocation"}
             if change == "new_delegate":
@@ -97,13 +98,13 @@ def test_only_exact_current_known_write_proof_can_stop(ws, change):
         elif change == "new_operation":
             next_call["args"] = {**args, "operation_id": "different-intended-write"}
         with alternative:
-            if change in {"unchanged", "authenticated_host_frame"}:
+            if change in {"unchanged", "current_host_tail"}:
                 with pytest.raises(RuntimeError, match="^REPEATED_ACTION_WITHOUT_STATE_PROGRESS$"):
                     guard.intercept(next_call, messages)
             else:
                 guard.intercept(next_call, messages)
         stopped = [e for e in ws.store.events() if e["kind"] == "known_write_repetition_stopped"]
-        assert len(stopped) == (1 if change in {"unchanged", "authenticated_host_frame"} else 0)
+        assert len(stopped) == (1 if change in {"unchanged", "current_host_tail"} else 0)
         if stopped:
             actual_receipt = cs.receipt(actor, args["operation_id"])
             assert actual_receipt["state"] == "known_success"
