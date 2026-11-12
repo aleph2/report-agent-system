@@ -31,6 +31,6 @@ Per-call `tool-trace.jsonl` supplies the usage-growth curve; `model_calls` is th
 
 [Exact commands and authority template](fake03-planning-probe-commands-20261111.md). The template's null cap is deliberately invalid. Neither 3.7M nor 5.5M has been selected or applied to a live run. The existing 10M campaign, its 1,179,648 hold and the separate historical 2M hold are unchanged; this command never opens the rescue ledger.
 
-Full repository regression and owner code/command review remain pending. The change adds spending controls, so request **one full offline run** on the tagged candidate before considering a paid launch. Later continuation needs separate owner scope/cap authority; this package cannot continue from the checkpoint. No context repair or campaign amendment was implemented.
+Historical safety-candidate status above is superseded by the [accepted C2/C3 handoff](context-fix-c2-c3-acceptance-20261111.md): the clean full regression passed, and context repairs are included in accepted code. The [Step 6 proposal](fake03-planning-probe-step6-20261111.md) still requires separate owner launch scope/cap authority. Later continuation needs separate authority; this package cannot continue from the checkpoint. No campaign amendment was implemented.
 
 Private evidence: `.private/fake03-probe-safety-20261111/`. The old failed `cd48c0a` full run and the accepted clean `f35ea76` result remain separate and intact.

@@ -410,11 +410,11 @@ Owner b2 sequence (2026-11-10): b remains accepted. Finish/accept c and advance 
 - [x] Agent-path wiring and frame-receipt consumer census.
 - [x] Visibility trace design using existing captures and minimal missing join.
 - [x] Owner chose classifier removal; live pre-C1 checkpoint path traced in section 4a.
-- [ ] Step 2: retire pre-C1 live-history admission and obsolete rubric upgrade; preserve C1 owner waits and original records.
-- [ ] Neo/advisor review Step 1 before C1 implementation.
-- [ ] Step 2: C1 focused V1/V2/V6 after the Step 1 gate.
-- [ ] Steps 3–4: C2 inventory/review, then C2/C3 verification.
-- [ ] Step 5: owner authorizes one final full offline run.
+- [x] Step 2: retire pre-C1 live-history admission and obsolete rubric upgrade; preserve C1 owner waits and original records.
+- [x] Neo/advisor review Step 1 before C1 implementation.
+- [x] Step 2: C1 focused V1/V2/V6 after the Step 1 gate.
+- [x] Steps 3–4: C2 inventory/review, then C2/C3 verification.
+- [x] Step 5: owner authorizes one final full offline run.
 - [ ] Steps 6–7: newly sized probe proposal and separate owner launch scope/cap.
 
 Details: docs/reviews/context-fix-step1-20261111.md. Main/dispatcher, original records and financial holds unchanged.
@@ -435,3 +435,6 @@ C2 pre-tag completion: retired-marker search reproduced two more stale visibilit
 
 
 2026-11-11 owner-local completion: Context Step5 CLEAN full on exact d0984f9/context-fix-c2-c3-20261111:6230passed,9unchangedskips,0failures,all6239nodesonce,36m50s. Coverage90.71%,all9floorspass;1316frozenfiles unchanged;57fixturehashesverified(51private). Automaticcleanup removed sourcecopy/all9tempdirs,0DB,exactprocessesabsent. Neo independently verified terminalaccounting/coverage/cleanup; Main ran tests. OriginalC1failed full remainsfailed and unchanged. No paidmodelcalls, budget/hold/S2/dispatcher/main changes. ContextStep5 verified; ownerC2/C3 acceptance pending, then Step6Coordinator-only probeproposal with scope/cap and separate launchauthority. Record: docs/reviews/context-fix-c2-c3-full-20261111.md.
+
+
+2026-11-11 owner acceptance: C2/C3 accepted after code review and exact clean full6230pass/9unchangedskip/0fail. Main authorized to fast-forward from7da4f94 to reviewed6cf4193 plus documentation-only acceptance. ContextSteps1–5 complete. Step6 proposal recommends one Coordinator-only Fake03 planning probe, glm-5.3,5.5M cap, stop page sheet; cap/paid launch still pending. Ledger read-only06:24:50UTC confirms settled1991060/held1179648/available6829292,316attempts. Historical2Mhold unchanged. Parallel-call policy investigation and source text/receipt redesign deferred until after probe; no code/test/financial changes. Records: docs/reviews/context-fix-c2-c3-acceptance-20261111.md and fake03-planning-probe-step6-20261111.md.

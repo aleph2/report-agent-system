@@ -4,8 +4,8 @@
 
 ## Before launch
 
-1. Review/accept the safety candidate and its verification. Run the separately owner-authorized full offline regression first.
-2. Owner selects **3,700,000 or 5,500,000** as the probe hard cap and explicitly authorizes one Fake03 Coordinator planning launch with text-only `glm-5.3`, A/B and C proposed for exclusion, stopping at the page-sheet checkpoint, all holds preserved. This is not plan approval or engineering sign-off.
+1. C2/C3 is accepted and the clean full regression passed on d0984f9. Use the accepted main revision and the [Step 6 scope/cap proposal](fake03-planning-probe-step6-20261111.md); pin the actual revision with identify.
+2. Owner separately selects the probe hard cap (**5,500,000 recommended**) and explicitly authorizes one Fake03 Coordinator planning launch with text-only `glm-5.3`, A/B and C proposed for exclusion, stopping at the page-sheet checkpoint, all holds preserved. This is not plan approval or engineering sign-off.
 3. Copy [the invalid template](../verification/fake03-probe-safety/authority.template.json) into private operator storage. Replace every placeholder using the actual launch revision, existing grant and private held-request/retry receipt. Record the direct owner launch authority. Do not import an old plan or fake a new grant.
 4. Pin the existing external GLM service configuration and full-model proof. The file's GLM Writer bundle supplies the approved GLM service for the probe; the process maps constructible roles to that same service, while the request hook admits only Coordinator calls. Never print keys. The template/answer key stays outside case inputs.
 
