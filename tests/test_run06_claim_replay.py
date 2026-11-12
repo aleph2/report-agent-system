@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 from support.fake03 import install
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 
 from report_agent import fake_verification
 from support.fake03 import REGISTER, qualitative_profile
@@ -135,8 +135,9 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
             payload = submission(label, original[label], facts)
             annotations[label] = deepcopy(payload)
             return action('save_'+original[label]['kind'], label+'-original', **payload)
-        assert label in REFUSE and attempts[label]==2, (label, str(messages[-1].content)[:650])
-        diagnostics[label] = json.loads(messages[-1].content)
+        latest_tool = next(m for m in reversed(messages) if isinstance(m, ToolMessage))
+        assert label in REFUSE and attempts[label]==2, (label, str(latest_tool.content)[:650])
+        diagnostics[label] = json.loads(latest_tool.content)
         return action('save_gap', label+'-offline-followup',
                       missing=REFUSE[label], question=REFUSE[label])
     result = await run_mini_assessment(ws, Driver(writer=[choose]*24)('writer'), verified_run=binding)
