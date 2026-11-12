@@ -25,14 +25,14 @@ def send(budget, role='coordinator', used=10, provider=None):
 
 
 @pytest.mark.parametrize('cap,charges',[(3_700_000,[host.BOUND,host.BOUND,3_700_000-3*host.BOUND,host.BOUND]),
-                                      (5_500_000,[host.BOUND]*3+[5_500_000-4*host.BOUND,host.BOUND])])
+                                      (6_000_000,[host.BOUND]*4+[6_000_000-5*host.BOUND,host.BOUND])])
 def test_all_roles_share_one_exact_run_cap_and_original_hold(pair,cap,charges):
     budget=flow(pair,cap); original=budget.snapshot()['reserved_or_unknown_upper_bounds']
-    for role,used in zip(['coordinator','writer','reviewer','text_tool','coordinator'],charges):send(budget,role,used)
+    for role,used in zip(['coordinator','writer','reviewer','text_tool','coordinator','coordinator'],charges):send(budget,role,used)
     assert budget.run_snapshot()=={'maximum_tokens':cap,'settled':cap,'held':0}
     assert budget.snapshot()['reserved_or_unknown_upper_bounds']==original==host.BOUND
     with pytest.raises(RequestBudgetExceeded):send(flow(pair,cap),provider=lambda _:pytest.fail('cap reached transport'))
-    with pytest.raises(RequestBudgetExceeded):flow(pair,5_500_000 if cap==3_700_000 else 3_700_000).reserve(host.MODEL)
+    with pytest.raises(RequestBudgetExceeded):flow(pair,6_000_000 if cap==3_700_000 else 3_700_000).reserve(host.MODEL)
 
 
 def test_one_request_in_flight_across_roles(pair):
@@ -68,7 +68,7 @@ def test_unknown_outcome_stops_every_role_without_releasing_any_hold(pair,respon
 
 @pytest.mark.parametrize('pair',[6],indirect=True)
 def test_existing_campaign_cap_still_applies(pair):
-    budget=flow(pair,5_500_000)
+    budget=flow(pair,6_000_000)
     send(budget,used=host.BOUND)
     send(budget,used=host.BOUND)
     with pytest.raises(RequestBudgetExceeded,match='AUTHORIZED_TOKEN_BUDGET_REACHED'):
@@ -91,7 +91,7 @@ def planning_packet(pair,tmp_path):
     from test_fake_verification_launcher import write_json
     path,data,grant,c=pair
     data.update(workflow=probe.WORKFLOW,model=host.MODEL,objects=['A','B'],proposed_exclusions=['C'],
-                stop_at='page_sheet',per_run_tokens=5_500_000,vision_model=probe.VISION_MODEL,
+                stop_at='page_sheet',per_run_tokens=6_000_000,vision_model=probe.VISION_MODEL,
                 vision_thinking='enabled',vision_request_bound_proof={},answer_key_sha256=probe.identify()['answer_key_sha256'],
                 run_id='probe',fresh_comparison={**c,'run_ids':['probe']})
     return path,write_json(path,data),data
@@ -103,7 +103,7 @@ def test_probe_authority_caps_scope_and_empty_preparation(planning_packet):
     from report_agent.content_store import ContentStore
     from report_agent.store import Store
     path,pin,data=planning_packet
-    for key,bad in [('stop_at','export'),('model','other'),('per_run_tokens',5_500_001),('objects',['A','B','C'])]:
+    for key,bad in [('stop_at','export'),('model','other'),('per_run_tokens',6_000_001),('objects',['A','B','C'])]:
         with pytest.raises(ValueError):probe.preflight(path,write_json(path,{**data,key:bad}))
     pin=write_json(path,data);prepared=probe.prepare(path,pin)
     cs=ContentStore(Store(Path(prepared['case_path'])))
@@ -157,10 +157,10 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
         from langchain_core.messages import ToolMessage
         for m in messages:
             if isinstance(m,ToolMessage) and not m.name:m.name=names.get(m.tool_call_id)
-        response=await driver.respond('coordinator',messages)
-        message=_convert_message_to_dict(response.generations[0].message)
+        response=None if body.get('max_completion_tokens')==16_384 else await driver.respond('coordinator',messages)
+        message={'role':'assistant','content':'Synthetic working summary.'} if response is None else _convert_message_to_dict(response.generations[0].message)
         return httpx.Response(200,json={'id':'offline-'+str(len(sent)),'object':'chat.completion','created':1,
-            'model':host.MODEL,'choices':[{'index':0,'finish_reason':'tool_calls','message':message}],
+            'model':host.MODEL,'choices':[{'index':0,'finish_reason':'stop' if response is None else 'tool_calls','message':message}],
             'usage':{'prompt_tokens':host.BOUND-4 if scenario=='budget' else 6,'completion_tokens':4,'total_tokens':host.BOUND if scenario=='budget' else 10}})
     def configured(store,role):
         nonlocal driver
@@ -249,7 +249,7 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
         return
     if scenario in ('unknown','budget'):
         assert result['status']==('unknown_outcome_held' if scenario=='unknown' else 'budget_stop'),result
-        assert len(sent)==(1 if scenario=='unknown' else 4)
+        assert len(sent)==(1 if scenario=='unknown' else 5)
         assert result['budget']['held']==(host.BOUND if scenario=='unknown' else 0)
         with pytest.raises(FileExistsError):await probe.launch(path,pin,prepared['prepared_sha256'],env)
         return

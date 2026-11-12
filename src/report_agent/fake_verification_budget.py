@@ -261,7 +261,7 @@ class FakeFlowBudget(FakeComparisonBudget):
     """One owner-capped full-flow run alongside the named preserved hold."""
     def __init__(self, grant_dir, run_id, comparison, authority_sha256, *, maximum_tokens, model_bounds=None):
         if (type(maximum_tokens) is not int or not 0 < maximum_tokens <= CAMPAIGN_LIMIT
-                or (model_bounds is None and maximum_tokens not in (RUN_LIMIT, 5_500_000))):
+                or (model_bounds is None and maximum_tokens not in (RUN_LIMIT, 6_000_000))):
             raise ValueError('FAKE_FLOW_LIMIT_INVALID')
         super().__init__(grant_dir, run_id, comparison, authority_sha256, qualitative_only=True)
         self.run_limit = maximum_tokens

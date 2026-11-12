@@ -53,7 +53,7 @@ def identify():
 def preflight(path, pin):
     data=json.loads(Path(path).read_bytes())
     cap=data.get('per_run_tokens');smoke=data.get('workflow')==VISION_WORKFLOW
-    if (type(cap) is not int or (not VISION_RESERVATION<=cap<=host.CAMPAIGN_LIMIT if smoke else cap!=5_500_000)
+    if (type(cap) is not int or (not VISION_RESERVATION<=cap<=host.CAMPAIGN_LIMIT if smoke else cap!=6_000_000)
             or data.get('model')!=(VISION_MODEL if smoke else host.MODEL)
             or data.get('vision_model')!=VISION_MODEL
             or data.get('vision_thinking') not in {'enabled','disabled'}

@@ -1,8 +1,8 @@
 # Fake03 vision-inclusive verification
 
-Vision candidate vs main 2289ce1: production +370 / −77. This verification follow-up vs 7b76dbe: production +0 / −0; tests +25 / −7; runtime guards +0 / −0; test assertions +3 / −0. No fallback or test retirement.
+Prior vision candidate vs main 2289ce1: production +370 / −77. That completed verification follow-up vs 7b76dbe: production +0 / −0; tests +25 / −7; runtime guards +0 / −0; test assertions +3 / −0. No fallback or test retirement.
 
-Runtime code remains byte-identical to 7b76dbe; corrected AGENTS.md remains as approved at aca3e81.
+The completed full verification below used runtime code byte-identical to 7b76dbe. The subsequent 6M cap follow-up is recorded separately below; corrected AGENTS.md is unchanged from aca3e81.
 
 ## Verification
 
@@ -20,6 +20,12 @@ The [frozen v3 manifest](../verification/fake03-post-9a/manifest-v3-vision.json)
 
 ## Next gate
 
-New staged owner authorization is pending. First: one direct image-tool check, no Coordinator model call. A complete, settled result, no new unknown hold and Neo review are required before the separate Coordinator-only GLM-5.3 plus vision probe, capped at shared 5.5M and stopping at the page sheet. Recheck campaign availability after the check; stop if the full 5.5M is unavailable. Preserve every existing hold. **No paid call or main move occurred.**
+The owner authorized staged launch on the original candidate with a 1,009,226-token vision check and a 6,000,000-token shared Coordinator/vision probe, but the original candidate refused 6M at preflight. This follow-up changes only that probe cap; a new candidate tag needs fresh owner launch authorization. Continue after the check only with a complete non-truncated observation, settled usage, no new unknown hold, Neo review and at least 6,000,000 campaign tokens remaining. Stop at the page sheet without approval; preserve every hold. No paid call or main move occurred.
 
 Next development item before another model change: consolidate model identifiers/limits/bounds using existing profile infrastructure; preserve current GLM request bytes. Parallel reads and source-result redesign stay deferred. [Operator commands](../verification/fake03-probe-safety/vision-inclusive-commands.md).
+
+## 6M cap follow-up
+
+Production +2 / -2; tests +15 / -15; guards +0 / -0; no legacy fallback or new test/case. Replace the selected 5.5M cap with 6M in the probe and shared budget whitelist, existing fixture/expectation arithmetic, active template and remaining-campaign condition. Historical run/frozen records retain their original values. Model-profile/configuration consolidation remains deferred.
+
+Main ran the three existing probe-focused modules with the existing offline network guard: 42 passed, 1 failed (282.7s). The extra admitted call exposed an old mock returning Coordinator tool calls to the summary request. Neo classified it P2 fixture-only; edit the existing response lines to return a plain summary without advancing the Coordinator script. Only that existing budget case was rerun: 1 passed (16.0s), preserving full charge/reservation, five-call exhaustion, budget-stop and hold assertions. Original failed evidence remains private at `.private/fake03-cap6m-20261112/`; no full regression was run for this follow-up. Draft preflight and final Neo disposition follow before tagging.

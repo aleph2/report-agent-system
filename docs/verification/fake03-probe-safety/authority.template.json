@@ -14,9 +14,9 @@
   "stop_at": "page_sheet",
   "run_id": "OWNER_APPROVED_NEW_RUN_ID",
   "grant_dir": "/PRIVATE/EXISTING_FAKE_CAMPAIGN",
-  "per_run_tokens": 5500000,
+  "per_run_tokens": 6000000,
   "aggregate_tokens": 10000000,
-  "owner_authority_ref": "FROM_OWNER_APPROVED_VISION_INCLUSIVE_5_5M_AUTHORITY",
+  "owner_authority_ref": "FROM_OWNER_APPROVED_VISION_INCLUSIVE_6M_AUTHORITY",
   "fresh_comparison": {
     "run_ids": [
       "OWNER_APPROVED_NEW_RUN_ID"

@@ -27,7 +27,7 @@ def visual_bound():
                         image_max_edge=1024,wire_output_limit=8192)
 
 
-def budget(pair,cap=5500000):
+def budget(pair,cap=6000000):
     _,_,grant,c=pair
     return FakeFlowBudget(grant,'mixed',{**c,'run_ids':['mixed']},'c'*64,
                           maximum_tokens=cap,model_bounds={VISION:visual_bound().total})
@@ -56,7 +56,7 @@ def send(account,model,used=10,change=None,provider=None):
 def test_mixed_models_charge_same_run_without_changing_original_authorization_or_hold(pair):
     account=budget(pair);before=finance(account)
     send(account,TEXT,11);send(account,VISION,20)
-    assert account.run_snapshot()=={'maximum_tokens':5500000,'settled':31,'held':0}
+    assert account.run_snapshot()=={'maximum_tokens':6000000,'settled':31,'held':0}
     after=finance(account)
     assert before['auth']==after['auth']
     assert all(row in after['rows'] for row in before['rows'])
@@ -65,10 +65,10 @@ def test_mixed_models_charge_same_run_without_changing_original_authorization_or
 
 def test_mixed_models_exact_cap_and_one_more_request(pair):
     account=budget(pair)
-    for _ in range(3):send(account,TEXT,TEXT_BOUND.total)
-    send(account,VISION,5500000-3*TEXT_BOUND.total-visual_bound().total)
+    for _ in range(4):send(account,TEXT,TEXT_BOUND.total)
+    send(account,VISION,6000000-4*TEXT_BOUND.total-visual_bound().total)
     send(account,VISION,visual_bound().total)
-    assert account.run_snapshot()['settled']==5500000
+    assert account.run_snapshot()['settled']==6000000
     for model in [TEXT,VISION]:
         with pytest.raises(RequestBudgetExceeded):send(account,model,provider=lambda _:pytest.fail('cap dispatched'))
 
