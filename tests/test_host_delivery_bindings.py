@@ -303,7 +303,8 @@ async def test_real_sdk_complete_tool_batch_precedes_current_host_controls_and_t
     executed = await native_node(ToolNode([tool]), {'messages': [action]})
     assert len([m for m in executed['messages'] if m.type == 'tool']) == 2
     history = [*initial, action, *executed['messages']]
-    ws.store.add_feedback('Current complete condition requires one new host frame after this tool batch.')
+    feedback = 'Current condition must follow this complete tool batch in the call-local tail.'
+    ws.store.add_feedback(feedback)
     captured = []
     def transport(request):
         wire = json.loads(request.content)
@@ -338,9 +339,12 @@ async def test_real_sdk_complete_tool_batch_precedes_current_host_controls_and_t
             assert [m['role'] for m in results] == ['tool', 'tool']
             assert [m['tool_call_id'] for m in results] == ['prior-call-0', 'prior-call-1']
             assert all(m['content'] == 'Unchanged synthetic tool result.' for m in results)
-            new_controls = [i for i, m in enumerate(messages) if wire_text(m).startswith('[host-state]')]
-            assert new_controls[-1] > position + 2
-            assert live_packet(wire)[0] == len(messages) - 1
+            old_frames = [i for i, m in enumerate(messages) if wire_text(m).startswith('[host-state]')]
+            assert not old_frames
+            tail_index, packet = live_packet(wire)
+            assert tail_index == len(messages) - 1 and tail_index > position + 2
+            assert packet['current_state']['operator_feedback'] == ws.store.get('feedback')
+            assert feedback in json.dumps(packet['current_state']['operator_feedback'])
             assert wire_text(messages[-1]).startswith('[host-observations]')
             assert 'input' not in wire and 'model' in wire and wire['tools'][0]['type'] == 'function'
             # Metadata only: do not export body text or even the synthetic
@@ -349,7 +353,7 @@ async def test_real_sdk_complete_tool_batch_precedes_current_host_controls_and_t
                 'langchain_openai': version('langchain-openai'), 'openai': version('openai'),
                 'system_content_type': type(messages[0]['content']).__name__,
                 'roles': [m['role'] for m in messages], 'tool_call_ids': [m['tool_call_id'] for m in results],
-                'host_state_positions': new_controls, 'tail_position': len(messages) - 1,
+                'host_state_positions': old_frames, 'tail_position': tail_index,
                 'reasoning_field_preserved': True, 'service_acceptance_verified': False}
             (tmp_path / 'provider-shape.json').write_text(encode(metadata), encoding='utf-8')
         finally:
