@@ -409,7 +409,8 @@ Owner b2 sequence (2026-11-10): b remains accepted. Finish/accept c and advance 
 - [x] C1/C4 file additions/removals with requirements/readers.
 - [x] Agent-path wiring and frame-receipt consumer census.
 - [x] Visibility trace design using existing captures and minimal missing join.
-- [ ] Owner chooses accepted-history classifier disposition.
+- [x] Owner chose classifier removal; live pre-C1 checkpoint path traced in section 4a.
+- [ ] Step 2: retire pre-C1 live-history admission and obsolete rubric upgrade; preserve C1 owner waits and original records.
 - [ ] Neo/advisor review Step 1 before C1 implementation.
 - [ ] Step 2: C1 focused V1/V2/V6 after the Step 1 gate.
 - [ ] Steps 3–4: C2 inventory/review, then C2/C3 verification.
