@@ -341,10 +341,10 @@ def entry_plan_gaps(cs, db, item, plan):
 
 
 def numeric_warning_context(cs, db, *, requirements=None, plan=None):
-    from .commission_requirements import read_requirements
+    from .commission_requirements import read_requirements, enabled as requirements_enabled, requirements_ref
     if requirements is None and (plan or {}).get('requirements_ref'):
         requirements = cs._read(db, plan['requirements_ref'])['payload']
-    elif requirements is None and enabled(cs.store):
+    elif requirements is None and (requirements_enabled(cs.store) or requirements_ref(db)):
         requirements = read_requirements(cs, db=db)['payload']
     context = {'records': [plan if plan is not None else plan_inputs.get_draft(db, {}), requirements or {}],
                'method_links': []}
