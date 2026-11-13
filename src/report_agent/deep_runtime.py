@@ -1155,7 +1155,8 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                                                        BusinessBoundary(workspace, "rubric_grader")])]
     from .native_trace import trace_tools
     coordinator_middleware = middleware("coordinator", tuple((s['name'], s['description']) for s in subagents))
-    filesystem = next(m for m in coordinator_middleware if isinstance(m, FilesystemMiddleware))
+    from deepagents.middleware.filesystem import FilesystemMiddleware as FilesystemMiddlewareType
+    filesystem = next(m for m in coordinator_middleware if isinstance(m, FilesystemMiddlewareType))
     def planning_result_fits(result):
         # The pinned SDK exposes its selected eviction allowance only on this instance.
         limit = filesystem._tool_token_limit_before_evict

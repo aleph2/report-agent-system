@@ -148,6 +148,7 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
                     proposed_exclusions=[],stop_at='one_vision_observation',per_run_tokens=probe.VISION_RESERVATION+1024)
     pin=write_json(path,data);prepared=probe.prepare(path,pin)
     driver=None
+    expected=None
     for suffix,value in {'MODEL':host.MODEL,'BASE_URL':url,'API_KEY':'synthetic'}.items():monkeypatch.setenv('REPORT_WRITER_'+suffix,value)
     for suffix,value in {'MODEL':probe.VISION_MODEL,'BASE_URL':vision_url,'API_KEY':'synthetic'}.items():monkeypatch.setenv('REPORT_VISION_'+suffix,value)
     monkeypatch.setenv('REPORT_SDK_RETRIES','0');monkeypatch.setenv('REPORT_CONNECT_RETRIES','2')
@@ -170,7 +171,7 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
             'model':host.MODEL,'choices':[{'index':0,'finish_reason':'stop' if response is None else 'tool_calls','message':message}],
             'usage':{'prompt_tokens':host.BOUND-4 if scenario=='budget' else 6,'completion_tokens':4,'total_tokens':host.BOUND if scenario=='budget' else 10}})
     def configured(store,role):
-        nonlocal driver
+        nonlocal driver,expected
         if driver is None:
             driver,_=coordinator_script(Workspace(store))
             if scenario=='refusal':
@@ -188,6 +189,7 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
                 from report_agent.catalog import Catalog
                 sid=next(s['id'] for s in Catalog(store).metadata() if s.get('filename')=='06_drawing.pdf')
                 driver.scripts['coordinator'].insert(0,invoke('analyze_source_image',source_id=sid,question='Identify the labelled subject, not dimensions'))
+            expected=len(driver.scripts['coordinator'])
         model=original(store,role);monkeypatch.setattr(model.http_async_client._transport,'handle_async_request',provider)
         return model
     monkeypatch.setattr(deep_models,'configured_model',configured)
@@ -260,7 +262,7 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
         assert result['budget']['held']==(host.BOUND if scenario=='unknown' else 0)
         with pytest.raises(FileExistsError):await probe.launch(path,pin,prepared['prepared_sha256'],env)
         return
-    expected=67 if scenario=='scope' else 62 if scenario in {'refusal','vision'} else 61
+    assert expected is not None
     if scenario=='scope':
         forbidden=set(probe.PROBE_UNAVAILABLE_TOOLS)
         assert catalogs and all(not (catalog & forbidden) for catalog in catalogs)
@@ -270,9 +272,9 @@ async def test_probe_real_native_operator_reaches_owner_checkpoint_without_write
     if scenario=='vision':
         assert len(visual_sent)==1
         metrics=result['runtime_metrics']['roles']['coordinator']
-        assert metrics['tokens']==result['budget']['settled']==720
-        assert metrics['invocations']==metrics['completed_invocations']==63
-        assert metrics['usage_attempts']==63
+        assert metrics['tokens']==result['budget']['settled']==expected*10+100
+        assert metrics['invocations']==metrics['completed_invocations']==expected+len(visual_sent)
+        assert metrics['usage_attempts']==expected+len(visual_sent)
         events=Store(Path(prepared['case_path'])).events(limit=2000)
         visual=[e['data'] for e in events if e['kind']=='model_invocation_outcome'
                 and e['data']['role']=='coordinator'

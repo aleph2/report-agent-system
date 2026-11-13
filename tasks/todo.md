@@ -460,3 +460,5 @@ C2 pre-tag completion: retired-marker search reproduced two more stale visibilit
 - [x] Item5 record-local soft numeric-literal warnings and owner checkpoint display;173focused and111final overlapping passes,Neo reviewed.
 - [ ] Offline full regression and actual-candidate replay comparison.
 - [ ] Reviewed candidate tag and draft authorization preflight; satisfy standing-paid activation gates.
+
+Phase2 first frozen full f7ad188 has confirmed P2 failures (middleware factory/type coupling and stale probe script counts). Existing assertions corrected in place;56focused passes,Neo reviewed. Original full retained as failed, still collecting terminal evidence; corrected frozen full/replay/tag/preflight remain pending. See docs/verification/context-fix-phase2/full-findings.md.
