@@ -862,3 +862,6 @@ src/report_agent/writer_assignments.py	152	_cached_index	helper	read	'writer_ass
 src/report_agent/writer_assignments.py	174	prepare_assignment_pages	helper	write	key	writer_assignment_pages:*
 src/report_agent/writer_judgments.py	76	read_progress	accessor	read	get_writer_indicator_steps	writer_indicator_steps:*
 src/report_agent/writer_judgments.py	201	page_receipt	accessor	read	get_writer_page_read	writer_page_read:*
+src/report_agent/run_authority.py	118	preflight	property	read	workspace.store.manifest	manifest
+src/report_agent/run_authority.py	197	preflight	store	read	'native_interrupts'	native_interrupts
+src/report_agent/run_authority.py	277	run_authorized_report	store	read	'native_interrupts'	native_interrupts
