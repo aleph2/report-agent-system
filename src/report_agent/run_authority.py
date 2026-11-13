@@ -31,48 +31,36 @@ def current_authority():
     return _active.get()
 
 
-def _text_bound(proof, env_bytes, model, base_url):
-    """Verify the existing approved service pin and documented full model ceiling.
+def _service_bound(proof, env_bytes, model, base_url):
+    """Reviewed pinned limits, cross-checked against documented capacity metadata.
 
-    This is conservative accounting, not certified measurement of request fit.
+    Neither the proof nor the capacity preset certifies measured request fit.
     """
     import httpx
-    sources = proof.get('sources', [])
-    if (model != 'glm-5.3' or proof.get('model') != model
-            or proof.get('input_limit') != 1_048_576 or proof.get('output_limit') != 131_072
-            or proof.get('basis') != 'documented_model_ceiling_not_measured_request_fit'
-            or proof.get('env_sha256') != _sha_bytes(env_bytes)
-            or proof.get('base_url_sha256') != _sha_bytes(base_url.rstrip('/').encode())
-            or proof.get('request_url_sha256') != _sha_bytes(str(httpx.URL(base_url.rstrip('/')+'/chat/completions')).encode())
-            or not isinstance(sources,list)
-            or not {'https://docs.z.ai/guides/llm/glm-5.3',
-                    'https://help.aliyun.com/zh/model-studio/glm-5-3'} <= set(sources)):
-        raise ValueError('REPORT_REQUEST_PROOF_INVALID')
-    proof_hash = _sha_bytes(json.dumps(proof,sort_keys=True,separators=(',',':')).encode())
-    return RequestBound(model,proof['request_url_sha256'],proof['input_limit'],proof['output_limit'],proof_hash)
-
-
-def _vision_bound(proof, env_bytes, model, base_url):
-    """Conservative documented service ceiling; not a measured small-image estimate."""
-    import hashlib
-    from urllib.parse import urlparse
-    from .token_budget import RequestBound
-    import httpx
-    sha=lambda value:hashlib.sha256(value).hexdigest()
-    expected={'model':'deepseek-v4.1-flash-1017','input_limit':1_000_000,'output_limit':8_202,
-              'wire_output_limit':8_192,'image_max_edge':1024,
-              'basis':'documented_service_ceiling_not_measured_request_fit',
-              'env_sha256':_sha_bytes(env_bytes),
-              'base_url_sha256':sha(base_url.rstrip('/').encode()),
-              'request_url_sha256':sha(str(httpx.URL(base_url.rstrip('/')+'/chat/completions')).encode())}
-    if (model!='deepseek-v4.1-flash-1017' or not (urlparse(base_url).hostname or '').endswith('.maas.aliyuncs.com')
-            or any(proof.get(k)!=v for k,v in expected.items())
-            or not {'https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash',
-                    'https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions'}<=set(proof.get('sources',[]))):
-        raise ValueError('REPORT_VISION_PROOF_INVALID')
-    return RequestBound(model,expected['request_url_sha256'],1_000_000,8_202,
-        sha(json.dumps(proof,sort_keys=True,separators=(',',':')).encode()),
-        image_max_edge=1024,wire_output_limit=8192)
+    from urllib.parse import urlsplit
+    from .input_capacity import profile_for_service
+    capacity=profile_for_service(model,base_url)
+    sources=proof.get('sources')
+    suffix=proof.get('endpoint_host_suffix')
+    output=proof.get('output_limit')
+    error='REPORT_VISION_PROOF_INVALID' if 'image_max_edge' in proof else 'REPORT_REQUEST_PROOF_INVALID'
+    if (any(type(n) is not int or n<1 for n in (capacity.context_tokens,capacity.maximum_output_tokens))
+            or proof.get('model')!=model or proof.get('input_limit')!=capacity.context_tokens
+            or type(output) is not int or not 0<output<=capacity.maximum_output_tokens
+            or not isinstance(proof.get('basis'),str) or not proof['basis'].strip()
+            or urlsplit(base_url).scheme!='https'
+            or not isinstance(suffix,str) or not suffix.startswith('.')
+            or not (urlsplit(base_url).hostname or '').endswith(suffix)
+            or proof.get('env_sha256')!=_sha_bytes(env_bytes)
+            or proof.get('base_url_sha256')!=_sha_bytes(base_url.rstrip('/').encode())
+            or proof.get('request_url_sha256')!=_sha_bytes(str(httpx.URL(base_url.rstrip('/')+'/chat/completions')).encode())
+            or not isinstance(sources,list) or not sources
+            or any(not isinstance(url,str) or urlsplit(url).scheme!='https' or not urlsplit(url).hostname for url in sources)
+            or ('image_max_edge' in proof)!=('wire_output_limit' in proof)):
+        raise ValueError(error)
+    proof_hash=_sha_bytes(json.dumps(proof,sort_keys=True,separators=(',',':')).encode())
+    return RequestBound(model,proof['request_url_sha256'],proof['input_limit'],output,proof_hash,
+                        image_max_edge=proof.get('image_max_edge'),wire_output_limit=proof.get('wire_output_limit'))
 
 
 def _verify_checkpoint_reply(workspace, issue_id, issue, path, pin):
@@ -157,7 +145,7 @@ def preflight(workspace, path, pin, env_file, invocation):
         proof=service.get('request_bound_proof')
         if not isinstance(proof,dict):
             raise ValueError('REPORT_SERVICE_PROOF_REQUIRED')
-        policies.append((_vision_bound if 'image_max_edge' in proof else _text_bound)(proof,env_raw,*values[:2]))
+        policies.append(_service_bound(proof,env_raw,*values[:2]))
         resolved[model]=values
     bounds={p.model:p for p in policies}
     if bounds[roles['vision']].image_max_edge is None or any(bounds[model].image_max_edge is not None for role,model in roles.items() if role!='vision'):

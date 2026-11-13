@@ -494,3 +494,19 @@ Deferred until the synthetic report is complete:
 - remove the superseded fake orchestrator run path after preserving its verification evidence
 
 Production authority/budget is committed separately; explicit canonical Writer tool and its one backend catalogue entry are implemented and Neo-reviewed, with 101 existing focused passes. All test-function names remain unchanged. One combined frozen candidate/full is next; no tag or paid dispatch yet.
+
+
+## Preserved-hold admission and configured service bounds — 2026-11-13
+
+- [x] Support an authority-pinned set of preserved holds in the production campaign adapter, with a versioned guard and per-request hold exemptions; preserve existing comparison/continuation semantics.
+- [x] Add explicit, atomic old-guard-to-new-guard migration with before/after pins and unchanged existing rows; keep admission/preflight read-only.
+- [x] Add the two requested production-ledger test cases; update existing proof fixtures in place. Focused money/vision/admission/census: 45 passed.
+- [x] Remove provider/model/limit/host/documentation literals from production launch proof validation. Consume pinned authority proof data and reuse existing documented capacity metadata as a safety cross-check; keep actual model selection in the authority.
+- [ ] Neo final trigger/migration/literal review, one frozen full regression, then fake03-production-entry-20261113b.
+- [ ] Explicit live migration, updated guard/candidate/authority pins, read-only preflight, then send commit/tag/review/regression count before the fresh production planning launch.
+
+Before any real report (design only at present):
+- [ ] Design bounded disconnect-before-response retries that retain the old unknown hold and reserve anew for each attempt.
+- [ ] Design a provider-evidence reconciliation command that records the evidence supplier and provenance, and never settles/releases an unknown attempt without authoritative evidence.
+
+Verification: docs/verification/context-fix-phase2/multi-hold-admission.md. No retry/reconciliation command or model-selection change is implemented in this slice.

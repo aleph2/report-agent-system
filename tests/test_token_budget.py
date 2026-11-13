@@ -71,12 +71,12 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
     store.initialize({'goal':'Synthetic production admission','sources':[{'id':'scope','title':'Scope','content':'Synthetic scope','coverage':'complete'}]})
     workspace=Workspace(store)
     env=tmp_path/'services.env'
-    text_url='https://synthetic.invalid/v1'
+    text_url='https://text.synthetic.maas.aliyuncs.com/v1'
     vision_url='https://synthetic.maas.aliyuncs.com/v1'
     env.write_text('GLM_NAME=glm-5.3\nGLM_BASE_URL='+text_url+'\nGLM_API_KEY=synthetic\nVISION_NAME=deepseek-v4.1-flash-1017\nVISION_BASE_URL='+vision_url+'\nVISION_API_KEY=synthetic\n')
     hashed=lambda value:sha256(value).hexdigest()
-    common=dict(env_sha256=hashed(env.read_bytes()))
-    text_proof=dict(common,model='glm-5.3',input_limit=1048576,output_limit=131072,
+    common=dict(env_sha256=hashed(env.read_bytes()),endpoint_host_suffix='.maas.aliyuncs.com')
+    text_proof=dict(common,model='glm-5.3',input_limit=1048576,output_limit=65536,
         basis='documented_model_ceiling_not_measured_request_fit',
         base_url_sha256=hashed(text_url.encode()),request_url_sha256=hashed((text_url+'/chat/completions').encode()),
         sources=['https://docs.z.ai/guides/llm/glm-5.3','https://help.aliyun.com/zh/model-studio/glm-5-3'])
@@ -110,6 +110,16 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
         run_authority.preflight(workspace,authority_path,'0'*64,env,'planning')
     dry=asyncio.run(run_authority.run_authorized_report(workspace,authority_path,pin,env,'planning',dry_run=True))
     assert dry['paid_calls']==0 and ledger.read_bytes()==before and not (tmp_path/'records').exists()
+    # Configured bounds may be lower on output, but full input cannot be under-reserved.
+    for invalid in ({'input_limit':text_proof['input_limit']-1},
+                    {'output_limit':text_proof['input_limit']},
+                    {'endpoint_host_suffix':'.untrusted.invalid'},
+                    {'env_sha256':'0'*64}, {'sources':['http://synthetic.invalid']}):
+        with pytest.raises(ValueError,match='REPORT_REQUEST_PROOF_INVALID'):
+            run_authority._service_bound({**text_proof,**invalid},env.read_bytes(),text_proof['model'],text_url)
+    with pytest.raises(ValueError,match='REPORT_REQUEST_PROOF_INVALID'):
+        run_authority._service_bound({**text_proof,'model':'synthetic-unknown'},env.read_bytes(),'synthetic-unknown',text_url)
+    assert ledger.read_bytes()==before
     dispatched=[]
     unknown_mode=False
     async def native(workspace,**kwargs):
@@ -138,7 +148,7 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
     with pytest.raises(RequestBudgetExceeded,match='REPORT_UNKNOWN_OUTCOME_HELD'):
         asyncio.run(run_authority.run_authorized_report(workspace,unknown_path,unknown_pin,env,'only'))
     stopped=json.loads((tmp_path/'unknown-records/only/result.json').read_bytes())
-    assert stopped['status']=='unknown_outcome_held' and stopped['budget']['held']==1179648
+    assert stopped['status']=='unknown_outcome_held' and stopped['budget']['held']==text_proof['input_limit']+text_proof['output_limit']
     assert len(dispatched)==2
     with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
         asyncio.run(run_authority.run_authorized_report(workspace,unknown_path,unknown_pin,env,'only'))
@@ -259,3 +269,79 @@ def test_sync_sdk_does_not_resend_after_settlement_failure(tmp_path,monkeypatch)
             client.chat.completions.create(model='m',messages=[{'role':'user','content':'Test'}])
         client.close()
     assert len(sent)==1 and b.snapshot()['reserved_or_unknown_upper_bounds']==40
+
+
+def _legacy_production_campaign(tmp_path, count):
+    import hashlib
+    from report_agent.token_budget import _LEGACY_CAMPAIGN_RUN_TRIGGER
+    campaign=TokenBudget(tmp_path/'production-campaign.db',500,{'m':40})
+    for _ in range(count):campaign.reserve('m')
+    with campaign.connect() as db:
+        holds=[list(r) for r in db.execute('SELECT * FROM attempts ORDER BY id')]
+        db.execute('CREATE TABLE fake_flow_runs (run_id TEXT PRIMARY KEY, maximum INTEGER NOT NULL, authority TEXT NOT NULL)')
+        db.execute('CREATE TABLE fake_run_attempts (attempt_id TEXT PRIMARY KEY, run_id TEXT NOT NULL)')
+        db.execute('CREATE TABLE fake_comparison_requests (request_id TEXT PRIMARY KEY, held_id TEXT NOT NULL, run_id TEXT NOT NULL)')
+        db.execute('CREATE TABLE fake_continuations (previous_id TEXT NOT NULL, retry_id TEXT PRIMARY KEY, run_id TEXT NOT NULL)')
+        db.execute(_LEGACY_CAMPAIGN_RUN_TRIGGER)
+        old_guard=db.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='fake_reservation'").fetchone()[0]
+    return campaign,holds,hashlib.sha256(old_guard.encode()).hexdigest()
+
+
+def test_production_campaign_preserves_two_holds_and_migrates_atomically(tmp_path,monkeypatch):
+    import sqlite3
+    import report_agent.token_budget as budgets
+    campaign,holds,old_pin=_legacy_production_campaign(tmp_path,2)
+    before=campaign.path.read_bytes()
+    # A denied DDL operation must roll back the new table as well as the guard.
+    connect=sqlite3.connect
+    def deny_guard_change(*args,**kwargs):
+        db=connect(*args,**kwargs)
+        db.set_authorizer(lambda action,*_:sqlite3.SQLITE_DENY if action==sqlite3.SQLITE_DROP_TRIGGER else sqlite3.SQLITE_OK)
+        return db
+    with monkeypatch.context() as patch:
+        patch.setattr(sqlite3,'connect',deny_guard_change)
+        with pytest.raises(sqlite3.DatabaseError):
+            budgets.CampaignRunBudget.migrate_hold_guard(campaign.path,
+                previous_guard_sha256=old_pin,new_guard_sha256=budgets.CAMPAIGN_HOLD_GUARD_SHA256)
+    assert campaign.path.read_bytes()==before
+    with pytest.raises(ValueError,match='REPORT_CAMPAIGN_GUARD_PIN_MISMATCH'):
+        budgets.CampaignRunBudget.migrate_hold_guard(campaign.path,
+            previous_guard_sha256='0'*64,new_guard_sha256=budgets.CAMPAIGN_HOLD_GUARD_SHA256)
+    migrated=budgets.CampaignRunBudget.migrate_hold_guard(campaign.path,
+        previous_guard_sha256=old_pin,new_guard_sha256=budgets.CAMPAIGN_HOLD_GUARD_SHA256)
+    assert migrated['applied'] and migrated['attempts_unchanged']
+    assert not budgets.CampaignRunBudget.migrate_hold_guard(campaign.path,
+        previous_guard_sha256=old_pin,new_guard_sha256=migrated['guard_sha256'])['applied']
+    options=dict(maximum_tokens=40,aggregate_tokens=500,model_bounds={'m':40},
+        authority_sha256='a'*64,preserved_holds=holds,guard_sha256=migrated['guard_sha256'])
+    budget=budgets.CampaignRunBudget(campaign.path,'fresh',**options)
+    request=budget.reserve('m')
+    with campaign.connect() as db:
+        assert [list(r) for r in db.execute('SELECT * FROM attempts WHERE id<>? ORDER BY id',(request,))]==holds
+        assert db.execute('SELECT request_id,held_id,run_id FROM report_hold_exemptions ORDER BY held_id').fetchall()==[(request,h[0],'fresh') for h in holds]
+        assert not db.execute('SELECT * FROM fake_continuations').fetchall()
+        assert not db.execute('SELECT * FROM fake_comparison_requests').fetchall()
+    assert budget.run_snapshot()=={'maximum_tokens':40,'settled':0,'held':40}
+    budget.settle(request,{'total_tokens':10})
+    assert budget.run_snapshot()=={'maximum_tokens':40,'settled':10,'held':0}
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_RUN_TOKEN_LIMIT'):budget.reserve('m')
+    with campaign.connect() as db:
+        assert [list(r) for r in db.execute('SELECT * FROM attempts WHERE id<>? ORDER BY id',(request,))]==holds
+
+
+def test_production_campaign_refuses_unlisted_or_changed_pending_hold(tmp_path):
+    import report_agent.token_budget as budgets
+    campaign,holds,old_pin=_legacy_production_campaign(tmp_path,3)
+    migrated=budgets.CampaignRunBudget.migrate_hold_guard(campaign.path,
+        previous_guard_sha256=old_pin,new_guard_sha256=budgets.CAMPAIGN_HOLD_GUARD_SHA256)
+    options=dict(maximum_tokens=40,aggregate_tokens=500,model_bounds={'m':40},
+        authority_sha256='a'*64,preserved_holds=holds[:2],guard_sha256=migrated['guard_sha256'])
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):
+        budgets.CampaignRunBudget(campaign.path,'unlisted',**options)
+    campaign.before_send_cancelled(holds[2][0])
+    budget=budgets.CampaignRunBudget(campaign.path,'changed',**options)
+    with campaign.connect() as db:
+        db.execute('UPDATE attempts SET reason=? WHERE id=?',('Synthetic unexpected hold change',holds[0][0]))
+        before=db.execute('SELECT * FROM attempts ORDER BY id').fetchall()
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):budget.reserve('m')
+    with campaign.connect() as db:assert db.execute('SELECT * FROM attempts ORDER BY id').fetchall()==before

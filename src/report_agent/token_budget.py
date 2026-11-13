@@ -303,6 +303,31 @@ class TokenBudget:
 _LEGACY_CAMPAIGN_RUN_TRIGGER = "CREATE TRIGGER fake_reservation AFTER INSERT ON attempts BEGIN\n                    SELECT CASE WHEN EXISTS(\n                        SELECT 1 FROM attempts WHERE id <> NEW.id AND NOT EXISTS (SELECT 1 FROM fake_comparison_requests p\n        WHERE p.held_id=attempts.id AND p.request_id=NEW.id AND p.run_id=fake_run_id()) AND NOT EXISTS (\n        SELECT 1 FROM fake_continuations c WHERE c.previous_id=attempts.id\n        AND c.retry_id=NEW.id AND c.run_id=fake_run_id()\n    ) AND state IN ('reserved','unknown')\n                    ) THEN RAISE(ABORT, 'FAKE_REQUEST_PENDING') END;\n                    INSERT INTO fake_run_attempts VALUES (NEW.id, fake_run_id());\n                    SELECT CASE WHEN (\n                        SELECT SUM(COALESCE(a.used, 0) +\n                            CASE WHEN a.state IN ('reserved','unknown') THEN a.reserved ELSE 0 END)\n                        FROM attempts a JOIN fake_run_attempts r ON r.attempt_id = a.id\n                        WHERE r.run_id = fake_run_id()\n                    ) > COALESCE((SELECT maximum FROM fake_flow_runs WHERE run_id=fake_run_id()), 3700000) THEN RAISE(ABORT, 'FAKE_RUN_TOKEN_LIMIT') END;\n                END;"
 
 
+_HOLD_EXEMPTION_SCHEMA = ('CREATE TABLE report_hold_exemptions ('
+    'request_id TEXT NOT NULL, held_id TEXT NOT NULL, run_id TEXT NOT NULL, '
+    'PRIMARY KEY(request_id,held_id,run_id))')
+# The versioned guard adds one exemption source; old permits and limits stay intact.
+_CAMPAIGN_RUN_TRIGGER_V2 = _LEGACY_CAMPAIGN_RUN_TRIGGER.replace(
+    'CREATE TRIGGER fake_reservation', 'CREATE TRIGGER report_reservation_v2', 1).replace(
+    ' AND NOT EXISTS (\n        SELECT 1 FROM fake_continuations',
+    ' AND NOT EXISTS (SELECT 1 FROM report_hold_exemptions h WHERE '
+    'h.held_id=attempts.id AND h.request_id=NEW.id AND h.run_id=fake_run_id())'
+    ' AND NOT EXISTS (\n        SELECT 1 FROM fake_continuations', 1).rstrip(';')
+CAMPAIGN_HOLD_GUARD_SHA256 = hashlib.sha256(_CAMPAIGN_RUN_TRIGGER_V2.encode()).hexdigest()
+
+
+def _hold_exemption_schema(db):
+    row=db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='report_hold_exemptions'").fetchone()
+    if row is None or ' '.join(row[0].split()) != ' '.join(_HOLD_EXEMPTION_SCHEMA.split()):
+        raise ValueError('REPORT_CAMPAIGN_SCHEMA_UNRECOGNIZED')
+
+
+def _ledger_rows(db, tables):
+    # Keep SQLite value types as well as values when checking a migration.
+    return {name:repr(sorted(db.execute('SELECT * FROM "'+name.replace('"','""')+'"').fetchall(),key=repr))
+            for name in sorted(tables)}
+
+
 class _CampaignConnection(sqlite3.Connection):
     def __exit__(self, *args):
         try:
@@ -313,6 +338,47 @@ class _CampaignConnection(sqlite3.Connection):
 
 class CampaignRunBudget(TokenBudget):
     """One pinned run on an existing campaign; accepted storage layouts share admission."""
+    @staticmethod
+    def migrate_hold_guard(path, *, previous_guard_sha256, new_guard_sha256):
+        """Explicit operator migration; admission and preflight never migrate."""
+        path=Path(path).absolute()
+        if (not path.is_file() or path.is_symlink() or path.resolve()!=path
+                or not re.fullmatch('[0-9a-f]{64}',previous_guard_sha256 or '')
+                or new_guard_sha256!=CAMPAIGN_HOLD_GUARD_SHA256):
+            raise ValueError('REPORT_CAMPAIGN_GUARD_PIN_MISMATCH')
+        with sqlite3.connect(path.as_uri()+'?mode=rw',uri=True,timeout=30,factory=_CampaignConnection) as db:
+            db.execute('BEGIN IMMEDIATE')
+            tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            triggers=list(db.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='attempts' ORDER BY name"))
+            if (not {'authorization','attempts','fake_flow_runs','fake_run_attempts',
+                     'fake_comparison_requests','fake_continuations'}<=tables
+                    or tables & {'report_runs','report_run_attempts'} or len(triggers)!=1):
+                raise ValueError('REPORT_CAMPAIGN_SCHEMA_UNRECOGNIZED')
+            name,sql=triggers[0];old_hash=hashlib.sha256(sql.encode()).hexdigest()
+            if name=='report_reservation_v2' and sql==_CAMPAIGN_RUN_TRIGGER_V2 and old_hash==new_guard_sha256:
+                _hold_exemption_schema(db)
+                return {'applied':False,'guard_sha256':old_hash,'attempts_unchanged':True}
+            normalize=lambda value:' '.join(value.rstrip(';').split())
+            if (name!='fake_reservation' or normalize(sql)!=normalize(_LEGACY_CAMPAIGN_RUN_TRIGGER)
+                    or old_hash!=previous_guard_sha256):
+                raise ValueError('REPORT_CAMPAIGN_GUARD_PIN_MISMATCH')
+            if 'report_hold_exemptions' in tables:
+                raise ValueError('REPORT_CAMPAIGN_SCHEMA_UNRECOGNIZED')
+            before=_ledger_rows(db,tables)
+            db.execute(_HOLD_EXEMPTION_SCHEMA)
+            db.execute('DROP TRIGGER fake_reservation')
+            db.execute(_CAMPAIGN_RUN_TRIGGER_V2)
+            actual=list(db.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='attempts' ORDER BY name"))
+            if actual!=[('report_reservation_v2',_CAMPAIGN_RUN_TRIGGER_V2)]:
+                raise ValueError('REPORT_CAMPAIGN_GUARD_PIN_MISMATCH')
+            new_hash=hashlib.sha256(actual[0][1].encode()).hexdigest()
+            _hold_exemption_schema(db)
+            if new_hash!=new_guard_sha256 or _ledger_rows(db,tables)!=before:
+                raise ValueError('REPORT_CAMPAIGN_MIGRATION_CHANGED_ROWS')
+        return {'applied':True,'previous_guard_sha256':old_hash,'guard_sha256':new_hash,
+                'attempts_unchanged':True,'existing_tables_unchanged':True,
+                'rows_sha256':hashlib.sha256(repr(before).encode()).hexdigest()}
+
     def __init__(self, path, run_id, *, maximum_tokens, aggregate_tokens, model_bounds,
                  authority_sha256, preserved_holds, guard_sha256):
         self.path = Path(path).absolute()
@@ -341,10 +407,18 @@ class CampaignRunBudget(TokenBudget):
             native = {'report_runs','report_run_attempts'}
             triggers = list(db.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='attempts' ORDER BY name"))
             normalize = lambda sql:' '.join(sql.rstrip(';').split())
-            if legacy <= tables and not tables & native and len(triggers)==1 and triggers[0][0]=='fake_reservation' and normalize(triggers[0][1])==normalize(_LEGACY_CAMPAIGN_RUN_TRIGGER):
+            if legacy <= tables and not tables & native and len(triggers)==1:
                 self.run_table, self.attempt_table, self.legacy_layout = 'fake_flow_runs', 'fake_run_attempts', True
-                if len(self.holds) != 1:
-                    raise ValueError('REPORT_PRESERVED_HOLD_SET_MISMATCH')
+                if triggers[0][0]=='report_reservation_v2' and triggers[0][1]==_CAMPAIGN_RUN_TRIGGER_V2:
+                    _hold_exemption_schema(db)
+                    self.permit_table='report_hold_exemptions'
+                elif (triggers[0][0]=='fake_reservation' and normalize(triggers[0][1])==normalize(_LEGACY_CAMPAIGN_RUN_TRIGGER)
+                        and 'report_hold_exemptions' not in tables):
+                    self.permit_table='fake_comparison_requests'
+                    if len(self.holds) != 1:
+                        raise ValueError('REPORT_PRESERVED_HOLD_SET_MISMATCH')
+                else:
+                    raise ValueError('REPORT_CAMPAIGN_SCHEMA_UNRECOGNIZED')
             elif not tables & legacy and (not tables & native or native <= tables) and not triggers:
                 self.run_table, self.attempt_table, self.legacy_layout = 'report_runs', 'report_run_attempts', False
             else:
@@ -395,7 +469,8 @@ class CampaignRunBudget(TokenBudget):
         db.execute(f'INSERT OR IGNORE INTO {self.run_table} VALUES (?,?,?)',(self.run_id,self.run_limit,self.pin))
         identity = super()._reservation_id(db, model, bound)
         if self.legacy_layout:
-            db.execute('INSERT INTO fake_comparison_requests VALUES (?,?,?)',(identity,self.holds[0][0],self.run_id))
+            db.executemany(f'INSERT INTO {self.permit_table} VALUES (?,?,?)',
+                           [(identity,row[0],self.run_id) for row in self.holds])
         else:
             db.execute('INSERT INTO report_run_attempts VALUES (?,?)',(identity,self.run_id))
         return identity
