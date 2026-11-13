@@ -465,7 +465,16 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         Unknown is not no-write or no-provider-work; caller ids are namespace-bound.
         """
         from .operation_receipts import operation_receipt
-        return operation_receipt(contents, actor(), operation_id)
+        from .planning_inputs import compact_write_result
+        receipt = operation_receipt(contents, actor(), operation_id)
+        views = [receipt]
+        if isinstance(receipt.get('content_operation'), dict):
+            receipt['content_operation'] = dict(receipt['content_operation'])
+            views.append(receipt['content_operation'])
+        for view in views:
+            if 'response' in view:
+                view['response'] = compact_write_result(view['response'], warning_count_only=True)
+        return receipt
 
     def export_content_snapshot(operation_id: str, snapshot_ref: Ref, layout: LayoutOptions | None = None,
                                 layout_from_export_ref: Ref | None = None) -> dict:

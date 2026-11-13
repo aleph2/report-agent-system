@@ -1425,17 +1425,43 @@ def test_numeric_warnings_are_record_local_literal_checks():
         {'id': 'a', 'source': {'quote': '18%'}}, {'id': 'b', 'source': {'quote': '14.6%'}}],
         'items': [{'anchor_id': 'a', 'interpretation': '14.6%'}, {'anchor_id': 'b', 'interpretation': '14.6%'}]})
     assert [(w['field'], w['number']) for w in requirement_warnings] == [('requirements.a.interpretation', '14.6%')]
+    from report_agent.planning_inputs import compact_write_result
+    envelope = {'ok': True, 'receipt_id': 'stored', 'result': {'revision': 1, 'changed': False,
+        'saved_item_ids': ['a'], 'numeric_warnings': [
+            {'field': 'requirements.ab.interpretation', 'number': '99%', 'status': '待核'},
+            {'field': 'requirements.a.interpretation', 'number': '14.6%', 'status': '待核'}]}}
+    original = deepcopy(envelope)
+    assert compact_write_result(envelope)['result']['numeric_warnings'] == [
+        {'record_id': 'a', 'field': 'interpretation', 'number': '14.6%'}]
+    assert envelope == original
+    counted = compact_write_result(envelope, warning_count_only=True)['result']
+    assert counted['numeric_warning_count'] == 2 and 'numeric_warnings' not in counted
+    envelope['result'].update(saved_item_ids=['first', 'second'], numeric_warnings=[
+        {'field': 'items.1.attributes.0.values.0.value', 'number': '53.13°', 'status': '待核'}])
+    assert compact_write_result(envelope)['result']['numeric_warnings'] == [
+        {'record_id': 'second', 'field': 'attributes.0.values.0.value', 'number': '53.13°'}]
     assert numeric_literal_warnings({'text': '12, 30%', 'source': {'quote': '1,2 30'}})[-1]['number'] == '30%'
     assert numeric_literal_warnings({'text': 'Height 14.6m', 'source': {'quote': 'Height 18m'}})[0]['number'] == '14.6'
     assert not numeric_literal_warnings({'text': '10 - 15m', 'source': {'quote': '10–15m'}})
+    assert [w['number'] for w in numeric_literal_warnings({'text': '53.13°. 14.6%. 9002.'})] == ['53.13°', '14.6%', '9002']
     assert numeric_literal_warnings({'text': '0.1234567890123456789012345678901',
         'source': {'quote': '0.1234567890123456789012345678902'}})
 
 
-def test_numeric_warnings_reach_write_result_and_exact_owner_checkpoint(draft_case):
+def test_numeric_warnings_reach_write_result_and_exact_owner_checkpoint(draft_case, monkeypatch):
     import json
     f = draft_case
     save_draft_parts(f)
+    record, statuses = current_items(f)
+    anchors = [a for a in record['payload']['anchors'] if not statuses[a['id']].get('reviewed_entry_id')]
+    planning().set_requirement_statuses(f.cs, f.co, 'prior-warning', [dict(
+        anchor_id=anchors[0]['id'], status='required', interpretation='Prior uncited 9001%.')])
+    status_tool = next(fx for fx in planning().planning_tools(f.cs, lambda: f.co) if fx.__name__ == 'set_requirement_status')
+    current = status_tool(operation_id='current-warning', items=[dict(
+        anchor_id=anchors[1]['id'], status='required', interpretation='Current uncited 9002%.')])
+    assert current['result']['numeric_warnings'] == [
+        {'record_id': anchors[1]['id'], 'field': 'interpretation', 'number': '9002%'}]
+    assert {'9001%', '9002%'} <= {w['number'] for w in f.cs.receipt(f.co, 'current-warning')['response']['result']['numeric_warnings']}
     item = {'reconciliation_id': 'pair-0', **deepcopy(f.plan['reconciliations'][0])}
     item['differences'].append('Unexplained 14.6%; derived 53.13° needs checking.')
     tool = next(fx for fx in planning().planning_tools(f.cs, lambda: f.co) if fx.__name__ == 'add_reconciliation')
@@ -1445,12 +1471,30 @@ def test_numeric_warnings_reach_write_result_and_exact_owner_checkpoint(draft_ca
     assert audit['result']['items'][0]['numeric_warnings']
     assert result['result']['saved_item_ids'] == ['pair-0']
     assert 'items' not in result['result'] and 'citation_resolutions' not in result['result']
+    assert all(w['record_id'] == 'pair-0' and set(w) == {'record_id', 'field', 'number'} for w in result['result']['numeric_warnings'])
+    current_native_profiles(f)
+    from report_agent.hierarchical_tools import content_tools
+    reader = next(fx for fx in content_tools(f.ws, 'coordinator') if fx.__name__ == 'get_operation_receipt')
+    recovered = reader(operation_id='number-warning')
+    assert 'numeric_warnings' not in json.dumps(recovered)
+    assert recovered['response']['result']['numeric_warning_count'] == len(audit['result']['numeric_warnings'])
+    assert f.cs.receipt(f.co, 'number-warning')['response'] == audit
+    from report_agent import operation_receipts
+    duplicate = {**f.cs.receipt(f.co, 'number-warning'),
+        'content_operation': f.cs.receipt(f.co, 'number-warning'),
+        'model_attempts': [{'state': 'outcome_unresolved', 'provider_outcome': 'unknown'}]}
+    with monkeypatch.context() as patch:
+        patch.setattr(operation_receipts, 'operation_receipt', lambda *args: deepcopy(duplicate))
+        recovered = reader(operation_id='number-warning')
+    assert 'numeric_warnings' not in json.dumps(recovered)
+    assert recovered['model_attempts'] == duplicate['model_attempts']
+    assert recovered['content_operation']['response']['result']['numeric_warning_count'] == len(audit['result']['numeric_warnings'])
     plan_ref = planning().submit_plan(f.cs, f.co, 'number-warning-plan')['result']['plan_ref']
     checkpoint = api().request_checkpoint(f.ws)
     path = f.ws.store.root / checkpoint['brief_path']
     metadata = json.loads(path.with_suffix('.json').read_text())
     assert metadata['plan_ref'] == plan_ref
-    assert {'14.6%', '53.13°'} <= {r['number'] for r in metadata['numeric_warnings']}
+    assert {'14.6%', '53.13°', '9001%', '9002%'} <= {r['number'] for r in metadata['numeric_warnings']}
     assert '待核' in path.read_text() and '14.6%' in path.read_text()
     assert f.cs.read(plan_ref)['payload']['reconciliations'][0]['differences'] == item['differences']
     assert plan_authority.decision_ref(f.ws.store) is None

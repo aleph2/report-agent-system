@@ -237,7 +237,7 @@ def model_value(model, value, prefix=''):
         raise ActionRejected('PLANNING_FIELDS_INVALID: ' + summary, diagnostic={'fields': fields}) from None
 
 
-def compact_write_result(response):
+def compact_write_result(response, *, warning_count_only=False):
     """Project model replies after persistence; the complete operation receipt stays readable."""
     if not isinstance(response, dict) or response.get('ok') is not True:
         return response
@@ -246,9 +246,31 @@ def compact_write_result(response):
             or not {'revision', 'requirements_ref'} & result.keys()):
         return response
     compact = {key: result[key] for key in ('revision', 'requirements_ref', 'changed') if key in result}
-    for key in ('saved_item_ids', 'numeric_warnings'):
-        if result.get(key):
-            compact[key] = result[key]
+    identities = result['saved_item_ids']
+    if identities:
+        compact['saved_item_ids'] = identities
+    warnings = result.get('numeric_warnings', [])
+    if warning_count_only:
+        if warnings:
+            compact['numeric_warning_count'] = len(warnings)
+    else:
+        current = []
+        for warning in warnings:
+            path = warning['field']
+            if path.startswith('requirements.'):
+                identity = next((key for key in identities if path.startswith('requirements.' + key + '.')), None)
+                if identity is None:
+                    continue
+                field = path[len('requirements.' + identity + '.'):]
+            elif path.startswith('items.'):
+                _, index, field = path.split('.', 2)
+                identity = identities[int(index)]
+            else:
+                identity = identities[0]
+                field = path.split('.', 1)[1]
+            current.append({'record_id': identity, 'field': field, 'number': warning['number']})
+        if current:
+            compact['numeric_warnings'] = current
     return {**response, 'result': compact}
 
 
@@ -281,7 +303,7 @@ def expose(function):
 
 def numeric_literal_warnings(value, path='', quotes=()):
     """Soft literal comparison only; a cited number does not certify arithmetic or meaning."""
-    pattern = r'(?<![0-9_.])([+-]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?|[+-]?\.[0-9]+)\s*([%°度]?)(?![0-9_.])'
+    pattern = r'(?<![0-9_.])([+-]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?|[+-]?\.[0-9]+)(?![0-9_]|\.[0-9])\s*([%°度]?)'
     def numbers(text):
         text = normalize('NFKC', text)
         for match in re.finditer(pattern, text):
