@@ -53,6 +53,18 @@ def send(account,model,used=10,change=None,provider=None):
             return client.post(VISION_URL if model==VISION else TEXT_URL,json=payload)
 
 
+def production_budget(account, run_id):
+    from contextlib import closing
+    from report_agent.token_budget import CampaignRunBudget
+    with closing(account.connect(read_only=True)) as db:
+        holds=[list(r) for r in db.execute('SELECT * FROM attempts WHERE id=?',
+                                           (account.comparison['previous_attempt'],))]
+        guard=db.execute("SELECT sql FROM sqlite_master WHERE name='fake_reservation'").fetchone()[0]
+    return CampaignRunBudget(account.path,run_id,maximum_tokens=account.run_limit,
+        aggregate_tokens=account.maximum,model_bounds=account.model_bounds,authority_sha256='d'*64,
+        preserved_holds=holds,guard_sha256=sha256(guard.encode()).hexdigest())
+
+
 def test_mixed_models_charge_same_run_without_changing_original_authorization_or_hold(pair):
     account=budget(pair);before=finance(account)
     send(account,TEXT,11);send(account,VISION,20)
@@ -61,6 +73,14 @@ def test_mixed_models_charge_same_run_without_changing_original_authorization_or
     assert before['auth']==after['auth']
     assert all(row in after['rows'] for row in before['rows'])
     assert account.snapshot()['reserved_or_unknown_upper_bounds']==1179648
+
+    production=production_budget(account,'production-mixed')
+    send(production,TEXT,13);send(production,VISION,17)
+    assert production.run_snapshot()=={'maximum_tokens':account.run_limit,'settled':30,'held':0}
+    final=finance(account)
+    assert final['auth']==before['auth'] and all(row in final['rows'] for row in before['rows'])
+    assert production.snapshot()['reserved_or_unknown_upper_bounds']==1179648
+
 
 
 def test_mixed_models_exact_cap_and_one_more_request(pair):
@@ -79,6 +99,9 @@ def test_unknown_visual_request_blocks_every_model_without_releasing_holds(pair)
     assert account.run_snapshot()['held']==visual_bound().total
     for model in [TEXT,VISION]:
         with pytest.raises(RequestBudgetExceeded):send(account,model,provider=lambda _:pytest.fail('unknown replay'))
+    assert finance(account)==before
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):
+        production_budget(account,'production-must-not-retry')
     assert finance(account)==before
     assert account.snapshot()['reserved_or_unknown_upper_bounds']==1179648+visual_bound().total
 

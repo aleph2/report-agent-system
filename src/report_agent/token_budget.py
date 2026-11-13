@@ -289,12 +289,135 @@ class TokenBudget:
 
     def snapshot(self):
         with self.connect() as db:
-            used,held=self.totals(db)
-            counts=dict(db.execute('SELECT state,COUNT(*) FROM attempts GROUP BY state'))
+            return self._snapshot(db)
+
+    def _snapshot(self, db):
+        used,held=self.totals(db)
+        counts=dict(db.execute('SELECT state,COUNT(*) FROM attempts GROUP BY state'))
         return {'origin':'authorized_persistent_transport_token_ledger','maximum_tokens':self.maximum,
                 'recorded_tokens':used,'reserved_or_unknown_upper_bounds':held,
                 'remaining_for_new_reservations':max(0,self.maximum-used-held),'attempt_states':counts,
                 'note':'All current authorization cases share this ledger. Cached tokens are included once. Unknown results retain conservative reservations; this does not authorize extra work.'}
+
+
+_LEGACY_CAMPAIGN_RUN_TRIGGER = "CREATE TRIGGER fake_reservation AFTER INSERT ON attempts BEGIN\n                    SELECT CASE WHEN EXISTS(\n                        SELECT 1 FROM attempts WHERE id <> NEW.id AND NOT EXISTS (SELECT 1 FROM fake_comparison_requests p\n        WHERE p.held_id=attempts.id AND p.request_id=NEW.id AND p.run_id=fake_run_id()) AND NOT EXISTS (\n        SELECT 1 FROM fake_continuations c WHERE c.previous_id=attempts.id\n        AND c.retry_id=NEW.id AND c.run_id=fake_run_id()\n    ) AND state IN ('reserved','unknown')\n                    ) THEN RAISE(ABORT, 'FAKE_REQUEST_PENDING') END;\n                    INSERT INTO fake_run_attempts VALUES (NEW.id, fake_run_id());\n                    SELECT CASE WHEN (\n                        SELECT SUM(COALESCE(a.used, 0) +\n                            CASE WHEN a.state IN ('reserved','unknown') THEN a.reserved ELSE 0 END)\n                        FROM attempts a JOIN fake_run_attempts r ON r.attempt_id = a.id\n                        WHERE r.run_id = fake_run_id()\n                    ) > COALESCE((SELECT maximum FROM fake_flow_runs WHERE run_id=fake_run_id()), 3700000) THEN RAISE(ABORT, 'FAKE_RUN_TOKEN_LIMIT') END;\n                END;"
+
+
+class _CampaignConnection(sqlite3.Connection):
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            self.close()
+
+
+class CampaignRunBudget(TokenBudget):
+    """One pinned run on an existing campaign; accepted storage layouts share admission."""
+    def __init__(self, path, run_id, *, maximum_tokens, aggregate_tokens, model_bounds,
+                 authority_sha256, preserved_holds, guard_sha256):
+        self.path = Path(path).absolute()
+        if (not self.path.is_file() or self.path.is_symlink() or self.path.resolve() != self.path
+                or not isinstance(run_id, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,95}', run_id)
+                or type(maximum_tokens) is not int or type(aggregate_tokens) is not int
+                or not 0 < maximum_tokens <= aggregate_tokens
+                or not re.fullmatch('[0-9a-f]{64}', authority_sha256 or '')
+                or not re.fullmatch('[0-9a-f]{64}', guard_sha256 or '')
+                or not isinstance(preserved_holds, list) or any(not isinstance(r, list) or len(r) != 8 for r in preserved_holds)
+                or not model_bounds or any(not isinstance(k,str) or type(v) is not int or v < 1 for k,v in model_bounds.items())):
+            raise ValueError('REPORT_CAMPAIGN_AUTHORITY_REQUIRED')
+        self.run_id, self.run_limit, self.maximum = run_id, maximum_tokens, aggregate_tokens
+        self.pin, self.holds, self.guard_pin = authority_sha256, sorted(preserved_holds), guard_sha256
+        self.model_bounds = dict(model_bounds)
+        with self.connect(read_only=True) as db:
+            row = db.execute('SELECT maximum,bounds FROM authorization WHERE id=1').fetchone()
+            if row is None or row[0] != aggregate_tokens:
+                raise ValueError('REPORT_CAMPAIGN_AUTHORIZATION_MISMATCH')
+            self.authorization = tuple(row)
+            registered = json.loads(row[1])
+            if any(k in registered and registered[k] != v for k,v in self.model_bounds.items()):
+                raise ValueError('REPORT_MODEL_BOUND_MISMATCH')
+            tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            legacy = {'fake_flow_runs','fake_run_attempts','fake_comparison_requests'}
+            native = {'report_runs','report_run_attempts'}
+            triggers = list(db.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='attempts' ORDER BY name"))
+            normalize = lambda sql:' '.join(sql.rstrip(';').split())
+            if legacy <= tables and not tables & native and len(triggers)==1 and triggers[0][0]=='fake_reservation' and normalize(triggers[0][1])==normalize(_LEGACY_CAMPAIGN_RUN_TRIGGER):
+                self.run_table, self.attempt_table, self.legacy_layout = 'fake_flow_runs', 'fake_run_attempts', True
+                if len(self.holds) != 1:
+                    raise ValueError('REPORT_PRESERVED_HOLD_SET_MISMATCH')
+            elif not tables & legacy and (not tables & native or native <= tables) and not triggers:
+                self.run_table, self.attempt_table, self.legacy_layout = 'report_runs', 'report_run_attempts', False
+            else:
+                raise ValueError('REPORT_CAMPAIGN_SCHEMA_UNRECOGNIZED')
+            self.guard_sql = triggers[0][1] if triggers else ''
+            if hashlib.sha256(self.guard_sql.encode()).hexdigest() != guard_sha256:
+                raise ValueError('REPORT_CAMPAIGN_GUARD_PIN_MISMATCH')
+            self._check(db)
+            if self.run_table in tables:
+                self._run_binding(db)
+
+    def connect(self, *, read_only=False):
+        db = sqlite3.connect(self.path.as_uri() + ('?mode=ro' if read_only else '?mode=rw'),
+                             uri=True, timeout=30, factory=_CampaignConnection)
+        if read_only:
+            db.execute('PRAGMA query_only=ON')
+        db.create_function('fake_run_id', 0, lambda:self.run_id)
+        return db
+
+    def _check(self, db):
+        if tuple(db.execute('SELECT maximum,bounds FROM authorization WHERE id=1').fetchone() or ()) != self.authorization:
+            raise RequestBudgetExceeded('REPORT_CAMPAIGN_AUTHORIZATION_CHANGED')
+        sql = list(db.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND tbl_name='attempts' ORDER BY name"))
+        if [r[0] for r in sql] != ([self.guard_sql] if self.guard_sql else []):
+            raise RequestBudgetExceeded('REPORT_CAMPAIGN_GUARD_CHANGED')
+        pending = [list(r) for r in db.execute("SELECT * FROM attempts WHERE state IN ('reserved','unknown') ORDER BY id")]
+        if pending != self.holds:
+            raise RequestBudgetExceeded('REPORT_UNRESOLVED_ATTEMPT')
+
+    def _run_binding(self, db):
+        prior = db.execute(f'SELECT maximum,authority FROM {self.run_table} WHERE run_id=?', (self.run_id,)).fetchone()
+        if prior is not None and tuple(prior) != (self.run_limit,self.pin):
+            raise RequestBudgetExceeded('REPORT_RUN_AUTHORITY_CHANGED')
+
+    def _costs(self, db):
+        return db.execute(f"""SELECT COALESCE(SUM(a.used),0), COALESCE(SUM(CASE WHEN a.state IN ('reserved','unknown') THEN a.reserved ELSE 0 END),0)
+            FROM attempts a JOIN {self.attempt_table} r ON r.attempt_id=a.id WHERE r.run_id=?""",(self.run_id,)).fetchone()
+
+    def _reservation_id(self, db, model, bound):
+        self._check(db)
+        if not self.legacy_layout:
+            db.execute('CREATE TABLE IF NOT EXISTS report_runs (run_id TEXT PRIMARY KEY, maximum INTEGER NOT NULL, authority TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS report_run_attempts (attempt_id TEXT PRIMARY KEY, run_id TEXT NOT NULL)')
+        self._run_binding(db)
+        used,held = self._costs(db)
+        if used + held + bound > self.run_limit:
+            raise RequestBudgetExceeded('REPORT_RUN_TOKEN_LIMIT')
+        db.execute(f'INSERT OR IGNORE INTO {self.run_table} VALUES (?,?,?)',(self.run_id,self.run_limit,self.pin))
+        identity = super()._reservation_id(db, model, bound)
+        if self.legacy_layout:
+            db.execute('INSERT INTO fake_comparison_requests VALUES (?,?,?)',(identity,self.holds[0][0],self.run_id))
+        else:
+            db.execute('INSERT INTO report_run_attempts VALUES (?,?)',(identity,self.run_id))
+        return identity
+
+    def _reserve(self, model, bound):
+        if getattr(self,'admission_refusal',None):
+            raise RequestBudgetExceeded(self.admission_refusal)
+        try:
+            return super()._reserve(model,bound)
+        except RequestBudgetExceeded as exc:
+            self.admission_refusal=str(exc)
+            raise
+
+    def snapshot(self):
+        with self.connect(read_only=True) as db:
+            return self._snapshot(db)
+
+    def run_snapshot(self):
+        with self.connect(read_only=True) as db:
+            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",(self.run_table,)).fetchone()
+            used,held = self._costs(db) if exists else (0,0)
+        return {'maximum_tokens':self.run_limit,'settled':used,'held':held}
 
 
 @contextmanager

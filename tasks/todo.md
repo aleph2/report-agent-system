@@ -481,3 +481,14 @@ Full-flow entry implemented in one new operator module, bounded business importe
 
 
 Full903448b retainedFAILED6285P2F9skip6296once;allhashes/floors/skipsverified. Approved one owning-package Commission.freeze_to API repairs assertion-boundary violation; optionalwarningrequirements-contract lookup repairsO6. Existing27+209 focused checks passed andNeoreviewed;counts overlap,nonewtestfunctions. Correctedcandidate requiresnewisolatedfull/tag/preflight; no paid or sheet writes. See docs/verification/context-fix-phase2/full-flow-entry.md.
+
+
+## Fresh production entry — 2026-11-13
+
+The fresh synthetic round and real cases use `report-run`, native `commission-reply`, then `report-run` within their own case. The old importer/orchestrator path is superseded for launch. Preserve its historical cases, checkpoints, decisions and failed/passing evidence. C helper separation is committed; production authority/budget and canonical Writer integration are the current candidate work. The single Writer catalogue entry is approved for the next slice; no candidate freeze/tag/paid run yet.
+
+Deferred until the synthetic report is complete:
+- stage handoff interfaces (export misses owner acts/receipts)
+- harness touches internals
+- move fake/probe harness out of the production package
+- remove the superseded fake orchestrator run path after preserving its verification evidence

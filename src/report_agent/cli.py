@@ -40,6 +40,11 @@ def main():
     parser.add_argument("--replaces-id", default="")
     parser.add_argument("--decision-only", action="store_true", help="Isolated report-run: stop before substantive model-tool dispatch")
     parser.add_argument("--execution-record", action="store_true", help="export: include diagnostic execution appendices")
+    parser.add_argument('--authority', type=Path, help='Owner-pinned production run authority')
+    parser.add_argument('--authority-sha256', help='Independently supplied authority SHA-256')
+    parser.add_argument('--env', type=Path, help='External pinned service configuration')
+    parser.add_argument('--invocation', help='One invocation named in the pinned authority')
+    parser.add_argument('--preflight', action='store_true', help='Read-only production admission; no model calls')
     args = parser.parse_args()
     store = Store(args.project)
     if args.command == "init":
@@ -101,7 +106,8 @@ def main():
         if not args.file or not args.issue_id:
             parser.error('commission-reply requires --issue-id and --file')
         from .commission_plan import reply
-        result = reply(Workspace(store), args.issue_id, json.loads(args.file.read_text(encoding='utf-8-sig')))
+        result = reply(Workspace(store), args.issue_id, json.loads(args.file.read_text(encoding='utf-8-sig')),
+                       authority_path=args.authority, authority_sha256=args.authority_sha256)
     elif args.command == "import":
         from .catalog import Catalog
         from .ingestion import MAX_UPLOAD_BYTES
@@ -117,8 +123,9 @@ def main():
         uvicorn.run(create_app(args.project), host="127.0.0.1", port=args.port)
         return 0
     elif args.command == "report-run":
-        from .deep_runtime import run_report
-        result = asyncio.run(run_report(Workspace(store), decision_only=args.decision_only))
+        from .run_authority import run_authorized_report
+        result = asyncio.run(run_authorized_report(Workspace(store), args.authority, args.authority_sha256,
+            args.env, args.invocation, dry_run=args.preflight, decision_only=args.decision_only))
     elif args.command == "report-status":
         from .knowledge_state import project_state
         result = project_state(Workspace(store))
@@ -163,6 +170,8 @@ def main():
         result = store.status()
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.command == "report-run":
+        if args.preflight and result.get('status')=='preflight_passed':
+            return 0
         if result.get('status') == 'incomplete':
             return 2
         if args.decision_only and legacy.get_decision_observation(store):

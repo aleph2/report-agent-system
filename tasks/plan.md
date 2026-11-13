@@ -1429,3 +1429,10 @@ Full-flow entry implemented in one new operator module, bounded business importe
 
 
 Full903448b retainedFAILED6285P2F9skip6296once;allhashes/floors/skipsverified. Approved one owning-package Commission.freeze_to API repairs assertion-boundary violation; optionalwarningrequirements-contract lookup repairsO6. Existing27+209 focused checks passed andNeoreviewed;counts overlap,nonewtestfunctions. Correctedcandidate requiresnewisolatedfull/tag/preflight; no paid or sheet writes. See docs/verification/context-fix-phase2/full-flow-entry.md.
+
+
+## Production entry and deferred context measurement — 2026-11-13
+
+The qualified e466 full passed 6,287 existing cases with nine unchanged skips. Its separate fake orchestrator/import path is superseded for launch. Fresh synthetic and real cases must exercise the production entry and native checkpoint reply. Current scope is unchanged helper relocation, production authority/campaign+run budget admission, and canonical indicator Writer integration on the existing delegated task. Preserve all calculator/source/authority/assembly guards. Existing tests are extended in place; the final new source candidate requires one isolated full, then pinned-authority dry run and preflight including missing-pin refusal. No old-path tag or paid launch.
+
+After the full report flow works, measure both retained tool text and saved write-call argument history before selecting P2 changes. In the latest Coordinator run the final local component estimates were approximately 50K tokens of tool results and 43K of assistant messages; these are local tokenizer proxies, not provider counts. Call 32's large object-write arguments contributed substantially to later history. Page-text clearing addresses one source; once a write is durably stored and acknowledged, separately measure the effect of replacing its retained arguments with a retrievable reference. No implementation or separate optimization commit now.

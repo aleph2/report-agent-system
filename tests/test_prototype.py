@@ -461,6 +461,13 @@ def test_cli_exit_code(native_ws, monkeypatch, capsys, status, error, expected):
     from report_agent import deep_runtime
     monkeypatch.setattr(deep_runtime, "run_report", stub)
     monkeypatch.setattr("sys.argv", ["report-agent", "report-run", "--project", str(native_ws.store.root)])
+    with pytest.raises(ValueError,match='REPORT_AUTHORITY_PIN_REQUIRED'):
+        cli.main()
+    assert not calls
+    from report_agent import run_authority
+    async def admitted(workspace, *args, decision_only=False, **kwargs):
+        return await deep_runtime.run_report(workspace,decision_only=decision_only)
+    monkeypatch.setattr(run_authority,'run_authorized_report',admitted)
     assert cli.main() == expected
     assert len(calls) == 1 and calls[0][1] == {"decision_only": False}
     assert json.loads(capsys.readouterr().out) == result

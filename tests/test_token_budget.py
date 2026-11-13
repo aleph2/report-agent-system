@@ -7,7 +7,7 @@ from report_agent.token_budget import TokenBudget,token_budget,account_response,
 from report_agent.request_budget import RequestBudget,RequestBudgetExceeded,request_budget,account_request,account_request_sync
 
 
-def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path):
+def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,monkeypatch):
     b=TokenBudget(tmp_path/'budget.db',100,{'m':40})
     a=b.reserve('m');c=b.reserve('m')
     with pytest.raises(RequestBudgetExceeded):b.reserve('m')
@@ -21,6 +21,116 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path):
     reopened.reserve('m')
     with pytest.raises(RequestBudgetExceeded):reopened.reserve('m')
     with pytest.raises(ValueError,match='CONFLICT'):TokenBudget(b.path,101,{'m':40})
+
+    from hashlib import sha256
+    from report_agent.token_budget import CampaignRunBudget
+    campaign=TokenBudget(tmp_path/'production.db',200,{'m':40})
+    historical=campaign.reserve('m');campaign.settle(historical,None)
+    with campaign.connect() as db:
+        holds=[list(r) for r in db.execute("SELECT * FROM attempts WHERE state='unknown' ORDER BY id")]
+    options=dict(maximum_tokens=40,aggregate_tokens=200,model_bounds={'m':40},
+        authority_sha256='a'*64,preserved_holds=holds,guard_sha256=sha256(b'').hexdigest())
+    account=CampaignRunBudget(campaign.path,'same-case',**options)
+    paid=account.reserve('m');account.settle(paid,{'total_tokens':40})
+    assert account.run_snapshot()=={'maximum_tokens':40,'settled':40,'held':0}
+    reopened=CampaignRunBudget(campaign.path,'same-case',**options)
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_RUN_TOKEN_LIMIT'):reopened.reserve('m')
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_RUN_AUTHORITY_CHANGED'):
+        CampaignRunBudget(campaign.path,'same-case',**{**options,'maximum_tokens':80})
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_RUN_AUTHORITY_CHANGED'):
+        CampaignRunBudget(campaign.path,'same-case',**{**options,'authority_sha256':'b'*64})
+    second=CampaignRunBudget(campaign.path,'second',**options)
+    unknown=second.reserve('m');second.settle(unknown,None)
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):
+        CampaignRunBudget(campaign.path,'never-retry',**options)
+    with campaign.connect() as db:
+        assert list(db.execute('SELECT * FROM attempts WHERE id=?',(historical,)).fetchone())==holds[0]
+
+
+
+    import asyncio,json
+    from types import SimpleNamespace
+    from report_agent import run_authority,deep_runtime
+    from report_agent.store import Store,digest
+    from report_agent.workspace import Workspace
+    from report_agent.request_budget import account_request
+    from report_agent.token_budget import account_response
+    case=tmp_path/'authorized-case';store=Store(case)
+    store.initialize({'goal':'Synthetic production admission','sources':[{'id':'scope','title':'Scope','content':'Synthetic scope','coverage':'complete'}]})
+    workspace=Workspace(store)
+    env=tmp_path/'services.env'
+    text_url='https://synthetic.invalid/v1'
+    vision_url='https://synthetic.maas.aliyuncs.com/v1'
+    env.write_text('GLM_NAME=glm-5.3\nGLM_BASE_URL='+text_url+'\nGLM_API_KEY=synthetic\nVISION_NAME=deepseek-v4.1-flash-1017\nVISION_BASE_URL='+vision_url+'\nVISION_API_KEY=synthetic\n')
+    hashed=lambda value:sha256(value).hexdigest()
+    common=dict(env_sha256=hashed(env.read_bytes()))
+    text_proof=dict(common,model='glm-5.3',input_limit=1048576,output_limit=131072,
+        basis='documented_model_ceiling_not_measured_request_fit',
+        base_url_sha256=hashed(text_url.encode()),request_url_sha256=hashed((text_url+'/chat/completions').encode()),
+        sources=['https://docs.z.ai/guides/llm/glm-5.3','https://help.aliyun.com/zh/model-studio/glm-5-3'])
+    vision_proof=dict(common,model='deepseek-v4.1-flash-1017',input_limit=1000000,output_limit=8202,
+        wire_output_limit=8192,image_max_edge=1024,basis='documented_service_ceiling_not_measured_request_fit',
+        base_url_sha256=hashed(vision_url.encode()),request_url_sha256=hashed((vision_url+'/chat/completions').encode()),
+        sources=['https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash','https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions'])
+    ledger=tmp_path/'authorized-ledger.db';TokenBudget(ledger,10000000,{'glm-5.3':1179648})
+    scope=tmp_path/'scope.txt';scope.write_text('Synthetic scope')
+    criteria=tmp_path/'criteria.json';criteria.write_text(json.dumps({'criteria':{}}))
+    authority=dict(case_path=str(case.resolve()),owner_authority_ref='synthetic-owner',
+        confirmers={'owner':{'name':'Owner','acting_for':'owner'}},issue_routes={},
+        case_manifest_digest=digest(store.manifest),env_sha256=hashed(env.read_bytes()),
+        roles={**dict.fromkeys(['coordinator','writer','reviewer','text_tool','layout'],'glm-5.3'),'vision':'deepseek-v4.1-flash-1017'},
+        services={'glm-5.3':{'config_prefix':'GLM_','request_bound_proof':text_proof},
+                  'deepseek-v4.1-flash-1017':{'config_prefix':'VISION_','request_bound_proof':vision_proof}},
+        candidate_commit='a'*40,candidate_tag='synthetic-candidate',
+        inputs=[{'path':str(scope),'sha256':hashed(scope.read_bytes())}],
+        criteria={'path':str(criteria),'sha256':hashed(criteria.read_bytes())},
+        transport={'sdk_retries':0,'connect_retries':0,'vision_thinking':'disabled'},
+        invocations=['planning','completion'],record_dir=str(tmp_path/'records'),run_id='production-flow',
+        budget={'ledger':str(ledger),'per_run_tokens':4000000,'aggregate_tokens':10000000,
+                'preserved_holds':[],'guard_sha256':hashed(b'')})
+    authority_path=tmp_path/'authority.json';authority_path.write_text(json.dumps(authority));pin=hashed(authority_path.read_bytes())
+    monkeypatch.setattr(run_authority.subprocess,'check_output',lambda *a,**k:'a'*40+'\n')
+    monkeypatch.setattr(run_authority.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0))
+    before=ledger.read_bytes()
+    with pytest.raises(ValueError,match='REPORT_AUTHORITY_PIN_REQUIRED'):
+        run_authority.preflight(workspace,None,None,env,'planning')
+    with pytest.raises(ValueError,match='REPORT_AUTHORITY_PIN_MISMATCH'):
+        run_authority.preflight(workspace,authority_path,'0'*64,env,'planning')
+    dry=asyncio.run(run_authority.run_authorized_report(workspace,authority_path,pin,env,'planning',dry_run=True))
+    assert dry['paid_calls']==0 and ledger.read_bytes()==before and not (tmp_path/'records').exists()
+    dispatched=[]
+    unknown_mode=False
+    async def native(workspace,**kwargs):
+        def response(request):
+            dispatched.append(request)
+            return httpx.Response(200,json={} if unknown_mode else {'id':'synthetic','usage':{'total_tokens':11,'prompt_tokens_details':{'cached_tokens':7}}})
+        async with httpx.AsyncClient(transport=httpx.MockTransport(response),event_hooks={'request':[account_request],'response':[account_response]}) as client:
+            await client.post(text_url+'/chat/completions',json={'model':'glm-5.3','stream':False,'max_tokens':1,'messages':[{'role':'user','content':'Synthetic'}]})
+        return {'execution_status':'needs_human','status':'needs_human','last_error':None}
+    monkeypatch.setattr(deep_runtime,'run_report',native)
+    asyncio.run(run_authority.run_authorized_report(workspace,authority_path,pin,env,'planning'))
+    result=json.loads((tmp_path/'records/planning/result.json').read_bytes())
+    assert len(dispatched)==1 and result['stage_tokens']==11 and result['budget']['held']==0
+    with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
+        asyncio.run(run_authority.run_authorized_report(workspace,authority_path,pin,env,'planning'))
+    with pytest.raises(ValueError,match='REPORT_NATIVE_OWNER_REPLY_REQUIRED'):
+        run_authority.preflight(workspace,authority_path,pin,env,'completion')
+    assert len(dispatched)==1
+
+
+    unknown_mode=True
+    unknown_authority={**authority,'run_id':'production-unknown','invocations':['only'],
+                       'record_dir':str(tmp_path/'unknown-records')}
+    unknown_path=tmp_path/'unknown-authority.json';unknown_path.write_text(json.dumps(unknown_authority))
+    unknown_pin=hashed(unknown_path.read_bytes())
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNKNOWN_OUTCOME_HELD'):
+        asyncio.run(run_authority.run_authorized_report(workspace,unknown_path,unknown_pin,env,'only'))
+    stopped=json.loads((tmp_path/'unknown-records/only/result.json').read_bytes())
+    assert stopped['status']=='unknown_outcome_held' and stopped['budget']['held']==1179648
+    assert len(dispatched)==2
+    with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
+        asyncio.run(run_authority.run_authorized_report(workspace,unknown_path,unknown_pin,env,'only'))
+    assert len(dispatched)==2
 
 
 def test_parallel_attempts_cannot_overreserve(tmp_path):

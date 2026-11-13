@@ -171,9 +171,23 @@ def test_checkpoint_brief_and_exact_reply_are_idempotent(commission,monkeypatch)
         with pytest.raises(ActionRejected, match=code):
             api().reply(commission.ws, checkpoint['issue_id'], {**decision, 'confirmer': {**decision['confirmer'], **change}}, **args)
         assert not commission.cs.list_objects('CommissionDecision')
-    api().reply(commission.ws, checkpoint['issue_id'], decision, authority_path=authority, authority_sha256=pin)
+    from report_agent import cli
+    decision_file=authority.with_name('native-owner-decision.json')
+    decision_file.write_text(json.dumps(decision))
+    monkeypatch.setattr('sys.argv',['report-agent','commission-reply','--project',str(commission.ws.store.root),
+        '--issue-id',checkpoint['issue_id'],'--file',str(decision_file),'--authority',str(authority),'--authority-sha256',pin])
+    assert cli.main()==0
     record = commission.cs.read(plan_authority.decision_ref(commission.ws.store))
     assert record['payload']['confirmer'] == decision['confirmer'] and record['owner_id'] == 'operator'
+
+    from report_agent.run_authority import _verify_checkpoint_reply
+    from report_agent.issue_state import get_report_issues
+    issue=next(i for i in get_report_issues(commission.ws.store,[]) if i['id']==checkpoint['issue_id'])
+    assert _verify_checkpoint_reply(commission.ws,checkpoint['issue_id'],issue,authority,pin)==record['ref']
+    unattributed={k:v for k,v in decision.items() if k!='confirmer'}
+    with pytest.raises(ActionRejected,match='COMMISSION_CONFIRMER_NOT_AUTHORIZED'):
+        _verify_checkpoint_reply(commission.ws,checkpoint['issue_id'],{**issue,'decision':json.dumps(unattributed)},authority,pin)
+
     path = Path(checkpoint['brief_path'])
     path = path if path.is_absolute() else commission.ws.store.root / path
     brief = path.read_text(encoding='utf-8')

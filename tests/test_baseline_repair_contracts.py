@@ -96,7 +96,10 @@ def test_cli_uses_public_review_state_and_execution_outcome(ws, monkeypatch, cap
     async def run(*args, **kwargs):
         calls.append((args, kwargs))
         return deepcopy(result)
-    monkeypatch.setattr(deep_runtime, 'run_report', run)
+    from report_agent import run_authority
+    async def admitted(workspace, *args, **kwargs):
+        return await run(workspace,**kwargs)
+    monkeypatch.setattr(run_authority,'run_authorized_report',admitted)
     monkeypatch.setattr('sys.argv', ['report-agent', 'report-run', '--project', str(ws.store.root)])
     assert cli.main() == exit_code
     assert len(calls) == 1

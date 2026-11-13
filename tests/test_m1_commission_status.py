@@ -15,7 +15,10 @@ from test_m1_commission_coverage import completed_objects
 def test_cli_incomplete_delivery_overrides_optimistic_execution_flag(commission, monkeypatch):
     async def fake_run(workspace, **kwargs):
         return {'execution_status': 'completed', 'status': 'incomplete', 'last_error': None}
-    monkeypatch.setattr(deep_runtime, 'run_report', fake_run)
+    from report_agent import run_authority
+    async def admitted(workspace, *args, **kwargs):
+        return await fake_run(workspace,**kwargs)
+    monkeypatch.setattr(run_authority,'run_authorized_report',admitted)
     monkeypatch.setattr(sys, 'argv', ['report-agent', 'report-run', '--project', str(commission.ws.store.root)])
     assert cli.main() == 2
 
