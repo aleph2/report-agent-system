@@ -502,11 +502,20 @@ Production authority/budget is committed separately; explicit canonical Writer t
 - [x] Add explicit, atomic old-guard-to-new-guard migration with before/after pins and unchanged existing rows; keep admission/preflight read-only.
 - [x] Add the two requested production-ledger test cases; update existing proof fixtures in place. Focused money/vision/admission/census: 45 passed.
 - [x] Remove provider/model/limit/host/documentation literals from production launch proof validation. Consume pinned authority proof data and reuse existing documented capacity metadata as a safety cross-check; keep actual model selection in the authority.
-- [ ] Neo final trigger/migration/literal review, one frozen full regression, then fake03-production-entry-20261113b.
-- [ ] Explicit live migration, updated guard/candidate/authority pins, read-only preflight, then send commit/tag/review/regression count before the fresh production planning launch.
+- [x] Neo reviewed trigger/migration/configured proof validation; frozen full passed 6,289 tests with 9 unchanged skips and no failures; fake03-production-entry-20261113b was published.
+- [x] Explicit live migration, updated guard/candidate/authority pins and read-only preflight completed; commit/tag/review/regression count were sent before the fresh production planning launch.
 
 Before any real report (design only at present):
 - [ ] Design bounded disconnect-before-response retries that retain the old unknown hold and reserve anew for each attempt.
 - [ ] Design a provider-evidence reconciliation command that records the evidence supplier and provenance, and never settles/releases an unknown attempt without authoritative evidence.
 
 Verification: docs/verification/context-fix-phase2/multi-hold-admission.md. No retry/reconciliation command or model-selection change is implemented in this slice.
+
+## Native v4 report follow-up — 2026-11-13
+
+The new native planning checkpoint was reached and its actual confirmer reply applied. Report generation was stopped on a confirmed system P1; partial prose is preserved, but no completed Word/Excel delivery exists. The offline full remains passed; the paid report round remains failed. Private evidence: `.private/multi-hold-20261113/`.
+
+- [ ] P1, blocks canonical assessment and report assembly: expose and forward the object assignment through the actual v4 public task message. The current schema forbids the backend's `assessment_object_id`, so the immutable Writer task is unbound and its canonical action is hidden. Verify model-facing message -> saved assignment -> offered Writer action -> canonical result; direct backend qualification alone is insufficient. Preserve scope/assembly guards; a legacy draft does not satisfy canonical delivery. No repair or relaunch is applied here.
+- [ ] P2, after-run interface follow-up: align text-work generation/parsing with prose adoption. Recorded complete fenced JSON is rejected by the strict parser; the generic node schema also admits shapes the prose saver rejects without field-level expected/received diagnostics. Measure preserved responses before selecting a fix, retain schema/evidence/structure checks, and retain finish metadata needed for diagnosis.
+- [ ] Before the real case, per the confirmer's permitted fallback: derive contractual object counts only from explicit client text and present inventory/included/excluded counts separately. The current frozen plan is not silently amended or replanned.
+- [ ] Before the real case, per the same fallback: keep each convention interpretation faithful to its own cited client clause. Delivery and verbatim-template requirements must not be replaced by MethodPack table formats or risk bands; attribute those method rules separately.
