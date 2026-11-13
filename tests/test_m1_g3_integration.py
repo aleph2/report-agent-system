@@ -30,6 +30,10 @@ def method_commission(tmp_path, request):
                     'Project OLD.\nExact method sentence.\nSummary: {SUMMARY}\n'
                     'Score {TOTAL}; level {LEVEL}.\nRepeated {REPEAT} and {REPEAT}.\n'
                     'Objects {COUNT}; level II {II_COUNT}; level III {III_COUNT}.'}
+    if type(getattr(request, 'param', None)) is int:
+        texts['scope'] = (f'Assess S1 and S2. Boundary K0+000 to K0+500; expected {request.param} in-range objects. '
+                          'Use rank-lookup weights from the supplied synthetic guideline.')
+        texts['design'] += ' S1 center K0+120. S2 center K0+380. C center K0+620.'
     if getattr(request, 'param', None) == 'with-owner-ranks':
         texts['scope'] += ' Owner rank order: B, A, D, C.'
     if getattr(request, 'param', None) == 'without-weight-convention':
@@ -602,8 +606,11 @@ def boundary_plan(fixture):
 @pytest.mark.parametrize('case,expected', [
     ('outside', True), ('inside', False), ('touching', False), ('conflicting', False),
     ('unknown', False), ('unsourced', False), ('unparseable', False),
+    ('point-outside', True), ('point-inside', False), ('point-touching', False),
+    ('point-unsourced', False), ('point-uncertain', False), ('reversed', False),
+    ('configured-name', True),
 ])
-def test_only_proven_outside_ranges_are_removed_from_scope_accounting(method_commission, case, expected):
+def test_only_proven_outside_ranges_are_removed_from_scope_accounting(method_commission, case, expected, monkeypatch, tmp_path):
     from report_agent.commission_plan import outside_boundary
     fixture = method_commission
     plan = boundary_plan(fixture)
@@ -622,19 +629,55 @@ def test_only_proven_outside_ranges_are_removed_from_scope_accounting(method_com
         values[0]['source'] = None
     elif case == 'unparseable':
         values[0]['value'] = 'See site drawing; mileage not transcribed.'
+    if case.startswith('point-') or case == 'configured-name':
+        obj['attributes'][-1]['name'] = '中心桩号'
+        values[0]['value'] = {'point-inside':'K1+500', 'point-touching':'K2+000',
+            'point-uncertain':'Near K3+000; exact station unknown.'}.get(case, 'K3+000')
+        if case == 'point-unsourced':
+            values[0]['source'] = None
+    if case == 'reversed':
+        values[0]['value'] = 'K3+200-K3+000'
+    if case == 'configured-name':
+        import json
+        from importlib.resources import files
+        profile = json.loads(files('report_agent').joinpath('methods/pilot_planning.json').read_text())
+        profile['location_attribute_names'] = ['custom station']
+        config_root = tmp_path / 'configured-locations'
+        (config_root / 'methods').mkdir(parents=True)
+        (config_root / 'methods/pilot_planning.json').write_text(json.dumps(profile))
+        monkeypatch.setattr('importlib.resources.files', lambda package: config_root)
+        obj['attributes'][-1]['name'] = 'custom station'
     assert outside_boundary(plan, obj) is expected
 
 
-def test_scope_count_discrepancy_is_question_not_silent_object_removal(method_commission):
+@pytest.mark.parametrize('method_commission,expected_count,question', [(2, 2, False), (1, 1, True)], indirect=['method_commission'])
+def test_scope_count_discrepancy_is_question_not_silent_object_removal(method_commission, expected_count, question):
     fixture = method_commission
-    plan = boundary_plan(fixture)
-    plan['scope_boundary']['expected_object_count'] = 5
+    plan = deepcopy(fixture.plan)
+    plan['scope_boundary'] = {'start_meter':'0', 'end_meter':'500',
+        'expected_object_count':expected_count, 'source':fixture.cite('scope',
+            f'Boundary K0+000 to K0+500; expected {expected_count} in-range objects.')}
+    plan['inventory_attributes'].append('中心桩号')
+    original = deepcopy(plan['objects'][0])
+    plan['objects'] = []
+    for object_id, station, included in [('S1','K0+120',True),('S2','K0+380',True),('C','K0+620',False)]:
+        obj = deepcopy(original)
+        obj.update(object_id=object_id, label=object_id, included=included,
+                   reason='Inside boundary.' if included else 'Outside boundary.')
+        obj['attributes'].append({'name':'中心桩号','values':[{'value':station,
+            'source':fixture.cite('design',f'{object_id} center {station}.'), 'reason':'Source station point.'}]})
+        plan['objects'].append(obj)
     saved = save(fixture, plan)
     payload = api().read_plan(fixture.ws.store)['payload']
-    assert len(payload['objects']) == 2
-    assert payload['method_questions']
-    with pytest.raises(ActionRejected):
+    assert len(payload['objects']) == 3 and sum(o['included'] for o in payload['objects']) == 2
+    assert bool(payload['method_questions']) is question
+    if question:
+        with pytest.raises(ActionRejected, match='COMMISSION_METHOD_QUESTIONS'):
+            approve(fixture, saved)
+        assert not fixture.cs.list_objects('CommissionDecision')
+    else:
         approve(fixture, saved)
+        assert len(fixture.cs.list_objects('CommissionDecision')) == 1
 
 
 @pytest.mark.parametrize('basis', ['design-and-scope', 'design-alone', 'template', 'guideline'])
@@ -664,6 +707,7 @@ def test_boundary_preserves_inventory_and_does_not_reduce_an_in_range_unassessed
     fixture = method_commission
     plan = boundary_plan(fixture)
     plan['objects'][0].update(included=False, origin='interpretation', reason='Agent suggests omission.')
+    plan['scope_boundary']['expected_object_count'] = None
     saved = save(fixture, plan)
     approve(fixture, saved)
     actor = writer(fixture, saved)

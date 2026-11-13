@@ -11,7 +11,7 @@ from typing import get_type_hints
 from pydantic import Field, ValidationError, create_model, field_validator
 
 from .content_models import Contract, SourceCitation, InventoryValue, InventoryAttribute, InventoryObject
-from .commission_plan import SourceSubstitution, Reconciliation
+from .commission_plan import SourceSubstitution, Reconciliation, ScopeBoundary
 from .errors import ActionRejected
 
 
@@ -59,7 +59,8 @@ class BoundaryInput(Contract):
     end_meter: str = Field(max_length=128, description='Plain decimal metres or chainage, e.g. K9002+450+12.5. Must be greater than start_meter.')
     source: QuotedPlanningCitation
     customer_basis_anchor_id: str = Field(min_length=1, description='ID of a scope requirement returned by read_planning_draft. System uses its verified quotation and locator.')
-    expected_object_count: int | None = Field(default=None, strict=True, ge=1)
+    expected_object_count: int | None = Field(default=None, strict=True, ge=1,
+        description=ScopeBoundary.model_fields['expected_object_count'].description)
 
     @field_validator('start_meter', 'end_meter')
     @classmethod

@@ -60,7 +60,8 @@ class ScopeBoundary(Contract):
     end_meter: str
     source: SourceCitation
     customer_basis: SourceCitation | None = None
-    expected_object_count: int | None = Field(default=None, strict=True, ge=1)
+    expected_object_count: int | None = Field(default=None, strict=True, ge=1,
+        description='Set only when the cited customer text explicitly states an object count. Otherwise leave null; never infer a contractual count from the inventory or boundary.')
     chainage_inputs: dict[str, str] | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode='after')
@@ -343,18 +344,23 @@ def method_questions(plan):
 
 
 def outside_boundary(plan, obj):
-    """Only fully sourced mileage ranges can prove that an object is outside."""
+    """Only sourced station points or ranges can prove that an object is outside."""
     boundary = plan.get('scope_boundary')
     if not boundary:
         return False
     from decimal import Decimal
     from .method_pack import number
-    values = [v for a in obj['attributes'] if a['name'] in ('mileage', '里程') for v in a['values']]
+    from importlib.resources import files
+    location_names = json.loads(files('report_agent').joinpath('methods/pilot_planning.json').read_text(encoding='utf-8'))['location_attribute_names']
+    values = [v for a in obj['attributes'] if a['name'] in location_names for v in a['values']]
     ranges = []
+    station = r'(?:[A-Z]*K)?(\d+)\+(\d+(?:\.\d+)?)'
     for value in values:
         if not value.get('source') or not value.get('value'):
             return False
-        points = re.findall(r'(?:[A-Z]*K)?(\d+)\+(\d+(?:\.\d+)?)', value['value'], re.I)
+        points = re.findall(station, value['value'], re.I)
+        if len(points) == 1 and re.fullmatch(station, value['value'].strip(), re.I):
+            points *= 2
         if len(points) != 2:
             return False
         start, end = [Decimal(k) * 1000 + Decimal(m) for k, m in points]
@@ -368,7 +374,7 @@ def boundary_questions(plan):
     boundary = plan.get('scope_boundary')
     if not boundary:
         return []
-    objects = [o for o in plan['objects'] if not outside_boundary(plan, o)]
+    objects = [o for o in plan['objects'] if o['included'] and not outside_boundary(plan, o)]
     questions = []
     if boundary.get('expected_object_count') is not None and len(objects) != boundary['expected_object_count']:
         questions.append(f"合同范围内对象数量{len(objects)}与约定{boundary['expected_object_count']}不一致，需确认")

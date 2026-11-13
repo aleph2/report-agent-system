@@ -524,3 +524,8 @@ The new native planning checkpoint was reached and its actual confirmer reply ap
 
 - [x] Scoped public object-binding field, exact adapter forwarding and production Writer catalogue fix; backend object/section validation unchanged. Two requested production-path regressions reproduced the old failure; 61 focused checks pass; Neo approved freeze. See `docs/verification/v4-writer-assignment-20261113.md`.
 - [ ] Complete the one required full regression and terminal hash/coverage/cleanup review; then publish c tag and email commit/tag/Neo/count BEFORE fresh planning. New sheet approval remains required. No failed-case continuation or hold release/replay.
+
+### Offline boundary-point repair after strike two (2026-11-13)
+
+- [x] Scoped sourced-point/configured-location recognition, included boundary count and explicit-count/null Coordinator description; extended existing tests only. 315 focused pass; actual schema/copy recount checked; Neo found no source blocker. See `docs/verification/boundary-point-20261113.md`.
+- [ ] Finish ONE offline full and terminal evidence review. All paid work remains stopped pending a new owner decision; fresh03 cached plan is unchanged and must not be resumed via silent edits. No new retry/reconciliation implementation.
