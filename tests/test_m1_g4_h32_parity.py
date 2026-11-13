@@ -123,7 +123,7 @@ async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refus
     # A draft inventory alone cannot authorize a page binding or value extraction.
     assert 'assert_source' not in offered
     await submit('propose_page_binding', 'before-saved-plan',
-                 dict(subject=subject, indicator_id='height', pages=[]),
+                 dict(items=[dict(subject=subject, indicator_ids=['height'], pages=[])]),
                  refusal='PAGE_BINDING_SAVED_PLAN_OBJECT_REQUIRED')
     await submit('record_conflict', 'foreign', dict(subject=subject, observations=['outside-1', 'outside-2']),
                  refusal='PLANNING_CONFLICT_REQUIRES_OWN_SUBJECT_OBSERVATIONS')

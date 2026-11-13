@@ -29,37 +29,97 @@ def confirmed(store, plan_ref, subject, indicator=None):
 
 
 def propose(cs, actor, operation, subject, indicator, pages):
-    from .planning_assertions import _issuer
+    # Trusted single-item callers retain the same contract; the model uses only lists.
+    return propose_many(cs, actor, operation,
+        [dict(subject=subject, indicator_ids=[indicator], pages=pages)])['bindings'][0]
+
+
+def propose_many(cs, actor, operation, items):
+    from .planning_assertions import _issuer, BindingProposalInput
+    from .planning_inputs import model_value
+    from .commission_planning import _batch_error, _reject_batch
     from .commission_plan import read_plan
     from .source_use import source_version_material, validate_source_versions
-    principal = _issuer(cs, actor, subject)
+    from .assertions.actions import _record_convention_batch
+    if not isinstance(items, list) or not items:
+        raise ActionRejected('PAGE_BINDING_NONEMPTY_BATCH_REQUIRED')
     plan = read_plan(cs.store)
-    if not plan or not any(o["object_id"] == subject for o in plan["payload"]["objects"]):
-        raise ActionRejected("PAGE_BINDING_SAVED_PLAN_OBJECT_REQUIRED")
-    pack = plan["payload"].get("method_pack") or {}
-    if indicator not in {r["id"] for r in pack.get("indicators", [])}:
-        raise ActionRejected("PAGE_BINDING_METHOD_INDICATOR_REQUIRED")
-    bound = []
-    for item in pages:
-        validate_source_versions(cs, actor, source_ids=[item["source_id"]])
-        version, material = source_version_material(cs, item["source_id"])
-        if str(item["page"]) not in material["pages"]:
-            # A scanned/drawing page can exist without a frozen text block.
-            from .document_tools import source_page_info
-            from .workspace import Workspace
+    object_ids = {o['object_id'] for o in plan['payload']['objects']} if plan else set()
+    indicator_ids = {r['id'] for r in (plan['payload'].get('method_pack') or {}).get('indicators', [])} if plan else set()
+    prepared, errors, seen, source_ids = [], [], set(), []
+    normalized = []
+    for index, raw in enumerate(items):
+        try:
+            item = model_value(BindingProposalInput, raw, 'binding').model_dump(mode='json')
+            subject = item['subject']
+            principal = _issuer(cs, actor, subject)
+            if not plan or subject not in object_ids:
+                raise ActionRejected('PAGE_BINDING_SAVED_PLAN_OBJECT_REQUIRED')
+            fields = []
+            unknown = [key for key in item['indicator_ids'] if key not in indicator_ids]
+            if unknown:
+                fields.append(dict(field='indicator_ids', reason='PAGE_BINDING_METHOD_INDICATOR_REQUIRED',
+                    choices=sorted(indicator_ids), message='Unknown indicator IDs: ' + ', '.join(unknown)))
+            duplicates = []
+            for key in item['indicator_ids']:
+                pair = (subject, key)
+                if pair in seen:
+                    duplicates.append(key)
+                seen.add(pair)
+            if duplicates:
+                fields.append(dict(field='indicator_ids', reason='PAGE_BINDING_DUPLICATE_PAIR',
+                    message='Duplicate object/indicator pairs: ' + ', '.join(duplicates)))
+            bound = []
+            for page_index, page in enumerate(item['pages']):
+                try:
+                    validate_source_versions(cs, actor, source_ids=[page['source_id']])
+                    version, material = source_version_material(cs, page['source_id'])
+                    if str(page['page']) not in material['pages']:
+                        from .document_tools import source_page_info
+                        from .workspace import Workspace
+                        try:
+                            source_page_info(Workspace(cs.store), page['source_id'], page['page'])
+                        except ActionRejected:
+                            raise ActionRejected('PAGE_BINDING_PHYSICAL_PAGE_REQUIRED') from None
+                    bound.append(dict(source_version=version, page=page['page']))
+                    if page['source_id'] not in source_ids:
+                        source_ids.append(page['source_id'])
+                except (ActionRejected, ActionForbidden) as error:
+                    fields.append(dict(field='pages.' + str(page_index), reason=str(error).split(':')[0],
+                        message=str(error)))
+            if fields:
+                raise ActionRejected('PAGE_BINDING_ITEMS_INVALID: ' + '; '.join(field['reason'] for field in fields),
+                    diagnostic={'fields': fields})
+            normalized.append(item)
+            prepared.append((principal, subject, item['indicator_ids'], bound))
+        except (ActionRejected, ActionForbidden) as error:
+            errors.append(_batch_error(index, error, 'binding'))
+    if errors:
+        _reject_batch(errors)
+    # Prepared source versions precede assertions; failed assertions may retain these snapshots.
+    if source_ids:
+        cs.capture_sources(actor, 'page-binding-sources:' + operation, source_ids)
+    request_pin = digest({'plan_ref': plan['ref'], 'items': normalized})
+    host, entries = AssertionHost(cs.store.root), []
+    for principal, subject, indicators, bound in prepared:
+        for indicator in indicators:
+            index = len(entries)
+            child = operation + ':' + str(index)
+            grant = Grant(principal, actor.role, actor.task_id,
+                'page-binding:' + operation + ':' + request_pin + ':' + str(index), digest(plan['ref']),
+                frozenset({subject}), frozenset(page['source_version'] for page in bound), frozenset({'record_convention'}))
+            claim = dict(kind='convention', scope='source_page_binding', rule=encode(plan['ref']),
+                         page_binding=dict(indicator_id=indicator, pages=bound))
             try:
-                source_page_info(Workspace(cs.store), item["source_id"], item["page"])
-            except ActionRejected:
-                raise ActionRejected("PAGE_BINDING_PHYSICAL_PAGE_REQUIRED") from None
-        bound.append(dict(source_version=version, page=item["page"]))
-    if pages:
-        cs.capture_sources(actor, "page-binding-sources:" + operation, list(dict.fromkeys(p["source_id"] for p in pages)))
-    claim = dict(kind="convention", scope="source_page_binding", rule=encode(plan["ref"]),
-                 page_binding=dict(indicator_id=indicator, pages=bound))
-    grant = Grant(principal, actor.role, actor.task_id, "page-binding:" + operation, digest(plan["ref"]),
-                  frozenset({subject}), frozenset(p["source_version"] for p in bound), frozenset({"record_convention"}))
-    return assertions.record_convention(AssertionHost(cs.store.root).issue_once(grant,"record_convention",operation),
-                                        subject=subject, claim=claim)
+                context = host.issue_once(grant, 'record_convention', child)
+            except (ValueError, PermissionError) as error:
+                raise ActionRejected(str(error)) from error
+            entries.append((context, dict(subject=subject, claim=claim)))
+    try:
+        bindings = _record_convention_batch(entries)
+    except (ValueError, PermissionError) as error:
+        raise ActionRejected(str(error)) from error
+    return {'bindings': bindings}
 
 
 def confirm_reply(store, owner, issue, checkpoint, decision_ref):

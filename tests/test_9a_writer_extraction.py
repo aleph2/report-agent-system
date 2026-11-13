@@ -79,18 +79,19 @@ def test_coordinator_page_tool_binds_versions_and_never_extracts_values(mini):
     co=actor_for("coordinator")
     tools={f.__name__:f for f in planning_assertion_tools(cs,lambda:co)}
     assert "assert_source" not in tools
-    args=dict(subject="A",indicator_id="X11",pages=[dict(source_id=source["id"],page=1)])
+    args=dict(items=[dict(subject="A",indicator_ids=["X11"],pages=[dict(source_id=source["id"],page=1)])])
     row=tools["propose_page_binding"](**args,runtime=SimpleNamespace(tool_call_id="propose"))
-    assert row["claim"]["rule"]==encode(binding.plan_ref)
-    assert row["claim"]["page_binding"]["pages"][0]["page"]==1
-    assert "value" not in row["claim"]
+    binding_row=row["bindings"][0]
+    assert binding_row["claim"]["rule"]==encode(binding.plan_ref)
+    assert binding_row["claim"]["page_binding"]["pages"][0]["page"]==1
+    assert "value" not in binding_row["claim"]
     assert tools["propose_page_binding"](**args,runtime=SimpleNamespace(tool_call_id="propose"))==row
     from report_agent.errors import ActionRejected
     with pytest.raises(ActionRejected,match="PHYSICAL_PAGE"):
-        tools["propose_page_binding"](**{**args,"pages":[dict(source_id=source["id"],page=900)]},
+        tools["propose_page_binding"](**dict(items=[{**args["items"][0],"pages":[dict(source_id=source["id"],page=900)]}]),
                                       runtime=SimpleNamespace(tool_call_id="bad-page"))
     with pytest.raises(ActionRejected,match="INDICATOR"):
-        tools["propose_page_binding"](**{**args,"indicator_id":"outside"},
+        tools["propose_page_binding"](**dict(items=[{**args["items"][0],"indicator_ids":["outside"]}]),
                                       runtime=SimpleNamespace(tool_call_id="bad-indicator"))
 
 

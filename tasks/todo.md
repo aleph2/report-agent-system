@@ -454,7 +454,7 @@ C2 pre-tag completion: retired-marker search reproduced two more stale visibilit
 - [x] Budget configuration/campaign amendment reviewed; existing usage and holds preserved.
 - [x] Add AGENTS4.9 in a separate documentation commit.
 - [x] Item1 atomic planning list backend, native schemas and current callers;175focusedpasses plus10diagnostic rechecks;Neo reviewed.
-- [ ] Item2 atomic binding lists/multiple indicators with whole-request replay identity.
+- [x] Item2 atomic binding lists/multiple indicators with whole-request replay identity;32focused passes,Neo reviewed.
 - [ ] Item3 whole small planning collection with existing version/observation limits.
 - [ ] Item4 Coordinator current accepted IDs.
 - [ ] Item5 record-local soft numeric-literal warnings and owner checkpoint display.

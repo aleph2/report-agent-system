@@ -1,5 +1,6 @@
 """Named S3 actions. Only the host can supply an authenticated launch context."""
 from datetime import datetime, timezone
+from contextlib import ExitStack
 from functools import partial
 
 from pydantic import TypeAdapter
@@ -98,6 +99,24 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None,
         store.store_judgment_details(db, saved["id"], judgment_details)
     return saved
 
+
+
+
+def _record_convention_batch(entries):
+    """One store transaction; the host must bind the complete ordered request."""
+    if not entries:
+        raise ValueError('Nonempty convention batch required')
+    first = entries[0][0]
+    same = ('actor', 'role', 'task', 'plan', 'snapshot')
+    if first.binding['role'] != 'coordinator' or any(
+            ctx._store is not first._store or ctx.action != 'record_convention'
+            or any(ctx.binding[key] != first.binding[key] for key in same) for ctx, _ in entries):
+        raise PermissionError('C11: conventions must share one Coordinator assignment and store')
+    with ExitStack() as stack:
+        grants = [stack.enter_context(ctx._authorized()) for ctx, _ in entries]
+        with first.write() as (db, _):
+            return [_save_locked('record_convention', ctx, db, grant, **request)
+                    for (ctx, request), grant in zip(entries, grants)]
 
 
 def save_judgment(ctx, *, subject, claim, grounds=(), id=None, accompanying_question=None, judgment_details=None):

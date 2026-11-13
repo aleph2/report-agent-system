@@ -63,6 +63,13 @@ class BindingPageRequest(Contract):
     page: int = Field(ge=1, strict=True)
 
 
+
+class BindingProposalInput(Contract):
+    subject: str = Field(description='Existing object ID in the published plan; use the ID, not a descriptive label.')
+    indicator_ids: list[str] = Field(min_length=1, description='One or more exact indicator IDs from the saved plan method; never a range or alias.')
+    pages: list[BindingPageRequest]
+
+
 def planning_assertion_tools(cs, get_actor):
     def save(name, subject, claim, runtime, *, source_id=None):
         actor = get_actor()
@@ -91,17 +98,17 @@ def planning_assertion_tools(cs, get_actor):
         except (ValueError, PermissionError) as error:
             raise ActionRejected(str(error)) from error
 
-    def propose_page_binding(subject: str, indicator_id: str, pages: list[BindingPageRequest],
+    def propose_page_binding(items: Annotated[list[BindingProposalInput], Field(min_length=1)],
                              runtime: NativeRuntime = None) -> dict:
-        """Propose applicable physical pages for one object/indicator of the saved plan.
-        Select source_id/page from the supplied material. Empty pages record unresolved support.
-        The system fills source versions and plan reference; the owner confirms the sheet once.
-        Writer extracts the values, not Coordinator.
+        """Propose page applicability atomically for a list of objects and indicator groups.
+        Each item's pages apply to every named indicator; empty pages record unresolved support.
+        All indexed problems are reported and no partial binding batch is saved. The system fills
+        source versions and plan reference; the owner confirms the sheet once. Writer extracts values.
         """
-        from .page_bindings import propose
+        from .page_bindings import propose_many
         if runtime is None or not runtime.tool_call_id:
-            raise ActionRejected("NATIVE_TOOL_CALL_ID_REQUIRED")
-        return propose(cs, get_actor(), runtime.tool_call_id, subject, indicator_id, [BindingPageRequest.model_validate(p).model_dump() for p in pages])
+            raise ActionRejected('NATIVE_TOOL_CALL_ID_REQUIRED')
+        return propose_many(cs, get_actor(), runtime.tool_call_id, items)
 
     def record_conflict(subject: str, observations: list[str], runtime: NativeRuntime = None) -> dict:
         """Record disagreement between distinct source assertion IDs for this inventory object; both observations remain visible."""

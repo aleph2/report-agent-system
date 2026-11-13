@@ -121,3 +121,27 @@ def test_single_saved_reply_redoes_missing_confirmations_only(tmp_path, monkeypa
     states=host.commission.current_references(tmp_path,[first,second,later])
     assert [states[k]["status"] for k in (first,second,later)]==["confirmed","confirmed","proposed"]
     assert len([row for row in page_bindings.records(store,plan) if row[0]["id"] in (first,second)])==2
+
+
+def test_binding_assertion_batch_rolls_back_late_failure_and_replays_whole_result(tmp_path):
+    from report_agent.assertions.actions import _record_convention_batch
+    host = AssertionHost(tmp_path)
+    ref = dict(type='CommissionPlan', id='batch-plan', version=1)
+    def request(indicator, version='design-v1'):
+        return dict(subject='A', claim=dict(kind='convention', scope='source_page_binding',
+            rule=encode(ref), page_binding=dict(indicator_id=indicator,
+                pages=[dict(source_version=version, page=1)])))
+    first = issue(host, 'coordinator', 'record_convention', 'batch-first', ['design-v1'])
+    second = issue(host, 'coordinator', 'record_convention', 'batch-second', ['design-v1'])
+    with pytest.raises(ValueError, match='C4'):
+        _record_convention_batch([(first, request('height')), (second, request('width', 'unissued'))])
+    assert host.commission.page_records(tmp_path) == []
+    entries = [(first, request('height')), (second, request('width'))]
+    saved = _record_convention_batch(entries)
+    assert _record_convention_batch(entries) == saved
+    assert len(host.commission.page_records(tmp_path)) == len(entries)
+    foreign = AssertionHost(tmp_path / 'different-store')
+    foreign_context = issue(foreign, 'coordinator', 'record_convention', 'foreign', ['design-v1'])
+    with pytest.raises(PermissionError):
+        _record_convention_batch([(first, request('height')), (foreign_context, request('width'))])
+    assert foreign.commission.page_records(tmp_path / 'different-store') == []

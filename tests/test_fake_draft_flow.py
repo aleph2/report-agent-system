@@ -88,10 +88,15 @@ def coordinator_script(ws):
     scripts.append(invoke('add_reconciliation', items=[{**row, 'reconciliation_id':str(i)}
         for i,row in enumerate(proposal['reconciliations'])]))
     scripts.append(invoke("publish_planning_draft"))
-    for oid in ("A","B"):
-        for rule in proposal["method_pack"]["indicators"]:
-            scripts.append(invoke("propose_page_binding",subject=oid,indicator_id=rule["id"],
-                pages=[dict(source_id=ids[name],page=page or (1 if oid=="A" else 2)) for name,page in PAGES[rule["id"]] if oid=="B" or name!="06_drawing.pdf"],))
+    groups = {}
+    for oid in ('A','B'):
+        for rule in proposal['method_pack']['indicators']:
+            pages = [(ids[name], page or (1 if oid=='A' else 2)) for name,page in PAGES[rule['id']]
+                     if oid=='B' or name!='06_drawing.pdf']
+            group = groups.setdefault((oid, tuple(pages)), dict(subject=oid, indicator_ids=[],
+                pages=[dict(source_id=source, page=page) for source,page in pages]))
+            group['indicator_ids'].append(rule['id'])
+    scripts.append(invoke('propose_page_binding', items=list(groups.values())))
     scripts.append(invoke("submit_plan"))
     driver=Driver(coordinator=scripts)
     for i,message in enumerate(scripts):

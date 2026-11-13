@@ -829,7 +829,8 @@ def _reject_batch(errors):
             fields.append({**field, 'field': prefix + ('.' + field['field'] if field['field'] else ''),
                 **({'related_fields': [prefix + '.' + value for value in field['related_fields']]}
                    if field.get('related_fields') else {})})
-    raise ActionRejected('PLANNING_BATCH_INVALID', diagnostic={'items': errors, 'fields': fields})
+    summary = '; '.join(str(error['index']) + ': ' + error['message'] for error in errors)
+    raise ActionRejected('PLANNING_BATCH_INVALID: ' + summary, diagnostic={'items': errors, 'fields': fields})
 
 
 def save_items(cs, actor, operation_id, kind, items):

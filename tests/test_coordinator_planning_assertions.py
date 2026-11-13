@@ -27,7 +27,7 @@ async def test_coordinator_offers_page_proposals_not_value_extraction(draft_case
     indicator=f.plan["method_pack"]["indicators"][0]["id"]
     driver=Driver(coordinator=[
         AIMessage(content="",tool_calls=[call("propose_page_binding",
-            dict(subject=subject,indicator_id=indicator,pages=[]),"native-page-proposal")]),
+            dict(items=[dict(subject=subject,indicator_ids=[indicator],pages=[])]),"native-page-proposal")]),
         AIMessage(content='', tool_calls=[call('ask_human',
             dict(category='requirement',description='Planning checkpoint',source_ids=[],pause=True),'pause')])])
     await build_agent(f.ws,driver,None).ainvoke({'messages':[HumanMessage('Plan this commission.')]})
@@ -55,3 +55,31 @@ def test_planning_tool_closure_cannot_escalate_from_delegated_task(method_commis
     with _native_binding(f.ws, writer, {'id':'delegate', 'args':{'description':'Writer assignment'}}, False):
         with pytest.raises(ActionForbidden, match='COORDINATOR_REQUIRED'):
             tools['ask']('S1', 'Can I inherit the coordinator binding?', 'other')
+
+
+def test_binding_proposal_batch_expands_indicators_and_pins_the_ordered_request(draft_case):
+    import pytest
+    from report_agent import page_bindings
+    from report_agent.errors import ActionRejected
+    from test_m1_g4_planning_steps import save_draft_parts, planning
+    f = draft_case
+    save_draft_parts(f)
+    ref = planning().submit_plan(f.cs, f.co, 'batch-binding-plan')['result']['plan_ref']
+    subject = f.plan['objects'][0]['object_id']
+    indicators = [row['id'] for row in f.plan['method_pack']['indicators']]
+    assert len(indicators) >= 3
+    items = [dict(subject=subject, indicator_ids=indicators[:2], pages=[])]
+    result = page_bindings.propose_many(f.cs, f.co, 'binding-batch', items)
+    assert {row['claim']['page_binding']['indicator_id'] for row in result['bindings']} == set(indicators[:2])
+    assert page_bindings.propose_many(f.cs, f.co, 'binding-batch', items) == result
+    with pytest.raises(ActionRejected):
+        page_bindings.propose_many(f.cs, f.co, 'binding-batch',
+            [dict(subject=subject, indicator_ids=indicators[:3], pages=[])])
+    with pytest.raises(ActionRejected) as caught:
+        page_bindings.propose_many(f.cs, f.co, 'invalid-binding-batch',
+            [dict(subject=subject, indicator_ids=[indicators[2]], pages=[]),
+             dict(subject=subject, indicator_ids=['missing-indicator'], pages=[]),
+             dict(subject='missing-object', indicator_ids=[indicators[2]], pages=[])])
+    assert {item['index'] for item in caught.value.diagnostic['items']} == {1, 2}
+    assert len([row for row, _ in page_bindings.records(f.ws.store, ref)
+                if row['claim']['kind'] == 'convention']) == 2
