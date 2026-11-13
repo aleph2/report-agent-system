@@ -519,3 +519,8 @@ The new native planning checkpoint was reached and its actual confirmer reply ap
 - [ ] P2, after-run interface follow-up: align text-work generation/parsing with prose adoption. Recorded complete fenced JSON is rejected by the strict parser; the generic node schema also admits shapes the prose saver rejects without field-level expected/received diagnostics. Measure preserved responses before selecting a fix, retain schema/evidence/structure checks, and retain finish metadata needed for diagnosis.
 - [ ] Before the real case, per the confirmer's permitted fallback: derive contractual object counts only from explicit client text and present inventory/included/excluded counts separately. The current frozen plan is not silently amended or replanned.
 - [ ] Before the real case, per the same fallback: keep each convention interpretation faithful to its own cited client clause. Delivery and verbatim-template requirements must not be replaced by MethodPack table formats or risk bands; attribute those method rules separately.
+
+### Public v4 Writer assignment repair (2026-11-13)
+
+- [x] Scoped public object-binding field, exact adapter forwarding and production Writer catalogue fix; backend object/section validation unchanged. Two requested production-path regressions reproduced the old failure; 61 focused checks pass; Neo approved freeze. See `docs/verification/v4-writer-assignment-20261113.md`.
+- [ ] Complete the one required full regression and terminal hash/coverage/cleanup review; then publish c tag and email commit/tag/Neo/count BEFORE fresh planning. New sheet approval remains required. No failed-case continuation or hold release/replay.

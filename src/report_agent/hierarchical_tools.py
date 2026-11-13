@@ -915,15 +915,12 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     from .section_writing import enabled as system_writing
     if system_writing(workspace.store):
         system_owned = {'commit_objects', 'save_text_node', 'freeze_snapshot', 'derive_snapshot',
-                        'export_content_workbook', 'materialize_planned_section', 'record_assessment_outcome'}
+                        'export_content_workbook', 'materialize_planned_section', 'record_assessment_outcome', 'calculate_assessment'}
         if role in {'coordinator', 'writer'}:
             system_owned.add('export_content_snapshot')
         common = [tool for tool in common if tool.__name__ not in system_owned]
         if role == 'writer':
             common += [save_section_prose, propose_material_issue, assess_assigned_object]
-            from .writer_runtime import assessment_actor
-            if assessment_actor(workspace) is not None:
-                common.remove(calculate_assessment)
         if role == 'coordinator':
             common += [request_system_delivery]
     return common

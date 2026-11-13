@@ -84,7 +84,11 @@ def test_writer_section_schema_and_request_assembly_preserve_selection(commissio
     {'subagent_type': 'layout', 'snapshot_scope': 'snapshot', 'section_ids': ['4']},
     {'subagent_type': 'reviewer', 'snapshot_scope': 'snapshot', 'commission_criterion_scopes': ['basis'],
      'review_scope': 'whole_content', 'section_ids': ['4']},
-    {'resume_task_scope': 'prior-task', 'section_ids': ['4']}])
+    {'resume_task_scope': 'prior-task', 'section_ids': ['4']},
+    {'subagent_type': 'layout', 'snapshot_scope': 'snapshot', 'assessment_object_id': 'S1'},
+    {'subagent_type': 'reviewer', 'snapshot_scope': 'snapshot', 'commission_criterion_scopes': ['basis'],
+     'review_scope': 'whole_content', 'assessment_object_id': 'S1'},
+    {'resume_task_scope': 'prior-task', 'assessment_object_id': 'S1'}])
 def test_section_selection_is_writer_only_and_cannot_change_continuation(fields):
     from report_agent.co_review_message import CoTaskMessage
     with pytest.raises(ValidationError):
@@ -198,3 +202,75 @@ def test_project_state_cannot_project_four_of_five_objects_as_completed(commissi
     coverage = projected['content_current_review']['commission_coverage']
     assert coverage['complete'] is False
     assert {item['object_id'] for item in coverage['missing_objects']} == {'S5'}
+
+
+@pytest.mark.asyncio
+async def test_public_object_assignment_reaches_saved_writer_and_actual_tools(commission):
+    from langchain.agents.middleware.types import ModelRequest
+    from langchain_core.messages import AIMessage, SystemMessage
+    from report_agent.content_tasks import task_tool
+    from report_agent.deep_runtime import BusinessBoundary
+    from report_agent.live_messages import _co_request, _assemble_task
+
+    configure(commission, review_interface_profile='review-interfaces-v4',
+              assembly_contract='system-assembler-v1')
+    plan = deepcopy(commission.plan)
+    plan['objects'][2].update(object_id='C', label='Excluded C', included=False,
+                              reason='Excluded from this synthetic assessment commission.')
+    saved = save(commission, plan)
+    approve(commission, saved)
+    def task(description: str, subagent_type: str):
+        """Delegate the selected task through the native executor."""
+        return description
+    tool = task_tool(StructuredTool.from_function(task), review_profile='native-reviewer-v2',
+                     interface_profile='review-interfaces-v4')
+    _, offer = _co_request(commission.ws, ModelRequest(model=None, tools=[tool], state={},
+        system_message=SystemMessage('Coordinator'), messages=[]))
+    assert 'assessment_object_id' in offer['function']['parameters']['properties']
+    call = {'id':'public-object', 'name':'task', 'args':{
+        'description':'Assess the included object and write its section.', 'subagent_type':'writer',
+        'section_ids':['4'], 'assessment_object_id':'S1'}}
+    tool.args_schema.model_validate(call['args'])
+    assembled = _assemble_task(commission.ws, commission.co, offer, call)
+    with delegated_task(commission.ws, 'coordinator', assembled) as (_, actor):
+        record = commission.cs.read({'type':'DelegatedTask', 'id':actor.task_id, 'version':1})
+        assert record['payload']['assessment_object_id'] == 'S1'
+        assert record['payload']['commission_plan_ref'] == saved['plan_ref']
+        offered = []
+        async def capture(request):
+            offered.extend(t.name for t in request.tools)
+            return AIMessage(content='No provider call.')
+        await BusinessBoundary(commission.ws, 'writer').awrap_model_call(ModelRequest(model=None,
+            tools=[native_tool(t) for t in registered(commission, 'writer').values()], state={},
+            system_message=SystemMessage('Writer'), messages=[]), capture)
+        assert {'assess_assigned_object','save_section_prose'} <= set(offered)
+        assert 'calculate_assessment' not in offered
+    excluded = deepcopy(call)
+    excluded['id'] = 'excluded-object'
+    excluded['args']['assessment_object_id'] = 'C'
+    with pytest.raises(ActionRejected, match='WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED'):
+        with delegated_task(commission.ws, 'coordinator',
+                _assemble_task(commission.ws, commission.co, offer, excluded)):
+            pytest.fail('Excluded object reached the native Writer.')
+    assert len(commission.cs.list_objects('DelegatedTask')) == 1
+
+
+@pytest.mark.asyncio
+async def test_unbound_writer_under_confirmed_plan_has_no_legacy_calculator(commission):
+    from langchain.agents.middleware.types import ModelRequest
+    from langchain_core.messages import AIMessage, SystemMessage
+    from report_agent.deep_runtime import BusinessBoundary
+    configure(commission, review_interface_profile='review-interfaces-v4',
+              assembly_contract='system-assembler-v1')
+    saved = save(commission)
+    approve(commission, saved)
+    with delegated_task(commission.ws, 'coordinator', task(section_ids=['4'])):
+        offered = []
+        async def capture(request):
+            offered.extend(t.name for t in request.tools)
+            return AIMessage(content='No provider call.')
+        await BusinessBoundary(commission.ws, 'writer').awrap_model_call(ModelRequest(model=None,
+            tools=[native_tool(t) for t in registered(commission, 'writer').values()], state={},
+            system_message=SystemMessage('Writer'), messages=[]), capture)
+        assert 'save_section_prose' in offered
+        assert not {'calculate_assessment','assess_assigned_object'} & set(offered)

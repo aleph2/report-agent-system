@@ -117,8 +117,8 @@ class BusinessBoundary(InvalidToolFeedback):
             if identity is not None and identity['actor']['role']=='writer':
                 actor=bound_actor(self.workspace,'writer',None)
                 self.writer_models[actor.task_id]=request.model
-            excluded='calculate_assessment' if assessment_actor(self.workspace) is not None else 'assess_assigned_object'
-            request=request.override(tools=[tool for tool in request.tools if tool.name!=excluded])
+            if assessment_actor(self.workspace) is None:
+                request=request.override(tools=[tool for tool in request.tools if tool.name!='assess_assigned_object'])
         if not self.indicator_step and system_writing(self.workspace.store) and self.role in {'coordinator', 'writer'}:
             request = append_declared_system(request,
                 'This run uses system-assembler-v1. Writers save assigned section prose and current citations, '

@@ -65,8 +65,8 @@ def test_issue_proposal_has_system_anchor_and_no_content_mutation(writing):
 def test_g6_tools_expose_prose_not_snapshot_assembly(writing):
     from report_agent.hierarchical_tools import content_tools
     names={f.__name__ for f in content_tools(writing.ws,'writer')}
-    assert {'save_section_prose','calculate_assessment','propose_material_issue'}<=names
-    assert not names.intersection({'commit_objects','save_text_node','freeze_snapshot','derive_snapshot','materialize_planned_section','export_content_snapshot','export_content_workbook'})
+    assert {'save_section_prose','propose_material_issue'}<=names
+    assert not names.intersection({'calculate_assessment','commit_objects','save_text_node','freeze_snapshot','derive_snapshot','materialize_planned_section','export_content_snapshot','export_content_workbook'})
     names={f.__name__ for f in content_tools(writing.ws,'coordinator')}
     assert 'request_system_delivery' in names
 
