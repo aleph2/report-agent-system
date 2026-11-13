@@ -1,5 +1,6 @@
 """Host-owned, finite indicator steps for the explicitly selected assessment workflow."""
 import json
+import re
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -17,6 +18,23 @@ SAVES = ('save_evidence','save_assumption','save_gap')
 ISSUE = 'propose_material_issue'
 EXTRACTION = {'assert_source', 'record_conflict'}
 PAGE_LIMIT = 3
+
+
+def refusal_rows(messages):
+    from langchain_core.messages import ToolMessage
+    result = {}
+    for message in messages:
+        if not isinstance(message,ToolMessage) or message.status != 'error':
+            continue
+        try:
+            body = json.loads(message.content) if isinstance(message.content, str) else {}
+        except (TypeError,ValueError):
+            body = {}
+        code = body.get('code') if isinstance(body,dict) else None
+        result[message.tool_call_id] = {'tool':message.name,'tool_call_id':message.tool_call_id,
+            'code':code if isinstance(code,str) and re.fullmatch('[A-Z][A-Z0-9_]{0,150}',code) else 'TOOL_REFUSED'}
+    return list(result.values())
+
 
 
 class IndicatorBoundary(AgentMiddleware):
@@ -75,7 +93,6 @@ class IndicatorToolReceipts(BusinessBoundary):
         self.boundary = None
 
     def _observe_refusal(self, message):
-        from .writer_probe import refusal_rows
         for row in refusal_rows([message]):
             call_id = row['tool_call_id']
             try:
@@ -208,78 +225,3 @@ class IndicatorRun:
                 raise ActionRejected('PROBE_INDICATOR_PROGRESS_MISMATCH')
             step = next_step
         return self.progress
-
-
-async def run_mini_assessment(workspace, model, *, verified_run):
-    """Two assessment delegations from an approved synthetic plan; caller owns the grant and run lock."""
-    import re
-    from .commission_plan import _confirmed, outside_boundary
-    from .fake_verification import assert_active_fake_run
-    from .writer_runtime import writer_session
-    assert_active_fake_run(verified_run,workspace)
-    cs = ContentStore(workspace.store)
-    with cs.store.connect() as db:
-        plan, decision = _confirmed(cs,db)
-    if plan['ref'] != verified_run.plan_ref:
-        raise ActionRejected('FAKE_CONFIRMED_PLAN_CHANGED')
-    payload = plan['payload']
-    reduced = {r['object_id'] for r in decision['payload'].get('reductions',[])}
-    objects = {obj['object_id']:obj for obj in payload['objects']
-               if obj['included'] and not outside_boundary(payload,obj) and obj['object_id'] not in reduced}
-    ids = [row['id'] for row in (payload.get('method_pack') or {}).get('indicators',[])]
-    order = (payload.get('indicator_rank_order') or {}).get('indicator_ids',[])
-    if (set(objects) != {'A','B'} or len({obj['label'] for obj in objects.values()}) != 2
-            or len(ids) != 11 or len(order) != 11 or set(order) != set(ids)):
-        raise ActionRejected('FAKE_TWO_SLOPE_RANKED_PLAN_REQUIRED')
-    from .writer_fact_packet import packet_grant
-    qualitative = getattr(verified_run, 'qualitative_only', False)
-    packets = {oid:packet_grant(workspace.store.root, plan['ref'], oid, verified_run.assessment_section_id)
-               for oid in objects}
-    if any((g is not None) != qualitative for g in packets.values()):
-        raise ActionRejected('FAKE_QUALITATIVE_PROFILE_MISMATCH')
-    result = {'status':'running','scope':'qualitative_writer_only' if qualitative else 'assessment_writer_only','plan_ref':plan['ref'],
-              'decision_ref':decision['ref'],'slopes':[],'engineering_acceptance':False}
-    for object_id in ('A','B'):
-        slope: dict = {'object_id':object_id}
-        result['slopes'].append(slope)
-        try:
-            with writer_session(workspace,objects[object_id]['label'],model,assessment_only=True,
-                                indicator_steps=True,section_id=verified_run.assessment_section_id) as session:
-                slope['writer_actor'] = session.actor.id
-                try:
-                    await session.run()
-                    if session.progress['interrupted_indicators']:
-                        slope['status'] = 'incomplete'
-                    elif qualitative and session.progress['progress']['recorded'] == session.progress['progress']['total']:
-                        slope['status'] = 'qualitative_rows_saved'
-                    elif session.progress['gap_indicators']:
-                        slope['status'] = 'closed_with_gaps'
-                    elif session.progress['assessment_ref']:
-                        slope['status'] = 'assessment_saved'
-                    else:
-                        raise ActionRejected('WRITER_COMPLETION_RECEIPT_MISSING')
-                finally:
-                    slope.update(indicator_steps=session.progress,refusals=session.refusals)
-        except Exception as exc:
-            slope.update(status='interrupted',error_type=type(exc).__name__)
-            code = str(exc)
-            if re.fullmatch(r'(WRITER|FAKE|PROBE|SCOPED|COMMISSION|REQUEST|TOKEN)_[A-Z0-9_]{1,140}',code):
-                slope['stop_code'] = code
-            else:
-                trace = exc.__traceback__
-                while trace is not None:
-                    frame = trace.tb_frame
-                    module = frame.f_globals.get('__name__', '')
-                    if module.startswith('report_agent.'):
-                        slope['error_location'] = {'module': module, 'function': frame.f_code.co_name,
-                                                   'line': trace.tb_lineno}
-                    trace = trace.tb_next
-            result['status'] = 'interrupted'
-            return result
-    if any(s['status']=='incomplete' for s in result['slopes']):
-        result['status']='incomplete'
-    elif qualitative:
-        result['status']='qualitative_rows_saved'
-    else:
-        result['status']='closed_with_gaps' if any(s['status']=='closed_with_gaps' for s in result['slopes']) else 'assessments_saved'
-    return result

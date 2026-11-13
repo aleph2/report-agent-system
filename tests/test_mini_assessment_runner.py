@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from report_agent.content_store import ContentStore
 from report_agent.store import Store
 from report_agent.workspace import Workspace
-from report_agent.writer_indicator_steps import run_mini_assessment
+from report_agent.fake_verification import run_mini_assessment
 from test_deep_runtime import Driver
 from test_writer_five_slopes import action
 

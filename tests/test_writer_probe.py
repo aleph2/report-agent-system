@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 import pytest
 from report_agent import plan_authority
-from report_agent.writer_probe import verified_request_bound, refusal_rows
+from report_agent.writer_probe import verified_request_bound
+from report_agent.writer_indicator_steps import refusal_rows
 
 
 def sha(value):

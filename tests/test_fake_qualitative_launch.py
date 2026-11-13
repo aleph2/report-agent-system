@@ -87,7 +87,7 @@ def test_qualitative_operator_cli_seals_profile_and_verifies_fresh_binding(pair,
         budget.settle(budget.reserve(host.MODEL),{'total_tokens':100})
         calls.append(verified_run.run_id)
         return {'status':'qualitative_rows_saved'}
-    monkeypatch.setattr(writer_indicator_steps,'run_mini_assessment',mock_runner)
+    monkeypatch.setattr(host,'run_mini_assessment',mock_runner)
     monkeypatch.setattr(sys,'argv',['fake_verification','run','--authority',str(path),'--authority-sha256',pin,
                                   '--prepared-sha256',receipt['prepared_sha256'],'--env',str(env)])
     assert host.main()==0

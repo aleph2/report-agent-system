@@ -13,6 +13,7 @@ import sqlite3
 from .assessment_completion import (read_finance, claim_launch, _save, saved_assessments)
 from .probe_budget import ProbeBudget
 from .token_budget import RequestBound, TokenBudget, token_budget, request_token_bound
+from .writer_indicator_steps import refusal_rows
 
 
 def _hash(data):
@@ -44,20 +45,6 @@ def verified_request_bound(proof, env, model, base_url):
     return RequestBound(model,proof['request_url_sha256'],proof['input_limit'],proof['output_limit'],proof_hash)
 
 
-def refusal_rows(messages):
-    from langchain_core.messages import ToolMessage
-    result = {}
-    for message in messages:
-        if not isinstance(message,ToolMessage) or message.status != 'error':
-            continue
-        try:
-            body = json.loads(message.content) if isinstance(message.content, str) else {}
-        except (TypeError,ValueError):
-            body = {}
-        code = body.get('code') if isinstance(body,dict) else None
-        result[message.tool_call_id] = {'tool':message.name,'tool_call_id':message.tool_call_id,
-            'code':code if isinstance(code,str) and re.fullmatch('[A-Z][A-Z0-9_]{0,150}',code) else 'TOOL_REFUSED'}
-    return list(result.values())
 
 
 def _fresh_import(case, inputs):
