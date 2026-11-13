@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from deepagents import create_deep_agent, register_harness_profile, HarnessProfile, GeneralPurposeSubagentProfile
 from deepagents.backends import StateBackend
-from deepagents.middleware.filesystem import FilesystemMiddleware
+from deepagents.middleware.filesystem import FilesystemMiddleware, NUM_CHARS_PER_TOKEN
 from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware, hook_config
 from langchain.tools import ToolRuntime
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
@@ -513,7 +513,7 @@ def project_view(workspace):
     return state
 
 
-def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, reviewer_handles=False):
+def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, reviewer_handles=False, planning_result_fits=None):
     if reviewer_handles and role != 'reviewer':
         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
     from .content_tasks import qualitative_review_active
@@ -976,7 +976,8 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
             allowed.add("ask_human")
         tools = [t for t in tools if t.__name__ in allowed]
         from .text_work import guarded_tools
-        tools += guarded_tools(workspace, role, text_model, content_tools(workspace, role, reviewer_handles=reviewer_handles))
+        tools += guarded_tools(workspace, role, text_model, content_tools(workspace, role,
+            reviewer_handles=reviewer_handles, planning_result_fits=planning_result_fits))
         from .commission_plan import enabled as commission_enabled
         if role == 'coordinator' and commission_enabled(store):
             def request_commission_confirmation() -> dict:
@@ -1153,11 +1154,17 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                                            middleware=[*([TodoListMiddleware()] if acceptance else []),
                                                        BusinessBoundary(workspace, "rubric_grader")])]
     from .native_trace import trace_tools
+    coordinator_middleware = middleware("coordinator", tuple((s['name'], s['description']) for s in subagents))
+    filesystem = next(m for m in coordinator_middleware if isinstance(m, FilesystemMiddleware))
+    def planning_result_fits(result):
+        # The pinned SDK exposes its selected eviction allowance only on this instance.
+        limit = filesystem._tool_token_limit_before_evict
+        return bool(limit) and len(encode(result)) <= NUM_CHARS_PER_TOKEN * limit
     agent = create_deep_agent(model=model_factory("coordinator"),
-                             tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool")) + trace_tools(checkpointer),
+                             tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool"),
+                                 planning_result_fits=planning_result_fits) + trace_tools(checkpointer),
                              system_prompt=configured_prompt("coordinator"), subagents=subagents, backend=backend,
-                             middleware=[*middleware("coordinator", tuple((s['name'], s['description']) for s in subagents)),
-                                         *review_middleware],
+                             middleware=[*coordinator_middleware, *review_middleware],
                              checkpointer=checkpointer, name="report_coordinator")
     from .failure_diagnostics import FailureDiagnostics
     diagnostics = FailureDiagnostics(workspace.store)

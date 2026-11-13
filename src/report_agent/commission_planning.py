@@ -615,9 +615,11 @@ DRAFT_COLLECTIONS = Literal['summary', 'requirements', 'sections', 'objects', 'r
 
 
 def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_id='',
-                    offset=0, characters=3000, view_ref='', gap_page=1):
+                    offset=0, characters=3000, view_ref='', gap_page=1, *, full=False, result_fits=None):
     """Bound model observations before platform eviction; retain canonical data server-side."""
     if collection in ('source_assertions', 'page_bindings'):
+        if full:
+            reject('full', 'PLANNING_FULL_COLLECTION_REQUIRED', message='Use the subject-specific paged assertion reader.')
         from .planning_assertions import read_source_index
         return read_source_index(cs, actor, item_id, page, page_size, view_ref, bindings=collection == "page_bindings")
     if actor.role != 'coordinator':
@@ -674,10 +676,27 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
         'counts': {key: len(value) for key, value in collections.items()}, 'page_data': None,
         'read_next': 'Choose collection and page or exact item_id. Pass view_ref on continuations. Details are JSON text; concatenate next_offset chunks before decoding. Gaps describe missing work, not plan approval.'}
     if collection == 'summary':
+        if full:
+            reject('collection', 'PLANNING_FULL_COLLECTION_REQUIRED', collections.keys())
         if item_id or offset or page != 1:
             reject('collection', 'PLANNING_SUMMARY_HAS_NO_ITEMS', collections.keys())
         return result
     rows = collections[collection]
+    if full:
+        if item_id or offset or page != 1:
+            reject('full', 'PLANNING_FULL_COLLECTION_START_REQUIRED', message='Choose one collection from its start, without an item selector.')
+        text = encode([{'id': key, 'value': value} for key, value in rows])
+        complete = {**result, 'full_read': {'complete': True},
+            'read_next': 'The requested collection is complete at this view_ref. Gaps describe missing work, not approval.',
+            'page_data': {'collection': collection, 'page': 1, 'page_size': len(rows),
+                'item_id': '', 'total_items': len(rows), 'total_pages': 1, 'text': text,
+                'offset': 0, 'next_offset': None, 'total_characters': len(text),
+                'next_page': None, 'complete_page': True}}
+        if result_fits is not None and result_fits(complete):
+            return complete
+        result['full_read'] = {'complete': False, 'reason':
+            'PLANNING_COLLECTION_EXCEEDS_OBSERVATION_ALLOWANCE' if result_fits is not None else
+            'PLANNING_OBSERVATION_ALLOWANCE_UNAVAILABLE'}
     total_pages = max(1, (len(rows) + page_size - 1) // page_size)
     if item_id:
         matches = [(key, value) for key, value in rows if key == item_id]
@@ -1055,7 +1074,7 @@ def reply_requirements(workspace, issue_id, decision):
         return issue
 
 
-def planning_tools(cs, actor):
+def planning_tools(cs, actor, *, result_fits=None):
     """Small independent judgments; prepared payloads and authority stay server-owned."""
     from .planning_assertions import planning_assertion_tools
     assertion_tools = planning_assertion_tools(cs, actor)
@@ -1072,9 +1091,12 @@ def planning_tools(cs, actor):
             page: Annotated[int, Field(ge=1)] = 1, page_size: Annotated[int, Field(ge=1, le=10)] = 5,
             item_id: str = '', offset: Annotated[int, Field(ge=0)] = 0,
             characters: Annotated[int, Field(ge=1, le=3000)] = 3000,
-            view_ref: str = '', gap_page: Annotated[int, Field(ge=1)] = 1) -> dict:
+            view_ref: str = '', gap_page: Annotated[int, Field(ge=1)] = 1, full: bool = False) -> dict:
         """Read compact gaps first with counts; default returns no large draft bodies.
 
+        full=True requests one entire named collection at the same view_ref when the
+        complete response fits the runtime observation allowance. Otherwise full_read
+        explicitly reports incomplete and ordinary pagination remains available.
         Read details by collection/page or exact item_id. requirements rows contain
         anchor IDs, exact quotes, statuses and classifications. sections/objects retain
         exact citations; settings contains methods, tables and boundary by their keys.
@@ -1086,7 +1108,8 @@ def planning_tools(cs, actor):
         page_bindings with the inventory object ID as item_id for applicability proposals; source_assertions retains historical source
         IDs; continue using its own view_ref. No tool order is required.
         """
-        return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page)
+        return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page,
+            full=full, result_fits=result_fits)
 
     def set_status(operation_id: str, items: Annotated[list[RequirementStatusInput], Field(min_length=1)]) -> dict:
         """Set requirement statuses atomically. Every item passes the existing checks; any error refuses the whole list with indexed problems. Capabilities remain system-owned; reductions need owner confirmation."""

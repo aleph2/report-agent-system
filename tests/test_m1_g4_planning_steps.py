@@ -1212,9 +1212,12 @@ async def test_current_native_planning_wire_has_small_inputs_and_no_operator_aut
     fixture = draft_case
     current_native_profiles(fixture)
     driver = Driver(coordinator=[AIMessage(content='', tool_calls=[
-        call('read_planning_draft', {}, 'read-small-contract')]), AIMessage(content='Synthetic schema inspection complete.')])
+        call('read_planning_draft', {'collection': 'requirements', 'full': True}, 'read-small-contract')]), AIMessage(content='Synthetic schema inspection complete.')])
     result = await run(fixture.ws, driver)
     assert result['last_error'] is None, result
+    from test_deep_runtime import observation
+    view = observation(driver.calls[-1][2], 'read_planning_draft')
+    assert view['full_read']['complete'] and view['page_data']['complete_page'], view
     schemas = {s['name']: s for batch in driver.bindings['coordinator'] for s in batch}
     expected = {'read_planning_draft', 'set_requirement_status', 'link_convention', 'set_scope_boundary',
         'add_section', 'add_object', 'add_substitution', 'add_reconciliation', 'add_question',
@@ -1347,3 +1350,28 @@ def test_requirement_status_batch_preserves_unmentioned_items_and_rejects_prefix
         planning().set_requirement_statuses(fixture.cs, fixture.co, 'bad-status-batch', bad)
     assert {error['index'] for error in exc.value.diagnostic['items']} == {1, 2}
     assert requirements().read_requirements(fixture.cs) == after
+
+
+@pytest.mark.parametrize('collection', ['requirements', 'objects', 'sections', 'questions', 'reconciliations'])
+def test_full_collection_uses_exact_view_and_outer_result_allowance(draft_case, collection):
+    import json
+    f = draft_case
+    planning().save_item(f.cs, f.co, 'full-read-question', 'question',
+        {'question_id': 'full-read', 'text': 'Synthetic question', 'resolved': False})
+    checked = []
+    def fits(result):
+        checked.append(deepcopy(result))
+        return True
+    value = planning().read_draft_page(f.cs, f.co, collection, full=True, result_fits=fits)
+    assert checked == [value], 'Measure the entire returned envelope, including escaped text.'
+    assert value['full_read'] == {'complete': True}
+    data = value['page_data']
+    assert data['complete_page'] and data['next_page'] is data['next_offset'] is None
+    assert len(json.loads(data['text'])) == value['counts'][collection] == data['total_items']
+    fallback = planning().read_draft_page(f.cs, f.co, collection, full=True, result_fits=lambda _: False)
+    assert fallback['full_read'] == {'complete': False, 'reason': 'PLANNING_COLLECTION_EXCEEDS_OBSERVATION_ALLOWANCE'}
+    assert fallback['page_data'] == planning().read_draft_page(f.cs, f.co, collection)['page_data']
+    planning().save_item(f.cs, f.co, 'change-full-read', 'question',
+        {'question_id': 'full-read', 'text': 'Changed synthetic question', 'resolved': False})
+    with pytest.raises(ActionRejected, match='PLANNING_VIEW_CHANGED'):
+        planning().read_draft_page(f.cs, f.co, collection, view_ref=value['view_ref'], full=True, result_fits=fits)
