@@ -39,6 +39,18 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
         CampaignRunBudget(campaign.path,'same-case',**{**options,'maximum_tokens':80})
     with pytest.raises(RequestBudgetExceeded,match='REPORT_RUN_AUTHORITY_CHANGED'):
         CampaignRunBudget(campaign.path,'same-case',**{**options,'authority_sha256':'b'*64})
+    smaller=CampaignRunBudget(campaign.path,'stricter',**{**options,'model_bounds':{'m':30}})
+    reserved=smaller.reserve('m')
+    assert smaller.run_snapshot()['held']==30
+    smaller.settle(reserved,{'total_tokens':5})
+    with campaign.connect() as db:
+        original_authorization=db.execute('SELECT * FROM authorization').fetchall()
+        original_rows=db.execute('SELECT * FROM attempts ORDER BY id').fetchall()
+    with pytest.raises(ValueError,match='REPORT_MODEL_BOUND_MISMATCH'):
+        CampaignRunBudget(campaign.path,'too-large',**{**options,'model_bounds':{'m':41}})
+    with campaign.connect() as db:
+        assert db.execute('SELECT * FROM authorization').fetchall()==original_authorization
+        assert db.execute('SELECT * FROM attempts ORDER BY id').fetchall()==original_rows
     second=CampaignRunBudget(campaign.path,'second',**options)
     unknown=second.reserve('m');second.settle(unknown,None)
     with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):

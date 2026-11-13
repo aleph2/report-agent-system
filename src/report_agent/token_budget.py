@@ -334,7 +334,7 @@ class CampaignRunBudget(TokenBudget):
                 raise ValueError('REPORT_CAMPAIGN_AUTHORIZATION_MISMATCH')
             self.authorization = tuple(row)
             registered = json.loads(row[1])
-            if any(k in registered and registered[k] != v for k,v in self.model_bounds.items()):
+            if any(k in registered and v > registered[k] for k,v in self.model_bounds.items()):
                 raise ValueError('REPORT_MODEL_BOUND_MISMATCH')
             tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             legacy = {'fake_flow_runs','fake_run_attempts','fake_comparison_requests'}
