@@ -456,7 +456,7 @@ C2 pre-tag completion: retired-marker search reproduced two more stale visibilit
 - [x] Item1 atomic planning list backend, native schemas and current callers;175focusedpasses plus10diagnostic rechecks;Neo reviewed.
 - [x] Item2 atomic binding lists/multiple indicators with whole-request replay identity;32focused passes,Neo reviewed.
 - [x] Item3 whole small planning collection with existing version/observation limits;140focused passes,Neo reviewed.
-- [ ] Item4 Coordinator current accepted IDs.
+- [x] Item4 Coordinator current accepted IDs;21focused passes including native tail,Neo reviewed.
 - [ ] Item5 record-local soft numeric-literal warnings and owner checkpoint display.
 - [ ] Offline full regression and actual-candidate replay comparison.
 - [ ] Reviewed candidate tag and draft authorization preflight; satisfy standing-paid activation gates.

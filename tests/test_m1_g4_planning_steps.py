@@ -1216,6 +1216,10 @@ async def test_current_native_planning_wire_has_small_inputs_and_no_operator_aut
     result = await run(fixture.ws, driver)
     assert result['last_error'] is None, result
     from test_deep_runtime import observation
+    import json
+    tail = driver.calls[-1][2][-1].content
+    packet = json.loads(tail.split('\n', 1)[1])
+    assert packet['current_state']['planning_ids'] == planning().planning_ids(fixture.cs)
     view = observation(driver.calls[-1][2], 'read_planning_draft')
     assert view['full_read']['complete'] and view['page_data']['complete_page'], view
     schemas = {s['name']: s for batch in driver.bindings['coordinator'] for s in batch}
@@ -1375,3 +1379,25 @@ def test_full_collection_uses_exact_view_and_outer_result_allowance(draft_case, 
         {'question_id': 'full-read', 'text': 'Changed synthetic question', 'resolved': False})
     with pytest.raises(ActionRejected, match='PLANNING_VIEW_CHANGED'):
         planning().read_draft_page(f.cs, f.co, collection, view_ref=value['view_ref'], full=True, result_fits=fits)
+
+
+def test_planning_ids_follow_draft_and_pin_published_binding_ids(draft_case):
+    f = draft_case
+    before = planning().planning_ids(f.cs)
+    assert before['draft']['objects'] == before['draft']['sections'] == []
+    assert before['published'] is None
+    assert {r['id'] for r in before['draft']['indicators']} == {r['id'] for r in f.plan['method_pack']['indicators']}
+    saved = save_draft_parts(f)
+    current = planning().planning_ids(f.cs)
+    assert current['draft']['revision'] == saved['revision']
+    assert current['draft']['objects'] == [{'id': o['object_id'], 'label': o['label']} for o in saved['plan']['objects']]
+    published = planning().submit_plan(f.cs, f.co, 'ids-publish')['result']['plan_ref']
+    pinned = planning().planning_ids(f.cs)
+    assert pinned['published'] == {'plan_ref': published, 'same_as_draft': True}
+    obj = deepcopy(f.plan['objects'][0]); obj['label'] = 'Updated synthetic label'
+    planning().save_item(f.cs, f.co, 'ids-revise', 'object', obj)
+    changed = planning().planning_ids(f.cs)
+    assert changed['draft']['objects'][0]['label'] == obj['label']
+    assert changed['published']['plan_ref'] == published
+    assert changed['published']['objects'][0]['label'] != obj['label']
+    assert 'source' not in encode(changed) and 'attributes' not in encode(changed)

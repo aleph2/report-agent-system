@@ -597,6 +597,40 @@ def _gaps(cs, plan, db):
     return gaps
 
 
+def planning_ids(cs):
+    """Current labels and real IDs only; no plan assembly or source-body projection."""
+    from .commission_requirements import requirements_ref, read_requirements
+    from . import plan_authority
+    def project(plan):
+        return {'objects': [{'id': o['object_id'], 'label': o['label']} for o in plan.get('objects', [])],
+            'sections': [{'id': s['section_id'], 'label': s['title']} for s in plan.get('sections', [])],
+            'indicators': [{'id': i['id'], 'label': i['label']} for i in (plan.get('method_pack') or {}).get('indicators', [])]}
+    with cs.store.connect() as db:
+        db.execute('BEGIN')
+        draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
+        items = draft['items']
+        sections = {s['section_id']: s for s in (plan_inputs.get_skeleton(db) or {}).get('sections', [])}
+        sections.update(items.get('section', {}))
+        indicators = {}
+        req = requirements_ref(db)
+        if req:
+            for item in read_requirements(cs, req, db=db)['payload']['items']:
+                if item['status'] == 'required' and item.get('reviewed_entry_id'):
+                    entry = reviewed_entry(cs, db, item['reviewed_entry_id'])
+                    indicators.update({i['id']: i for i in (entry.get('method_pack') or {}).get('indicators', [])})
+        ids = project({'objects': list(items.get('object', {}).values()), 'sections': list(sections.values()),
+            'method_pack': {'indicators': list(indicators.values())}})
+        published = None
+        if ref := plan_authority.plan_ref(db):
+            saved = project(cs._read(db, ref)['payload'])
+            published = {'plan_ref': ref, **({'same_as_draft': True} if saved == ids else saved)}
+        if not published and not any(ids.values()):
+            return None
+        return {'draft': {'revision': draft['revision'], 'requirements_ref': req, **ids},
+            'published': published,
+            'note': 'Use published plan IDs for page bindings. Draft IDs do not publish or approve a plan.'}
+
+
 def read_draft(cs, actor):
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')

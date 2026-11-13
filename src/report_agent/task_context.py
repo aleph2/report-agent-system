@@ -287,6 +287,9 @@ def exact_task_context(workspace, role):
             for r in (json.loads(row[0]) for row in rows[:20])]
         result["head_inventory_partial"] = len(rows)>20
     if role=='coordinator':
+        from .commission_planning import enabled as planning_enabled, planning_ids
+        if planning_enabled(workspace.store) and (ids := planning_ids(cs)) is not None:
+            result['planning_ids'] = ids
         if manifest.get('review_interface_profile') == 'review-interfaces-v4':
             from .hierarchical_tools import actor_for
             result['declared_deliverables'] = cs.declared_deliverables(actor_for(role))
