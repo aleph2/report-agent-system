@@ -1446,6 +1446,19 @@ def test_numeric_warnings_are_record_local_literal_checks():
     assert [w['number'] for w in numeric_literal_warnings({'text': '53.13°. 14.6%. 9002.'})] == ['53.13°', '14.6%', '9002']
     assert numeric_literal_warnings({'text': '0.1234567890123456789012345678901',
         'source': {'quote': '0.1234567890123456789012345678902'}})
+    grade_source = dict(source_ref=dict(type='SourceArtifact', id='method-source', version=1), locator='page 2', quote='Grades')
+    weight_source = dict(source_ref=dict(type='SourceArtifact', id='rank-source', version=1), locator='page 1', quote='X11')
+    context = dict(method_pack=dict(method_id='method-v1', sources=[grade_source], risk_bands=[],
+        indicators=[dict(id='X11', grades=[dict(min_value='25', max_value='49')]), dict(id='X12', grades=[])],
+        weight_tables=[dict(id='W.2', source=grade_source, rows=[dict(indicator_count=2, weights=['0.17', '0.83'])])]),
+        method_conventions=[dict(method_id='method-v1', strategy_id='W.2', source=weight_source)],
+        records=[dict(record_id='saved-99')])
+    current = numeric_literal_warnings(dict(text='X₁₁ W.2 saved-99; bare 11; weight 0.17; range 61; date 2026-04-15.',
+        source=weight_source), context=context)
+    assert [w['number'] for w in current] == ['11', '61', '2026', '04', '15']
+    assert [w['number'] for w in numeric_literal_warnings(dict(text='25 61', source=grade_source), context=context)] == ['61']
+    assert [w['number'] for w in numeric_literal_warnings(dict(text='0.17 25 X110', source=dict(quote='unrelated')), context=context)] == ['0.17', '25', '110']
+
 
 
 def test_numeric_warnings_reach_write_result_and_exact_owner_checkpoint(draft_case, monkeypatch):

@@ -340,6 +340,26 @@ def entry_plan_gaps(cs, db, item, plan):
     return gaps
 
 
+def numeric_warning_context(cs, db, *, requirements=None, plan=None):
+    from .commission_requirements import read_requirements
+    if requirements is None and (plan or {}).get('requirements_ref'):
+        requirements = cs._read(db, plan['requirements_ref'])['payload']
+    elif requirements is None and enabled(cs.store):
+        requirements = read_requirements(cs, db=db)['payload']
+    context = {'records': [plan if plan is not None else plan_inputs.get_draft(db, {}), requirements or {}],
+               'method_links': []}
+    anchors = {a['id']: a for a in (requirements or {}).get('anchors', [])}
+    for item in (requirements or {}).get('items', []):
+        if item['status'] != 'required' or not item.get('reviewed_entry_id'):
+            continue
+        entry = reviewed_entry(cs, db, item['reviewed_entry_id'])
+        if entry.get('method_pack'):
+            context['method_links'].append({'method_pack': entry['method_pack'],
+                'source': anchors[item['anchor_id']]['source'],
+                **({'strategy_id': entry['strategy_id']} if entry['kind'] == 'weight' else {})})
+    return context
+
+
 def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=False):
     from .commission_requirements import read_requirements, _write_items
     if actor.role != 'coordinator' or actor.id != 'content:coordinator':
@@ -356,7 +376,8 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
         ref = _write_items(cs, db, actor, previous, items, relink_anchor=anchor_id if relink else None)
         return {'requirements_ref': ref, 'changed': ref != previous['ref'],
             'saved_item_ids': [anchor_id],
-            'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': items})}
+            'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': items},
+                context=numeric_warning_context(cs, db, requirements={**previous['payload'], 'items': items}))}
     result = cs.operation(actor, operation_id, {'anchor_id': anchor_id, 'change': change, 'relink': relink}, save)
     if result['result']['changed']:
         publish_interpretation(cs, actor, operation_id, result['result']['requirements_ref'])
@@ -420,7 +441,8 @@ def set_requirement_statuses(cs, actor, operation_id, items):
         ref = _write_items(cs, db, actor, previous, values)
         return {'requirements_ref': ref, 'changed': ref != previous['ref'],
             'saved_item_ids': saved_ids,
-            'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': values})}
+            'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': values},
+                context=numeric_warning_context(cs, db, requirements={**previous['payload'], 'items': values}))}
     result = cs.operation(actor, operation_id, {'requirement_statuses': deepcopy(items)}, save)
     if result['result']['changed']:
         publish_interpretation(cs, actor, operation_id, result['result']['requirements_ref'])
@@ -859,7 +881,7 @@ def _save_item(cs, actor, db, kind, item):
         plan_inputs.save_draft(db, draft, actor=actor)
     return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions,
         'customer_basis_binding': basis_binding, 'saved_item_ids': [key],
-        'numeric_warnings': numeric_literal_warnings(value, kind)}
+        'numeric_warnings': numeric_literal_warnings(value, kind, context=numeric_warning_context(cs, db))}
 
 
 def save_item(cs, actor, operation_id, kind, item):

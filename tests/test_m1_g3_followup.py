@@ -462,7 +462,7 @@ def test_plan_question_is_durable_before_exposing_owner_wait(method_commission, 
     assert f.ws.store.get('commission_checkpoint:' + issued['issue_id']) is None
 
 
-def test_owner_brief_names_page_bindings_without_file_approval(method_commission):
+def test_owner_brief_names_page_bindings_without_file_approval(method_commission, monkeypatch):
     from report_agent import commission_imports
     f = method_commission
     invalid = deepcopy(f.plan)
@@ -476,7 +476,11 @@ def test_owner_brief_names_page_bindings_without_file_approval(method_commission
     roles = commission_imports.source_roles(f.ws.store)
     commission_imports.install_source_roles(f.ws.store,
         {**roles, 'supplement': {'id': extra['id'], 'purpose': 'design'}})
-    ref = save(f, synthetic_pilot_plan(f))['plan_ref']
+    proposal_plan = synthetic_pilot_plan(f)
+    excluded = {**deepcopy(proposal_plan['objects'][0]), 'object_id': 'excluded',
+                'label': 'Excluded', 'included': False, 'reason': 'Outside the proposed scope'}
+    proposal_plan['objects'].append(excluded)
+    ref = save(f, proposal_plan)['plan_ref']
     assert commission_imports.source_policy_ref(f.ws.store) is None
     saved = f.cs.read(ref)
     assert all(r['type'] != 'CommissionSourceUsePolicy' for r in saved['plan_input_refs'])
@@ -487,8 +491,26 @@ def test_owner_brief_names_page_bindings_without_file_approval(method_commission
     payload = f.cs.read(extra_ref)['payload']
     proposal = propose(f.cs, f.co, 'owner-brief-page', subject, indicator,
                        [dict(source_id=payload['source_id'], page=1)])
-    checkpoint = api().request_checkpoint(f.ws)
+    from report_agent import page_bindings, commission_assertions, assertions
+    from report_agent.assertion_host import AssertionHost, Grant
+    from report_agent.store import digest, encode
+    from uuid import NAMESPACE_URL, uuid5
+    host = AssertionHost(f.ws.store.root)
+    grant = Grant(str(uuid5(NAMESPACE_URL, f.co.id)), 'coordinator', f.co.task_id,
+                  'historical-excluded', digest(ref), {'excluded'}, set(), {'record_convention'})
+    old_row = assertions.record_convention(host.issue_once(grant, 'record_convention', 'historical-excluded'),
+        subject='excluded', claim=dict(kind='convention', scope='source_page_binding', rule=encode(ref),
+        page_binding=dict(indicator_id=indicator, pages=[])))
+    with monkeypatch.context() as patch:
+        patch.setattr(page_bindings, 'eligible_subjects', lambda *args: {subject, 'excluded'})
+        checkpoint = api().request_checkpoint(f.ws)
+    original = commission_assertions.checkpoint(f.ws.store, 'plan', checkpoint['issue_id'])
+    assert set(original['page_bindings']) == {proposal['id'], old_row['id']}
+    assert api().request_checkpoint(f.ws)['issue_id'] == checkpoint['issue_id']
+    assert commission_assertions.checkpoint(f.ws.store, 'plan', checkpoint['issue_id']) == original
     brief = (f.ws.store.root / checkpoint['brief_path']).read_text(encoding='utf-8')
+    assert '可确认绑定：1；审计记录：2' in brief and '范围排除，不可确认' in brief
+    assert len(page_bindings.records(f.ws.store, ref)) == 2
     assert '一次回复确认本表' in brief
     assert proposal['id'] in brief and indicator in brief
     assert payload['source_metadata']['title'] + ' / page 1' in brief

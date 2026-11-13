@@ -93,16 +93,21 @@ def test_single_saved_reply_redoes_missing_confirmations_only(tmp_path, monkeypa
     co=Actor("content:coordinator","coordinator","coord")
     owner=Actor("operator","operator","checkpoint:one")
     with store.connect() as db:
-        plan=cs._insert(db,co,"CommissionPlan",{})
+        plan=cs._insert(db,co,"CommissionPlan",dict(objects=[
+            dict(object_id="A",included=True),dict(object_id="B",included=False),dict(object_id="C",included=True)],
+            method_pack=dict(indicators=[dict(id="X1")])))
         decision=cs._insert(db,owner,"CommissionDecision",
-            dict(plan_ref=plan,approved=True,unconfirmed_page_bindings=[]))
+            dict(plan_ref=plan,approved=True,required_material_issues=[],unconfirmed_page_bindings=[],reductions=[dict(object_id="C",reason="owner reduction")]))
     host=AssertionHost(tmp_path)
-    def binding(call):
-        return assertions.record_convention(issue(host,"coordinator","record_convention",call,["v1"]),
-            subject="A",claim=dict(kind="convention",scope="source_page_binding",rule=encode(plan),
+    def binding(call, subject="A"):
+        grant=Grant(str(uuid5(NAMESPACE_URL,"coordinator")),"coordinator","coordinator",call,"plan",
+                    {subject},{"v1"},{"record_convention"})
+        return assertions.record_convention(host.issue_once(grant,"record_convention",call),
+            subject=subject,claim=dict(kind="convention",scope="source_page_binding",rule=encode(plan),
                 page_binding=dict(indicator_id=call,pages=[dict(source_version="v1",page=1)])))["id"]
     first,second=binding("X1"),binding("X2")
-    checkpoint=dict(plan_ref=plan,page_bindings=[first,second])
+    excluded,reduced=binding("excluded","B"),binding("reduced","C")
+    checkpoint=dict(plan_ref=plan,page_bindings=[first,second,excluded,reduced])
     records.ask_checkpoint(store,co,"sheet","plan","sheet",checkpoint)
     records.answer_checkpoint(store,owner,"answer","plan","sheet",decision)
     actual=assertions.confirm
@@ -118,8 +123,22 @@ def test_single_saved_reply_redoes_missing_confirmations_only(tmp_path, monkeypa
     monkeypatch.setattr(assertions,"confirm",actual)
     page_bindings.confirm_reply(store,owner,"sheet",checkpoint,decision)
     page_bindings.confirm_reply(store,owner,"sheet",checkpoint,decision)
-    states=host.commission.current_references(tmp_path,[first,second,later])
-    assert [states[k]["status"] for k in (first,second,later)]==["confirmed","confirmed","proposed"]
+    states=host.commission.current_references(tmp_path,[first,second,later,excluded,reduced])
+    assert [states[k]["status"] for k in (first,second,later,excluded,reduced)]==["confirmed","confirmed","proposed","proposed","proposed"]
+    assert records.checkpoint(store,"plan","sheet")["page_bindings"] == [first,second,excluded,reduced]
+    from report_agent import plan_authority
+    from report_agent.hierarchical_tools import actor_for
+    from report_agent.errors import ActionRejected
+    plan_authority.propose(store,co,"select",plan)
+    plan_authority.decide(store,owner,"select-answer",plan,decision,True)
+    before=page_bindings.records(store,plan)
+    for subject in ("B","C"):
+        with pytest.raises(ActionRejected,match="PAGE_BINDING_EXCLUDED_OBJECT"):
+            page_bindings.propose_many(cs,actor_for("coordinator"),"reject-"+subject,[
+                dict(subject="A",indicator_ids=["X1"],pages=[]),
+                dict(subject=subject,indicator_ids=["X1"],pages=[])])
+        assert page_bindings.records(store,plan) == before
+    assert page_bindings.confirmed(store,plan,"B") == []
     assert len([row for row in page_bindings.records(store,plan) if row[0]["id"] in (first,second)])==2
 
 

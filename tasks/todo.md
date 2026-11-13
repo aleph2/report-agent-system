@@ -466,3 +466,12 @@ Phase2 first frozen full f7ad188 has confirmed P2 failures (middleware factory/t
 Phase2 additional verified instruction1a1d269b6649509c: compact model write replies and ready-item wording implemented;181focused/1native/55containment overlapping passes, no newtestfunctions,Neo reviewed. Full backend/audit data retained. Originalf7full terminalFAILED6262P25F9unchangedskip/6296once,37m14s;1341filesunchanged,193failedtestDBretained. Prepared85e full superseded before launch. Final compact candidate replay/cleanfull/tag/preflight pending. See docs/verification/context-fix-phase2/compact-write-results.md.
 
 Phase2 latest follow-up: current-write-only short warnings/count-only receipt reader complete,24focused+16generic passes,Neo reviewed,no newtestfunctions. bb404full terminalPASS6287P0F9unchanged skips/6296once,38m43.5s,cleaned; retained as superseded launch gate. NEWcandidate same60comparison/cleanfull/tag/preflight still pending. See docs/verification/context-fix-phase2/current-write-warnings.md.
+
+## Phase2 follow-up from verified instruction1a1d32e5cc228078
+
+- [x] Deliver/review short excluded-binding and numeric-noise change list.
+- [x] Deliver/review maintained paid full-flow entry proposal after the short fix list.
+- [x] Implement approved bounded code fixes;184existingfocused passes,Neoreview;offline172to38recount;historicaloutputunchanged.
+- [ ] Await promised fake-sheet confirmer decision; do not correct or confirm current sheet.
+- [x] Select full-flow criteria-onlysubsection/rule-digest,routesfromapproveddecision,separate-stage import;nativeconfirmerattribution scope approved.
+- [ ] Implement maintained full-flow entry/import extension, then native confirmer attribution within approved reply/schema/test scope; stop/report before wider changes.

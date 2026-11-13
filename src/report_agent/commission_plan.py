@@ -860,7 +860,10 @@ def request_checkpoint(workspace):
         raise ActionRejected('COMMISSION_PLAN_REQUIRED', diagnostic={'fields': [{'field': 'commission_plan', 'reason': 'saved_plan_required', 'choices': []}]})
     plan, ref = record['payload'], record['ref']
     from .planning_inputs import numeric_literal_warnings, requirement_numeric_warnings
-    numeric_warnings = numeric_literal_warnings(plan)
+    from .commission_planning import numeric_warning_context
+    with cs.store.connect() as db:
+        warning_context = numeric_warning_context(cs, db, plan=plan)
+    numeric_warnings = numeric_literal_warnings(plan, context=warning_context)
     requirements = None
     from . import page_bindings
     actor = Actor('content:coordinator', 'coordinator', 'content-task:coordinator')
@@ -868,7 +871,9 @@ def request_checkpoint(workspace):
     previous = commission_assertions.checkpoint(workspace.store, 'plan', issue_id)
     bindings = {r["id"]: r for r, state in page_bindings.records(workspace.store, ref)
                 if r["claim"]["kind"] == "convention" and page_bindings.current(state)}
-    sheet = previous.get("page_bindings", []) if previous else sorted(bindings)
+    eligible = page_bindings.eligible_subjects(cs, ref)
+    sheet = previous.get("page_bindings", []) if previous else sorted(
+        key for key, row in bindings.items() if row["subject"] in eligible)
     from .commission_requirements import require_complete, enabled as requirements_enabled, read_requirements
     require_complete(cs, plan)
     path = workspace.store.root / 'outputs' / ('commission-checkpoint-' + digest(ref) + '.md')
@@ -879,10 +884,15 @@ def request_checkpoint(workspace):
                     for row in workspace.store.sources([s["id"] for s in workspace.store.source_catalog()])}
     policy_summary = []
     lines += ["## 对象/指标资料页适用范围", "一次回复确认本表；列入例外的绑定不确认。数值由 Writer 提取，仍需独立复核。"]
+    confirmable = sum(key in bindings and bindings[key]["subject"] in eligible for key in sheet)
+    lines.append("可确认绑定：" + str(confirmable) + "；审计记录：" + str(len(bindings)))
     for key in sheet:
         row = bindings.get(key)
         if row is None:
             raise ActionRejected("PAGE_BINDING_SHEET_NO_LONGER_CURRENT")
+        if row["subject"] not in eligible:
+            lines.append("- " + key + " / " + row["subject"] + " / 范围排除，不可确认")
+            continue
         binding = row["claim"]["page_binding"]
         lines.append("- " + key + " / " + row["subject"] + " / " + binding["indicator_id"]
                      + " / " + ("; ".join(source_names.get(p["source_version"],p["source_version"])
@@ -890,7 +900,7 @@ def request_checkpoint(workspace):
 
     if requirements_enabled(workspace.store):
         requirements = read_requirements(cs, plan['requirements_ref'])
-        numeric_warnings += requirement_numeric_warnings(requirements['payload'])
+        numeric_warnings += requirement_numeric_warnings(requirements['payload'], context=warning_context)
         lines += ['## 委托要求确认', '', '本次批准同时确认此版本要求记录及明确列出的不适用项。',
                   '要求版本：' + encode(requirements['ref']), '']
         from .commission_planning import requirement_lines

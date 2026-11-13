@@ -301,11 +301,53 @@ def expose(function):
     return checked
 
 
-def numeric_literal_warnings(value, path='', quotes=()):
+def numeric_literal_warnings(value, path='', quotes=(), *, context=None):
     """Soft literal comparison only; a cited number does not certify arithmetic or meaning."""
+    from .store import encode
+    identifiers, method_evidence = set(), {}
+    id_fields = {'id', 'object_id', 'section_id', 'question_id', 'reconciliation_id', 'anchor_id',
+        'requirement_anchor_id', 'record_id', 'entry_id', 'reviewed_entry_id', 'method_id', 'strategy_id', 'indicator_id'}
+    def method_link(pack, source, strategy=None):
+        if strategy is None:
+            values = [g for i in pack.get('indicators', []) for g in i.get('grades', [])] + pack.get('risk_bands', [])
+        else:
+            values = [row['weights'] for table in pack.get('weight_tables', []) if table['id'] == strategy
+                      for row in table['rows'] if row['indicator_count'] == len(pack.get('indicators', []))]
+        if values:
+            method_evidence.setdefault(encode(source), []).append(encode(values))
+    def register(record):
+        if isinstance(record, list):
+            for child in record:
+                register(child)
+        elif isinstance(record, dict):
+            for key, child in record.items():
+                values = [child] if key in id_fields else child if key == 'indicator_ids' else []
+                for identity in values:
+                    if isinstance(identity, str) and any(c.isalpha() for c in identity):
+                        identifiers.add(normalize('NFKC', identity))
+                if isinstance(child, (dict, list)):
+                    register(child)
+            pack = record.get('method_pack')
+            if isinstance(pack, dict):
+                for source in pack.get('sources', []):
+                    method_link(pack, source)
+                for table in pack.get('weight_tables', []):
+                    method_link(pack, table['source'], table['id'])
+                if record.get('source'):
+                    method_link(pack, record['source'], record.get('strategy_id'))
+                for link in record.get('method_conventions', []):
+                    if link.get('method_id') == pack['method_id']:
+                        method_link(pack, link['source'], link.get('strategy_id'))
+    register(value)
+    if context is not None:
+        register(context)
+    identifier_pattern = (r'(?<![A-Za-z0-9_])(?<![A-Za-z0-9_][.-])(?:' + '|'.join(re.escape(i) for i in sorted(identifiers, key=len, reverse=True))
+                          + r')(?![A-Za-z0-9_]|[.-][A-Za-z0-9_])') if identifiers else None
     pattern = r'(?<![0-9_.])([+-]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?|[+-]?\.[0-9]+)(?![0-9_]|\.[0-9])\s*([%°度]?)'
     def numbers(text):
         text = normalize('NFKC', text)
+        if identifier_pattern:
+            text = re.sub(identifier_pattern, '', text)
         for match in re.finditer(pattern, text):
             raw = match[1]
             if raw.startswith('-') and re.search(r'[0-9]\s*$', text[:match.start()]):
@@ -342,7 +384,9 @@ def numeric_literal_warnings(value, path='', quotes=()):
                 evidence = []
                 for key in own:
                     citations = record[key] if isinstance(record[key], list) else [record[key]]
-                    evidence.extend(c.get('quote', '') for c in citations if isinstance(c, dict))
+                    for citation in citations:
+                        if isinstance(citation, dict):
+                            evidence.extend([citation.get('quote', ''), *method_evidence.get(encode(citation), [])])
             elif {'object_id', 'section_id', 'question_id', 'reconciliation_id', 'anchor_id'} & record.keys():
                 evidence = ()
             for key, child in record.items():
@@ -355,12 +399,12 @@ def numeric_literal_warnings(value, path='', quotes=()):
     return warnings
 
 
-def requirement_numeric_warnings(payload):
+def requirement_numeric_warnings(payload, *, context=None):
     anchors = {a['id']: a for a in payload['anchors']}
     warnings = []
     for item in payload['items']:
         anchor = anchors[item['anchor_id']]
         warnings.extend(numeric_literal_warnings({'interpretation': item['interpretation'],
             'sources': [anchor['source'], *anchor.get('continuations', [])]},
-            'requirements.' + item['anchor_id']))
+            'requirements.' + item['anchor_id'], context=context))
     return warnings

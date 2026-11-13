@@ -22,7 +22,20 @@ def current(state):
     return state["active"] and not state["stale"] and not state["challenged"]
 
 
+def eligible_subjects(cs, plan_ref, decision=None):
+    from . import plan_authority
+    plan = cs.read(plan_ref)['payload']
+    if decision is None:
+        ref = plan_authority.decision_ref(cs.store)
+        decision = cs.read(ref)['payload'] if ref else {}
+    reduced = {r['object_id'] for r in decision.get('reductions', [])} if (
+        decision.get('approved') and decision.get('plan_ref') == plan_ref) else set()
+    return {o['object_id'] for o in plan.get('objects', []) if o['included'] and o['object_id'] not in reduced}
+
+
 def confirmed(store, plan_ref, subject, indicator=None):
+    if subject not in eligible_subjects(ContentStore(store), plan_ref):
+        return []
     return [row for row, state in records(store, plan_ref, subject)
             if row["claim"]["kind"] == "convention" and current(state) and state["status"] == "confirmed"
             and (indicator is None or row["claim"]["page_binding"]["indicator_id"] == indicator)]
@@ -46,6 +59,7 @@ def propose_many(cs, actor, operation, items):
     plan = read_plan(cs.store)
     object_ids = {o['object_id'] for o in plan['payload']['objects']} if plan else set()
     indicator_ids = {r['id'] for r in (plan['payload'].get('method_pack') or {}).get('indicators', [])} if plan else set()
+    eligible = eligible_subjects(cs, plan['ref']) if plan else set()
     prepared, errors, seen, source_ids = [], [], set(), []
     normalized = []
     for index, raw in enumerate(items):
@@ -55,6 +69,8 @@ def propose_many(cs, actor, operation, items):
             principal = _issuer(cs, actor, subject)
             if not plan or subject not in object_ids:
                 raise ActionRejected('PAGE_BINDING_SAVED_PLAN_OBJECT_REQUIRED')
+            if subject not in eligible:
+                raise ActionRejected('PAGE_BINDING_EXCLUDED_OBJECT: ' + subject)
             fields = []
             unknown = [key for key in item['indicator_ids'] if key not in indicator_ids]
             if unknown:
@@ -128,8 +144,11 @@ def confirm_reply(store, owner, issue, checkpoint, decision_ref):
     if commission_assertions.checkpoint_answer(store,"plan",issue) != decision_ref:
         raise ActionRejected("PAGE_BINDING_SAVED_OWNER_REPLY_REQUIRED")
     decision = ContentStore(store).read(decision_ref)["payload"]
+    if decision["plan_ref"] != checkpoint["plan_ref"]:
+        raise ActionRejected("PAGE_BINDING_SAVED_OWNER_REPLY_REQUIRED")
     if not decision["approved"]:
         return
+    eligible = eligible_subjects(ContentStore(store), checkpoint["plan_ref"], decision)
     excluded = set(decision.get("unconfirmed_page_bindings", []))
     sheet = checkpoint.get("page_bindings", [])
     if not excluded <= set(sheet):
@@ -142,6 +161,8 @@ def confirm_reply(store, owner, issue, checkpoint, decision_ref):
         row = rows.get(key)
         if row is None or row["claim"]["kind"] != "convention":
             raise ActionRejected("PAGE_BINDING_SHEET_RECORD_MISSING")
+        if row["subject"] not in eligible:
+            continue
         operation = "page-confirm:" + issue + ":" + key
         grant = Grant(str(uuid5(NAMESPACE_URL, owner.id)), "owner", owner.task_id, operation,
                       digest(checkpoint["plan_ref"]), frozenset({row["subject"]}), frozenset({key}), frozenset({"confirm"}))
