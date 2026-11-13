@@ -435,7 +435,9 @@ def test_brief_keeps_full_questions_and_binds_original_appendix_and_audit(skelet
     ref = {"id": "synthetic-bound-plan", "version": 1}
     path = tmp_path / "brief.md"
     original = ["# System original full appendix", "Exact full detail retained."]
-    metadata = import_module("report_agent.commission_brief").write_brief(f.cs, plan, req, {}, ref, path, original)
+    warning = {'field': 'reconciliations.0.differences.0', 'number': '14.6%', 'status': '待核'}
+    metadata = import_module("report_agent.commission_brief").write_brief(
+        f.cs, plan, req, {}, ref, path, original, numeric_warnings=[warning])
     brief = path.read_text(encoding="utf-8")
     assert question in brief
     assert reason in brief
@@ -453,7 +455,10 @@ def test_brief_keeps_full_questions_and_binds_original_appendix_and_audit(skelet
     assert audit["plan"] == plan
     assert audit["requirements"] == req
     assert audit["source_access"] == {}
-    assert Path(metadata["html_path"]).exists()
+    assert audit['numeric_warnings'] == [warning]
+    assert '14.6%' in brief and '数字待核' in brief
+    html = Path(metadata['html_path']).read_text()
+    assert '14.6%' in html and '数字待核' in html
 
 
 @pytest.mark.parametrize("field", ["outline", "kind", "derived_from", "rule"])

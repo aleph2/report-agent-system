@@ -17,7 +17,8 @@ from .commission_plan import (_state, _set, _citations, ScopeBoundary, SourceSub
 from .store import digest
 from .commission_requirements import Capability, publish_interpretation, save_revision
 from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventoryObject, PlanningSubstitution,
-    PlanningReconciliationInput, resolve_citations, model_value, reject, expose, metres)
+    PlanningReconciliationInput, resolve_citations, model_value, reject, expose, metres,
+    numeric_literal_warnings, requirement_numeric_warnings)
 
 CATALOG = 'commission_reviewed_entries'
 CONTRACT = 'commission-planning-v1'
@@ -353,7 +354,8 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
             reject('anchor_id', 'COMMISSION_REQUIREMENT_ANCHOR_UNKNOWN', [i['anchor_id'] for i in items])
         item.update(change)
         ref = _write_items(cs, db, actor, previous, items, relink_anchor=anchor_id if relink else None)
-        return {'requirements_ref': ref, 'changed': ref != previous['ref']}
+        return {'requirements_ref': ref, 'changed': ref != previous['ref'],
+            'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': items})}
     result = cs.operation(actor, operation_id, {'anchor_id': anchor_id, 'change': change, 'relink': relink}, save)
     if result['result']['changed']:
         publish_interpretation(cs, actor, operation_id, result['result']['requirements_ref'])
@@ -414,7 +416,8 @@ def set_requirement_statuses(cs, actor, operation_id, items):
         if errors:
             _reject_batch(errors)
         ref = _write_items(cs, db, actor, previous, values)
-        return {'requirements_ref': ref, 'changed': ref != previous['ref']}
+        return {'requirements_ref': ref, 'changed': ref != previous['ref'],
+            'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': values})}
     result = cs.operation(actor, operation_id, {'requirement_statuses': deepcopy(items)}, save)
     if result['result']['changed']:
         publish_interpretation(cs, actor, operation_id, result['result']['requirements_ref'])
@@ -851,7 +854,8 @@ def _save_item(cs, actor, db, kind, item):
         draft['items'][kind][key] = value
         draft['revision'] += 1
         plan_inputs.save_draft(db, draft, actor=actor)
-    return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions, 'customer_basis_binding': basis_binding}
+    return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions,
+        'customer_basis_binding': basis_binding, 'numeric_warnings': numeric_literal_warnings(value, kind)}
 
 
 def save_item(cs, actor, operation_id, kind, item):
@@ -911,7 +915,9 @@ def save_items(cs, actor, operation_id, kind, items):
                 db.execute('RELEASE planning_item')
         if errors:
             _reject_batch(errors)
-        return {'revision': saved[-1]['revision'], 'changed': any(r['changed'] for r in saved), 'items': saved}
+        return {'revision': saved[-1]['revision'], 'changed': any(r['changed'] for r in saved), 'items': saved,
+            'numeric_warnings': [{**w, 'field': 'items.' + str(index) + '.' + w['field'].removeprefix(kind + '.')}
+                for index, r in enumerate(saved) for w in r['numeric_warnings']]}
     return cs.operation(actor, operation_id, {'kind': kind, 'items': deepcopy(items)}, save)
 
 

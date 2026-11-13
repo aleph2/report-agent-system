@@ -1401,3 +1401,51 @@ def test_planning_ids_follow_draft_and_pin_published_binding_ids(draft_case):
     assert changed['published']['plan_ref'] == published
     assert changed['published']['objects'][0]['label'] != obj['label']
     assert 'source' not in encode(changed) and 'attributes' not in encode(changed)
+
+
+def test_numeric_warnings_are_record_local_literal_checks():
+    from report_agent.planning_inputs import numeric_literal_warnings
+    value = {'objects': [
+        {'label': 'Quoted 18%, 1200 and 30°', 'sources': [{'quote': '１８.００％，１,２００；３０度'}],
+         'attributes': [{'name': 'Derived', 'values': [{'value': '53.13°', 'reason': 'Computed 14.6%', 'source': None}]}]},
+        {'label': 'Uncited 18%', 'sources': []}],
+        'reconciliations': [{'result': 'Quoted 18% but unexplained 14.6%', 'sources': [{'quote': '18%'}]}]}
+    rows = numeric_literal_warnings(value)
+    actual = {(r['field'], r['number']) for r in rows}
+    assert actual == {('objects.0.attributes.0.values.0.value', '53.13°'),
+        ('objects.0.attributes.0.values.0.reason', '14.6%'), ('objects.1.label', '18%'),
+        ('reconciliations.0.result', '14.6%')}
+    assert all(r['status'] == '待核' for r in rows)
+    nested = numeric_literal_warnings({'source': {'quote': '18%'}, 'child': {'object_id': 'other', 'text': '18%'},
+        'replacements': [{'old': '18%', 'new': '14.6%'}],
+        'owner_records': [{'text': '99%'}], 'carried_items': [{'text': '88%'}]})
+    assert {(r['field'], r['number']) for r in nested} == {('child.text', '18%'), ('replacements.0.new', '14.6%')}
+    from report_agent.planning_inputs import requirement_numeric_warnings
+    requirement_warnings = requirement_numeric_warnings({'anchors': [
+        {'id': 'a', 'source': {'quote': '18%'}}, {'id': 'b', 'source': {'quote': '14.6%'}}],
+        'items': [{'anchor_id': 'a', 'interpretation': '14.6%'}, {'anchor_id': 'b', 'interpretation': '14.6%'}]})
+    assert [(w['field'], w['number']) for w in requirement_warnings] == [('requirements.a.interpretation', '14.6%')]
+    assert numeric_literal_warnings({'text': '12, 30%', 'source': {'quote': '1,2 30'}})[-1]['number'] == '30%'
+    assert numeric_literal_warnings({'text': 'Height 14.6m', 'source': {'quote': 'Height 18m'}})[0]['number'] == '14.6'
+    assert not numeric_literal_warnings({'text': '10 - 15m', 'source': {'quote': '10–15m'}})
+    assert numeric_literal_warnings({'text': '0.1234567890123456789012345678901',
+        'source': {'quote': '0.1234567890123456789012345678902'}})
+
+
+def test_numeric_warnings_reach_write_result_and_exact_owner_checkpoint(draft_case):
+    import json
+    f = draft_case
+    save_draft_parts(f)
+    item = {'reconciliation_id': 'pair-0', **deepcopy(f.plan['reconciliations'][0])}
+    item['differences'].append('Unexplained 14.6%; derived 53.13° needs checking.')
+    result = planning().save_item(f.cs, f.co, 'number-warning', 'reconciliation', item)
+    assert {'14.6%', '53.13°'} <= {r['number'] for r in result['result']['numeric_warnings']}
+    plan_ref = planning().submit_plan(f.cs, f.co, 'number-warning-plan')['result']['plan_ref']
+    checkpoint = api().request_checkpoint(f.ws)
+    path = f.ws.store.root / checkpoint['brief_path']
+    metadata = json.loads(path.with_suffix('.json').read_text())
+    assert metadata['plan_ref'] == plan_ref
+    assert {'14.6%', '53.13°'} <= {r['number'] for r in metadata['numeric_warnings']}
+    assert '待核' in path.read_text() and '14.6%' in path.read_text()
+    assert f.cs.read(plan_ref)['payload']['reconciliations'][0]['differences'] == item['differences']
+    assert plan_authority.decision_ref(f.ws.store) is None

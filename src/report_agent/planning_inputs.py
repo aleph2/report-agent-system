@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation, localcontext
 from functools import wraps
 from inspect import signature
 import re
+from unicodedata import normalize
 from typing import get_type_hints
 
 from pydantic import Field, ValidationError, create_model, field_validator
@@ -260,3 +261,68 @@ def expose(function):
             raise
     checked.message_model = model
     return checked
+
+
+def numeric_literal_warnings(value, path='', quotes=()):
+    """Soft literal comparison only; a cited number does not certify arithmetic or meaning."""
+    pattern = r'(?<![0-9_.])([+-]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?|[+-]?\.[0-9]+)\s*([%°度]?)(?![0-9_.])'
+    def numbers(text):
+        text = normalize('NFKC', text)
+        for match in re.finditer(pattern, text):
+            raw = match[1]
+            if raw.startswith('-') and re.search(r'[0-9]\s*$', text[:match.start()]):
+                raw = raw[1:]
+            unit = '°' if match[2] == '度' else match[2]
+            yield (Decimal(raw.replace(',', '')), unit), raw + unit
+    text_fields = {'label', 'reason', 'interpretation', 'title', 'notes', 'text', 'rule',
+        'result', 'differences', 'value', 'name', 'pending_sources', 'deliverables',
+        'report_title', 'inventory_attributes', 'open_questions', 'requested_source', 'applicability_question', 'new'}
+    citation_fields = {'source', 'sources', 'outline', 'customer_basis', 'replacement_sources'}
+    skip = citation_fields | {'examples', 'extraction', 'method_pack', 'table_specs', 'source_span',
+        'source_views', 'owner_records', 'carried_items'}
+    warnings = []
+    def check(text, field, evidence):
+        if isinstance(text, str):
+            cited = {key for quote in evidence for key, _ in numbers(quote)}
+            seen = set()
+            for key, literal in numbers(text):
+                if key not in cited and key not in seen:
+                    warnings.append({'field': field, 'number': literal, 'status': '待核'})
+                    seen.add(key)
+        elif isinstance(text, list):
+            for index, item in enumerate(text):
+                check(item, field + '.' + str(index), evidence)
+    def walk(record, field, evidence):
+        if isinstance(record, list):
+            for index, item in enumerate(record):
+                walk(item, field + '.' + str(index) if field else str(index), evidence)
+        elif isinstance(record, dict):
+            if 'source_ref' in record and ('quote' in record or 'locator' in record):
+                return
+            own = citation_fields & record.keys()
+            if own:
+                evidence = []
+                for key in own:
+                    citations = record[key] if isinstance(record[key], list) else [record[key]]
+                    evidence.extend(c.get('quote', '') for c in citations if isinstance(c, dict))
+            elif {'object_id', 'section_id', 'question_id', 'reconciliation_id', 'anchor_id'} & record.keys():
+                evidence = ()
+            for key, child in record.items():
+                child_path = field + '.' + key if field else key
+                if key in text_fields:
+                    check(child, child_path, evidence)
+                if key not in skip and isinstance(child, (dict, list)):
+                    walk(child, child_path, evidence)
+    walk(value, path, quotes)
+    return warnings
+
+
+def requirement_numeric_warnings(payload):
+    anchors = {a['id']: a for a in payload['anchors']}
+    warnings = []
+    for item in payload['items']:
+        anchor = anchors[item['anchor_id']]
+        warnings.extend(numeric_literal_warnings({'interpretation': item['interpretation'],
+            'sources': [anchor['source'], *anchor.get('continuations', [])]},
+            'requirements.' + item['anchor_id']))
+    return warnings

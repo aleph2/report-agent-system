@@ -27,7 +27,7 @@ def owner_rows(plan):
     return rows
 
 
-def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines, *, policy_summary=()):
+def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines, *, policy_summary=(), numeric_warnings=()):
     path = Path(path)
     appendix = path.with_name(path.stem + '-appendix.md')
     audit = path.with_name(path.stem + '-audit.json')
@@ -37,7 +37,7 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines, *, p
     from .commission_carryover import rows
     with cs.store.connect() as db:
         carried = rows(db,plan,True)
-    audit.write_text(json.dumps({**bindings, 'plan': plan, 'requirements': requirements, 'source_access': access, 'carried_judgments':carried}, ensure_ascii=False, indent=2), encoding='utf-8')
+    audit.write_text(json.dumps({**bindings, 'plan': plan, 'requirements': requirements, 'source_access': access, 'carried_judgments':carried, 'numeric_warnings': numeric_warnings}, ensure_ascii=False, indent=2), encoding='utf-8')
     appendix.write_text('# 完整审查证据\n\n' + json.dumps(bindings, ensure_ascii=False) + '\n\n' + '\n'.join(full_lines) + '\n', encoding='utf-8')
     def source(c):
         if not c:
@@ -99,6 +99,9 @@ def write_brief(cs, plan, requirements, access, plan_ref, path, full_lines, *, p
     page1 += ['## 业主已记录决定', *mdtable(['类型','对象','采用内容'], owner_rows(plan)), '## 范围与约定', boundary, *conventions,
               '## 资料替代', *[','.join(ids) + '：' + text for text,ids in substitutions.items()],
               '## 待确认问题与警示', *plan.get('open_questions', []), *list(dict.fromkeys(warnings))]
+    if numeric_warnings:
+        page1 += ['## 数字待核', '以下规范化后的数字字面值未匹配该记录引用原文；不拒绝保存，不代表计算或含义已核实。',
+            *[f"- 待核：{w['number']}（{w['field']}）" for w in numeric_warnings]]
     page1 += ['章节' + p['section_id'] + '：' + p['applicability_question'] + ' keep_verbatim（保留原文）／replace（逐项替换）。' for section in plan['sections'] for p in section.get('result_composition', []) if p.get('applicability_question')]
     sections = plan['sections'];fixed = [s for s in sections if s['kind']=='fixed']
     count = len([a for a in requirements['payload']['anchors'] if a['kind']=='section'])

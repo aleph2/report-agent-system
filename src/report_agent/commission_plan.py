@@ -859,6 +859,9 @@ def request_checkpoint(workspace):
     if not record:
         raise ActionRejected('COMMISSION_PLAN_REQUIRED', diagnostic={'fields': [{'field': 'commission_plan', 'reason': 'saved_plan_required', 'choices': []}]})
     plan, ref = record['payload'], record['ref']
+    from .planning_inputs import numeric_literal_warnings, requirement_numeric_warnings
+    numeric_warnings = numeric_literal_warnings(plan)
+    requirements = None
     from . import page_bindings
     actor = Actor('content:coordinator', 'coordinator', 'content-task:coordinator')
     issue_id = plan_authority.stable_id(actor, 'plan-checkpoint', ref)
@@ -887,6 +890,7 @@ def request_checkpoint(workspace):
 
     if requirements_enabled(workspace.store):
         requirements = read_requirements(cs, plan['requirements_ref'])
+        numeric_warnings += requirement_numeric_warnings(requirements['payload'])
         lines += ['## 委托要求确认', '', '本次批准同时确认此版本要求记录及明确列出的不适用项。',
                   '要求版本：' + encode(requirements['ref']), '']
         from .commission_planning import requirement_lines
@@ -966,12 +970,14 @@ def request_checkpoint(workspace):
     lines += access_lines(access)
     lines += ['', '## 待确认问题', '', *['- ' + item for item in plan['open_questions']]]
     lines += ['- 章节' + p['section_id'] + '：' + p['applicability_question'] + '；选择 keep_verbatim（保留原文）或 replace（逐项明示替换）。' for s in plan['sections'] for p in s.get('result_composition', []) if p.get('applicability_question')]
+    lines += ['', '## 数字待核', '以下规范化后的数字字面值未匹配该记录引用原文；不拒绝保存，不代表计算或含义已核实。',
+        *[f"- 待核：{w['number']}（{w['field']}）" for w in numeric_warnings]] if numeric_warnings else []
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     brief_artifacts = {}
     if plan.get('skeleton_digest'):
         from .commission_brief import write_brief
-        brief_artifacts = write_brief(cs, plan, requirements, access, ref, path, lines, policy_summary=policy_summary)
+        brief_artifacts = write_brief(cs, plan, requirements, access, ref, path, lines, policy_summary=policy_summary, numeric_warnings=numeric_warnings)
     description = 'Confirm commission plan ' + digest(ref) + '. Brief: ' + str(path.relative_to(workspace.store.root))
     source_ids = list(dict.fromkeys(cs.read(c['source_ref'])['payload']['source_id'] for c in _citations(plan)))
     requirement_binding = {'requirements_ref': plan['requirements_ref']} if plan.get('requirements_ref') else {}
@@ -980,7 +986,7 @@ def request_checkpoint(workspace):
     commission_assertions.ask_checkpoint(workspace.store, actor, issue_id, 'plan', issue_id, {'plan_ref': ref, **requirement_binding, 'brief_path': str(path.relative_to(workspace.store.root)), 'page_bindings': sheet, **brief_artifacts})
     path.with_suffix('.json').write_text(json.dumps({'issue_id': issue_id, 'plan_ref': ref, 'source_access': access,
         'reply_command': 'report-agent commission-reply --project CASE --issue-id ISSUE_ID --file DECISION.json',
-        **brief_artifacts, 'plan_sha256': digest(plan),
+        **brief_artifacts, 'plan_sha256': digest(plan), 'numeric_warnings': numeric_warnings,
         'decision_shape': {'unconfirmed_page_bindings': [], 'plan_ref': ref, **requirement_binding, 'approved': True, 'corrections': '', 'reductions': [], 'template_decisions': [{'section_id': p['section_id'], 'choice': 'KEEP_OR_REPLACE_REQUIRED', 'replacements': []} for s in plan['sections'] for p in s.get('result_composition', []) if p.get('applicability_question')]},
         'note': 'Approve only after reviewing the brief. Explicit reductions require object_id and reason. Corrections use approved=false.'}, ensure_ascii=False, indent=2), encoding='utf-8')
     project_checkpoint_issue(workspace.store, issue_id, description, source_ids)

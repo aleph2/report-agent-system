@@ -457,6 +457,6 @@ C2 pre-tag completion: retired-marker search reproduced two more stale visibilit
 - [x] Item2 atomic binding lists/multiple indicators with whole-request replay identity;32focused passes,Neo reviewed.
 - [x] Item3 whole small planning collection with existing version/observation limits;140focused passes,Neo reviewed.
 - [x] Item4 Coordinator current accepted IDs;21focused passes including native tail,Neo reviewed.
-- [ ] Item5 record-local soft numeric-literal warnings and owner checkpoint display.
+- [x] Item5 record-local soft numeric-literal warnings and owner checkpoint display;173focused and111final overlapping passes,Neo reviewed.
 - [ ] Offline full regression and actual-candidate replay comparison.
 - [ ] Reviewed candidate tag and draft authorization preflight; satisfy standing-paid activation gates.
