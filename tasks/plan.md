@@ -1426,3 +1426,6 @@ Follow-up code fixes verified:184existingfocused passes;Neoreview;read-onlysaved
 
 
 Full-flow entry implemented in one new operator module, bounded business importer and native reply attribution; existing tests extended in place, no new test function names. SDK/offline HTTP verifies shared accounting/unknown hold/client closure. Historical sheet stays untouched pending confirmer. Source review/focused evidence and preserved correction failures: docs/verification/context-fix-phase2/full-flow-entry.md. Final frozen full/tag/preflight remain launch gates; no paid full report yet.
+
+
+Full903448b retainedFAILED6285P2F9skip6296once;allhashes/floors/skipsverified. Approved one owning-package Commission.freeze_to API repairs assertion-boundary violation; optionalwarningrequirements-contract lookup repairsO6. Existing27+209 focused checks passed andNeoreviewed;counts overlap,nonewtestfunctions. Correctedcandidate requiresnewisolatedfull/tag/preflight; no paid or sheet writes. See docs/verification/context-fix-phase2/full-flow-entry.md.

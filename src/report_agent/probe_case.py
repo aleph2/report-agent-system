@@ -8,6 +8,7 @@ import sqlite3
 import tempfile
 
 from .blob_store import BlobStore
+from .assertions.launch import Commission
 from .catalog import Catalog
 from .content_models import refs_in
 from . import commission_assertions, commission_imports, legacy_state as legacy, plan_authority, plan_inputs
@@ -35,7 +36,7 @@ def _read(path):
 
 def _db_hashes(root):
     # A read-only WAL reader may create empty WAL/SHM bookkeeping files.
-    return {name: _sha(root / name) for name in ('state.db', 'state.db-wal', 'assertions.sqlite3', 'assertions.sqlite3-wal')
+    return {name: _sha(root / name) for name in ('state.db', 'state.db-wal')
             if (root / name).exists() and (name == 'state.db' or (root / name).stat().st_size)}
 
 
@@ -67,7 +68,6 @@ def _content_closure(db, state, plan_inputs_and_pins):
 
 
 def _page_evidence(directory, plan, decision):
-    from .assertions.launch import Commission
     from .source_use import immutable_version_digest
     from . import page_bindings
     rows = commission_assertions._rows(directory)
@@ -93,13 +93,16 @@ def _page_evidence(directory, plan, decision):
             or state['stale'] or state['challenged'] for body, state in bindings):
         raise ValueError('PROBE_PAGE_BINDING_IMPORT_MISMATCH')
     selected = [body for body, _ in bindings]
-    with _read(Path(directory) / 'assertions.sqlite3') as db:
-        for action, role, raw in db.execute('SELECT action,role,body FROM assertions ORDER BY rowid'):
-            body = json.loads(raw)
-            if body['claim'].get('target') in wanted:
-                if (action, role) not in {('confirm', 'owner'), ('retract', 'owner')}:
-                    raise ValueError('PROBE_PAGE_HISTORY_UNSUPPORTED')
-                selected.append(body)
+    archive = Path(directory) / 'page-actions.jsonl'
+    # Only the disposable snapshot may initialize the assertion schema.
+    Commission(directory).export(archive)
+    for line in archive.read_text().splitlines():
+        entry = json.loads(line)
+        body = entry.get('assertion')
+        if body and body['claim'].get('target') in wanted:
+            if (entry['action'], entry['role']) not in {('confirm', 'owner'), ('retract', 'owner')}:
+                raise ValueError('PROBE_PAGE_HISTORY_UNSUPPORTED')
+            selected.append(body)
     versions = {page['source_version'] for body, _ in bindings
                 for page in body['claim']['page_binding']['pages']}
     refs, found = [], set()
@@ -125,7 +128,7 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
     if not (source / 'state.db').is_file() or (source / 'state.db').is_symlink():
         raise ValueError('EXISTING_PROBE_SOURCE_REQUIRED')
     before = _db_hashes(source)
-    with tempfile.TemporaryDirectory(prefix='probe-business-snapshot-') as folder:
+    with tempfile.TemporaryDirectory(prefix='probe-business-snapshot-') as folder, Commission.freeze_to(source, Path(folder)) as assertion_hashes:
         frozen_path = Path(folder) / 'state.db'
         with _read(source / 'state.db') as original, closing(sqlite3.connect(frozen_path)) as frozen:
             if (plan_authority.plan_ref(original) != expected_plan_ref
@@ -134,9 +137,6 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
             from .commission_requirements import requirements_ref
             current_requirements = requirements_ref(original)
             original.backup(frozen)
-        if (source / 'assertions.sqlite3').is_file():
-            with _read(source / 'assertions.sqlite3') as original, closing(sqlite3.connect(Path(folder) / 'assertions.sqlite3')) as frozen:
-                original.backup(frozen)
         page_actions, page_sources, expected_bindings = _page_evidence(Path(folder), expected_plan_ref, expected_decision_ref)
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
@@ -235,7 +235,6 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                                                          plan=expected_plan_ref, decision=expected_decision_ref)
 
         if page_actions:
-            from .assertions.launch import Commission
             from . import page_bindings
             Commission(output).import_plan_actions(Path(folder), lambda _: page_actions)
             actual = {body['id']: (body, state) for body, state in page_bindings.records(store, expected_plan_ref)}
@@ -280,7 +279,7 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
         receipt = {
             'version': 'business-only-probe-import-v1', 'case_root': str(output),
             'source': str(source), 'plan_ref': plan['ref'], 'decision_ref': decision['ref'],
-            'source_db_sha256': before['state.db'], 'source_database_files': before,
+            'source_db_sha256': before['state.db'], 'source_database_files': {**before, **assertion_hashes},
             'frozen_db_sha256': frozen_sha, 'case_db_sha256': _sha(store.path),
             'source_unchanged': True, 'unchanged_scope': 'source_database_payload_nonempty_WAL_and_required_source_blobs',
             'reader_sidecar_note': 'SQLite mode=ro may create empty WAL/SHM lock metadata; no journal-mode change or immutable bypass.',

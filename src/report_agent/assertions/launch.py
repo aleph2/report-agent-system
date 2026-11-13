@@ -22,6 +22,37 @@ def validate_launch(role, actions):
 
 
 class Commission:
+    @staticmethod
+    @contextmanager
+    def freeze_to(source_dir, temporary_dir):
+        """Own a temporary read-only source snapshot and verify its source on every exit."""
+        import hashlib
+        source, temporary = Path(source_dir).resolve(), Path(temporary_dir).resolve()
+        if (temporary == source or temporary.is_relative_to(source) or source.is_relative_to(temporary)
+                or not temporary.is_dir() or any(temporary.iterdir())):
+            raise ValueError("Empty isolated assertion snapshot directory required")
+        name = "assertions.sqlite3"
+        if (source / name).is_symlink():
+            raise ValueError("Assertion snapshot source must not be a symlink")
+        names = (name, name + "-wal")
+        before = {key: hashlib.sha256((source / key).read_bytes()).hexdigest() for key in names
+                  if (source / key).is_file() and (key == name or (source / key).stat().st_size)}
+        try:
+            if (source / name).is_file():
+                with closing(sqlite3.connect((source / name).as_uri() + "?mode=ro", uri=True, timeout=3)) as original:
+                    original.execute("PRAGMA query_only=ON")
+                    original.execute("BEGIN")
+                    with closing(sqlite3.connect(temporary / name)) as frozen:
+                        original.backup(frozen)
+            yield before
+        finally:
+            for suffix in ("", "-wal", "-shm", "-journal"):
+                (temporary / (name + suffix)).unlink(missing_ok=True)
+            after = {key: hashlib.sha256((source / key).read_bytes()).hexdigest() for key in names
+                     if (source / key).is_file() and (key == name or (source / key).stat().st_size)}
+            if after != before:
+                raise ValueError("Assertion snapshot source changed")
+
     def __init__(self, run_dir):
         self._store = Store(run_dir)
 

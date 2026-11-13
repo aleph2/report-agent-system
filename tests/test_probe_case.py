@@ -130,7 +130,19 @@ def test_target_is_exclusive_and_outside_source_tree(assigned, target, kind):
         assert (chosen / 'keep').read_text() == 'untouched'
 
 
-def test_tampered_source_blob_cannot_be_published(assigned, target):
+def test_tampered_source_blob_cannot_be_published(assigned, target, monkeypatch):
+    from contextlib import contextmanager
+    from report_agent.assertions.launch import Commission
+    original_freeze = Commission.freeze_to
+    @contextmanager
+    def checked_freeze(source, temporary):
+        try:
+            with original_freeze(source, temporary) as hashes:
+                yield hashes
+        finally:
+            assert all(not (temporary / ('assertions.sqlite3' + suffix)).exists()
+                       for suffix in ('', '-wal', '-shm', '-journal'))
+    monkeypatch.setattr(Commission, 'freeze_to', checked_freeze)
     f = assigned
     source = next(s for s in f.ws.store.sources([f.pdf_source_id]) if s['id'] == f.pdf_source_id)
     (f.ws.store.root / source['original_blob']['path']).write_bytes(b'corrupt synthetic blob')
