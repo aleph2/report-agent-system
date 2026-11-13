@@ -237,6 +237,21 @@ def model_value(model, value, prefix=''):
         raise ActionRejected('PLANNING_FIELDS_INVALID: ' + summary, diagnostic={'fields': fields}) from None
 
 
+def compact_write_result(response):
+    """Project model replies after persistence; the complete operation receipt stays readable."""
+    if not isinstance(response, dict) or response.get('ok') is not True:
+        return response
+    result = response.get('result')
+    if (not isinstance(result, dict) or 'saved_item_ids' not in result
+            or not {'revision', 'requirements_ref'} & result.keys()):
+        return response
+    compact = {key: result[key] for key in ('revision', 'requirements_ref', 'changed') if key in result}
+    for key in ('saved_item_ids', 'numeric_warnings'):
+        if result.get(key):
+            compact[key] = result[key]
+    return {**response, 'result': compact}
+
+
 def expose(function):
     hints = get_type_hints(function, include_extras=True)
     fields = {name: (hints.get(name, str), param.default if param.default is not param.empty else ...)
@@ -250,7 +265,8 @@ def expose(function):
         operation = bound.arguments.pop('operation_id', None)
         value = model_value(model, bound.arguments)
         try:
-            return function(**({'operation_id': operation} if operation is not None else {}), **dict(value))
+            return compact_write_result(function(
+                **({'operation_id': operation} if operation is not None else {}), **dict(value)))
         except ActionRejected as error:
             if error.diagnostic:
                 raise

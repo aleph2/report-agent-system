@@ -355,6 +355,7 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
         item.update(change)
         ref = _write_items(cs, db, actor, previous, items, relink_anchor=anchor_id if relink else None)
         return {'requirements_ref': ref, 'changed': ref != previous['ref'],
+            'saved_item_ids': [anchor_id],
             'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': items})}
     result = cs.operation(actor, operation_id, {'anchor_id': anchor_id, 'change': change, 'relink': relink}, save)
     if result['result']['changed']:
@@ -389,7 +390,7 @@ def set_requirement_statuses(cs, actor, operation_id, items):
             raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         values = deepcopy(previous['payload']['items'])
-        errors, seen = [], set()
+        errors, seen, saved_ids = [], set(), []
         for index, raw in enumerate(items):
             db.execute('SAVEPOINT planning_status')
             try:
@@ -398,6 +399,7 @@ def set_requirement_statuses(cs, actor, operation_id, items):
                 if identity in seen:
                     raise ActionRejected('PLANNING_DUPLICATE_ITEM_ID')
                 seen.add(identity)
+                saved_ids.append(identity)
                 proposed = deepcopy(values)
                 target = next((v for v in proposed if v['anchor_id'] == identity), None)
                 if target is None:
@@ -417,6 +419,7 @@ def set_requirement_statuses(cs, actor, operation_id, items):
             _reject_batch(errors)
         ref = _write_items(cs, db, actor, previous, values)
         return {'requirements_ref': ref, 'changed': ref != previous['ref'],
+            'saved_item_ids': saved_ids,
             'numeric_warnings': requirement_numeric_warnings({**previous['payload'], 'items': values})}
     result = cs.operation(actor, operation_id, {'requirement_statuses': deepcopy(items)}, save)
     if result['result']['changed']:
@@ -855,7 +858,8 @@ def _save_item(cs, actor, db, kind, item):
         draft['revision'] += 1
         plan_inputs.save_draft(db, draft, actor=actor)
     return {'revision': draft['revision'], 'changed': changed, 'citation_resolutions': resolutions,
-        'customer_basis_binding': basis_binding, 'numeric_warnings': numeric_literal_warnings(value, kind)}
+        'customer_basis_binding': basis_binding, 'saved_item_ids': [key],
+        'numeric_warnings': numeric_literal_warnings(value, kind)}
 
 
 def save_item(cs, actor, operation_id, kind, item):
@@ -916,6 +920,7 @@ def save_items(cs, actor, operation_id, kind, items):
         if errors:
             _reject_batch(errors)
         return {'revision': saved[-1]['revision'], 'changed': any(r['changed'] for r in saved), 'items': saved,
+            'saved_item_ids': [identity for r in saved for identity in r['saved_item_ids']],
             'numeric_warnings': [{**w, 'field': 'items.' + str(index) + '.' + w['field'].removeprefix(kind + '.')}
                 for index, r in enumerate(saved) for w in r['numeric_warnings']]}
     return cs.operation(actor, operation_id, {'kind': kind, 'items': deepcopy(items)}, save)
@@ -1152,7 +1157,7 @@ def planning_tools(cs, actor, *, result_fits=None):
             full=full, result_fits=result_fits)
 
     def set_status(operation_id: str, items: Annotated[list[RequirementStatusInput], Field(min_length=1)]) -> dict:
-        """Set requirement statuses atomically. Every item passes the existing checks; any error refuses the whole list with indexed problems. Capabilities remain system-owned; reductions need owner confirmation."""
+        """Set requirement statuses atomically. Several items are accepted; all ready items can be sent together. Every item passes the existing checks; any error refuses the whole list with indexed problems. Capabilities remain system-owned; reductions need owner confirmation."""
         return set_requirement_statuses(cs, actor(), operation_id, [i.model_dump(mode='json') for i in items])
     set_status.__name__ = 'set_requirement_status'
 
@@ -1170,11 +1175,11 @@ def planning_tools(cs, actor, *, result_fits=None):
         return save_item(cs, actor(), operation_id, 'details', details.model_dump(mode='json'))
 
     def add_object(operation_id: str, items: Annotated[list[PlanningInventoryObject], Field(min_length=1)]) -> dict:
-        """Add or revise objects atomically by stable IDs, retaining sources, unknowns and exclusion reasons. All problems are indexed; no partial object list is saved. Only the owner approves reductions."""
+        """Add or revise objects atomically by stable IDs, retaining sources, unknowns and exclusion reasons. Several items are accepted; all ready items can be sent together. All problems are indexed; no partial object list is saved. Only the owner approves reductions."""
         return save_items(cs, actor(), operation_id, 'object', [i.model_dump(mode='json') for i in items])
 
     def add_section(operation_id: str, items: Annotated[list[PlanningSectionInput], Field(min_length=1)]) -> dict:
-        """Save outline sections atomically; any invalid section refuses the entire list. Fixed PDF text uses template page/end-sentence selectors, fixed Word text exact template quotations; the system copies it. Derived sections bind saved result fields. No model-written fixed body or proof is accepted."""
+        """Save outline sections atomically; any invalid section refuses the entire list. Several items are accepted; all ready items can be sent together. Fixed PDF text uses template page/end-sentence selectors, fixed Word text exact template quotations; the system copies it. Derived sections bind saved result fields. No model-written fixed body or proof is accepted."""
         return save_items(cs, actor(), operation_id, 'section', [i.model_dump(mode='json') for i in items])
 
     def add_substitution(operation_id: str, section_id: str, substitution: PlanningSubstitution) -> dict:
@@ -1182,11 +1187,11 @@ def planning_tools(cs, actor, *, result_fits=None):
         return save_item(cs, actor(), operation_id, 'substitution', {'section_id': section_id, 'substitution': substitution.model_dump(mode='json')})
 
     def add_reconciliation(operation_id: str, items: Annotated[list[PlanningReconciliationInput], Field(min_length=1)]) -> dict:
-        """Add or revise source comparisons atomically by stable IDs. Preserve factual differences and interpretations; any invalid comparison refuses the whole list with indexed problems."""
+        """Add or revise source comparisons atomically by stable IDs. Several items are accepted; all ready items can be sent together. Preserve factual differences and interpretations; any invalid comparison refuses the whole list with indexed problems."""
         return save_items(cs, actor(), operation_id, 'reconciliation', [i.model_dump(mode='json') for i in items])
 
     def add_question(operation_id: str, items: Annotated[list[PlanningQuestion], Field(min_length=1)]) -> dict:
-        """Add, revise or answer questions atomically by stable IDs. Any invalid question refuses the whole list. This records planning progress, not owner authorization."""
+        """Add, revise or answer questions atomically by stable IDs. Several items are accepted; all ready items can be sent together. Any invalid question refuses the whole list. This records planning progress, not owner authorization."""
         return save_items(cs, actor(), operation_id, 'question', [i.model_dump(mode='json') for i in items])
 
     def set_section_judgment(operation_id: str, judgment: SectionJudgment) -> dict:

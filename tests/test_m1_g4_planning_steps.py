@@ -1438,8 +1438,13 @@ def test_numeric_warnings_reach_write_result_and_exact_owner_checkpoint(draft_ca
     save_draft_parts(f)
     item = {'reconciliation_id': 'pair-0', **deepcopy(f.plan['reconciliations'][0])}
     item['differences'].append('Unexplained 14.6%; derived 53.13° needs checking.')
-    result = planning().save_item(f.cs, f.co, 'number-warning', 'reconciliation', item)
+    tool = next(fx for fx in planning().planning_tools(f.cs, lambda: f.co) if fx.__name__ == 'add_reconciliation')
+    result = tool(operation_id='number-warning', items=[item])
     assert {'14.6%', '53.13°'} <= {r['number'] for r in result['result']['numeric_warnings']}
+    audit = f.cs.receipt(f.co, 'number-warning')['response']
+    assert audit['result']['items'][0]['numeric_warnings']
+    assert result['result']['saved_item_ids'] == ['pair-0']
+    assert 'items' not in result['result'] and 'citation_resolutions' not in result['result']
     plan_ref = planning().submit_plan(f.cs, f.co, 'number-warning-plan')['result']['plan_ref']
     checkpoint = api().request_checkpoint(f.ws)
     path = f.ws.store.root / checkpoint['brief_path']

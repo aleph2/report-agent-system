@@ -81,6 +81,19 @@ def test_every_step_schema_valid_minimum_is_accepted_or_field_diagnosed(draft_ca
         payload = json.loads(result.content)
         assert isinstance(payload, dict)
         assert payload.get('ok', True), payload
+        if name != 'read_planning_draft':
+            audit = draft_case.cs.receipt(draft_case.co, payload['operation_id'])['response']
+            assert audit['ok'] and payload['receipt_id'] == audit['receipt_id']
+            full, compact = audit['result'], payload['result']
+            assert compact['saved_item_ids'] == full['saved_item_ids']
+            assert compact['changed'] == full['changed']
+            assert set(compact) <= {'revision', 'requirements_ref', 'changed', 'saved_item_ids', 'numeric_warnings'}
+            assert all(value != [] and value != {} and value is not None for value in compact.values())
+            assert 'numeric_warnings' in full, 'Full audit preserves even empty diagnostics.'
+            if name in {'add_object', 'add_section', 'add_reconciliation', 'add_question'}:
+                assert full['items'] and 'citation_resolutions' in full['items'][0]
+                assert 'items' not in compact
+            assert json.loads(invoke(tool, arguments, 'parity-minimal-' + name).content) == payload
 
 
 async def test_assertion_steps_accept_native_calls_and_leave_no_receipt_on_refusal(draft_case):

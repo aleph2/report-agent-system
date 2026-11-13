@@ -81,7 +81,8 @@ def test_coordinator_page_tool_binds_versions_and_never_extracts_values(mini):
     assert "assert_source" not in tools
     args=dict(items=[dict(subject="A",indicator_ids=["X11"],pages=[dict(source_id=source["id"],page=1)])])
     row=tools["propose_page_binding"](**args,runtime=SimpleNamespace(tool_call_id="propose"))
-    binding_row=row["bindings"][0]
+    assert set(row) == {"binding_ids"}
+    binding_row=next(r for r, _ in page_bindings.records(ws.store, binding.plan_ref) if r["id"] == row["binding_ids"][0])
     assert binding_row["claim"]["rule"]==encode(binding.plan_ref)
     assert binding_row["claim"]["page_binding"]["pages"][0]["page"]==1
     assert "value" not in binding_row["claim"]

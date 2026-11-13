@@ -101,6 +101,7 @@ def planning_assertion_tools(cs, get_actor):
     def propose_page_binding(items: Annotated[list[BindingProposalInput], Field(min_length=1)],
                              runtime: NativeRuntime = None) -> dict:
         """Propose page applicability atomically for a list of objects and indicator groups.
+        Several items are accepted; all ready items can be sent together.
         Each item's pages apply to every named indicator; empty pages record unresolved support.
         All indexed problems are reported and no partial binding batch is saved. The system fills
         source versions and plan reference; the owner confirms the sheet once. Writer extracts values.
@@ -108,7 +109,8 @@ def planning_assertion_tools(cs, get_actor):
         from .page_bindings import propose_many
         if runtime is None or not runtime.tool_call_id:
             raise ActionRejected('NATIVE_TOOL_CALL_ID_REQUIRED')
-        return propose_many(cs, get_actor(), runtime.tool_call_id, items)
+        saved = propose_many(cs, get_actor(), runtime.tool_call_id, items)
+        return {'binding_ids': [row['id'] for row in saved['bindings']]}
 
     def record_conflict(subject: str, observations: list[str], runtime: NativeRuntime = None) -> dict:
         """Record disagreement between distinct source assertion IDs for this inventory object; both observations remain visible."""

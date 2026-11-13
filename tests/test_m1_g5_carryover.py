@@ -100,7 +100,12 @@ def test_review_view_exposes_original_and_current_proposals(carry_case):
 def test_confirming_every_current_projection_is_not_plan_approval(carry_case):
     f = carry_case
     install(f)
-    review_all(f)
+    reviews = [{"item_id": row["item_id"], "expected_digest": row["current_digest"], "status": "confirmed", "note": ""}
+        for row in view(f)["plan"]["carried_items"]]
+    tool = next(fx for fx in planning().planning_tools(f.cs, lambda: f.co) if fx.__name__ == 'review_carried_items')
+    result = tool(operation_id='review-carried', reviews=reviews)
+    assert result['result']['reviewed'] == len(reviews)
+    assert result == f.cs.receipt(f.co, 'review-carried')['response']
     assert all(row["status"] == "confirmed" for row in view(f)["plan"]["carried_items"])
     assert not plan_authority.decision_ref(f.cs.store)
 

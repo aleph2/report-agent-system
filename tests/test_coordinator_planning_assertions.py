@@ -35,6 +35,8 @@ async def test_coordinator_offers_page_proposals_not_value_extraction(draft_case
     proposed=[row for row,state in records(f.ws.store,submitted,subject) if row["claim"]["kind"]=="convention"]
     assert len(proposed)==1 and proposed[0]["claim"]["page_binding"]["indicator_id"]==indicator
     assert proposed[0]["was_generated_by"]==f.co.task_id
+    observed = next(m for m in driver.calls[-1][2] if isinstance(m, ToolMessage) and m.tool_call_id == 'native-page-proposal')
+    assert json.loads(observed.content) == {'binding_ids': [proposed[0]['id']]}
     schemas={s['name']:s for s in driver.bindings['coordinator'][0]}
     assert 'assert_source' not in schemas
     assert 'propose_page_binding' in schemas
