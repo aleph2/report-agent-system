@@ -19,15 +19,22 @@ def ready(method_commission):
 
 def test_fresh_assignment_is_host_scoped_and_public_tools_have_no_ids(ready):
     f=ready;driver=Driver(writer=[])
-    with writer_session(f.ws,'Slope 1',driver('writer'), assessment_only=True, indicator_steps=True) as session:
-        task=f.cs.read({'type':'DelegatedTask','id':session.actor.task_id,'version':1})['payload']
-        assert task['assessment_object_id']=='S1' and task['section_ids']==['4']
-        names=set(session.tool_names)
-        assert {'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue','assert_source','record_conflict'}==names
-        assert not names&{'calculate_assessment','task','write_file','grep','commit_objects','freeze_snapshot'}
-        for tool in session.tools:
-            schema=tool.tool_call_schema.model_json_schema()
-            assert not {'operation_id','method_id','method_version','object_id','indicator_id','source_ref','node_ref','locator'}&schema.get('properties',{}).keys()
+    from report_agent.run_authority import _active
+    active=_active.set({'criteria':{}})
+    try:
+        with writer_session(f.ws,'Slope 1',driver('writer'), assessment_only=True, indicator_steps=True) as session:
+            task=f.cs.read({'type':'DelegatedTask','id':session.actor.task_id,'version':1})['payload']
+            assert task['assessment_object_id']=='S1' and task['section_ids']==['4']
+            names=set(session.tool_names)
+            assert {'read_assigned_page','save_evidence','save_assumption','save_gap','propose_material_issue','assert_source','record_conflict'}==names
+            assert not names&{'calculate_assessment','task','write_file','grep','commit_objects','freeze_snapshot'}
+            from report_agent.hierarchical_tools import content_tools
+            assert 'calculate_assessment' not in {t.__name__ for t in content_tools(f.ws,'writer')}
+            for tool in session.tools:
+                schema=tool.tool_call_schema.model_json_schema()
+                assert not {'operation_id','method_id','method_version','object_id','indicator_id','source_ref','node_ref','locator'}&schema.get('properties',{}).keys()
+    finally:
+        _active.reset(active)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('method_commission',['with-owner-ranks'],indirect=True)

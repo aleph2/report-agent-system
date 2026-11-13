@@ -115,20 +115,42 @@ async def test_rankless_indicator_probe_interrupts_before_first_request(prepared
 async def test_real_evidence_and_gap_steps_close_without_score(ranked,monkeypatch):
     from report_agent import writer_assessment as wa
     f=ranked
+    inner_turn=0
     def decide(turn,body):
-        step=json.loads(next(m['content'] for m in body['messages'] if m['role']=='user'))
-        assert step['progress']['recorded']==turn-1
+        nonlocal inner_turn
+        first=next(m['content'] for m in body['messages'] if m['role']=='user')
+        try:
+            step=json.loads(first)
+        except (TypeError,ValueError):
+            step={}
+        if not isinstance(step,dict) or 'indicator_id' not in step:
+            names={t['function']['name'] for t in body.get('tools',[])}
+            assert 'assess_assigned_object' in names and 'calculate_assessment' not in names
+            return reply() if any(m['role']=='tool' for m in body['messages']) else reply([('assess','assess_assigned_object',{})])
+        inner_turn+=1
+        assert step['progress']['recorded']==inner_turn-1
         assert not any(m['role'] in {'tool','assistant'} for m in body['messages'])
-        outcome=evidence(f,step) if turn==1 else {
+        assert 'assess_assigned_object' not in {t['function']['name'] for t in body.get('tools',[])}
+        outcome=evidence(f,step) if inner_turn==1 else {
             'kind':'gap','missing':'Site data absent from supplied materials','question':'Can the survey be supplied?'}
-        return reply([('save-'+str(turn),'save_'+outcome.pop('kind'),outcome)])
+        return reply([('save-'+str(inner_turn),'save_'+outcome.pop('kind'),outcome)])
     model,wires=glm_model(f,monkeypatch,decide)
     try:
-        with writer_session(f.ws,'Slope 1',model,assessment_only=True,indicator_steps=True) as run:
-            result=await run.run()
-            durable=wa.read_indicator_step(f.cs,run.actor)
-        assert len(wires)==4 and not run.refusals and durable['complete']
-        assert result['gap_indicators']==['B','C','D'] and f.cs.read(result['assessment_ref'])['payload']['result']['status'] == 'unscored'
+        from report_agent.deep_runtime import run_report
+        from report_agent.content_store import Actor
+        from langchain_core.messages import AIMessage
+        driver=Driver(coordinator=[action('task','sdk-assessment',subagent_type='writer',
+            description='Assess Slope 1 and keep missing data explicit.',section_ids=['4'],assessment_object_id='S1'),
+            AIMessage(content='Assessment returned with its gaps.')])
+        original_tasks={t['ref']['id'] for t in f.cs.list_objects('DelegatedTask')}
+        await run_report(f.ws,lambda role:model if role=='writer' else driver(role))
+        saved,=f.cs.list_objects('Assessment')
+        actor=Actor(saved['owner_id'],'writer',saved['task_id'])
+        durable=wa.read_indicator_step(f.cs,actor)
+        new_tasks={t['ref']['id'] for t in f.cs.list_objects('DelegatedTask')}-original_tasks
+        assert new_tasks=={saved['task_id']}
+        assert len(wires)==6 and inner_turn==4 and durable['complete']
+        assert durable['gap_indicators']==['B','C','D'] and saved['payload']['result']['status']=='unscored'
     finally:
         await close(model)
 
@@ -166,15 +188,55 @@ async def test_eleventh_save_auto_submits_selected_canonical_assessment(five):
                       grade=step['grades'][1]['choice'],value='40',
                       basis_kind='direct_evidence',rationale='Confirmed synthetic design fact.',
                       quotes=['Slope 1 has synthetic evidence.'])
-    driver=Driver(writer=[judge]*11)
-    with writer_session(five.ws,'Slope 1',driver('writer'),assessment_only=True,indicator_steps=True) as run:
-        result=await run.run()
-    assert len(driver.calls)==11 and not run.refusals
-    assert result['progress']=={'recorded':11,'total':11}
-    assert not result['gap_indicators']
-    saved=five.cs.read(result['assessment_ref'])
-    assert len(saved['payload']['indicators'])==11
-    assert len(five.cs.list_objects('Assessment'))==1
+    from report_agent.deep_runtime import run_report
+    from langchain_core.messages import AIMessage
+    def choose_writer_action(messages):
+        first=next(m.content for m in messages if isinstance(m,HumanMessage))
+        try:
+            step=json.loads(first)
+        except (TypeError,ValueError):
+            step={}
+        if isinstance(step,dict) and 'indicator_id' in step:
+            return judge(messages)
+        return action('process_report_content','produce-prose',operation_id='produce-prose',
+                      objective='Write the assigned object context from the supplied design.',object_type='ContentNode',
+                      input_refs=[five.sources['design']],source_selections=[{'source_id':five.cs.read(five.sources['design'])['payload']['source_id']}])
+    def adopt_prose(messages):
+        from test_deep_runtime import observation
+        receipt=observation(messages,'process_report_content')['text_work_id']
+        return action('save_section_prose','object-prose',operation_id='save-object-prose',section_id='4',text_work_id=receipt)
+    driver=Driver(coordinator=[action('task','native-assessment',subagent_type='writer',
+        description='Write Slope 1 context and assess it using its confirmed method and pages.',
+        section_ids=['4'],assessment_object_id='S1'),AIMessage(content='Assessment delegation returned.')],
+        writer=[choose_writer_action,adopt_prose,action('assess_assigned_object','canonical-first'),
+                action('assess_assigned_object','canonical-repeat'),AIMessage(content='Saved prose and assessment.')],
+        text_tool=[AIMessage(content=json.dumps({'kind':'block','body':{'text':'Slope 1 has synthetic evidence.'},
+                   'qualifiers':{},'claim_kind':'fact','citations':[five.cite('design')]}))])
+    from report_agent.tool_selection import tool_scope
+    with tool_scope({'offline-runtime-test'},dict.fromkeys(['coordinator','writer','reviewer','layout','text_tool','vision'],'offline-runtime-test')):
+        report=await run_report(five.ws,driver)
+    assert report.get('last_error') is None,report.get('last_error')
+    tasks=five.cs.list_objects('DelegatedTask')
+    assert len(tasks)==1 and tasks[0]['payload']['assessment_object_id']=='S1'
+    writer_calls=[messages for role,_,messages in driver.calls if role=='writer']
+    errors=[m.content for messages in writer_calls for m in messages if isinstance(m,ToolMessage) and m.status=='error']
+    assert not errors,errors
+    inner=[messages for messages in writer_calls if any(isinstance(m,HumanMessage) and isinstance(m.content,str) and m.content.startswith('{') and '"indicator_id"' in m.content for m in messages)]
+    assert len(inner)==11
+    assert all(not any(isinstance(m,(AIMessage,ToolMessage)) for m in messages) for messages in inner)
+    assert all('calculate_assessment' not in {t['name'] for t in tools} for tools in driver.bindings['writer'] if any(t['name']=='save_evidence' for t in tools))
+    saved,=five.cs.list_objects('Assessment')
+    assert saved['task_id']==tasks[0]['ref']['id'] and len(saved['payload']['indicators'])==11
+    from report_agent import report_state
+    from report_agent.store import encode
+    prose=report_state.prose_ref(five.ws.store,'prose:'+encode([five.plan_ref,'4','S1']))
+    assert prose is not None and five.cs.read(prose)['task_id']==tasks[0]['ref']['id']
+    returns=[m for role,_,messages in driver.calls if role=='coordinator' for m in messages
+             if isinstance(m,ToolMessage) and m.name=='task']
+    assert returns and returns[-1].tool_call_id=='native-assessment'
+    from test_deep_runtime import observation
+    progress=observation(writer_calls[-1],'assess_assigned_object')
+    assert progress['assessment_ref']==saved['ref'] and progress['progress']=={'recorded':11,'total':11}
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('method_commission',['with-owner-ranks'],indirect=True)

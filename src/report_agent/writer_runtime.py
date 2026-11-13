@@ -1,5 +1,6 @@
 """Fresh, compact native Writer tasks; no model selection, launch command or paid call."""
 from contextlib import contextmanager
+from contextvars import ContextVar
 import json
 from typing import Annotated, Literal
 from uuid import uuid4
@@ -11,6 +12,30 @@ from pydantic import Field, create_model
 from .content_models import Contract
 from .content_store import ContentStore
 from .errors import ActionRejected
+
+
+_assessment_model = ContextVar('assigned_assessment_model', default=None)
+
+
+@contextmanager
+def bind_assessment_model(model):
+    if model is None:
+        raise ActionRejected('WRITER_MODEL_BINDING_REQUIRED')
+    token=_assessment_model.set(model)
+    try:
+        yield
+    finally:
+        _assessment_model.reset(token)
+
+
+async def assess_assigned_object(workspace, actor):
+    """Use the current delegation's model and durable canonical indicator progress."""
+    model=_assessment_model.get()
+    if model is None:
+        raise ActionRejected('WRITER_MODEL_BINDING_REQUIRED')
+    run=assessment_run(workspace,actor,model)
+    progress=await run.run()
+    return {**progress,'refusals':run.refusals}
 
 
 class ReadPage(Contract):
@@ -69,6 +94,44 @@ def writer_tools(workspace, actor, *, include_images=True, assessment_only=False
     return [*tools, *extraction_tools(workspace, actor)]
 
 
+def assessment_actor(workspace):
+    """Select only an existing native Writer task explicitly bound to one object."""
+    from .content_tasks import model_owner_identity, bound_actor
+    identity = model_owner_identity(workspace.store)
+    if identity is None or identity['actor']['role'] != 'writer':
+        return None
+    actor = bound_actor(workspace, 'writer', None)
+    task = ContentStore(workspace.store).read({'type':'DelegatedTask','id':actor.task_id,'version':1})
+    return actor if task['payload'].get('assessment_object_id') is not None else None
+
+
+def assessment_run(workspace, actor, model):
+    """Prepare canonical indicators using the task already owned by the delegation."""
+    from .writer_assignments import bound_assignment, prepare_assignment_pages
+    from .writer_fact_packet import bind_writer_facts
+    from .writer_judgment_authority import provision_criteria
+    from .writer_indicator_steps import IndicatorRun
+    cs = ContentStore(workspace.store)
+    with workspace.store.connect() as db:
+        scope = bound_assignment(cs, db, actor)
+    from .run_authority import current_authority
+    authority = current_authority()
+    if authority is not None:
+        from .writer_judgment_authority import grant_judgment_inputs, rule_pin
+        rules={rule['id']:rule for rule in scope['plan']['payload']['method_pack']['indicators']}
+        criteria=authority['criteria']
+        if any(key not in rules or value.get('rule_digest')!=rule_pin(rules[key]) for key,value in criteria.items()):
+            raise ActionRejected('WRITER_CRITERION_RULE_PIN_MISMATCH')
+        grant_judgment_inputs(workspace.store,scope['plan']['ref'],scope['object']['object_id'],
+                              scope['section_id'],[],criteria)
+    bind_writer_facts(cs, actor, scope)
+    provision_criteria(cs, scope)
+    prepare_assignment_pages(cs, actor)
+    include_images = (getattr(model, 'profile', None) or {}).get('image_inputs') is not False
+    return IndicatorRun(workspace, actor, model,
+        writer_tools(workspace, actor, include_images=include_images, assessment_only=True))
+
+
 @contextmanager
 def writer_session(workspace, object_label, model, *, assessment_only=False, indicator_steps=False, section_id=None):
     """Bind one fresh slope task; the caller separately owns any authority to invoke a model."""
@@ -79,8 +142,6 @@ def writer_session(workspace, object_label, model, *, assessment_only=False, ind
     from .commission_plan import _confirmed
     from .content_tasks import delegated_task
     from .section_writing import enabled
-    from .writer_assignments import prepare_assignment_pages
-    from .writer_indicator_steps import IndicatorRun
     cs=ContentStore(workspace.store)
     if not enabled(workspace.store):raise ActionRejected('SYSTEM_ASSEMBLER_CONTRACT_REQUIRED')
     with workspace.store.connect() as db:
@@ -98,13 +159,4 @@ def writer_session(workspace, object_label, model, *, assessment_only=False, ind
         'description':goal,
         'section_ids':[sections[0]['section_id']],'assessment_object_id':matches[0]['object_id']}}
     with delegated_task(workspace,'coordinator',call) as (_,actor):
-        from .writer_assignments import bound_assignment
-        from .writer_fact_packet import bind_writer_facts
-        from .writer_judgment_authority import provision_criteria
-        with workspace.store.connect() as db:
-            scope = bound_assignment(cs,db,actor)
-        bind_writer_facts(cs,actor,scope)
-        provision_criteria(cs,scope)
-        prepare_assignment_pages(cs,actor)
-        tools=writer_tools(workspace,actor,include_images=include_images,assessment_only=assessment_only)
-        yield IndicatorRun(workspace,actor,model,tools)
+        yield assessment_run(workspace, actor, model)

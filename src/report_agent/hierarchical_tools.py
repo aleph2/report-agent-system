@@ -872,6 +872,11 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         assembled = assemble_current_report(contents, actor(), operation_id + ':assembly')['result']
         return export_snapshot(contents, actor(), operation_id + ':export', assembled['snapshot_ref'])
 
+    async def assess_assigned_object() -> dict:
+        """Assess the one object bound to this task, or continue its saved indicator progress. Returns the canonical assessment reference, gaps and interrupted indicators. Does not write section prose or assess other objects."""
+        from .writer_runtime import assess_assigned_object as assess
+        return await assess(workspace,actor())
+
     common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
               read_review_status, observe_evidence, read_feedback, record_handoff,
               assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,
@@ -915,7 +920,10 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             system_owned.add('export_content_snapshot')
         common = [tool for tool in common if tool.__name__ not in system_owned]
         if role == 'writer':
-            common += [save_section_prose, propose_material_issue]
+            common += [save_section_prose, propose_material_issue, assess_assigned_object]
+            from .writer_runtime import assessment_actor
+            if assessment_actor(workspace) is not None:
+                common.remove(calculate_assessment)
         if role == 'coordinator':
             common += [request_system_delivery]
     return common

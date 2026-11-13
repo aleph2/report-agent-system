@@ -82,6 +82,7 @@ class BusinessBoundary(InvalidToolFeedback):
 
     def __init__(self, workspace, role, decision_only=False, *, subagent_descriptions=(), indicator_step=False):
         self.indicator_step = indicator_step
+        self.writer_models = {}
         self.workspace, self.role = workspace, role
         self.decision_only = decision_only
         self.subagent_descriptions = subagent_descriptions
@@ -109,6 +110,15 @@ class BusinessBoundary(InvalidToolFeedback):
         from .tool_argument_feedback import diagnostic_messages
         request = request.override(messages=diagnostic_messages(request.messages))
         from .section_writing import enabled as system_writing
+        if self.role == 'writer' and not self.indicator_step and system_writing(self.workspace.store):
+            from .writer_runtime import assessment_actor
+            from .content_tasks import model_owner_identity, bound_actor
+            identity=model_owner_identity(self.workspace.store)
+            if identity is not None and identity['actor']['role']=='writer':
+                actor=bound_actor(self.workspace,'writer',None)
+                self.writer_models[actor.task_id]=request.model
+            excluded='calculate_assessment' if assessment_actor(self.workspace) is not None else 'assess_assigned_object'
+            request=request.override(tools=[tool for tool in request.tools if tool.name!=excluded])
         if not self.indicator_step and system_writing(self.workspace.store) and self.role in {'coordinator', 'writer'}:
             request = append_declared_system(request,
                 'This run uses system-assembler-v1. Writers save assigned section prose and current citations, '
@@ -187,7 +197,14 @@ class BusinessBoundary(InvalidToolFeedback):
         from .live_messages import tool_binding
         try:
             with tool_binding(self.workspace, self.role, request) as bound_request:
-                result = await self._awrap_bound_tool_call(bound_request, handler)
+                if self.role=='writer' and request.tool_call['name']=='assess_assigned_object':
+                    from .content_tasks import bound_actor
+                    from .writer_runtime import bind_assessment_model
+                    actor=bound_actor(self.workspace,'writer',None)
+                    with bind_assessment_model(self.writer_models.get(actor.task_id)):
+                        result=await self._awrap_bound_tool_call(bound_request,handler)
+                else:
+                    result = await self._awrap_bound_tool_call(bound_request, handler)
             return self._record_tool_result(request, result)
         except ActionRejected as exc:
             from .errors import LocalStorageBusy

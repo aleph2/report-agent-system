@@ -492,3 +492,5 @@ Deferred until the synthetic report is complete:
 - harness touches internals
 - move fake/probe harness out of the production package
 - remove the superseded fake orchestrator run path after preserving its verification evidence
+
+Production authority/budget is committed separately; explicit canonical Writer tool and its one backend catalogue entry are implemented and Neo-reviewed, with 101 existing focused passes. All test-function names remain unchanged. One combined frozen candidate/full is next; no tag or paid dispatch yet.
