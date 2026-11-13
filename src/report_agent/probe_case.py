@@ -35,7 +35,7 @@ def _read(path):
 
 def _db_hashes(root):
     # A read-only WAL reader may create empty WAL/SHM bookkeeping files.
-    return {name: _sha(root / name) for name in ('state.db', 'state.db-wal')
+    return {name: _sha(root / name) for name in ('state.db', 'state.db-wal', 'assertions.sqlite3', 'assertions.sqlite3-wal')
             if (root / name).exists() and (name == 'state.db' or (root / name).stat().st_size)}
 
 
@@ -66,6 +66,54 @@ def _content_closure(db, state, plan_inputs_and_pins):
     return {key: records[key] for key in sorted(records, key=positions.__getitem__)}
 
 
+def _page_evidence(directory, plan, decision):
+    from .assertions.launch import Commission
+    from .source_use import immutable_version_digest
+    from . import page_bindings
+    rows = commission_assertions._rows(directory)
+    questions = {body['id']: (body, status) for action, body, status in rows if action == 'ask'}
+    sheets = []
+    for action, body, status in rows:
+        if action != 'decide' or not page_bindings.current(status) or body['claim']['reason'] != encode(decision):
+            continue
+        question, state = questions[body['claim']['target']]
+        checkpoint = json.loads(question['claim']['text'])
+        if checkpoint.get('plan_ref') == plan and 'page_bindings' in checkpoint:
+            if not page_bindings.current(state):
+                raise ValueError('PROBE_PAGE_SHEET_NOT_CURRENT')
+            sheets.append(checkpoint)
+    if not sheets:
+        return [], [], []
+    if len(sheets) != 1:
+        raise ValueError('PROBE_PAGE_SHEET_AMBIGUOUS')
+    wanted = set(sheets[0]['page_bindings'])
+    bindings = [(body, state) for body, state in Commission.page_records(directory) if body['id'] in wanted]
+    if {body['id'] for body, _ in bindings} != wanted or any(
+            body['claim'].get('rule') != encode(plan) or body['claim'].get('scope') != 'source_page_binding'
+            or state['stale'] or state['challenged'] for body, state in bindings):
+        raise ValueError('PROBE_PAGE_BINDING_IMPORT_MISMATCH')
+    selected = [body for body, _ in bindings]
+    with _read(Path(directory) / 'assertions.sqlite3') as db:
+        for action, role, raw in db.execute('SELECT action,role,body FROM assertions ORDER BY rowid'):
+            body = json.loads(raw)
+            if body['claim'].get('target') in wanted:
+                if (action, role) not in {('confirm', 'owner'), ('retract', 'owner')}:
+                    raise ValueError('PROBE_PAGE_HISTORY_UNSUPPORTED')
+                selected.append(body)
+    versions = {page['source_version'] for body, _ in bindings
+                for page in body['claim']['page_binding']['pages']}
+    refs, found = [], set()
+    with _read(Path(directory) / 'state.db') as db:
+        for raw, in db.execute("SELECT data FROM content_versions WHERE type='SourceArtifact' ORDER BY rowid"):
+            record = json.loads(raw)
+            version = immutable_version_digest(record['payload'])
+            if version in versions:
+                refs.append(record['ref']);found.add(version)
+    if found != versions:
+        raise ValueError('PROBE_PAGE_SOURCE_DEPENDENCY_MISSING')
+    return selected, refs, bindings
+
+
 def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expected_decision_ref) -> dict:
     """Import an already approved business snapshot; this grants no model calls."""
     source, output = Path(source).absolute(), Path(output).absolute()
@@ -86,6 +134,10 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
             from .commission_requirements import requirements_ref
             current_requirements = requirements_ref(original)
             original.backup(frozen)
+        if (source / 'assertions.sqlite3').is_file():
+            with _read(source / 'assertions.sqlite3') as original, closing(sqlite3.connect(Path(folder) / 'assertions.sqlite3')) as frozen:
+                original.backup(frozen)
+        page_actions, page_sources, expected_bindings = _page_evidence(Path(folder), expected_plan_ref, expected_decision_ref)
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
             state = legacy.read_probe_business_state(frozen)
@@ -110,7 +162,7 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                     if row is None:
                         raise ValueError('PROBE_SOURCE_AUTHORITY_MISSING')
                     state[key] = json.loads(row[0])
-            records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref, legacy_owner])
+            records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref, legacy_owner, page_sources])
             plan = records[('CommissionPlan', expected_plan_ref['id'], expected_plan_ref['version'])]
             pinned = plan['payload'].get('requirements_ref')
             if pinned and current_requirements != pinned:
@@ -177,10 +229,18 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                     db, expected_plan_ref if historical else None, expected_decision_ref if historical else None,
                     requirements=legacy_requirements)
         if not historical:
-            plan_authority.copy_plan_evidence(source, output, records.values(),
+            plan_authority.copy_plan_evidence(Path(folder), output, records.values(),
                                               plan=expected_plan_ref, decision=expected_decision_ref)
-            commission_assertions.copy_planning_evidence(source, output, records.values(),
+            commission_assertions.copy_planning_evidence(Path(folder), output, records.values(),
                                                          plan=expected_plan_ref, decision=expected_decision_ref)
+
+        if page_actions:
+            from .assertions.launch import Commission
+            from . import page_bindings
+            Commission(output).import_plan_actions(Path(folder), lambda _: page_actions)
+            actual = {body['id']: (body, state) for body, state in page_bindings.records(store, expected_plan_ref)}
+            if any(actual.get(body['id']) != (body, state) for body, state in expected_bindings):
+                raise ValueError('PROBE_PAGE_CONFIRMATION_STATE_CHANGED')
 
         source_blobs, copied_blobs = BlobStore(source), BlobStore(output)
         dependencies = {}

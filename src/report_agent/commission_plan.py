@@ -388,7 +388,41 @@ class TemplateDecision(Contract):
     replacements: list[LiteralReplacement] = Field(default_factory=list)
 
 
+class Confirmer(Contract):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    acting_for: str = Field(min_length=1)
+    authority_sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
+def verified_confirmer(case, confirmer, authority_path, authority_sha256):
+    """A pinned operator authority identifies the person; S2 keeps its service principal."""
+    if authority_path is None and authority_sha256 is None:
+        if confirmer is not None:
+            raise ActionRejected('COMMISSION_CONFIRMER_PIN_REQUIRED')
+        return None
+    if authority_path is None or not isinstance(authority_sha256, str):
+        raise ActionRejected('COMMISSION_CONFIRMER_PIN_REQUIRED')
+    import hashlib
+    raw = Path(authority_path).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != authority_sha256:
+        raise ActionRejected('COMMISSION_CONFIRMER_AUTHORITY_CHANGED')
+    authority = json.loads(raw)
+    if authority.get('case_path') != str(Path(case).resolve()):
+        raise ActionRejected('COMMISSION_CONFIRMER_CASE_MISMATCH')
+    selected = confirmer.get('id') if isinstance(confirmer, dict) else None
+    permitted = authority.get('confirmers', {})
+    if not isinstance(permitted, dict) or selected not in permitted:
+        raise ActionRejected('COMMISSION_CONFIRMER_NOT_AUTHORIZED')
+    canonical = Confirmer.model_validate({**permitted[selected], 'id': selected,
+        'authority_sha256': authority_sha256}).model_dump()
+    if confirmer != canonical or any(not canonical[k].strip() for k in ('id', 'name', 'acting_for')):
+        raise ActionRejected('COMMISSION_CONFIRMER_IDENTITY_MISMATCH')
+    return canonical
+
+
 class OwnerDecision(Contract):
+    confirmer: Confirmer | None = Field(default=None, exclude_if=lambda value: value is None)
     unconfirmed_page_bindings: list[str] = Field(default_factory=list, exclude_if=lambda v: not v)
 
     plan_ref: Ref
@@ -1074,7 +1108,7 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
     issue['confirmation_checklist_path'] = relative
 
 
-def reply(workspace, issue_id, decision):
+def reply(workspace, issue_id, decision, *, authority_path=None, authority_sha256=None):
     """Trusted operator entry point, deliberately absent from agent tools."""
     if decision.get('decision') == 'resume_delivery':
         from .delivery_guard import resume_delivery
@@ -1086,6 +1120,7 @@ def reply(workspace, issue_id, decision):
         from .commission_planning import reply_requirements
         return reply_requirements(workspace, issue_id, decision)
     decision = OwnerDecision.model_validate(decision).model_dump()
+    verified_confirmer(workspace.store.root, decision.get('confirmer'), authority_path, authority_sha256)
     cs = ContentStore(workspace.store)
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')

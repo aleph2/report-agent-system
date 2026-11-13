@@ -475,3 +475,6 @@ Phase2 latest follow-up: current-write-only short warnings/count-only receipt re
 - [ ] Await promised fake-sheet confirmer decision; do not correct or confirm current sheet.
 - [x] Select full-flow criteria-onlysubsection/rule-digest,routesfromapproveddecision,separate-stage import;nativeconfirmerattribution scope approved.
 - [ ] Implement maintained full-flow entry/import extension, then native confirmer attribution within approved reply/schema/test scope; stop/report before wider changes.
+
+
+Full-flow entry implemented in one new operator module, bounded business importer and native reply attribution; existing tests extended in place, no new test function names. SDK/offline HTTP verifies shared accounting/unknown hold/client closure. Historical sheet stays untouched pending confirmer. Source review/focused evidence and preserved correction failures: docs/verification/context-fix-phase2/full-flow-entry.md. Final frozen full/tag/preflight remain launch gates; no paid full report yet.

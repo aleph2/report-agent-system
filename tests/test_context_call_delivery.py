@@ -19,7 +19,21 @@ from report_agent.errors import ActionRejected
 from report_agent.task_context import TaskContext, exact_task_context
 from test_deep_runtime import Driver
 from test_hierarchical_content import seed
-from test_task_supervision import ws, offline, review_call
+from test_task_supervision import ws, review_call
+from test_fake_verification_launcher import packet
+from test_fake_fresh_comparison import pair
+from test_fake_planning_probe import planning_packet
+
+
+@pytest.fixture(autouse=True)
+def offline(monkeypatch):
+    monkeypatch.setenv("LANGSMITH_TRACING","false")
+    import httpx
+    def denied(*args, **kwargs):
+        pytest.fail("Network forbidden")
+    # SDK accounting needs HTTP hooks; only explicitly replaced transports may respond.
+    monkeypatch.setattr(httpx.HTTPTransport,"handle_request",denied)
+    monkeypatch.setattr(httpx.AsyncHTTPTransport,"handle_async_request",denied)
 
 
 def tail(request):
@@ -165,7 +179,7 @@ def test_frame_classifier_and_delta_writer_are_removed():
         assert not hasattr(delivery, name), name
 
 
-async def test_c1_full_flow_measurement_and_effective_state(tmp_path, monkeypatch, record_property):
+async def test_c1_full_flow_measurement_and_effective_state(tmp_path, monkeypatch, record_property, planning_packet):
     """V1/V2/V6: real operator paths; scripted outputs, no provider-spend claim."""
     from collections import Counter
     from langchain_core.messages.utils import count_tokens_approximately
@@ -187,18 +201,16 @@ async def test_c1_full_flow_measurement_and_effective_state(tmp_path, monkeypatc
         return await original_context(self,incoming,check)
     monkeypatch.setattr(task_context.TaskContext,"awrap_model_call",compared)
     original=ScriptedChat._agenerate
-    async def observed(self,messages,**kwargs):
-        schemas=self.driver.bindings.get(self.role,[[]])[-1]
-        tools=[{"type":"function","function":t} for t in schemas]
+    def measure(role,messages,tools):
         host=[m for m in messages if m.type=="human" and m.text.startswith("[host-observations]\n")]
         states=[json.loads(m.text.split("\n",1)[1]).get("current_state") for m in host]
         states=[v for v in states if v is not None]
         from report_agent.prompt_provenance import _CALL
         call=_CALL.get()
         indicator=bool(call and any(isinstance(part,dict) and 'writer-indicator-step' in part.get('files',[]) for part in call['sources']))
-        path='indicator_writer' if indicator else 'prose_writer' if self.role=='writer' else 'qualitative_reviewer' if self.role=='reviewer' else self.role
+        path='indicator_writer' if indicator else 'prose_writer' if role=='writer' else 'qualitative_reviewer' if role=='reviewer' else role
         measurements.append({
-            "path":path,"role":self.role,"call":sum(r["role"]==self.role for r in measurements)+1,
+            "path":path,"role":role,"call":sum(r["role"]==role for r in measurements)+1,
             "total_proxy_tokens":count_tokens_approximately(messages,tools=tools),
             "system_proxy_tokens":count_tokens_approximately([m for m in messages if m.type=="system"]),
             "tools_characters":len(json.dumps(tools,ensure_ascii=False)),
@@ -210,9 +222,24 @@ async def test_c1_full_flow_measurement_and_effective_state(tmp_path, monkeypatc
             "saved_state_frames":sum("report_task_state_frame" in m.additional_kwargs for m in messages),
             "cleared_tool_results":sum(m.type=="tool" and
                 bool(m.response_metadata.get("context_editing",{}).get("cleared")) for m in messages)})
+    async def observed(self,messages,**kwargs):
+        schemas=self.driver.bindings.get(self.role,[[]])[-1]
+        measure(self.role,messages,[{"type":"function","function":t} for t in schemas])
         return await original(self,messages,**kwargs)
+    from langchain_openai import ChatOpenAI
+    sdk_original=ChatOpenAI._agenerate
+    async def observed_sdk(self,messages,**kwargs):
+        from report_agent.prompt_provenance import _CALL
+        call=_CALL.get()
+        assert call is not None
+        from report_agent.deep_models import RuntimeStatus
+        roles=[c.model_service_role or c.role for c in self.callbacks if isinstance(c,RuntimeStatus)]
+        assert len(roles)==1
+        measure(roles[0],messages,kwargs.get('tools',[]))
+        return await sdk_original(self,messages,**kwargs)
     monkeypatch.setattr(ScriptedChat,"_agenerate",observed)
-    await test_complete_native_draft_flow(tmp_path,False)
+    monkeypatch.setattr(ChatOpenAI,"_agenerate",observed_sdk)
+    await test_complete_native_draft_flow(tmp_path,False,monkeypatch,planning_packet)
     assert {"coordinator","writer","reviewer","text_tool"} <= {r["role"] for r in measurements}
     assert all(r["saved_state_frames"]==0 for r in measurements)
     assert comparisons and all(role=="coordinator" for role in comparisons)

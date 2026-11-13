@@ -2,6 +2,9 @@
 from pathlib import Path
 import json
 import pytest
+from test_fake_verification_launcher import packet
+from test_fake_fresh_comparison import pair
+from test_fake_planning_probe import planning_packet
 
 PROFILES = json.loads((Path(__file__).parents[1]/"config/current.json").read_text())["manifest_profiles"]
 
@@ -139,7 +142,7 @@ async def test_native_coordinator_pauses_before_writer_spend(tmp_path):
 
 
 @pytest.mark.parametrize("partial_review",[False,True],ids=["complete","review-incomplete"])
-async def test_complete_native_draft_flow(tmp_path,partial_review):
+async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,planning_packet):
     from report_agent.fake_draft_flow import complete
     from report_agent.commission_plan import reply
     from report_agent.content_store import ContentStore
@@ -217,8 +220,15 @@ async def test_complete_native_draft_flow(tmp_path,partial_review):
     assert calls==[]
     ref=plan_authority.plan_ref(ws.store)
     pending=next(i for i in paused["issues"] if not i.get("resolved"))
+    import hashlib
+    planning_authority = tmp_path / "planning-authority.json"
+    planning_authority.write_text(json.dumps(dict(case_path=str(ws.store.root),
+        confirmers={"delegate": dict(name="Fixture delegate", acting_for="Fixture owner")})))
+    planning_pin = hashlib.sha256(planning_authority.read_bytes()).hexdigest()
     reply(ws,pending["id"],dict(plan_ref=ref,requirements_ref=cs.read(ref)["payload"]["requirements_ref"],approved=True,corrections="",
-        reductions=[dict(object_id="C",reason="界外对象按委托范围排除。")]))
+        reductions=[dict(object_id="C",reason="界外对象按委托范围排除。")],
+        confirmer=dict(id="delegate",name="Fixture delegate",acting_for="Fixture owner",authority_sha256=planning_pin)),
+        authority_path=planning_authority,authority_sha256=planning_pin)
     assert len(page_bindings.confirmed(ws.store,ref,"A"))==11
     assert not [r for r,s in page_bindings.records(ws.store,ref) if r["claim"]["kind"]=="source"]
     decision=cs.read(plan_authority.decision_ref(ws.store))["payload"]
@@ -226,6 +236,56 @@ async def test_complete_native_draft_flow(tmp_path,partial_review):
     reconciliations=[digest([ref,["reconciliation",i,0]]) for i in range(2)]
     routes={reconciliations[0]:dict(section_id="3",reason="坡率差异随评估披露。"),
             reconciliations[1]:dict(section_id="2",reason="更正日期随资料说明披露。")}
+    # Real launch guards and SDK clients use only synthetic authority, ledger and HTTP.
+    from report_agent import fake_full_flow as entry, deep_models, model_config
+    from report_agent.workspace import Workspace
+    from report_agent.store import Store
+    from test_fake_verification_launcher import write_json
+    import httpx
+    from langchain_openai.chat_models.base import _convert_dict_to_message, _convert_message_to_dict
+    original_ws = ws
+    original_decision = plan_authority.decision_ref(ws.store)
+    path, _, authority = planning_packet
+    case = Path(authority['grant_dir']) / 'runs' / authority['run_id'] / 'case'
+    env = tmp_path / 'services.env';env.write_text('synthetic configuration only')
+    url='https://offline.invalid/v1';vision_url='https://synthetic.maas.aliyuncs.com/v1'
+    sha=lambda text:hashlib.sha256(text.encode()).hexdigest()
+    authority.update(workflow=entry.WORKFLOW,case_path=str(case),issue_routes=routes,
+        candidate_tag='offline-candidate',criteria_sha256=entry.host._sha(entry._CRITERIA),
+        confirmers={'delegate':dict(name='Fixture delegate',acting_for='Fixture owner')},
+        roles={**{role:authority['model'] for role in ('writer','reviewer','text_tool')},'vision':authority['vision_model']},
+        approved_input=dict(case_path=str(ws.store.root),case_seal=entry.host._seal(ws.store.root),
+            plan_ref=ref,decision_ref=original_decision,planning_authority=str(planning_authority),planning_authority_sha256=planning_pin),
+        request_bound_proof=dict(model=authority['model'],input_limit=1_048_576,output_limit=131_072,
+            basis='documented_model_ceiling_not_measured_request_fit',env_sha256=entry.host._sha(env),
+            base_url_sha256=sha(url),request_url_sha256=sha(url+'/chat/completions'),
+            sources=['https://docs.z.ai/guides/llm/glm-5.3','https://help.aliyun.com/zh/model-studio/glm-5-3']))
+    authority['vision_request_bound_proof']=dict(model=authority['vision_model'],input_limit=1_000_000,output_limit=8202,
+        wire_output_limit=8192,image_max_edge=1024,basis='documented_service_ceiling_not_measured_request_fit',
+        env_sha256=entry.host._sha(env),base_url_sha256=sha(vision_url),request_url_sha256=sha(vision_url+'/chat/completions'),
+        sources=['https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash','https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions'])
+    git_output=entry.subprocess.check_output
+    def frozen_tag(args,**kwargs):
+        if args[0]=='git' and 'rev-parse' in args:return authority['candidate_commit']+'\n'
+        return git_output(args,**kwargs)
+    monkeypatch.setattr(entry.subprocess,'check_output',frozen_tag)
+    pin=write_json(path,authority)
+    assert entry.preflight(path,pin)==authority
+    with pytest.raises(ValueError,match='FAKE_AUTHORITY_PIN_MISMATCH'):entry.preflight(path,'0'*64)
+    prepared=entry.prepare(path,pin)
+    assert entry.check_prepared(path,pin,prepared['prepared_sha256'])==prepared
+    with pytest.raises(ValueError,match='FAKE_FULL_FLOW_PREPARED_CASE_CHANGED'):
+        entry.check_prepared(path,pin,'wrong-pin')
+    ws = Workspace(Store(case))
+    cs = ContentStore(ws.store)
+    assert cs.read(original_decision) == ContentStore(original_ws.store).read(original_decision)
+    assert page_bindings.records(ws.store, ref) == page_bindings.records(original_ws.store, ref)
+    assert entry.completion_inputs(ws, authority) == criteria
+    with monkeypatch.context() as patch:
+        patch.setattr(page_bindings, "confirmed", lambda *args: [])
+        with pytest.raises(ValueError, match="FAKE_DRAFT_CONFIRMED_PAGE_SHEET_REQUIRED"):
+            entry.completion_inputs(ws, authority)
+    assert calls == []
     prose=[]
     nodes={}
     active_prose={}
@@ -265,13 +325,57 @@ async def test_complete_native_draft_flow(tmp_path,partial_review):
             return ChatResult(generations=[ChatGeneration(message=action)])
         return await original(role,messages)
     models.respond=respond
+    for role,model,endpoint in [('WRITER',authority['model'],url),('VISION',authority['vision_model'],vision_url)]:
+        for key,value in [('MODEL',model),('BASE_URL',endpoint),('API_KEY','synthetic')]:monkeypatch.setenv('REPORT_'+role+'_'+key,value)
+    monkeypatch.setenv('REPORT_SDK_RETRIES','0');monkeypatch.setenv('REPORT_CONNECT_RETRIES','2')
+    monkeypatch.setattr(model_config,'load_mixed_services',lambda _:None)
+    configured_model=deep_models.configured_model
+    sent=[];clients=[];unknown=False
+    def configured(store,role):
+        model=configured_model(store,role)
+        clients.extend([model.http_client,model.http_async_client])
+        async def provider(request):
+            body=json.loads(request.content);sent.append((role,body))
+            if unknown:raise httpx.ReadError('synthetic unknown delivery')
+            messages=[_convert_dict_to_message(m) for m in body['messages']]
+            names={c['id']:c['name'] for m in messages for c in getattr(m,'tool_calls',[])}
+            for message in messages:
+                if isinstance(message,ToolMessage) and not message.name:message.name=names.get(message.tool_call_id)
+            answer=await models.respond(role,messages)
+            wire=_convert_message_to_dict(answer.generations[0].message)
+            return httpx.Response(200,json=dict(id='offline-'+str(len(sent)),object='chat.completion',created=1,
+                model=body['model'],choices=[dict(index=0,finish_reason='tool_calls' if wire.get('tool_calls') else 'stop',message=wire)],
+                usage=dict(prompt_tokens=6,completion_tokens=4,total_tokens=10)))
+        monkeypatch.setattr(model.http_async_client._transport,'handle_async_request',provider)
+        return model
+    monkeypatch.setattr(deep_models,'configured_model',configured)
     if partial_review:
         with pytest.raises(ActionRejected,match="FAKE_DRAFT_REVIEW_INCOMPLETE"):
-            await complete(ws,models,routes,criteria)
+            await entry.launch(path,pin,prepared['prepared_sha256'],env)
+        terminal=json.loads((case.parent/'result.json').read_text())
+        assert terminal['status']=='stopped' and terminal['budget']['held']==0
         assert not cs.list_objects("ExportArtifact")
+        # A separate fresh offline run proves unknown delivery is held without retry.
+        authority.update(run_id='unknown',case_path=str(Path(authority['grant_dir'])/'runs'/'unknown'/'case'),
+            fresh_comparison={**authority['fresh_comparison'],'run_ids':['unknown']})
+        pin=write_json(path,authority);prepared=entry.prepare(path,pin);unknown=True;before=len(sent)
+        with pytest.raises(Exception):await entry.launch(path,pin,prepared['prepared_sha256'],env)
+        terminal=json.loads((Path(authority['case_path']).parent/'result.json').read_text())
+        assert len(sent)==before+1 and terminal['status']=='unknown_outcome_held'
+        assert terminal['budget']['held']==entry.host.BOUND
+        with pytest.raises(FileExistsError):await entry.launch(path,pin,prepared['prepared_sha256'],env)
+        assert len(sent)==before+1 and all(client.is_closed for client in clients)
         return
     try:
-        result=await complete(ws,models,routes,criteria)
+        terminal=await entry.launch(path,pin,prepared['prepared_sha256'],env)
+        result=terminal['completion']
+        assert terminal['budget']['settled']==10*len(sent) and terminal['budget']['held']==0
+        assert terminal['campaign_budget']['reserved_or_unknown_upper_bounds']==entry.host.BOUND
+        assert set(role for role,_ in sent)=={'writer','reviewer','text_tool'}
+        assert all(client.is_closed for client in clients)
+        before=len(sent)
+        with pytest.raises(FileExistsError):await entry.launch(path,pin,prepared['prepared_sha256'],env)
+        assert len(sent)==before
     except ActionRejected as error:
         errors=list(dict.fromkeys(m.content for _,_,batch in models.calls for m in batch if isinstance(m,ToolMessage) and m.status=="error"))
         pytest.fail(str(error)+"\n"+str(error.diagnostic)+"\n"+"\n".join(errors))

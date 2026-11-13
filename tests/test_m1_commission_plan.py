@@ -152,9 +152,28 @@ def test_invalid_plan_or_silent_object_removal_is_refused(commission, fault):
         save(commission, plan, operation='invalid-plan')
 
 
-def test_checkpoint_brief_and_exact_reply_are_idempotent(commission):
+def test_checkpoint_brief_and_exact_reply_are_idempotent(commission,monkeypatch):
+    import json, hashlib
+    from report_agent import plan_authority
     saved = save(commission)
-    checkpoint, decision = approve(commission, saved)
+    checkpoint = api().request_checkpoint(commission.ws)
+    decision = dict(plan_ref=saved['plan_ref'], approved=True, corrections='', reductions=[])
+    authority = commission.ws.store.root.parent / 'confirmation-authority.json'
+    authority.write_text(json.dumps({'workflow': 'fake03-coordinator-page-sheet-probe-v1', 'case_path': str(commission.ws.store.root),
+        'confirmers': {'delegate': {'name': 'Fixture delegate', 'acting_for': 'Fixture owner'}}}))
+    pin = hashlib.sha256(authority.read_bytes()).hexdigest()
+    decision['confirmer'] = dict(id='delegate', name='Fixture delegate', acting_for='Fixture owner', authority_sha256=pin)
+    for change, args, code in [
+        ({}, {}, 'COMMISSION_CONFIRMER_PIN_REQUIRED'),
+        ({}, dict(authority_path=authority, authority_sha256='0'*64), 'COMMISSION_CONFIRMER_AUTHORITY_CHANGED'),
+        ({'id': 'unknown'}, dict(authority_path=authority, authority_sha256=pin), 'COMMISSION_CONFIRMER_NOT_AUTHORIZED'),
+        ({'acting_for': 'Someone else'}, dict(authority_path=authority, authority_sha256=pin), 'COMMISSION_CONFIRMER_IDENTITY_MISMATCH')]:
+        with pytest.raises(ActionRejected, match=code):
+            api().reply(commission.ws, checkpoint['issue_id'], {**decision, 'confirmer': {**decision['confirmer'], **change}}, **args)
+        assert not commission.cs.list_objects('CommissionDecision')
+    api().reply(commission.ws, checkpoint['issue_id'], decision, authority_path=authority, authority_sha256=pin)
+    record = commission.cs.read(plan_authority.decision_ref(commission.ws.store))
+    assert record['payload']['confirmer'] == decision['confirmer'] and record['owner_id'] == 'operator'
     path = Path(checkpoint['brief_path'])
     path = path if path.is_absolute() else commission.ws.store.root / path
     brief = path.read_text(encoding='utf-8')
@@ -165,7 +184,14 @@ def test_checkpoint_brief_and_exact_reply_are_idempotent(commission):
     assert 'Missing height remains unknown.' in brief
     assert '30 m' in brief and '28 m' in brief
     assert api().request_checkpoint(commission.ws)['issue_id'] == checkpoint['issue_id']
-    api().reply(commission.ws, checkpoint['issue_id'], decision)
+    api().reply(commission.ws, checkpoint['issue_id'], decision, authority_path=authority, authority_sha256=pin)
+    assert len(commission.cs.list_objects('CommissionDecision')) == 1
+    from report_agent import fake_full_flow as entry
+    monkeypatch.setattr(entry, 'preflight', lambda path,sha: json.loads(authority.read_text()))
+    entry.confirm(authority,pin,checkpoint['issue_id'],decision,'delegate')
+    with pytest.raises(ValueError):
+        entry.confirm(authority,pin,checkpoint['issue_id'],{'decision':'resume_delivery'},'delegate')
+    assert len(commission.cs.list_objects('CommissionDecision')) == 1
     actor = writer(commission, saved)
     with commission.cs.store.connect() as db:
         assert api().assert_writing_allowed(commission.cs, db, actor)
