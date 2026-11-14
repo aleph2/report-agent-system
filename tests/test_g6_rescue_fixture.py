@@ -85,7 +85,7 @@ def test_complete_display_arithmetic_without_assessments_is_not_assembly_ready(t
     plan_ref, decision_ref, root_ref = ref('CommissionPlan', 'plan'), ref('CommissionDecision', 'decision'), ref('ContentNode', 'root')
     snapshot_ref = ref('DocumentSnapshot', 'anonymized-g5-projection')
     plan = {'ref': plan_ref, 'owner_id': 'content:coordinator', 'payload': {
-        'sections': [], 'objects': [{'object_id': table['object_id'], 'attributes': []} for table in data['tables']]}}
+        'sections': [], 'objects': [{'object_id': table['object_id'], 'included': True, 'attributes': []} for table in data['tables']]}}
     decision = {'ref': decision_ref, 'owner_id': 'operator', 'payload': {'approved': True, 'plan_ref': plan_ref}}
     root = {'ref': root_ref, 'payload': {'kind': 'report', 'body': {'text': 'Synthetic report'}}}
     records = {Ref.model_validate(r['ref']).key(): r for r in [plan, decision, root]}

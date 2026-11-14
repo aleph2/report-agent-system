@@ -177,7 +177,7 @@ src/report_agent/commission_plan.py	449	_state	sql	read	key	@helper
 src/report_agent/commission_plan.py	454	_set	sql	write	key	@helper
 src/report_agent/commission_plan.py	850	project_checkpoint_issue	helper	read	'context_revision'	context_revision
 src/report_agent/commission_plan.py	850	project_checkpoint_issue	helper	write	'context_revision'	context_revision
-src/report_agent/commission_plan.py	1098	reply	accessor	read	get_commission_checkpoint	commission_checkpoint:*
+src/report_agent/commission_plan.py	1100	_check_reply	accessor	read	get_commission_checkpoint	commission_checkpoint:*
 src/report_agent/commission_plan.py	1152	reply	helper	read	'context_revision'	context_revision
 src/report_agent/commission_plan.py	1152	reply	helper	write	'context_revision'	context_revision
 src/report_agent/commission_plan.py	1154	reply	helper	write	'report_status'	report_status
