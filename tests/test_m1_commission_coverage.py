@@ -58,6 +58,15 @@ def test_five_agreed_commission_delivery_cases(commission, case, expected_comple
         plan['objects'][-1].update(included=False, origin='interpretation',
             reason='Agent proposes exclusion because the survey omitted S5.')
     saved = save(commission, plan)
+    if case in {'unapproved-reduction', 'agent-exclusion'}:
+        with pytest.raises(ActionRejected, match='COMMISSION_CANDIDATE_DECISION_REQUIRED'):
+            approve(commission, saved)
+        assert not commission.cs.list_objects('CommissionDecision')
+        assert not commission.cs.list_objects('DelegatedTask')
+        assert len(api().read_plan(commission.ws.store)['payload']['objects']) == 5
+        assert len(saved['inventory_refs']) == 5
+        assert commission_completion(commission.cs, None)['complete'] is False
+        return
     approve(commission, saved, reductions=[{'object_id': 'S5', 'reason': 'Owner explicitly reduces this commissioned scope.'}]
             if case == 'approved-reduction' else [])
     actor, refs, snapshot = completed_objects(commission, saved, count=5 if case == 'unknown-parameter' else 4)

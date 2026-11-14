@@ -176,6 +176,40 @@ def test_checkpoint_brief_and_exact_reply_are_idempotent(commission,monkeypatch)
     decision_file.write_text(json.dumps(decision))
     monkeypatch.setattr('sys.argv',['report-agent','commission-reply','--project',str(commission.ws.store.root),
         '--issue-id',checkpoint['issue_id'],'--file',str(decision_file),'--authority',str(authority),'--authority-sha256',pin])
+    def file_state():
+        import sqlite3
+        from contextlib import closing
+        rows = {}
+        for p in commission.ws.store.root.iterdir():
+            if p.suffix not in ('.db', '.sqlite3'):
+                continue
+            with closing(sqlite3.connect(p.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+                db.execute('PRAGMA query_only=ON')
+                db.execute('BEGIN')
+                for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"):
+                    quoted = '"' + table.replace('"', '""') + '"'
+                    rows[(p.name, table)] = sorted(db.execute('SELECT * FROM ' + quoted).fetchall(), key=repr)
+        files = {str(p.relative_to(commission.ws.store.root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in commission.ws.store.root.rglob('*') if p.is_file()
+                 and p.suffix not in ('.db', '.sqlite3') and not p.name.endswith(('-wal', '-shm'))}
+        return rows, files, commission.cs.list_objects()
+    before = file_state()
+    for changed in ({'reductions':[{'object_id':'unknown','reason':'Invalid object'}]},
+                    {'unconfirmed_page_bindings':['not-in-sheet']}):
+        with pytest.raises(ActionRejected):
+            api().check_reply(commission.ws.store.root, checkpoint['issue_id'], {**decision, **changed},
+                authority_path=authority, authority_sha256=pin)
+        assert file_state() == before
+    monkeypatch.setattr('sys.argv', [*__import__('sys').argv, '--check-only'])
+    assert cli.main() == 0
+    assert file_state() == before
+    assert not commission.cs.list_objects('CommissionDecision')
+    missing = commission.ws.store.root / 'nonexistent-case'
+    with pytest.raises(ActionRejected, match='EXISTING_COMMISSION_CASE_REQUIRED'):
+        api().check_reply(missing, checkpoint['issue_id'], decision,
+            authority_path=authority, authority_sha256=pin)
+    assert not missing.exists()
+    monkeypatch.setattr('sys.argv', __import__('sys').argv[:-1])
     assert cli.main()==0
     record = commission.cs.read(plan_authority.decision_ref(commission.ws.store))
     assert record['payload']['confirmer'] == decision['confirmer'] and record['owner_id'] == 'operator'
@@ -198,6 +232,10 @@ def test_checkpoint_brief_and_exact_reply_are_idempotent(commission,monkeypatch)
     assert 'Missing height remains unknown.' in brief
     assert '30 m' in brief and '28 m' in brief
     assert api().request_checkpoint(commission.ws)['issue_id'] == checkpoint['issue_id']
+    before = file_state()
+    assert api().check_reply(commission.ws.store.root, checkpoint['issue_id'], decision,
+        authority_path=authority, authority_sha256=pin)['status'] == 'approval_checks_passed'
+    assert file_state() == before
     api().reply(commission.ws, checkpoint['issue_id'], decision, authority_path=authority, authority_sha256=pin)
     assert len(commission.cs.list_objects('CommissionDecision')) == 1
     from report_agent import fake_full_flow as entry

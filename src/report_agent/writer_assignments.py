@@ -39,7 +39,7 @@ def _pin(cs, db, ref):
 
 
 def bound_assignment(cs, db, actor):
-    from .commission_plan import assert_writing_allowed, _confirmed, _citations, outside_boundary
+    from .commission_plan import assert_writing_allowed, _confirmed, _citations
     from .deliverables import source_authority
     plan = assert_writing_allowed(cs, db, actor)
     if plan is None:
@@ -56,7 +56,7 @@ def bound_assignment(cs, db, actor):
     _, decision = _confirmed(cs, db)
     reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
     if (obj is None or not obj['included'] or section is None or section['kind'] != 'extracted'
-            or outside_boundary(plan['payload'], obj) or object_id in reduced):
+            or object_id in reduced):
         raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
     pack = plan['payload'].get('method_pack')
     if not pack:

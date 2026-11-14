@@ -247,7 +247,7 @@ def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
 
 def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     """Compatibility entry for historical raw-row callers."""
-    from .commission_plan import assert_writing_allowed, outside_boundary
+    from .commission_plan import assert_writing_allowed
 
     plan = assert_writing_allowed(cs, db, actor)
     if not plan or not plan['payload'].get('method_pack'):
@@ -259,8 +259,10 @@ def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment.get('object_id')), None)
     if obj is None:
         raise ActionRejected('ASSESSMENT_OBJECT_NOT_IN_COMMISSION')
-    if outside_boundary(plan['payload'], obj):
-        raise ActionRejected('ASSESSMENT_OBJECT_OUTSIDE_COMMISSION_BOUNDARY')
+    from .commission_plan import _confirmed
+    _, decision = _confirmed(cs, db)
+    if not obj['included'] or any(r['object_id'] == obj['object_id'] for r in decision['payload']['reductions']):
+        raise ActionRejected('ASSESSMENT_OBJECT_OUTSIDE_COMMISSION_SCOPE')
     task = cs._read(db, {'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
     if task.get('assessment_object_id') is not None and task['assessment_object_id'] != assessment.get('object_id'):
         raise ActionRejected('ASSESSMENT_OBJECT_OUTSIDE_WRITER_ASSIGNMENT')
@@ -454,7 +456,7 @@ def create_planned_section(cs, actor, operation_id, section_id, assessment_refs=
 
 def create_planned_section_in_transaction(cs, db, actor, plan, section_id, assessment_refs=(), *, positional_anchors=False):
     """Trusted assembler and writer API share the same validated projection."""
-    from .commission_plan import fixed_section_text, fixed_source_views, _confirmed, outside_boundary
+    from .commission_plan import fixed_section_text, fixed_source_views, _confirmed
     from .content_models import ContentNode
     if not plan or not plan['payload'].get('method_pack'):
         raise ActionRejected('PLANNED_SECTION_METHOD_REQUIRED')
@@ -487,7 +489,7 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
     if aggregate:
         _, decision = _confirmed(cs, db)
         reduced = {r['object_id'] for r in decision['payload']['reductions']}
-        expected = {o['object_id'] for o in plan['payload']['objects'] if not outside_boundary(plan['payload'], o)} - reduced
+        expected = {o['object_id'] for o in plan['payload']['objects'] if o['included']} - reduced
         if set(bound) != expected:
             raise ActionRejected('PLANNED_SECTION_AGGREGATE_REQUIRES_ALL_COMMISSIONED_ASSESSMENTS')
         levels = {b['level'] for b in plan['payload']['method_pack']['risk_bands']}

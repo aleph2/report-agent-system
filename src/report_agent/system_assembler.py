@@ -5,7 +5,7 @@ from copy import deepcopy
 import json
 
 from .assessment_projection import assessment_receipt, draft_blocker, selected_assessment
-from .commission_plan import _confirmed, _state, outside_boundary
+from .commission_plan import _confirmed, _state
 from .content_models import ContentNode, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
@@ -174,7 +174,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             selected[sid].append(record)
     reductions = {r['object_id'] for r in decision['payload'].get('reductions', [])}
     expected_objects = {o['object_id'] for o in plan['payload']['objects']
-                        if not outside_boundary(plan['payload'], o)} - reductions
+                        if o['included']} - reductions
     assessments = {}
     for ref in assessment_refs:
         record = records.get(_key(ref))

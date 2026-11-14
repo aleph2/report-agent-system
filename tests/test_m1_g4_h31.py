@@ -111,7 +111,7 @@ def test_same_exclusion_with_verified_direct_candidate_page_passes_each_gate(exc
         saved = save(fixture, operation='h31-direct-for-approval')
         checkpoint = api().request_checkpoint(fixture.ws)
         decision = {'plan_ref': saved['plan_ref'], 'requirements_ref': fixture.requirements_ref,
-            'approved': True, 'corrections': '', 'reductions': []}
+            'approved': True, 'corrections': '', 'reductions': [{'object_id':'S1','reason':'Owner confirms exclusion after reviewing the cited page.'}]}
         first = api().reply(fixture.ws, checkpoint['issue_id'], decision)
         assert first['resolved'] and first['decision_origin'] == 'operator'
         if gate == 'approval-replay':

@@ -45,7 +45,16 @@ def main():
     parser.add_argument('--env', type=Path, help='External pinned service configuration')
     parser.add_argument('--invocation', help='One invocation named in the pinned authority')
     parser.add_argument('--preflight', action='store_true', help='Read-only production admission; no model calls')
+    parser.add_argument('--check-only', action='store_true', help='commission-reply: validate approval with no writes')
     args = parser.parse_args()
+    if args.check_only:
+        if args.command != 'commission-reply' or not args.file or not args.issue_id:
+            parser.error('--check-only requires commission-reply, --issue-id and --file')
+        from .commission_plan import check_reply
+        result = check_reply(args.project, args.issue_id, json.loads(args.file.read_text(encoding='utf-8-sig')),
+                             authority_path=args.authority, authority_sha256=args.authority_sha256)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     store = Store(args.project)
     if args.command == "init":
         if not args.manifest:

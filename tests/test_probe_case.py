@@ -274,7 +274,7 @@ def test_exclusion_page_fact_survives_business_copy_without_old_runtime(exclusio
     direct_text(f)
     assert not exclusion_gaps(f)
     saved = save(f)
-    confirm(f, saved)
+    confirm(f, saved, reductions=[{'object_id':'S1','reason':'Owner confirms exclusion after reviewing the cited page.'}])
     before = hashes(f.ws.store.root)
     first = prepare(f, target)
     store = Store(target)

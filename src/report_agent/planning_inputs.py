@@ -1,17 +1,17 @@
 """Planning ingress contracts; stored evidence keeps the stricter canonical models."""
 from copy import deepcopy
 from bisect import bisect_right
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import Decimal
 from functools import wraps
 from inspect import signature
 import re
 from unicodedata import normalize
 from typing import get_type_hints
 
-from pydantic import Field, ValidationError, create_model, field_validator
+from pydantic import Field, ValidationError, create_model
 
 from .content_models import Contract, SourceCitation, InventoryValue, InventoryAttribute, InventoryObject
-from .commission_plan import SourceSubstitution, Reconciliation, ScopeBoundary
+from .commission_plan import SourceSubstitution, Reconciliation
 from .errors import ActionRejected
 
 
@@ -25,26 +25,6 @@ def reject(field, reason, choices=(), *, message=None, related_fields=(), code=N
         diagnostic={'fields': [issue]})
 
 
-def metres(value):
-    if not isinstance(value, str) or len(value) > 128:
-        raise ValueError('Use metres or Kkm+metres[+offset] as a string')
-    chainage = re.fullmatch(r'[Kk](\d+)\+(\d+(?:\.\d+)?)(?:\+(\d+(?:\.\d+)?))?', value)
-    try:
-        if chainage:
-            if Decimal(chainage[2]) >= 1000:
-                raise ValueError('Chainage metre part must be below 1000')
-            with localcontext() as context:
-                context.prec = max(28, len(value) + 10)
-                number = Decimal(chainage[1]) * 1000 + Decimal(chainage[2]) + Decimal(chainage[3] or '0')
-        elif re.fullmatch(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)', value):
-            number = Decimal(value)
-        else:
-            raise ValueError('Use finite decimal metres or Kkm+metres[+offset]')
-    except InvalidOperation:
-        raise ValueError('Use finite decimal metres or Kkm+metres[+offset]') from None
-    return format(number, 'f')
-
-
 class PlanningCitation(SourceCitation):
     locator: str = Field(default='', description='Copy a returned source locator to select a repeated quote. Omit for unique exact quote lookup; the system records any locator it resolves.')
     quote: str = Field(default='', description='Exact source text. Required when locator is omitted; never paraphrase evidence.')
@@ -55,25 +35,10 @@ class QuotedPlanningCitation(PlanningCitation):
 
 
 class BoundaryInput(Contract):
-    start_meter: str = Field(max_length=128, description='Plain decimal metres or document chainage, e.g. K9000+000. System converts chainage to metres.')
-    end_meter: str = Field(max_length=128, description='Plain decimal metres or chainage, e.g. K9002+450+12.5. Must be greater than start_meter.')
+    start_meter: str = Field(min_length=1, max_length=128, description='Scope start exactly as written in the cited source; display only, no conversion.')
+    end_meter: str = Field(min_length=1, max_length=128, description='Scope end exactly as written in the cited source; display only, no conversion.')
     source: QuotedPlanningCitation
     customer_basis_anchor_id: str = Field(min_length=1, description='ID of a scope requirement returned by read_planning_draft. System uses its verified quotation and locator.')
-    expected_object_count: int | None = Field(default=None, strict=True, ge=1,
-        description=ScopeBoundary.model_fields['expected_object_count'].description)
-
-    @field_validator('start_meter', 'end_meter')
-    @classmethod
-    def numeric(cls, value):
-        metres(value)
-        return value
-
-    @field_validator('end_meter')
-    @classmethod
-    def ordered(cls, value, info):
-        if 'start_meter' in info.data and Decimal(metres(value)) <= Decimal(metres(info.data['start_meter'])):
-            raise ValueError('end_meter must be greater than start_meter')
-        return value
 
 
 class PlanningInventoryValue(InventoryValue):
@@ -205,8 +170,6 @@ ERROR_FIELDS = {
     'RESULT_BINDING_TARGET_REQUIRED': 'object_id',
     'RESULT_BINDING_LEVEL_REQUIRED': 'level',
     'INVENTORY_VALUE_REQUIRES_SOURCE': 'source',
-    'COMMISSION_BOUNDARY_SOURCE_AND_ORDER_REQUIRED': 'end_meter',
-    'COMMISSION_BOUNDARY_CHAINAGE_MISMATCH': 'chainage_inputs',
 }
 
 

@@ -589,7 +589,6 @@ def test_derived_section_requires_assigned_writer_and_unique_receipts(method_com
 def boundary_plan(fixture):
     plan = deepcopy(fixture.plan)
     plan['scope_boundary'] = {'start_meter': '1000', 'end_meter': '2000',
-        'expected_object_count': 1,
         'source': fixture.cite('scope', 'Boundary K1+000 to K2+000; expected one in-range object.')}
     plan['inventory_attributes'].append('mileage')
     plan['objects'][0]['attributes'].append({'name': 'mileage', 'values': [
@@ -603,59 +602,37 @@ def boundary_plan(fixture):
     return plan
 
 
-@pytest.mark.parametrize('case,expected', [
-    ('outside', True), ('inside', False), ('touching', False), ('conflicting', False),
-    ('unknown', False), ('unsourced', False), ('unparseable', False),
-    ('point-outside', True), ('point-inside', False), ('point-touching', False),
-    ('point-unsourced', False), ('point-uncertain', False), ('reversed', False),
-    ('configured-name', True),
-])
-def test_only_proven_outside_ranges_are_removed_from_scope_accounting(method_commission, case, expected, monkeypatch, tmp_path):
-    from report_agent.commission_plan import outside_boundary
+@pytest.mark.parametrize('included,decision_required', [(False, True), (True, False)])
+def test_only_proven_outside_ranges_are_removed_from_scope_accounting(method_commission, included, decision_required):
     fixture = method_commission
     plan = boundary_plan(fixture)
-    obj = deepcopy(plan['objects'][1])
-    values = obj['attributes'][-1]['values']
-    if case == 'inside':
-        values[0]['value'] = 'K1+500-K1+700'
-    elif case == 'touching':
-        values[0]['value'] = 'K2+000-K2+200'
-    elif case == 'conflicting':
-        values.append({'value': 'K1+500-K1+700',
-            'source': fixture.cite('design', 'Conflicting S2 K1+500-K1+700.'), 'reason': 'Contradictory source retained.'})
-    elif case == 'unknown':
-        values.append({'value': None, 'source': None, 'reason': 'Not established.'})
-    elif case == 'unsourced':
-        values[0]['source'] = None
-    elif case == 'unparseable':
-        values[0]['value'] = 'See site drawing; mileage not transcribed.'
-    if case.startswith('point-') or case == 'configured-name':
-        obj['attributes'][-1]['name'] = '中心桩号'
-        values[0]['value'] = {'point-inside':'K1+500', 'point-touching':'K2+000',
-            'point-uncertain':'Near K3+000; exact station unknown.'}.get(case, 'K3+000')
-        if case == 'point-unsourced':
-            values[0]['source'] = None
-    if case == 'reversed':
-        values[0]['value'] = 'K3+200-K3+000'
-    if case == 'configured-name':
-        import json
-        from importlib.resources import files
-        profile = json.loads(files('report_agent').joinpath('methods/pilot_planning.json').read_text())
-        profile['location_attribute_names'] = ['custom station']
-        config_root = tmp_path / 'configured-locations'
-        (config_root / 'methods').mkdir(parents=True)
-        (config_root / 'methods/pilot_planning.json').write_text(json.dumps(profile))
-        monkeypatch.setattr('importlib.resources.files', lambda package: config_root)
-        obj['attributes'][-1]['name'] = 'custom station'
-    assert outside_boundary(plan, obj) is expected
+    plan['objects'][1]['included'] = included
+    saved = save(fixture, plan)
+    checkpoint = api().request_checkpoint(fixture.ws)
+    with fixture.ws.store.run_lock():
+        pass
+    decision = dict(plan_ref=saved['plan_ref'], approved=True, corrections='', reductions=[])
+    if decision_required:
+        with pytest.raises(ActionRejected, match='COMMISSION_CANDIDATE_DECISION_REQUIRED'):
+            api().check_reply(fixture.ws.store.root, checkpoint['issue_id'], decision)
+        with pytest.raises(ActionRejected, match='COMMISSION_CANDIDATE_DECISION_REQUIRED'):
+            api().reply(fixture.ws, checkpoint['issue_id'], decision)
+        assert not fixture.cs.list_objects('CommissionDecision')
+        decision['reductions'] = [{'object_id':'S2', 'reason':'Owner confirms the proposed exclusion.'}]
+    assert api().check_reply(fixture.ws.store.root, checkpoint['issue_id'], decision)['writes'] == 0
+    api().reply(fixture.ws, checkpoint['issue_id'], decision)
+    with fixture.cs.store.connect() as db:
+        _, accepted = api()._confirmed(fixture.cs, db)
+        assert accepted['payload']['reductions'] == decision['reductions']
+    assert len(api().read_plan(fixture.ws.store)['payload']['objects']) == 2
 
 
-@pytest.mark.parametrize('method_commission,expected_count,question', [(2, 2, False), (1, 1, True)], indirect=['method_commission'])
-def test_scope_count_discrepancy_is_question_not_silent_object_removal(method_commission, expected_count, question):
+@pytest.mark.parametrize('method_commission,expected_count', [(2, 2), (1, 1)], indirect=['method_commission'])
+def test_scope_count_discrepancy_is_question_not_silent_object_removal(method_commission, expected_count):
     fixture = method_commission
     plan = deepcopy(fixture.plan)
     plan['scope_boundary'] = {'start_meter':'0', 'end_meter':'500',
-        'expected_object_count':expected_count, 'source':fixture.cite('scope',
+        'source':fixture.cite('scope',
             f'Boundary K0+000 to K0+500; expected {expected_count} in-range objects.')}
     plan['inventory_attributes'].append('中心桩号')
     original = deepcopy(plan['objects'][0])
@@ -670,14 +647,13 @@ def test_scope_count_discrepancy_is_question_not_silent_object_removal(method_co
     saved = save(fixture, plan)
     payload = api().read_plan(fixture.ws.store)['payload']
     assert len(payload['objects']) == 3 and sum(o['included'] for o in payload['objects']) == 2
-    assert bool(payload['method_questions']) is question
-    if question:
-        with pytest.raises(ActionRejected, match='COMMISSION_METHOD_QUESTIONS'):
-            approve(fixture, saved)
-        assert not fixture.cs.list_objects('CommissionDecision')
-    else:
-        approve(fixture, saved)
-        assert len(fixture.cs.list_objects('CommissionDecision')) == 1
+    assert not payload['method_questions']
+    checkpoint = api().request_checkpoint(fixture.ws)
+    brief = brief_text(fixture, checkpoint)
+    assert f'expected {expected_count} in-range objects' in brief
+    assert '列出 3；纳入 2；建议排除 1' in brief
+    approve(fixture, saved, reductions=[{'object_id':'C','reason':'Owner confirms C exclusion.'}])
+    assert len(fixture.cs.list_objects('CommissionDecision')) == 1
 
 
 @pytest.mark.parametrize('basis', ['design-and-scope', 'design-alone', 'template', 'guideline'])
@@ -692,7 +668,7 @@ def test_numeric_scope_boundary_needs_customer_selection_and_factual_range(metho
         boundary['source'] = fixture.cite(basis)
     if basis == 'design-and-scope':
         saved = save(fixture, plan)
-        checkpoint, _ = approve(fixture, saved)
+        checkpoint, _ = approve(fixture, saved, reductions=[{'object_id':'S2','reason':'Owner confirms exclusion.'}])
         brief = brief_text(fixture, checkpoint)
         assert 'Select first contract.' in brief
         assert 'First contract K1+000-K2+000.' in brief
@@ -706,10 +682,8 @@ def test_boundary_preserves_inventory_and_does_not_reduce_an_in_range_unassessed
     from test_m1_commission_coverage import content
     fixture = method_commission
     plan = boundary_plan(fixture)
-    plan['objects'][0].update(included=False, origin='interpretation', reason='Agent suggests omission.')
-    plan['scope_boundary']['expected_object_count'] = None
     saved = save(fixture, plan)
-    approve(fixture, saved)
+    approve(fixture, saved, reductions=[{'object_id':'S2','reason':'Owner excludes S2; S1 remains required.'}])
     actor = writer(fixture, saved)
     root = fixture.cs.commit(actor, 'boundary-report', [{'client_key': 'root', 'type': 'ContentNode',
         'payload': content('Inventory preserved; assessments absent.', 'report')}])['result']['refs']['root']
@@ -718,7 +692,7 @@ def test_boundary_preserves_inventory_and_does_not_reduce_an_in_range_unassessed
     coverage = commission_completion(fixture.cs, snapshot)
     assert coverage['complete'] is False
     assert {obj['object_id'] for obj in coverage['missing_objects']} == {'S1'}
-    assert coverage['reduced_objects'] == []
+    assert {o['object_id'] for o in coverage['reduced_objects']} == {'S2'}
     assert all(ref in snapshot['payload']['refs'] for ref in saved['inventory_refs'])
 
 
@@ -799,10 +773,8 @@ def test_aggregate_cannot_silently_count_partial_duplicate_or_unknown_level_resu
 def test_aggregate_excludes_only_owner_reductions_or_proven_outside_objects(method_commission, exclusion):
     fixture = method_commission
     plan = aggregate_plan(fixture)
-    reductions = []
-    if exclusion == 'owner-reduction':
-        reductions = [{'object_id': 'S2', 'reason': 'Owner excludes S2 for this commission.'}]
-    else:
+    reductions = [{'object_id': 'S2', 'reason': 'Owner excludes S2 for this commission.'}]
+    if exclusion == 'proven-outside':
         boundary = boundary_plan(fixture)
         for key in ('objects', 'inventory_attributes', 'scope_boundary'):
             plan[key] = boundary[key]

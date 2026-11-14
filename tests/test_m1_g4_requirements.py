@@ -142,7 +142,7 @@ def linked_plan(fixture, ref, anchors):
     plan['method_conventions'][0]['source'] = weight['source']
     boundary = next(a for a in anchors if a['kind'] == 'scope' and 'K1+000' in a['source']['quote'])
     plan['scope_boundary'] = {'start_meter': '1000', 'end_meter': '2000',
-        'source': boundary['source'], 'expected_object_count': 1}
+        'source': boundary['source']}
     for section in plan['sections']:
         anchor = next(a for a in anchors if a['kind'] == 'section' and a['section_id'] == section['section_id'])
         section['outline'] = anchor['source']
@@ -467,8 +467,8 @@ def test_all_five_authority_families_refuse_every_omission(required_case, fault,
     assert not fixture.cs.list_objects('ExportArtifact')
 
 
-def confirm(fixture, saved, *, ref=None):
-    return approve(fixture, saved, requirements_ref=ref or fixture.requirements_ref)
+def confirm(fixture, saved, *, ref=None, reductions=()):
+    return approve(fixture, saved, requirements_ref=ref or fixture.requirements_ref, reductions=reductions)
 
 
 def test_complete_scoring_plan_confirms_exact_requirements_and_allows_calculation(required_case):

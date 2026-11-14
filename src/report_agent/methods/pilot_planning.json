@@ -1,5 +1,4 @@
 {
-  "location_attribute_names": ["mileage", "里程", "中心桩号"],
   "entries": [
     {
       "id": "pilot-method-v2",

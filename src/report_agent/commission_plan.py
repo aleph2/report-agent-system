@@ -56,25 +56,10 @@ class ResultComposition(Contract):
 
 
 class ScopeBoundary(Contract):
-    start_meter: str
-    end_meter: str
+    start_meter: str = Field(min_length=1, description='Scope start exactly as cited, for display only.')
+    end_meter: str = Field(min_length=1, description='Scope end exactly as cited, for display only.')
     source: SourceCitation
     customer_basis: SourceCitation | None = None
-    expected_object_count: int | None = Field(default=None, strict=True, ge=1,
-        description='Set only when the cited customer text explicitly states an object count. Otherwise leave null; never infer a contractual count from the inventory or boundary.')
-    chainage_inputs: dict[str, str] | None = Field(default=None, exclude_if=lambda value: value is None)
-
-    @model_validator(mode='after')
-    def ordered(self):
-        from .method_pack import number
-        if self.chainage_inputs is not None:
-            from .planning_inputs import metres
-            if set(self.chainage_inputs) != {'start_meter', 'end_meter'} or any(
-                    number(metres(raw)) != number(getattr(self, key)) for key, raw in self.chainage_inputs.items()):
-                raise ValueError('COMMISSION_BOUNDARY_CHAINAGE_MISMATCH')
-        if number(self.start_meter) >= number(self.end_meter) or not self.source.quote.strip():
-            raise ValueError('COMMISSION_BOUNDARY_SOURCE_AND_ORDER_REQUIRED')
-        return self
 
 
 class MethodConvention(Contract):
@@ -343,46 +328,6 @@ def method_questions(plan):
     return []
 
 
-def outside_boundary(plan, obj):
-    """Only sourced station points or ranges can prove that an object is outside."""
-    boundary = plan.get('scope_boundary')
-    if not boundary:
-        return False
-    from decimal import Decimal
-    from .method_pack import number
-    from importlib.resources import files
-    location_names = json.loads(files('report_agent').joinpath('methods/pilot_planning.json').read_text(encoding='utf-8'))['location_attribute_names']
-    values = [v for a in obj['attributes'] if a['name'] in location_names for v in a['values']]
-    ranges = []
-    station = r'(?:[A-Z]*K)?(\d+)\+(\d+(?:\.\d+)?)'
-    for value in values:
-        if not value.get('source') or not value.get('value'):
-            return False
-        points = re.findall(station, value['value'], re.I)
-        if len(points) == 1 and re.fullmatch(station, value['value'].strip(), re.I):
-            points *= 2
-        if len(points) != 2:
-            return False
-        start, end = [Decimal(k) * 1000 + Decimal(m) for k, m in points]
-        if start > end:
-            return False
-        ranges.append((start, end))
-    return bool(ranges) and all(end < number(boundary['start_meter']) or start > number(boundary['end_meter']) for start, end in ranges)
-
-
-def boundary_questions(plan):
-    boundary = plan.get('scope_boundary')
-    if not boundary:
-        return []
-    objects = [o for o in plan['objects'] if o['included'] and not outside_boundary(plan, o)]
-    questions = []
-    if boundary.get('expected_object_count') is not None and len(objects) != boundary['expected_object_count']:
-        questions.append(f"合同范围内对象数量{len(objects)}与约定{boundary['expected_object_count']}不一致，需确认")
-    if any(o['included'] and outside_boundary(plan, o) for o in plan['objects']):
-        questions.append('合同边界外对象被列为纳入，需更正对象清单')
-    return questions
-
-
 class Reduction(Contract):
     object_id: str = Field(min_length=1)
     reason: str = Field(min_length=1)
@@ -580,20 +525,7 @@ def required_material_issues(cs, db, plan_ref, plan, template_decisions=()):
 
 
 def boundary_display(boundary):
-    from decimal import Decimal, localcontext
-    def label(raw):
-        value = Decimal(raw)
-        if value < 0 or 'e' in raw.lower():
-            return raw + ' m'
-        with localcontext() as context:
-            context.prec = max(28, len(raw) + 10)
-            km = int(value // 1000)
-            rest = format(value - km * 1000, 'f')
-        integer, dot, fraction = rest.partition('.')
-        return 'K' + str(km) + '+' + integer.zfill(3) + (dot + fraction if dot else '')
-    original = boundary.get('chainage_inputs') or {}
-    return ((original['start_meter'] if 'start_meter' in original else label(boundary['start_meter'])) + '—' + (original['end_meter'] if 'end_meter' in original else label(boundary['end_meter'])) +
-            '（' + boundary['start_meter'] + '—' + boundary['end_meter'] + ' m）')
+    return boundary['start_meter'] + '—' + boundary['end_meter']
 
 
 def _citations(value):
@@ -685,7 +617,7 @@ def save_plan(cs, actor, operation_id, plan):
         if order := plan.get('indicator_rank_order'):
             if cs._read(db, order['source']['source_ref'])['payload']['source_id'] not in customer_sources:
                 raise ActionRejected('COMMISSION_RANK_ORDER_REQUIRES_CUSTOMER_SOURCE')
-        questions = method_questions(plan) + boundary_questions(plan)
+        questions = method_questions(plan)
         boundary = plan.get('scope_boundary')
         if boundary:
             numeric_id = cs._read(db, boundary['source']['source_ref'])['payload']['source_id']
@@ -842,7 +774,7 @@ def writer_assignment(cs, db, section_ids, *, assessment_object_id=None):
         _, decision = _confirmed(cs, db)
         obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment_object_id), None)
         reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
-        if (obj is None or not obj['included'] or outside_boundary(plan['payload'], obj) or assessment_object_id in reduced
+        if (obj is None or not obj['included'] or assessment_object_id in reduced
                 or len(selected) != 1 or selected[0]['kind'] != 'extracted'):
             raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
         result['assessment_object_id'] = assessment_object_id
@@ -918,7 +850,8 @@ def request_checkpoint(workspace):
     require_complete(cs, plan)
     path = workspace.store.root / 'outputs' / ('commission-checkpoint-' + digest(ref) + '.md')
     lines = ['# 编制计划确认', '', '请确认本版本计划，或提出修改意见。',
-             '代理建议的排除不等于范围缩减；缩减须由提交者明确确认并说明原因。', '', '## 评估对象', '']
+             '代理建议的排除不等于范围缩减；缩减须由提交者明确确认并说明原因。', '', '## 评估对象', '',
+             f"对象清单：列出 {len(plan['objects'])}；纳入 {sum(o['included'] for o in plan['objects'])}；建议排除 {sum(not o['included'] for o in plan['objects'])}。客户明确数量见下方引用的委托要求，随本表确认。"]
     from .source_use import immutable_version_digest
     source_names = {immutable_version_digest(cs.source_payload(row)):row.get("title",row["id"])
                     for row in workspace.store.sources([s["id"] for s in workspace.store.source_catalog()])}
@@ -960,7 +893,7 @@ def request_checkpoint(workspace):
             lines += ['  属性依据：' + citation_location(v['source']) for v in attribute['values']]
     if plan.get('scope_boundary'):
         boundary = plan['scope_boundary']
-        lines += ['', '## 合同范围边界', '', boundary_display(boundary) + f"；约定对象数{boundary.get('expected_object_count') or '未指定'}",
+        lines += ['', '## 合同范围边界', '', boundary_display(boundary),
                   '原文依据：' + boundary['source']['quote']]
         if boundary.get('customer_basis'):
             lines.append('客户范围选择原文：' + boundary['customer_basis']['quote'])
@@ -1114,6 +1047,122 @@ def _write_confirmation_checklist(workspace, cs, db, issue, checkpoint):
     issue['confirmation_checklist_path'] = relative
 
 
+def _check_approval_targets(cs, checkpoint, decision, reductions, *, replay=False):
+    if not decision['approved']:
+        return
+    from .assertions.launch import Commission
+    from . import page_bindings
+    if not replay:
+        proposals = [(body, state) for action, body, state in Commission.plan_actions(cs.store.root, live=True)
+                     if action == 'record_convention' and body['claim']['rule'] == encode(decision['plan_ref'])]
+        if not proposals:
+            raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
+        _, state = proposals[-1]
+        if not state['active'] or state['stale'] or state['challenged']:
+            raise ActionRejected('COMMISSION_PLAN_AUTHORITY_WITHDRAWN')
+    accepted = {**decision, 'reductions': reductions}
+    eligible = page_bindings.eligible_subjects(cs, decision['plan_ref'], accepted)
+    rows = {row['id']: (row, state) for row, state in page_bindings.records(cs.store, decision['plan_ref'])}
+    for key in checkpoint.get('page_bindings', []):
+        if key in decision.get('unconfirmed_page_bindings', []):
+            continue
+        row, state = rows.get(key, (None, None))
+        if row is None or row['claim']['kind'] != 'convention':
+            raise ActionRejected('PAGE_BINDING_SHEET_RECORD_MISSING')
+        # A resolved exact reply has already committed its sheet confirmations.
+        if not replay and row['subject'] in eligible and (not state['active'] or state['stale']):
+            raise ActionRejected('PAGE_BINDING_SHEET_RECORD_STALE')
+
+
+def _check_reply(cs, db, issue_id, decision):
+    checkpoint = commission_assertions.checkpoint(db, 'plan', issue_id)
+    if (not checkpoint or checkpoint['plan_ref'] != decision['plan_ref']
+            or plan_authority.plan_ref(db) != decision['plan_ref']):
+        raise ActionRejected('COMMISSION_CHECKPOINT_REPLY_STALE')
+    issues = issue_state.get_report_issues(db, [])
+    issue = next((i for i in issues if i['id'] == issue_id), None)
+    if issue is None:
+        raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
+    plan_record = cs._read(db, decision['plan_ref'])
+    plan = plan_record['payload']
+    if decision['approved']:
+        from .commission_requirements import require_complete, enabled as requirements_enabled
+        require_complete(cs, plan, db=db)
+        template_decision_texts(plan, decision.get('template_decisions', []))
+        if requirements_enabled(cs.store) and (decision.get('requirements_ref') != plan.get('requirements_ref')
+                or checkpoint.get('requirements_ref') != plan.get('requirements_ref')):
+            raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
+    if not set(decision.get('unconfirmed_page_bindings', [])) <= set(checkpoint.get('page_bindings', [])):
+        raise ActionRejected('PAGE_BINDING_EXCEPTION_OUTSIDE_SHEET')
+    answer = encode(decision)
+    owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
+    signed_answer = commission_assertions.checkpoint_answer(db, 'plan', issue_id)
+    if issue.get('decision_origin') == 'operator' and (legacy.get_commission_checkpoint(db, issue_id) or
+            issue.get('resolved') and signed_answer and plan_authority.decision_ref(db) == signed_answer):
+        if issue.get('decision') != answer:
+            raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
+        if decision['approved']:
+            saved = cs._read(db, signed_answer)['payload']
+            if saved['plan_ref'] != checkpoint['plan_ref'] or not saved['approved']:
+                raise ActionRejected('PAGE_BINDING_SAVED_OWNER_REPLY_REQUIRED')
+            _check_approval_targets(cs, checkpoint, saved, saved['reductions'],
+                                    replay=bool(issue.get('resolved') and signed_answer
+                                                and plan_authority.decision_ref(db) == signed_answer))
+        return dict(checkpoint=checkpoint, issues=issues, issue=issue, plan=plan, answer=answer, owner=owner, signed_answer=signed_answer, replay=True)
+    pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
+    if decision['approved'] and pending:
+        raise ActionRejected('COMMISSION_PENDING_SOURCES: ' + '; '.join(pending))
+    if decision['approved'] and plan.get('method_questions', method_questions(plan)):
+        raise ActionRejected('COMMISSION_METHOD_QUESTIONS: ' + '; '.join(plan.get('method_questions', method_questions(plan))))
+    reduced = [r['object_id'] for r in decision['reductions']]
+    if len(set(reduced)) != len(reduced) or not set(reduced) <= {o['object_id'] for o in plan['objects']}:
+        raise ActionRejected('COMMISSION_REDUCTION_OBJECT_INVALID')
+    from .commission_owner_records import effective_reductions
+    owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
+    if decision['approved']:
+        proposed = {o['object_id'] for o in plan['objects'] if not o['included']}
+        proposed.update(d['object_id'] for d in plan.get('candidate_dispositions', []) if d['status'] == 'proposed_exclusion')
+        missing = proposed - {r['object_id'] for r in owner_reductions}
+        if missing:
+            raise ActionRejected('COMMISSION_CANDIDATE_DECISION_REQUIRED: ' + ', '.join(sorted(missing)))
+    accepted = {**decision, 'reductions': owner_reductions, **({'required_material_issues': required_material_issues(
+        cs, db, decision['plan_ref'], plan, decision.get('template_decisions', [])), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
+    if plan_authority.native_plan_ref(db) != decision['plan_ref']:
+        raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
+    _check_approval_targets(cs, checkpoint, decision, owner_reductions)
+    return dict(checkpoint=checkpoint, issues=issues, issue=issue, plan=plan, answer=answer,
+                owner=owner, signed_answer=signed_answer, accepted=accepted, replay=False)
+
+
+def check_reply(project, issue_id, decision, *, authority_path=None, authority_sha256=None):
+    """Validate a quiescent existing checkpoint without changing logical state or outputs."""
+    from contextlib import contextmanager, closing
+    import sqlite3
+    from .store import Store
+    root = Path(project).resolve()
+    if not (root / 'state.db').is_file():
+        raise ActionRejected('EXISTING_COMMISSION_CASE_REQUIRED')
+    class ReadStore(Store):
+        def __init__(self):
+            self.root, self.path = root, root / 'state.db'
+        @contextmanager
+        def connect(self):
+            with closing(sqlite3.connect(self.path.as_uri() + '?mode=ro', uri=True)) as db:
+                db.execute('PRAGMA query_only=ON')
+                db.execute('BEGIN')
+                yield db
+    class ReadContentStore(ContentStore):
+        def __init__(self, store):
+            self.store = store
+    decision = OwnerDecision.model_validate(decision).model_dump()
+    verified_confirmer(root, decision.get('confirmer'), authority_path, authority_sha256)
+    cs = ReadContentStore(ReadStore())
+    with cs.store.connect() as db:
+        checked = _check_reply(cs, db, issue_id, decision)
+    return {'status': 'approval_checks_passed', 'check_only': True, 'writes': 0,
+            'issue_id': issue_id, 'plan_ref': decision['plan_ref'], 'already_answered': checked['replay']}
+
+
 def reply(workspace, issue_id, decision, *, authority_path=None, authority_sha256=None):
     """Trusted operator entry point, deliberately absent from agent tools."""
     if decision.get('decision') == 'resume_delivery':
@@ -1130,32 +1179,11 @@ def reply(workspace, issue_id, decision, *, authority_path=None, authority_sha25
     cs = ContentStore(workspace.store)
     with workspace.store.run_lock(), workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        checkpoint = commission_assertions.checkpoint(db, 'plan', issue_id)
-        if (not checkpoint or checkpoint['plan_ref'] != decision['plan_ref']
-                or plan_authority.plan_ref(db) != decision['plan_ref']):
-            raise ActionRejected('COMMISSION_CHECKPOINT_REPLY_STALE')
-        issues = issue_state.get_report_issues(db, [])
-        issue = next((i for i in issues if i['id'] == issue_id), None)
-        if issue is None:
-            raise ActionRejected('COMMISSION_CHECKPOINT_ISSUE_MISSING')
-        plan_record = cs._read(db, decision['plan_ref'])
-        plan = plan_record['payload']
-        if decision['approved']:
-            from .commission_requirements import require_complete, enabled as requirements_enabled
-            require_complete(cs, plan, db=db)
-            template_decision_texts(plan, decision.get('template_decisions', []))
-            if requirements_enabled(cs.store) and (decision.get('requirements_ref') != plan.get('requirements_ref')
-                    or checkpoint.get('requirements_ref') != plan.get('requirements_ref')):
-                raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
-        if not set(decision.get('unconfirmed_page_bindings', [])) <= set(checkpoint.get('page_bindings', [])):
-            raise ActionRejected('PAGE_BINDING_EXCEPTION_OUTSIDE_SHEET')
-        answer = encode(decision)
-        owner = Actor('operator', 'operator', 'commission-checkpoint:' + issue_id)
-        signed_answer = commission_assertions.checkpoint_answer(db, 'plan', issue_id)
-        if issue.get('decision_origin') == 'operator' and (legacy.get_commission_checkpoint(db, issue_id) or
-                issue.get('resolved') and signed_answer and plan_authority.decision_ref(db) == signed_answer):
-            if issue.get('decision') != answer:
-                raise ActionRejected('COMMISSION_CHECKPOINT_ALREADY_ANSWERED')
+        checked = _check_reply(cs, db, issue_id, decision)
+        checkpoint, issues, issue = checked['checkpoint'], checked['issues'], checked['issue']
+        plan, answer, owner = checked['plan'], checked['answer'], checked['owner']
+        signed_answer = checked['signed_answer']
+        if checked['replay']:
             if decision['approved']:
                 db.commit()
                 from .page_bindings import confirm_reply
@@ -1164,24 +1192,7 @@ def reply(workspace, issue_id, decision, *, authority_path=None, authority_sha25
                 _write_confirmation_checklist(workspace, cs, db, issue, checkpoint)
                 issue_state.set_report_issues(db, issues)
             return issue
-        pending = list(dict.fromkeys(name for s in plan['sections'] for name in unresolved_sources(s)))
-        if decision['approved'] and pending:
-            raise ActionRejected('COMMISSION_PENDING_SOURCES: ' + '; '.join(pending))
-        if decision['approved'] and plan.get('method_questions', method_questions(plan)):
-            raise ActionRejected('COMMISSION_METHOD_QUESTIONS: ' + '; '.join(plan.get('method_questions', method_questions(plan))))
-        reduced = [r['object_id'] for r in decision['reductions']]
-        if len(set(reduced)) != len(reduced) or not set(reduced) <= {o['object_id'] for o in plan['objects']}:
-            raise ActionRejected('COMMISSION_REDUCTION_OBJECT_INVALID')
-        if decision['approved'] and plan.get('skeleton_digest'):
-            proposed = {d['object_id'] for d in plan.get('candidate_dispositions', []) if d['status'] == 'proposed_exclusion'}
-            if not proposed <= set(reduced):
-                raise ActionRejected('COMMISSION_CANDIDATE_DECISION_REQUIRED: ' + ', '.join(sorted(proposed - set(reduced))))
-        from .commission_owner_records import effective_reductions
-        owner_reductions = effective_reductions(plan, decision['reductions']) if decision['approved'] else []
-        accepted = {**decision, 'reductions': owner_reductions, **({'required_material_issues': required_material_issues(
-            cs, db, decision['plan_ref'], plan, decision.get('template_decisions', [])), 'confirmed_rules': _confirmed_rules(plan)} if decision['approved'] else {})}
-        if plan_authority.native_plan_ref(db) != decision['plan_ref']:
-            raise ActionRejected('COMMISSION_PLAN_AUTHORITY_NEW_PROPOSAL_REQUIRED')
+        accepted = checked['accepted']
         # The case transaction has only validated the operator's request so far.
         # Commit the immutable choices before the owner action can select them.
         db.commit()
@@ -1249,8 +1260,10 @@ def snapshot_outcomes(cs, db, plan_ref, refs):
     """Freeze matching producer outcomes, so later drafts cannot alter selected evidence."""
     members = {Ref.model_validate(r).key() for r in refs}
     result = []
+    _, decision = _confirmed(cs, db)
+    reduced = {r['object_id'] for r in decision['payload']['reductions']}
     for obj in cs._read(db, plan_ref)['payload']['objects']:
-        if outside_boundary(cs._read(db, plan_ref)['payload'], obj):
+        if not obj['included'] or obj['object_id'] in reduced:
             continue
         matches = []
         from .report_state import outcomes

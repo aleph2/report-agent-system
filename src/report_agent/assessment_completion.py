@@ -466,9 +466,8 @@ async def _run_completion_locked(case, evidence, env, grant_file, extension_auth
     if plan['ref'] != approved['ref'] or plan['payload_digest'] != approved['payload_digest']:
         raise ValueError('ASSESSMENT_COMPLETION_PLAN_CHANGED')
     require_decision_pin(decision, approved_decision)
-    from .commission_plan import outside_boundary
     reduced = {row['object_id'] for row in decision['payload']['reductions']}
-    ids = [obj['object_id'] for obj in plan['payload']['objects'] if not outside_boundary(plan['payload'], obj) and obj['object_id'] not in reduced]
+    ids = [obj['object_id'] for obj in plan['payload']['objects'] if obj['included'] and obj['object_id'] not in reduced]
     suggestions = _load(evidence / 'assessment-suggestions.json')
     if len(ids) != 5 or len(suggestions['rows']) != 55 or {row['object_id'] for row in suggestions['rows']} != set(ids):
         raise ValueError('ASSESSMENT_COMPLETION_FIVE_OBJECTS_REQUIRED')

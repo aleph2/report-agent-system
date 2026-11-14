@@ -52,7 +52,7 @@ def _derivation_scope(cs, db, actor, operation):
 
 
 def _assignment_context(cs, db, scope):
-    from .commission_plan import outside_boundary, boundary_display
+    from .commission_plan import boundary_display
     plan = scope['plan']['payload']
     decision = scope['decision']['payload']
     def citation(value):
@@ -65,7 +65,7 @@ def _assignment_context(cs, db, scope):
         for value in attribute['values']]} for attribute in scope['object'].get('attributes', [])]
     reductions = {row['object_id']: row['reason'] for row in decision.get('reductions', [])}
     excluded = [{'label': obj['label'], 'reason': reductions.get(obj['object_id'], obj['reason'])}
-        for obj in plan['objects'] if obj['object_id'] in reductions or not obj['included'] or outside_boundary(plan, obj)]
+        for obj in plan['objects'] if obj['object_id'] in reductions or not obj['included']]
     pack = plan['method_pack']
     choice = next(row for row in plan['method_conventions'] if row['key'] == 'weights')
     table = next(row for row in pack['weight_tables'] if row['id'] == choice['strategy_id'])

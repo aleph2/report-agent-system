@@ -36,8 +36,14 @@ def assembly_input(method_commission, request):
         from report_agent.commission_owner_records import decorate_plan
         with f.ws.store.connect() as db:
             plan = decorate_plan(f.cs, db, plan)
+    reductions = []
+    if issue_mode == 'excluded-c':
+        excluded = deepcopy(plan['objects'][0])
+        excluded.update(object_id='C', label='Excluded C', included=False, reason='Agent proposes exclusion.')
+        plan['objects'].append(excluded)
+        reductions = [{'object_id':'C','reason':'Owner confirms exclusion of C.'}]
     saved = save(f, plan)
-    approve(f, saved)
+    approve(f, saved, reductions=reductions)
     actor = writer(f, saved, section_ids=[s['section_id'] for s in plan['sections']])
     assessment = persist(f, actor, {**persistence_input(f), "section_id": "4"})
     def node(text, kind='block'):
@@ -76,8 +82,10 @@ def assembly_input(method_commission, request):
     return f
 
 
+@pytest.mark.parametrize('assembly_input', [None, 'excluded-c'], indirect=True)
 def test_assembly_rejects_missing_canonical_assessments_without_creating_content(assembly_input):
     f = assembly_input
+    assert preflight_assembly(f.cs, f.co, **f.inputs)['missing_assessments'] == []
     args = {**f.inputs, 'assessment_refs': []}
     before = f.cs.list_objects()
     report = preflight_assembly(f.cs, f.co, **args)

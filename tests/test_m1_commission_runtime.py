@@ -218,7 +218,7 @@ async def test_public_object_assignment_reaches_saved_writer_and_actual_tools(co
     plan['objects'][2].update(object_id='C', label='Excluded C', included=False,
                               reason='Excluded from this synthetic assessment commission.')
     saved = save(commission, plan)
-    approve(commission, saved)
+    approve(commission, saved, reductions=[{'object_id':'C','reason':'Owner confirms C exclusion.'}])
     def task(description: str, subagent_type: str):
         """Delegate the selected task through the native executor."""
         return description

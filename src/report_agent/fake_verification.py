@@ -253,7 +253,7 @@ def assert_active_fake_run(verified_run, workspace):
 async def run_mini_assessment(workspace, model, *, verified_run):
     """Two assessment delegations from an approved synthetic plan; caller owns the grant and run lock."""
     import re
-    from .commission_plan import _confirmed, outside_boundary
+    from .commission_plan import _confirmed
     from .content_store import ContentStore
     from .errors import ActionRejected
     from .writer_runtime import writer_session
@@ -266,7 +266,7 @@ async def run_mini_assessment(workspace, model, *, verified_run):
     payload = plan['payload']
     reduced = {r['object_id'] for r in decision['payload'].get('reductions',[])}
     objects = {obj['object_id']:obj for obj in payload['objects']
-               if obj['included'] and not outside_boundary(payload,obj) and obj['object_id'] not in reduced}
+               if obj['included'] and obj['object_id'] not in reduced}
     ids = [row['id'] for row in (payload.get('method_pack') or {}).get('indicators',[])]
     order = (payload.get('indicator_rank_order') or {}).get('indicator_ids',[])
     if (set(objects) != {'A','B'} or len({obj['label'] for obj in objects.values()}) != 2

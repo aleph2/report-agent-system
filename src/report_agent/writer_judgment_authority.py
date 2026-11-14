@@ -42,7 +42,7 @@ def _inputs_key(plan_ref, subject, section):
 
 
 def _commission_scope(cs, plan_ref, subject, section):
-    from .commission_plan import _confirmed as confirmed_plan, outside_boundary
+    from .commission_plan import _confirmed as confirmed_plan
 
     with cs.store.connect() as db:
         plan, decision = confirmed_plan(cs, db)
@@ -51,7 +51,6 @@ def _commission_scope(cs, plan_ref, subject, section):
         plan["ref"] != plan_ref
         or not obj
         or not obj["included"]
-        or outside_boundary(plan["payload"], obj)
         or any(red["object_id"] == subject for red in decision["payload"]["reductions"])
         or not any(s["section_id"] == section and s["kind"] == "extracted" for s in plan["payload"]["sections"])
     ):

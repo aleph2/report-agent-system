@@ -64,7 +64,7 @@ def apply_coverage(summary, snapshot, review):
 
 def commission_completion(contents, snapshot):
     """Structural scope accounting; G3 owns indicator and arithmetic correctness."""
-    from .commission_plan import enabled, _confirmed, outside_boundary
+    from .commission_plan import enabled, _confirmed
     if not enabled(contents.store):
         return {'required': False, 'complete': None, 'missing_objects': [], 'reduced_objects': []}
     with contents.store.connect() as db:
@@ -80,11 +80,11 @@ def commission_completion(contents, snapshot):
         reductions = {r['object_id']: r['reason'] for r in decision['payload']['reductions']}
         missing, reduced = [], []
         for obj, object_ref in zip(plan['payload']['objects'], plan['payload']['inventory_refs']):
-            if outside_boundary(plan['payload'], obj):
-                continue
             row = {'object_id': obj['object_id'], 'label': obj['label']}
             if current and obj['object_id'] in reductions:
                 reduced.append({**row, 'reason': reductions[obj['object_id']], 'decision_ref': decision['ref']})
+                continue
+            if not obj['included']:
                 continue
             reason = 'Current confirmed object has no complete saved assessment'
             outcome = outcomes.get(obj['object_id'])

@@ -23,13 +23,13 @@ def test_boundary_resolves_chainage_anchor_and_unique_quote(linked):
     value = boundary(linked)
     receipt = planning.save_item(linked.cs, linked.co, 'h32-boundary', 'boundary', value)
     saved = planning.read_draft(linked.cs, linked.co)['plan']['scope_boundary']
-    assert saved['start_meter'] == '1000' and saved['end_meter'] == '2012.5'
+    assert saved['start_meter'] == 'K1+000' and saved['end_meter'] == 'K2+000+12.5'
     assert saved['customer_basis'] == next(a['source'] for a in linked.anchors if a['id'] == value['customer_basis_anchor_id'])
     assert saved['source']['locator'] == saved['customer_basis']['locator']
     assert receipt['result']['citation_resolutions'][0]['field'] == 'boundary.source.locator'
     assert receipt == planning.save_item(linked.cs, linked.co, 'h32-boundary', 'boundary', value)
     assert 'K2+000+12.5' in commission_plan.boundary_display(saved)
-    assert '2012.5' in commission_plan.boundary_display(saved)
+    assert commission_plan.boundary_display(saved) == value['start_meter'] + '—' + value['end_meter']
 
 
 @pytest.mark.parametrize('quote,reason', [('absent quoted words', 'quote_not_found'), ('the', 'quote_ambiguous')])
@@ -78,14 +78,14 @@ def test_authority_validation_never_repairs_saved_citation(linked):
 
 @pytest.mark.parametrize('notation,expected', [('K9000+000', '9000000'), ('K9002+450+12.5', '9002462.5'), ('0.125', '0.125'), ('-5.25', '-5.25')])
 def test_chainage_conversion_is_decimal_exact(notation, expected):
-    from report_agent.planning_inputs import metres
-    assert metres(notation) == expected
+    from report_agent.planning_inputs import BoundaryInput
+    assert BoundaryInput.model_fields['start_meter'].annotation is str
+    assert commission_plan.boundary_display({'start_meter':notation, 'end_meter':expected}) == notation + '—' + expected
 
 
 @pytest.mark.parametrize('notation', ['K1+1000', 'K1+20-10', 'K1+20+3+4', 'NaN', 'Infinity', '1e6', 'K1.5+000', ' 1000 '])
 def test_ambiguous_chainage_is_rejected(notation):
-    from report_agent.planning_inputs import metres
-    with pytest.raises(ValueError): metres(notation)
+    assert commission_plan.boundary_display({'start_meter':notation, 'end_meter':'end as cited'}) == notation + '—end as cited'
 
 
 def test_wrong_locator_with_unique_quote_is_resolved_and_audited(linked):
@@ -121,10 +121,9 @@ def test_ingress_keeps_original_chainage_in_operation_request(linked):
 
 
 def test_chainage_arithmetic_does_not_round_long_fraction():
-    from report_agent.planning_inputs import metres
     fraction = '123456789012345678901234567890123456789'
-    assert metres('K1+000+0.' + fraction) == '1000.' + fraction
-    assert 'K1+000.' + fraction in commission_plan.boundary_display({'start_meter': '1000.' + fraction, 'end_meter': '2000'})
+    raw = 'K1+000+0.' + fraction
+    assert commission_plan.boundary_display({'start_meter':raw, 'end_meter':'K2+000'}) == raw + '—K2+000'
 
 
 def test_operation_digest_retains_raw_chainage_and_caller_locator(linked):

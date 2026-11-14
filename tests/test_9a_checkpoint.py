@@ -23,6 +23,21 @@ def test_actual_checkpoint_freezes_bindings_and_replays_saved_reply(method_commi
     frozen=commission_assertions.checkpoint(f.ws.store,"plan",checkpoint["issue_id"])
     assert set(frozen["page_bindings"])==set(ids)
     answer=dict(plan_ref=ref,approved=True,corrections="",reductions=[],unconfirmed_page_bindings=[ids[1]])
+    import sqlite3
+    from contextlib import closing
+    def logical_state():
+        snapshot = {}
+        for name in ('state.db', 'assertions.sqlite3'):
+            with closing(sqlite3.connect((f.ws.store.root / name).as_uri() + '?mode=ro', uri=True)) as db:
+                db.execute('PRAGMA query_only=ON')
+                db.execute('BEGIN')
+                for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"):
+                    quoted = '"' + table.replace('"', '""') + '"'
+                    snapshot[(name, table)] = sorted(db.execute('SELECT * FROM ' + quoted).fetchall(), key=repr)
+        return snapshot, f.cs.list_objects(), {str(p): p.read_bytes() for p in (f.ws.store.root / 'outputs').rglob('*') if p.is_file()}
+    before = logical_state()
+    assert commission_plan.check_reply(f.ws.store.root, checkpoint['issue_id'], answer)['writes'] == 0
+    assert logical_state() == before
     original=assertions.confirm
     interrupted=[]
     def stop_after_commit(ctx,**args):
@@ -41,3 +56,15 @@ def test_actual_checkpoint_freezes_bindings_and_replays_saved_reply(method_commi
     states=host.commission.current_references(f.ws.store.root,ids)
     assert states[ids[0]]["status"]=="confirmed" and states[ids[1]]["status"]=="proposed"
     assert page_bindings.sheet_route(f.ws.store,ref)
+
+    from report_agent.assertion_host import Grant
+    from uuid import NAMESPACE_URL, uuid5
+    operation = 'owner-retract-binding-after-completed-reply'
+    grant = Grant(str(uuid5(NAMESPACE_URL, 'owner')), 'owner', 'owner', operation, 'plan',
+                  {'S1'}, {ids[0]}, {'retract'})
+    assertions.retract(host.issue_once(grant, 'retract', operation), subject='S1',
+        claim=dict(kind='act', effect='retract', target=ids[0], reason='Owner revises page applicability.'))
+    before = logical_state()
+    assert commission_plan.check_reply(f.ws.store.root, checkpoint['issue_id'], answer)['already_answered']
+    assert logical_state() == before
+    commission_plan.reply(f.ws, checkpoint['issue_id'], answer)

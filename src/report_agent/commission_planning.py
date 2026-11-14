@@ -17,7 +17,7 @@ from .commission_plan import (_state, _set, _citations, ScopeBoundary, SourceSub
 from .store import digest
 from .commission_requirements import Capability, publish_interpretation, save_revision
 from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventoryObject, PlanningSubstitution,
-    PlanningReconciliationInput, resolve_citations, model_value, reject, expose, metres,
+    PlanningReconciliationInput, resolve_citations, model_value, reject, expose,
     numeric_literal_warnings, requirement_numeric_warnings)
 
 CATALOG = 'commission_reviewed_entries'
@@ -841,8 +841,6 @@ def _save_item(cs, actor, db, kind, item):
         identity = boundary.pop('customer_basis_anchor_id')
         if identity not in anchors or (anchors[identity].get('parse_error') and identity not in record['payload'].get('parse_resolutions', {})):
             reject('boundary.customer_basis_anchor_id', 'current_scope_anchor_required', anchors)
-        boundary['chainage_inputs'] = {key: boundary[key] for key in ('start_meter', 'end_meter')}
-        boundary['start_meter'], boundary['end_meter'] = metres(boundary['start_meter']), metres(boundary['end_meter'])
         basis = anchors[identity]['source']
         pins = [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
         if len(pins) != 1 or cs._read(db, basis['source_ref'])['payload']['file_digest'] != pins[0]['file_digest']:
@@ -1189,7 +1187,7 @@ def planning_tools(cs, actor, *, result_fits=None):
     link.__name__ = 'link_convention'
 
     def set_scope_boundary(operation_id: str, boundary: BoundaryInput) -> dict:
-        """Save the boundary using document chainage or metres, an exact source quote, and a scope requirement anchor ID. Unique quotes get recorded source locators automatically. Object inclusion remains a separate judgment."""
+        """Save the cited boundary endpoints exactly as written for display only, with an exact source quote and a scope requirement anchor ID. Unique quotes get recorded source locators automatically. Object inclusion remains a separate judgment."""
         return save_item(cs, actor(), operation_id, 'boundary', boundary.model_dump(mode='json'))
 
     def set_planning_details(operation_id: str, details: PlanDetails) -> dict:
