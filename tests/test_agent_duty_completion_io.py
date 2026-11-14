@@ -20,7 +20,7 @@ from test_agent_duty_repro_judgments import (
     selection_case, source_blocks, wire_packet, writer_case,
 )
 from test_agent_result_delivery import force_offload, packet, reply, run_role, wire_text
-from test_agent_duty_trace_cases import tool_reply, result_value, action
+from test_agent_duty_trace_cases import tool_reply, result_value, action, assert_delegated_failure
 from test_bounded_review import Model, review_call
 from test_decision_data import activate
 from test_deep_runtime import Driver, invoke
@@ -71,6 +71,7 @@ def note(request, case, conditions, **actual):
 async def test_p04_selected_table_packet_and_post_selection_loss(ws, monkeypatch, request, fault):
     original = text_work.selected_evidence
     mutations, failures = [], []
+    failed_tasks, parent_failures = [], []
     original_respond = Driver.respond
 
     def selected(*args, **kwargs):
@@ -87,9 +88,14 @@ async def test_p04_selected_table_packet_and_post_selection_loss(ws, monkeypatch
         return value
 
     async def capture(self, role, messages):
+        if role=='coordinator':
+            parent_failures.extend(m for m in messages if isinstance(m,ToolMessage) and m.name=='task' and m.status=='error' and
+                result_value(m).get('code')=='DELEGATED_EXECUTION_FAILED')
         try:
             return await original_respond(self, role, messages)
         except AssertionError as exc:
+            from report_agent.content_tasks import bound_actor
+            failed_tasks.append(bound_actor(ws,role,None).task_id)
             failures.append(str(exc))
             raise
 
@@ -98,9 +104,11 @@ async def test_p04_selected_table_packet_and_post_selection_loss(ws, monkeypatch
     if fault == 'none':
         await selection_case(ws, 'locators', request)
     else:
-        with pytest.raises(AssertionError):
-            await selection_case(ws, 'locators', request)
+        await selection_case(ws,'locators',request)
         assert mutations and any('I01_SELECTED_GUIDE_CHANGED' in f for f in failures)
+        assert len(parent_failures)==1
+        error=assert_delegated_failure(ws,parent_failures[0],'AssertionError',actor_task_ids=failed_tasks)
+        assert error['error']['message']=='EXECUTION_FAILED'
     note(request, 'P04', ['P04.C1', 'P04.C2'], fault=fault,
          sensitivity_only=fault != 'none', mutations=mutations)
 
@@ -113,6 +121,7 @@ async def test_p04_selected_criterion_payload_reaches_independent_input(ws, monk
     model = Model(json.dumps(producer_fixture()['payloads'][0]))
     original = text_work.prepare_material
     touched, failures = [], []
+    failed_tasks=[]
 
     def prepare(*args, **kwargs):
         material = original(*args, **kwargs)
@@ -132,6 +141,8 @@ async def test_p04_selected_criterion_payload_reaches_independent_input(ws, monk
         actual = json.loads(model.calls[0][1][1])
         criterion = next(e['object'] for e in actual['evidence'] if e.get('object', {}).get('ref') == refs['k'])
         if criterion != expected:
+            from report_agent.content_tasks import bound_actor
+            failed_tasks.append(bound_actor(ws,'writer',None).task_id)
             failures.append('P04_CRITERION_PAYLOAD_LOST')
         assert criterion == expected, 'P04_CRITERION_PAYLOAD_LOST'
         return AIMessage(content='Selected criterion received; no semantic acceptance.')
@@ -139,9 +150,11 @@ async def test_p04_selected_criterion_payload_reaches_independent_input(ws, monk
     script = [invoke('process_report_content', operation_id='criterion-input', objective='Use the selected criterion.',
                      object_type='ContentNode', input_refs=[refs['k']]), inspect]
     if id_only:
-        with pytest.raises(AssertionError):
-            await run_role(ws, 'writer', script, refs, snapshot, model)
-        assert touched and failures == ['P04_CRITERION_PAYLOAD_LOST']
+        driver=await run_role(ws,'writer',script,refs,snapshot,model)
+        assert touched and failures==['P04_CRITERION_PAYLOAD_LOST']
+        parent=next(m for m in driver.calls[-1][2] if isinstance(m,ToolMessage) and m.name=='task')
+        error=assert_delegated_failure(ws,parent,'AssertionError',actor_task_ids=failed_tasks)
+        assert error['error']['message']=='EXECUTION_FAILED'
     else:
         await run_role(ws, 'writer', script, refs, snapshot, model)
     assert cs.read(refs['k']) == expected

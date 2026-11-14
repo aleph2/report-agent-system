@@ -182,7 +182,13 @@ async def test_program_errors_and_cancellation_are_not_semantic_feedback(ws,canc
         if cancelled:
             raise asyncio.CancelledError()
         raise TypeError("Synthetic implementation failure")
-    driver=Driver(coordinator=[invoke("task",**review_assignment(snapshot, refs))],reviewer=[fail])
+    def parent(messages):
+        from langchain_core.messages import ToolMessage
+        from test_agent_duty_trace_cases import assert_delegated_failure
+        message=next(m for m in messages if isinstance(m,ToolMessage) and m.name=='task')
+        assert_delegated_failure(ws,message,'TypeError')
+        return AIMessage(content='Technical child failure; no review acceptance.')
+    driver=Driver(coordinator=[invoke('task',**review_assignment(snapshot,refs)),parent],reviewer=[fail])
     if cancelled:
         from types import SimpleNamespace
         request=SimpleNamespace(tool=None, tool_call=call("task",review_assignment(snapshot, refs),"cancel-task"))
@@ -193,8 +199,9 @@ async def test_program_errors_and_cancellation_are_not_semantic_feedback(ws,canc
             await deep_runtime.BusinessBoundary(ws,"coordinator").awrap_tool_call(request,cancel_handler)
     else:
         result=await deep_runtime.run_report(ws,driver)
-        assert result["status"]=="failed"
-    assert not any(e["kind"]=="content_delegation_failed" for e in ws.store.events())
+        assert result['last_error'] is None
+        assert not cs.list_objects('ReviewRecord')
+    assert sum(e['kind']=='content_delegation_failed' for e in ws.store.events())==int(not cancelled)
 
 
 def test_final_positive_projection_invalidates_on_export_change_and_local_defect(ws):

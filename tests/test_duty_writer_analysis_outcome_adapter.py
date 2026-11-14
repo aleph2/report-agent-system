@@ -190,8 +190,14 @@ async def test_writer_analysis_actual_sdk_selected_packet_and_budget(ws, request
     assert not (folder / 'first-mock-callback-error.json').exists()
     parents = [e['actual_child_return'] for e in capture['fake_parent_events'] if 'actual_child_return' in e]
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        assert 'MODEL_REQUEST_BUDGET_REACHED' in json.dumps(capture['raised_error']) + json.dumps(capture['runtime'])
+        assert result['status'] == 'native_observation_requires_review'
+        assert capture['raised_error'] is None and capture['runtime']['last_error'] is None
+        assert len(parents)==1
+        task_failure=json.loads(parents[0]["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         assert writer_turn == 1 and 'analysis_message' not in held
         assert not phases[-1].get('response')
         assert not any(exact_final_inside(p['content'], finding) for p in parents)

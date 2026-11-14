@@ -118,7 +118,9 @@ async def test_native_stale_grant_never_dispatches_or_replans(ws, tmp_path, monk
 
 
 async def test_completed_receipt_before_checkpoint_is_reused_without_provider(ws, tmp_path, monkeypatch):
+    from langgraph.types import interrupt
     driver, service, factory = case(ws)
+    issue=ws.issue('requirement','Synthetic completed receipt checkpoint?',[])
     await deep_runtime.run_report(ws, factory)
     pending = await snapshot(ws, factory)
     event = pending.interrupts[0].value
@@ -128,15 +130,18 @@ async def test_completed_receipt_before_checkpoint_is_reused_without_provider(ws
     async def fail_after_production(self, request, handler):
         result = await original(self, request, handler)
         if request.tool_call['args'].get('operation_id') == 'new-material':
-            raise RuntimeError('synthetic checkpoint-boundary crash after saved receipt')
+            answer=interrupt({'issue_id':issue['id'],'kind':'synthetic_test_checkpoint'})
+            assert answer=='Reuse the completed synthetic receipt.'
         return result
     monkeypatch.setattr(deep_runtime.BusinessBoundary, 'awrap_tool_call', fail_after_production)
     failed = await deep_runtime.run_report(ws, factory)
-    assert failed['status']=='failed' and len(service.calls)==2
+    assert failed['status']=='needs_human' and len(service.calls)==2
+    paused=await snapshot(ws,factory)
+    assert paused.interrupts[0].value['issue_id']==issue['id']
     actor_id = event['actor']['id']
     completed = ws.store.get('text_work:'+actor_id+':new-material')
     assert completed['state']=='completed'
-    monkeypatch.setattr(deep_runtime.BusinessBoundary, 'awrap_tool_call', original)
+    ws.decide_issue(issue['id'],'Reuse the completed synthetic receipt.')
     await deep_runtime.run_report(ws, factory)
     complete = await snapshot(ws, factory)
     assert not complete.next and not complete.interrupts

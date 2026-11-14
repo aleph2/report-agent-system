@@ -144,6 +144,8 @@ async def test_resume_instruction_delivery_diagnostic(ws, role, managed, request
 async def test_existing_oracle_detects_historical_information_loss(ws, monkeypatch, fault, request):
     from copy import deepcopy
     import traceback
+    from langchain_core.messages import ToolMessage
+    from test_agent_duty_trace_cases import result_value,assert_delegated_failure
     from report_agent import decision_data
     from test_agent_result_delivery import (
         test_each_report_agent_receives_source_tail_or_recovers_exact_field as source_oracle,
@@ -152,6 +154,7 @@ async def test_existing_oracle_detects_historical_information_loss(ws, monkeypat
     original_respond = Driver.respond
     injected = []
     assertion_sites = []
+    assertion_messages,failed_tasks,parent_failures=[],[],[]
 
     def lose_information(tool, value):
         metadata, complete = original(tool, value)
@@ -167,9 +170,15 @@ async def test_existing_oracle_detects_historical_information_loss(ws, monkeypat
         return metadata, complete
 
     async def observe_original_assertion(self, role, messages):
+        if role=='coordinator':
+            parent_failures.extend(m for m in messages if isinstance(m,ToolMessage) and m.name=='task' and m.status=='error' and
+                result_value(m).get('code')=='DELEGATED_EXECUTION_FAILED')
         try:
             return await original_respond(self, role, messages)
         except AssertionError as exc:
+            from report_agent.content_tasks import bound_actor
+            failed_tasks.append(bound_actor(ws,role,None).task_id)
+            assertion_messages.append(str(exc))
             # Native execution turns child exceptions into last_error. Capture
             # the untouched oracle's assertion before that normal handling.
             assertion_sites.extend({'function': frame.name, 'line': frame.line,
@@ -179,11 +188,16 @@ async def test_existing_oracle_detects_historical_information_loss(ws, monkeypat
 
     monkeypatch.setattr(decision_data, 'public_value', lose_information)
     monkeypatch.setattr(Driver, 'respond', observe_original_assertion)
-    with pytest.raises(AssertionError) as failure:
-        if fault == 'source_240':
-            await source_oracle(ws, monkeypatch, 'reviewer', False)
-        else:
-            await producer_oracle(ws, monkeypatch, False)
+    if fault=='source_240':
+        await source_oracle(ws,monkeypatch,'reviewer',False)
+        assert len(parent_failures)==1 and assertion_messages
+        error=assert_delegated_failure(ws,parent_failures[0],'AssertionError',actor_task_ids=failed_tasks)
+        assert error['error']['message']=='EXECUTION_FAILED'
+        outer_error=assertion_messages[0]
+    else:
+        with pytest.raises(AssertionError) as failure:
+            await producer_oracle(ws,monkeypatch,False)
+        outer_error=str(failure.value)
     assert injected
     expected_function, expected_expression = (
         ('inspect_source', "assert shown['metadata']['blocks'][0]['text'] == literal")
@@ -194,7 +208,7 @@ async def test_existing_oracle_detects_historical_information_loss(ws, monkeypat
     request.node.user_properties.append(('oracle_sensitivity', json.dumps({
         'fault': fault, 'injected_at': 'decision_data.public_value, memory only',
         'unchanged_original_oracle_failed': True, 'assertion_sites': assertion_sites,
-        'outer_error': str(failure.value)[:1000],
+        'outer_error': outer_error[:1000],
         'application_files_modified': False})))
 
 

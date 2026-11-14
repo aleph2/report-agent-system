@@ -133,9 +133,18 @@ async def test_native_remaining_consumer_sdk_fidelity_and_saved_state(ws, reques
         assert capture['criteria'][0]['payload'] == held['submitted']
         assert capture['tasks'] == capture['handoffs'] == capture['issues'] == []
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        assert capture['raised_error'] or capture.get('runtime_result', capture.get('runtime'))['last_error']
-        assert 'task_return' not in capture.get('parent', {})
+        if revision:
+            assert result['status'] == 'native_observation_requires_review'
+            assert capture['raised_error'] is None and capture.get('runtime_result',capture.get('runtime'))['last_error'] is None
+            task_failure=json.loads(capture['parent']['task_return']["content"])
+            task_failure=task_failure.get('metadata',task_failure)
+            assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+            assert task_failure['error']['type']=='RequestBudgetExceeded'
+            assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
+        else:
+            assert result['status']=='native_execution_incomplete'
+            assert capture['raised_error'] or capture.get('runtime_result',capture.get('runtime'))['last_error']
+            assert 'task_return' not in capture.get('parent',{})
         if not revision:
             assert capture['finals'] == []
         unsent = [r for r in rows if r['state'] == 'known_not_sent']

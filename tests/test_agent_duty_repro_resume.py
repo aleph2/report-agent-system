@@ -258,10 +258,12 @@ async def test_r01_real_async_cancellation_resets_binding(ws, request):
 @pytest.mark.parametrize('role', ['writer', 'layout'])
 async def test_r03_native_child_checkpoint_rebinds_actual_instruction(ws, role, request):
     from test_agent_duty_completion_resume import checkpoint
+    from langgraph.types import interrupt
     cs, _, _, snapshot, _ = seed(ws)
     activate(ws)
     _, current = goals(role)
     captured, interrupted_states = [], []
+    issue=ws.issue('requirement','Synthetic native child checkpoint?',[])
 
     def finish(messages):
         state = exact_task_context(ws, role)
@@ -274,7 +276,8 @@ async def test_r03_native_child_checkpoint_rebinds_actual_instruction(ws, role, 
         if not driver.failed:
             interrupted_states.append(deepcopy(exact_task_context(ws, role)))
             driver.failed = True
-            raise RuntimeError('OFFLINE_CHECKPOINT_INTERRUPTION')
+        answer=interrupt({'issue_id':issue['id'],'kind':'synthetic_test_checkpoint'})
+        assert answer=='Resume the same synthetic child.'
         return finish(messages)
 
     args = {'subagent_type': role, 'description': current}
@@ -283,12 +286,13 @@ async def test_r03_native_child_checkpoint_rebinds_actual_instruction(ws, role, 
     driver = Driver(coordinator=[action('task', 'checkpoint-child', **args), AIMessage(content='Done.')],
                     **{role: [action('read_decision_state', 'child-read', path=[]), interrupted]})
     first = await run_report(ws, driver)
-    assert driver.failed and first['last_error'] is not None
-    assert first['last_error']['message'] == 'OFFLINE_CHECKPOINT_INTERRUPTION'
+    assert driver.failed and first['status']=='needs_human' and first['last_error'] is None
     pending = await checkpoint(ws, driver)
-    assert pending['next'], 'FIXTURE_INVALID: no actual pending native checkpoint'
+    assert pending['next'] and len(pending['interrupts'])==1, 'FIXTURE_INVALID: no actual pending native checkpoint'
+    assert pending['interrupts'][0]['value']['issue_id']==issue['id']
     tasks = cs.list_objects('DelegatedTask')
     assert len(tasks) == 1
+    ws.decide_issue(issue['id'],'Resume the same synthetic child.')
     second = await run_report(ws, driver)
     after = await checkpoint(ws, driver)
     assert second['last_error'] is None, second

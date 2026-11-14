@@ -27,6 +27,19 @@ def result_value(message):
     return value.get('metadata', value)
 
 
+def assert_delegated_failure(workspace, message, error_type, *, actor_task_ids=()):
+    value=result_value(message)
+    assert message.status=='error' and value['ok'] is False
+    assert value['code']=='DELEGATED_EXECUTION_FAILED' and value['error']['type']==error_type
+    if actor_task_ids:
+        from report_agent.content_store import ContentStore
+        from report_agent.hierarchical_tools import actor_for
+        receipt=ContentStore(workspace.store).receipt(actor_for('coordinator'),'delegate:'+message.tool_call_id)
+        assert receipt['state']=='known_success'
+        assert set(actor_task_ids)=={receipt['response']['result']['task_ref']['id']}
+    return value
+
+
 def action(name, call_id, **args):
     message = invoke(name, **args)
     message.tool_calls[0]['id'] = call_id

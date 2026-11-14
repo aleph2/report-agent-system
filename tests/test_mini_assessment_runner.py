@@ -174,7 +174,9 @@ async def test_graph_limit_advances_only_a_committed_indicator(tmp_path, monkeyp
     result = await run_mini_assessment(workspace, Driver(writer=[decide] * 22)('writer'), verified_run=binding)
     if limit_before_save:
         assert result['status'] == 'interrupted'
-        assert result['slopes'][0]['error_type'] == 'GraphRecursionError'
+        assert result['slopes'][0]['error_type'] == 'ActionRejected'
+        limited=[e['data'] for e in workspace.store.events() if e['kind']=='assessment_graph_step_limit']
+        assert len(limited)==1 and limited[0]['object_label'] and limited[0]['indicator_id']
         assert not seen
     else:
         assert result['status'] == 'closed_with_gaps'

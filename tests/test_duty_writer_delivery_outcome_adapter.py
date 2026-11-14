@@ -229,8 +229,15 @@ async def test_writer_pair_actual_adapter_sdk_and_local_budget(ws, request, monk
     assert book_return['ok'] is True and book_return['result']['export_ref'] == book['ref']
     assert not any(r['type'] in {'DocumentSnapshot', 'ExportArtifact'} for r in (o['ref'] for o in fixture['originals']))
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        assert result['runtime_result']['last_error']['type'] == 'RequestBudgetExceeded'
+        assert result['status'] == 'native_observation_requires_review'
+        assert result['runtime_result']['last_error'] is None
+        parent=[e['actual_child_return'] for e in capture['fake_parent_events'] if e.get('actual_child_return')]
+        assert len(parent)==1
+        task_failure=json.loads(parent[0]["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         assert capture['finals'] == [] and 'final' not in held
         assert 'word_read' not in held and 'book_read' not in held
         assert not any(c['function']['name'] == 'read_content_export'

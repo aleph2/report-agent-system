@@ -176,7 +176,7 @@ async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,pl
                 sid,citation=active_prose["section"]
                 packet=json.loads(messages[-1].content)
                 assert packet["actor"]["role"]=="writer"
-                answer=AIMessage(json.dumps({"payloads":[dict(kind="block",body=dict(text=citation["quote"],section_id=sid),
+                answer=AIMessage(json.dumps({"payloads":[dict(kind="block",body=dict(text=citation["quote"]),
                     qualifiers={},claim_kind="fact",citations=[citation])]},ensure_ascii=False))
             elif role=="reviewer" and partial_review:
                 answer=AIMessage("尚未逐项复核。")

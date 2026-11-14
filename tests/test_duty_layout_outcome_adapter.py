@@ -251,9 +251,14 @@ async def test_layout_actual_adapter_sdk_files_vision_and_budget(ws, request, mo
     assert VISION_TEXT in json.dumps(requests[-1]['body'])
     parent = [e['actual_child_return'] for e in capture['fake_parent_events'] if e.get('actual_child_return')]
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        error = capture['raised_error'] or capture['runtime']['last_error']
-        assert error and 'RequestBudgetExceeded' in str(error)
+        assert result['status'] == 'native_observation_requires_review'
+        assert capture['raised_error'] is None and capture['runtime']['last_error'] is None
+        assert len(parent)==1
+        task_failure=json.loads(parent[0]["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         assert capture['finals'] == [] and 'final_packet' not in held and 'actual_vision_return' not in held
         assert all(VISION_TEXT not in json.dumps(e['wire']) for e in exchanges if e['role'] == 'layout')
         assert {r['request_sequence'] for r in responses} == set(range(1, 7))

@@ -19,71 +19,53 @@ from test_deliverable_declaration_v4 import case
 
 
 async def test_legacy_raw_busy_checkpoint_resumes_same_native_writer_task(case, monkeypatch):
-    """Historical raw-error permits remain compatible; current typed busy is tested in G1."""
-    cs, _, _, _, _ = case
-    ws = Workspace(cs.store)
-    manifest = ws.store.manifest
-    cs.store.set('manifest', {**manifest, 'context_policy':'stateful-tools-v2',
-        'execution_progress_policy':{'version':1, 'window':64, 'repeats':3, 'after_notice':2}})
-    seen = []
-    original = ExecutionProgress.save
-    failures = []
-
-    def local_failure(self, *args, **kwargs):
-        if self.role == 'writer' and seen and not failures:
-            failures.append('busy')
-            reader = sqlite3.connect(self.workspace.store.path)
-            try:
-                # Historical failure was a rollback-journal reader blocking COMMIT,
-                # not a WAL writer blocking BEGIN; the permit verifies that boundary.
-                assert reader.execute('PRAGMA journal_mode=DELETE').fetchone()[0] == 'delete'
-                reader.execute('BEGIN')
-                reader.execute('SELECT value FROM state LIMIT 1').fetchone()
-                from report_agent import store as store_module
-                with monkeypatch.context() as legacy_policy:
-                    legacy_policy.setattr(store_module, '_busy', lambda error: False)
-                    return original(self, *args, **kwargs)
-            finally:
-                try:
-                    reader.rollback()
-                    assert reader.execute('PRAGMA journal_mode=WAL').fetchone()[0] == 'wal'
-                finally:
-                    reader.close()
-        return original(self, *args, **kwargs)
-
+    """Resume a real accepted-e raw-busy checkpoint; typed busy stays covered in G1."""
+    from pathlib import Path
+    import subprocess,sys
+    from report_agent.content_store import ContentStore
+    root=Path(__file__).resolve().parents[1]
+    manifest=json.loads((root/'tests/fixtures/e_busy_checkpoint.json').read_text())
+    generator=root/manifest['generator'];accepted=root.parent/'stage1-main'
+    if not generator.is_file() or not accepted.is_dir():
+        pytest.skip('Private accepted-e fixture generator required for qualification')
+    assert hashlib.sha256(generator.read_bytes()).hexdigest()==manifest['generator_sha256']
+    target=case[0].store.root
+    proof_path=target/'accepted-e-busy-proof.json'
+    # Request ownership includes the absolute case path; generate e and resume f in place.
+    generated=subprocess.run([sys.executable,'-B',str(generator),str(accepted),str(target),str(proof_path)],
+        cwd=accepted,capture_output=True,text=True)
+    assert generated.returncode==0,(generated.stdout,generated.stderr)
+    proof=json.loads(proof_path.read_text())
+    assert proof['source_commit']==manifest['source_commit'] and proof['source_sha256']==manifest['source_sha256']
+    assert proof['case_path']==str(target.resolve())
+    ws=Workspace(Store(target));cs=ContentStore(ws.store)
+    tasks=cs.list_objects('DelegatedTask')
+    result=proof['result'];assert result['last_error']['type']=='OperationalError'
+    diagnostic_id=result['last_error']['diagnostic_id']
+    diagnostic=target/'diagnostics/private'/(diagnostic_id+'.json')
+    assert hashlib.sha256(diagnostic.read_bytes()).hexdigest()==proof['diagnostic_sha256']
+    assert any(row.get('sqlite_errorcode')==5 for row in json.loads(diagnostic.read_text())['exceptions'])
+    seen=[]
+    def first_tool(messages):
+        seen.append('writer requested calculation')
+        return invoke('calculate',terms=[['2','3']])
     def after_calculation(messages):
         seen.append('writer continued')
         return AIMessage(content='Synthetic writer work completed.')
-
-    def first_tool(messages):
-        seen.append('writer requested calculation')
-        return invoke('calculate', terms=[['2','3']])
-
-    monkeypatch.setattr(ExecutionProgress, 'save', local_failure)
-    first = Driver(coordinator=[invoke('task', subagent_type='writer', description='Write from sources.'),
-                                AIMessage(content='Synthetic coordinator complete.')],
-                   writer=[first_tool, after_calculation])
-    result = await run_report(ws, first)
-    assert failures == ['busy']
-    assert result['last_error'] is not None
-    assert seen == ['writer requested calculation']
-    monkeypatch.setattr(ExecutionProgress, 'save', original)
-    resumed = Driver(coordinator=[AIMessage(content='unused'), AIMessage(content='Synthetic coordinator complete.')],
-                     writer=[first_tool, after_calculation])
+    resumed=Driver(coordinator=[AIMessage(content='unused'),AIMessage(content='Synthetic coordinator complete.')],
+        writer=[first_tool,after_calculation])
     from report_agent.supervision_plugins import local_busy_resume
-    event = next(e['data'] for e in cs.store.events() if e['kind'] == 'native_delegation_reserved')
-    diagnostic_id = result['last_error']['diagnostic_id']
-    diagnostic = cs.store.root/'diagnostics'/'private'/(diagnostic_id+'.json')
-    with local_busy_resume(cs.store, call_id=event['native_tool_call_id'], task_id=event['task_id'],
-                           diagnostic_id=diagnostic_id, diagnostic_sha256=hashlib.sha256(diagnostic.read_bytes()).hexdigest()):
-        final = await run_report(Workspace(Store(cs.store.root)), resumed)
-    assert final['last_error'] is None
-    assert seen == ['writer requested calculation', 'writer continued']
-    events = [e['data'] for e in cs.store.events() if e['kind'] == 'native_delegation_reserved']
-    assert len(events) == 1
-    assert any(role == 'coordinator' and any(isinstance(m, ToolMessage) and m.name == 'task' and
-               'Synthetic writer work completed.' in m.content for m in messages)
-               for role, _, messages in resumed.calls)
+    event=proof['reservation']
+    with local_busy_resume(cs.store,call_id=event['native_tool_call_id'],task_id=event['task_id'],
+        diagnostic_id=diagnostic_id,diagnostic_sha256=proof['diagnostic_sha256']):
+        final=await run_report(ws,resumed,continue_from_checkpoint=proof['root_head'])
+    assert final['last_error'] is None,final
+    assert seen==['writer continued'] and resumed.calls[0][:2]==('writer',1)
+    assert cs.list_objects('DelegatedTask')==tasks
+    events=[e['data'] for e in cs.store.events() if e['kind']=='native_delegation_reserved']
+    assert events==[event]
+    assert any(role=='coordinator' and any(isinstance(m,ToolMessage) and m.name=='task' and
+        'Synthetic writer work completed.' in m.content for m in messages) for role,_,messages in resumed.calls)
 
 
 def fake_diagnostic(store, *, exception_type='OperationalError', code=5):

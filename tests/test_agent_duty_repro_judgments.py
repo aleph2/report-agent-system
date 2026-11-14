@@ -21,6 +21,7 @@ from test_agent_result_delivery import force_offload, packet, reply, run_role, w
 from test_bounded_review import Model, review_call
 from test_decision_data import activate
 from test_deep_runtime import Driver, invoke
+from test_agent_duty_trace_cases import result_value, assert_delegated_failure
 from test_hierarchical_content import seed
 from test_producer_observations import as_legacy_producer
 from test_task_supervision import ws, offline
@@ -470,12 +471,18 @@ async def test_i01_read_then_explicit_selection_matches_actual_independent_packe
                                   'review-findings', 'analysis-tail', 'analysis-contradiction', 'selected-footnote'])
 async def test_public_judgment_oracles_detect_post_output_program_information_loss(ws, monkeypatch, fault, request):
     sites, injected, assertion_messages = [], [], []
+    failed_tasks,parent_failures=[],[]
     original_respond = Driver.respond
 
     async def capture(self, role, messages):
+        if role=='coordinator':
+            parent_failures.extend(m for m in messages if isinstance(m,ToolMessage) and m.name=='task' and m.status=='error' and
+                result_value(m).get('code')=='DELEGATED_EXECUTION_FAILED')
         try:
             return await original_respond(self, role, messages)
         except AssertionError as exc:
+            from report_agent.content_tasks import bound_actor
+            failed_tasks.append(bound_actor(ws,role,None).task_id)
             sites.extend({'function': f.name, 'line': f.line} for f in traceback.extract_tb(exc.__traceback__))
             assertion_messages.append(str(exc))
             raise
@@ -528,8 +535,14 @@ async def test_public_judgment_oracles_detect_post_output_program_information_lo
         else:
             run, expected_site = analysis_case(ws, 'writer', 'analyze_evidence', False, request), 'inspect_analysis'
             expected_marker = 'J03_PUBLIC_ANALYSIS_CHANGED'
-    with pytest.raises(AssertionError):
+    if fault in {'analysis-tail','analysis-contradiction','selected-footnote'}:
         await run
+        assert len(parent_failures)==1
+        error=assert_delegated_failure(ws,parent_failures[0],'AssertionError',actor_task_ids=failed_tasks)
+        assert error['error']['message']=='EXECUTION_FAILED'
+    else:
+        with pytest.raises(AssertionError):
+            await run
     assert injected, 'Fault did not reach the intended program boundary'
     assert any(s['function'] == expected_site for s in sites), sites
     assert any(expected_marker in message for message in assertion_messages), assertion_messages

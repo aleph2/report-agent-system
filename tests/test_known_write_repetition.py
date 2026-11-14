@@ -17,13 +17,19 @@ async def test_managed_context_persistent_known_write_keeps_original_failure_con
         return commit(self, actor, operation, *args, **kwargs)
     monkeypatch.setattr(ContentStore, "commit", count_handler)
     ws, cs, driver, seen, result = await known_write_repetition_case(tmp_path, managed=True, reference=reference)
-    assert result["status"] == "failed"
-    assert result["last_error"]["message"] == "REPEATED_ACTION_WITHOUT_STATE_PROGRESS"
+    from langchain_core.messages import ToolMessage
+    from test_agent_duty_trace_cases import assert_delegated_failure
+    assert result['last_error'] is None
+    message=next(m for m in driver.calls[-1][2] if isinstance(m,ToolMessage) and m.name=='task')
+    failure=assert_delegated_failure(ws,message,'RuntimeError')
+    assert failure['error']['message']=='REPEATED_ACTION_WITHOUT_STATE_PROGRESS'
+    stopped=[e['data'] for e in ws.store.events() if e['kind']=='known_write_repetition_stopped']
+    assert len(stopped)==1 and stopped[0]['attempted_write_executed'] is False
     assert seen["advisory_observed"]
     assert len(cs.list_objects("ContentNode")) == len(cs.list_objects("DelegatedTask")) == 1
     assert len([r for r in driver.calls if r[0] == "writer"]) == 5
     assert len(actual_commits) == 4  # The chosen post-notice replay never enters its handler.
-    assert (await snapshot(ws, driver)).next
+    assert not (await snapshot(ws, driver)).next
 
 
 @pytest.mark.parametrize("managed", [False, True])

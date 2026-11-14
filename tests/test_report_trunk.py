@@ -445,13 +445,19 @@ async def test_exact_repetition_stops_without_a_total_call_quota(tmp_path):
     from repetition_fixtures import known_write_repetition_case
     from test_deep_runtime import snapshot
     ws, cs, driver, seen, status = await known_write_repetition_case(tmp_path)
-    assert status["status"] == "failed"
-    assert status["last_error"]["message"] == "REPEATED_ACTION_WITHOUT_STATE_PROGRESS"
+    from langchain_core.messages import ToolMessage
+    from test_agent_duty_trace_cases import assert_delegated_failure
+    assert status['last_error'] is None
+    message=next(m for m in driver.calls[-1][2] if isinstance(m,ToolMessage) and m.name=='task')
+    failure=assert_delegated_failure(ws,message,'RuntimeError')
+    assert failure['error']['message']=='REPEATED_ACTION_WITHOUT_STATE_PROGRESS'
+    stopped=[e['data'] for e in ws.store.events() if e['kind']=='known_write_repetition_stopped']
+    assert len(stopped)==1 and stopped[0]['attempted_write_executed'] is False
     assert len(cs.list_objects("DelegatedTask")) == 1
     assert len(cs.list_objects("ContentNode")) == 1
     assert cs.list_objects("ContentNode")[0]["ref"]["version"] == 1
     assert seen["advisory_observed"]
-    assert (await snapshot(ws, driver)).next
+    assert not (await snapshot(ws, driver)).next
 
 
 def test_adoption_is_explicit_but_exact_review_target_must_be_observed(tmp_path):

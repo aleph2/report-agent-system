@@ -177,8 +177,16 @@ def test_packaged_expression_release_extends_legacy_files_without_rewriting_them
     for source, clause in expected.items():
         old = (prompt_sources.RULES / (source + '.md')).read_bytes()
         new = (prompt_sources.RULES / (source + '-v2.md')).read_bytes()
-        assert new.startswith(old + b'\n')
-        assert clause in new[len(old):].decode()
+        if source=='text-work':
+            from hashlib import sha256
+            assert sha256(old).hexdigest()=='0de421b8c4ab0473639d522dc8dff1529a2df72c9588536dbbf4fab84909fab0'
+            text=' '.join(new.decode().split())
+            assert clause in text and 'For generic ContentNode destinations' in text
+            assert 'Assigned section prose is a block with only body.text and empty qualifiers' in text
+            assert 'qualification, uncertainty and source limitation in rendered text' in text
+        else:
+            assert new.startswith(old+b'\n')
+            assert clause in new[len(old):].decode()
     # Source selection is intentionally independent of all other release axes.
     assert prompt_sources.expression_source('content-reviewer', READER) == 'content-reviewer'
     assert prompt_sources.expression_source('text-work') == 'text-work'

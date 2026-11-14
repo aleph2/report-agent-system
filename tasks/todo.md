@@ -594,3 +594,8 @@ Authoritative decisions and private evidence: `.private/scope-record-repair-2026
 - [ ] Deferred design: bounded disconnect retry and evidence-attributed unknown-attempt settlement. N1/N2 stay nonblocking; live owner-answer delivery remains a design item.
 - [ ] **D13 (P2; outside f except its graph bound):** move the fixed three-page allowance and two-save-refusal interruption bound to MethodPack/authority data; retain independent per-indicator execution and atomic outcome saves. Rename the product `PROBE_INDICATOR_STEP_INTERRUPTED` / `PROBE_INDICATOR_PROGRESS_MISMATCH` codes with D13. Escalate only if one of these remaining bounds actually blocks the next authorized continuation.
 - [ ] **D14 (P1 before the second report type, change-plan review):** review a MethodPack-declared evaluation-unit/outcome/formula design so non-indicator report methods preserve atomic per-unit judgment and provenance. Code keeps generic mechanics and declared exact arithmetic; the agent judges units. First perform a read-only inventory separating generic mechanics from graded-indicator semantics. This subsumes D4/D13; it is outside f and does not block Fake03 or real G4. The advisor's approximate module/line counts have not been independently recounted.
+
+
+## 2026-11-14 tag-f follow-up
+
+- [ ] **N3 / P2, nonblocking for f:** restore delegated authentication/permission infrastructure-fault stopping in a later source change. Claude accepted this backlog disposition in `1a1d9d5a7afe0c79`; do not alter approved product commit `6f4f1ab` during test-only qualification. Current f containment commits known delegated failures; newly unknown paid outcomes still escape and retain their holds.

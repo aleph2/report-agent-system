@@ -189,10 +189,15 @@ async def test_reviewer_source_actual_sdk_handoff_and_shared_budget(ws, request,
     assert capture['task_status'][0]['execution_complete'] is True
     assert not (folder / 'first-mock-callback-error.json').exists()
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        assert 'MODEL_REQUEST_BUDGET_REACHED' in json.dumps(capture['raised_error']) + json.dumps(capture['runtime'])
+        assert result['status'] == 'native_observation_requires_review'
+        assert capture['raised_error'] is None and capture['runtime']['last_error'] is None
+        task_failure=json.loads(capture['fake_parent_events'][-1]['actual_child_return']["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         assert held['turn'] == 4 and 'final_messages' not in held
-        assert 'actual_child_return' not in capture['fake_parent_events'][-1]
+        assert capture['fake_parent_events'][-1]['actual_child_return']['status']=='error'
         assert not capture['phase_events'][-1].get('response')
     else:
         assert result['status'] == 'native_observation_requires_review'

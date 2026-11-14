@@ -109,9 +109,13 @@ async def test_native_pending_refusal_replay_then_explicit_new_work_adopts_once(
     try:
         with token_budget(budget):
             stopped = await deep_runtime.run_report(ws, factory)
-        assert stopped['status']=='failed' and not dispatched
-        pending = await snapshot(ws, factory)
-        assert pending.next
+        assert stopped['last_error'] is None and not dispatched
+        from langchain_core.messages import ToolMessage
+        from test_agent_duty_trace_cases import assert_delegated_failure
+        message=next(m for m in driver.calls[-1][2] if isinstance(m,ToolMessage) and m.name=='task')
+        assert_delegated_failure(ws,message,'RequestBudgetExceeded')
+        assert not (await snapshot(ws,factory)).next
+        retained_tasks=ContentStore(ws.store).list_objects('DelegatedTask')
         events = [e['data'] for e in ws.store.events() if e['kind']=='bounded_operation_not_dispatched']
         assert len(events)==1 and len(events[0]['previous'])==2
         old_key = next(k for k in events[0]['previous'] if k.startswith('text_work:'))
@@ -120,8 +124,22 @@ async def test_native_pending_refusal_replay_then_explicit_new_work_adopts_once(
         TokenBudget.increase_authorization(budget.path, previous_maximum=1, new_maximum=20000,
             authorization_id='offline-test', authorization_sha256='a'*64)
         budget = TokenBudget(budget.path, 20000, {'glm-5.3':10000})
+        def explicit_choice(messages):
+            last=next((m for m in reversed(messages) if isinstance(m,ToolMessage)),None)
+            if last is not None and last.tool_call_id=='resume-not-dispatched':
+                return AIMessage(content='Explicit new work completed; old refusal retained.')
+            if last is not None and last.name=='read_object_index':
+                page=observation(messages,'read_object_index')
+                choice=invoke('task',subagent_type='writer',description='Continue the same Writer with an explicit new operation.',
+                    resume_content_task_id=page['objects'][0]['ref']['id'])
+                choice.tool_calls[0]['id']='resume-not-dispatched'
+                return choice
+            return invoke('read_object_index',object_type='DelegatedTask')
+        fresh=Driver(coordinator=[explicit_choice]*8,writer=driver.scripts['writer'])
+        fresh_factory=lambda role:model if role=='text_tool' else fresh(role)
         with token_budget(budget):
-            completed = await deep_runtime.run_report(ws, factory)
+            completed=await deep_runtime.run_report(ws,fresh_factory)
+        assert ContentStore(ws.store).list_objects('DelegatedTask')==retained_tasks
         assert completed['last_error'] is None, completed
         assert len(dispatched)==1
         assert ws.store.get(old_key)==old

@@ -2,6 +2,9 @@
 import asyncio
 from copy import deepcopy
 import json
+import httpx
+
+_ASYNC_SEND = httpx.AsyncClient.send
 
 import pytest
 from deepagents.backends import StateBackend
@@ -117,7 +120,7 @@ async def test_lower_permission_unknown_task_does_not_reach_native_handler_or_cr
 
 
 @pytest.mark.parametrize('failure', [asyncio.CancelledError, TypeError, RuntimeError])
-async def test_registered_task_preserves_cancellation_and_records_known_failures(ws, failure, request):
+async def test_registered_task_preserves_cancellation_and_records_known_failures(ws, failure, request, monkeypatch):
     new_path(ws)
     cs, _, refs, snapshot, _ = seed(ws)
     tool = registered_task()
@@ -156,6 +159,46 @@ async def test_registered_task_preserves_cancellation_and_records_known_failures
     assert len(reached) == 1 and action == original
     assert sum(e['kind']=='content_delegation_failed' for e in ws.store.events())==int(failure is not asyncio.CancelledError)
     assert cs.list_objects('ReviewRecord') == []
+    if failure is RuntimeError:
+        from types import SimpleNamespace
+        from test_writer_context_replay import glm_model,reply
+        from test_transport_observation import close
+        capped=TokenBudget(ws.store.root/'parent-next-ledger.db',1000,{'glm-5.3':40})
+        for _ in range(2):capped.settle(capped.reserve('glm-5.3'),None)
+        with capped.connect() as db:old_holds=[list(row) for row in db.execute('SELECT * FROM attempts ORDER BY id')]
+        shared=CampaignRunBudget(capped.path,'parent-next',maximum_tokens=40,aggregate_tokens=1000,
+            model_bounds={'glm-5.3':40},authority_sha256='b'*64,
+            preserved_holds=old_holds,guard_sha256=sha256(b'').hexdigest())
+        model,wires=glm_model(SimpleNamespace(ws=ws),monkeypatch,
+            lambda turn,body:reply([('budget-child','task',review_assignment(snapshot,refs))]))
+        # The protocol fixture disables send; only this MockTransport uses the real SDK path.
+        assert isinstance(model.http_async_client._transport,httpx.MockTransport)
+        monkeypatch.setattr(model.http_async_client,'send',_ASYNC_SEND.__get__(model.http_async_client))
+        attempted=[]
+        async def before_admission(http_request):
+            attempted.append(json.loads(http_request.content))
+        model.http_async_client.event_hooks['request'].insert(0,before_admission)
+        try:
+            with token_budget(shared):
+                stopped=await run_report(ws,lambda role:model)
+        finally:
+            await close(model)
+        assert stopped['last_error']['type']=='RequestBudgetExceeded',stopped
+        assert stopped['last_error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
+        assert shared.admission_refusal=='REPORT_RUN_TOKEN_LIMIT'
+        assert len(attempted)==3 and len(wires)==1
+        feedback=json.loads(next(m['content'] for m in attempted[-1]['messages']
+            if m['role']=='tool' and m.get('tool_call_id')=='budget-child'))
+        feedback=feedback.get('metadata',feedback)
+        assert feedback['code']=='DELEGATED_EXECUTION_FAILED' and feedback['error']['type']=='RequestBudgetExceeded'
+        assert shared.run_snapshot()=={'maximum_tokens':40,'settled':10,'held':0}
+        with capped.connect() as db:
+            rows=[list(row) for row in db.execute('SELECT * FROM attempts ORDER BY id')]
+        assert [row for row in rows if row[0] in {h[0] for h in old_holds}]==old_holds
+        assert len(rows)==len(old_holds)+1 and sum(row[4]=='settled' for row in rows)==1
+        retain(request,boundary='same_ledger_child_refusal_then_parent_admission',
+            attempted_requests=len(attempted),http_sends=len(wires),budget=shared.run_snapshot(),
+            admission_refusal=shared.admission_refusal,parent_failure=feedback,terminal=stopped)
 
 
 @pytest.mark.parametrize('variant', ['artifact', 'combined', 'outer-string', 'malformed-element', 'unrelated', 'multiple-review-fields'])

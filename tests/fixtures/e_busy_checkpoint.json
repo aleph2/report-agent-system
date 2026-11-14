@@ -1,0 +1,12 @@
+{
+  "source_commit": "5c7a574140d972d2f080e09726dd44ff975e714f",
+  "source_sha256": {
+    "src/report_agent/deep_runtime.py": "637098fda628346f1e2ff56a49ac287bdf0508cc9440a653310b28253bb0d59c",
+    "src/report_agent/execution_progress.py": "d4875a635a82da0e8150f95989856682631b85cfce82e979b48da6aac04db48c",
+    "src/report_agent/store.py": "2e625144a50c9d3b712ed3c77f32f898e2361a60834c5eb3a5ac2863f2e59d60",
+    "tests/test_writer_checkpoint_restart.py": "dce3c35a9ad069c491edd30bcfa7e64c521897c04cb53c506a815cebb8042d9e"
+  },
+  "generator": ".private/fenced-json-20261114/generate-e-busy-in-place.py",
+  "generator_sha256": "403317a217d30bd259d56d9ece9d4eefa885baf91dd04a6ecc6d0585d2bc05af",
+  "mode": "Generate real accepted-e SQL_BUSY in the test temporary case; absolute request-owner path stays unchanged for f resume."
+}

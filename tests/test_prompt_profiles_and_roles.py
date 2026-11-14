@@ -50,8 +50,13 @@ async def test_role_renderer_override_cannot_change_the_independent_file_baselin
     driver=Driver(coordinator=[invoke('task',**commission(snap,refs)),AIMessage(content='No claimed review.')],
         reviewer=[AIMessage(content='A superficially plausible fake answer must never be used.')])
     result=await deep_runtime.run_report(ws,driver)
-    assert result['last_error'] is not None
-    assert 'PROMPT_STATIC_ROLE_REPLACED' in json.dumps(result['last_error'])
+    from langchain_core.messages import ToolMessage
+    from test_agent_duty_trace_cases import assert_delegated_failure
+    assert result['last_error'] is None
+    message=next(m for m in driver.calls[-1][2] if isinstance(m,ToolMessage) and m.name=='task')
+    failure=assert_delegated_failure(ws,message,'PromptCompositionError')
+    assert failure['error']['message'].startswith('PROMPT_STATIC_ROLE_REPLACED')
+    assert failure['error']['automatic_retry'] is False
     assert not [r for r,_,_ in driver.calls if r=='reviewer']
 
 

@@ -104,8 +104,13 @@ async def test_reviewer_consumer_sdk_preserves_actual_result_and_local_refusal(w
     wire = observed_requests[0]['body']
     assert {m['tool_call_id']: m['content'] for m in wire['messages'] if m['role'] == 'tool'} == actual_returns
     if exhausted:
-        assert result['status'] == 'native_execution_incomplete'
-        assert capture['raised_error'] or capture['runtime']['last_error']
+        assert result['status'] == 'native_observation_requires_review'
+        assert capture['raised_error'] is None and capture['runtime']['last_error'] is None
+        task_failure=json.loads(capture['parent']['task_return']["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         assert not capture['consumer_finals'] and not observed_responses
         assert len(rows) == 1 and rows[0]['used'] == 0 and rows[0]['response_id'] is None
         assert rows[0]['reason'] == 'Local transport admission rejected before send'

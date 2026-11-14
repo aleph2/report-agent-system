@@ -258,8 +258,14 @@ async def test_layout_comparison_actual_sdk_handoffs_files_and_shared_budget(ws,
     dump(folder / 'full-native-vision-handoffs.json', {'observations': observations,
         'parent_returns': parent, 'current_observation_received_by_successful_layout_response': not refused})
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        assert 'MODEL_REQUEST_BUDGET_REACHED' in json.dumps(capture['raised_error']) + json.dumps(capture['runtime'])
+        assert result['status'] == 'native_observation_requires_review'
+        assert capture['raised_error'] is None and capture['runtime']['last_error'] is None
+        assert len(parent)==1
+        task_failure=json.loads(parent[0]["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         assert held['turn'] == 3 and 'after' not in held and 'final_packet' not in held
         assert not phases[-1].get('response')
         unsent, = [a for a in attempts if a['state'] == 'known_not_sent']

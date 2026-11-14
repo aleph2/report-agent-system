@@ -276,7 +276,11 @@ async def test_task_preflight_preserves_raw_and_does_not_swallow_internal_valida
         monkeypatch.setattr(content_tasks, "delegated_task", internal_error_after_valid_input)
     def parent(messages):
         message = next(m for m in reversed(messages) if isinstance(m, ToolMessage) and m.tool_call_id == "valid-task")
-        assert message.status == "success" and "Valid native child executed." in message.content
+        if internal_failure:
+            from test_agent_duty_trace_cases import assert_delegated_failure
+            assert_delegated_failure(ws,message,'ValidationError')
+        else:
+            assert message.status=='success' and 'Valid native child executed.' in message.content
         seen.append(message.content)
         return AIMessage(content="Actual child return observed; no report acceptance.")
     driver = Driver(coordinator=[AIMessage(content="", tool_calls=[call("task", raw, "valid-task")]), parent],
@@ -287,9 +291,8 @@ async def test_task_preflight_preserves_raw_and_does_not_swallow_internal_valida
     assert start["arguments"] == original_raw
     assert events(ws,"deep_tool_argument_decoded") == []
     if internal_failure:
-        assert result["status"] == "failed" and result["last_error"]["type"] == "ValidationError", result
-        assert result["last_error"]["diagnostic_id"]
-        assert not seen and not any(role == "writer" for role,_,_ in driver.calls)
+        assert result['last_error'] is None and len(seen)==1, result
+        assert not any(role=='writer' for role,_,_ in driver.calls)
         assert events(ws,"native_tool_schema_error") == []
     else:
         assert result["last_error"] is None and seen, result

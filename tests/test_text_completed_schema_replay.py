@@ -13,12 +13,13 @@ from test_task_supervision import ws, offline
 
 
 async def test_native_pending_tool_checkpoint_reuses_completed_result_after_schema_repair(ws, monkeypatch):
-    import asyncio
+    from langgraph.types import interrupt
     from langchain_core.messages import AIMessage
     from report_agent import text_work
     from report_agent.deep_runtime import run_report
     from report_agent.content_store import ContentStore
-    from test_deep_runtime import Driver, invoke, observation
+    from test_deep_runtime import Driver, invoke, observation, snapshot
+    issue=ws.issue('requirement','Synthetic completed-schema checkpoint?',[])
     def save_work(messages):
         work = observation(messages, 'process_report_content')
         return invoke('save_text_node', operation_id='adopt-resumed', text_work_id=work['text_work_id'])
@@ -29,25 +30,23 @@ async def test_native_pending_tool_checkpoint_reuses_completed_result_after_sche
         text_tool=[AIMessage(content=json.dumps(content()))])
     original_produce, current_schema = text_work.produce, ContentNode.model_json_schema
     async def stop_after_saved(*args, **kwargs):
-        await original_produce(*args, **kwargs)
-        raise asyncio.CancelledError('simulated host stop after completed receipt before ToolMessage')
+        result=await original_produce(*args, **kwargs)
+        answer=interrupt({'issue_id':issue['id'],'kind':'synthetic_test_checkpoint'})
+        assert answer=='Adopt the exact completed payload.'
+        return result
     def old_schema(*args, **kwargs):
         result = deepcopy(current_schema(*args, **kwargs))
         result.pop('allOf', None)
         return result
+    monkeypatch.setattr(text_work,'produce',stop_after_saved)
     with monkeypatch.context() as patch:
-        patch.setattr(ContentNode, 'model_json_schema', old_schema)
-        patch.setattr(text_work, 'produce', stop_after_saved)
-        try:
-            stopped = await run_report(ws, driver)
-        except asyncio.CancelledError:
-            pass
-        else:
-            # An internally cancelled node is wrapped by native LangGraph;
-            # external task cancellation instead propagates CancelledError.
-            assert stopped['last_error']['type'] == 'NodeCancelledError'
-            assert 'CancelledError' in stopped['last_error']['cause_types']
+        patch.setattr(ContentNode,'model_json_schema',old_schema)
+        stopped=await run_report(ws,driver)
+        assert stopped['status']=='needs_human' and stopped['last_error'] is None
+        pending=await snapshot(ws,driver)
+        assert pending.interrupts[0].value['issue_id']==issue['id']
     assert not ContentStore(ws.store).list_objects('ContentNode')
+    ws.decide_issue(issue['id'],'Adopt the exact completed payload.')
     result = await run_report(ws, driver)
     assert result['last_error'] is None
     nodes = ContentStore(ws.store).list_objects('ContentNode')

@@ -249,8 +249,13 @@ async def test_writer_next_adapter_sdk_wire_and_shared_budget(ws, request, monke
         assert_guidance_state(capture, held, variant, refused)
     runtime = capture.get('runtime_result', capture.get('runtime'))
     if refused:
-        assert result['status'] == 'native_execution_incomplete'
-        assert capture['raised_error'] or runtime['last_error']
+        assert result['status'] == 'native_observation_requires_review'
+        assert capture['raised_error'] is None and runtime['last_error'] is None
+        task_failure=json.loads(capture['parent']['task_return' if multi else 'actual_task_return']["content"])
+        task_failure=task_failure.get('metadata',task_failure)
+        assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert task_failure['error']['type']=='RequestBudgetExceeded'
+        assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
         unsent = [r for r in rows if r['state'] == 'known_not_sent']
         assert len(unsent) == 1 and unsent[0]['used'] == 0 and unsent[0]['response_id'] is None
         assert unsent[0]['reason'] == 'Local transport admission rejected before send'

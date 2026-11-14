@@ -318,9 +318,18 @@ async def run_sdk(ws, request, monkeypatch, case, *, zero_remaining=False, follo
         assert ({'task', 'read_task_supervision'} if case == P09 else
                 {'perform_assigned_artifact_review', 'inspect_rendered_page'}) <= names
     if zero_remaining:
-        assert result['status'] == 'native_execution_incomplete'
-        assert capture['raised_error'] or (capture.get('runtime_result', capture.get('runtime')) or {}).get('last_error')
-        assert 'MODEL_REQUEST_BUDGET_REACHED' in json.dumps([result, capture['raised_error']], ensure_ascii=False)
+        if case==P12:
+            assert result['status'] == 'native_observation_requires_review'
+            assert capture['raised_error'] is None and capture.get('runtime_result',capture.get('runtime'))['last_error'] is None
+            task_failure=json.loads(capture['parent']['task_return']["content"])
+            task_failure=task_failure.get('metadata',task_failure)
+            assert task_failure['ok'] is False and task_failure['code']=='DELEGATED_EXECUTION_FAILED'
+            assert task_failure['error']['type']=='RequestBudgetExceeded'
+            assert task_failure['error']['message']=='MODEL_REQUEST_BUDGET_REACHED'
+        else:
+            assert result['status']=='native_execution_incomplete'
+            assert capture['raised_error'] or (capture.get('runtime_result',capture.get('runtime')) or {}).get('last_error')
+            assert 'MODEL_REQUEST_BUDGET_REACHED' in json.dumps([result,capture['raised_error']],ensure_ascii=False)
     else:
         assert result['status'] == 'native_observation_requires_review'
         assert capture['raised_error'] is None
@@ -411,7 +420,7 @@ def assert_original_checker_rejection(bundle, *, refused, new_vision=False):
     assert current['remaining'] == old['remaining']
     assert not capture['host_completion_actions']
     if refused:
-        assert 'task_return' not in capture['parent']
+        assert capture['parent']['task_return']['status']=='error'
     else:
         assert error_value == held['public_error']
         assert first_error.content == held['public_wire_message']['content']

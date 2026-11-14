@@ -109,7 +109,15 @@ async def test_recorded_two_scope_result_reaches_native_reviewer_and_parent(ws, 
     if case == 'public-limit-loss':
         assert held['oracle_failures'] == [{'path': 'items.1.observations.0.limitations', 'actual': '',
             'expected': capture['fixture']['expected_assessments']['items'][1]['observations'][0]['limitations']}]
-        assert capture['runtime']['last_error'] or capture['raised_error']
+        assert capture['runtime']['last_error'] is None and capture['raised_error'] is None
+        failure=json.loads(capture['parent']['task_return']['content'])
+        failure=failure.get('metadata',failure)
+        assert failure['ok'] is False and failure['code']=='DELEGATED_EXECUTION_FAILED'
+        assert failure['error']=={'type':'AssertionError','http_status':None,'message':'EXECUTION_FAILED'}
+        actual_call=capture['parent']['task_return']['tool_call_id']
+        from report_agent.hierarchical_tools import actor_for
+        receipt=ContentStore(ws.store).receipt(actor_for('coordinator'),'delegate:'+actual_call)
+        assert receipt['state']=='known_success' and receipt['response']['result']['task_ref']['id']==capture['saved_reviews'][0]['task_id']
         assert held['oracle_failure_traceback']['type'] == 'AssertionError'
         assert held['oracle_failure_traceback']['message'].startswith(
             'P08_RECORDED_RESULT_FIELD:items.1.observations.0.limitations')
