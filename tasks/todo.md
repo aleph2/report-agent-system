@@ -574,5 +574,9 @@ Authoritative decisions and private evidence: `.private/scope-record-repair-2026
 ### Pinned native continuation entry (2026-11-13)
 
 - [x] D1/D2 are complete under the reviewed d candidate; the earlier descriptions above record the original defects. Evidence: `.private/scope-record-repair-20261113/neo-post-full-corrections-review.json` and the preserved fresh04 owner decision.
-- [ ] Implement the approved minimal continuation entry on the same case, native thread, run binding and cumulative cap. Preserve every unknown hold; no automatic retry or fresh05. Claude approved the plan with six conditions; final code review follows Neo and the one offline full. Evidence: `docs/verification/continuation-entry-20261113.md`.
+- [x] Implement and qualify the minimal continuation entry on the same case, native thread, run binding and cumulative cap: 46 focused pass; one full 6,291 passed / 9 unchanged skips; Neo terminal qualification and Claude code review approved. Preserve all holds; no automatic retry or fresh05. Evidence: `docs/verification/continuation-entry-20261113.md`.
+- [ ] Launch one new authorized continuation only after e tag, unchanged-finance and pinned preflight checks. The admitted root resumes Coordinator; existing Writer checkpoints are not automatically resumed.
 - [ ] Deferred: bounded disconnect retry remains a design backlog item. Existing text-work parsing/adoption P2 remains tracked above; report a blocker if continuation adds about 2M Writer tokens with no saved ContentNode.
+
+- [ ] N1 (nonblocking): name held-row id/time columns instead of positional SELECT a.* access; current guard-pinned schema is unchanged.
+- [ ] N2 (nonblocking): share native thread/namespace configuration with deep_runtime to prevent future drift; do not change this qualified snapshot.
