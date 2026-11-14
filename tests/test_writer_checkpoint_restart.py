@@ -19,11 +19,12 @@ from test_deliverable_declaration_v4 import case
 async def test_legacy_raw_busy_checkpoint_resumes_same_native_writer_task(case, monkeypatch):
     """Resume a real accepted-e raw-busy checkpoint; typed busy stays covered in G1."""
     from pathlib import Path
-    import subprocess,sys
+    import os,subprocess,sys
     from report_agent.content_store import ContentStore
     root=Path(__file__).resolve().parents[1]
     manifest=json.loads((root/'tests/fixtures/e_busy_checkpoint.json').read_text())
-    generator=root/manifest['generator'];accepted=root.parent/'stage1-main'
+    generator=root/manifest['generator']
+    accepted=Path(os.environ.get('REPORT_ACCEPTED_E_CHECKOUT',root.parent/'stage1-main'))
     if not generator.is_file() or not accepted.is_dir():
         pytest.skip('Private accepted-e fixture generator required for qualification')
     assert hashlib.sha256(generator.read_bytes()).hexdigest()==manifest['generator_sha256']
