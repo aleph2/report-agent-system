@@ -332,6 +332,31 @@ def _environment(authority, services):
             else:os.environ[key]=value
 
 
+def _native_continuation_heads(workspace, authority, invocation):
+    """Capture only native children belonging to this admitted, pinned root."""
+    continuation = authority.get('continuations', {}).get(invocation)
+    if continuation is None:
+        return None
+    import sqlite3
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    with closing(sqlite3.connect((workspace.store.root / 'checkpoints.db').resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        db.execute('PRAGMA query_only=ON')
+        db.execute('BEGIN')
+        saver = SqliteSaver(db)
+        saver.is_setup = True
+        root = saver.get_tuple({'configurable': {'thread_id': 'report', 'checkpoint_ns': ''}})
+        pinned = continuation['checkpoint_id']
+        if root is None or root.config['configurable']['checkpoint_id'] != pinned:
+            raise ValueError('REPORT_CONTINUATION_CHECKPOINT_MISMATCH')
+        heads = {}
+        for (namespace,) in db.execute("SELECT DISTINCT checkpoint_ns FROM checkpoints WHERE thread_id='report' AND checkpoint_ns!=''"):
+            child = saver.get_tuple({'configurable': {'thread_id': 'report', 'checkpoint_ns': namespace}})
+            if child is not None and child.metadata.get('parents', {}).get('') == pinned:
+                heads[namespace] = child.config['configurable']['checkpoint_id']
+    return {'case_path': str(workspace.store.root.resolve()), 'root_checkpoint_id': pinned,
+            'heads': heads, 'used': set()}
+
+
 async def run_authorized_report(workspace, path, pin, env_file, invocation, *, dry_run=False, decision_only=False):
     import fcntl
     from .deep_runtime import run_report
@@ -350,6 +375,7 @@ async def run_authorized_report(workspace, path, pin, env_file, invocation, *, d
     with (root/'run.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         authority,services,policies,budget,criteria=preflight(workspace,path,pin,env_file,invocation)
+        admission = _native_continuation_heads(workspace, authority, invocation)
         stage=root/invocation;stage.mkdir(exist_ok=True)
         started=datetime.now(timezone.utc).isoformat()
         before=budget.run_snapshot()
@@ -359,7 +385,7 @@ async def run_authorized_report(workspace, path, pin, env_file, invocation, *, d
         if invocation in authority.get('continuations', {}):
             launch['continuation'] = authority['continuations'][invocation]
         with (stage/'launch.json').open('x') as out:json.dump(launch,out,indent=2)
-        active=_active.set({**authority,'criteria':criteria})
+        active=_active.set({**authority,'criteria':criteria,'_native_continuation':admission})
         result={**launch,'status':'interrupted'}
         try:
             if authority['issue_routes']:

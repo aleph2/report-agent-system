@@ -110,6 +110,8 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
                            {'root':1,'assessment':1,'extra':1}):
         with pytest.raises(ValueError,match='REPORT_GRAPH_LIMITS_REQUIRED'):
             run_authority.graph_config('root',{**authority,'graph_limits':invalid_limits})
+    authority['_native_continuation']={'case_path':str(case),'root_checkpoint_id':'forged-root',
+        'heads':{'tools:forged':'forged-head'},'used':[]}
     authority_path=tmp_path/'authority.json';authority_path.write_text(json.dumps(authority));pin=hashed(authority_path.read_bytes())
     monkeypatch.setattr(run_authority.subprocess,'check_output',lambda *a,**k:'a'*40+'\n')
     monkeypatch.setattr(run_authority.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0))
@@ -133,6 +135,12 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
     dispatched=[]
     unknown_mode=False
     async def native(workspace,**kwargs):
+        admission=run_authority.current_authority()['_native_continuation']
+        if kwargs.get('continue_from_checkpoint'):
+            assert admission=={'case_path':str(case.resolve()),'root_checkpoint_id':kwargs['continue_from_checkpoint'],
+                'heads':{},'used':set()}
+        else:
+            assert admission is None
         def response(request):
             dispatched.append(request)
             return httpx.Response(200,json={} if unknown_mode else {'id':'synthetic','usage':{'total_tokens':11,'prompt_tokens_details':{'cached_tokens':7}}})
@@ -141,6 +149,7 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
         return {'execution_status':'needs_human','status':'needs_human','last_error':None}
     monkeypatch.setattr(deep_runtime,'run_report',native)
     asyncio.run(run_authority.run_authorized_report(workspace,authority_path,pin,env,'planning'))
+    assert run_authority.current_authority() is None
     result=json.loads((tmp_path/'records/planning/result.json').read_bytes())
     assert len(dispatched)==1 and result['stage_tokens']==11 and result['budget']['held']==0
     with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
@@ -240,6 +249,7 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
         return {'execution_status':'failed','status':'failed','last_error':{'type':'GraphRecursionError'}}
     monkeypatch.setattr(deep_runtime,'run_report',continuing_native)
     asyncio.run(run_authority.run_authorized_report(workspace,continuation_path,continuation_pin,env,'continue-1'))
+    assert run_authority.current_authority() is None
     continued=json.loads((tmp_path/'unknown-records/continue-1/result.json').read_bytes())
     assert continued['authority_sha256']==continuation_pin and continued['status']=='failed' and continued['error']['type']=='GraphRecursionError'
     assert continued['stage_tokens']==11 and continued['budget']['held']==stopped['budget']['held']

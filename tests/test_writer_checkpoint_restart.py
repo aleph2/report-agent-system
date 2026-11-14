@@ -1,5 +1,4 @@
 """Synthetic native child recovery after a local checkpoint-adjacent interruption."""
-import sqlite3
 import hashlib
 import json
 import asyncio
@@ -11,7 +10,6 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
 from report_agent.deep_runtime import run_report
-from report_agent.execution_progress import ExecutionProgress
 from report_agent.store import Store
 from report_agent.workspace import Workspace
 from test_deep_runtime import Driver, invoke
@@ -31,7 +29,7 @@ async def test_legacy_raw_busy_checkpoint_resumes_same_native_writer_task(case, 
     assert hashlib.sha256(generator.read_bytes()).hexdigest()==manifest['generator_sha256']
     target=case[0].store.root
     proof_path=target/'accepted-e-busy-proof.json'
-    # Request ownership includes the absolute case path; generate e and resume f in place.
+    # Request ownership includes the absolute case path; generate e and resume here.
     generated=subprocess.run([sys.executable,'-B',str(generator),str(accepted),str(target),str(proof_path)],
         cwd=accepted,capture_output=True,text=True)
     assert generated.returncode==0,(generated.stdout,generated.stderr)
@@ -54,11 +52,17 @@ async def test_legacy_raw_busy_checkpoint_resumes_same_native_writer_task(case, 
         return AIMessage(content='Synthetic writer work completed.')
     resumed=Driver(coordinator=[AIMessage(content='unused'),AIMessage(content='Synthetic coordinator complete.')],
         writer=[first_tool,after_calculation])
-    from report_agent.supervision_plugins import local_busy_resume
+    from report_agent import run_authority
     event=proof['reservation']
-    with local_busy_resume(cs.store,call_id=event['native_tool_call_id'],task_id=event['task_id'],
-        diagnostic_id=diagnostic_id,diagnostic_sha256=proof['diagnostic_sha256']):
+    authority={'continuations':{'resume':{'checkpoint_id':proof['root_head']}}}
+    admission=run_authority._native_continuation_heads(ws,authority,'resume')
+    limits={scope:run_authority.OFFLINE_GRAPH_STEP_LIMIT for scope in ('root','assessment')}
+    active=run_authority._active.set({'_native_continuation':admission,'graph_limits':limits})
+    try:
         final=await run_report(ws,resumed,continue_from_checkpoint=proof['root_head'])
+    finally:
+        run_authority._active.reset(active)
+    assert len(admission['used'])==1
     assert final['last_error'] is None,final
     assert seen==['writer continued'] and resumed.calls[0][:2]==('writer',1)
     assert cs.list_objects('DelegatedTask')==tasks
@@ -68,34 +72,21 @@ async def test_legacy_raw_busy_checkpoint_resumes_same_native_writer_task(case, 
         'Synthetic writer work completed.' in m.content for m in messages) for role,_,messages in resumed.calls)
 
 
-def fake_diagnostic(store, *, exception_type='OperationalError', code=5):
-    identifier = 'synthetic-local-busy'
-    path = store.root/'diagnostics'/'private'/(identifier+'.json')
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {'id':identifier, 'phase':'native_graph', 'at':'2026-01-02T00:00:00+00:00',
-        'exceptions':[{'type':exception_type, 'sqlite_errorcode':code, 'frames':[
-            {'file':'/x/execution_progress.py','function':'abefore_model'},
-            {'file':'/x/execution_progress.py','function':'save'},
-            {'file':'/x/store.py','function':'connect'}]}]}
-    raw = json.dumps(payload).encode()
-    path.write_bytes(raw)
-    return identifier, hashlib.sha256(raw).hexdigest()
-
-
 @pytest.mark.parametrize('mutation', [
     'not_resuming', 'wrong_call', 'wrong_task', 'wrong_digest', 'already_returned',
     'missing_child', 'wrong_namespace', 'wrong_root_head', 'wrong_role', 'later_head',
     'model_node_busy', 'summary_node_busy', 'unknown_external', 'multiple_errors'])
 async def test_resume_permit_rejects_unproven_boundaries(case, mutation):
     from report_agent.store import digest
-    from report_agent.supervision_plugins import local_busy_resume, _resume_original_checkpoint
+    from report_agent.supervision_plugins import _resume_original_checkpoint
+    from report_agent import run_authority
     cs, _, actor, task, _ = case
     call = {'id':'same-call', 'args':{'description':'fixture'}}
     previous = {'task_id':actor.task_id, 'native_tool_call_id':call['id'],
         'request_digest':digest({'actor':actor.__dict__, 'call':call}), 'state':'reserved'}
     checkpoint = {'ts':'2026-01-01T00:00:00+00:00', 'channel_versions':{'a':1},
         'channel_values':{'branch:to:ExecutionProgress.before_model':None}}
-    saved = SimpleNamespace(config={'configurable':{'thread_id':'report','checkpoint_ns':'tools:graph-task'}},
+    saved = SimpleNamespace(config={'configurable':{'thread_id':'report','checkpoint_ns':'tools:graph-task','checkpoint_id':'child-head'}},
         metadata={'parents':{'':'root-head'},'lc_agent_name':'writer'}, checkpoint=checkpoint,
         pending_writes=[('node','__error__',"OperationalError('database is locked')")])
     class Saver:
@@ -114,20 +105,27 @@ async def test_resume_permit_rejects_unproven_boundaries(case, mutation):
     if mutation == 'wrong_namespace': cfg['checkpoint_ns'] = 'tools:other'
     if mutation == 'wrong_root_head': saved.metadata['parents'] = {'':'other'}
     if mutation == 'wrong_role': saved.metadata['lc_agent_name'] = 'reviewer'
-    if mutation == 'later_head': saved.checkpoint['ts'] = '2026-01-03T00:00:00+00:00'
+    if mutation == 'later_head': saved.config['configurable']['checkpoint_id']='later-head'
     if mutation == 'model_node_busy': saved.checkpoint['channel_values'] = {'branch:to:model':None}
     if mutation == 'summary_node_busy': saved.checkpoint['channel_values'] = {'branch:to:WorkingSummary.before_model':None}
     if mutation == 'unknown_external': saved.pending_writes = [('node','__error__',"APIConnectionError('outcome unknown')")]
     if mutation == 'multiple_errors': saved.pending_writes.append(('other','__error__',"OperationalError('database is locked')"))
-    identifier, sha = fake_diagnostic(cs.store)
-    with local_busy_resume(cs.store,call_id='same-call',task_id=actor.task_id,
-                           diagnostic_id=identifier,diagnostic_sha256=sha):
-        assert not await _resume_original_checkpoint(cs, actor, call, previous, runtime)
+    admission={'case_path':str(cs.store.root.resolve()),'root_checkpoint_id':'root-head',
+               'heads':{'tools:graph-task':'child-head'},'used':set()}
+    active=run_authority._active.set({'_native_continuation':admission})
+    try:
+        allowed=await _resume_original_checkpoint(cs,actor,call,previous,runtime)
+    finally:
+        run_authority._active.reset(active)
+    # Error text and node choice do not grant or revoke a verified identity-bound admission.
+    assert allowed==(mutation in {'model_node_busy','summary_node_busy','unknown_external','multiple_errors'})
+    assert len(admission['used'])==int(allowed)
 
 
 async def test_resume_permit_is_consumed_once_with_concurrent_attempts(case):
     from report_agent.store import digest
-    from report_agent.supervision_plugins import local_busy_resume, _resume_original_checkpoint
+    from report_agent.supervision_plugins import _resume_original_checkpoint
+    from report_agent import run_authority
     cs, _, actor, _, _ = case
     call={'id':'same-call','args':{'description':'fixture'}}
     previous={'task_id':actor.task_id,'native_tool_call_id':call['id'],
@@ -142,23 +140,29 @@ async def test_resume_permit_is_consumed_once_with_concurrent_attempts(case):
                 pending_writes=[('node','__error__',"OperationalError('database is locked')")])
     runtime=SimpleNamespace(config={'configurable':{'thread_id':'report','checkpoint_ns':'tools:graph-task',
         '__pregel_task_id':'graph-task','__pregel_resuming':True,'checkpoint_map':{'':'root-head'},'__pregel_checkpointer':Saver()}})
-    identifier,sha=fake_diagnostic(cs.store)
-    receipts=[]
-    with local_busy_resume(cs.store,call_id=call['id'],task_id=actor.task_id,
-                           diagnostic_id=identifier,diagnostic_sha256=sha,on_verified=receipts.append):
+    admission={'case_path':str(cs.store.root.resolve()),'root_checkpoint_id':'root-head',
+               'heads':{'tools:graph-task':'child-head'},'used':set()}
+    active=run_authority._active.set({'_native_continuation':admission})
+    try:
         result=await asyncio.gather(*[_resume_original_checkpoint(cs,actor,call,deepcopy(previous),runtime) for _ in range(2)])
+    finally:
+        run_authority._active.reset(active)
     assert sorted(result)==[False,True]
-    assert len(receipts)==1 and receipts[0]['checkpoint_id']=='child-head'
-    assert receipts[0]['node']=='ExecutionProgress.before_model'
+    assert admission['used']=={('tools:graph-task','child-head',actor.task_id,call['id'],previous['request_digest'])}
 
 
-@pytest.mark.parametrize('exception_type,code', [('APIConnectionError',5),('OperationalError',10)])
-def test_resume_rejects_nonlocal_or_nonbusy_diagnostic(case, exception_type, code):
-    from report_agent.errors import ActionRejected
-    from report_agent.supervision_plugins import local_busy_resume
-    cs, _, actor, _, _ = case
-    identifier,sha=fake_diagnostic(cs.store,exception_type=exception_type,code=code)
-    with pytest.raises(ActionRejected,match='NATIVE_RESUME_DIAGNOSTIC_INVALID'):
-        with local_busy_resume(cs.store,call_id='same-call',task_id=actor.task_id,
-                               diagnostic_id=identifier,diagnostic_sha256=sha):
-            pass
+@pytest.mark.parametrize('admission_kind',['missing','different_case'])
+async def test_resume_requires_matching_admitted_case(case,admission_kind):
+    from report_agent import run_authority
+    from report_agent.store import digest
+    from report_agent.supervision_plugins import _resume_original_checkpoint
+    cs,_,actor,_,_=case
+    call={'id':'same-call','args':{'description':'fixture'}}
+    previous={'task_id':actor.task_id,'native_tool_call_id':call['id'],
+        'request_digest':digest({'actor':actor.__dict__,'call':call}),'state':'reserved'}
+    admission=None if admission_kind=='missing' else {'case_path':str(cs.store.root/'different-case')}
+    active=run_authority._active.set({'_native_continuation':admission})
+    try:
+        assert not await _resume_original_checkpoint(cs,actor,call,previous,SimpleNamespace(config={}))
+    finally:
+        run_authority._active.reset(active)

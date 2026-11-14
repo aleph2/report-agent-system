@@ -4,14 +4,8 @@ Plugins receive the already-authorized task and its bound native invocation.
 They cannot grant roles or artifact ownership. Business evidence exists separately.
 """
 from dataclasses import dataclass
-from contextlib import contextmanager
-from contextvars import ContextVar
-import hashlib
 import json
-from pathlib import Path
-from datetime import datetime
 
-_resume_permit = ContextVar("native_local_busy_resume", default=None)
 from typing import Protocol
 
 from .errors import ActionRejected
@@ -64,78 +58,38 @@ def plugin_catalog():
             "limitation": "Selection changes supervision behavior, not permissions, standards or evidence of correctness. Existing tasks retain their selected policy."}
 
 
-@contextmanager
-def local_busy_resume(store, *, call_id, task_id, diagnostic_id, diagnostic_sha256, on_verified=None):
-    """Host-only permit for one proven local persistence interruption."""
-    path = store.root / 'diagnostics' / 'private' / (diagnostic_id + '.json')
-    if path.resolve().parent != (store.root / 'diagnostics' / 'private').resolve():
-        raise ActionRejected('NATIVE_RESUME_DIAGNOSTIC_INVALID')
-    raw = path.read_bytes()
-    if hashlib.sha256(raw).hexdigest() != diagnostic_sha256:
-        raise ActionRejected('NATIVE_RESUME_DIAGNOSTIC_INVALID')
-    diagnostic = json.loads(raw)
-    exceptions = diagnostic.get('exceptions', [])
-    top = exceptions[0] if exceptions and isinstance(exceptions[0], dict) else {}
-    frames = {(Path(f['file']).name, f['function']) for f in top.get('frames', [])}
-    if (diagnostic.get('id') != diagnostic_id or diagnostic.get('phase') != 'native_graph'
-            or top.get('type') != 'OperationalError' or top.get('sqlite_errorcode') != 5
-            or not {('execution_progress.py', 'abefore_model'), ('execution_progress.py', 'save'),
-                    ('store.py', 'connect')} <= frames):
-        raise ActionRejected('NATIVE_RESUME_DIAGNOSTIC_INVALID')
-    if on_verified is not None and not callable(on_verified):
-        raise ActionRejected('NATIVE_RESUME_DIAGNOSTIC_INVALID')
-    permit = {'root':str(store.root.resolve()), 'call_id':call_id, 'task_id':task_id,
-              'diagnostic_at':datetime.fromisoformat(diagnostic['at']), 'diagnostic_sha256':diagnostic_sha256,
-              'on_verified':on_verified, 'used':False}
-    token = _resume_permit.set(permit)
-    try:
-        yield
-    finally:
-        _resume_permit.reset(token)
-
-
 async def _resume_original_checkpoint(contents, actor, call, previous, runtime):
-    """Prove the framework is resuming this reserved child, then consume the permit."""
+    """Consume authority admission for the original reserved native child head."""
     from .store import digest
-    permit = _resume_permit.get()
-    if (not permit or permit['used'] or permit['root'] != str(contents.store.root.resolve())
-            or permit['call_id'] != call['id'] or permit['task_id'] != actor.task_id
+    from .run_authority import current_authority
+    admission = (current_authority() or {}).get('_native_continuation')
+    if (not admission or admission['case_path'] != str(contents.store.root.resolve())
             or previous != {'task_id':actor.task_id, 'native_tool_call_id':call['id'],
                             'request_digest':digest({'actor':actor.__dict__, 'call':call}), 'state':'reserved'}):
         return False
-    config = getattr(runtime, 'config', None) or {}
-    cfg = config.get('configurable', {})
+    cfg = (getattr(runtime, 'config', None) or {}).get('configurable', {})
     task_id, namespace = cfg.get('__pregel_task_id'), cfg.get('checkpoint_ns')
     saver = cfg.get('__pregel_checkpointer')
     if (cfg.get('__pregel_resuming') is not True or cfg.get('thread_id') != 'report'
             or not isinstance(task_id, str) or not isinstance(namespace, str)
             or namespace.rsplit('|', 1)[-1] != 'tools:' + task_id
+            or namespace not in admission['heads']
             or saver is None or not callable(getattr(saver, 'aget_tuple', None))):
         return False
-    saved = await saver.aget_tuple({'configurable':{'thread_id':cfg['thread_id'], 'checkpoint_ns':namespace}})
+    saved = await saver.aget_tuple({'configurable':{'thread_id':'report', 'checkpoint_ns':namespace}})
     if (not saved or saved.config.get('configurable', {}).get('checkpoint_ns') != namespace
-            or saved.config.get('configurable', {}).get('thread_id') != cfg['thread_id']
+            or saved.config.get('configurable', {}).get('thread_id') != 'report'
+            or saved.config.get('configurable', {}).get('checkpoint_id') != admission['heads'][namespace]
             or saved.metadata.get('parents') != cfg.get('checkpoint_map')
+            or saved.metadata.get('parents', {}).get('') != admission['root_checkpoint_id']
             or saved.metadata.get('lc_agent_name') != actor.role
             or not saved.checkpoint.get('channel_versions')):
         return False
-    try:
-        checkpoint_at = datetime.fromisoformat(saved.checkpoint['ts'])
-    except (KeyError, TypeError, ValueError):
+    identity = (namespace, admission['heads'][namespace], actor.task_id, call['id'], previous['request_digest'])
+    if identity in admission['used']:
         return False
-    errors = [row[2] for row in (saved.pending_writes or []) if row[1] == '__error__']
-    active = [key for key in saved.checkpoint.get('channel_values', {}) if key.startswith('branch:to:')]
-    if (checkpoint_at > permit['diagnostic_at'] or errors != ["OperationalError('database is locked')"]
-            or active != ['branch:to:ExecutionProgress.before_model'] or permit['used']):
-        return False
-    permit['used'] = True
-    if permit['on_verified'] is not None:
-        permit['on_verified']({'call_id':call['id'], 'task_id':actor.task_id, 'thread_id':cfg['thread_id'],
-            'checkpoint_ns':namespace, 'checkpoint_id':saved.config['configurable']['checkpoint_id'],
-            'parent_checkpoints':saved.metadata['parents'], 'node':'ExecutionProgress.before_model',
-            'diagnostic_sha256':permit['diagnostic_sha256']})
+    admission['used'].add(identity)
     return True
-
 
 async def delegated_return(contents, actor, call, invoke, *, runtime=None):
     from .task_supervision import assignment
