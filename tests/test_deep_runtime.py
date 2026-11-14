@@ -697,9 +697,7 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
         assert observation(messages, "read_context")["result"]["objects"] == [cs.read(refs["claim"])]
         if failed_role == "reviewer" and not injected:
             injected.append(True)
-            # Explicit fault-fixture migration: delegated HTTP failures are
-            # intentionally semantic feedback now; ordinary model faults remain
-            # graph failures. This does not claim HTTP and RuntimeError equivalence.
+            # Known delegated failures commit feedback; only new unknown paid outcomes stay pending.
             raise RuntimeError("offline reviewer model checkpoint failure")
         return invoke("perform_assigned_review", operation_id="after-model-recovery", scope_ids=["rule-comparison"],
             source_selections=[], content_selections=[])
@@ -748,7 +746,18 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
     if failed_role == "coordinator":
         driver.fail_once = (failed_role, failed_step)
     failed = await run(ws, driver)
-    assert failed["status"] == ("needs_attention" if failed_role == "coordinator" else "failed"), (failed, failure_stacks)
+    if failed_role == "reviewer":
+        assert failed["last_error"] is None and injected == [True], (failed, failure_stacks)
+        outcome = observation(driver.calls[-1][2], "task")
+        assert outcome["code"] == "DELEGATED_EXECUTION_FAILED" and outcome["error"]["type"] == "RuntimeError"
+        assert len([node for node in cs.list_objects("ContentNode") if node["payload"] == payload]) == 1
+        assert not cs.list_objects("ReviewRecord") and len(cs.list_objects("DelegatedTask")) == 2
+        assert not any(role == "text_tool" for role, _, _ in driver.calls)
+        assert sum(e["tool"] == "commit_objects" for e in events(ws, "deep_tool_start")) == 1
+        complete = await snapshot(ws, driver)
+        assert not complete.next and not complete.interrupts
+        return
+    assert failed["status"] == "needs_attention", (failed, failure_stacks)
     if failed_role == "coordinator":
         assert failed["last_error"]["failure_kind"] == "model_request_timeout"
         assert failed["last_error"]["automatic_resume"] is False
@@ -793,7 +802,7 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
     assert current.list_objects("ContentNode") == completed_nodes
 
 
-async def test_unknown_submit_outcome_replays_receipt_without_duplicate_commit(tmp_path, monkeypatch, failure_stacks):
+async def test_lost_local_commit_return_records_failure_with_durable_receipt(tmp_path, monkeypatch, failure_stacks):
     from copy import deepcopy
     from report_agent.content_store import ContentStore
     from test_task_supervision import ws as native_fixture
@@ -831,30 +840,24 @@ async def test_unknown_submit_outcome_replays_receipt_without_duplicate_commit(t
             {"client_key": "section", "type": "ContentNode", "payload": payload}]), receipt_seen]}
     driver = Driver(**scripts)
     failed = await run(ws, driver)
-    assert failed["status"] == "failed", (failed, failure_stacks)
-    assert failed["last_error"]["type"] == "RuntimeError" and len(attempts) == 1
+    assert failed["last_error"] is None and len(attempts) == 1, (failed, failure_stacks)
+    outcome = observation(driver.calls[-1][2], "task")
+    assert outcome["code"] == "DELEGATED_EXECUTION_FAILED" and outcome["error"]["type"] == "RuntimeError"
     committed = deepcopy(cs.list_objects("ContentNode"))
     tasks = deepcopy(cs.list_objects("DelegatedTask"))
     assert committed == [durable["node"]] and committed[0]["ref"]["version"] == 1
-    pending = await snapshot(ws, driver)
-    assert pending.next and not pending.interrupts
     reopened = Workspace(Store(ws.store.root))
-    fresh = Driver(**scripts)
-    resumed = await run(reopened, fresh)
-    assert resumed["last_error"] is None, (resumed, failure_stacks)
-    assert fresh.calls[0][:2] == ("writer", 1)
     current = ContentStore(reopened.store)
     assert current.list_objects("ContentNode") == committed
     assert current.list_objects("DelegatedTask") == tasks and len(tasks) == 1
-    assert len(attempts) == 2 and attempts[0] == attempts[1]
     with reopened.store.connect() as db:
         rows = db.execute("SELECT actor_id,request_digest,response FROM content_operations WHERE operation_id=?", (operation,)).fetchall()
     assert rows == [durable["row"]]
     receipt = current.receipt(durable["actor"], operation)
     assert receipt["state"] == "known_success" and receipt["response"] == durable["response"]
     assert len([e for e in events(reopened, "deep_tool_start") if e["tool"] == "commit_objects"]) == 1
-    assert len([e for e in events(reopened, "deep_tool_end") if e["tool"] == "commit_objects"]) == 1
-    complete = await snapshot(reopened, fresh)
+    assert len(attempts) == 1  # A known local commit is read from its receipt, not automatically replayed.
+    complete = await snapshot(reopened, driver)
     assert not complete.next and not complete.interrupts
     assert not current.list_objects("ReviewRecord") and not reopened.results()
 

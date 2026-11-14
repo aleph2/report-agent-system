@@ -116,8 +116,8 @@ async def test_lower_permission_unknown_task_does_not_reach_native_handler_or_cr
     assert business_ledger(ws) == ledger_before
 
 
-@pytest.mark.parametrize('failure', [asyncio.CancelledError, TypeError])
-async def test_registered_task_preserves_real_handler_cancellation_and_implementation_error(ws, failure, request):
+@pytest.mark.parametrize('failure', [asyncio.CancelledError, TypeError, RuntimeError])
+async def test_registered_task_preserves_cancellation_and_records_known_failures(ws, failure, request):
     new_path(ws)
     cs, _, refs, snapshot, _ = seed(ws)
     tool = registered_task()
@@ -132,14 +132,29 @@ async def test_registered_task_preserves_real_handler_cancellation_and_implement
         assert next_request.tool is tool
         assert next_request.tool_call['id'] == original['id']
         raise failure('Synthetic handler failure')
-    with pytest.raises(failure):
-        await BusinessBoundary(ws, 'coordinator').awrap_tool_call(native_request, fail_handler)
+    if failure is asyncio.CancelledError:
+        with pytest.raises(failure):
+            await BusinessBoundary(ws, 'coordinator').awrap_tool_call(native_request, fail_handler)
+    else:
+        from hashlib import sha256
+        from report_agent.token_budget import TokenBudget,CampaignRunBudget,token_budget
+        ledger=TokenBudget(ws.store.root/'known-failure-ledger.db',1000,{'m':40})
+        for _ in range(2):ledger.settle(ledger.reserve('m'),None)
+        with ledger.connect() as db:holds=[list(r) for r in db.execute('SELECT * FROM attempts ORDER BY id')]
+        budget=CampaignRunBudget(ledger.path,'known-only',maximum_tokens=500,aggregate_tokens=1000,model_bounds={'m':40},
+            authority_sha256='a'*64,preserved_holds=holds,guard_sha256=sha256(b'').hexdigest())
+        before=budget.snapshot()
+        with token_budget(budget):
+            result=await BusinessBoundary(ws,'coordinator').awrap_tool_call(native_request,fail_handler)
+        assert result.status=='error' and json.loads(result.content)['code']=='DELEGATED_EXECUTION_FAILED'
+        assert budget.snapshot()==before
+        with ledger.connect() as db:assert [list(r) for r in db.execute('SELECT * FROM attempts ORDER BY id')]==holds
     retain(request, boundary='registered_native_schema_handler_failure', failure=failure.__name__,
            original_call=original, actual_native_handler_calls=reached,
            unchanged_original_call=action==original,
            events=[e['kind'] for e in ws.store.events()])
     assert len(reached) == 1 and action == original
-    assert not any(e['kind'] == 'content_delegation_failed' for e in ws.store.events())
+    assert sum(e['kind']=='content_delegation_failed' for e in ws.store.events())==int(failure is not asyncio.CancelledError)
     assert cs.list_objects('ReviewRecord') == []
 
 

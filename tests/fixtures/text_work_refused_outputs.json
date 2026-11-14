@@ -1,0 +1,23 @@
+{
+  "fresh04": {
+    "file": "fresh04.txt",
+    "operation": "3d0d13899970a2a867710e9f000799ac1a3ad7e6410bb12f520fa0399c93a002",
+    "count": 1,
+    "sha256": "2ef7990f2f85a6f17910359b59ca0a46d19c48680edf5e4e027a2773b0e660e7",
+    "captured_schema_sha256": "d5676c7861af952cd1bd2f3d6f7ce82ac3492d73dae38f95c1da99ab4ec8267d"
+  },
+  "continuation": {
+    "file": "continuation.txt",
+    "operation": "8c6ac982588aa8ebb64351389a5308c43d7ac25b9ba1f9a93fb7752fc4cab384",
+    "count": 2,
+    "sha256": "9c220db17cd78e1e2b3e94e75c90e88f0d8304a8268e34f9aef0bd106d17639f",
+    "captured_schema_sha256": "4b3451b20f0f0db38de131e65668c5e65c459cd7062c8bda8479ea92dce7770a"
+  },
+  "continuation-second": {
+    "file": "continuation-second.txt",
+    "operation": "d02319269b56c152ecdfd48d0e618cec09cebea271c4fbd750ad40bb7609887d",
+    "count": 1,
+    "sha256": "1d0abca407aed7386c4a30212d789c1af0fcf3e402a07883c346f9b755b670f9",
+    "captured_schema_sha256": "d5676c7861af952cd1bd2f3d6f7ce82ac3492d73dae38f95c1da99ab4ec8267d"
+  }
+}

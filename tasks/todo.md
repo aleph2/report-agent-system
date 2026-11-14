@@ -580,3 +580,17 @@ Authoritative decisions and private evidence: `.private/scope-record-repair-2026
 
 - [ ] N1 (nonblocking): name held-row id/time columns instead of positional SELECT a.* access; current guard-pinned schema is unchanged.
 - [ ] N2 (nonblocking): share native thread/namespace configuration with deep_runtime to prevent future drift; do not change this qualified snapshot.
+
+
+### Tag f runtime repair — 2026-11-14 (offline; no paid authority)
+
+- [x] Reproduce the accepted e run's deterministic inner-graph failure; retain failed run, responses, first two indicator receipts and all holds. The e continuation ended failed; its original launch checklist above is historical.
+- [x] Implement authority-sourced root/assessment graph limits, an explicit shared offline limit, per-indicator deterministic-limit refusal, and configured-model binding for a fresh Writer process.
+- [x] Accept one whole-response JSON fence; constrain assigned system-assembler prose at its offered contract, keeping uncertainty in rendered text. Preserve generic ContentNode, Evidence and revision contracts. Both retained continuation outputs receive precise nonadoptable shape reasons; a conforming native example is saved.
+- [x] Extend existing continuation admission for a recorded failed prior only with an error and zero new unknown holds; retain every other guard. Real synthetic e checkpoint and real transport/ledger/checkpointer cases verify the same child and reused committed receipts.
+- [x] Narrow parent/child transport correction: a newly retained unknown reservation propagates instead of becoming a committed delegated-failure result. Preserved holds are the before-call baseline. This supersedes its earlier P2 deferral; no retry is added.
+- [ ] Finish affected checks, Neo code review and ONE frozen offline full, then immutable f tag and final diff/counts/adoption evidence to the advisor. Final code approval remains pending; no next authority or paid launch now.
+- [ ] Before any future authorized continuation: preserve the existing one-revised-attempt disposition; a second prose-contract refusal on the same section stops and reports immediately, before the approximately 2M new-Writer-token watch.
+- [ ] Deferred design: bounded disconnect retry and evidence-attributed unknown-attempt settlement. N1/N2 stay nonblocking; live owner-answer delivery remains a design item.
+- [ ] **D13 (P2; outside f except its graph bound):** move the fixed three-page allowance and two-save-refusal interruption bound to MethodPack/authority data; retain independent per-indicator execution and atomic outcome saves. Rename the product `PROBE_INDICATOR_STEP_INTERRUPTED` / `PROBE_INDICATOR_PROGRESS_MISMATCH` codes with D13. Escalate only if one of these remaining bounds actually blocks the next authorized continuation.
+- [ ] **D14 (P1 before the second report type, change-plan review):** review a MethodPack-declared evaluation-unit/outcome/formula design so non-indicator report methods preserve atomic per-unit judgment and provenance. Code keeps generic mechanics and declared exact arithmetic; the agent judges units. First perform a read-only inventory separating generic mechanics from graded-indicator semantics. This subsumes D4/D13; it is outside f and does not block Fake03 or real G4. The advisor's approximate module/line counts have not been independently recounted.

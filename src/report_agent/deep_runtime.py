@@ -7,8 +7,6 @@ from .prompt_sources import load_prompt
 import asyncio
 import json
 import os
-import httpx
-import openai
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Annotated, Literal
 from pydantic import Field
@@ -21,6 +19,7 @@ from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware, hoo
 from langchain.tools import ToolRuntime
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.errors import GraphBubbleUp
 from langgraph.types import Command, interrupt
 
 from .catalog import Catalog
@@ -80,9 +79,10 @@ class _ManagedSummarySlot(AgentMiddleware):
 class BusinessBoundary(InvalidToolFeedback):
     """Serialize native tools and report rejected actions as observations."""
 
-    def __init__(self, workspace, role, decision_only=False, *, subagent_descriptions=(), indicator_step=False):
+    def __init__(self, workspace, role, decision_only=False, *, subagent_descriptions=(), indicator_step=False, model=None):
         self.indicator_step = indicator_step
         self.writer_models = {}
+        self.model = model
         self.workspace, self.role = workspace, role
         self.decision_only = decision_only
         self.subagent_descriptions = subagent_descriptions
@@ -201,7 +201,7 @@ class BusinessBoundary(InvalidToolFeedback):
                     from .content_tasks import bound_actor
                     from .writer_runtime import bind_assessment_model
                     actor=bound_actor(self.workspace,'writer',None)
-                    with bind_assessment_model(self.writer_models.get(actor.task_id)):
+                    with bind_assessment_model(self.writer_models.get(actor.task_id, self.model)):
                         result=await self._awrap_bound_tool_call(bound_request,handler)
                 else:
                     result = await self._awrap_bound_tool_call(bound_request, handler)
@@ -280,6 +280,8 @@ class BusinessBoundary(InvalidToolFeedback):
                 store.set("native_trace_thread_id", thread_id)
             self.write_repetition.intercept(call, runtime.state.get("messages", []) if runtime else [])
             pending_updates = {}
+            from .token_budget import current_token_observation
+            held_before = current_token_observation() if call['name'] == 'task' else None
             try:
                 from .tool_transport import decode_object_arguments
                 # Use the actual public call schema; injected ToolRuntime is not
@@ -474,16 +476,18 @@ class BusinessBoundary(InvalidToolFeedback):
                     error["diagnostic"] = exc.diagnostic
                 result = ToolMessage(encode(error),
                                      tool_call_id=call["id"], name=call["name"], status="error")
+            except GraphBubbleUp:
+                raise
             except Exception as exc:
+                if held_before is not None:
+                    held_after = current_token_observation()
+                    if held_after['reserved_or_unknown_upper_bounds'] > held_before['reserved_or_unknown_upper_bounds']:
+                        raise
                 from .hierarchical_tools import enabled as content_enabled
                 from .input_capacity import capacity_failure, capacity_handling
                 from .model_recovery import load_recovery_policy, transient
                 capacity = capacity_failure(exc)
                 technical = is_model_timeout(exc) or transient(exc)
-                if isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)):
-                    raise
-                if capacity is None and not (technical or isinstance(exc, (httpx.HTTPError, openai.APIError))):
-                    raise
                 if call["name"] != "task" or not (content_enabled(self.workspace)
                         or (technical and load_recovery_policy(store))):
                     raise
@@ -1111,7 +1115,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     summary_service = model_factory("coordinator") if managed_context else None
     summary_options = {'prompt_profile': text_profile} if text_profile == CONCISE_PROMPTS else {}
 
-    def middleware(role, subagent_descriptions=()):
+    def middleware(role, subagent_descriptions=(), model=None):
         from .task_context import enabled as context_enabled, TaskContext
         from .context_editing import ToolResultEditing
         from .working_summary import working_summary
@@ -1135,7 +1139,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 # Use the already selected coordinator service for summaries.
                 # Writer GLM-5.3 has forced thinking; its authored calls remain unchanged.
                 *([_ManagedSummarySlot(), working_summary(summary_service,workspace.store,role,**summary_options)] if managed_context else []),
-                BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions),
+                BusinessBoundary(workspace, role, decision_only, subagent_descriptions=subagent_descriptions, model=model),
                 *([NativeToolSelection(workspace, role)] if tool_selection_mode == 'on' else []),
                 AgentPromptBoundary(workspace, role, expression_profile=expression_profile,
                                     interface_profile=interface_profile, prompt_profile=text_profile,
@@ -1146,12 +1150,14 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
 
     roles = {role: configured_prompt(role) for role in ("writer", "reviewer", "layout")}
     from .prompt_sources import native_reviewer
-    subagents = [{"name": role,
-                  "description": load_prompt('agent-' + role),
-                  "system_prompt": prompt,
-                  "model": model_factory(role), "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
-                  "middleware": middleware(role)} for role, prompt in roles.items()
-                 if hierarchical or not (native_enabled and role == "reviewer")]
+    subagents = []
+    for role, prompt in roles.items():
+        if hierarchical or not (native_enabled and role == "reviewer"):
+            model = model_factory(role)
+            subagents.append({"name": role, "description": load_prompt('agent-' + role),
+                "system_prompt": prompt, "model": model,
+                "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
+                "middleware": middleware(role, model=model)})
     # New hierarchical runs use the delegated reviewer only. The former automatic
     # grader remains behind an explicit historical compatibility setting.
     review_middleware = []
@@ -1277,7 +1283,8 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
         # own dependencies. BusinessBoundary serializes business tool/delegation work.
         from .failure_diagnostics import FailureDiagnostics
         diagnostics = FailureDiagnostics(store)
-        config = {"configurable": {"thread_id": "report"}, "recursion_limit": 10000}
+        from .run_authority import graph_config
+        config = {"configurable": {"thread_id": "report"}, **graph_config('root')}
         store.set("report_status", "running")
         store.set("report_error", None)
         store.set("runtime", "deepagents-0.7.19")

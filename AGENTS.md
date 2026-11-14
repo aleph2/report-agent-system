@@ -111,6 +111,8 @@ named requirement or reproduced bug and the code that reads the result.
   not resumed; a non-atomic operation resumes from its last committed step.
   Atomic units include a model request and a committed tool result. An outside
   effect that may have happened (a paid call) is held and reconciled.
+  A deterministic inner step limit is a recorded per-indicator tool outcome; an
+  unknown paid transport outcome propagates and leaves the atomic step pending.
 - Code comes from an owner requirement, a plan item or a reproduced bug, never
   from a possible future use.
 - Root causes point to design. Repeated similar bugs mean investigating the

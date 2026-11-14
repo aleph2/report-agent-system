@@ -31,6 +31,20 @@ def current_authority():
     return _active.get()
 
 
+OFFLINE_GRAPH_STEP_LIMIT = 10000
+
+
+def graph_config(scope, authority=None):
+    authority = current_authority() if authority is None else authority
+    if authority is None:
+        return {'recursion_limit': OFFLINE_GRAPH_STEP_LIMIT}
+    limits = authority.get('graph_limits')
+    if (not isinstance(limits, dict) or set(limits) != {'root', 'assessment'}
+            or any(type(value) is not int or value < 1 for value in limits.values())):
+        raise ValueError('REPORT_GRAPH_LIMITS_REQUIRED')
+    return {'recursion_limit': limits[scope]}
+
+
 def _service_bound(proof, env_bytes, model, base_url):
     """Reviewed pinned limits, cross-checked against documented capacity metadata.
 
@@ -116,7 +130,7 @@ def _continuation_authority(workspace, authority, invocation):
         raise ValueError('REPORT_CONTINUATION_SCOPE_MISMATCH')
     # Compare the authority itself so new schema fields are invariant by default.
     revised = {'owner_authority_ref', 'candidate_commit', 'candidate_tag',
-               'invocations', 'continuations', 'budget'}
+               'invocations', 'continuations', 'budget', 'graph_limits'}
     old_budget = prior_authority.get('budget', {})
     new_budget = authority.get('budget', {})
     if ({k:v for k,v in authority.items() if k not in revised}
@@ -131,7 +145,10 @@ def _continuation_authority(workspace, authority, invocation):
     root = Path(authority['record_dir']) / continuation['prior_invocation']
     prior = json.loads((root / 'result.json').read_bytes())
     launched = json.loads((root / 'launch.json').read_bytes())
-    if (prior.get('status') != 'unknown_outcome_held'
+    failed_prior = prior.get('status') == 'failed'
+    if (prior.get('status') not in {'unknown_outcome_held', 'failed'}
+            or (failed_prior and (not isinstance(prior.get('error'), dict)
+                or not isinstance(prior['error'].get('type'), str) or not prior['error']['type'].strip()))
             or any(record.get('authority_sha256') != prior_pin
                    or record.get('run_id') != authority['run_id']
                    or record.get('invocation') != continuation['prior_invocation']
@@ -163,6 +180,8 @@ def _continuation_authority(workspace, authority, invocation):
             f"SELECT a.* FROM attempts a JOIN {attempt_table} r ON r.attempt_id=a.id "
             "WHERE r.run_id=? AND a.state IN ('reserved','unknown')", (authority['run_id'],))
             if row[0] not in old_ids and started <= datetime.fromisoformat(row[7]) <= finished]
+        if failed_prior and created:
+            raise ValueError('REPORT_CONTINUATION_PRIOR_REQUIRED')
         if sorted(new_budget['preserved_holds']) != sorted(old_budget['preserved_holds'] + created):
             raise RequestBudgetExceeded('REPORT_UNRESOLVED_ATTEMPT')
     checkpoint_path = workspace.store.root / 'checkpoints.db'
@@ -198,6 +217,7 @@ def preflight(workspace, path, pin, env_file, invocation):
             or authority.get('case_manifest_digest') != digest(workspace.store.manifest)
             or authority.get('env_sha256') != _sha_bytes(env_raw)):
         raise ValueError('REPORT_AUTHORITY_SCOPE_MISMATCH')
+    graph_config('root', authority)
     from .commission_plan import verified_confirmer
     for identity,person in authority['confirmers'].items():
         verified_confirmer(workspace.store.root,{**person,'id':identity,'authority_sha256':pin},path,pin)

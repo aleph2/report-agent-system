@@ -7,7 +7,8 @@ from __future__ import annotations
 from .prompt_sources import load_prompt, expression_source, report_expression_profile, REPORT_EXPRESSION_V1
 
 import json
-from typing import Any, Literal
+import re
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, create_model, ValidationError
 from typing import Annotated
@@ -40,6 +41,14 @@ class AdoptionObject(Contract):
     previous_ref: Ref | None = None
 
 
+SectionProseNode = create_model('SectionProseNode', __base__=ContentNode,
+    kind=(Literal['block'], Field(description='Assigned prose block; structure is system-owned.')),
+    body=(dict[Literal['text'], Annotated[str, Field(min_length=1, pattern=r'\S')]], Field(min_length=1, max_length=1,
+        description='Exactly one nonblank text field; the server binds section identity.')),
+    qualifiers=(dict[str, Any], Field(max_length=0,
+        description='Empty object for assigned prose; preserve every qualification in body.text.')))
+
+
 class GenerationNote(Contract):
     output_index: int = Field(ge=0, strict=True,
         description="Zero-based payload index to which this generation-process note applies.")
@@ -69,7 +78,9 @@ def output_contract(schema, count):
 
 
 def parse_output(raw, schema, count):
-    values = json.loads(raw)
+    fenced = (re.fullmatch(r"\s*```(?:json)?[ \t]*\r?\n(.*?)\r?\n```[ \t]*\s*", raw, re.DOTALL | re.IGNORECASE)
+              if isinstance(raw, str) else None)
+    values = json.loads(fenced[1] if fenced else raw)
     notes = []
     if isinstance(values, dict) and 'payloads' in values:
         if set(values) - {'payloads', 'generation_notes'}:
@@ -388,12 +399,17 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
                   candidate_selections=(), source_version_refs=(), revision=None):
     if actor.role not in {"writer", "coordinator"}:
         raise ActionForbidden("FORBIDDEN: text production role")
+    section_prose = False
     if object_type == "ContentNode" and actor.role != "writer":
         raise ActionForbidden("FORBIDDEN: report authorship belongs to writer")
     if object_type == 'ContentNode':
         from .commission_plan import assert_writing_allowed
         with workspace.store.connect() as db:
             assert_writing_allowed(ContentStore(workspace.store), db, actor)
+            from .section_writing import enabled as system_prose
+            if revision is None and system_prose(workspace.store):
+                task = ContentStore._read(db, {'type':'DelegatedTask','id':actor.task_id,'version':1})
+                section_prose = bool(task['payload'].get('section_ids'))
     if object_type not in {"ContentNode", "Evidence"}:
         raise ActionRejected("TEXT_WORK_OUTPUT_TYPE_NOT_SUPPORTED")
     if not operation_id.strip() or not objective.strip():
@@ -409,7 +425,7 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
     selections = [SourceSelection.model_validate(s).packet_selection() for s in source_selections]
     candidates = [CandidateSelection.model_validate(s).model_dump() for s in candidate_selections]
     bindings = [SourceRef.model_validate(r).model_dump() for r in source_version_refs]
-    schema = _payload_schema(object_type)
+    schema = SectionProseNode if section_prose else _payload_schema(object_type)
     context = authority(workspace, actor)
     material = prepare_material(workspace,refs,selections,observation_refs,actor,candidates,bindings)
     if object_type == 'Evidence':
@@ -421,7 +437,8 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
               **({'revision': binding} if binding else {})}
     from . import prompt_sources
     if (prompt_sources.review_interface_profile(workspace.store) == prompt_sources.REVIEW_INTERFACE_V4
-            and prompt_sources.report_prompt_profile(workspace.store) == prompt_sources.CONCISE_PROMPTS):
+            and prompt_sources.report_prompt_profile(workspace.store) == prompt_sources.CONCISE_PROMPTS
+            and not section_prose):
         packet['output_schema'], _ = prompt_sources.describe_content_schema(packet['output_schema'])
     expression_profile = report_expression_profile(workspace.store)
     prompt = (QUALIFIER_WORK_PROMPT if binding else TEXT_WORK_PROMPT) if expression_profile == REPORT_EXPRESSION_V1 else load_prompt(

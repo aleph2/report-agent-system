@@ -198,7 +198,8 @@ class IndicatorRun:
                             AgentPromptBoundary(self.workspace,'writer',source='writer-indicator-step')],
                 name='assessment_writer')
             # An independent graph invocation per indicator keeps only the current three pages.
-            config = {'recursion_limit':30,'configurable':{'thread_id':self.actor.task_id+':'+indicator_id},
+            from .run_authority import graph_config
+            config = {**graph_config('assessment'),'configurable':{'thread_id':self.actor.task_id+':'+indicator_id},
                 'metadata':{'report_runtime_version_ref':record_runtime_version(self.workspace.store),
                     'report_operation_identity_profile':'native-tool-runtime-v1'}}
             message = HumanMessage(content=json.dumps(step,ensure_ascii=False))
@@ -211,7 +212,10 @@ class IndicatorRun:
             except GraphRecursionError:
                 # The native save can commit on the last graph step, before the end hook runs.
                 if not boundary.saved:
-                    raise
+                    outcome={'task_id':self.actor.task_id,'object_label':step['object_label'],
+                        'indicator_id':indicator_id,'supersteps':config['recursion_limit']}
+                    self.workspace.store.event('assessment_graph_step_limit',outcome)
+                    raise ActionRejected('ASSESSMENT_GRAPH_STEP_LIMIT',diagnostic=outcome) from None
             if len(boundary.save_refusals)==2 and not boundary.saved:
                 receipt=interrupt_indicator_step(cs,self.actor,indicator_id,list(boundary.save_refusals.values()))
                 self._record_progress(receipt['result'])

@@ -4,7 +4,9 @@ verdict. Returns complete actor-bound candidate payloads and a receipt, without
 committing content. output_count is 1..32 related payloads with zero-based adoption
 indexes, not a character/token limit or a mandatory call per node. Material remains
 exact; complete requests use shared service-capacity admission, not a separate
-preparation character limit.
+preparation character limit. Assigned section prose uses block/text-only/empty
+qualifiers; preserve genuine qualifications in rendered text. Generic ContentNode
+and qualifier-revision work retain their own contracts.
 
 Select exact supplied SourceArtifact refs with located sources, or use
 source_version_refs to bind existing versions to actual source_selections/your own

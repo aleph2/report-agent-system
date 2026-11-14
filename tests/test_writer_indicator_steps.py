@@ -112,10 +112,12 @@ async def test_rankless_indicator_probe_interrupts_before_first_request(prepared
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('method_commission',['with-owner-ranks'],indirect=True)
-async def test_real_evidence_and_gap_steps_close_without_score(ranked,monkeypatch):
+@pytest.mark.parametrize('transport_failure',[False,True])
+async def test_real_evidence_and_gap_steps_close_without_score(ranked,monkeypatch,transport_failure):
     from report_agent import writer_assessment as wa
     f=ranked
     inner_turn=0
+    disconnected=[]
     def decide(turn,body):
         nonlocal inner_turn
         first=next(m['content'] for m in body['messages'] if m['role']=='user')
@@ -128,10 +130,14 @@ async def test_real_evidence_and_gap_steps_close_without_score(ranked,monkeypatc
             assert 'assess_assigned_object' in names and 'calculate_assessment' not in names
             return reply() if any(m['role']=='tool' for m in body['messages']) else reply([('assess','assess_assigned_object',{})])
         inner_turn+=1
-        assert step['progress']['recorded']==inner_turn-1
+        assert step['progress']['recorded']==inner_turn-1-int(bool(disconnected))
         assert not any(m['role'] in {'tool','assistant'} for m in body['messages'])
         assert 'assess_assigned_object' not in {t['function']['name'] for t in body.get('tools',[])}
-        outcome=evidence(f,step) if inner_turn==1 else {
+        if transport_failure and inner_turn==3 and not disconnected:
+            import httpx
+            disconnected.append(True)
+            raise httpx.RemoteProtocolError('Synthetic disconnect after request dispatch')
+        outcome=evidence(f,step) if step['indicator_id']=='A' else {
             'kind':'gap','missing':'Site data absent from supplied materials','question':'Can the survey be supplied?'}
         return reply([('save-'+str(inner_turn),'save_'+outcome.pop('kind'),outcome)])
     model,wires=glm_model(f,monkeypatch,decide)
@@ -143,13 +149,71 @@ async def test_real_evidence_and_gap_steps_close_without_score(ranked,monkeypatc
             description='Assess Slope 1 and keep missing data explicit.',section_ids=['4'],assessment_object_id='S1'),
             AIMessage(content='Assessment returned with its gaps.')])
         original_tasks={t['ref']['id'] for t in f.cs.list_objects('DelegatedTask')}
-        await run_report(f.ws,lambda role:model if role=='writer' else driver(role))
+        from contextlib import nullcontext,closing
+        from report_agent.token_budget import TokenBudget,CampaignRunBudget,token_budget
+        from hashlib import sha256
+        import sqlite3
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        if transport_failure:
+            campaign=TokenBudget(f.ws.store.root/'transport-ledger.db',10000,{'glm-5.3':1000})
+            for _ in range(2):campaign.settle(campaign.reserve('glm-5.3'),None)
+            with campaign.connect() as db:old_holds=[list(r) for r in db.execute("SELECT * FROM attempts ORDER BY id")]
+            options=dict(maximum_tokens=8000,aggregate_tokens=10000,model_bounds={'glm-5.3':1000},
+                authority_sha256='a'*64,preserved_holds=old_holds,guard_sha256=sha256(b'').hexdigest())
+            budget=CampaignRunBudget(campaign.path,'transport-child',**options)
+        with token_budget(budget) if transport_failure else nullcontext():
+            first=await run_report(f.ws,lambda role:model if role=='writer' else driver(role))
+        if transport_failure:
+            assert first.get('last_error') is not None,first
+            with campaign.connect() as db:
+                held=[list(r) for r in db.execute("SELECT * FROM attempts WHERE state IN ('reserved','unknown') ORDER BY id")]
+                rows={r[0]:list(r) for r in db.execute('SELECT * FROM attempts')}
+            assert len(held)==3 and all(rows[r[0]]==r for r in old_holds)
+            with f.ws.store.connect() as db:
+                receipts=db.execute('SELECT assignment,indicator,operation,assertion_id,interruption FROM writer_step_receipts ORDER BY indicator').fetchall()
+            assert len(receipts)==2
+            tasks=f.cs.list_objects('DelegatedTask')
+            checkpoint=f.ws.store.root/'checkpoints.db'
+            with closing(sqlite3.connect(checkpoint.as_uri()+'?mode=ro',uri=True)) as db:
+                db.execute('PRAGMA query_only=ON');saver=SqliteSaver(db);saver.is_setup=True
+                head=saver.get_tuple({'configurable':{'thread_id':'report','checkpoint_ns':''}})
+                namespaces=[r[0] for r in db.execute("SELECT DISTINCT checkpoint_ns FROM checkpoints WHERE checkpoint_ns!=''")]
+                assert any(row[1]=='__error__' for row in head.pending_writes)
+                assert len(namespaces)==1
+                child=saver.get_tuple({'configurable':{'thread_id':'report','checkpoint_ns':namespaces[0]}})
+                assert any(row[1]=='__error__' for row in child.pending_writes)
+                assert not any(isinstance(row[2],dict) and 'DELEGATED_EXECUTION_FAILED' in str(row[2]) for row in head.pending_writes)
+            from report_agent.store import Store
+            from report_agent.workspace import Workspace
+            reopened=Workspace(Store(f.ws.store.root))
+            resumed_model,resumed_wires=glm_model(f,monkeypatch,decide)
+            resumed_driver=Driver(coordinator=[AIMessage(content='Unused pending task'),AIMessage(content='Assessment returned with its gaps.')])
+            continued_budget=CampaignRunBudget(campaign.path,'transport-child',**{**options,'preserved_holds':held})
+            try:
+                with token_budget(continued_budget):
+                    resumed=await run_report(reopened,lambda role:resumed_model if role=='writer' else resumed_driver(role),
+                        continue_from_checkpoint=head.config['configurable']['checkpoint_id'])
+                assert resumed.get('last_error') is None,resumed.get('last_error')
+                step=json.loads(next(m['content'] for m in resumed_wires[0]['messages'] if m['role']=='user'))
+                assert step['indicator_id']=='C' and step['progress']['recorded']==2
+                assert not any(role=='text_tool' for role,_,_ in resumed_driver.calls)
+                assert f.cs.list_objects('DelegatedTask')==tasks
+                with f.ws.store.connect() as db:
+                    assert db.execute('SELECT assignment,indicator,operation,assertion_id,interruption FROM writer_step_receipts WHERE indicator IN (?,?) ORDER BY indicator',
+                        [r[1] for r in receipts]).fetchall()==receipts
+                with campaign.connect() as db:
+                    current={r[0]:list(r) for r in db.execute('SELECT * FROM attempts')}
+                    assert all(current[r[0]]==r for r in held)
+                with closing(sqlite3.connect(checkpoint.as_uri()+'?mode=ro',uri=True)) as db:
+                    db.execute('PRAGMA query_only=ON')
+                    assert [r[0] for r in db.execute("SELECT DISTINCT checkpoint_ns FROM checkpoints WHERE checkpoint_ns!=''")]==namespaces
+            finally:await close(resumed_model)
         saved,=f.cs.list_objects('Assessment')
         actor=Actor(saved['owner_id'],'writer',saved['task_id'])
         durable=wa.read_indicator_step(f.cs,actor)
         new_tasks={t['ref']['id'] for t in f.cs.list_objects('DelegatedTask')}-original_tasks
         assert new_tasks=={saved['task_id']}
-        assert len(wires)==6 and inner_turn==4 and durable['complete']
+        assert (transport_failure and disconnected==[True] or len(wires)==6 and inner_turn==4) and durable['complete']
         assert durable['gap_indicators']==['B','C','D'] and saved['payload']['result']['status']=='unscored'
     finally:
         await close(model)
@@ -177,7 +241,65 @@ from langchain_core.messages import HumanMessage, ToolMessage
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('five',['with-owner-ranks'],indirect=True)
-async def test_eleventh_save_auto_submits_selected_canonical_assessment(five):
+@pytest.mark.parametrize('recorded',[None,'continuation','continuation-second','historical-e','small-limit'])
+async def test_eleventh_save_auto_submits_selected_canonical_assessment(five,recorded,record_testsuite_property,monkeypatch):
+    from pathlib import Path
+    from hashlib import sha256
+    if recorded=='historical-e':
+        import shutil,sqlite3
+        from contextlib import closing
+        from report_agent.store import Store
+        from report_agent.workspace import Workspace
+        from report_agent.content_store import ContentStore
+        from report_agent.deep_runtime import run_report
+        from report_agent.tool_selection import tool_scope
+        from langchain_core.messages import AIMessage
+        root=Path(__file__).resolve().parents[1]
+        source=root/'.private/e-failed-checkpoint'
+        if not source.is_dir():pytest.skip('Private synthetic e checkpoint required in frozen full snapshot')
+        manifest=json.loads((root/'tests/fixtures/e_failed_checkpoint.json').read_text())
+        for name,expected in manifest['files'].items():assert sha256((source/name).read_bytes()).hexdigest()==expected
+        evidence=json.loads((source/'provenance.json').read_text())
+        target=five.ws.store.root/'retained-e-case'
+        shutil.copytree(source/'case',target)
+        reopened=Workspace(Store(target));cs=ContentStore(reopened.store)
+        def resume(messages):
+            step=json.loads(next(m.content for m in messages if isinstance(m,HumanMessage)))
+            assert step['rank']==step['progress']['recorded']+1
+            return action('save_evidence','save-'+str(step['rank']),grade=step['grades'][1]['choice'],value='40',
+                basis_kind='direct_evidence',rationale='Confirmed synthetic design fact.',quotes=['Slope 1 has synthetic evidence.'])
+        driver=Driver(coordinator=[AIMessage(content='Unused before retained child.'),AIMessage(content='Assessment delegation returned.')],
+            writer=[resume,AIMessage(content='Unused'),AIMessage(content='Unused'),
+                    action('assess_assigned_object','canonical-repeat'),AIMessage(content='Saved assessment.')])
+        with tool_scope({'offline-runtime-test'},dict.fromkeys(['coordinator','writer','reviewer','layout','text_tool','vision'],'offline-runtime-test')):
+            report=await run_report(reopened,driver,continue_from_checkpoint=evidence['root_head'])
+        assert report.get('last_error') is None,report.get('last_error')
+        assert driver.calls[0][0]=='writer'
+        step=json.loads(next(m.content for m in driver.calls[0][2] if isinstance(m,HumanMessage)))
+        assert step['rank']==3 and step['progress']['recorded']==2
+        assert not any(role=='text_tool' for role,_,_ in driver.calls)
+        assert cs.list_objects('DelegatedTask')==[evidence['task']]
+        with reopened.store.connect() as db:
+            rows=[list(r) for r in db.execute('SELECT assignment,indicator,operation,assertion_id,interruption FROM writer_step_receipts WHERE indicator IN (?,?) ORDER BY indicator',
+                [r[1] for r in evidence['first_two_receipts']])]
+        assert rows==evidence['first_two_receipts']
+        with closing(sqlite3.connect((target/'checkpoints.db').as_uri()+'?mode=ro',uri=True)) as db:
+            db.execute('PRAGMA query_only=ON')
+            assert [r[0] for r in db.execute("SELECT DISTINCT checkpoint_ns FROM checkpoints WHERE checkpoint_ns!=''")]==evidence['namespaces']
+        saved,=cs.list_objects('Assessment');assert len(saved['payload']['indicators'])==11
+        assert cs.list_objects('ContentNode')
+        record_testsuite_property('historical_e_child_resume',json.dumps({'head':evidence['root_head'],'same_child':True,'first_two_receipts_unchanged':True,'source_commit':manifest['source_commit']}))
+        return
+    specs=json.loads((Path(__file__).parent/'fixtures/text_work_refused_outputs.json').read_text())
+    spec=specs.get(recorded)
+    raw=None
+    if spec:
+        fixture=Path(__file__).resolve().parents[1]/'.private/text-work-refused'/spec['file']
+        if not fixture.is_file():pytest.skip('Private exact response required in frozen full snapshot')
+        data=fixture.read_bytes();assert sha256(data).hexdigest()==spec['sha256']
+        raw=data.decode('utf-8')
+    observed=[]
+    small_limit=recorded=='small-limit'
     def judge(messages):
         errors=[m.content for m in messages if isinstance(m,ToolMessage) and m.status=='error']
         assert not errors, errors
@@ -200,22 +322,72 @@ async def test_eleventh_save_auto_submits_selected_canonical_assessment(five):
             return judge(messages)
         return action('process_report_content','produce-prose',operation_id='produce-prose',
                       objective='Write the assigned object context from the supplied design.',object_type='ContentNode',
-                      input_refs=[five.sources['design']],source_selections=[{'source_id':five.cs.read(five.sources['design'])['payload']['source_id']}])
+                      input_refs=[five.sources['design']],source_selections=[{'source_id':five.cs.read(five.sources['design'])['payload']['source_id']}],
+                      output_count=spec['count'] if spec else 1)
     def adopt_prose(messages):
         from test_deep_runtime import observation
-        receipt=observation(messages,'process_report_content')['text_work_id']
+        result=observation(messages,'process_report_content')
+        if spec:
+            assert result['code']=='TEXT_WORK_OUTPUT_CONTRACT_INVALID',result
+            assert 'qualifiers' in result['message']
+            if recorded=='continuation-second':assert 'kind' in result['message']
+            observed.append(result)
+            return AIMessage(content='Exact retained output is not eligible for section prose; no qualifiers were discarded.')
+        receipt=result['text_work_id']
         return action('save_section_prose','object-prose',operation_id='save-object-prose',section_id='4',text_work_id=receipt)
+    candidate={'kind':'block','body':{'text':'Slope 1 has synthetic evidence.'},
+               'qualifiers':{},'claim_kind':'fact','citations':[five.cite('design')]}
+    def prose_response(messages):
+        if spec:return AIMessage(content=raw)
+        import jsonschema
+        packet=json.loads(next(m.content for m in reversed(messages) if isinstance(m,HumanMessage)))
+        jsonschema.validate(candidate,packet['output_schema'])
+        for bad in ({**candidate,'kind':'chapter'},{**candidate,'qualifiers':{'condition':'Must stay visible in prose.'}},
+                    {**candidate,'body':{'other':'Wrong key'}},{**candidate,'body':{'text':''}},
+                    {**candidate,'body':{'text':'   \n\t'}}):
+            with pytest.raises(jsonschema.ValidationError):jsonschema.validate(bad,packet['output_schema'])
+        return AIMessage(content=json.dumps(candidate))
     driver=Driver(coordinator=[action('task','native-assessment',subagent_type='writer',
         description='Write Slope 1 context and assess it using its confirmed method and pages.',
         section_ids=['4'],assessment_object_id='S1'),AIMessage(content='Assessment delegation returned.')],
         writer=[choose_writer_action,adopt_prose,action('assess_assigned_object','canonical-first'),
                 action('assess_assigned_object','canonical-repeat'),AIMessage(content='Saved prose and assessment.')],
-        text_tool=[AIMessage(content=json.dumps({'kind':'block','body':{'text':'Slope 1 has synthetic evidence.'},
-                   'qualifiers':{},'claim_kind':'fact','citations':[five.cite('design')]}))])
+        text_tool=[prose_response])
+    if spec:driver.scripts['writer']=driver.scripts['writer'][:2]
     from report_agent.tool_selection import tool_scope
+    from report_agent import run_authority
+    if small_limit:driver.scripts['writer']=driver.scripts['writer'][:3]+[AIMessage(content='Recorded indicator refusal; parent continues.')]
+    if small_limit:
+        from report_agent.writer_indicator_steps import IndicatorRun
+        original_run=IndicatorRun.run
+        async def limited(run,**kwargs):
+            # Fixture criteria are already granted; scope the authority to graph execution.
+            token=run_authority._active.set({'graph_limits':{'root':10000,'assessment':2}})
+            try:return await original_run(run,**kwargs)
+            finally:run_authority._active.reset(token)
+        monkeypatch.setattr(IndicatorRun,'run',limited)
     with tool_scope({'offline-runtime-test'},dict.fromkeys(['coordinator','writer','reviewer','layout','text_tool','vision'],'offline-runtime-test')):
         report=await run_report(five.ws,driver)
     assert report.get('last_error') is None,report.get('last_error')
+    if small_limit:
+        messages=[m for role,_,items in driver.calls if role=='writer' for m in items
+                  if isinstance(m,ToolMessage) and m.name=='assess_assigned_object']
+        result=json.loads(messages[-1].content)
+        assert result['code']=='ASSESSMENT_GRAPH_STEP_LIMIT' and result['diagnostic']['supersteps']==2
+        events=[e['data'] for e in five.ws.store.events() if e['kind']=='assessment_graph_step_limit']
+        assert len(events)==1 and events[0]['indicator_id']=='I01' and events[0]['object_label']=='Slope 1'
+        assert not five.cs.list_objects('Assessment') and five.cs.list_objects('ContentNode')
+        assert driver.calls[-1][0]=='coordinator'
+        return
+    if spec:
+        assert len(observed)==1 and not five.cs.list_objects('ContentNode')
+        failures=[e['data'] for e in five.ws.store.events() if e['kind']=='text_work_output_rejected']
+        assert len(failures)==1 and failures[0]['raw_response_received']
+        assert five.ws.store.analysis(failures[0]['operation'])['analysis']==raw
+        record_testsuite_property('section_prose_'+recorded,json.dumps({'fixture_sha256':spec['sha256'],
+            'result':'not_adoptable','code':observed[0]['code'],'reason':observed[0]['message'],
+            'contract_basis':'section_writing.validate_prose: block/text-only/empty-qualifiers'}))
+        return
     tasks=five.cs.list_objects('DelegatedTask')
     assert len(tasks)==1 and tasks[0]['payload']['assessment_object_id']=='S1'
     writer_calls=[messages for role,_,messages in driver.calls if role=='writer']
@@ -231,6 +403,7 @@ async def test_eleventh_save_auto_submits_selected_canonical_assessment(five):
     from report_agent.store import encode
     prose=report_state.prose_ref(five.ws.store,'prose:'+encode([five.plan_ref,'4','S1']))
     assert prose is not None and five.cs.read(prose)['task_id']==tasks[0]['ref']['id']
+    record_testsuite_property('section_prose_conforming_example',json.dumps(five.cs.read(prose)['payload']))
     returns=[m for role,_,messages in driver.calls if role=='coordinator' for m in messages
              if isinstance(m,ToolMessage) and m.name=='task']
     assert returns and returns[-1].tool_call_id=='native-assessment'

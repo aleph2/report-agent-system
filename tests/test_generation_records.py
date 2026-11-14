@@ -39,7 +39,7 @@ def envelope(note='Parser processing event only.'):
 async def test_actual_producer_schema_receipt_adoption_and_word_preserve_the_boundary(ws):
     cs,_,refs,_,_=seed(ws)
     answer=envelope()
-    model=Model(json.dumps(answer))
+    model=Model('```json\n'+json.dumps(answer)+'\n```')
     with delegated_task(ws,'coordinator',call()) as (_,actor):
         registered={t.__name__:t for t in business_tools(ws,'writer',None,model)}
         tool=StructuredTool.from_function(coroutine=registered['process_report_content'])
@@ -182,15 +182,53 @@ async def test_native_graph_adopts_enveloped_batch_and_exports_actual_word_and_e
     assert len(receipts[0]['result']['generation_notes'])==3
 
 
-@pytest.mark.parametrize('count',[1,2])
-def test_legacy_and_enveloped_shapes_are_both_actual_schema_valid(count):
+@pytest.mark.parametrize('count,recorded',[(1,None),(2,None),(1,'fresh04'),(2,'continuation')])
+def test_legacy_and_enveloped_shapes_are_both_actual_schema_valid(count,recorded):
+    from report_agent.text_work import SectionProseNode
+    from jsonschema.exceptions import ValidationError as SchemaValidationError
+    prose_schema=output_contract(SectionProseNode,1)
+    valid_prose={**payload(),'qualifiers':{}}
+    Draft202012Validator(prose_schema).validate(valid_prose)
+    for body in ({'other':'Wrong key'},{'text':''},{'text':'   \n\t'}):
+        with pytest.raises(SchemaValidationError):
+            Draft202012Validator(prose_schema).validate({**valid_prose,'body':body})
     schema=output_contract(ContentNode,count)
     Draft202012Validator.check_schema(schema)
+    if recorded:
+        from hashlib import sha256
+        from pathlib import Path
+        root=Path(__file__).resolve().parents[1]
+        spec=json.loads((root/'tests/fixtures/text_work_refused_outputs.json').read_text())[recorded]
+        fixture=root/'.private/text-work-refused'/spec['file']
+        if not fixture.is_file():
+            pytest.skip('Private paid-response fixture not installed; required in the frozen full snapshot')
+        raw=fixture.read_bytes()
+        assert sha256(raw).hexdigest()==spec['sha256'] and count==spec['count']
+        text=raw.decode('utf-8')
+        value=json.loads(text[len('```json\n'):-len('\n```')])
+        Draft202012Validator(schema).validate(value)
+        expected=[ContentNode.model_validate(p).model_dump() for p in value['payloads']]
+        assert parse_output(text,ContentNode,count)==(expected,[])
+        return
     legacy=payload() if count==1 else [payload()]*count
     wrapped={'payloads':[payload()]*count,'generation_notes':[{'output_index':count-1,'text':'Process note'}]}
     for value in (legacy,wrapped):Draft202012Validator(schema).validate(value)
     assert parse_output(json.dumps(legacy),ContentNode,count)==([payload()]*count,[])
     assert parse_output(json.dumps(wrapped),ContentNode,count)==(wrapped['payloads'],wrapped['generation_notes'])
+    for value in (legacy,wrapped):
+        raw=json.dumps(value)
+        expected=parse_output(raw,ContentNode,count)
+        for language in ('json','','JSON'):
+            assert parse_output(' \r\n```'+language+'\r\n'+raw+'\r\n``` \t\n',ContentNode,count)==expected
+        for invalid in ('Before\n```json\n'+raw+'\n```',
+                '```json\n'+raw+'\n```\nAfter', '```python\n'+raw+'\n```',
+                '```json\n'+raw+'\n```\n```json\n'+raw+'\n```',
+                '```json\n'+raw, '```json\ninvalid JSON\n```'):
+            with pytest.raises(ValueError):parse_output(invalid,ContentNode,count)
+    with pytest.raises(ValueError,match='TEXT_WORK_RESULT_UNKNOWN_FIELD'):
+        parse_output('```json\n'+json.dumps({**wrapped,'unknown':'x'})+'\n```',ContentNode,count)
+    with pytest.raises(ValueError,match='TEXT_WORK_GENERATION_NOTE_INVALID_INDEX_OR_TEXT'):
+        parse_output('```json\n'+json.dumps({**wrapped,'generation_notes':[{'output_index':count,'text':'x'}]})+'\n```',ContentNode,count)
     assert receipt_digest({},'request',[payload()],[])==digest({'actor':{},'request':'request','payloads':[payload()]})
 
 

@@ -95,12 +95,21 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
         services={'glm-5.3':{'config_prefix':'GLM_','request_bound_proof':text_proof},
                   'deepseek-v4.1-flash-1017':{'config_prefix':'VISION_','request_bound_proof':vision_proof}},
         candidate_commit='a'*40,candidate_tag='synthetic-candidate',
+        graph_limits={'root':100000,'assessment':100000},
         inputs=[{'path':str(scope),'sha256':hashed(scope.read_bytes())}],
         criteria={'path':str(criteria),'sha256':hashed(criteria.read_bytes())},
         transport={'sdk_retries':0,'connect_retries':0,'vision_thinking':'disabled'},
         invocations=['planning','completion'],record_dir=str(tmp_path/'records'),run_id='production-flow',
         budget={'ledger':str(ledger),'per_run_tokens':4000000,'aggregate_tokens':10000000,
                 'preserved_holds':[],'guard_sha256':hashed(b'')})
+    assert run_authority.graph_config('root')=={'recursion_limit':10000}
+    assert run_authority.graph_config('assessment')==run_authority.graph_config('root')
+    assert run_authority.graph_config('root',authority)=={'recursion_limit':100000}
+    assert run_authority.graph_config('assessment',authority)=={'recursion_limit':100000}
+    for invalid_limits in (None, {}, {'root':True,'assessment':1}, {'root':1,'assessment':0},
+                           {'root':1,'assessment':1,'extra':1}):
+        with pytest.raises(ValueError,match='REPORT_GRAPH_LIMITS_REQUIRED'):
+            run_authority.graph_config('root',{**authority,'graph_limits':invalid_limits})
     authority_path=tmp_path/'authority.json';authority_path.write_text(json.dumps(authority));pin=hashed(authority_path.read_bytes())
     monkeypatch.setattr(run_authority.subprocess,'check_output',lambda *a,**k:'a'*40+'\n')
     monkeypatch.setattr(run_authority.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0))
@@ -216,17 +225,41 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
     continuation_pin,admitted=check_continuation(continuation)
     assert admitted[3].pin==unknown_pin and continuation_pin!=unknown_pin
     assert admitted[3].run_snapshot()==stopped['budget']
+    # A failed status cannot disguise a new unknown hold from the earlier invocation.
+    unknown_result=tmp_path/'unknown-records/only/result.json';unknown_bytes=unknown_result.read_bytes()
+    try:
+        unknown_result.write_text(json.dumps({**stopped,'status':'failed','error':{'type':'GraphRecursionError'}}))
+        with pytest.raises(ValueError,match='REPORT_CONTINUATION_PRIOR_REQUIRED'):
+            check_continuation(continuation)
+    finally:unknown_result.write_bytes(unknown_bytes)
     unknown_mode=False
     original_native=native
     async def continuing_native(workspace,**kwargs):
         assert kwargs.get('continue_from_checkpoint')==head
-        return await original_native(workspace,**kwargs)
+        await original_native(workspace,**kwargs)
+        return {'execution_status':'failed','status':'failed','last_error':{'type':'GraphRecursionError'}}
     monkeypatch.setattr(deep_runtime,'run_report',continuing_native)
     asyncio.run(run_authority.run_authorized_report(workspace,continuation_path,continuation_pin,env,'continue-1'))
     continued=json.loads((tmp_path/'unknown-records/continue-1/result.json').read_bytes())
-    assert continued['authority_sha256']==continuation_pin and continued['status']=='needs_human'
+    assert continued['authority_sha256']==continuation_pin and continued['status']=='failed' and continued['error']['type']=='GraphRecursionError'
     assert continued['stage_tokens']==11 and continued['budget']['held']==stopped['budget']['held']
     assert len(dispatched)==3
+    # Failed-prior admission uses the real saved head and original immutable budget binding.
+    failed_continuation=deepcopy(continuation)
+    failed_continuation['invocations'].append('continue-2')
+    failed_continuation['continuations']['continue-2']={'prior_invocation':'continue-1',
+        'prior_authority':{'path':str(continuation_path),'sha256':continuation_pin},'checkpoint_id':head}
+    failed_path=tmp_path/'failed-continuation.json';failed_path.write_text(json.dumps(failed_continuation))
+    failed_pin=hashed(failed_path.read_bytes())
+    result_path=tmp_path/'unknown-records/continue-1/result.json';original_result=result_path.read_bytes()
+    try:
+        result_path.write_text(json.dumps({**continued,'error':None}))
+        with pytest.raises(ValueError,match='REPORT_CONTINUATION_PRIOR_REQUIRED'):
+            run_authority.preflight(workspace,failed_path,failed_pin,env,'continue-2')
+    finally:result_path.write_bytes(original_result)
+    failed_dry=asyncio.run(run_authority.run_authorized_report(workspace,failed_path,failed_pin,env,'continue-2',dry_run=True))
+    assert failed_dry['status']=='preflight_passed' and failed_dry['paid_calls']==0 and len(dispatched)==3
+    assert not (tmp_path/'unknown-records/continue-2').exists()
     with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
         check_continuation(continuation)
     with closing(sqlite3.connect(ledger.as_uri()+'?mode=ro',uri=True)) as db:
