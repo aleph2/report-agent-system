@@ -1,5 +1,5 @@
 """Pinned production launch admission; the Coordinator owns all report actions."""
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 from contextvars import ContextVar
 from datetime import datetime, timezone
 import hashlib
@@ -86,6 +86,98 @@ def _verify_checkpoint_reply(workspace, issue_id, issue, path, pin):
     return ref
 
 
+def _continuation_authority(workspace, authority, invocation):
+    """A new entry links immutable prior authority; it never refreshes the run budget."""
+    entries = authority.get('continuations', {})
+    if not isinstance(entries, dict):
+        raise ValueError('REPORT_CONTINUATION_AUTHORITY_REQUIRED')
+    continuation = entries.get(invocation)
+    if continuation is None:
+        return None
+    names = authority['invocations']
+    index = names.index(invocation)
+    if (not isinstance(continuation, dict) or index == 0
+            or continuation.get('prior_invocation') != names[index - 1]
+            or not isinstance(continuation.get('prior_authority'), dict)
+            or not isinstance(continuation.get('checkpoint_id'), str)
+            or not continuation['checkpoint_id'].strip()):
+        raise ValueError('REPORT_CONTINUATION_AUTHORITY_REQUIRED')
+    selected = continuation['prior_authority']
+    prior_pin = selected.get('sha256')
+    prior_path = selected.get('path')
+    if (not isinstance(prior_pin, str) or not re.fullmatch('[0-9a-f]{64}', prior_pin)
+            or not isinstance(prior_path, str) or not Path(prior_path).is_absolute()):
+        raise ValueError('REPORT_CONTINUATION_PIN_MISMATCH')
+    prior_raw = Path(prior_path).read_bytes()
+    if _sha_bytes(prior_raw) != prior_pin:
+        raise ValueError('REPORT_CONTINUATION_PIN_MISMATCH')
+    prior_authority = json.loads(prior_raw)
+    if not isinstance(prior_authority, dict) or not isinstance(prior_authority.get('budget'), dict):
+        raise ValueError('REPORT_CONTINUATION_SCOPE_MISMATCH')
+    # Compare the authority itself so new schema fields are invariant by default.
+    revised = {'owner_authority_ref', 'candidate_commit', 'candidate_tag',
+               'invocations', 'continuations', 'budget'}
+    old_budget = prior_authority.get('budget', {})
+    new_budget = authority.get('budget', {})
+    if ({k:v for k,v in authority.items() if k not in revised}
+            != {k:v for k,v in prior_authority.items() if k not in revised}
+            or {k:v for k,v in entries.items() if k != invocation} != prior_authority.get('continuations', {})
+            or prior_authority.get('invocations') != names[:index]
+            or {k:v for k,v in old_budget.items() if k != 'preserved_holds'}
+               != {k:v for k,v in new_budget.items() if k != 'preserved_holds'}
+            or any(row not in new_budget.get('preserved_holds', [])
+                   for row in old_budget.get('preserved_holds', []))):
+        raise ValueError('REPORT_CONTINUATION_SCOPE_MISMATCH')
+    root = Path(authority['record_dir']) / continuation['prior_invocation']
+    prior = json.loads((root / 'result.json').read_bytes())
+    launched = json.loads((root / 'launch.json').read_bytes())
+    if (prior.get('status') != 'unknown_outcome_held'
+            or any(record.get('authority_sha256') != prior_pin
+                   or record.get('run_id') != authority['run_id']
+                   or record.get('invocation') != continuation['prior_invocation']
+                   for record in (prior, launched))):
+        raise ValueError('REPORT_CONTINUATION_PRIOR_REQUIRED')
+    import sqlite3
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    with closing(sqlite3.connect(Path(new_budget['ledger']).resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        db.execute('PRAGMA query_only=ON')
+        db.execute('BEGIN')
+        tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        bindings = tables & {'fake_flow_runs', 'report_runs'}
+        if len(bindings) != 1:
+            raise ValueError('REPORT_CAMPAIGN_SCHEMA_UNRECOGNIZED')
+        run_table = bindings.pop()
+        attempt_table = 'fake_run_attempts' if run_table == 'fake_flow_runs' else 'report_run_attempts'
+        binding = db.execute(f'SELECT maximum,authority FROM {run_table} WHERE run_id=?',
+                             (authority['run_id'],)).fetchone()
+        if (binding is None or binding[0] != new_budget['per_run_tokens']
+                or not re.fullmatch('[0-9a-f]{64}', binding[1] or '')):
+            raise RequestBudgetExceeded('REPORT_RUN_AUTHORITY_CHANGED')
+        started = datetime.fromisoformat(launched['started_utc'])
+        finished = datetime.fromisoformat(prior['finished_utc'])
+        if (started.tzinfo is None or finished.tzinfo is None or started > finished
+                or prior.get('started_utc') != launched['started_utc']):
+            raise ValueError('REPORT_CONTINUATION_PRIOR_REQUIRED')
+        old_ids = {row[0] for row in old_budget['preserved_holds']}
+        created = [list(row) for row in db.execute(
+            f"SELECT a.* FROM attempts a JOIN {attempt_table} r ON r.attempt_id=a.id "
+            "WHERE r.run_id=? AND a.state IN ('reserved','unknown')", (authority['run_id'],))
+            if row[0] not in old_ids and started <= datetime.fromisoformat(row[7]) <= finished]
+        if sorted(new_budget['preserved_holds']) != sorted(old_budget['preserved_holds'] + created):
+            raise RequestBudgetExceeded('REPORT_UNRESOLVED_ATTEMPT')
+    checkpoint_path = workspace.store.root / 'checkpoints.db'
+    if not checkpoint_path.is_file():
+        raise ValueError('REPORT_CONTINUATION_CHECKPOINT_MISMATCH')
+    with closing(sqlite3.connect(checkpoint_path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        db.execute('PRAGMA query_only=ON')
+        saver = SqliteSaver(db)
+        saver.is_setup = True  # Existing checkpoint inspection must not initialize storage.
+        head = saver.get_tuple({'configurable': {'thread_id': 'report', 'checkpoint_ns': ''}})
+    if head is None or head.config['configurable']['checkpoint_id'] != continuation['checkpoint_id']:
+        raise ValueError('REPORT_CONTINUATION_CHECKPOINT_MISMATCH')
+    return binding[1]
+
+
 def preflight(workspace, path, pin, env_file, invocation):
     """Read-only admission; no model construction, paid call or financial write."""
     if not path or not isinstance(pin,str) or not re.fullmatch('[0-9a-f]{64}',pin):
@@ -168,15 +260,16 @@ def preflight(workspace, path, pin, env_file, invocation):
     options=authority.get('budget')
     if not isinstance(options,dict):
         raise ValueError('REPORT_CAMPAIGN_AUTHORITY_REQUIRED')
+    binding_pin = _continuation_authority(workspace, authority, invocation)
     budget=CampaignRunBudget(options['ledger'],authority['run_id'],
         maximum_tokens=options['per_run_tokens'],aggregate_tokens=options['aggregate_tokens'],
-        model_bounds={p.model:p.total for p in policies},authority_sha256=pin,
+        model_bounds={p.model:p.total for p in policies},authority_sha256=binding_pin or pin,
         preserved_holds=options['preserved_holds'],guard_sha256=options['guard_sha256'])
     index=names.index(invocation)
     if index==0:
         if any(budget.run_snapshot()[k] for k in ('settled','held')):
             raise ValueError('REPORT_FRESH_RUN_REQUIRED')
-    else:
+    elif binding_pin is None:
         prior=json.loads((root/names[index-1]/'result.json').read_bytes())
         if prior.get('status')!='needs_human' or prior.get('authority_sha256')!=pin or prior.get('error'):
             raise ValueError('REPORT_PRIOR_CHECKPOINT_REQUIRED')
@@ -243,6 +336,8 @@ async def run_authorized_report(workspace, path, pin, env_file, invocation, *, d
         launch=dict(authority_sha256=pin,run_id=authority['run_id'],invocation=invocation,
             candidate_commit=authority['candidate_commit'],candidate_tag=authority['candidate_tag'],
             started_utc=started,budget_before=before,automatic_retry=False)
+        if invocation in authority.get('continuations', {}):
+            launch['continuation'] = authority['continuations'][invocation]
         with (stage/'launch.json').open('x') as out:json.dump(launch,out,indent=2)
         active=_active.set({**authority,'criteria':criteria})
         result={**launch,'status':'interrupted'}
@@ -257,8 +352,10 @@ async def run_authorized_report(workspace, path, pin, env_file, invocation, *, d
             with (_environment(authority,services),token_budget(budget),request_token_bound(policies),
                   tool_scope(set(authority['roles'].values()),authority['roles']),
                   capture_tools(ToolTrace(workspace,invocation,stage/'tool-trace.jsonl',actor_for('coordinator')))):
-                state=await run_report(workspace,decision_only=decision_only)
-            if budget.run_snapshot()['held']:
+                continuation = authority.get('continuations', {}).get(invocation)
+                state=await run_report(workspace,decision_only=decision_only,
+                    **({'continue_from_checkpoint': continuation['checkpoint_id']} if continuation else {}))
+            if budget.run_snapshot()['held'] > before['held']:
                 result['status']='unknown_outcome_held'
                 raise RequestBudgetExceeded('REPORT_UNKNOWN_OUTCOME_HELD')
             result.update(state=state,status=state.get('execution_status') or state.get('status'),
@@ -271,7 +368,7 @@ async def run_authorized_report(workspace, path, pin, env_file, invocation, *, d
             _active.reset(active)
             result.update(finished_utc=datetime.now(timezone.utc).isoformat(),budget=budget.run_snapshot(),
                 campaign_budget=budget.snapshot(),admission_refusal=getattr(budget,'admission_refusal',None))
-            if result['budget']['held']:
+            if result['budget']['held'] > before['held']:
                 result['status']='unknown_outcome_held'
             result['stage_tokens']=result['budget']['settled']-before['settled']
             with (stage/'result.json').open('x') as out:json.dump(result,out,indent=2)

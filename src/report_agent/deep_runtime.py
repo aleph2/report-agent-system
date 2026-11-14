@@ -1226,7 +1226,7 @@ async def project_agent(workspace, model_factory=None, knowledge=None, rules="",
             yield build_agent(workspace, factory, saver, knowledge, rules, decision_only=decision_only)
 
 
-async def run_report(workspace, model_factory=None, *, knowledge=None, decision_only=False):
+async def run_report(workspace, model_factory=None, *, knowledge=None, decision_only=False, continue_from_checkpoint=None):
     require_native_runtime(workspace)
     if type(decision_only) is not bool:
         raise ActionRejected("DECISION_OBSERVATION_MODE_MUST_BE_BOOLEAN")
@@ -1298,7 +1298,12 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 review_update = {"rubric": rules} if rules else {}
                 store.set("checkpoint_resume", bool(snapshot.next))
                 interrupts = snapshot.interrupts
-                if interrupts:
+                if continue_from_checkpoint is not None:
+                    if (not snapshot.next or interrupts or not snapshot.config
+                            or snapshot.config['configurable'].get('checkpoint_id') != continue_from_checkpoint):
+                        raise ValueError('REPORT_CONTINUATION_CHECKPOINT_REQUIRED')
+                    payload = None
+                elif interrupts:
                     issues = {i["id"]: i for i in issue_state.get_report_issues(store, [])}
                     answers = {}
                     for pending in interrupts:

@@ -107,9 +107,10 @@ named requirement or reproduced bug and the code that reads the result.
   that need no judgment: provenance, attribution, budgets, exact arithmetic
   and schema validity. Code never refuses or overrides an agent proposal or
   an owner decision on grounds of judgment; it may only flag it for review.
-- Every operation is atomic, repeatable and right-sized. Failed work is redone,
-  not resumed; an outside effect that may have happened (a paid call) is held and
-  reconciled.
+- Operations are repeatable and right-sized. A failed atomic step is redone,
+  not resumed; a non-atomic operation resumes from its last committed step.
+  Atomic units include a model request and a committed tool result. An outside
+  effect that may have happened (a paid call) is held and reconciled.
 - Code comes from an owner requirement, a plan item or a reproduced bug, never
   from a possible future use.
 - Root causes point to design. Repeated similar bugs mean investigating the

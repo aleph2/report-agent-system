@@ -186,8 +186,8 @@ def failure_stacks(monkeypatch):
     return stacks
 
 
-async def run(ws, driver):
-    return await asyncio.wait_for(deep_runtime.run_report(ws, driver), timeout=30)
+async def run(ws, driver, **kwargs):
+    return await asyncio.wait_for(deep_runtime.run_report(ws, driver, **kwargs), timeout=30)
 
 
 def events(ws, kind):
@@ -684,6 +684,8 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
     from test_bounded_review import review_call
     from test_hierarchical_content import seed
     ws = native_fixture.__wrapped__(tmp_path)
+    from test_native_operation_identity import activate
+    activate(ws)
     cs, _, refs, snapshot_ref, _ = seed(ws)
     source = next(r for r in cs.read(snapshot_ref)["payload"]["refs"] if r["type"] == "SourceArtifact")
     assigned = review_call(snapshot_ref, refs, reads=[source])
@@ -715,6 +717,33 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
             {"client_key": "saved", "type": "ContentNode", "payload": payload}]), AIMessage(content="Durable structure saved.")],
         "reviewer": [invoke("read_context", target_ref=refs["claim"]), reviewer_next, AIMessage(content="Local review saved.")],
         "text_tool": [AIMessage(content=json.dumps(response))]}
+    receipt = {}
+    if failed_role == "coordinator":
+        from test_text_work import content
+        def text_answer(messages):
+            packet = json.loads(messages[-1].content)
+            return AIMessage(content=json.dumps(content() if packet.get("object_type") == "ContentNode" else response))
+        def fail_or_adopt(messages):
+            work = observation(messages, "process_report_content")
+            if not receipt:
+                receipt.update(id=work["text_work_id"], stored=deepcopy(ws.store.get("text_work_receipt:" + work["text_work_id"])))
+                raise httpx.ReadTimeout("offline Writer disconnect after completed text work")
+            assert work["reused"] and work["text_work_id"] == receipt["id"]
+            return invoke("save_text_node", operation_id="adopt-retained-work", text_work_id=receipt["id"])
+        def resume_writer(messages):
+            page = observation(messages, "read_object_index")
+            assert page["total"] == 1
+            return AIMessage(content="", tool_calls=[call("task", {"subagent_type": "writer",
+                "description": "Continue the same Writer task with its retained text work",
+                "resume_content_task_id": page["objects"][0]["ref"]["id"]}, "resume-retained-writer")])
+        scripts["coordinator"] = [scripts["coordinator"][0],
+            invoke("read_object_index", object_type="DelegatedTask"), resume_writer,
+            AIMessage(content="", tool_calls=[assigned]), AIMessage(content="Scoped finding retained.")]
+        scripts["writer"] = [scripts["writer"][0],
+            invoke("process_report_content", operation_id="retained-producer", objective="Describe the supplied rule",
+                object_type="ContentNode", input_refs=[refs["claim"]]), fail_or_adopt,
+            AIMessage(content="Retained text work adopted.")]
+        scripts["text_tool"] = [text_answer]
     driver = Driver(**scripts)
     if failed_role == "coordinator":
         driver.fail_once = (failed_role, failed_step)
@@ -733,21 +762,35 @@ async def test_transient_model_failure_resumes_checkpoint_without_repeating_subm
     assert pending.next and not pending.interrupts
     fresh = Driver(**scripts)
     reopened = Workspace(Store(ws.store.root))
-    resumed = await run(reopened, fresh)
+    checkpoint_id = pending.config["configurable"]["checkpoint_id"]
+    resumed = await run(reopened, fresh, continue_from_checkpoint=checkpoint_id)
     assert resumed["last_error"] is None, (resumed, failure_stacks)
     assert fresh.calls[0][:2] == (failed_role, failed_step)
     current = ContentStore(reopened.store)
-    assert current.list_objects("ContentNode") == saved
+    if receipt:
+        assert reopened.store.get("text_work_receipt:" + receipt["id"]) == receipt["stored"]
+        assert all(current.read(node["ref"]) == node for node in saved)
+        adopted = [node for node in current.list_objects("ContentNode") if node not in saved]
+        assert len(adopted) == 1 and adopted[0]["payload"] == content()
+        assert adopted[0]["task_id"] == tasks[0]["ref"]["id"]
+    else:
+        assert current.list_objects("ContentNode") == saved
     for task in tasks:
         assert current.read(task["ref"]) == task
     reviews = current.list_objects("ReviewRecord")
     assert len(reviews) == 1 and reviews[0]["payload"]["items"][0]["verdict"] == "not_satisfied"
-    assert sum(r == "text_tool" for r, _, _ in [*driver.calls, *fresh.calls]) == 1
-    assert sum(e["tool"] == "commit_objects" for e in events(reopened, "deep_tool_start")) == 1
+    assert sum(r == "text_tool" for r, _, _ in [*driver.calls, *fresh.calls]) == (2 if receipt else 1)
+    assert sum(e["tool"] == "commit_objects" for e in events(reopened, "deep_tool_start")) == (2 if receipt else 1)
     assert events(reopened, "deep_run_started")[-1]["resume"] is True
     complete = await snapshot(reopened, fresh)
     assert not complete.next and not complete.interrupts
     assert not reopened.results() and not report_state.selected_final_review(reopened.store)
+    completed_nodes = deepcopy(current.list_objects("ContentNode"))
+    no_replay = Driver(**scripts)
+    refused = await run(reopened, no_replay, continue_from_checkpoint=checkpoint_id)
+    assert refused["last_error"] is not None
+    assert no_replay.calls == []
+    assert current.list_objects("ContentNode") == completed_nodes
 
 
 async def test_unknown_submit_outcome_replays_receipt_without_duplicate_commit(tmp_path, monkeypatch, failure_stacks):

@@ -60,7 +60,8 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
 
 
 
-    import asyncio,json
+    import asyncio,json,sqlite3
+    from contextlib import closing
     from types import SimpleNamespace
     from report_agent import run_authority,deep_runtime
     from report_agent.store import Store,digest
@@ -153,6 +154,85 @@ def test_persistent_atomic_reservations_settle_once_and_keep_unknown(tmp_path,mo
     with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
         asyncio.run(run_authority.run_authorized_report(workspace,unknown_path,unknown_pin,env,'only'))
     assert len(dispatched)==2
+
+    # An explicit new invocation reuses the immutable run binding and real saved head.
+    from copy import deepcopy
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import StateGraph, START, END
+    def failed_step(state):
+        raise RuntimeError('synthetic failed atomic step')
+    config={'configurable':{'thread_id':'report'}}
+    with SqliteSaver.from_conn_string(str(case/'checkpoints.db')) as saver:
+        graph=StateGraph(dict)
+        graph.add_node('pending',failed_step)
+        graph.add_edge(START,'pending');graph.add_edge('pending',END)
+        with pytest.raises(RuntimeError,match='failed atomic'):
+            graph.compile(checkpointer=saver).invoke({'committed':'retained'},config)
+        head=saver.get_tuple(config).config['configurable']['checkpoint_id']
+    with campaign.connect() as db:
+        assert list(db.execute('SELECT * FROM attempts WHERE id=?',(historical,)).fetchone())==holds[0]
+    with closing(sqlite3.connect(ledger.as_uri()+'?mode=ro',uri=True)) as db:
+        preserved=[list(row) for row in db.execute("SELECT * FROM attempts WHERE state IN ('reserved','unknown') ORDER BY id")]
+        original_rows=db.execute('SELECT * FROM attempts ORDER BY id').fetchall()
+        original_binding=db.execute('SELECT * FROM report_runs WHERE run_id=?',('production-unknown',)).fetchone()
+    continuation=deepcopy(unknown_authority)
+    continuation.update(owner_authority_ref='synthetic-continuation-owner',invocations=['only','continue-1'])
+    continuation['budget']['preserved_holds']=preserved
+    continuation['continuations']={'continue-1':{'prior_invocation':'only',
+        'prior_authority':{'path':str(unknown_path),'sha256':unknown_pin},'checkpoint_id':head}}
+    continuation_path=tmp_path/'continuation-authority.json'
+    def check_continuation(value):
+        continuation_path.write_text(json.dumps(value))
+        continuation_pin=hashed(continuation_path.read_bytes())
+        result=run_authority.preflight(workspace,continuation_path,continuation_pin,env,'continue-1')
+        return continuation_pin,result
+    invalid=deepcopy(continuation)
+    invalid['continuations']['continue-1']['prior_authority']['sha256']='0'*64
+    with pytest.raises(ValueError,match='REPORT_CONTINUATION_PIN_MISMATCH'):
+        check_continuation(invalid)
+    invalid=deepcopy(continuation);invalid['budget']['preserved_holds']=[]
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):
+        check_continuation(invalid)
+    invalid=deepcopy(continuation);invalid['budget']['preserved_holds']*=2
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):
+        check_continuation(invalid)
+    unrelated=TokenBudget(ledger,10000000,{'glm-5.3':1179648})
+    unrelated_id=unrelated.reserve('glm-5.3')
+    with unrelated.connect() as db:
+        unrelated_hold=list(db.execute('SELECT * FROM attempts WHERE id=?',(unrelated_id,)).fetchone())
+    invalid=deepcopy(continuation);invalid['budget']['preserved_holds'].append(unrelated_hold)
+    with pytest.raises(RequestBudgetExceeded,match='REPORT_UNRESOLVED_ATTEMPT'):
+        check_continuation(invalid)
+    unrelated.settle(unrelated_id,{'total_tokens':0})
+    invalid=deepcopy(continuation);invalid['unreviewed_scope']='changed'
+    with pytest.raises(ValueError,match='REPORT_CONTINUATION_SCOPE_MISMATCH'):
+        check_continuation(invalid)
+    invalid=deepcopy(continuation);invalid['budget']['per_run_tokens']+=1
+    with pytest.raises(ValueError,match='REPORT_CONTINUATION_SCOPE_MISMATCH'):
+        check_continuation(invalid)
+    invalid=deepcopy(continuation);invalid['continuations']['continue-1']['checkpoint_id']='not-the-head'
+    with pytest.raises(ValueError,match='REPORT_CONTINUATION_CHECKPOINT_MISMATCH'):
+        check_continuation(invalid)
+    continuation_pin,admitted=check_continuation(continuation)
+    assert admitted[3].pin==unknown_pin and continuation_pin!=unknown_pin
+    assert admitted[3].run_snapshot()==stopped['budget']
+    unknown_mode=False
+    original_native=native
+    async def continuing_native(workspace,**kwargs):
+        assert kwargs.get('continue_from_checkpoint')==head
+        return await original_native(workspace,**kwargs)
+    monkeypatch.setattr(deep_runtime,'run_report',continuing_native)
+    asyncio.run(run_authority.run_authorized_report(workspace,continuation_path,continuation_pin,env,'continue-1'))
+    continued=json.loads((tmp_path/'unknown-records/continue-1/result.json').read_bytes())
+    assert continued['authority_sha256']==continuation_pin and continued['status']=='needs_human'
+    assert continued['stage_tokens']==11 and continued['budget']['held']==stopped['budget']['held']
+    assert len(dispatched)==3
+    with pytest.raises(ValueError,match='REPORT_ALREADY_LAUNCHED'):
+        check_continuation(continuation)
+    with closing(sqlite3.connect(ledger.as_uri()+'?mode=ro',uri=True)) as db:
+        assert db.execute('SELECT * FROM report_runs WHERE run_id=?',('production-unknown',)).fetchone()==original_binding
+        current={row[0]:row for row in db.execute('SELECT * FROM attempts')}
+        assert all(current[row[0]]==row for row in original_rows)
 
 
 def test_parallel_attempts_cannot_overreserve(tmp_path):
