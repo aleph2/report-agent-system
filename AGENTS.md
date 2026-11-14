@@ -100,6 +100,13 @@ named requirement or reproduced bug and the code that reads the result.
   extension point (tool, middleware, backend, model adapter, skill).
 - Agents choose actions from goals and real observations. Do not hide a fixed
   workflow inside a tool, prompt or skill.
+- Agent logic is learnable; code logic is programmable. A judgment
+  (interpreting text, deciding scope, choosing evidence, grading) belongs to
+  an agent and is expressed in prompts or MethodPack data, so recorded owner
+  decisions can improve it through learning. Code enforces only invariants
+  that need no judgment: provenance, attribution, budgets, exact arithmetic
+  and schema validity. Code never refuses or overrides an agent proposal or
+  an owner decision on grounds of judgment; it may only flag it for review.
 - Every operation is atomic, repeatable and right-sized. Failed work is redone,
   not resumed; an outside effect that may have happened (a paid call) is held and
   reconciled.
