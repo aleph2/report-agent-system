@@ -599,3 +599,14 @@ Authoritative decisions and private evidence: `.private/scope-record-repair-2026
 ## 2026-11-14 tag-f follow-up
 
 - [ ] **N3 / P2, nonblocking for f:** restore delegated authentication/permission infrastructure-fault stopping in a later source change. Claude accepted this backlog disposition in `1a1d9d5a7afe0c79`; do not alter approved product commit `6f4f1ab` during test-only qualification. Current f containment commits known delegated failures; newly unknown paid outcomes still escape and retain their holds.
+
+
+### Tag g native admission - 2026-11-14
+
+- [x] Replace SQLite-only resume permit with verified authority-derived original-child admission; remove error/node allowlist and unused helper. Product +40/-60, no new test cases.
+- [x] Existing focused modules 30P/0F; actual-case original prose and new native assessment-to-X21 rehearsals pass without network or paid sends; X11/X12 receipts and all 2,061 live file hashes unchanged. Neo approved freeze.
+- [x] One frozen full307e85e:6,299 passed/0 failed/9 unchanged skips;6,308 unique;31m7.4s;1,387 unchanged source hashes/all nine coverage floors;temporary data cleaned. Complete source-only guard candidate list and both rehearsal outputs recorded.
+- [x] Neo independently approved terminal qualification, all coverage/skip/source/fixture checks and preservation of the failed f evidence. Candidate ready for immutable tag g and TAG READY.
+- [ ] Claude must approve exact final g tag/SHA before any paid preflight/run or building h on it.
+- [ ] Sweep backlog: task assignment field-presence constraints; tuple-only indicator continuation identity/page allowance; completion follow-up bound and legacy G5 recovery assumptions. No additional reproduced g blocker; no generic waiver.
+- [ ] Tag h is separate: common advisory refusal/one-call attributed proceed-despite/visible disposition design, hard invariant list, replay and one full. Read-only design only until g reviewed. See docs/verification/native-continuation-g-20261114.md.

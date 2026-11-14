@@ -1,0 +1,144 @@
+{
+  "frozen_commit": "307e85e3b82671cf85580c69f9d3afe75e7983a4",
+  "full": {
+    "expected": 6308,
+    "outcomes": {
+      "passed": 6299,
+      "skipped": 9
+    },
+    "failed": [],
+    "missing": [],
+    "duplicates": [],
+    "unexpected": [],
+    "collection_errors": [],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "coverage_exit": 0,
+    "started_utc": "2026-11-14T15:32:59.041437+00:00",
+    "finished_utc": "2026-11-14T16:04:06.434453+00:00",
+    "elapsed_seconds": 1867.4
+  },
+  "integrity_and_cleanup": {
+    "source_files_checked": 1387,
+    "source_files_changed": [],
+    "clean_pass": true,
+    "source_copy_removed": true,
+    "failed_coverage_floors": [],
+    "skips_unchanged": true,
+    "retained_test_database_files": 0,
+    "temporary_directories_removed": [
+      "tmp-group-4",
+      "tmp-group-6",
+      "tmp-group-3",
+      "tmp-collection",
+      "tmp-group-5",
+      "tmp-group-1",
+      "tmp-group-7",
+      "tmp-group-2",
+      "tmp-group-0"
+    ]
+  },
+  "coverage_floors": [
+    {
+      "module": "src/report_agent/commission_plan.py",
+      "floor": 93.49240780911063,
+      "actual": 93.7375745526839,
+      "passed": true,
+      "measured": 93.97363465160075
+    },
+    {
+      "module": "src/report_agent/commission_requirements.py",
+      "floor": 91.40625,
+      "actual": 92.5,
+      "passed": true,
+      "measured": 93.18181818181819
+    },
+    {
+      "module": "src/report_agent/content_store.py",
+      "floor": 95.43817527010805,
+      "actual": 95.57625145518044,
+      "passed": true,
+      "measured": 95.57625145518044
+    },
+    {
+      "module": "src/report_agent/g3_export.py",
+      "floor": 91.54518950437318,
+      "actual": 92.26804123711341,
+      "passed": true,
+      "measured": 92.26804123711341
+    },
+    {
+      "module": "src/report_agent/rescue_projection.py",
+      "floor": 88.41698841698842,
+      "actual": 88.47583643122677,
+      "passed": true,
+      "measured": 88.47583643122677
+    },
+    {
+      "module": "src/report_agent/risk_scoring.py",
+      "floor": 94.3566591422122,
+      "actual": 94.66357308584686,
+      "passed": true,
+      "measured": 94.68822170900692
+    },
+    {
+      "module": "src/report_agent/section_writing.py",
+      "floor": 90.19607843137256,
+      "actual": 90.29126213592232,
+      "passed": true,
+      "measured": 90.29126213592232
+    },
+    {
+      "module": "src/report_agent/system_assembler.py",
+      "floor": 87.27984344422701,
+      "actual": 88.06818181818181,
+      "passed": true,
+      "measured": 88.06818181818181
+    },
+    {
+      "module": "src/report_agent/writer_issues.py",
+      "floor": 90.12345679012346,
+      "actual": 90.1840490797546,
+      "passed": true,
+      "measured": 90.1840490797546
+    }
+  ],
+  "focused": {
+    "unique_cases": 30,
+    "passed": 30,
+    "failed": 0,
+    "elapsed_seconds": 46.59830117225647,
+    "subsequent_overlapping_existing_case_reruns": [
+      "authority_context:1P",
+      "accepted_e_fixture_path:1P"
+    ]
+  },
+  "retained_development_failures": [
+    "race RED before fix:1F",
+    "combined setup:29P/1F missing graph_limits in synthetic active context, then corrected combined30P",
+    "rehearsal helper:Path constructor, then scripted model message missing adapter-assigned ID; corrected without another product change"
+  ],
+  "prior_f_full": "Remains FAILED6264P/35F/9S; this is a separate g full, not relabeling old evidence.",
+  "provider_calls": 0,
+  "neo_terminal_review": {
+    "status": "approved",
+    "independent_raw_shard_recount": true,
+    "unique_cases": 6308,
+    "coverage_floors": 9,
+    "unchanged_skip_ids": 9,
+    "private_fixture_hashes_verified": 80,
+    "frozen_total_files": 1387,
+    "source_tests_scripts_config_dependencies_diff_since_frozen": "zero",
+    "docs_only_result_update": true,
+    "prior_failed_f_frozen_files_verified_unchanged": 1384,
+    "paid_or_h_clearance": false
+  }
+}

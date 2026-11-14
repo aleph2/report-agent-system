@@ -1,0 +1,63 @@
+{
+  "frozen_commit": "307e85e3b82671cf85580c69f9d3afe75e7983a4",
+  "source_commit": "517f7ecaca0776df5d7505f4666ff7bcbd8dbb72",
+  "scope": "Actual retained case on independent whole-grant copies, bound at original absolute path in private mount/network namespaces.",
+  "limit": "Route availability before send only; model decisions are not measured. The fail-loud sentinel deliberately ends the copied graph. Private raw requests, identities and file maps remain local.",
+  "neo_independent_live_hash_verification": true,
+  "routes": [
+    {
+      "route": "current",
+      "status": "model_request_reached_not_sent",
+      "profiles": {
+        "review_interface_profile": "review-interfaces-v4",
+        "operation_identity_profile": "native-tool-runtime-v1"
+      },
+      "target_model_requests": 1,
+      "scripted_native_decisions": 0,
+      "provider_sends": 0,
+      "live_files_checked": 2061,
+      "live_bytes_unchanged": true,
+      "committed_indicator_receipts_unchanged": true,
+      "committed_indicator_ids": [
+        "X11",
+        "X12"
+      ],
+      "committed_indicator_receipt_count": 2,
+      "exit_code": 0,
+      "guard_failure": null,
+      "private_proof_sha256": "979376f7f7c77a53d4974d7bcfd3a4edeafa89508980d132ba2de91113c4fd27",
+      "section_ids": [
+        "2",
+        "4"
+      ],
+      "original_child_identity_verified": true,
+      "single_use_admission_consumed": 1,
+      "offered_section_prose_contract_asserted": true,
+      "exact_recorded_disposition_feedback_asserted": true
+    },
+    {
+      "route": "new_public_assessment_task_resume",
+      "status": "model_request_reached_not_sent",
+      "profiles": {
+        "review_interface_profile": "review-interfaces-v4",
+        "operation_identity_profile": "native-tool-runtime-v1"
+      },
+      "target_model_requests": 1,
+      "scripted_native_decisions": 2,
+      "provider_sends": 0,
+      "live_files_checked": 2061,
+      "live_bytes_unchanged": true,
+      "committed_indicator_receipts_unchanged": true,
+      "committed_indicator_ids": [
+        "X11",
+        "X12"
+      ],
+      "committed_indicator_receipt_count": 2,
+      "exit_code": 0,
+      "guard_failure": null,
+      "private_proof_sha256": "adea0736c180a833283616a991d3108c3b932b8016e70b8d96743af18aae55d4",
+      "first_inner_indicator": "X21",
+      "old_native_assessment_namespace_not_resumed": true
+    }
+  ]
+}
