@@ -65,15 +65,3 @@ def object_index(contents, offset=0, limit=20, object_type='', owner_id='',
             result['next_offset'] = offset + len(result['objects'])
             break
     return result
-
-
-def status_metadata(value):
-    """Discoverable index from a status observation, not a fresh-state claim."""
-    objects = value.get('objects', [])
-    return {'inventory_representation': 'paged-object-index-v1',
-            'observed_object_count': len(objects),
-            'observed_types': dict(Counter(o['ref']['type'] for o in objects)),
-            'object_metadata_tool': 'read_object_index',
-            'navigation_note': 'Use read_object_index for whole identity records before or after snapshot creation. '
-                'This status is historical; the index reads current project metadata. '
-                'No object body, evidence reading or semantic acceptance is implied.'}

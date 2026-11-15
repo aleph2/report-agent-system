@@ -249,7 +249,6 @@ Do not expose this prototype server to other machines.
 Reproducible **offline protocol fixture**, without provider requests:
 
 ```bash
-python scripts/run_offline_report.py --project .runs/offline002
 report-agent serve --project .runs/offline002 --port 18140
 ```
 

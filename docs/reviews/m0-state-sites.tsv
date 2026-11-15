@@ -1,6 +1,4 @@
 file	line	scope	access	operation	operand	families
-scripts/audit_agent_prompts.py	38	main	store	write	'knowledge_enabled'	knowledge_enabled
-scripts/audit_agent_prompts.py	39	main	store	write	'learning_config'	learning_config
 scripts/audit_report.py	10	audit	sql	read	SELECT key,value FROM state	@scan
 scripts/audit_review_trial017.py	28	audit	accessor	read	read_review_trial_state	active_reviewer_prompt_hash,active_rubric_hash,checkpoint_resume,delivery,knowledge_enabled,knowledge_project_id,manifest,native_interrupts,report_error,report_issues,report_status,rubric_reviews,rubric_status
 scripts/check_hierarchical_report.py	24	run	sql	read	SELECT value FROM state WHERE key='manifest'	manifest
@@ -86,7 +84,6 @@ scripts/run_layout_live_trial.py	56	main	store	write	'knowledge_enabled'	knowled
 scripts/run_layout_live_trial.py	68	main	store	read	'report_error'	report_error
 scripts/run_layout_live_trial.py	68	main	store	read	'report_status'	report_status
 scripts/run_layout_live_trial.py	71	main	store	read	'agent_summary'	agent_summary
-scripts/run_offline_report.py	19	main	store	write	'model_mode'	model_mode
 scripts/run_reference_alignment.py	44	main	property	read	store.manifest	manifest
 scripts/run_reference_alignment.py	54	main	store	write	'manifest'	manifest
 scripts/run_reference_alignment.py	55	main	store	write	'reference_alignment_parent'	reference_alignment_parent
@@ -108,8 +105,6 @@ scripts/run_reference_alignment_learning.py	99	main	store	read	'report_status'	r
 scripts/run_reference_alignment_learning.py	107	main	store	read	'agent_summary'	agent_summary
 scripts/run_reference_reflection.py	41	main	store	write	'learning_config'	learning_config
 scripts/run_reference_reflection.py	80	main	store	read	'learning_job'	learning_job
-scripts/run_review_context_diagnostic.py	73	prepare_workspace	store	write	'knowledge_enabled'	knowledge_enabled
-scripts/run_review_context_diagnostic.py	74	prepare_workspace	store	write	'review_context_experiment'	review_context_experiment
 scripts/run_selected_evidence_probe.py	42	prepare_candidate	store	write	'knowledge_enabled'	knowledge_enabled
 scripts/run_selected_evidence_probe.py	54	prepare_candidate	property	read	workspace.store.manifest	manifest
 scripts/run_source_observation_probe.py	31	verify	property	read	workspace.store.manifest	manifest
@@ -567,21 +562,6 @@ src/report_agent/report_learning.py	127	prepare_rollout	store	write	'learning_ev
 src/report_agent/report_learning.py	262	native_rollout	store	write	'report_status'	report_status
 src/report_agent/report_learning.py	309	native_rollout	store	read	'learning_evaluation'	learning_evaluation
 src/report_agent/report_learning.py	312	native_rollout	store	write	'report_status'	report_status
-src/report_agent/report_runtime.py	127	analyze_sources	property	read	workspace.store.manifest	manifest
-src/report_agent/report_runtime.py	135	analyze_sources	property	read	workspace.store.manifest	manifest
-src/report_agent/report_runtime.py	231	execute_task	store	write	'report_activity'	report_activity
-src/report_agent/report_runtime.py	235	execute_task	property	read	workspace.store.manifest	manifest
-src/report_agent/report_runtime.py	302	run_report	store	write	'report_status'	report_status
-src/report_agent/report_runtime.py	303	run_report	store	write	'report_error'	report_error
-src/report_agent/report_runtime.py	311	run_report	store	read	'report_status'	report_status
-src/report_agent/report_runtime.py	312	run_report	store	write	'report_status'	report_status
-src/report_agent/report_runtime.py	314	run_report	store	read	'report_status'	report_status
-src/report_agent/report_runtime.py	315	run_report	store	write	'report_status'	report_status
-src/report_agent/report_runtime.py	316	run_report	store	write	'report_error'	report_error
-src/report_agent/report_runtime.py	319	run_report	store	read	'report_status'	report_status
-src/report_agent/report_runtime.py	320	run_report	store	write	'report_status'	report_status
-src/report_agent/report_runtime.py	321	run_report	store	write	'report_error'	report_error
-src/report_agent/report_runtime.py	324	run_report	store	write	'report_activity'	report_activity
 src/report_agent/report_state.py	62	planned_section	accessor	read	get_planned_section_receipt	planned_section_receipt:*
 src/report_agent/report_state.py	70	assembly	accessor	read	get_assembly_receipt	assembly_receipt:*
 src/report_agent/report_state.py	78	projection	accessor	read	get_rescue_projection	rescue_projection:*
