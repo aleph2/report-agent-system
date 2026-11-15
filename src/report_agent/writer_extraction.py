@@ -75,14 +75,5 @@ def tools(workspace, actor):
                     dict(sources={version:material},receipts=receipts),
                     [dict(assertion_id=binding,purpose="context",proposition="source_page_binding")])
 
-    def record_conflict(observations: list[str], tool_call_id: Annotated[str, InjectedToolCallId]) -> dict:
-        """Keep conflicting extracted fact IDs for this assigned object without discarding either quote."""
-        scope, _ = current()
-        allowed = {r["id"] for r,s in page_bindings.records(cs.store,scope["plan"]["ref"],
-                   scope["object"]["object_id"]) if r["claim"]["kind"] == "source" and page_bindings.current(s)}
-        if not set(observations) <= allowed:
-            raise ActionRejected("C4: conflict observations must be in this object's extracted packet")
-        return save("record_conflict",tool_call_id,scope,
-                    dict(kind="conflict",observations=observations),observations)
 
-    return [StructuredTool.from_function(f) for f in (assert_source,record_conflict)]
+    return [StructuredTool.from_function(f) for f in (assert_source,)]

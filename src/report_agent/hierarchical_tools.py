@@ -126,24 +126,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         from .object_index import object_index
         return object_index(contents, offset, limit, object_type, owner_id, current_only, inventory_digest)
 
-    def read_task_supervision(offset: int = 0, limit: int = 20) -> dict:
-        """Page existing reviewer assignments, matched saved checks and incomplete reasons.
-        Bookkeeping is not semantic acceptance. Todos cannot remove these obligations.
-        A returned follow-up consumes the task's one completion request even if still incomplete.
-        """
-        actor()
-        from .task_supervision import task_status
-        return {"ok": True, "result": task_status(contents, offset, limit)}
-
-    def list_supervision_plugins() -> dict:
-        """Inspect optional server-registered reviewer supervision plugins.
-        Choose supervision_plugin on a new reviewer task, or omit it for none.
-        Catalog selection does not broaden authorization or establish correctness.
-        """
-        actor()
-        from .supervision_plugins import plugin_catalog
-        return {"ok": True, "result": plugin_catalog()}
-
 
     def read_context(target_ref: Ref, offset: int = 0, limit: int = 20) -> dict:
         """Read actual saved objects or a paged snapshot, including unreturned refs and continuation.
@@ -152,12 +134,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         parents/dependencies. Initial local scope does not restrict independent source access.
         """
         return contents.read_context(actor(), target_ref.model_dump(), offset, limit)
-
-
-    def import_source_versions(operation_id: str, source_ids: list[str]) -> dict:
-        """Snapshot authorized source text/metadata and the unchanged commission; no interpretation."""
-        check_source_read(workspace, actor, source_ids)
-        return contents.import_inputs(actor(), operation_id, source_ids)
 
 
     def commit_objects(operation_id: str, objects: list[CommitObject]) -> dict:
@@ -452,54 +428,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         return contents.operation(actor(), operation_id, request, select)
 
 
-    def record_execution_decision(operation_id: str, decision: Literal["continue", "wait", "handoff", "terminate"],
-                                  reason: str, evidence: list[str], unresolved: list[str],
-                                  claims_assigned_checks_complete: bool = False) -> dict:
-        """Record strategy and grounds against the current selected delivery. This does not
-        change verdicts, trigger actions or force the loop to stop. Subsequent native tool
-        calls or your final response implement the choice. claims_assigned_checks_complete
-        is verified against saved current-delivery assignments; it never establishes
-        whole-report acceptance. Correction limits constrain edits, not reading/checking.
-        """
-        if not reason.strip():
-            raise ActionRejected("DECISION_REASON_REQUIRED")
-        actor()
-        from .decision_state import execution_evidence, completion_state_token
-        with contents.store.connect() as db:
-            observed_token = completion_state_token(db) if claims_assigned_checks_complete else None
-        decision_evidence = execution_evidence(contents)
-        def save(db):
-            import json
-            # Validate only a new operation. A saved receipt remains the exact
-            # historical result when replayed after the application state changes.
-            if claims_assigned_checks_complete and completion_state_token(db) != observed_token:
-                raise ActionRejected('DECISION_STATE_CHANGED: Refresh current state before a new completion declaration.')
-            if claims_assigned_checks_complete and not decision_evidence['assigned_checks_complete']:
-                raise ActionRejected('ASSIGNED_CHECKS_NOT_COMPLETE: ' + encode(decision_evidence))
-            delivery = legacy.get_content_delivery(db)
-            value = {"decision": decision, "reason": reason, "evidence": evidence,
-                     "unresolved": unresolved, "task_supervision_remaining": remaining,
-                     "claims_assigned_checks_complete": claims_assigned_checks_complete,
-                     "execution_evidence": decision_evidence,
-                     "delivery": delivery}
-            db.execute("INSERT OR REPLACE INTO state VALUES ('content_execution_decision', ?)", (encode(value),))
-            return value
-        from .task_supervision import task_status
-        # Collect before the write transaction; retain execution gaps even when
-        # an agent's final unresolved text/todos omit them.
-        remaining, offset = [], 0
-        while True:
-            page = task_status(contents, offset)
-            remaining.extend({"task_id": t["task_id"], "snapshot_ref": t["snapshot_ref"], "remaining": t["remaining"]}
-                             for t in page["tasks"] if t["remaining"])
-            if page["next_offset"] is None:
-                break
-            offset = page["next_offset"]
-        request = {"execution_decision": [decision, reason, evidence, unresolved]}
-        if claims_assigned_checks_complete:
-            request['claims_assigned_checks_complete'] = True
-        return contents.operation(actor(), operation_id, request, save)
-
     from .prompt_sources import native_reviewer, load_prompt, review_interface_profile, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, report_prompt_profile, report_rule_source, CONCISE_PROMPTS
     interface = review_interface_profile(workspace.store)
     text_profile = report_prompt_profile(workspace.store)
@@ -690,11 +618,10 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             tools = read_tools(contents, actor, tools)
         return [general_reviewer_tool(tool) for tool in tools] if role == 'reviewer' else tools
     if role in {"coordinator", "writer"}:
-        common += [import_source_versions, commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
+        common += [commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
     if role == "layout":
         common += [export_content_snapshot, request_layout_capability]
     if role == "coordinator":
-        common += [record_execution_decision, request_layout_capability, read_task_supervision, list_supervision_plugins]
         if bound_manifest(workspace.store).get("review_entrypoint") != "native-rubric-v1":
             common.remove(save_text_node)
             commit_objects.__doc__ += "\nYour coordinator binding may commit Criterion, Evidence and Relation; delegate all ContentNode creation/revision to writer."

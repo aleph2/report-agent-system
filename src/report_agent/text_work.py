@@ -751,7 +751,7 @@ def guarded_tools(workspace, role, model, base_tools):
         replacements['save_section_prose'] = save_section_prose
 
     result = [replacements.get(t.__name__, t) for t in base_tools]
-    if role in {"coordinator", "writer"}:
+    if role in {"writer"}:
         from .operation_identity import profile, NATIVE, native_id
         if profile(workspace.store) == NATIVE:
             async def native_process_report_content(objective: str,

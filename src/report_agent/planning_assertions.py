@@ -1,5 +1,5 @@
 """Coordinator planning actions backed by case-local, host-issued assertion grants."""
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import NAMESPACE_URL, uuid5
 
 from langchain.tools import ToolRuntime
@@ -112,13 +112,5 @@ def planning_assertion_tools(cs, get_actor):
         saved = propose_many(cs, get_actor(), runtime.tool_call_id, items)
         return {'binding_ids': [row['id'] for row in saved['bindings']]}
 
-    def record_conflict(subject: str, observations: list[str], runtime: NativeRuntime = None) -> dict:
-        """Record disagreement between distinct source assertion IDs for this inventory object; both observations remain visible."""
-        return save('record_conflict', subject, dict(kind='conflict', observations=observations), runtime)
 
-    def ask(subject: str, text: str, affects: Literal['classification','value','presentation','other'],
-            runtime: NativeRuntime = None) -> dict:
-        """Record an open question about an inventory object and what depends on its answer."""
-        return save('ask', subject, dict(kind='question', text=text, affects=affects), runtime)
-
-    return [propose_page_binding, record_conflict, ask]
+    return [propose_page_binding]

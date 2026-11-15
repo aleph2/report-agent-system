@@ -1202,9 +1202,6 @@ def planning_tools(cs, actor, *, result_fits=None):
         """Save outline sections atomically; any invalid section refuses the entire list. Several items are accepted; all ready items can be sent together. Fixed PDF text uses template page/end-sentence selectors, fixed Word text exact template quotations; the system copies it. Derived sections bind saved result fields. No model-written fixed body or proof is accepted."""
         return save_items(cs, actor(), operation_id, 'section', [i.model_dump(mode='json') for i in items])
 
-    def add_substitution(operation_id: str, section_id: str, substitution: PlanningSubstitution) -> dict:
-        """Save a proposed document replacement for one section, with the customer's exact permission and source evidence. Requires final owner confirmation."""
-        return save_item(cs, actor(), operation_id, 'substitution', {'section_id': section_id, 'substitution': substitution.model_dump(mode='json')})
 
     def add_reconciliation(operation_id: str, items: Annotated[list[PlanningReconciliationInput], Field(min_length=1)]) -> dict:
         """Add or revise source comparisons atomically by stable IDs. Several items are accepted; all ready items can be sent together. Preserve factual differences and interpretations; any invalid comparison refuses the whole list with indexed problems."""
@@ -1235,9 +1232,9 @@ def planning_tools(cs, actor, *, result_fits=None):
 
     if plan_inputs.get_skeleton(cs.store):
         return assertion_tools + [expose(f) for f in [publish_planning_draft, read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
-            set_candidate_disposition, resolve_skeleton_choice, add_substitution, add_reconciliation, add_question, review_carried_items]]
+            set_candidate_disposition, resolve_skeleton_choice, add_reconciliation, add_question, review_carried_items]]
     return assertion_tools + [expose(function) for function in [publish_planning_draft, read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
-            add_object, add_section, add_substitution, add_reconciliation, add_question]]
+            add_object, add_section, add_reconciliation, add_question]]
 
 
 def install_prepared_planning(cs, source_refs):
