@@ -62,7 +62,5 @@ def check(db, config):
     fingerprint = _fingerprint(config)
     changed = current["latest_fingerprint"] not in (None, fingerprint)
     used = current["revisions_used"] + int(changed)
-    if changed and current["max_revisions"] is not None and used > current["max_revisions"]:
-        raise ActionRejected("LAYOUT_REVISION_LIMIT_REACHED")
     return {**current, "revisions_used": used, "layout_changed": changed,
             "fingerprint": fingerprint}
