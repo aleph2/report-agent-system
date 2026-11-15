@@ -46,8 +46,6 @@ class MergeRule(Contract):
             raise ValueError('TABLE_SPEC_UNSUPPORTED_MERGE')
         for field in self.columns + self.group_by + ([self.when_empty] if self.when_empty else []):
             _path(field)
-        if len(set(self.columns)) != len(self.columns):
-            raise ValueError('TABLE_SPEC_DUPLICATE_MERGE_COLUMN')
         return self
 
 

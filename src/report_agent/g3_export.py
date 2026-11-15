@@ -442,8 +442,6 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
                 control['paragraphs'] = headings
     raw = deepcopy(raw_layout or {})
     raw_nodes, raw_styles = raw.pop('nodes', []), raw.pop('styles', [])
-    if len({_key(n['node_ref']) for n in raw_nodes}) != len(raw_nodes) or len({s['name'] for s in raw_styles}) != len(raw_styles):
-        raise ActionRejected('G3_DUPLICATE_LAYOUT_CONTROL')
     result = _merge_required(base, raw, 'layout')
     for item in raw_styles:
         if item['name'] not in styles:

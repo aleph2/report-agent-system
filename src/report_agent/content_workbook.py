@@ -147,12 +147,8 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
         if citation:
             rows.append([citation])
             annotation_rows.append((len(rows), 1))
-        seen_notes = set()
         for note_ref in sheet.get('note_refs', []):
             key = Ref.model_validate(note_ref).key()
-            if key in seen_notes:
-                raise ActionRejected('DUPLICATE_WORKBOOK_NOTE')
-            seen_notes.add(key)
             if key not in members or note_ref['type'] != 'ContentNode':
                 raise ActionRejected('NOTE_OUTSIDE_SNAPSHOT')
             note = contents._read(db, note_ref)['payload']

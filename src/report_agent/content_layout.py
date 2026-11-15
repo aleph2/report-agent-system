@@ -144,12 +144,8 @@ class LayoutOptions(Contract):
 
 
 def validate_layout(options, records, rendered_keys=None):
-    if len({s.name for s in options.styles}) != len(options.styles):
-        raise ActionRejected('LAYOUT_DUPLICATE_STYLE')
     if options.header and options.header_parts:
         raise ActionRejected('HEADER_CONTROLS_CONFLICT')
-    if len({p.position for p in options.header_parts}) != len(options.header_parts):
-        raise ActionRejected('HEADER_DUPLICATE_POSITION')
     headers = ([options.header] if options.header else options.header_parts)
     for header in [line for part in headers for line in [part, *part.additional_lines]]:
         key = header.node_ref.key()
@@ -160,12 +156,10 @@ def validate_layout(options, records, rendered_keys=None):
         lines = records[key]['payload']['body'].get('text', '').split('\n')
         if lines.count(header.text) != 1:
             raise ActionRejected('HEADER_REQUIRES_UNIQUE_EXACT_LINE')
-    seen = set()
     for item in options.nodes:
         key = item.node_ref.key()
-        if key in seen or key not in records or key[0] != "ContentNode":
+        if key not in records or key[0] != "ContentNode":
             raise ActionRejected("LAYOUT_REQUIRES_UNIQUE_SNAPSHOT_NODE")
-        seen.add(key)
         body = records[key]["payload"]
         lines = body['body'].get('text', '').split('\n')
         from .exporting import markdown_table_spans
@@ -174,13 +168,11 @@ def validate_layout(options, records, rendered_keys=None):
             raise ActionRejected('HEADING_CONTROL_INTERSECTS_MARKDOWN_TABLE')
         if item.paragraphs and body['kind'] in {'table','figure'}:
             raise ActionRejected('PARAGRAPH_CONTROLS_REQUIRE_TEXT_BLOCK_OR_CLAIM')
-        selected = set()
         for paragraph in item.paragraphs:
-            if paragraph.text in selected or lines.count(paragraph.text) != 1:
+            if lines.count(paragraph.text) != 1:
                 raise ActionRejected('LAYOUT_PARAGRAPH_REQUIRES_UNIQUE_EXACT_LINE')
             if any(start <= lines.index(paragraph.text) < end for _, start, end in table_spans):
                 raise ActionRejected('PARAGRAPH_CONTROL_INTERSECTS_MARKDOWN_TABLE')
-            selected.add(paragraph.text)
             if item.heading_level and paragraph.text == lines[0] and paragraph.heading_level != item.heading_level:
                 raise ActionRejected('LAYOUT_CONFLICTING_HEADING_LEVELS')
         if item.heading_level and (body["kind"] not in {"block", "chapter"} or not body["body"].get("text")):
