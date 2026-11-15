@@ -161,41 +161,10 @@ async def test_actual_background_graph_saves_candidate_without_publishing(tmp_pa
         'project_fact', 'customer_preference', 'general_skill'}
 
 
-def test_report_tools_apply_shared_preference_and_reject_revoked_version(tmp_path):
-    from report_agent.store import Store
-    from report_agent.workspace import Workspace
-    from report_agent.learning import binding, report_tools
-    from report_agent.hierarchical_tools import actor_for, content_tools
-    from test_hierarchical_content import seed
-    projects = []
-    for name in ("first", "next"):
-        ws = Workspace(Store(tmp_path / name))
-        ws.store.initialize({"goal": "Test", "content_contract": "hierarchical-review-v1", "sources": [
-            {"id": "s", "title": "Rule", "content": "Class B permits 75 to 100.", "coverage": "complete"}]})
-        ws.store.set("learning_config", {"library_path": str(tmp_path / "shared"), "customer_id": "a"})
-        projects.append(ws)
-    library, first = binding(projects[0])
-    candidate = proposal(library, first)
-    library.release(first, candidate["id"], 1, "Confirmed format preference")
-    _, _, refs, _, _ = seed(projects[1])
-    tools = {t.__name__: t for t in report_tools(projects[1], lambda: actor_for("writer"))}
-    assert tools["search_experience"]("Table")["items"][0]["id"] == candidate["id"]
-    miss = tools["search_experience"]("Table format with words not present")
-    assert miss["items"] == [] and miss["match_mode"] == "exact_substring"
-    assert "empty query" in miss["hint"]
-    assert tools["search_experience"]()["items"][0]["id"] == candidate["id"]
-    result = tools["record_experience_use"](candidate["id"], 1, refs["claim"], "Same customer requirement")
-    assert result["experience"]["version"] == 1
-    assert "search_experience" in {t.__name__ for t in content_tools(projects[1], "writer")}
-    library.release(first, candidate["id"], None, "Withdraw")
-    with pytest.raises(ActionRejected, match="NOT_ACTIVE"):
-        tools["record_experience_use"](candidate["id"], 1, refs["claim"], "stale cached version")
-
-
 def test_identifier_lookup_does_not_resolve_mentions_or_unreleased_foreign_items(tmp_path):
     from report_agent.store import Store
     from report_agent.workspace import Workspace
-    from report_agent.learning import binding, report_tools, LearningScope
+    from report_agent.learning import binding, LearningScope
     ws=Workspace(Store(tmp_path/'lookup'))
     ws.store.set('learning_config',{'library_path':str(tmp_path/'library'),'customer_id':'a'})
     library,scope=binding(ws)
@@ -204,25 +173,12 @@ def test_identifier_lookup_does_not_resolve_mentions_or_unreleased_foreign_items
     parent=library.propose(scope,[feedback['id']],'customer_preference','Parent',
         'Refines candidate '+prefix,'Same customer','Check actual writing')
     library.release(scope,parent['id'],1,'Synthetic fixture release')
-    tools={t.__name__:t for t in report_tools(ws,lambda:None)}
-    text=tools['search_experience'](prefix)
-    assert text['items'][0]['id']==parent['id']
-    assert text['match_details'][0]['matched_fields']==['strategy']
-    miss=tools['search_experience'](prefix,match_mode='identifier')
-    assert not miss['items'] and 'historical' in miss['hint']
     child=library.propose(scope,[feedback['id']],'customer_preference','Child','Independent guidance',
         'Same customer','Check actual writing',experience_id=prefix+'-0000-0000-0000-000000000000')
-    assert not tools['search_experience'](prefix,match_mode='identifier')['items']
     library.release(scope,child['id'],1,'Synthetic child release')
-    resolved=tools['search_experience'](prefix,match_mode='identifier')
-    assert [r['id'] for r in resolved['items']]==[child['id']]
-    assert resolved['match_details'][0]['matched_fields']==['id']
     other=LearningScope('other',str(tmp_path/'foreign'))
     assert not library.search(other,child['id'],match_mode='identifier')
     library.release(scope,child['id'],None,'Withdraw synthetic fixture')
-    assert not tools['search_experience'](child['id'],match_mode='identifier')['items']
-    with pytest.raises(ActionRejected,match='IDENTIFIER_REQUIRED'):
-        tools['search_experience']('',match_mode='identifier')
     with pytest.raises(ActionRejected,match='INVALID_EXPERIENCE_MATCH_MODE'):
         library.search(scope,'anything',match_mode='unsupported')
 
@@ -232,19 +188,17 @@ def test_learning_reference_tools_preserve_structured_refs_on_strict_wire(tmp_pa
     from langchain_core.utils.function_calling import convert_to_openai_tool
     from report_agent.deepseek_strict import StrictCodec
     from report_agent.learning_runtime import optimizer_tools
-    from report_agent.learning import report_tools
     from report_agent.store import Store
     from report_agent.workspace import Workspace
     ws = Workspace(Store(tmp_path / 'project'))
     ws.store.set('learning_config', {'library_path': str(tmp_path / 'library'), 'customer_id': 'a'})
     ref = {'type': 'Evidence', 'id': 'saved-object', 'version': 1}
-    for tool in optimizer_tools(ws) + report_tools(ws, lambda: None):
-        if tool.__name__ not in {'read_learning_evidence', 'record_experience_use'}:
+    for tool in optimizer_tools(ws):
+        if tool.__name__ not in {'read_learning_evidence'}:
             continue
         codec = StrictCodec(convert_to_openai_tool(StructuredTool.from_function(tool))['function'])
-        args = {'ref': ref} if tool.__name__ == 'read_learning_evidence' else {
-            'experience_id': 'candidate', 'version': 1, 'target_ref': ref, 'reason': 'Applicable'}
+        args = {'ref': ref}
         wire = codec.encode(args)
-        ref_key = 'ref' if tool.__name__ == 'read_learning_evidence' else 'target_ref'
+        ref_key = 'ref'
         assert wire[ref_key] == ref
         assert codec.decode(wire) == args

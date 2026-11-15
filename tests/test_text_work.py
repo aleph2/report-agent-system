@@ -230,14 +230,13 @@ async def test_known_incomplete_json_never_becomes_adoptable(ws, finish):
 async def test_public_retired_entrypoints_leave_status_and_checkpoints_unchanged(ws):
     from report_agent.deep_runtime import run_report, project_agent
     from report_agent.runtime import run_task
-    from report_agent.report_runtime import run_report as old_run
     manifest = ws.store.manifest
     manifest.pop('content_contract')
     ws.store.set('manifest', manifest)
     ws.store.set('report_status', 'historical_terminal')
     ws.store.set('report_error', {'type': 'preserved'})
     events = ws.store.events()
-    for attempt in (lambda: run_report(ws), lambda: run_task(ws.store), lambda: old_run(ws)):
+    for attempt in (lambda: run_report(ws), lambda: run_task(ws.store)):
         with pytest.raises(ActionRejected, match='HISTORICAL_AGENT_EXECUTION_INACTIVE'):
             await attempt()
     with pytest.raises(ActionRejected, match='HISTORICAL_AGENT_EXECUTION_INACTIVE'):

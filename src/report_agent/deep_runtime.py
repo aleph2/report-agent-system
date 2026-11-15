@@ -930,20 +930,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         tools.append(analyze_evidence)
     if knowledge is not None:
         tools += [knowledge_search, knowledge_read, knowledge_traverse]
-    if role == "knowledge" and knowledge is not None:
-        def knowledge_put(title: str, body: str, source_ids: list[str], replaces_id: str = "") -> dict:
-            """Publish source-grounded knowledge or revise your own fact; retain provenance."""
-            store.sources(source_ids)
-            return knowledge.put(title, body, source_ids, owner="knowledge", replaces_id=replaces_id)
-
-        def knowledge_link(source_id: str, target_id: str, relation: str) -> dict:
-            """Save a meaningful relationship between two indexed knowledge records."""
-            return knowledge.link(source_id, target_id, relation, owner="knowledge")
-
-        def knowledge_retract(fact_id: str, reason: str) -> dict:
-            """Retract your own invalid knowledge without deleting its audit history."""
-            return knowledge.retract(fact_id, owner="knowledge", reason=reason)
-        tools += [knowledge_put, knowledge_link, knowledge_retract]
     if role == "coordinator":
         from .acceptance import enabled
 

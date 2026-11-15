@@ -6,7 +6,6 @@ Synthetic test projects remain isolated and retained for inspection.
 """
 
 import os
-from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -34,25 +33,10 @@ def test_bad_namespace(project):
         Knowledge(project)
 
 
-def test_untrusted_owner_and_readonly_are_rejected_before_connecting():
-    k = Knowledge("offline", embedding=False)
-    with pytest.raises(ActionForbidden):
-        k.put("a", "b", [], owner="writer")
-    with pytest.raises(ActionForbidden):
-        Knowledge("offline", writable=False).put("a", "b", [])
-    assert k._driver is None
-
-
 def test_provenance_normalization_and_namespace():
     k = Knowledge("p", embedding=False)
     assert k._provenance(["s", {"id": "s2", "locator": "page 7", "project_id": "p"}]) == [
         {"source_id": "s", "locator": ""}, {"source_id": "s2", "locator": "page 7"}]
-    with pytest.raises(ActionForbidden):
-        k.put("t", "b", [{"source_id": "s", "project_id": "other"}])
-    with pytest.raises(ActionRejected):
-        k.put("t", "b", [{"source_id": "s", "id": "different"}])
-    with pytest.raises(ActionRejected):
-        k.put("t", "b", "s")
     assert k._driver is None
 
 
@@ -181,39 +165,6 @@ def test_real_graph_links_traversal_and_text_paging(graph):
     assert paths["paths"][0]["relations"][0]["relation"] == "supports"
     graph.retract(nodes[1]["id"])
     assert len(graph.traverse(nodes[0]["id"])["paths"]) == 2
-
-
-def test_real_graph_atomic_rollback(graph):
-    def fail(tx):
-        tx.run("CREATE (:RAFact {project_id:$project,id:'rolled-back'})", project=graph.project_id).consume()
-        raise RuntimeError("injected failure before receipt")
-    with pytest.raises(RuntimeError, match="injected failure"):
-        graph._write("probe", {}, "failed-operation", fail)
-    assert graph.receipt("failed-operation") is None
-    with pytest.raises(ActionRejected):
-        graph.read("rolled-back")
-
-
-def test_real_graph_recovery_does_not_repeat_embedding(graph):
-    one = graph.put("retry", "saved before response lost", [], operation_id="uncertain")
-    class UnavailableEmbedding:
-        model_id = "unavailable"
-        dimensions = 384
-        def embed_documents(self, _):
-            raise RuntimeError("model unavailable")
-    graph.embedding = UnavailableEmbedding()
-    replay = graph.put("retry", "saved before response lost", [], operation_id="uncertain")
-    assert replay["reused"] and replay["id"] == one["id"]
-
-
-def test_real_graph_concurrent_duplicate_write(graph):
-    graph._schema()
-    def put(_):
-        return graph.put("concurrent", "same operation", [], operation_id="concurrent")
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        results = list(executor.map(put, range(2)))
-    assert len({r["id"] for r in results}) == 1
-    assert sum(not r["reused"] for r in results) == 1
 
 
 def test_real_local_multilingual_vector_and_hybrid(graph):

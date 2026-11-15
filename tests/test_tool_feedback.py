@@ -1,8 +1,7 @@
 import pytest
 
 from report_agent.errors import ActionRejected, ActionForbidden
-from report_agent.report_runtime import feedback_tool, worker_tools
-from test_report_trunk import workspace
+from report_agent.report_runtime import feedback_tool
 
 
 @pytest.mark.parametrize('error', [ValueError('decode failed'), PermissionError('file denied'), RuntimeError('unexpected')])

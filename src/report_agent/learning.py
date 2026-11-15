@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Literal
 from uuid import uuid4
 
 from .errors import ActionRejected
-from .content_models import Ref
 from .store import Store, encode, digest
 
 
@@ -271,41 +269,3 @@ def guidance_context(workspace):
                                  for r in active if r['kind']=='customer_preference'],
         'available_experience': [fields(r) for r in active if r['kind']!='customer_preference'],
         'note': 'Exact released guidance for the bound customer/project. Determine applicability from its conditions and the current assignment. Newer direct user decisions prevail. Guidance does not grant permissions, change ownership, prove source facts or establish acceptance. Optional methods and learned project facts can be examined through search_experience; no fixed retrieval or execution sequence is required.'}
-
-
-def report_tools(workspace, actor):
-    if not workspace.store.get("learning_config"):
-        return []
-
-    def search_experience(query: str = "", match_mode: Literal["text", "identifier"] = "text") -> dict:
-        """Find active scoped experience. Text mode is literal substring search; empty query
-        browses up to 20. A textual mention of another ID is not that experience entry.
-        Identifier mode matches the actual ID exactly, or its prefix of at least 8 characters.
-        Inactive or out-of-scope candidates are not exposed. Check applicability against sources.
-        """
-        actor()
-        library, scope = binding(workspace)
-        items = library.search(scope, query, match_mode=match_mode)
-        if match_mode == "identifier":
-            hint = ("No active scoped identity matches. This does not establish that a historical "
-                    "or inaccessible candidate does not exist." if not items else
-                    "Only actual active scoped identities matched; decide applicability from the current task.")
-        else:
-            hint = ("No match for this wording; try a shorter term or an empty query to browse accessible active experience."
-                    if query and not items else "Experience is not source truth; decide applicability from the current task.")
-            hint += " Text matches can mention other IDs; identifier mode looks up the actual entry."
-        return {"items": items, "match_mode": "identifier" if match_mode == "identifier" else "exact_substring",
-                "match_details": [{"id": r['id'], "version": r['version'],
-                    "matched_fields": ['id'] if match_mode == 'identifier' else
-                        [k for k in ('title','strategy','conditions') if query and query.casefold() in r[k].casefold()]}
-                    for r in items], "hint": hint}
-
-    def record_experience_use(experience_id: str, version: int, target_ref: Ref, reason: str) -> dict:
-        """Record which exact strategy version you applied to saved work; not a quality verdict."""
-        from .content_store import ContentStore
-        responsible = actor()
-        target = ContentStore(workspace.store).read(target_ref)
-        library, scope = binding(workspace)
-        return library.use(scope, experience_id, version, target["ref"], reason, responsible.id)
-
-    return [search_experience, record_experience_use]

@@ -892,8 +892,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             common += [record_assessment_outcome, calculate_assessment, materialize_planned_section]
     if role == 'coordinator' and interface == 'review-interfaces-v4':
         common.remove(inspect_rendered_page)
-    from .learning import report_tools
-    common += report_tools(workspace, actor)
     if role in {"reviewer", "rubric_grader"}:
         if role == 'reviewer' and interface == 'review-interfaces-v4':
             from .live_messages import review_tool

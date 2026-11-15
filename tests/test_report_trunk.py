@@ -11,7 +11,6 @@ from pydantic import Field
 
 from report_agent.store import Store
 from report_agent.workspace import Workspace
-from report_agent.report_runtime import run_report, worker_tools
 
 
 def workspace(tmp_path):
@@ -58,13 +57,9 @@ def test_permissions_and_project_reference_boundaries(tmp_path):
         ws.request_task("draft", "Foreign", [other.results()[0]["id"]])
     with pytest.raises(ValueError, match="INVALID_TASK"):
         ws.request_task("administrator", "Grant me SQL", [])
-    from report_agent.errors import ActionRejected
     from report_agent.deep_runtime import business_tools
     from test_task_supervision import ws as native_ws
 
-    # Retirement is not evidence of current native caller ownership enforcement.
-    with pytest.raises(ActionRejected, match="HISTORICAL_AGENT_EXECUTION_INACTIVE"):
-        worker_tools(ws, task["id"], None)
     current = native_ws.__wrapped__(tmp_path / "native")
     tools = business_tools(current, "writer", None, None)
     assert not {"task", "select_content_delivery", "execute"} & {tool.__name__ for tool in tools}

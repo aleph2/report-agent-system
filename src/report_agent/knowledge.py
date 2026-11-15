@@ -8,13 +8,10 @@ Requires Neo4j 2026.02+ (filtered vector SEARCH) and the official Python driver.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
 import re
-from datetime import datetime, timezone
-from uuid import uuid4
 
 from .embeddings import LocalEmbedding
 from .errors import ActionForbidden, ActionRejected
@@ -22,10 +19,6 @@ from .errors import ActionForbidden, ActionRejected
 
 def _json(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _hash(value):
-    return hashlib.sha256(_json(value).encode()).hexdigest()
 
 
 def _text(value, field, *, empty=False):
@@ -55,9 +48,6 @@ class Knowledge:
 
     embedding=None uses lazy LocalEmbedding; False explicitly disables vectors.
     An injected provider implements model_id, dimensions, embed_documents/query.
-    put returns the fact fields plus operation_id/reused/receipt. Reusing an
-    operation ID with changed content is rejected. Without an ID, identical put
-    payloads deduplicate; supply a new ID for an intentionally distinct fact.
     """
 
     def __init__(self, project_id: str, uri: str | None = None, embedding=None,
@@ -142,18 +132,15 @@ class Knowledge:
         return {
             "project_id": self.project_id, "producer": self.producer, "writable": self.writable,
             "authority": "Neo4j owns facts and relations; catalog sources and report artifacts remain external.",
-            "methods": ["put", "read", "read_many", "search", "link", "traverse", "retract", "receipt"],
             "embedding": self.embedding.describe() if hasattr(self.embedding, "describe") else
                 {"model_id": self.embedding.model_id, "dimensions": self.embedding.dimensions} if self.embedding else None,
             "source_references": "Strings or {source_id, locator}; caller validates catalog existence and project access.",
-            "permissions": "Bind constructor identity on server. Only bound producer can revise/retract its facts or link from them.",
             "search_modes": ["text", "vector", "hybrid"], "max_limit": 100, "max_traversal_depth": 5,
             "coverage_note": "Search returns candidates, not source completeness. No hit does not prove absent evidence. "
                 "Vector ANN is approximate. Vector/hybrid pages cover a fixed pool of up to 200 candidates per mode; "
                 "refine the query to discover beyond that pool. Hybrid uses reciprocal-rank fusion. "
                 "Offset pages are not snapshots. Facts without a matching model vector are excluded from vector search.",
             "history": "read(id) and read_many(ids) include superseded/retracted content; search and traversal return active versions only.",
-            "recovery": "Check receipt(operation_id) after uncertain writes; replay the same operation and payload.",
         }
 
     def receipt(self, operation_id):
@@ -163,39 +150,6 @@ class Knowledge:
                           operation=operation_id)
         return json.loads(rows[0]["result"]) if rows else None
 
-    def _existing(self, tx, operation, fingerprint):
-        row = tx.run("MATCH (r:RAReceipt {project_id:$project,operation_id:$operation}) "
-                     "RETURN r.fingerprint AS fingerprint,r.result AS result",
-                     project=self.project_id, operation=operation).single()
-        if not row:
-            return None
-        if row["fingerprint"] != fingerprint:
-            raise ActionRejected("OPERATION_ID_PAYLOAD_CONFLICT")
-        return {**json.loads(row["result"]), "reused": True}
-
-    def _write(self, kind, payload, operation_id, mutation):
-        fingerprint = _hash({"kind": kind, "payload": payload})
-        operation = operation_id or f"{kind}:{fingerprint}"
-        self._schema()
-
-        def commit(tx):
-            # A project write lock serializes receipt checks, revision heads and links.
-            tx.run("MERGE (p:RAProject {id:$project}) SET p.serial=coalesce(p.serial,0)+1",
-                   project=self.project_id).consume()
-            existing = self._existing(tx, operation, fingerprint)
-            if existing:
-                return existing
-            result = mutation(tx)
-            result.update(operation_id=operation, reused=False,
-                          receipt={"operation_id": operation, "kind": kind, "project_id": self.project_id})
-            tx.run("CREATE (r:RAReceipt {project_id:$project,operation_id:$operation,"
-                   "fingerprint:$fingerprint,result:$result,created_at:$now})",
-                   project=self.project_id, operation=operation, fingerprint=fingerprint,
-                   result=_json(result), now=datetime.now(timezone.utc).isoformat()).consume()
-            return result
-
-        with self.driver.session(database="neo4j") as session:
-            return session.execute_write(commit)
 
     def _get(self, tx, id, owner=None, active=False):
         row = tx.run("MATCH (n:RAFact {project_id:$project,id:$id}) RETURN n",
@@ -218,48 +172,6 @@ class Knowledge:
             raise ActionRejected("INVALID_EMBEDDING_VECTOR")
         return vector
 
-    def put(self, title, body, source_ids, owner="knowledge", replaces_id="", operation_id=""):
-        self._authorize(owner)
-        title, body = _text(title, "title"), _text(body, "body")
-        _text(replaces_id, "replaces_id", empty=True)
-        _text(operation_id, "operation_id", empty=True)
-        refs = self._provenance(source_ids)
-        payload = {"title": title, "body": body, "provenance": refs, "owner": owner, "replaces_id": replaces_id}
-        fingerprint = _hash({"kind": "put", "payload": payload})
-        operation = operation_id or f"put:{fingerprint}"
-        self._schema()
-        # Recovery must work even if the embedding model is currently unavailable.
-        with self.driver.session(database="neo4j") as session:
-            existing = session.execute_read(lambda tx: self._existing(tx, operation, fingerprint))
-            if existing:
-                return existing
-            if replaces_id:
-                session.execute_read(lambda tx: self._get(tx, replaces_id, owner, active=True))
-        vector = self._vector(title + "\n" + body) if self.embedding else None
-        if vector is not None:
-            self._schema(vector=True)
-
-        def mutation(tx):
-            old = self._get(tx, replaces_id, owner, active=True) if replaces_id else None
-            id = str(uuid4())
-            data = {"id": id, "project_id": self.project_id, "title": title, "body": body,
-                    "source_ids": list(dict.fromkeys(r["source_id"] for r in refs)),
-                    "provenance_json": _json(refs), "owner": owner, "status": "active",
-                    "replaces_id": replaces_id, "root_id": old["root_id"] if old else id,
-                    "revision": old["revision"] + 1 if old else 1,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "verification": "producer_asserted_not_independently_verified",
-                    "embedding_model": self.embedding.model_id if vector is not None else "",
-                    "embedding_dimensions": len(vector) if vector is not None else 0,
-                    "embedding_coverage": getattr(self.embedding, "coverage_note", "Provider-defined coverage") if vector is not None else "No vector indexed"}
-            tx.run("CREATE (n:RAFact) SET n=$data SET n.embedding=$vector", data=data, vector=vector).consume()
-            if old:
-                tx.run("MATCH (old:RAFact {project_id:$project,id:$old}), (n:RAFact {project_id:$project,id:$new}) "
-                       "SET old.status='superseded',old.replaced_by=$new CREATE (n)-[:RA_REPLACES]->(old)",
-                       project=self.project_id, old=replaces_id, new=id).consume()
-            return _fact(data)
-
-        return self._write("put", payload, operation_id, mutation)
 
     def read(self, id):
         _text(id, "id")
@@ -287,38 +199,6 @@ class Knowledge:
             raise ActionRejected("KNOWLEDGE_NOT_FOUND_IN_PROJECT: " + _json(missing))
         return [_fact(nodes[id]) for id in requested]
 
-    def link(self, source_id, target_id, relation, owner="knowledge"):
-        self._authorize(owner)
-        payload = {"source_id": _text(source_id, "source_id"), "target_id": _text(target_id, "target_id"),
-                   "relation": _text(relation, "relation"), "owner": owner}
-
-        def mutation(tx):
-            self._get(tx, source_id, owner, active=True)
-            self._get(tx, target_id, active=True)
-            data = {**payload, "id": str(uuid4()), "project_id": self.project_id,
-                    "created_at": datetime.now(timezone.utc).isoformat()}
-            tx.run("MATCH (a:RAFact {project_id:$project,id:$source}), (b:RAFact {project_id:$project,id:$target}) "
-                   "CREATE (a)-[r:RA_RELATES]->(b) SET r=$data",
-                   project=self.project_id, source=source_id, target=target_id, data=data).consume()
-            return data
-
-        return self._write("link", payload, "", mutation)
-
-    def retract(self, id, owner="knowledge", reason=""):
-        self._authorize(owner)
-        payload = {"id": _text(id, "id"), "owner": owner, "reason": _text(reason, "reason", empty=True)}
-
-        def mutation(tx):
-            fact = self._get(tx, id, owner)
-            if fact["status"] == "retracted":
-                raise ActionRejected("ALREADY_RETRACTED_WITH_DIFFERENT_REASON")
-            now = datetime.now(timezone.utc).isoformat()
-            tx.run("MATCH (n:RAFact {project_id:$project,id:$id}) "
-                   "SET n.status='retracted',n.retraction_reason=$reason,n.retracted_at=$now",
-                   project=self.project_id, id=id, reason=reason, now=now).consume()
-            return {**fact, "status": "retracted", "current": False, "retraction_reason": reason, "retracted_at": now}
-
-        return self._write("retract", payload, "", mutation)
 
     def _text_hits(self, query, take):
         # Treat user text as literal words, never as executable Lucene query syntax.

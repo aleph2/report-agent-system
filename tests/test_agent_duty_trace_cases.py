@@ -281,38 +281,3 @@ async def test_writer_evidence_source_pool_requires_version_binding_before_text_
     request.node.user_properties.append(('trace_case', json.dumps({
         'case': 'TC03', 'managed': managed, 'observed': observed,
         'scripted_correction': True, 'paid_calls': 0})))
-
-
-def test_optional_optimizer_missing_dependency_has_terminal_evidence_without_execution(tmp_path, request):
-    import importlib.util
-    from report_agent.learning_evaluation import run_experiment
-    from test_learning_evaluation import Program, data, metric
-
-    if importlib.util.find_spec('dspy') is not None:
-        pytest.skip('This environment has the optional engine; missing-dependency path not applicable.')
-    root = tmp_path / 'optional-engine-diagnostic'
-
-    class NoExecution(Program):
-        def __call__(self, **inputs):
-            pytest.fail('A missing optimizer dependency must not execute the student or holdout.')
-
-    with pytest.raises(ModuleNotFoundError) as failure:
-        run_experiment(NoExecution('Synthetic baseline'), *data(), metric, None,
-                       output_directory=root, max_metric_calls=4,
-                       evaluator_version='synthetic-contract-v1', model_identity='never-invoked')
-    assert failure.value.name == 'dspy'
-    saved = json.loads((root / 'experiment.json').read_text())
-    assert saved['state'] == 'failed' and saved['error_type'] == 'ModuleNotFoundError'
-    assert saved['automatic_release'] is False
-    assert saved['baseline'] == {'answer': 'Synthetic baseline'}
-    assert 'candidate' not in saved and 'holdout' not in saved
-    before = (root / 'experiment.json').read_bytes()
-    with pytest.raises(FileExistsError):
-        run_experiment(NoExecution('Synthetic baseline'), *data(), metric, None,
-                       output_directory=root, max_metric_calls=4,
-                       evaluator_version='synthetic-contract-v1', model_identity='never-invoked')
-    assert (root / 'experiment.json').read_bytes() == before
-    request.node.user_properties.append(('trace_case', json.dumps({
-        'case': 'E7-dependency-negative', 'terminal_record': saved,
-        'positive_gepa_path': 'environment-blocked', 'paid_calls': 0,
-        'authorization_enforcement_tested': False})))

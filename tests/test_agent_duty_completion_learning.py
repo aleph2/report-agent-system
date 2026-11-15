@@ -214,42 +214,6 @@ async def test_p19_native_registration_and_terminal_experiment_no_replay(case, e
     assert not {'task', 'release', 'commit_objects'} & registered
 
 
-@pytest.mark.parametrize('role', ['coordinator', 'reviewer', 'layout'])
-@pytest.mark.parametrize('revoked', [False, True])
-async def test_p14_sibling_agent_experience_use_checks_current_release(ws, tmp_path, role, revoked, request):
-    from report_agent.learning import binding
-    from test_learning import proposal
-    cs, _, refs, snapshot, _ = seed(ws)
-    before = cs.read(refs['claim'])
-    ws.store.set('learning_config', {'library_path': str(tmp_path / 'lib'), 'customer_id': 'synthetic'})
-    lib, scope = binding(ws)
-    origin = LearningScope(scope.customer, 'another-project')
-    candidate = proposal(lib, origin)
-    lib.release(origin, candidate['id'], 1, 'Synthetic host-authorized release')
-    activate(ws)
-    observed = []
-
-    def use(messages):
-        values = packet(reply(messages, 'search_experience'))['items']
-        assert len(values) == 1 and values[0]['strategy'] == candidate['strategy']
-        if revoked:
-            lib.release(origin, candidate['id'], None, 'Synthetic host withdrawal')
-        return invoke('record_experience_use', experience_id=candidate['id'], version=1,
-                      target_ref=refs['claim'], reason='Synthetic scoped use')
-
-    def finish(messages):
-        value = last(messages, 'record_experience_use')
-        observed.append(value.model_dump())
-        assert value.status == ('error' if revoked else 'success')
-        if revoked:
-            assert 'EXPERIENCE_NOT_ACTIVE' in value.content
-        assert cs.read(refs['claim']) == before
-        return AIMessage(content='Release status observed; ordinary work and uncertainty remain.')
-
-    await run_role(ws, role, [invoke('search_experience'), use, finish], refs, snapshot)
-    record(request, 'P14', role=role, revoked=revoked, observed=observed, content_unchanged=True)
-
-
 async def test_p15_native_evidence_pages_read_requested_old_version_not_head(ws, tmp_path, request):
     ws.store.set('learning_config', {'library_path': str(tmp_path / 'lib'), 'customer_id': 'synthetic'})
     cs, owner, refs, _, _ = seed(ws)
