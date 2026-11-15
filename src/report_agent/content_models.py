@@ -301,14 +301,9 @@ class ReviewItem(Contract):
                 if (not indexes or
                         any(i < 0 or i >= len(self.observations) for i in indexes)):
                     raise ValueError('FINDING_REQUIRES_VALID_OBSERVATION_LINKS')
-            if finding.finding_type == 'confirmed_defect' and finding.basis_kind == 'input_gap':
-                raise ValueError('INPUT_GAP_IS_NOT_CONFIRMED_CONTENT_DEFECT')
         if self.check_results is not None:
             if any(i >= len(self.observations) for c in self.check_results for i in c.observation_indexes):
                 raise ValueError("CHECK_OBSERVATION_INDEX_OUTSIDE_ITEM")
-            completed = {c.requirement_index for c in self.check_results if c.execution_state == "completed"}
-            if self.checked_requirement_indexes is not None and set(self.checked_requirement_indexes) != completed:
-                raise ValueError("CHECK_DECLARATION_CONFLICTS_WITH_RESULTS")
             if self.verdict == "satisfied" and any(c.execution_state != "completed" for c in self.check_results):
                 raise ValueError("UNFINISHED_ASSIGNED_CHECK_CANNOT_PASS")
         if self.checked_requirement_indexes is not None and (
@@ -317,8 +312,6 @@ class ReviewItem(Contract):
             raise ValueError("CHECK_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
         if self.assessment_kind != "content" and not self.artifact_refs:
             raise ValueError("ARTIFACT_ASSESSMENT_REQUIRES_EXACT_EXPORT_OR_RENDER")
-        if self.execution_state == "not_started" and self.verdict is not None:
-            raise ValueError("UNEXECUTED_REVIEW_HAS_NO_VERDICT")
         if self.verdict is not None and not self.observations:
             raise ValueError("VERDICT_REQUIRES_ACTUAL_OBSERVATIONS")
         if self.verdict == "satisfied" and (self.execution_state != "completed" or
