@@ -46,8 +46,6 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
                 pass
 
     app = FastAPI(lifespan=lifespan)
-    from .learning_api import register_learning_routes
-    register_learning_routes(app, ws)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
 
     @app.middleware("http")

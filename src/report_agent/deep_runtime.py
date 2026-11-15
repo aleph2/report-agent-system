@@ -856,18 +856,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         # Only run_report can supply a resume answer, from a saved operator decision.
         return {"issue": issue, "human_decision": answer}
 
-    def knowledge_search(query: str, mode: Literal["hybrid", "text", "vector"] = "hybrid",
-                         limit: int = 10, offset: int = 0) -> dict:
-        """Search shared indexed facts/summaries using semantic vectors, text or both."""
-        return knowledge.search(query, mode=mode, limit=limit, offset=offset)
-
-    def knowledge_read(fact_id: str) -> dict:
-        """Read a shared fact version with sources, ownership and revision history."""
-        return knowledge.read(fact_id)
-
-    def knowledge_traverse(fact_id: str, depth: int = 1, limit: int = 20, offset: int = 0) -> dict:
-        """Explore related shared facts through graph edges; paginated results are partial."""
-        return knowledge.traverse(fact_id, depth=depth, limit=limit, offset=offset)
 
     def save_draft(title: str, body: str, source_ids: list[str], input_ids: list[str],
                    fact_ids: list[str] = [], replaces_id: str = "", kind: Literal["draft"] = "draft",
@@ -928,8 +916,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
              exposed_submit, request_correction, assess_result_impact, ask_human]
     if role == "reviewer":
         tools.append(analyze_evidence)
-    if knowledge is not None:
-        tools += [knowledge_search, knowledge_read, knowledge_traverse]
     if role == "coordinator":
         from .acceptance import enabled
 

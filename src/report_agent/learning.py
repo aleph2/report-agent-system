@@ -207,19 +207,6 @@ class LearningLibrary:
         return [r for r in active if not query or query.casefold() in
                 (r["title"] + r["strategy"] + r["conditions"]).casefold()][:20]
 
-    def use(self, scope, identifier, version, target, reason, actor):
-        if not reason.strip():
-            raise ActionRejected("APPLICATION_REASON_REQUIRED")
-        with self.store.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            experience = self._read(db, scope, identifier, version)
-            released = db.execute("SELECT version FROM learning_release WHERE id=?", (identifier,)).fetchone()
-            if not released or released[0] != version:
-                raise ActionRejected("EXPERIENCE_NOT_ACTIVE")
-            self._audit(db, "application_declared", dict(customer=scope.customer, project=scope.project,
-                        id=identifier, version=version, target=target, reason=reason, actor=actor))
-        return {"experience": experience, "limitation": "Declared use is not evidence of correct application or quality improvement."}
-
 
 def binding(workspace):
     """Configured by host code/operator only; disabled by default."""
@@ -255,7 +242,6 @@ def guidance_context(workspace):
     choosing actions or treating learned project facts as source evidence.
 
     Candidate kind is chosen by the learner; release remains a host decision.
-    Detailed optional methods remain available through the existing search tool.
     """
     bound = binding(workspace)
     if not bound:
@@ -268,4 +254,4 @@ def guidance_context(workspace):
         'customer_preferences': [{**fields(r), 'strategy':r['strategy']}
                                  for r in active if r['kind']=='customer_preference'],
         'available_experience': [fields(r) for r in active if r['kind']!='customer_preference'],
-        'note': 'Exact released guidance for the bound customer/project. Determine applicability from its conditions and the current assignment. Newer direct user decisions prevail. Guidance does not grant permissions, change ownership, prove source facts or establish acceptance. Optional methods and learned project facts can be examined through search_experience; no fixed retrieval or execution sequence is required.'}
+        'note': 'Exact released guidance for the bound customer/project. Determine applicability from its conditions and the current assignment. Newer direct user decisions prevail. Guidance does not grant permissions, change ownership, prove source facts or establish acceptance.'}

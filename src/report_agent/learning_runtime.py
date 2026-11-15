@@ -270,37 +270,3 @@ async def _run_optimizer_locked(workspace, model, *, max_steps=40, experiment_ru
     workspace.store.set("learning_job:" + job_id, completed)
     workspace.store.event("learning_finished", {"quality_verified": False})
     return result
-
-
-def evaluate_strategy_pair(baseline, candidate, cases, evaluator):
-    """Evaluator is host-owned, not editable by optimizer. No automatic release."""
-    import math
-    if not cases or len({c["id"] for c in cases}) != len(cases):
-        raise ValueError("UNIQUE_EVALUATION_CASES_REQUIRED")
-    results = []
-    for case in cases:
-        old, new = evaluator(baseline, case), evaluator(candidate, case)
-        for result in (old, new):
-            if not math.isfinite(result["score"]) or not 0 <= result["score"] <= 1:
-                raise ValueError("INVALID_EVALUATION_SCORE")
-        results.append({"case_id": case["id"], "baseline": old, "candidate": new})
-    return {"results": results, "regressions": [r["case_id"] for r in results
-            if r["candidate"]["score"] < r["baseline"]["score"]], "automatic_release": False}
-
-
-def optimize_with_gepa(student, trainset, valset, metric, reflection_model, *, max_metric_calls):
-    """Optional DSPy adapter. Explicit call budget, injected models and host metric.
-
-    Holdout evaluation and publication remain separate. This function must only be
-    called by the host after model-cost authorization, not by report agent tools.
-    """
-    if not 1 <= max_metric_calls <= 1000 or not trainset or not valset:
-        raise ValueError("BOUNDED_OPTIMIZATION_DATA_REQUIRED")
-    train_ids, val_ids = [x["case_id"] for x in trainset], [x["case_id"] for x in valset]
-    if (len(set(train_ids)) != len(train_ids) or len(set(val_ids)) != len(val_ids)
-            or set(train_ids) & set(val_ids)):
-        raise ValueError("OPTIMIZATION_CASE_SPLIT_INVALID")
-    import dspy
-    optimizer = dspy.GEPA(metric=metric, reflection_lm=reflection_model,
-                          max_metric_calls=max_metric_calls, track_stats=True)
-    return optimizer.compile(student=student, trainset=trainset, valset=valset)

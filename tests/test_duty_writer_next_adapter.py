@@ -18,7 +18,7 @@ from langchain_openai.chat_models.base import _convert_dict_to_message
 from duty_probe_agent_decisions import dump
 from duty_probe_writer_guidance import (
     APPLICABLE_TASK, ASSIGNMENT_BASE, INAPPLICABLE_TASK, NO_USE_FINAL,
-    SOURCE, TARGET, TRUE_FINAL, USE_REASON,
+    SOURCE, TARGET, TRUE_FINAL,
 )
 from duty_probe_writer_multi_consumer import GUIDE, SITE_B
 from report_agent.deep_models import configured_model
@@ -64,11 +64,6 @@ def assert_guidance_state(capture, held, variant, refused):
     assert held['actual_target']['payload'] == TARGET
     assert held['actual_target']['ref'] == fixture['target_ref']
     assert held['actual_target']['owner_id'] == fixture['writer_actor']['id']
-    expected_uses = [] if variant == 'inapplicable' else [{
-        'customer': fixture['customer'], 'project': fixture['project'],
-        'id': fixture['guidance']['id'], 'version': 1, 'target': fixture['target_ref'],
-        'reason': USE_REASON, 'actor': fixture['writer_actor']['id']}]
-    assert capture['declared_uses'] == expected_uses
     expected_final = NO_USE_FINAL if variant == 'inapplicable' else TRUE_FINAL
     assert capture['finals'] == ([] if refused else [expected_final])
     if not refused:
@@ -238,8 +233,6 @@ async def test_writer_next_adapter_sdk_wire_and_shared_budget(ws, request, monke
         assert {'read_tool_observation', 'commit_objects', 'process_report_content'} <= names
         if multi:
             assert 'record_experience_use' not in names
-        else:
-            assert 'record_experience_use' in names
     if multi:
         assert [e['role'] for e in exchanges] == ['text_tool'] + ['writer'] * (count - 1)
         assert json.loads(exchanges[0]['wire']['messages'][-1]['content']) == held['producer_packet']

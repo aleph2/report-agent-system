@@ -376,7 +376,6 @@ src/report_agent/knowledge_state.py	70	project_state	property	read	workspace.sto
 src/report_agent/knowledge_state.py	79	project_state	store	read	'acceptance_limitation'	acceptance_limitation
 src/report_agent/layout_revision.py	38	status	sql	read	SELECT value FROM state WHERE key='layout_revision_limit'	layout_revision_limit
 src/report_agent/learning.py	228	binding	store	read	'learning_config'	learning_config
-src/report_agent/learning_api.py	40	learning_state	store	read	'learning_job'	learning_job
 src/report_agent/learning_runtime.py	44	read_learning_feedback	store	read	'learning_active_feedback'	learning_active_feedback
 src/report_agent/learning_runtime.py	104	record_feedback_disposition	store	read	'learning_active_feedback'	learning_active_feedback
 src/report_agent/learning_runtime.py	105	record_feedback_disposition	store	read	'learning_job'	learning_job

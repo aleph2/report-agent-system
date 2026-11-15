@@ -1,5 +1,4 @@
 """Consume durable feedback only with a host-supplied, authorized model factory."""
-import asyncio
 
 from .learning import binding
 from .learning_runtime import _run_optimizer_locked
@@ -69,30 +68,3 @@ async def _optimize_saved_candidate_locked(workspace, experience_id, version, ex
         workspace.store.set("guidance_experiment:" + job["id"], job)
         workspace.store.event("guidance_experiment_terminal", job)
     return job
-
-
-async def watch_feedback(workspace, model_factory, *, stop, max_jobs, max_steps=40, interval=5, experiment_runner=None):
-    """Optional host loop, bounded job count; does not retry failed/uncertain work.
-
-    Only the named project is polled. A job count/step limit is not a monetary cap;
-    the host is responsible for provider authorization and spending enforcement.
-    """
-    if not 1 <= max_jobs <= 100 or not 1 <= interval <= 60:
-        raise ValueError("BOUNDED_WORKER_CONFIGURATION_REQUIRED")
-    completed = 0
-    while not stop.is_set() and completed < max_jobs:
-        try:
-            result = await consume_pending(workspace, model_factory, max_steps=max_steps,
-                                           experiment_runner=experiment_runner)
-        except RuntimeError as exc:
-            if str(exc) != "PROJECT_ALREADY_RUNNING":
-                raise
-            result = {"state": "busy"}
-        if result["state"] == "completed":
-            completed += 1
-        if completed < max_jobs:
-            try:
-                await asyncio.wait_for(stop.wait(), timeout=interval)
-            except TimeoutError:
-                pass
-    return {"completed_jobs": completed}

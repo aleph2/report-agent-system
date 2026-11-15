@@ -3,17 +3,13 @@
 The application binds project_id, producer and writable from trusted task context;
 these constructor settings must never be exposed as agent-controlled arguments.
 Catalog source IDs/locators are validated by the caller. No SQL facts are created.
-Requires Neo4j 2026.02+ (filtered vector SEARCH) and the official Python driver.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import os
-import re
 
-from .embeddings import LocalEmbedding
 from .errors import ActionForbidden, ActionRejected
 
 
@@ -46,8 +42,6 @@ def _fact(node):
 class Knowledge:
     """No connection or embedding load until an operation needs it.
 
-    embedding=None uses lazy LocalEmbedding; False explicitly disables vectors.
-    An injected provider implements model_id, dimensions, embed_documents/query.
     """
 
     def __init__(self, project_id: str, uri: str | None = None, embedding=None,
@@ -56,11 +50,8 @@ class Knowledge:
         self.producer = _text(producer, "producer")
         self.writable = writable
         self.uri = uri or os.environ.get("REPORT_GRAPH_URI", "bolt://127.0.0.1:17687")
-        self.embedding = LocalEmbedding() if embedding is None else embedding
         self._driver = None
         self._schema_ready = False
-        self._vector_ready = False
-        self._vector_index = "ra_fact_vector_v1"
 
     @property
     def driver(self):
@@ -89,19 +80,9 @@ class Knowledge:
                     "CREATE CONSTRAINT ra_project IF NOT EXISTS FOR (p:RAProject) REQUIRE p.id IS UNIQUE",
                     "CREATE CONSTRAINT ra_fact IF NOT EXISTS FOR (n:RAFact) REQUIRE (n.project_id,n.id) IS UNIQUE",
                     "CREATE CONSTRAINT ra_receipt IF NOT EXISTS FOR (r:RAReceipt) REQUIRE (r.project_id,r.operation_id) IS UNIQUE",
-                    "CREATE FULLTEXT INDEX ra_fact_text IF NOT EXISTS FOR (n:RAFact) ON EACH [n.title,n.body] OPTIONS {indexConfig: {`fulltext.analyzer`: 'cjk'}}",
                 ):
                     session.run(query).consume()
-                session.run("CALL db.awaitIndex('ra_fact_text', 30)").consume()
                 self._schema_ready = True
-            if vector and not self._vector_ready:
-                session.run(
-                    f"CYPHER 25 CREATE VECTOR INDEX {self._vector_index} IF NOT EXISTS "
-                    "FOR (n:RAFact) ON n.embedding WITH [n.project_id,n.status,n.embedding_model] "
-                    "OPTIONS {indexConfig: {`vector.similarity_function`: 'cosine'}}",
-                ).consume()
-                session.run("CALL db.awaitIndex($name, 30)", name=self._vector_index).consume()
-                self._vector_ready = True
 
     def _rows(self, cypher, **params):
         with self.driver.session(database="neo4j") as session:
@@ -132,15 +113,7 @@ class Knowledge:
         return {
             "project_id": self.project_id, "producer": self.producer, "writable": self.writable,
             "authority": "Neo4j owns facts and relations; catalog sources and report artifacts remain external.",
-            "embedding": self.embedding.describe() if hasattr(self.embedding, "describe") else
-                {"model_id": self.embedding.model_id, "dimensions": self.embedding.dimensions} if self.embedding else None,
             "source_references": "Strings or {source_id, locator}; caller validates catalog existence and project access.",
-            "search_modes": ["text", "vector", "hybrid"], "max_limit": 100, "max_traversal_depth": 5,
-            "coverage_note": "Search returns candidates, not source completeness. No hit does not prove absent evidence. "
-                "Vector ANN is approximate. Vector/hybrid pages cover a fixed pool of up to 200 candidates per mode; "
-                "refine the query to discover beyond that pool. Hybrid uses reciprocal-rank fusion. "
-                "Offset pages are not snapshots. Facts without a matching model vector are excluded from vector search.",
-            "history": "read(id) and read_many(ids) include superseded/retracted content; search and traversal return active versions only.",
         }
 
     def receipt(self, operation_id):
@@ -162,15 +135,6 @@ class Knowledge:
         if active and fact["status"] != "active":
             raise ActionRejected("KNOWLEDGE_REQUIRES_ACTIVE_VERSION")
         return fact
-
-    def _vector(self, text, query=False):
-        if not self.embedding:
-            raise ActionRejected("EMBEDDING_DISABLED_USE_TEXT_MODE")
-        raw = self.embedding.embed_query(text) if query else self.embedding.embed_documents([text])[0]
-        vector = [float(v) for v in raw]
-        if len(vector) != self.embedding.dimensions or not all(math.isfinite(v) for v in vector) or not any(vector):
-            raise ActionRejected("INVALID_EMBEDDING_VECTOR")
-        return vector
 
 
     def read(self, id):
@@ -199,62 +163,6 @@ class Knowledge:
             raise ActionRejected("KNOWLEDGE_NOT_FOUND_IN_PROJECT: " + _json(missing))
         return [_fact(nodes[id]) for id in requested]
 
-
-    def _text_hits(self, query, take):
-        # Treat user text as literal words, never as executable Lucene query syntax.
-        terms = re.findall(r"\w+", query, flags=re.UNICODE)
-        if not terms:
-            return []
-        lucene = " OR ".join('"' + t + '"' for t in terms)
-        return self._rows(
-            "CALL db.index.fulltext.queryNodes('ra_fact_text',$query) YIELD node,score "
-            "WHERE node.project_id=$project AND node.status='active' "
-            "RETURN node AS n,score ORDER BY score DESC,node.id LIMIT $take", query=lucene, take=take)
-
-    def _vector_hits(self, query, take):
-        vector = self._vector(query, query=True)
-        self._schema(vector=True)
-        return self._rows(
-            f"CYPHER 25 MATCH (n:RAFact) SEARCH n IN (VECTOR INDEX {self._vector_index} FOR $vector "
-            "WHERE n.project_id=$project AND n.status='active' AND n.embedding_model=$model LIMIT $take) SCORE AS score "
-            "RETURN n,score ORDER BY score DESC,n.id",
-            vector=vector, model=self.embedding.model_id, take=take)
-
-    def search(self, query, mode="hybrid", limit=10, offset=0):
-        _text(query, "query")
-        _page(limit, offset)
-        if mode not in {"text", "vector", "hybrid"}:
-            raise ActionRejected("INVALID_SEARCH_MODE")
-        self._schema()
-        # Keep the fusion window fixed across pages so ranks do not shift with offset.
-        take = 200 if mode in {"vector", "hybrid"} else offset + limit + 1
-        groups = []
-        if mode in {"text", "hybrid"}:
-            groups.append(("text", self._text_hits(query, take)))
-        if mode in {"vector", "hybrid"}:
-            groups.append(("vector", self._vector_hits(query, take)))
-        hits = {}
-        for kind, rows in groups:
-            for rank, row in enumerate(rows, 1):
-                fact = _fact(row["n"])
-                hit = hits.setdefault(fact["id"], {**fact, "score": 0.0, "scores": {}})
-                hit["scores"][kind] = row["score"]
-                hit["score"] += 1 / (60 + rank) if mode == "hybrid" else row["score"]
-        ordered = sorted(hits.values(), key=lambda x: (-x["score"], x["id"]))
-        matches = ordered[offset:offset + limit]
-        more = len(ordered) > offset + limit
-        coverage = self._rows(
-            "MATCH (n:RAFact {project_id:$project,status:'active'}) "
-            "RETURN count(n) AS active_facts, sum(CASE WHEN n.embedding IS NOT NULL AND "
-            "n.embedding_model=$model THEN 1 ELSE 0 END) AS matching_model_vectors",
-            model=self.embedding.model_id if self.embedding else "")[0]
-        return {"matches": matches, "project_id": self.project_id, "mode": mode, "limit": limit,
-                "offset": offset, "next_offset": offset + limit if more else None,
-                "has_more": more, "total": None, "candidate_limit_per_mode": take,
-                "candidate_counts": {kind: len(rows) for kind, rows in groups},
-                "coverage": coverage,
-                "coverage_note": self.describe()["coverage_note"],
-                "embedding_coverage": getattr(self.embedding, "coverage_note", "Provider-defined") if mode != "text" else None}
 
     def traverse(self, id, depth=1, limit=20, offset=0):
         _text(id, "id")

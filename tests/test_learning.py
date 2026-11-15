@@ -3,7 +3,6 @@ import pytest
 
 from report_agent.errors import ActionRejected
 from report_agent.learning import LearningLibrary, LearningScope
-from report_agent.learning_runtime import evaluate_strategy_pair, optimize_with_gepa
 
 
 @pytest.fixture
@@ -25,13 +24,8 @@ def test_candidate_release_cross_project_isolation_and_revoke(library):
     library.release(a, candidate["id"], 1, "Operator checked preference")
     assert library.search(b)[0]["id"] == candidate["id"]
     assert not library.search(other)
-    with pytest.raises(ActionRejected):
-        library.use(other, candidate["id"], 1, {}, "use", "writer")
-    library.use(b, candidate["id"], 1, {}, "Customer matches", "writer")
     library.release(a, candidate["id"], None, "Customer revoked")
     assert not library.search(b)
-    with pytest.raises(ActionRejected, match="NOT_ACTIVE"):
-        library.use(b, candidate["id"], 1, {}, "cached", "writer")
 
 
 def test_project_fact_never_shared_and_scope_cannot_expand(library):
@@ -66,21 +60,6 @@ def test_feedback_identity_cannot_cross_scope(library):
         library.propose(b, item["feedback_ids"], "general_skill", "Title", "Strategy", "Scope", "Check")
 
 
-def test_evaluation_reports_regression_without_releasing():
-    cases = [{"id": "holdout-a"}, {"id": "holdout-b"}]
-    def evaluator(strategy, case):
-        return {"score": 0 if strategy == "new" and case["id"] == "holdout-b" else 1,
-                "feedback": "synthetic only"}
-    result = evaluate_strategy_pair("old", "new", cases, evaluator)
-    assert result["regressions"] == ["holdout-b"]
-    assert result["automatic_release"] is False
-
-
-def test_gepa_rejects_train_validation_leakage_before_import_or_calls():
-    with pytest.raises(ValueError, match="SPLIT_INVALID"):
-        optimize_with_gepa(None, [{"case_id": "same"}], [{"case_id": "same"}], None, None, max_metric_calls=10)
-
-
 def test_snapshot_bound_feedback_and_local_api(tmp_path):
     from fastapi.testclient import TestClient
     from report_agent.store import Store
@@ -100,28 +79,6 @@ def test_snapshot_bound_feedback_and_local_api(tmp_path):
     client = TestClient(create_app(ws.store.root))
     assert "no-cache" in client.get("/").headers["cache-control"]
     assert "no-cache" in client.get("/static/learning.js").headers["cache-control"]
-    reports = client.get("/api/learning/reports").json()["reports"]
-    selected = next(r for r in reports if r["ref"] == snapshot)
-    evidence = client.get("/api/learning/evidence").json()["items"]
-    assert any(e["ref"] == refs["evidence"] for e in evidence)
-    assert all(e["ref"]["type"] in {"Evidence", "SourceArtifact"} for e in evidence)
-    assert all(len(e["excerpt"]) <= 1200 for e in evidence)
-    assert any(t["ref"] == refs["claim"] and t["payload"] == item["before"] for t in selected["targets"])
-    assert len({str(t["ref"]) for t in selected["targets"]}) == len(selected["targets"])
-    assert client.post("/api/learning/feedback", json=body).status_code == 403
-    assert client.post("/api/learning/feedback", json=body, headers={"x-report-action": "1"}).status_code == 201
-    assert len(client.get("/api/learning").json()["feedback"]) == 1  # Same payload is idempotent.
-    assert client.get("/api/learning").json()["feedback"][0]["evidence"] == [refs["evidence"]]
-    from report_agent.learning import binding
-    library, scope = binding(ws)
-    candidate = library.propose(scope, [item["id"]], "customer_preference", "Title", "Original", "Scope", "Check")
-    library.release(scope, candidate["id"], 1, "Approved original")
-    revision = dict(expected_version=1, title="Edited", strategy="Revised", conditions="Scope", verification="Check")
-    url = f"/api/learning/experience/{candidate['id']}/revision"
-    assert client.post(url, json=revision).status_code == 403
-    assert client.post(url, json=revision, headers={"x-report-action": "1"}).status_code == 201
-    assert library.search(scope)[0]["strategy"] == "Original"  # Editing does not publish.
-    assert client.post(url, json=revision, headers={"x-report-action": "1"}).status_code == 409
 
 
 def test_optimizer_has_no_publication_or_report_write_tools(tmp_path):

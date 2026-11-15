@@ -1,10 +1,9 @@
-import asyncio
 
 import pytest
 from langchain_core.messages import AIMessage
 
 from report_agent.learning import binding
-from report_agent.learning_worker import consume_pending, watch_feedback
+from report_agent.learning_worker import consume_pending
 from report_agent.store import Store
 from report_agent.workspace import Workspace
 from test_deep_runtime import Driver, invoke
@@ -100,16 +99,6 @@ async def test_report_lock_prevents_claiming_feedback(configured):
             await consume_pending(configured, lambda: pytest.fail("must not construct model"))
     library, scope = binding(configured)
     assert library.queue_status(scope)[0]["status"] == "queued"
-
-
-@pytest.mark.asyncio
-async def test_worker_stops_at_job_bound(configured):
-    item = feedback(configured)
-    driver = Driver(optimizer=[invoke('record_feedback_disposition', feedback_id=item['id'],
-        outcome='no_change', rationale='Existing behavior covers this preference.'),
-        AIMessage(content="No useful candidate.")])
-    result = await watch_feedback(configured, lambda: driver("optimizer"), stop=asyncio.Event(), max_jobs=1)
-    assert result == {"completed_jobs": 1}
 
 
 @pytest.mark.asyncio

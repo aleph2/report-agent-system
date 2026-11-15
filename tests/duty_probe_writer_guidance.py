@@ -93,7 +93,6 @@ class PreparedGuidanceReads(AgentMiddleware):
             self.started = True
             refs = [('p14-source', self.fixture['inputs']['source_refs'][0]), ('p14-target', self.fixture['target_ref'])]
             calls = [{'name': 'read_context', 'id': label, 'args': {'target_ref': ref}, 'type': 'tool_call'} for label, ref in refs]
-            calls.append({'name': 'search_experience', 'id': 'p14-search', 'args': {'query': ''}, 'type': 'tool_call'})
             response = AIMessage(content='', tool_calls=calls)
             self.phases.append({'phase': 'explicit_fake_read_and_search', 'messages': messages_to_dict(request.messages),
                                 'response': response.model_dump()})
