@@ -22,20 +22,20 @@ def table_footnote(body):
 
 
 class Typography(Contract):
-    line_spacing: float | None = Field(default=None, ge=0.5, le=3,
+    line_spacing: float | None = Field(default=None,
         description='Line-height multiplier; distinct from an exact point height.')
-    space_before_pt: float | None = Field(default=None, ge=0, le=48)
-    space_after_pt: float | None = Field(default=None, ge=0, le=48)
-    space_before_lines: float | None = Field(default=None, ge=0, le=6)
-    space_after_lines: float | None = Field(default=None, ge=0, le=6)
-    left_indent_mm: float | None = Field(default=None, ge=0, le=50)
-    hanging_indent_mm: float | None = Field(default=None, ge=0, le=30)
-    first_line_indent_mm: float | None = Field(default=None, ge=0, le=30)
-    first_line_indent_chars: float | None = Field(default=None, ge=0, le=10,
+    space_before_pt: float | None = Field(default=None)
+    space_after_pt: float | None = Field(default=None)
+    space_before_lines: float | None = Field(default=None)
+    space_after_lines: float | None = Field(default=None)
+    left_indent_mm: float | None = Field(default=None)
+    hanging_indent_mm: float | None = Field(default=None)
+    first_line_indent_mm: float | None = Field(default=None)
+    first_line_indent_chars: float | None = Field(default=None,
         description='First-line indentation in font ems, converted to points using the effective font size for consistent Word/LibreOffice rendering.')
-    line_spacing_pt: float | None = Field(default=None, ge=1, le=144,
+    line_spacing_pt: float | None = Field(default=None,
         description='Exact line height in points; can clip taller glyphs, so inspect the rendered output.')
-    font_size: float | None = Field(default=None, ge=6, le=72)
+    font_size: float | None = Field(default=None)
     font_family: str | None = Field(default=None, min_length=1, max_length=100)
     east_asia_font: str | None = Field(default=None, min_length=1, max_length=100)
     alignment: Literal['left', 'center', 'right', 'justify'] | None = None
@@ -83,9 +83,9 @@ class HeaderPart(HeaderLayout):
 
 class ParagraphLayout(Typography):
     text: str = Field(min_length=1, description="Exact complete unique line from this node's stored text; selector only, never replacement text.")
-    heading_level: int | None = Field(default=None, ge=1, le=6)
-    space_before_pt: float | None = Field(default=0, ge=0, le=48)
-    space_after_pt: float | None = Field(default=6, ge=0, le=48)
+    heading_level: int | None = Field(default=None)
+    space_before_pt: float | None = Field(default=0)
+    space_after_pt: float | None = Field(default=6)
     keep_with_next: bool = False
     page_break_before: bool = False
 
@@ -97,59 +97,59 @@ class NodeLayout(Contract):
     every rendered table's column count. They never restyle body paragraphs.
     """
     node_ref: Ref
-    heading_level: int | None = Field(default=None, ge=1, le=6)
+    heading_level: int | None = Field(default=None)
     page_break_before: bool = False
     landscape: bool = False
     column_weights: list[float] = Field(default_factory=list)
-    table_font_size: float = Field(default=10, ge=9, le=14)
-    table_line_spacing: float | None = Field(default=None, ge=1, le=3)
+    table_font_size: float = Field(default=10)
+    table_line_spacing: float | None = Field(default=None)
     table_alignment: Literal['left', 'center', 'right'] | None = Field(default=None,
         description='Position the table between page margins; independent of text alignment inside its cells. None preserves inherited/default behavior.')
     table_cell_alignment: Literal['left', 'center', 'right', 'justify'] | None = Field(default=None,
         description='Horizontal paragraph alignment inside table cells; does not change body paragraphs.')
-    table_cell_first_line_indent_mm: float | None = Field(default=None, ge=0, le=30,
+    table_cell_first_line_indent_mm: float | None = Field(default=None,
         description='Explicit cell-paragraph first-line indent. Zero cancels inherited body indentation; None preserves inheritance.')
     outer_border_style: Literal['single', 'double'] | None = None
-    outer_border_width_pt: float | None = Field(default=None, ge=0.125, le=6,
+    outer_border_width_pt: float | None = Field(default=None,
         description='Word border widths are rounded to the nearest eighth of a point.')
     keep_table_together: bool = False
     allow_row_split: bool = False
-    figure_width_mm: float | None = Field(default=None, ge=30, le=250)
+    figure_width_mm: float | None = Field(default=None)
     paragraphs: list[ParagraphLayout] = Field(default_factory=list)
-    qualifier_font_size: float = Field(default=10, ge=9, le=14)
+    qualifier_font_size: float = Field(default=10)
     qualifier_placement: Literal['adjacent', 'end_notes'] = Field(default='adjacent',
         description='Keep all semantic qualifier text visible beside its node, or move it verbatim to numbered end notes with a visible node marker. Never suppress qualifiers.')
 
 
 class LayoutOptions(Contract):
     paper: Literal["A4"] = "A4"
-    margin_mm: float = Field(default=25, ge=15, le=35)
-    top_margin_mm: float | None = Field(default=None, ge=10, le=50)
-    bottom_margin_mm: float | None = Field(default=None, ge=10, le=50)
-    left_margin_mm: float | None = Field(default=None, ge=10, le=50)
-    right_margin_mm: float | None = Field(default=None, ge=10, le=50)
+    margin_mm: float = Field(default=25)
+    top_margin_mm: float | None = Field(default=None)
+    bottom_margin_mm: float | None = Field(default=None)
+    left_margin_mm: float | None = Field(default=None)
+    right_margin_mm: float | None = Field(default=None)
     styles: list[StyleLayout] = Field(default_factory=list)
     header: HeaderLayout | None = None
     header_parts: list[HeaderPart] = Field(default_factory=list, max_length=3)
     hide_first_page_header_footer: bool = False
     cover_vertical_alignment: Literal['top', 'center', 'bottom'] | None = Field(default=None,
         description='Isolate report root text in a borderless, expandable cover cell/section and vertically align it. Following TOC, children and end notes use top alignment. Oversized covers can span pages; inspect the render.')
-    font_size: float = Field(default=12, ge=10, le=14)
+    font_size: float = Field(default=12)
     toc: bool = True
     page_numbers: bool = True
-    toc_depth: int = Field(default=2, ge=1, le=3)
+    toc_depth: int = Field(default=2)
     refresh_toc: bool = False
-    line_spacing: float = Field(default=1.3, ge=1, le=2)
-    table_line_spacing: float = Field(default=1.15, ge=1, le=3)
+    line_spacing: float = Field(default=1.3)
+    table_line_spacing: float = Field(default=1.15)
     table_alignment: Literal['left', 'center', 'right'] | None = Field(default=None,
         description='Position the table between page margins; independent of text alignment inside its cells. None preserves inherited/default behavior.')
     table_cell_alignment: Literal['left', 'center', 'right', 'justify'] | None = Field(default=None,
         description='Horizontal paragraph alignment inside table cells; does not change body paragraphs.')
-    table_cell_first_line_indent_mm: float | None = Field(default=None, ge=0, le=30,
+    table_cell_first_line_indent_mm: float | None = Field(default=None,
         description='Explicit cell-paragraph first-line indent. Zero cancels inherited body indentation; None preserves inheritance.')
     outer_border_style: Literal['single', 'double'] | None = None
-    outer_border_width_pt: float | None = Field(default=None, ge=0.125, le=6)
-    paragraph_space_after_pt: float = Field(default=6, ge=0, le=24)
+    outer_border_width_pt: float | None = Field(default=None)
+    paragraph_space_after_pt: float = Field(default=6)
     nodes: list[NodeLayout] = Field(default_factory=list)
 
 
