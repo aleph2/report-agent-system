@@ -183,9 +183,7 @@ def _classifications(cs, db, record, values, note):
     for value in values:
         if value['entry_ids'] and (value['capabilities'] or value['table_roles']):
             raise ActionRejected('REQUIREMENT_CLASSIFICATION_EXCLUSIVE')
-        if len(set(value['entry_ids'])) != len(value['entry_ids']):
-            raise ActionRejected('REQUIREMENT_CLASSIFICATION_ENTRY_DUPLICATE')
-        if len(set(value['capabilities'])) != len(value['capabilities']) or value['table_roles']:
+        if value['table_roles']:
             raise ActionRejected('REQUIREMENT_CLASSIFICATION_CAPABILITIES_INVALID')
         for identity in value['entry_ids']:
             reviewed_entry(cs, db, identity)
@@ -254,8 +252,6 @@ def classification_gaps(cs, db, record, item):
 def install_reviewed_entries(cs, entries):
     """Trusted host registration, never a model tool; existing IDs cannot change."""
     entries = [ReviewedEntry.model_validate(e).model_dump(mode='json', exclude_none=True) for e in entries]
-    if len({e['id'] for e in entries}) != len(entries):
-        raise ActionRejected('REVIEWED_ENTRY_DUPLICATE_ID')
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         catalog = _state(db, CATALOG, {})
@@ -411,15 +407,12 @@ def set_requirement_statuses(cs, actor, operation_id, items):
             raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         values = deepcopy(previous['payload']['items'])
-        errors, seen, saved_ids = [], set(), []
+        errors, saved_ids = [], []
         for index, raw in enumerate(items):
             db.execute('SAVEPOINT planning_status')
             try:
                 item = model_value(RequirementStatusInput, raw, 'status').model_dump()
                 identity = item.pop('anchor_id')
-                if identity in seen:
-                    raise ActionRejected('PLANNING_DUPLICATE_ITEM_ID')
-                seen.add(identity)
                 saved_ids.append(identity)
                 proposed = deepcopy(values)
                 target = next((v for v in proposed if v['anchor_id'] == identity), None)
@@ -922,15 +915,10 @@ def save_items(cs, actor, operation_id, kind, items):
     if not key_field or not isinstance(items, list) or not items:
         raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
     def save(db):
-        errors, saved, seen = [], [], set()
+        errors, saved = [], []
         for index, item in enumerate(items):
             db.execute('SAVEPOINT planning_item')
             try:
-                identity = item.get(key_field)
-                if isinstance(identity, str) and identity in seen:
-                    raise ActionRejected('PLANNING_DUPLICATE_ITEM_ID')
-                if isinstance(identity, str):
-                    seen.add(identity)
                 saved.append(_save_item(cs, actor, db, kind, item))
             except (ActionRejected, ActionForbidden, ValidationError) as error:
                 db.execute('ROLLBACK TO planning_item')

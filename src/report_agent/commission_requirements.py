@@ -293,10 +293,8 @@ def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
         raise ActionRejected('COMMISSION_REQUIREMENTS_PARSE_UNRESOLVED')
     for item in items:
         anchor = anchors[item['anchor_id']]
-        if len(item['capabilities']) != len(set(item['capabilities'])):
-            raise ActionRejected('COMMISSION_REQUIREMENTS_DUPLICATE_CAPABILITY')
         roles = item.get('table_roles', [])
-        if (len(roles) != len(set(roles)) or any(not role.strip() for role in roles)
+        if (any(not role.strip() for role in roles)
                 or item['status'] == 'required' and 'table_specs' in item['capabilities'] and not roles):
             raise ActionRejected('COMMISSION_REQUIREMENTS_TABLE_ROLES_REQUIRED')
         if (item['status'] == 'required' and not item['capabilities'] and anchor['kind'] != 'instruction'

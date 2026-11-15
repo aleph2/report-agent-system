@@ -143,9 +143,6 @@ class SectionPlan(Contract):
         ids = [d.id for d in self.missing_documents]
         if len(ids) != len(set(ids)) or any(d.section_id != self.section_id for d in self.missing_documents):
             raise ValueError('SECTION_MISSING_DOCUMENT_ID_OR_SECTION_INVALID: ' + self.section_id)
-        names = [s.document_id or s.requested_source for s in self.source_substitutions]
-        if len(set(self.pending_sources)) != len(self.pending_sources) or len(set(names)) != len(names):
-            raise ValueError('SECTION_SOURCE_RESOLUTION_DUPLICATE')
         available = {(s.source_ref.key(), s.locator) for s in self.sources}
         for substitution in self.source_substitutions:
             if substitution.document_id:
@@ -592,7 +589,7 @@ def save_plan(cs, actor, operation_id, plan):
     sections = [s['section_id'] for s in plan['sections']]
     if len(set(ids)) != len(ids) or len(set(sections)) != len(sections):
         raise ActionRejected('COMMISSION_DUPLICATE_OBJECT_OR_SECTION')
-    if any(not set(s['derived_from']) <= set(sections) or s['section_id'] in s['derived_from'] for s in plan['sections']):
+    if any(not set(s['derived_from']) <= set(sections) for s in plan['sections']):
         raise ActionRejected('COMMISSION_DERIVED_SECTION_INVALID')
     dependencies = {s['section_id']: s['derived_from'] for s in plan['sections']}
     visited, active = set(), set()
