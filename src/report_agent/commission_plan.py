@@ -253,7 +253,7 @@ class CommissionPlan(Contract):
         if not self.method_pack and any(s.source_views for s in self.sections):
             raise ValueError('SOURCE_VIEWS_REQUIRE_REVIEWED_METHOD_PLAN')
         names = self.inventory_attributes
-        if any(not n.strip() for n in names) or len(set(names)) != len(names):
+        if any(not n.strip() for n in names):
             raise ValueError('COMMISSION_INVENTORY_ATTRIBUTE_CONTRACT_INVALID')
         mismatches = []
         for index, obj in enumerate(self.objects):

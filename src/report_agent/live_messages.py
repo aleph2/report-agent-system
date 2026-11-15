@@ -136,9 +136,6 @@ def prepare_request(ws, role, request):
                                  for extent in scope.get('artifact_check_scopes', [])],
             'body_extents': [{k:v for k,v in extent.items() if k != 'node_ref'}
                              for extent in scope.get('content_check_scopes', [])]})
-    labels = [digest({k:v for k,v in s.items() if k != 'assigned_scope_index'}) for s in scope_packet]
-    if len(set(labels)) != len(labels):
-        raise ActionRejected('REVIEW_MESSAGE_SCOPE_LABELS_AMBIGUOUS')
     directory = []
     with ws.store.connect() as db:
         for index, entry in enumerate(binding['receipts']):

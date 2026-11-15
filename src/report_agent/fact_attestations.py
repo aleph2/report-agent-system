@@ -62,8 +62,8 @@ class FactAttestation(BaseModel):
             raise ValueError('Visual verification applies only to observed drawing contents')
         if (self.survey_extent or self.facility_location) and self.purpose!='facility_presence':
             raise ValueError('Facility survey and location measurements require a facility observation')
-        if self.months and (self.purpose!='hazard_season' or len(set(self.months))!=len(self.months)):
-            raise ValueError('Season months must be distinct and tied to a hazard-season observation')
+        if self.months and self.purpose!='hazard_season':
+            raise ValueError('Season months must be tied to a hazard-season observation')
         if self.purpose=='drawing_contents' and not self.visual_verified:
             raise ValueError('Drawing contents require verified inspection')
         return self

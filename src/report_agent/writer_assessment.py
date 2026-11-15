@@ -23,17 +23,10 @@ def _grade(grade):
     return grade['description'] + ' [' + grade['min_value'] + '–' + grade['max_value'] + ']'
 
 
-def _validate_labels(pack):
-    labels = [_label(rule) for rule in pack['indicators']]
-    if len(set(labels)) != len(labels):
-        raise ActionRejected('WRITER_ASSESSMENT_DUPLICATE_INDICATOR_LABEL')
-
-
 def _assignment(cs, db, actor, *, exact_receipt=False):
     from .writer_assignments import bound_assignment
     from .writer_fact_packet import assigned_facts
     scope = bound_assignment(cs, db, actor)
-    _validate_labels(scope['plan']['payload']['method_pack'])
     scope.update(assigned_facts(cs, db, actor, scope, exact_receipt=exact_receipt))
     return scope
 

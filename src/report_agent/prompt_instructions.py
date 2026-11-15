@@ -55,8 +55,8 @@ class InstructionInput(BaseModel):
             raise ValueError('Only assignment scope requires task_id')
         if any(RANK[s] <= RANK[self.scope] for s in self.allow_override_scopes):
             raise ValueError('Only narrower scopes can override')
-        if len(set(self.roles)) != len(self.roles) or len(set(self.allow_override_scopes)) != len(self.allow_override_scopes):
-            raise ValueError('Duplicate scope or role')
+        if len(set(self.roles)) != len(self.roles):
+            raise ValueError('Duplicate role')
         return self
 
 
