@@ -37,35 +37,6 @@ def _once(store, key, value):
         db.execute('INSERT OR IGNORE INTO state(key,value) VALUES (?,?)', (key, encode(value)))
 
 
-def review_tool(ws, actor, contents, identity):
-    """Expose the current flat contract, with no alternative model-facing save format."""
-    from .review_message import ReviewMessage, save_review_message
-    def submit_review(**kwargs):
-        operation = kwargs.pop('operation_id')
-        who = actor()
-        binding = current_review_binding(ws, who)
-        if binding is None:
-            raise ActionRejected('MESSAGE_CONTRACT_BINDING_REQUIRED')
-        return save_review_message(contents, who, operation, binding, kwargs, runtime_identity=identity)
-    submit_review.__doc__ = (
-        'Save one assigned check using the supplied field dictionary and actual-read receipt directory. '
-        'The program binds exact identities and assembles the stored ReviewRecord. '
-        'Optional business fields preserve actual findings, outside-assignment notes and object coverage. '
-        'Omitting a finding is not a declaration that no defect exists. '
-        'Saving neither approves the report nor triggers another agent.')
-    fields = ReviewMessage.model_fields
-    annotations = {'operation_id': str, 'return': dict,
-        **{name: Annotated[field.annotation, field] for name, field in fields.items()}}
-    submit_review.__annotations__ = annotations
-    submit_review.message_model = ReviewMessage
-    submit_review.__signature__ = inspect.Signature([
-        inspect.Parameter('operation_id', inspect.Parameter.KEYWORD_ONLY, annotation=str),
-        *[inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, annotation=annotations[name],
-            default=inspect.Parameter.empty if field.is_required() else field.default)
-          for name, field in fields.items()]], return_annotation=dict)
-    return submit_review
-
-
 def _label(record, resources=None):
     payload = record['payload']
     name = next((payload[k] for k in ('title', 'name', 'purpose', 'goal', 'body')
@@ -453,12 +424,3 @@ def tool_binding(ws, role, request):
     finally:
         if token is not None:
             _TOOL.reset(token)
-
-
-def current_review_binding(ws, actor):
-    bound = _TOOL.get()
-    if bound is None:
-        return None
-    if bound[0] != _owner(ws, actor):
-        raise ActionRejected('MESSAGE_CONTRACT_BINDING_CHANGED')
-    return bound[1]

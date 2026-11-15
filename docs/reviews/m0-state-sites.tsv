@@ -243,7 +243,6 @@ src/report_agent/deep_runtime.py	1032	require_native_runtime	accessor	read	get_d
 src/report_agent/deep_runtime.py	1036	require_native_runtime	property	read	workspace.store.manifest	manifest
 src/report_agent/deep_runtime.py	1037	require_native_runtime	property	read	workspace.store.manifest	manifest
 src/report_agent/deep_runtime.py	1040	require_native_runtime	property	read	workspace.store.manifest	manifest
-src/report_agent/deep_runtime.py	1046	build_agent	property	read	workspace.store.manifest	manifest
 src/report_agent/deep_runtime.py	1064	build_agent	property	read	workspace.store.manifest	manifest
 src/report_agent/deep_runtime.py	1068	build_agent	property	read	workspace.store.manifest	manifest
 src/report_agent/deep_runtime.py	1072	build_agent	store	read	'knowledge_enabled'	knowledge_enabled
@@ -355,9 +354,6 @@ src/report_agent/exporting.py	471	export_docx	property	read	workspace.store.mani
 src/report_agent/exporting.py	496	export_docx	store	read	'model_mode'	model_mode
 src/report_agent/exporting.py	498	export_docx	property	read	workspace.store.manifest	manifest
 src/report_agent/handoff_release.py	53	manifest	property	read	store.manifest	manifest
-src/report_agent/hierarchical_review.py	176	aafter_agent	store	write	'report_status'	report_status
-src/report_agent/hierarchical_review.py	201	reconcile	store	write	'content_execution_limitation'	content_execution_limitation
-src/report_agent/hierarchical_review.py	203	reconcile	store	write	'report_status'	report_status
 src/report_agent/hierarchical_tools.py	104	content_tools	store	read	'role_model_services'	role_model_services
 src/report_agent/hierarchical_tools.py	115	content_status	store	read	'content_execution_decision'	content_execution_decision
 src/report_agent/hierarchical_tools.py	660	save	sql	write	INSERT OR REPLACE INTO state VALUES ('content_execution_decision', ?)	content_execution_decision
@@ -562,22 +558,7 @@ src/report_agent/report_state.py	78	projection	accessor	read	get_rescue_projecti
 src/report_agent/report_state.py	106	outcomes	accessor	read	iter_commission_outcomes	commission_outcome:*
 src/report_agent/report_state.py	114	selected_delivery	accessor	read	get_historical_content_delivery	content_delivery
 src/report_agent/report_state.py	119	selected_final_review	accessor	read	get_historical_content_final_review	content_final_review
-src/report_agent/review.py	110	aafter_agent	store	read	'delivery'	delivery
-src/report_agent/review.py	117	aafter_agent	store	write	'acceptance_limitation'	acceptance_limitation
-src/report_agent/review.py	118	aafter_agent	store	write	'report_status'	report_status
-src/report_agent/review.py	120	aafter_agent	store	write	'acceptance_limitation'	acceptance_limitation
-src/report_agent/review.py	127	aafter_agent	store	write	'active_rubric_hash'	active_rubric_hash
 src/report_agent/review.py	174	export_configuration	property	read	workspace.store.manifest	manifest
-src/report_agent/review.py	220	prepare	store	read	'delivery'	delivery
-src/report_agent/review.py	247	prepare	store	read	'rubric_targets'	rubric_targets
-src/report_agent/review.py	270	bind_target	store	read	'rubric_targets'	rubric_targets
-src/report_agent/review.py	274	bind_target	store	read	'review_context_snapshots'	review_context_snapshots
-src/report_agent/review.py	280	bind_target	store	write	'review_context_snapshots'	review_context_snapshots
-src/report_agent/review.py	282	bind_target	store	write	'rubric_targets'	rubric_targets
-src/report_agent/review.py	307	reconcile_review	store	read	'rubric_targets'	rubric_targets
-src/report_agent/review.py	308	reconcile_review	store	read	'rubric_reviews'	rubric_reviews
-src/report_agent/review.py	322	reconcile_review	store	write	'rubric_reviews'	rubric_reviews
-src/report_agent/review.py	323	reconcile_review	store	write	'rubric_status'	rubric_status
 src/report_agent/review.py	331	review_delivery	store	read	'active_rubric_hash'	active_rubric_hash
 src/report_agent/review.py	332	review_delivery	store	read	'active_reviewer_prompt_hash'	active_reviewer_prompt_hash
 src/report_agent/review.py	354	review_delivery	store	read	'rubric_reviews'	rubric_reviews
@@ -594,8 +575,6 @@ src/report_agent/review_context.py	101	_configure_context_experiment_locked	stor
 src/report_agent/review_context.py	101	_configure_context_experiment_locked	store	read	'rubric_targets'	rubric_targets
 src/report_agent/review_context.py	102	_configure_context_experiment_locked	store	read	'rubric_reviews'	rubric_reviews
 src/report_agent/review_context.py	104	_configure_context_experiment_locked	store	write	'review_context_experiment'	review_context_experiment
-src/report_agent/review_context.py	154	capture	property	read	self.workspace.store.manifest	manifest
-src/report_agent/review_context.py	156	capture	store	read	'feedback'	feedback
 src/report_agent/review_handles.py	27	assign_evidence_handle	sql	read	key	review_evidence_handles:*
 src/report_agent/review_handles.py	33	assign_evidence_handle	sql	write	key	review_evidence_handles:*
 src/report_agent/review_handles.py	53	content_handles	sql	read	key	review_content_handles:*
@@ -614,23 +593,14 @@ src/report_agent/review_status.py	207	read_status	property	read	contents.store.m
 src/report_agent/review_steps.py	41	_get	sql	read	key	review_check:*,review_draft:*,review_finding_locations:*,review_finished:*
 src/report_agent/review_steps.py	46	_put	sql	write	key	review_check:*,review_draft:*,review_finding_locations:*,review_finished:*
 src/report_agent/review_steps.py	50	_open	helper	read	'review_finished:' + actor.task_id	review_finished:*
-src/report_agent/review_steps.py	55	_drafts	sql	read	'review_draft:' + actor.task_id + ':'	review_draft:*
-src/report_agent/review_steps.py	97	_validate_fields	helper	read	'review_check:' + actor.task_id + ':' + str(fields.get('check'))	review_check:*
-src/report_agent/review_steps.py	162	save	helper	write	'review_draft:' + actor.task_id + ':' + handle	review_draft:*
-src/report_agent/review_steps.py	189	mark_check	helper	read	'review_check:' + actor.task_id + ':' + value['check']	review_check:*
 src/report_agent/review_steps.py	210	finalize_mark	helper	read	key	review_check:*
 src/report_agent/review_steps.py	215	finalize_mark	helper	read	draft_key	review_draft:*
 src/report_agent/review_steps.py	220	finalize_mark	helper	write	draft_key	review_draft:*
 src/report_agent/review_steps.py	223	finalize_mark	helper	write	'review_finding_locations:' + digest(review_ref)	review_finding_locations:*
 src/report_agent/review_steps.py	224	finalize_mark	helper	write	key	review_check:*
 src/report_agent/review_steps.py	225	finalize_mark	helper	read	'review_check:' + actor.task_id + ':' + h	review_check:*
-src/report_agent/review_steps.py	242	save	helper	write	'review_draft:' + actor.task_id + ':' + finding	review_draft:*
-src/report_agent/review_steps.py	255	save	helper	read	'review_check:' + actor.task_id + ':' + h	review_check:*
-src/report_agent/review_steps.py	265	save	helper	write	'review_finished:' + actor.task_id	review_finished:*
 src/report_agent/review_steps.py	274	metrics	sql	read	SELECT value FROM state WHERE key GLOB 'review_draft:*'	review_draft:*
 src/report_agent/review_steps.py	285	saved_findings	store	read	'review_finding_locations:' + digest(review_ref)	review_finding_locations:*
-src/report_agent/review_work_units.py	22	bind_contract	store	read	'review_plan_contract_binding'	review_plan_contract_binding
-src/report_agent/review_work_units.py	30	bind_contract	store	write	'review_plan_contract_binding'	review_plan_contract_binding
 src/report_agent/revision_authorization.py	13	exact_exception	sql	read	SELECT value FROM state WHERE key='content_revision_exceptions'	content_revision_exceptions
 src/report_agent/runtime.py	35	run_task	store	read	'status'	status
 src/report_agent/runtime.py	37	run_task	store	read	'status'	status

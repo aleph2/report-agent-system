@@ -2,7 +2,6 @@
 import pytest
 import json
 
-from report_agent.artifact_review import artifact_review_tool
 from report_agent.content_models import ReviewSubmission
 from report_agent.content_tasks import delegated_task
 from report_agent.deep_runtime import business_tools
@@ -54,158 +53,11 @@ def test_bounded_route_exposed_without_manual_content_route(ws):
     assert not {'submit_artifact_review', 'submit_review', 'correct_own_review'} & names
 
 
-def test_all_37_paired_pages_publish_and_reconcile(ws):
-    cs, refs, snap, export, render, source, call = setup(ws)
-    with delegated_task(ws, 'coordinator', call) as (_, reviewer):
-        receipts = [visual(cs,reviewer,render,export,source,p) for p in range(1,38)]
-        result = artifact_review_tool(ws)('complete',payload(snap,refs,render,receipts))
-        saved = cs.read(result['result']['review_ref'])['payload']
-        assert source in saved['dependency_refs']
-        assert reconcile(cs,reviewer.task_id)['execution_complete']
-
-
-@pytest.mark.parametrize('change', [
-    {'coverage':'region_only', 'crop':[0,0,1,.2]},
-    {'page':38}, {'render_ref':{'type':'RenderArtifact','id':'wrong','version':1}},
-    {'presentation_reference':{'source_id':'s','source_sha256':'wrong','page':1,'coverage':'full_page_image'}},
-    {'presentation_reference':{}},
-])
-def test_crop_wrong_page_version_or_reference_cannot_complete(ws, change):
-    cs, refs, snap, export, render, source, call = setup(ws,pages=1)
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipt=visual(cs,reviewer,render,export,source,1,**change)
-        with pytest.raises(ActionRejected,match='COVERAGE_INCOMPLETE'):
-            artifact_review_tool(ws)('bad',payload(snap,refs,render,[receipt]))
-        assert not cs.list_objects('ReviewRecord')
-
-
-def test_partial_page_findings_remain_saved_and_missing_pages_visible(ws):
-    cs, refs, snap, export, render, source, call=setup(ws)
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipt=visual(cs,reviewer,render,export,source,1)
-        artifact_review_tool(ws)('partial',payload(snap,refs,render,[receipt],complete=False))
-        status=reconcile(cs,reviewer.task_id)
-        assert not status['execution_complete']
-        assert status['remaining'][0]['artifact_coverage_gaps'][0]['pages']==list(range(2,38))
-
-
-def test_route_cannot_replace_content_verdict_or_widen_task(ws):
-    cs, refs, snap, export, render, source, call=setup(ws,pages=1)
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipt=visual(cs,reviewer,render,export,source,1)
-        content=payload(snap,refs,render,[receipt],kind='content')
-        with pytest.raises(ActionRejected,match='CONTENT_JUDGMENT_REQUIRES'):
-            artifact_review_tool(ws)('content',content)
-        wrong=payload(snap,refs,render,[receipt])
-        wrong.items[0].scope_id='other-scope'
-        with pytest.raises(ActionRejected,match='OUTSIDE_ASSIGNED_SCOPE'):
-            artifact_review_tool(ws)('wrong-scope',wrong)
-
-
-def test_assigned_export_can_publish_without_layout(ws):
-    cs, refs, snap, export, render, source, call=setup(ws,kind='export')
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipt=cs.observe(reviewer,{'export_ref':export,'structure':{'paragraphs':[]}})['receipt_id']
-        artifact_review_tool(ws)('export',payload(snap,refs,export,[receipt],kind='export'))
-        assert reconcile(cs,reviewer.task_id)['execution_complete']
-
-
 def test_designated_customer_cannot_be_omitted_from_assignment(ws):
     cs, refs, snap, export, render, source, call=setup(ws)
     del call['args']['review_requirements'][0]['presentation_reference_ref']
     with pytest.raises(ActionRejected,match='REQUIRES_CUSTOMER_REFERENCE'):
         with delegated_task(ws,'coordinator',call): pass
-
-
-def test_completed_atomic_check_must_cite_all_pages(ws):
-    cs, refs, snap, export, render, source, call=setup(ws,pages=2)
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipts=[visual(cs,reviewer,render,export,source,p) for p in (1,2)]
-        value=payload(snap,refs,render,receipts)
-        from report_agent.content_models import CheckResult
-        value.items[0].check_results=[CheckResult(requirement_index=0,execution_state='completed',result='Fixture',observation_indexes=[0])]
-        with pytest.raises(ActionRejected,match='LINKED_PAGE_COVERAGE'):
-            artifact_review_tool(ws)('bad-links',value)
-
-
-def test_delivery_check_cannot_close_pages_omitted_from_its_receipts(ws):
-    cs, refs, snap, export, render, source, call=setup(ws,pages=2)
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipts=[visual(cs,reviewer,render,export,source,p) for p in (1,2)]
-        value=payload(snap,refs,render,receipts)
-        from report_agent.content_models import DeliveryCheck
-        value.delivery_checks=[DeliveryCheck(kind='render',artifact_refs=[render],execution_state='completed',
-            verdict='undetermined',observations=value.items[0].observations[:1],coverage=value.items[0].coverage,reason='Fixture')]
-        with pytest.raises(ActionRejected,match='DELIVERY_CHECK_COVERAGE_INCOMPLETE'):
-            artifact_review_tool(ws)('bad-delivery',value)
-
-
-def test_failed_export_read_cannot_close_assigned_scope(ws):
-    cs, refs, snap, export, render, source, call=setup(ws,kind='export')
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipt=cs.observe(reviewer,{'export_ref':export,'structure':{},'status':'failed'})['receipt_id']
-        with pytest.raises(ActionRejected,match='COVERAGE_INCOMPLETE'):
-            artifact_review_tool(ws)('failed-read',payload(snap,refs,export,[receipt],kind='export'))
-
-
-def test_export_subcheck_saves_while_layout_pages_remain_unchecked(ws):
-    """Regression: a structure read does not owe images of all report pages."""
-    from report_agent.content_models import CheckResult
-    cs, refs, snap, export, render, source, call = setup(ws, pages=2)
-    req = call['args']['review_requirements'][0]
-    req.update(artifact_refs=[render, export], required_checks=['Read structure', 'Inspect pages'],
-        artifact_check_scopes=[{'requirement_index': 0, 'kind': 'export_structure',
-            'artifact_ref': export, 'pages': []}])
-    with delegated_task(ws, 'coordinator', call) as (_, reviewer):
-        read = cs.observe(reviewer, {'export_ref': export, 'structure': {'paragraphs': []}})['receipt_id']
-        image = visual(cs, reviewer, render, export, source, 1)
-        value = payload(snap, refs, render, [read, image], complete=False)
-        from report_agent.content_models import Ref
-        value.items[0].artifact_refs = [Ref(**render), Ref(**export)]
-        value.items[0].check_results = [
-            CheckResult(requirement_index=0, execution_state='completed', result='Structure read', observation_indexes=[0]),
-            CheckResult(requirement_index=1, execution_state='partial', result='One page observed', observation_indexes=[1], remaining='Page 2')]
-        result = artifact_review_tool(ws)('partial-structure', value)
-        assert result['result']['review_ref']
-        state = reconcile(cs, reviewer.task_id)
-        assert not state['execution_complete']
-        assert state['remaining'][0]['missing_checks'] == ['Inspect pages']
-        assert state['remaining'][0]['artifact_coverage_gaps'][0]['pages'] == [2]
-        value.items[0].check_results[0].observation_indexes = [1]
-        with pytest.raises(ActionRejected, match='missing_export_observation'):
-            artifact_review_tool(ws)('wrong-structure-evidence', value)
-
-
-def test_page_subcheck_extent_never_closes_whole_report(ws):
-    from report_agent.content_models import CheckResult
-    cs, refs, snap, export, render, source, call = setup(ws, pages=2)
-    call['args']['review_requirements'][0]['artifact_check_scopes'] = [
-        {'requirement_index': 0, 'kind': 'render_pages', 'artifact_ref': render, 'pages': [1]}]
-    with delegated_task(ws, 'coordinator', call) as (_, reviewer):
-        receipt = visual(cs, reviewer, render, export, source, 1)
-        value = payload(snap, refs, render, [receipt], complete=False)
-        value.items[0].check_results = [CheckResult(requirement_index=0,
-            execution_state='completed', result='Page 1 observed', observation_indexes=[0])]
-        artifact_review_tool(ws)('page-scope-partial', value)
-        assert not reconcile(cs, reviewer.task_id)['execution_complete']
-        value.items[0].execution_state = 'completed'
-        with pytest.raises(ActionRejected, match='COVERAGE_INCOMPLETE'):
-            artifact_review_tool(ws)('page-scope-false-complete', value)
-
-
-def test_wrong_or_unbound_reference_page_cannot_complete(ws):
-    cs, refs, snap, export, render, source, call = setup(ws, pages=1)
-    call['args']['review_requirements'][0]['reference_page_bindings'] = [
-        {'render_ref': render, 'page': 1, 'reference_page': 7, 'purpose': 'Body page style'}]
-    with delegated_task(ws, 'coordinator', call) as (_, reviewer):
-        wrong = visual(cs, reviewer, render, export, source, 1)
-        with pytest.raises(ActionRejected, match='COVERAGE_INCOMPLETE'):
-            artifact_review_tool(ws)('wrong-pair', payload(snap, refs, render, [wrong]))
-        paired = {'source_id': 's', 'source_sha256': cs.read(source)['payload']['file_digest'],
-            'page': 7, 'coverage': 'full_page_image', 'crop': None}
-        correct = visual(cs, reviewer, render, export, source, 1, presentation_reference=paired)
-        artifact_review_tool(ws)('correct-pair', payload(snap, refs, render, [correct]))
-        assert reconcile(cs, reviewer.task_id)['execution_complete']
 
 
 def test_artifact_check_cannot_assign_foreign_export_or_nonexistent_pages(ws):
@@ -226,33 +78,6 @@ def test_partial_check_does_not_accept_empty_remaining_or_completed_remaining():
         CheckResult(requirement_index=0, execution_state='partial', result='Incomplete')
     with pytest.raises(ValueError, match='COMPLETED_CHECK_REQUIRES'):
         CheckResult(requirement_index=0, execution_state='completed', result='Read', observation_indexes=[0], remaining='Not read')
-
-
-def test_declared_page_extent_completes_task_without_completing_whole_render(ws):
-    """Assigned page2 completion cannot become a whole two-page review pass."""
-    cs,refs,snap,export,render,source,call=setup(ws,pages=2)
-    call['args']['review_requirements'][0]['artifact_check_scopes']=[
-        {'requirement_index':0,'kind':'render_pages','artifact_ref':render,'pages':[2]}]
-    with delegated_task(ws,'coordinator',call) as (_,reviewer):
-        receipt=visual(cs,reviewer,render,export,source,2)
-        data=payload(snap,refs,render,[receipt],complete=False).model_dump()
-        item=data['items'][0]
-        item.update(checked_requirement_indexes=[0],verdict=None,
-            check_results=[{'requirement_index':0,'execution_state':'completed',
-                'result':'Observed assigned page2; no whole render conclusion.',
-                'observation_indexes':[0],'remaining':''}],
-            coverage={'checked':['Page2 comparison'],'unchecked':[],'blocked':[],
-                'basis':'Actual page2 paired receipt'},
-            outside_assignment_notes=['Unassigned page1 is not claimed inspected.'])
-        saved=artifact_review_tool(ws)('page2-scope',ReviewSubmission.model_validate(data))
-        current=reconcile(cs,reviewer.task_id)
-        assert current['execution_complete']
-        assert current['requirements'][0]['completion_extent']=='declared_artifact_subchecks'
-        assert current['requirements'][0]['verdict'] is None
-        assert cs.read(saved['result']['review_ref'])['payload']['items'][0]['execution_state']=='running'
-        item.update(execution_state='completed',verdict='undetermined')
-        with pytest.raises(ActionRejected,match='ARTIFACT_REVIEW_COVERAGE_INCOMPLETE'):
-            artifact_review_tool(ws)('false-whole',ReviewSubmission.model_validate(data))
 
 
 @pytest.mark.parametrize('customer_instruction', [None, '客户协议样本：逐项核对设计与地勘差异，保留资料限定。'])

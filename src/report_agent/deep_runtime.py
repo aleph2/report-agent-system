@@ -30,7 +30,7 @@ from .errors import ActionRejected, ActionForbidden
 from .store import digest, encode
 from .workspace import OWNERS, Workspace
 from .knowledge_state import project_state, delivery_state, inspect_evidence
-from .review import load_rules, native_review, reconcile_review, reviewer_prompt
+from .review import load_rules, reviewer_prompt
 from .acceptance import AcceptanceCriterionInput
 from .evidence_analysis import SourceSelection, ResultSelection, analyze_selected_evidence
 from .content_models import Ref
@@ -294,9 +294,6 @@ class BusinessBoundary(InvalidToolFeedback):
                     request = request.override(tool_call=call)
                     store.event("deep_tool_argument_decoded", {"role": self.role, "tool": call["name"],
                         "tool_call_id": call["id"], "fields": fields, "codec": "strict-json-object-v1"})
-                from .review_work_units import require_before_verification, prepare_native_todos, retain_native_todos
-                review_todos = prepare_native_todos(self.workspace, self.role, call, runtime.state if runtime else {})
-                require_before_verification(self.workspace, self.role, call, runtime.state if runtime else {})
                 from .prompt_sources import review_interface_profile
                 if (call['name'] == 'export_content_snapshot'
                         and review_interface_profile(store) == 'review-interfaces-v4'):
@@ -458,7 +455,6 @@ class BusinessBoundary(InvalidToolFeedback):
                               if content_enabled(self.workspace) else await handler(request))
                 else:
                     result = await handler(request)
-                result = retain_native_todos(result, review_todos)
             except (ActionRejected, ActionForbidden) as exc:
                 from .errors import LocalStorageBusy
                 if isinstance(exc, LocalStorageBusy):
@@ -537,10 +533,6 @@ def project_view(workspace):
 def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, reviewer_handles=False, planning_result_fits=None):
     if reviewer_handles and role != 'reviewer':
         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
-    from .content_tasks import qualitative_review_active
-    if role == 'reviewer' and qualitative_review_active():
-        from .hierarchical_tools import content_tools
-        return content_tools(workspace, role, reviewer_handles=reviewer_handles)
     store, catalog = workspace.store, Catalog(workspace.store)
     allowed_kinds = {"purpose", "plan"} if role == "knowledge" else {"review"} if role == "reviewer" else {"draft"}
 
@@ -705,79 +697,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
             observations(runtime, draft_id)
         return {"preview": preview, "content": content}
 
-    def read_result(result_id: str, offset: int = 0, characters: int = 12000,
-                    runtime: ToolRuntime = None) -> dict:
-        """Read a saved result version; paginate until next_offset is null for full text.
-
-        offset must be nonnegative; characters must be between 1 and 16000.
-        """
-        if offset < 0 or not 1 <= characters <= 16000:
-            raise ActionRejected("INVALID_RESULT_PAGE")
-        result = result_view(workspace.result(result_id))
-        body = result.pop("body")
-        if body[offset:offset + characters]:
-            observations(runtime, result_id)
-        evidence = inspect_evidence(workspace, [result_id], knowledge)
-        return {**result, "body": body[offset:offset + characters],
-                "next_offset": offset + characters if offset + characters < len(body) else None,
-                "current": result_id not in workspace.impact()["affected_result_ids"] and evidence["status"] in {"not_used", "current"},
-                "version_note": "Currentness describes version changes, not whether the content is correct or usable. "
-                                "Assess actual relevance; historical review feedback may guide a new revision.",
-                "knowledge": {k: v for k, v in evidence.items() if k != "facts"}}
-
-    async def analyze_text(source_id: str, purpose: str, offset: int = 0, limit: int = 10,
-                           runtime: ToolRuntime = None) -> dict:
-        """Optional one-shot LLM analysis of a source page for a stated purpose, no delegation or writes."""
-        result = await analyze_selected_evidence(workspace, text_model, purpose,
-            [{"source_id": source_id, "offset": offset, "limit": limit}], [],
-            actor=source_consumer_actor())
-        page = result["evidence"][0]["observation"]
-        value = {**result, "source_id": source_id, "offset": offset, "next_offset": page.get("next_offset")}
-        from .source_use import resolve_source_use_binding
-        if resolve_source_use_binding(workspace, source_consumer_actor()):
-            from .source_materials import returned, analysis_materials
-            return returned(workspace, role, 'analyze_text', value, analysis_materials(result), runtime)
-        return value
-
-    async def analyze_evidence(question: str, source_selections: list[SourceSelection],
-                               result_selections: list[ResultSelection],
-                               snapshot_ref: Ref | None = None,
-                               content_selections: list[ContentSelection] | None = None,
-                               runtime: ToolRuntime = None) -> dict:
-        """Optional local LLM comparison of caller-selected project evidence, with bound versions.
-
-        Choose a question and sources, legacy results, or exact ContentNode versions.
-        For tree content supply snapshot_ref and content_selections: ref, unit=text/rows,
-        offset and limit (characters up to 16000, table rows up to 100). Read the index
-        to choose one or related nodes; no descendants are fetched automatically.
-        Empty source/result lists are allowed. Source offsets count blocks, not PDF pages.
-        Existing whole-page mechanical table supplements are identified separately.
-        The question can have a false premise. One model call; no search, delegation,
-        business-artifact writes or acceptance decision. Returns observations and limits.
-        """
-        content_owner = None
-        from .prompt_sources import native_reviewer
-        native_review_analysis = role == 'reviewer' and native_reviewer(store)
-        if content_selections or native_review_analysis:
-            from .content_store import ContentStore
-            from .content_tasks import bound_actor
-            from .hierarchical_tools import actor_for
-            content_owner = bound_actor(workspace, role, actor_for(role))
-        result = await analyze_selected_evidence(workspace, text_model, question,
-                                                  source_selections, result_selections,
-                                                  snapshot_ref, content_selections,
-                                                  actor=source_consumer_actor())
-        for selection in result["evidence"]:
-            if selection["kind"] == "saved_result_text":
-                observations(runtime, selection["result_id"])
-        if content_selections or native_review_analysis:
-            receipt = ContentStore(store).observe(content_owner, result)
-            result = {**result, "receipt_id": receipt["receipt_id"]}
-        from .source_use import resolve_source_use_binding
-        if resolve_source_use_binding(workspace, source_consumer_actor()):
-            from .source_materials import returned, analysis_materials
-            return returned(workspace, role, 'analyze_evidence', result, analysis_materials(result), runtime, reviewer_handles=reviewer_handles)
-        return result
 
     def submit_result(kind: Literal["purpose", "plan", "materials", "draft", "review"],
                       title: str, body: str, source_ids: list[str], input_ids: list[str],
@@ -912,10 +831,8 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
     exposed_submit = save_knowledge_artifact if role == "knowledge" else save_review if role == "reviewer" else save_draft
     exposed_submit.__name__ = "submit_result"
     tools = [project_status, read_source_page, search_sources, inspect_source_page, analyze_source_image,
-             calculate, preview_report, read_result, analyze_text,
+             calculate, preview_report,
              exposed_submit, request_correction, assess_result_impact, ask_human]
-    if role == "reviewer":
-        tools.append(analyze_evidence)
     if role == "coordinator":
         from .acceptance import enabled
 
@@ -939,32 +856,15 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
             """Judge relevance of an added source within project scope; does not schedule or rewrite work."""
             return workspace.assess_source_change(change_id, description, affected_result_ids)
 
-        def select_delivery(draft_id: str, review_id: str = "") -> dict:
-            """Select a saved draft for native rubric assessment; this does not approve it.
-
-            review_id is optional historical review evidence, never a substitute for
-            the native rubric verdict. Unresolved issues remain visible.
-            """
-            if enabled(workspace):
-                from .acceptance import draft_criteria
-                draft_criteria(workspace, workspace.result(draft_id))
-            workspace.select_delivery(draft_id, review_id)
-            return delivery_state(workspace, draft_id, review_id, knowledge)[0]
-        tools += [select_delivery, assess_source_change]
+        tools += [assess_source_change]
         if enabled(workspace):
             tools.append(save_acceptance_criteria)
     from .hierarchical_tools import enabled as content_enabled, content_tools
     if content_enabled(workspace):
-        # Read-only substantive interpretation of located source/body material is
-        # an independent tool for every decision role, including Layout. Agents
-        # need not copy full originals into analyze_text or their own histories.
-        from .prompt_sources import native_reviewer
-        if role in {'coordinator','writer','layout'} or (role == 'reviewer' and native_reviewer(store)):
-            tools.append(analyze_evidence)
         # Reuse bounded original-source observations. Legacy writes and delivery
         # selection cannot bypass the versioned contract or reviewer ownership.
         allowed = {"project_status", "read_source_page", "search_sources", "inspect_source_page",
-                   "analyze_source_image", "calculate", "read_result", "analyze_text", "analyze_evidence"}
+                   "analyze_source_image", "calculate"}
         if role == "coordinator":
             allowed.add("ask_human")
         tools = [t for t in tools if t.__name__ in allowed]
@@ -1001,13 +901,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
                 tools += [submit_plan, request_requirement_resolution]
             else:
                 tools.append(request_commission_confirmation)
-        if role == "reviewer" and not native_reviewer(store):
-            from .bounded_review import review_tool
-            tools = [t for t in tools if t.__name__ not in {
-                "submit_review", "correct_own_review", "analyze_text", "analyze_evidence"}]
-            tools.append(review_tool(workspace, text_model))
-            from .artifact_review import bounded_artifact_review_tool
-            tools.append(bounded_artifact_review_tool(workspace, text_model))
         from .native_operation_tools import native_write_tools
         tools = native_write_tools(workspace, role, tools)
         from .prompt_sources import review_interface_profile
@@ -1059,8 +952,6 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     expression_profile = validate_report_expression_profile(manifest)
     from .prompt_sources import validate_report_prompt_profile, CONCISE_PROMPTS
     text_profile = validate_report_prompt_profile(manifest)
-    from .review_work_units import bind_contract
-    bind_contract(workspace, manifest)
     from .review_scope_selectors import bind_contract as bind_submission_contract
     submission_contract = bind_submission_contract(workspace, manifest)
     from .prompt_sources import record_runtime_version
@@ -1091,19 +982,15 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
         from .task_context import enabled as context_enabled, TaskContext
         from .context_editing import ToolResultEditing
         from .working_summary import working_summary
-        from .prompt_sources import native_reviewer
-        from .prompt_provenance import AgentPromptBoundary, CurrentReviewPlan
+        from .prompt_provenance import AgentPromptBoundary
         from .execution_progress import ExecutionProgress
-        from .prompt_sources import validate_review_plan_contract
-        from .review_work_units import ReviewPlanning
-        todo = ReviewPlanning(workspace) if role == 'reviewer' and validate_review_plan_contract(manifest) else TodoListMiddleware()
         from .commission_planning import enabled as planning_enabled
         from .planning_guard import PlanningGuard
         from .delivery_guard import DeliveryGuard, enabled as delivery_enabled
         return [*([DeliveryGuard(workspace)] if delivery_enabled(workspace.store) else []),
                 *([PlanningGuard(workspace)] if role == 'coordinator' and planning_enabled(workspace.store) else []),
                 FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
-                *([todo, CurrentReviewPlan(workspace)] if role == 'reviewer' and native_reviewer(workspace.store) else
+                *(
                   [TodoListMiddleware()] if role == 'coordinator' else []),
                 *([ToolResultEditing(workspace, role), TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
                 *([ExecutionProgress(workspace,role)]
@@ -1120,8 +1007,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     def configured_prompt(role):
         return role_prompt(role)
 
-    roles = {role: configured_prompt(role) for role in ("writer", "reviewer", "layout")}
-    from .prompt_sources import native_reviewer
+    roles = {role: configured_prompt(role) for role in ("writer", "layout")}
     subagents = []
     for role, prompt in roles.items():
         if hierarchical or not (native_enabled and role == "reviewer"):
@@ -1130,24 +1016,6 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 "system_prompt": prompt, "model": model,
                 "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
                 "middleware": middleware(role, model=model)})
-    # New hierarchical runs use the delegated reviewer only. The former automatic
-    # grader remains behind an explicit historical compatibility setting.
-    review_middleware = []
-    if hierarchical and workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1":
-        from .hierarchical_review import HierarchicalRubric
-        review_tools = business_tools(workspace, "rubric_grader", None, model_factory("text_tool"))
-        review_middleware = [HierarchicalRubric(workspace, model_factory("rubric_grader"), review_tools,
-            [TodoListMiddleware(), BusinessBoundary(workspace, "rubric_grader")])]
-    elif native_enabled and not hierarchical:
-        read_names = {"project_status", "read_source_page", "search_sources", "inspect_source_page", "analyze_source_image",
-                      "calculate", "read_result", "knowledge_search", "knowledge_read", "knowledge_traverse"}
-        if acceptance:
-            read_names.update({"analyze_text", "analyze_evidence"})
-        evidence_tools = [t for t in business_tools(workspace, "reviewer", knowledge, model_factory("text_tool"))
-                          if t.__name__ in read_names]
-        review_middleware = [native_review(workspace, model_factory("rubric_grader"), evidence_tools, rules,
-                                           middleware=[*([TodoListMiddleware()] if acceptance else []),
-                                                       BusinessBoundary(workspace, "rubric_grader")])]
     from .native_trace import trace_tools
     coordinator_middleware = middleware("coordinator", tuple((s['name'], s['description']) for s in subagents))
     from deepagents.middleware.filesystem import FilesystemMiddleware as FilesystemMiddlewareType
@@ -1160,7 +1028,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                              tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool"),
                                  planning_result_fits=planning_result_fits) + trace_tools(checkpointer),
                              system_prompt=configured_prompt("coordinator"), subagents=subagents, backend=backend,
-                             middleware=[*coordinator_middleware, *review_middleware],
+                             middleware=coordinator_middleware,
                              checkpointer=checkpointer, name="report_coordinator")
     from .failure_diagnostics import FailureDiagnostics
     diagnostics = FailureDiagnostics(workspace.store)
@@ -1349,12 +1217,6 @@ async def run_report(workspace, model_factory=None, *, knowledge=None, decision_
                 snapshot = await agent.aget_state(config)
                 if delegated_review:
                     store.set("report_status", "completed")
-                elif native_enabled:
-                    if hierarchical:
-                        from .hierarchical_review import reconcile
-                        reconcile(workspace, snapshot.values)
-                    else:
-                        reconcile_review(workspace, snapshot.values)
                 store.set("checkpoint_resume", bool(snapshot.next))
                 store.set("native_interrupts", [{"id": i.id, "value": i.value} for i in snapshot.interrupts])
                 if snapshot.interrupts:

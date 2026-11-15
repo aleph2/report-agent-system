@@ -12,7 +12,6 @@ from openai import AsyncOpenAI
 from report_agent.deepseek_strict import StrictCodec, WireError
 from report_agent.deep_models import configured_model, strict_wire_audit
 from report_agent.deep_runtime import business_tools, run_report
-from report_agent.hierarchical_review import HierarchicalResponse
 from test_deep_runtime import Driver, invoke
 from test_hierarchical_content import ws, seed
 from test_official_deepseek import configured

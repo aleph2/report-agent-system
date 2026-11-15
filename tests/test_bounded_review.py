@@ -5,7 +5,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage
 
-from report_agent.bounded_review import perform_review, review_tool
+from report_agent.bounded_review import perform_review
 from report_agent.content_tasks import delegated_task
 from report_agent.deep_runtime import business_tools
 from report_agent.errors import ActionForbidden, ActionRejected
@@ -92,8 +92,6 @@ async def test_tool_permissions_and_scope_rejected_before_paid_request(ws):
     model = Model()
     with pytest.raises(ActionForbidden):
         await perform_review(ws, actor, model, "bad", ["rule-comparison"])
-    with pytest.raises(ActionForbidden):
-        await review_tool(ws, model)("bad", ["rule-comparison"], [], [])
     with delegated_task(ws, "coordinator", review_call(snapshot, refs)) as (_, reviewer):
         with pytest.raises(ActionRejected, match="REQUESTED_SCOPES"):
             await perform_review(ws, reviewer, model, "bad", ["other"])

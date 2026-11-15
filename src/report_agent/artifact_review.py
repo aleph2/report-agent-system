@@ -129,31 +129,6 @@ def validate_artifact_items(contents, db, requirements, data, *, skip_content=Fa
                     raise ActionRejected('DELIVERY_CHECK_COVERAGE_INCOMPLETE')
 
 
-def artifact_review_tool(workspace):
-    def submit_artifact_review(operation_id: str, review: ReviewSubmission,
-                               delivery_export_ref: Ref | None = None) -> dict:
-        """Publish only assigned export/Word layout judgments using your actual receipts.
-
-        Content judgments must use perform_assigned_review. Completed Word layout
-        scopes require full images of every page in the exact RenderArtifact and
-        its assigned customer reference; crops and wrong versions do not count.
-        Save partial/blocked findings truthfully when pages are missing. This does
-        not require each sub-check to cover the whole report: follow the saved
-        artifact_check_scopes for its exact evidence extent. Without such a scope
-        a completed sub-check retains the whole-artifact rule. In check_results,
-        completed requires cited observation_indexes and an empty remaining;
-        unfinished checks require a remaining reason. Reference page bindings,
-        when assigned, must match the actual paired page receipts. This does
-        not revise artifacts, invoke a model, or grant whole-report acceptance.
-        """
-        from .hierarchical_tools import actor_for
-        actor = bound_actor(workspace, 'reviewer', actor_for('reviewer'))
-        return ContentStore(workspace.store).submit_review(actor, operation_id,
-            review.model_dump(), {'mode': 'assigned-artifact-review-v1'},
-            delivery_export_ref.model_dump() if delivery_export_ref else None)
-    return submit_artifact_review
-
-
 def bounded_artifact_review_tool(workspace, model):
     """The agent selects actual observations; a one-shot tool compares them."""
     from .evidence_analysis import analyze_evidence_packet, model_identity

@@ -7,7 +7,6 @@ import pytest
 from report_agent.content_store import Actor, ContentStore
 from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionForbidden, ActionRejected
-from report_agent.review_message import assemble_review_message, bind_review_message
 from report_agent.store import Store, encode
 from test_deliverable_declaration_v4 import case
 from test_review_handles import bound_review
@@ -62,42 +61,6 @@ def test_multiple_findings_keep_individual_evidence_locations_and_idempotent_sav
             and x['snapshot_ref'] == task['payload']['review_snapshot_ref'] and x['actor_id'] == actor.id for x in links)
         assert len(cs.list_objects('ReviewRecord')) == 1
         assert ContentStore(Store(cs.store.root)).read(ref) == record
-
-
-def test_legacy_assembler_keeps_full_byte_exact_single_finding_submission(case):
-    from report_agent import review_message as rm
-    with bound_review(case) as (cs, ws, actor, receipt, task, output):
-        binding = bind_review_message(cs, actor, [receipt])
-        value = message(verdict='not_satisfied', finding_type='confirmed_defect', finding_locator_state='located',
-            finding_description='A synthetic defect.', finding_impact='A synthetic impact.',
-            finding_needed_outcome='Resolve using the source.', finding_basis_kind='supplied_content')
-        legacy = assemble_review_message(cs, actor, binding, value)
-        assembled = rm.assemble_check(cs, actor, binding, value)
-        req = task['payload']['review_requirements'][0]
-        scope = '  Exact outcome 0\nPreserve this condition.  '
-        assessment = 'The selected synthetic body was compared; no whole-report approval.'
-        # Full independent rc3 capture, source SHA 13319834ddd1aceacd821dcb2eec47b5d554f530ebedf04c55d4aa93387947a6.
-        # Only actual immutable refs, scope identity and receipt are substituted.
-        # The test never reads an analysis artifact or derives expected from either assembler.
-        expected = {'snapshot_ref': task['payload']['review_snapshot_ref'], 'target_ref': req['target_ref'],
-            'scope': scope, 'criteria_refs': [req['criterion_ref']], 'dependency_refs': [], 'items': [{
-                'target_ref': req['target_ref'], 'criterion_ref': req['criterion_ref'], 'scope_id': req['scope_id'],
-                'scope': scope, 'assessment_kind': 'content', 'artifact_refs': [], 'execution_state': 'completed',
-                'verdict': 'not_satisfied', 'observations': [{'receipt_id': receipt, 'locator': 'receipt:' + receipt,
-                    'observation': 'Program-bound actual read receipt, not a reviewer-authored per-material judgment.',
-                    'limitations': 'The reviewer judgment is saved separately in reason and check result.'}],
-                'reason': assessment, 'findings': [{'finding_type': 'confirmed_defect', 'locator_state': 'located',
-                    'description': 'A synthetic defect.', 'impact': 'A synthetic impact.', 'needed_outcome': 'Resolve using the source.',
-                    'basis_kind': 'supplied_content', 'requirement_index': 0, 'observation_indexes': [0]}],
-                'outside_assignment_notes': [], 'checked_requirement_indexes': [0], 'check_results': [{
-                    'requirement_index': 0, 'execution_state': 'completed', 'result': assessment,
-                    'observation_indexes': [0], 'remaining': ''}], 'coverage': {'checked': [scope],
-                    'unchecked': [], 'blocked': [],
-                    'basis': 'Model-declared progress for this assigned check only; not whole-report acceptance.'}}],
-            'coverage_accounting': []}
-        assert encode(legacy) == encode(expected)
-        assert encode(assembled) == encode(expected)
-        assert not cs.list_objects('ReviewRecord')
 
 
 @pytest.mark.parametrize('changes', [

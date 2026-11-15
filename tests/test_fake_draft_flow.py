@@ -141,8 +141,8 @@ async def test_native_coordinator_pauses_before_writer_spend(tmp_path):
     await checkpoint(tmp_path)
 
 
-@pytest.mark.parametrize("partial_review",[False,True],ids=["complete","review-incomplete"])
-async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,planning_packet):
+@pytest.mark.parametrize("unknown_delivery",[False,True],ids=["complete","unknown-outcome"])
+async def test_complete_native_draft_flow(tmp_path,unknown_delivery,monkeypatch,planning_packet):
     from report_agent.fake_draft_flow import complete
     from report_agent.commission_plan import reply
     from report_agent.content_store import ContentStore
@@ -178,19 +178,6 @@ async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,pl
                 assert packet["actor"]["role"]=="writer"
                 answer=AIMessage(json.dumps({"payloads":[dict(kind="block",body=dict(text=citation["quote"]),
                     qualifiers={},claim_kind="fact",citations=[citation])]},ensure_ascii=False))
-            elif role=="reviewer" and partial_review:
-                answer=AIMessage("尚未逐项复核。")
-            elif role=="reviewer":
-                if number==0: answer=invoke("read_qualitative_row")
-                elif number%2==1:
-                    index=(number-1)//2
-                    rows=observation(messages,"read_qualitative_row")["rows"] if number==1 else self.review_rows
-                    self.review_rows=rows
-                    if index==len(rows):answer=AIMessage("已逐项记录独立复核。")
-                    else:answer=invoke("read_qualitative_row",indicator_id=list(rows)[index])
-                else:
-                    row=observation(messages,"read_qualitative_row")
-                    answer=invoke("record_qualitative_finding",indicator_id=row["indicator_id"],finding="离线脚本复核：已核对冻结判断、引文和待核理由；不代表工程签认。")
             elif step:
                 oid="A" if step["object_label"]=="坡段 A" else "B"
                 ind=step["indicator_id"]
@@ -349,12 +336,7 @@ async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,pl
         monkeypatch.setattr(model.http_async_client._transport,'handle_async_request',provider)
         return model
     monkeypatch.setattr(deep_models,'configured_model',configured)
-    if partial_review:
-        with pytest.raises(ActionRejected,match="FAKE_DRAFT_REVIEW_INCOMPLETE"):
-            await entry.launch(path,pin,prepared['prepared_sha256'],env)
-        terminal=json.loads((case.parent/'result.json').read_text())
-        assert terminal['status']=='stopped' and terminal['budget']['held']==0
-        assert not cs.list_objects("ExportArtifact")
+    if unknown_delivery:
         # A separate fresh offline run proves unknown delivery is held without retry.
         authority.update(run_id='unknown',case_path=str(Path(authority['grant_dir'])/'runs'/'unknown'/'case'),
             fresh_comparison={**authority['fresh_comparison'],'run_ids':['unknown']})
@@ -371,7 +353,7 @@ async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,pl
         result=terminal['completion']
         assert terminal['budget']['settled']==10*len(sent) and terminal['budget']['held']==0
         assert terminal['campaign_budget']['reserved_or_unknown_upper_bounds']==entry.host.BOUND
-        assert set(role for role,_ in sent)=={'writer','reviewer','text_tool'}
+        assert set(role for role,_ in sent)=={'writer','text_tool'}
         assert all(client.is_closed for client in clients)
         before=len(sent)
         with pytest.raises(FileExistsError):await entry.launch(path,pin,prepared['prepared_sha256'],env)
@@ -380,8 +362,7 @@ async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,pl
         errors=list(dict.fromkeys(m.content for _,_,batch in models.calls for m in batch if isinstance(m,ToolMessage) and m.status=="error"))
         pytest.fail(str(error)+"\n"+str(error.diagnostic)+"\n"+"\n".join(errors))
     assert result["status"]=="draft_exported" and not result["formal_release"]
-    assert len(cs.list_objects("QualitativeRowFinding"))==22
-    assert set(calls)=={"writer","reviewer","text_tool"}
+    assert set(calls)=={"writer","text_tool"}
     sources=[(r,s) for r,s in page_bindings.records(ws.store,ref) if r["claim"]["kind"]=="source"]
     assert len(sources)==2 and all(s["status"]=="proposed" for r,s in sources)
     assert all(row["progress"]["progress"]["recorded"]==11 for row in result["slopes"])
@@ -422,7 +403,7 @@ async def test_complete_native_draft_flow(tmp_path,partial_review,monkeypatch,pl
         (out/"reviewer-findings.json").write_text(json.dumps([r["payload"] for r in cs.list_objects("QualitativeRowFinding")],ensure_ascii=False,indent=2))
         evidence=dict(status="scripted_offline_plumbing_passed",semantic_quality_measured=False,provider_requests=0,tokens=0,
             coordinator_calls=len(planner.calls),role_calls=dict(Counter(calls)),
-            rows_saved=22,independent_findings=22,fresh_extracted_facts=len(sources),fact_status="proposed",
+            rows_saved=22,fresh_extracted_facts=len(sources),fact_status="proposed",
             word_open_comments=len(comments),excel_issue_rows=book["资料澄清清单"].max_row-1,
             source_comments=sum(c.author=="来源" for c in doc.comments),formal_release=False,
             hashes={})

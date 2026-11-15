@@ -14,7 +14,7 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from report_agent import fake_verification
 from support.fake03 import REGISTER, qualitative_profile
 from report_agent.mini_commission import prepare_mini_commission
-from report_agent.qualitative_review import qualitative_reviewer_session
+from report_agent.writer_judgments import read_progress
 from report_agent.store import Store, digest
 from report_agent.workspace import Workspace
 from report_agent.fake_verification import run_mini_assessment
@@ -148,8 +148,8 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
         assert 'save_gap' in json.dumps(diagnostic), (label, diagnostic)
     report = {'source_run':baseline['run_id'], 'receipt_sha256':baseline['receipt_sha256'],
               'register_sha256':profile['register_sha256'], 'rows':{},'writer_task_refs':{}}
-    report['reviewer_views'] = {}
-    from report_agent.content_store import ContentStore
+    from report_agent.writer_assessment import _assignment
+    from report_agent.content_store import Actor, ContentStore
     reopened = ContentStore(Store(case))
     tasks = reopened.list_objects('DelegatedTask')
     assert len(tasks) == 2
@@ -157,49 +157,39 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     for task in tasks:
         oid = task['payload']['assessment_object_id']
         report['writer_task_refs'][oid] = task['ref']
-        with qualitative_reviewer_session(ws, task['ref']) as tools:
-            assert set(tools) == {'read_qualitative_row', 'record_qualitative_finding'}
-            index = tools['read_qualitative_row']()
-            assert index['object_id'] == oid and len(index['rows']) == 8
-            for ind, row_digest in index['rows'].items():
-                view = tools['read_qualitative_row'](ind)
-                e = view['saved_row']
-                assert digest(e) == view['row_digest'] == row_digest
-                assert view['object_facts'] == profile['facts'][oid]
-                report['reviewer_views'][oid+'/'+ind] = view
-                label=oid+'/'+ind
-                checks=e.get('claim_checks',{})
-                after=e['input']
-                if label in REFUSE:
-                    assert after['kind']=='gap' and 'WRITER_CLAIM_UNSUPPORTED' in json.dumps(diagnostics[label]), label
-                    disposition='original refused; scripted gap saved'
-                elif label=='A/X51':
-                    assert e['kind']=='gap' and after['grade'] is None and after['value'] is None
-                    assert 'judgment' not in e
-                    key = json.loads((REGISTER.parents[3]/'docs/verification/fake03-qualitative-x51-answer-key.json').read_bytes())
-                    assert key['decision_sha256'] == hashlib.sha256(REGISTER.with_name('engineering-review.json').read_bytes()).hexdigest()
-                    assert (e['kind'], after['grade'], after['value']) == (key['kind'], key['grade'], key['value'])
-                    assert checks['engineering_review']['conditional_grades'] == key['conditional_grades'] == ['low','moderate']
-                    disposition='owner-deferred unscored gap with conditional low and moderate'
-                elif label=='A/X32':
-                    assert after['kind']=='assumption' and after['grade']==original[label]['grade']
-                    assert 'QUESTION_EFFECT_CONFLICT' in json.dumps(checks), checks
-                    assert after['question']==original[label]['question']
-                    disposition='assumption preserved; original question flagged'
-                else:
-                    assert all(after[k]==original[label][k] for k in ('kind','grade','value','rationale','question','missing')), label
-                    disposition='control retained'
-                report['rows'][label]={'disposition':disposition,'old':original[label], 'annotations':annotations.get(label),
-                                     'stored_input':after,'claim_checks':checks,'rejection':diagnostics.get(label),
-                                     'saved_row_digest':digest(e)}
-            if oid == 'A':
-                before = tools['read_qualitative_row']('X32')
-                finding = tools['record_qualitative_finding'](
-                    'offline-A-X32', 'X32',
-                    'Offline scripted finding. The question raises the grade, but season affects the value within the band.')
-                assert tools['read_qualitative_row']('X32') == before
-                report['scripted_finding'] = finding['result']
-    assert len(report['rows']) == len(report['reviewer_views']) == 16
+        writer = Actor('content:writer:' + task['ref']['id'], 'writer', task['ref']['id'])
+        with ws.store.connect() as db:
+            scope = _assignment(reopened, db, writer)
+            rows = read_progress(ws.store, scope['assignment_digest'], db)['rows']
+        assert scope['object']['object_id'] == oid and len(rows) == 8
+        assert scope['object_facts'] == profile['facts'][oid]
+        for ind, e in rows.items():
+            label=oid+'/'+ind
+            checks=e.get('claim_checks',{})
+            after=e['input']
+            if label in REFUSE:
+                assert after['kind']=='gap' and 'WRITER_CLAIM_UNSUPPORTED' in json.dumps(diagnostics[label]), label
+                disposition='original refused; scripted gap saved'
+            elif label=='A/X51':
+                assert e['kind']=='gap' and after['grade'] is None and after['value'] is None
+                assert 'judgment' not in e
+                key = json.loads((REGISTER.parents[3]/'docs/verification/fake03-qualitative-x51-answer-key.json').read_bytes())
+                assert key['decision_sha256'] == hashlib.sha256(REGISTER.with_name('engineering-review.json').read_bytes()).hexdigest()
+                assert (e['kind'], after['grade'], after['value']) == (key['kind'], key['grade'], key['value'])
+                assert checks['engineering_review']['conditional_grades'] == key['conditional_grades'] == ['low','moderate']
+                disposition='owner-deferred unscored gap with conditional low and moderate'
+            elif label=='A/X32':
+                assert after['kind']=='assumption' and after['grade']==original[label]['grade']
+                assert 'QUESTION_EFFECT_CONFLICT' in json.dumps(checks), checks
+                assert after['question']==original[label]['question']
+                disposition='assumption preserved; original question flagged'
+            else:
+                assert all(after[k]==original[label][k] for k in ('kind','grade','value','rationale','question','missing')), label
+                disposition='control retained'
+            report['rows'][label]={'disposition':disposition,'old':original[label], 'annotations':annotations.get(label),
+                                 'stored_input':after,'claim_checks':checks,'rejection':diagnostics.get(label),
+                                 'saved_row_digest':digest(e), 'assertion_id':e['assertion_id']}
+    assert len(report['rows']) == 16
     from report_agent.assertions.launch import Commission
     archive = tmp_path / "m3-fake03.jsonl"
     Commission(case).export(archive)
@@ -211,7 +201,7 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     for row in results:
         subject, result_claim = row["subject"], row["claim"]
         assessment = result_claim["assessment"]
-        observed = {view["saved_row"]["assertion_id"] for key, view in report["reviewer_views"].items()
+        observed = {entry["assertion_id"] for key, entry in report["rows"].items()
                     if key.startswith(subject + "/")}
         assert len(observed) == len(result_claim["inputs"]) == 8
         assert set(result_claim["inputs"]) == observed
@@ -226,7 +216,6 @@ async def test_all_run06_rows_through_native_tools(tmp_path, monkeypatch):
     assert restored.read_bytes() == archive.read_bytes()
     # Part b completes the normal Writer issue and trusted route stages, without new judgments.
     from report_agent.errors import ActionRejected
-    from report_agent.content_store import Actor
     from report_agent.content_tasks import delegated_task
     from report_agent.hierarchical_tools import actor_for
     from report_agent.section_writing import save_section_prose, propose_material_issue

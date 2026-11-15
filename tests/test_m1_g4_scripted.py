@@ -1,5 +1,4 @@
 """A complete deterministic current-tool report path; not model/engineering acceptance."""
-from report_agent import report_state
 from io import BytesIO
 import json
 from pathlib import Path
@@ -10,12 +9,10 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from report_agent import plan_authority
 from report_agent.deep_runtime import build_agent
-from report_agent.content_delivery import current_delivery
 from test_deep_runtime import Driver, invoke as scripted_invoke, observation
 from test_m1_commission_plan import api
 from test_m1_g3_integration import method_commission, persistence_input, section_plan
 from test_m1_g3_followup import synthetic_pilot_plan
-from support.flat_task_fixture import task_arguments
 
 
 async def test_complete_current_scripted_report_checkpoint_calculation_exports_review_delivery(method_commission):
@@ -172,79 +169,15 @@ async def test_complete_current_scripted_report_checkpoint_calculation_exports_r
             'evidence_expectation': 'Inspect the complete saved report and both actual artifacts.',
             'allowed_limits': 'Scripted protocol check only; not engineering or model judgment.'}}])
 
-    def review(messages):
-        criterion = result(messages, 'commit_objects')['refs']['criterion']
-        seen['criterion'] = criterion
-        seen['review_mode'] = 'content'
-        args = {'subagent_type': 'reviewer', 'description': 'Inspect complete synthetic report content.',
-            'review': {'deliverable': {'kind': 'snapshot', 'snapshot_ref': seen['snapshot']},
-                'standards': {'kind': 'criteria', 'criterion_refs': [criterion]},
-                'scope': {'kind': 'whole_content'}}}
-        return invoke('task', **task_arguments(cs, co, args))
-
-    def review_artifacts(messages):
-        result(messages, 'task')
-        assert len(cs.list_objects('ReviewRecord')) == 1
-        criterion = seen['criterion']
-        seen['review_mode'] = 'export'
-        args = {'subagent_type': 'reviewer', 'description': 'Inspect the full synthetic report and paired artifacts.',
-            'review': {'deliverable': {'kind': 'snapshot', 'snapshot_ref': seen['snapshot']},
-                'standards': {'kind': 'criteria', 'criterion_refs': [criterion]},
-                'scope': {'kind': 'mapped', 'items': [{'criterion_ref': criterion,
-                    'target_ref': seen['snapshot'], 'assessment_kind': 'export',
-                    'artifact_refs': [seen['word']['export_ref'], seen['excel']['export_ref']]}]}}}
-        return invoke('task', **task_arguments(cs, co, args))
-
-    def read_report(messages):
-        return invoke('read_context', target_ref=seen['snapshot'], limit=100)
-
-    def review_word(messages):
-        packet = result(messages, 'read_context')
-        assert packet['next_offset'] is None
-        assert len(packet['objects']) == packet['total']
-        if seen['review_mode'] == 'content':
-            return invoke('submit_review', assigned_scope_index=0, execution_state='completed', verdict='satisfied',
-                assessment='Complete synthetic snapshot read: fixed text, calculation records, assumptions and conclusion present. '
-                    'Scripted mechanical check; not engineering or model acceptance.', evidence_indexes=[0])
-        return invoke('read_content_export', export_ref=seen['word']['export_ref'])
-
-    def review_excel(messages):
-        if seen['review_mode'] == 'content':
-            return review_finished(messages)
-        result(messages, 'read_content_export')
-        return invoke('read_content_export', export_ref=seen['excel']['export_ref'])
-
-    def judged(messages):
-        result(messages, 'read_content_export')
-        return invoke('submit_review', assigned_scope_index=0, execution_state='completed', verdict='satisfied',
-            assessment='Scripted inspection completed; synthetic mechanics only, not engineering acceptance.',
-            evidence_indexes=[0, 1, 2])
-
-    def review_finished(messages):
-        result(messages, 'submit_review')
-        return AIMessage('Synthetic review saved.')
-
-    def selected(messages):
-        result(messages, 'task')
-        tasks = [r for r in cs.list_objects('DelegatedTask') if r['payload']['role'] == 'reviewer']
-        assert len(tasks) == 2 and len(cs.list_objects('ReviewRecord')) == 2
-        seen['review_tasks'] = [task['ref'] for task in tasks]
-        return invoke('select_content_delivery', snapshot_ref=seen['snapshot'], export_ref=seen['word']['export_ref'],
-            workbook_export_ref=seen['excel']['export_ref'], review_basis_assignment_ref=tasks[0]['ref'],
-            review_assignment_refs=seen['review_tasks'])
 
     driver = Driver(coordinator=[invoke('task', subagent_type='writer', section_ids=['1.1', '4', '5'],
         description='Save complete synthetic report with calculation, comments and exact fixed text.'),
-        word, workbook, criteria, review, review_artifacts, selected, AIMessage('Synthetic paired delivery saved.')],
+        word, workbook, criteria, AIMessage('Synthetic pair saved.')],
         writer=[writer_start, fixed, summary, draft_section, produce, outcome, declare, writer_finished],
-        reviewer=[read_report, review_word, review_excel, judged, review_finished],
         text_tool=[bounded_text])
     await build_agent(ws, driver, None).ainvoke({'messages': [HumanMessage('Complete the synthetic offline tool scenario.')]})
     errors = [m.content for _, _, batch in driver.calls for m in batch if isinstance(m, ToolMessage) and m.status == 'error']
     assert not errors, errors
-    delivery = current_delivery(ws.store)
-    assert delivery['commission_coverage']['complete'] is True
-    assert report_state.selected_delivery(ws.store)['workbook_export_ref'] == seen['excel']['export_ref']
     word_bytes = (ws.store.root / seen['word']['file_ref']).read_bytes()
     excel_bytes = (ws.store.root / seen['excel']['file_ref']).read_bytes()
     doc, book = Document(BytesIO(word_bytes)), load_workbook(BytesIO(excel_bytes))
@@ -253,10 +186,10 @@ async def test_complete_current_scripted_report_checkpoint_calculation_exports_r
     assert 'Project NEW.' in texts and 'Exact method sentence.' in texts
     assert cs.read(seen['assessment']['assessment_ref'])['payload']['table_records']
     evidence = {'mode': 'scripted_current_deepagents_tools', 'semantic_acceptance': False,
-        'plan_ref': saved['ref'], 'snapshot_ref': seen['snapshot'], 'review_tasks': seen['review_tasks'],
+        'plan_ref': saved['ref'], 'snapshot_ref': seen['snapshot'],
         'word': seen['word'], 'excel': seen['excel'], 'comments': len([c for c in doc.comments if c.author == '待核']),
         'excel_clarification_rows': book['资料澄清清单'].max_row - 1,
-        'delivery': delivery, 'tool_errors': errors,
+        'tool_errors': errors,
         'tools_called': sorted({c['name'] for _, _, batch in driver.calls for m in batch
             if isinstance(m, AIMessage) for c in m.tool_calls}),
         'provider_calls': 0}

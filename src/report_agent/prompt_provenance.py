@@ -342,22 +342,6 @@ def classify_agent_system(system, expected):
     return ('exact' if exact else 'unexplained'), sources
 
 
-class CurrentReviewPlan(AgentMiddleware):
-    """Project the selected child namespace's current native todos, without a gate."""
-    def __init__(self, workspace):
-        self.workspace = workspace
-
-    async def awrap_model_call(self, request, handler):
-        todos = request.state.get('todos')
-        if todos:
-            from .task_context import actor_id
-            text = encode({'current_review_plan': {
-                'actor_id':actor_id(self.workspace, 'reviewer'), 'todos':todos,
-                'authority':'working_intentions'}})
-            request = append_declared_system(request, text, 'native_todos/current_child_state')
-        return await handler(request)
-
-
 class AgentPromptBoundary(AgentMiddleware):
     def __init__(self, workspace, role, *, source=None, expression_profile=None, interface_profile=None,
                  prompt_profile=None, review_submission_contract=None):

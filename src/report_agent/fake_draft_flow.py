@@ -47,7 +47,7 @@ async def plan(workspace, model_factory):
 
 
 async def complete(workspace, model_factory, issue_routes, criteria):
-    """After the owner's saved page-sheet reply, run fresh Writers, Reviewer and draft export.
+    """After the owner's saved page-sheet reply, run fresh Writers and draft export.
 
     This operator entry does not resume or retry an unknown model request. The caller
     owns launch authority and applies its spending guard to every supplied model.
@@ -63,7 +63,6 @@ async def complete(workspace, model_factory, issue_routes, criteria):
     from .writer_runtime import writer_session
     from .writer_judgment_authority import grant_judgment_inputs
     from .prompt_provenance import AgentPromptBoundary
-    from .qualitative_review import qualitative_reviewer_session
     from .context_editing import ToolResultEditing
     from .system_assembler import record_issue_routes, assemble_current_report
     from .content_export import export_snapshot
@@ -92,16 +91,6 @@ async def complete(workspace, model_factory, issue_routes, criteria):
                 raise ActionRejected("FAKE_DRAFT_WRITER_INCOMPLETE",diagnostic=dict(object_id=obj["object_id"],progress=progress,refusals=writer.refusals))
             task = dict(type="DelegatedTask",id=writer.actor.task_id,version=1)
             rows.append(dict(object_id=obj["object_id"],writer_task_ref=task,progress=progress))
-        with qualitative_reviewer_session(workspace,task) as tools:
-            assigned = tools["read_qualitative_row"]()
-            review = create_agent(model_factory("reviewer"),list(tools.values()),
-                system_prompt=role_prompt("reviewer"),middleware=[ToolResultEditing(workspace,"reviewer"), BusinessBoundary(workspace,"reviewer"), AgentPromptBoundary(workspace,"reviewer")])
-            await review.ainvoke({"messages":[HumanMessage(
-                "逐项独立核对本任务全部已保存指标、原文引述、依据、假设及问题，逐项记录中文复核发现。不得修改 Writer 判断或声明正式发布。") ]}, {"recursion_limit":100})
-            findings = {r["payload"]["indicator_id"] for r in cs.list_objects("QualitativeRowFinding")
-                        if r["payload"]["review_task_ref"] == assigned["review_task_ref"]}
-            if set(assigned["rows"]) - findings:
-                raise ActionRejected("FAKE_DRAFT_REVIEW_INCOMPLETE")
     call = dict(name="task",id="fake-draft-prose",args=dict(subagent_type="writer",section_ids=sections,
                 description="Write source-grounded draft section prose and preserve every approved planning conflict as a material issue; do not change judgments."))
     with delegated_task(workspace,"coordinator",call):

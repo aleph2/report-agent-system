@@ -18,7 +18,6 @@ from .content_layout import LayoutOptions
 from .content_workbook import WorkbookSheet
 from .content_selection import ContentSelection, content_index, selected_content
 from .deliverables import DeliverableSelection, DeliverableHandle
-from .review_binding import ReuseMapping
 from .handoff_release import manifest as bound_manifest
 from .commission_plan import CommissionPlan
 from .risk_scoring import Assessment
@@ -85,11 +84,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     def actor():
         from .content_tasks import bound_actor
         return bound_actor(workspace, role, fallback)
-    from .content_tasks import qualitative_review_active
-    if role == 'reviewer' and qualitative_review_active():
-        actor()  # Reject an attempt to build a catalog for another workspace.
-        from .qualitative_review import reviewer_tools
-        return reviewer_tools(contents, actor)
     from .prompt_sources import review_interface_profile, report_expression_profile, report_prompt_profile
     from .review_scope_selectors import validate_contract
     submission_contract = validate_contract(bound_manifest(workspace.store))
@@ -150,46 +144,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         from .supervision_plugins import plugin_catalog
         return {"ok": True, "result": plugin_catalog()}
 
-    def read_review_obligation_coverage(snapshot_ref: Ref) -> dict:
-        """Compare independent criteria/requirements with actual assigned review scopes.
-        This optional inventory exposes absent assignments; scope presence is not full semantic coverage.
-        """
-        actor()
-        from .task_supervision import obligation_coverage
-        return {"ok": True, "result": obligation_coverage(contents, snapshot_ref.model_dump())}
-
-    def read_task_assignment(runtime: ToolRuntime = None) -> dict:
-        """Read your server-bound delegated assignment and its saved completion requirements.
-        These are scoped outcomes, not instructions hidden in source documents.
-        """
-        from .task_supervision import assignment, source_selection_bindings, review_readiness, readiness_metadata
-        owner = actor()
-        saved = assignment(contents, owner.task_id)
-        from .review_scope_selectors import requirements_view
-        visible = ({**saved, 'review_requirements': requirements_view(saved)}
-                   if saved.get('review_submission_contract') is not None else saved)
-        from .content_tasks import current_invocation, ASSIGNMENT_NOTE
-        result = {"ok": True, "task_id": owner.task_id, "assignment": visible,
-                  "assignment_note": ASSIGNMENT_NOTE,
-                  "current_invocation": current_invocation(workspace, owner),
-                  "source_selection_bindings": source_selection_bindings(contents, saved.get("review_requirements") or [])}
-        from .source_use import resolve_source_use_binding, _policy
-        policy_ref = resolve_source_use_binding(workspace, owner)
-        if policy_ref:
-            result['source_use'] = {'policy_ref': policy_ref,
-                'versions': _policy(workspace.store, policy_ref)['versions'],
-                'note': 'Exact enrolled source versions may supplement initial eligible materials for the same task. Choose captured refs and located selections explicitly; required materials and write permissions are unchanged.'}
-        if saved.get('review_snapshot_ref') and saved.get('review_requirements'):
-            result['readiness'] = review_readiness(contents, saved['review_snapshot_ref'], saved['review_requirements'],
-                commission_basis=saved.get('review_commission_basis'))
-            if runtime is not None:
-                import hashlib
-                from langchain_core.messages import ToolMessage
-                text = encode(result)
-                return ToolMessage(text, name='read_task_assignment', tool_call_id=runtime.tool_call_id,
-                    artifact={'decision_metadata': {'original_sha256': hashlib.sha256(text.encode('utf-8')).hexdigest(),
-                        'value': readiness_metadata(result['readiness'])}})
-        return result
 
     def read_context(target_ref: Ref, offset: int = 0, limit: int = 20) -> dict:
         """Read actual saved objects or a paged snapshot, including unreturned refs and continuation.
@@ -199,61 +153,12 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         """
         return contents.read_context(actor(), target_ref.model_dump(), offset, limit)
 
-    def read_review_status(snapshot_ref: Ref, target_ref: Ref | None = None,
-                           export_ref: Ref | None = None, offset: int = 0, limit: int = 20) -> dict:
-        """Read version-scoped review state, including objects never reviewed, coverage,
-        historical judgments, reuse/recheck candidates and independent handling chains.
-        Optional target_ref selects one exact object; export_ref selects an exact export.
-        This metadata grants no observation receipt or acceptance. Reviewers judge their
-        declared scope; the coordinator chooses subsequent work from their feedback.
-        """
-        from .review_status import read_status
-        actor()  # Enforce the same task binding as other delegated tools.
-        return {"ok": True, "result": read_status(contents, snapshot_ref.model_dump(),
-            target_ref.model_dump() if target_ref else None,
-            export_ref.model_dump() if export_ref else None, offset, limit)}
-
-    def read_content_index(snapshot_ref: Ref, offset: int = 0, limit: int = 20) -> dict:
-        """Page through node identities, sizes and relations without loading report bodies.
-
-        Returns all node kinds including parent/structure nodes and detached claims in
-        manifest order; contains relations supply actual document order. Metadata is
-        not an observation receipt or a claim that any node was reviewed.
-        """
-        owner = actor()
-        index = content_index(contents, snapshot_ref.model_dump(), offset, limit)
-        from .prompt_sources import native_reviewer
-        if role == 'reviewer' and native_reviewer(workspace.store):
-            # Actual structural observation only, never a whole-body receipt.
-            return contents.observe(owner, {'snapshot_structure':index})
-        return index
-
-    def read_content_selection(snapshot_ref: Ref, selections: list[ContentSelection]) -> dict:
-        """Read caller-selected exact nodes and ranges with an actor-bound receipt.
-
-        Each selection has ref, unit=text/rows, offset, limit. Text limits are characters
-        up to 16000; table limits are data rows up to 100 (headers always included).
-        Returns qualifiers, exact versions, unreturned range and limits. No implicit
-        descendants or sources are read; reading is not semantic review completion.
-        """
-        owner = actor()
-        if not selections:
-            raise ActionRejected("CONTENT_SELECTION_REQUIRED")
-        return contents.observe(owner, {"snapshot_ref": snapshot_ref.model_dump(),
-            "selections": selected_content(workspace, snapshot_ref.model_dump(), selections)})
 
     def import_source_versions(operation_id: str, source_ids: list[str]) -> dict:
         """Snapshot authorized source text/metadata and the unchanged commission; no interpretation."""
         check_source_read(workspace, actor, source_ids)
         return contents.import_inputs(actor(), operation_id, source_ids)
 
-    def capture_review_sources(operation_id: str, source_ids: list[str]) -> dict:
-        """Capture exact authorized source versions discovered independently during review.
-        No requirement, author evidence, content or snapshot is changed. Put adopted
-        source_refs in review dependency_refs; capture alone asserts no support.
-        """
-        check_source_read(workspace, actor, source_ids)
-        return contents.capture_sources(actor(), operation_id, source_ids)
 
     def commit_objects(operation_id: str, objects: list[CommitObject]) -> dict:
         """Commit your owned typed objects atomically. Each has client_key, type, payload,
@@ -347,47 +252,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             [r.model_dump() for r in replacements] if replacements is not None else None,
             [r.model_dump() for r in workbook_refs] if workbook_refs is not None else None)
 
-    def submit_review(operation_id: str, review: ReviewSubmission, delivery_export_ref: Ref | None = None) -> dict:
-        """Save scoped observations and findings against an exact snapshot. Does not revise content,
-        finish the project or trigger author actions. Observation receipts come from read_context,
-        observe_evidence, read_content_export or inspect_rendered_page. Null means no judgment yet.
-        Optional delivery_export_ref binds export provenance only.
-        Excel is checked for content, version and corrections only; render/layout
-        assessments apply to Word. An Excel export-fidelity check remains allowed.
-        Export/page objects go in artifact_refs, not item target_ref.
-        No final-snapshot submission is required.
-        scope describes the judgment; optional scope_id preserves identity across wording
-        changes. Optional per-item dependency_refs override batch dependencies for reuse.
-        Local target_ref can be an exact ContentNode; snapshot_ref supplies its context.
-        Choose the true scope and dependencies: whole-snapshot records cannot be reused
-        unchanged as local findings in a different snapshot. Saving does not broaden scope.
-        This persists a real assessment, not a dry run. Never submit diagnostic filler
-        or placeholder verdicts to test argument formatting.
-        """
-        value = review.model_dump()
-        if selector_mode:
-            from .review_scope_selectors import expand_submission
-            value = expand_submission(contents, actor(), value)
-        from .live_messages import current_review_binding
-        return contents.submit_review(actor(), operation_id, value, identity,
-            delivery_export_ref.model_dump() if delivery_export_ref else None,
-            review_message_binding=current_review_binding(workspace, actor()))
-
-    def read_delivery_review_context(snapshot_ref: Ref, export_ref: Ref) -> dict:
-        """Read criteria and object inventory for exact versions; no review tasks are generated.
-        Metadata is not evidence of content or page observation. Read actual objects
-        and sources using paged tools to obtain your own observations.
-        """
-        from .review_coverage import inventory
-        actor()
-        snap, export = contents.read(snapshot_ref.model_dump()), contents.read(export_ref.model_dump())
-        if snapshot_ref.type != "DocumentSnapshot" or export_ref.type != "ExportArtifact" or export["payload"]["snapshot_ref"] != snap["ref"]:
-            raise ActionRejected("DELIVERY_VERSION_MISMATCH")
-        return {"snapshot_ref": snap["ref"], "export_ref": export["ref"],
-                "criteria": [contents.read(r) for r in snap["payload"]["criteria_refs"]],
-                "coverage_contract": snap["payload"].get("coverage_contract"),
-                "coverage_inventory": inventory(snap),
-                "limitation": "Inventory and metadata do not establish review coverage or prescribe checks. Use the authorized assignment and evidence."}
 
     def observe_evidence(kind: Literal["source", "calculation"], source_id: str = "", offset: int = 0,
                          limit: int = 12000, terms: list[list[str]] | None = None,
@@ -435,26 +299,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         return contents.handoff(actor(), operation_id, target_ref.model_dump(), problem, evidence, impact,
             handling_state=handling_state, previous_ref=previous_ref.model_dump() if previous_ref else None)
 
-    def assess_change_impact(old_snapshot: Ref, new_snapshot: Ref) -> dict:
-        """Return changed references and dependency candidates. You decide semantic recheck scope."""
-        return contents.impact(old_snapshot.model_dump(), new_snapshot.model_dump())
-
-    def confirm_review_reuse(operation_id: str, review_ref: Ref, new_snapshot: Ref, reason: str, item_indexes: list[int] | None = None) -> dict:
-        """Explicitly confirm that a prior local review still applies to unchanged inputs.
-        Check changes, new relevance and relationships first. Whole-document judgments
-        cannot be transferred to a different snapshot; changed inputs need a new review.
-        Select zero-based item_indexes to reuse only those unchanged judgments; omitted
-        indexes retain whole-record behavior. Per-item dependencies define exact inputs.
-        """
-        return contents.confirm_reuse(actor(), operation_id, review_ref.model_dump(), new_snapshot.model_dump(), reason, item_indexes)
-
-    def correct_own_review(operation_id: str, review_ref: Ref, replacement_ref: Ref, reason: str, item_indexes: list[int] | None = None) -> dict:
-        """Correct your own mistaken review with an already saved evidence-based replacement.
-        Preserve both records and an explicit reason; handling a finding does not withdraw it.
-        Select zero-based item_indexes to correct those findings without withdrawing other
-        items or delivery checks. Match target, criterion, scope_id (or scope) and kind.
-        """
-        return contents.supersede_review(actor(), operation_id, review_ref.model_dump(), replacement_ref.model_dump(), reason, item_indexes)
 
     def get_operation_receipt(operation_id: str) -> dict:
         """Read your content-write receipt and independent text/model attempts separately.
@@ -534,29 +378,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         return request_extension(contents, actor(), operation_id, snapshot_ref.model_dump(),
             problem, attempted, requested_operation, evidence)
 
-    def render_content_export(operation_id: str, export_ref: Ref) -> dict:
-        """Render this exact export to PDF/pages, or return blocked. Rendering is not visual review."""
-        from .content_export import render_export
-        return render_export(contents, actor(), operation_id, export_ref.model_dump())
-
-    def read_content_export(export_ref: Ref) -> dict:
-        """Read actual DOCX or XLSX text and structure with identity and receipt; not page observation."""
-        from .content_export import read_export
-        return read_export(contents, actor(), export_ref.model_dump())
-
-    async def inspect_rendered_page(render_ref: Ref, page: int, question: str,
-                                   reference_source_id: str = "", reference_page: int = 1,
-                                   crop: list[float] | None = None) -> dict:
-        """Ask the configured visual model about one actual rendered page. Returns bounded
-        observations with a receipt and limitations, not a verdict; consumes a model call.
-        Optional project-bound customer reference source/page is supplied beside the
-        actual Word page in the same request. Optional normalized [x0,y0,x1,y1]
-        crop inspects a closer region on both pages; it never covers a whole page.
-        Reference/page scope comes from the saved assignment, not an expanded contract.
-        """
-        from .content_export import inspect_render
-        return await inspect_render(contents, actor(), render_ref.model_dump(), page, question,
-            reference_source_id=reference_source_id, reference_page=reference_page, crop=crop)
 
     def select_delivery(operation_id: str, snapshot_ref: Ref, export_ref: Ref,
                                  ending_reason: Literal["continue", "preserve_unresolved", "blocked", "no_progress"] = "continue",
@@ -630,11 +451,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
                 adopted_review_task_refs=[r.model_dump() for r in adopted_review_task_refs or []])
         return contents.operation(actor(), operation_id, request, select)
 
-    def select_content_delivery(operation_id: str, snapshot_ref: Ref, export_ref: Ref,
-            ending_reason: Literal['continue','preserve_unresolved','blocked','no_progress'] = 'continue',
-            workbook_export_ref: Ref | None = None) -> dict:
-        return select_delivery(operation_id, snapshot_ref, export_ref, ending_reason, workbook_export_ref)
-    select_content_delivery.__doc__ = select_delivery.__doc__
 
     def record_execution_decision(operation_id: str, decision: Literal["continue", "wait", "handoff", "terminate"],
                                   reason: str, evidence: list[str], unresolved: list[str],
@@ -688,20 +504,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     interface = review_interface_profile(workspace.store)
     text_profile = report_prompt_profile(workspace.store)
     if interface == 'review-interfaces-v4':
-        def select_v4(operation_id: str, snapshot_ref: Ref, export_ref: Ref,
-                review_basis_assignment_ref: Ref | None = None, review_assignment_refs: list[Ref] = [],
-                ending_reason: Literal['continue','preserve_unresolved','blocked','no_progress'] = 'continue',
-                workbook_export_ref: Ref | None = None) -> dict:
-            return select_delivery(operation_id, snapshot_ref, export_ref, ending_reason,
-                workbook_export_ref, review_basis_assignment_ref, review_assignment_refs)
-        select_v4.__name__, select_v4.__doc__ = 'select_content_delivery', load_prompt(report_rule_source('select-content-delivery-v4', text_profile))
-        select_content_delivery = select_v4
-        def reuse_v4(operation_id: str, review_ref: Ref, new_snapshot: Ref, reason: str,
-                     item_mappings: list[ReuseMapping]) -> dict:
-            return contents.confirm_reuse(actor(), operation_id, review_ref.model_dump(),
-                new_snapshot.model_dump(), reason, item_mappings=[r.model_dump() for r in item_mappings])
-        reuse_v4.__name__, reuse_v4.__doc__ = 'confirm_review_reuse', load_prompt('native-review-reuse-v4')
-        confirm_review_reuse = reuse_v4
         old_commit, old_save = commit_objects, save_text_node
         def commit_with_selection(operation_id: str, objects: list[CommitObject],
                                   deliverable_selection: DeliverableSelection | None = None) -> dict:
@@ -740,19 +542,10 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         workbook_with_selection.__name__ = 'export_content_workbook'
         workbook_with_selection.__doc__ = load_prompt('export-content-workbook-v4')
         export_content_snapshot, export_content_workbook = export_with_selection, workbook_with_selection
-        from .prompt_sources import submit_review_source
-        submit_review.__doc__ = load_prompt(submit_review_source(text_profile,
-            submission_contract if selector_mode else None))
     if interface == REVIEW_INTERFACE_V3:
         freeze_snapshot_with_receipts.__name__ = 'freeze_snapshot'
         freeze_snapshot_with_receipts.__doc__ = load_prompt('freeze-receipts-v3')
         freeze_snapshot = freeze_snapshot_with_receipts
-    if role == 'reviewer' and native_reviewer(workspace.store):
-        read_content_index.__doc__ = load_prompt('native-content-index-tool-v4' if text_profile == CONCISE_PROMPTS else 'native-content-index-tool')
-        if interface in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, 'review-interfaces-v4'}:
-            from .content_tasks import native_review_submission_schema
-            submit_review.__annotations__['review'] = native_review_submission_schema(
-                v4=interface == 'review-interfaces-v4', scope_selectors=selector_mode)
     def read_commission_plan() -> dict:
         """Read the current source-linked proposal, inventory and conventions; this is not owner approval."""
         actor()
@@ -877,10 +670,10 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         from .writer_runtime import assess_assigned_object as assess
         return await assess(workspace,actor())
 
-    common = [content_status, read_object_index, read_context, read_content_index, read_content_selection,
-              read_review_status, observe_evidence, read_feedback, record_handoff,
-              assess_change_impact, get_operation_receipt, read_content_export, render_content_export, inspect_rendered_page,
-              read_delivery_review_context, read_layout_capabilities]
+    common = [content_status, read_object_index, read_context,
+              observe_evidence, read_feedback, record_handoff,
+              get_operation_receipt,
+              read_layout_capabilities]
     from .commission_plan import enabled as commission_enabled
     if commission_enabled(workspace.store):
         common.append(read_commission_plan)
@@ -890,13 +683,8 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
                        [save_commission_plan, read_prepared_method, read_prepared_tables])
         if role == 'writer':
             common += [record_assessment_outcome, calculate_assessment, materialize_planned_section]
-    if role == 'coordinator' and interface == 'review-interfaces-v4':
-        common.remove(inspect_rendered_page)
     if role in {"reviewer", "rubric_grader"}:
-        if role == 'reviewer' and interface == 'review-interfaces-v4':
-            from .live_messages import review_tool
-            submit_review = review_tool(workspace, actor, contents, identity)
-        tools = common + [capture_review_sources, submit_review, confirm_review_reuse, correct_own_review] + ([read_task_assignment] if role == "reviewer" else [])
+        tools = common
         if reviewer_handles:
             from .review_handles import read_tools
             tools = read_tools(contents, actor, tools)
@@ -906,7 +694,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     if role == "layout":
         common += [export_content_snapshot, request_layout_capability]
     if role == "coordinator":
-        common += [select_content_delivery, record_execution_decision, request_layout_capability, read_task_supervision, list_supervision_plugins, read_review_obligation_coverage]
+        common += [record_execution_decision, request_layout_capability, read_task_supervision, list_supervision_plugins]
         if bound_manifest(workspace.store).get("review_entrypoint") != "native-rubric-v1":
             common.remove(save_text_node)
             commit_objects.__doc__ += "\nYour coordinator binding may commit Criterion, Evidence and Relation; delegate all ContentNode creation/revision to writer."
