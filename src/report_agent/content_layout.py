@@ -36,30 +36,20 @@ class Typography(Contract):
     line_spacing_pt: float | None = Field(default=None,
         description='Exact line height in points; can clip taller glyphs, so inspect the rendered output.')
     font_size: float | None = Field(default=None)
-    font_family: str | None = Field(default=None, min_length=1, max_length=100)
-    east_asia_font: str | None = Field(default=None, min_length=1, max_length=100)
+    font_family: str | None = Field(default=None, min_length=1)
+    east_asia_font: str | None = Field(default=None, min_length=1)
     alignment: Literal['left', 'center', 'right', 'justify'] | None = None
     bold: bool | None = None
 
     @model_validator(mode='after')
     def exclusive_indent(self):
-        if self.line_spacing is not None and self.line_spacing_pt is not None:
-            raise ValueError('Specify multiple or exact point line spacing, not both')
         for side in ('before', 'after'):
-            if (getattr(self, 'space_'+side+'_lines') is not None
-                    and 'space_'+side+'_pt' in self.model_fields_set
-                    and getattr(self, 'space_'+side+'_pt') is not None):
-                raise ValueError('Specify point or line paragraph spacing, not both')
             if (getattr(self, 'space_'+side+'_lines') is not None
                     and 'space_'+side+'_pt' not in self.model_fields_set):
                 # Canonicalize an unused inherited/default point value. The
                 # public tool serializes and revalidates layouts, so intent must
                 # survive model_dump(), not depend on model_fields_set alone.
                 setattr(self, 'space_'+side+'_pt', None)
-        if self.first_line_indent_mm is not None and self.first_line_indent_chars is not None:
-            raise ValueError('Specify millimetres or character ems, not both')
-        if self.hanging_indent_mm is not None and (self.first_line_indent_mm is not None or self.first_line_indent_chars is not None):
-            raise ValueError('Hanging and first-line indentation are mutually exclusive')
         return self
 
 
@@ -73,7 +63,7 @@ class HeaderSourceLine(Contract):
 
 
 class HeaderLayout(Typography, HeaderSourceLine):
-    additional_lines: list[HeaderSourceLine] = Field(default_factory=list, max_length=8,
+    additional_lines: list[HeaderSourceLine] = Field(default_factory=list,
         description='Additional exact adopted body lines, joined by spaces in this header position. Each retains its own versioned source binding.')
 
 
@@ -130,7 +120,7 @@ class LayoutOptions(Contract):
     right_margin_mm: float | None = Field(default=None)
     styles: list[StyleLayout] = Field(default_factory=list)
     header: HeaderLayout | None = None
-    header_parts: list[HeaderPart] = Field(default_factory=list, max_length=3)
+    header_parts: list[HeaderPart] = Field(default_factory=list)
     hide_first_page_header_footer: bool = False
     cover_vertical_alignment: Literal['top', 'center', 'bottom'] | None = Field(default=None,
         description='Isolate report root text in a borderless, expandable cover cell/section and vertically align it. Following TOC, children and end notes use top alignment. Oversized covers can span pages; inspect the render.')
