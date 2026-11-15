@@ -1,5 +1,5 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
-from . import legacy_state as legacy, report_state
+from . import report_state
 from .assessment_results import score_band
 from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker, draft_blocker
 from typing import Literal
@@ -209,8 +209,6 @@ def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
     from .content_models import Ref
     pack = plan['payload']['method_pack']
     _validate_sources(cs, db, actor, {'indicators': rows})
-    roles = legacy.get_commission_source_roles(db, {})
-    templates = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
     template_refs = {Ref.model_validate(c['source_ref']).key() for s in plan['payload']['sections'] if s['kind'] == 'fixed' for c in s['sources']}
     factual_refs = {Ref.model_validate(c['source_ref']).key() for s in plan['payload']['sections'] if s['section_id'] == section_id for c in s['sources']}
     method_refs = {Ref.model_validate(c['source_ref']).key() for c in pack['sources']}
@@ -228,7 +226,6 @@ def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
     def method_source(ref):
         return (Ref.model_validate(ref).key() in method_refs or
                 (source_pin(ref) is not None and source_pin(ref) in method_pins))
-    customer_ids = {r['id'] for r in roles.values() if r['purpose'] == 'commission'}
     # A second frozen capture of the same guideline is still method evidence.
     factual_refs -= {key for key in factual_refs if method_source(
         {'type': key[0], 'id': key[1], 'version': key[2]})} | template_refs
@@ -238,12 +235,6 @@ def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
             raise ActionRejected('ASSESSMENT_FACTUAL_SOURCE_REQUIRED: ' + row['indicator_id'])
         if row['basis_kind'] == 'applied_guideline' and not any(method_source(c['source_ref']) for c in row['sources']):
             raise ActionRejected('ASSESSMENT_GUIDELINE_RULE_SOURCE_REQUIRED: ' + row['indicator_id'])
-        for citation in row['sources']:
-            source = cs._read(db, citation['source_ref'])['payload']
-            if source['source_id'] in templates or Ref.model_validate(citation['source_ref']).key() in template_refs:
-                raise ActionRejected('ASSESSMENT_TEMPLATE_IS_NOT_FACTUAL_BASIS')
-            if source['source_id'] in customer_ids:
-                raise ActionRejected('ASSESSMENT_COMMISSION_IS_NOT_FACTUAL_BASIS')
 
 def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     """Compatibility entry for historical raw-row callers."""
