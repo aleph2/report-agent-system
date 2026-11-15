@@ -35,8 +35,8 @@ class QuotedPlanningCitation(PlanningCitation):
 
 
 class BoundaryInput(Contract):
-    start_meter: str = Field(min_length=1, max_length=128, description='Scope start exactly as written in the cited source; display only, no conversion.')
-    end_meter: str = Field(min_length=1, max_length=128, description='Scope end exactly as written in the cited source; display only, no conversion.')
+    start_meter: str = Field(min_length=1, description='Scope start exactly as written in the cited source; display only, no conversion.')
+    end_meter: str = Field(min_length=1, description='Scope end exactly as written in the cited source; display only, no conversion.')
     source: QuotedPlanningCitation
     customer_basis_anchor_id: str = Field(min_length=1, description='ID of a scope requirement returned by read_planning_draft. System uses its verified quotation and locator.')
 
