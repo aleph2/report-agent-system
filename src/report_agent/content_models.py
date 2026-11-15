@@ -356,8 +356,6 @@ class DeliveryCheck(Contract):
             expected = "RenderArtifact" if self.kind == "render" else "ExportArtifact"
             if not self.observations or not any(r.type == expected for r in self.artifact_refs):
                 raise ValueError("DELIVERY_JUDGMENT_REQUIRES_ARTIFACT_OBSERVATIONS")
-        if self.execution_state == "not_started" and self.verdict is not None:
-            raise ValueError("UNEXECUTED_REVIEW_HAS_NO_VERDICT")
         if self.verdict == "satisfied" and (self.execution_state != "completed" or
                 self.coverage.unchecked or self.coverage.blocked or not self.coverage.checked):
             raise ValueError("SATISFACTION_REQUIRES_COMPLETED_DECLARED_SCOPE")
