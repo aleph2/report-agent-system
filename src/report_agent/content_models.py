@@ -214,7 +214,7 @@ class Relation(Contract):
     provenance_kind: Literal["adopted_during_generation", "found_during_review", "observed_only"]
     qualifiers: dict[str, Any] = Field(default_factory=dict)
     basis_refs: list[Ref] = Field(default_factory=list)
-    position: int | None = Field(default=None, ge=0)
+    position: int | None = Field(default=None)
 
     @model_validator(mode="after")
     def endpoints(self) -> Self:

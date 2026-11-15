@@ -94,7 +94,7 @@ class RiskBand(Contract):
 
 
 class WeightRow(Contract):
-    indicator_count: int = Field(strict=True, ge=1, le=1000)
+    indicator_count: int = Field(strict=True, ge=1)
     weights: list[str]
 
     @model_validator(mode='after')
@@ -121,7 +121,7 @@ class MethodPack(Contract):
     method_id: str = Field(min_length=1)
     version: int = Field(strict=True, ge=1)
     sources: list[SourceCitation] = Field(min_length=1)
-    indicators: list[IndicatorRule] = Field(min_length=1, max_length=1000)
+    indicators: list[IndicatorRule] = Field(min_length=1)
     risk_bands: list[RiskBand] = Field(min_length=1)
     weight_tables: list[WeightTable] = Field(min_length=1)
     presentation_sources: list[SourceCitation] = Field(default_factory=list, exclude_if=lambda v: not v)

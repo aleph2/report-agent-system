@@ -33,7 +33,7 @@ class Assessment(Contract):
     method_id: str = Field(min_length=1)
     method_version: int = Field(strict=True, ge=1)
     weight_strategy_id: str = Field(min_length=1)
-    indicators: list[IndicatorAssessment] = Field(min_length=1, max_length=1000)
+    indicators: list[IndicatorAssessment] = Field(min_length=1)
 
 
 def _indicator_errors(definition, row):
