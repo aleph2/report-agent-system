@@ -268,8 +268,6 @@ class CheckResult(Contract):
             raise ValueError("CHECK_RESULT_REQUIRED")
         if self.execution_state == "completed" and (not self.observation_indexes or self.remaining.strip()):
             raise ValueError("COMPLETED_CHECK_REQUIRES_LINKED_OBSERVATIONS_AND_NO_REMAINING_WORK")
-        if self.execution_state != "completed" and not self.remaining.strip():
-            raise ValueError("UNFINISHED_CHECK_REQUIRES_REMAINING_REASON")
         return self
 
 
