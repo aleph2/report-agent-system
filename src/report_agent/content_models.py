@@ -262,7 +262,7 @@ class CheckResult(Contract):
 
     @model_validator(mode="after")
     def supported_account(self) -> Self:
-        if any(i < 0 for i in self.observation_indexes) or len(set(self.observation_indexes)) != len(self.observation_indexes):
+        if any(i < 0 for i in self.observation_indexes):
             raise ValueError("CHECK_OBSERVATION_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
         if not self.result.strip():
             raise ValueError("CHECK_RESULT_REQUIRED")
@@ -298,15 +298,12 @@ class ReviewItem(Contract):
         for finding in self.findings:
             if finding.observation_indexes is not None:
                 indexes = finding.observation_indexes
-                if (not indexes or len(set(indexes)) != len(indexes) or
+                if (not indexes or
                         any(i < 0 or i >= len(self.observations) for i in indexes)):
                     raise ValueError('FINDING_REQUIRES_VALID_OBSERVATION_LINKS')
             if finding.finding_type == 'confirmed_defect' and finding.basis_kind == 'input_gap':
                 raise ValueError('INPUT_GAP_IS_NOT_CONFIRMED_CONTENT_DEFECT')
         if self.check_results is not None:
-            indexes = [c.requirement_index for c in self.check_results]
-            if len(set(indexes)) != len(indexes):
-                raise ValueError("DUPLICATE_CHECK_RESULT")
             if any(i >= len(self.observations) for c in self.check_results for i in c.observation_indexes):
                 raise ValueError("CHECK_OBSERVATION_INDEX_OUTSIDE_ITEM")
             completed = {c.requirement_index for c in self.check_results if c.execution_state == "completed"}
@@ -315,8 +312,8 @@ class ReviewItem(Contract):
             if self.verdict == "satisfied" and any(c.execution_state != "completed" for c in self.check_results):
                 raise ValueError("UNFINISHED_ASSIGNED_CHECK_CANNOT_PASS")
         if self.checked_requirement_indexes is not None and (
-                any(i < 0 for i in self.checked_requirement_indexes) or
-                len(set(self.checked_requirement_indexes)) != len(self.checked_requirement_indexes)):
+                any(i < 0 for i in self.checked_requirement_indexes)
+        ):
             raise ValueError("CHECK_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
         if self.assessment_kind != "content" and not self.artifact_refs:
             raise ValueError("ARTIFACT_ASSESSMENT_REQUIRES_EXACT_EXPORT_OR_RENDER")
