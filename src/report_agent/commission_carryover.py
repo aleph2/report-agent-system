@@ -3,7 +3,6 @@ from . import plan_inputs
 from . import plan_authority
 from copy import deepcopy
 from typing import Literal
-from pydantic import Field
 from .content_models import Contract, Ref
 from .commission_plan import _state, _set, _validate_sources
 from .errors import ActionForbidden, ActionRejected

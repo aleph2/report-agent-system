@@ -1,19 +1,11 @@
 """Task-bound planning declarations; structure is neither evidence nor semantic approval."""
-from copy import deepcopy
-from dataclasses import replace
-import json
-from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model, model_validator
-from langchain.agents.middleware import TodoListMiddleware
-from langgraph.types import Command
-from langchain_core.messages import AIMessage
+from pydantic import ValidationError
 
 from .content_models import Ref
 from .content_store import ContentStore
 from .content_tasks import bound_actor
 from .errors import ActionForbidden, ActionRejected
-from .store import digest
 
 
 def material_allowed(workspace, task, ref, allowed):

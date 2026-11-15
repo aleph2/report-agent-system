@@ -2,7 +2,6 @@
 
 from .prompt_sources import load_prompt
 import base64
-import asyncio
 import hashlib
 import logging
 import os
@@ -100,7 +99,6 @@ async def observe_source_image(workspace, source_id: str, question: str,
 
 
 async def _observe(store, png, provenance, question, client, actor=None, *, policy_ref=None):
-    from .transport_observation import observation_scope
     from .bounded_operations import record_outcome
     from .request_budget import logical_request_admission
     from .vision_admission import reserve_vision

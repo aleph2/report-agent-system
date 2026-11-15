@@ -322,7 +322,7 @@ def propose_requirements(cs, actor, operation_id, requirements_ref, items):
 
 def check_plan(cs, plan, requirements_ref=None, *, db=None):
     """Report every missing obligation without changing a proposal or saved record."""
-    from .commission_plan import _state, method_questions
+    from .commission_plan import method_questions
     if db is None:
         with cs.store.connect() as connection:
             return check_plan(cs, plan, requirements_ref, db=connection)

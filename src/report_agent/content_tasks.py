@@ -254,7 +254,6 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
             raise ActionRejected('REVIEW_INTERFACE_PROFILE_REQUIRES_NATIVE_HIERARCHICAL')
         from .co_review_message import CoTaskMessage
         from .native_operation_tools import MessageTool
-        from .prompt_sources import report_rule_source
         field = deepcopy(tool.args_schema.model_fields['description'])
         field.description = CoTaskMessage.model_fields['description'].description
         schema = create_model('CoTaskToolMessage', __base__=CoTaskMessage,
@@ -334,7 +333,6 @@ def delegated_task(workspace, caller_role, call):
     if hasattr(review_snapshot, "model_dump"):
         review_snapshot = review_snapshot.model_dump()
     if requirements is not None:
-        from .task_supervision import ReviewRequirement
         from pydantic import ValidationError
         try:
             requirements = normalize_review_requirements(requirements)
@@ -373,7 +371,6 @@ def delegated_task(workspace, caller_role, call):
                 raise ActionForbidden("FORBIDDEN: changed layout grant requires new task")
             prior_requirements = record["payload"].get("review_requirements")
             if prior_requirements:
-                from .task_supervision import ReviewRequirement
                 prior_requirements = normalize_review_requirements(prior_requirements)
             if ((requirements is not None and requirements != prior_requirements) or
                     (review_snapshot is not None and review_snapshot != record["payload"].get("review_snapshot_ref"))):
@@ -463,7 +460,6 @@ def _v4_task(workspace, call):
     from uuid import uuid4
     from .hierarchical_tools import actor_for
     from .review_binding import bind, identity, canonical_selection
-    from .source_use import report_binding
     args = deepcopy(call['args'])
     qualitative = args.pop('qualitative_writer_task_ref', None)
     section_ids = args.pop('section_ids', [])

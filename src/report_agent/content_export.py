@@ -4,8 +4,6 @@ from __future__ import annotations
 import hashlib
 from copy import deepcopy
 import shutil
-import subprocess
-import tempfile
 from io import BytesIO
 from pathlib import Path
 
@@ -14,7 +12,7 @@ from docx import Document
 from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
 from .store import digest
-from .material_issues import (validate_node, rendered_issues, comment_passage,
+from .material_issues import (validate_node, comment_passage,
     table_header, validate_required_issues)
 
 
@@ -316,11 +314,9 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 if first_control:
                     presentation.apply_paragraph(p, first_control)
                 if rest.strip():
-                    from .exporting import _add_markdown
                     presentation.emit_text(doc, rest, image_renderer, controls, table_formatter=format_embedded_table)
             else:
                 # Preserve full actual text and its explicit qualifiers; no model summarization.
-                from .exporting import _add_markdown
                 if style and style.heading_level and not any(p.text == body['text'].split('\n', 1)[0] for p in controls):
                     first, _, rest = body["text"].partition("\n")
                     doc.add_heading(first, style.heading_level)

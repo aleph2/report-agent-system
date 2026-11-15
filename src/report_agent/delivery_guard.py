@@ -1,6 +1,5 @@
 """Persistent export-failure wait for the system-assembled delivery contract."""
 from . import issue_state
-from . import legacy_state as legacy
 import re
 from uuid import uuid4
 

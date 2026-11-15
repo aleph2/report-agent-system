@@ -17,7 +17,7 @@ from deepagents.backends import StateBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware, NUM_CHARS_PER_TOKEN
 from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware, hook_config
 from langchain.tools import ToolRuntime
-from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.errors import GraphBubbleUp
 from langgraph.types import Command, interrupt
@@ -29,12 +29,10 @@ from .model_invocation import is_model_timeout
 from .errors import ActionRejected, ActionForbidden
 from .store import digest, encode
 from .workspace import OWNERS, Workspace
-from .knowledge_state import project_state, delivery_state, inspect_evidence
+from .knowledge_state import project_state
 from .review import load_rules, reviewer_prompt
 from .acceptance import AcceptanceCriterionInput
-from .evidence_analysis import SourceSelection, ResultSelection, analyze_selected_evidence
-from .content_models import Ref
-from .content_selection import ContentSelection
+from .evidence_analysis import analyze_selected_evidence
 from .tool_argument_feedback import InvalidToolFeedback
 
 
@@ -947,7 +945,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     tool_selection_mode = selection_mode(manifest)
     from .operation_identity import validate_profile as operation_profile
     identity_profile = operation_profile(manifest)
-    from .prompt_sources import validate_content_input_profile, validate_report_expression_profile, REPORT_EXPRESSION_V1
+    from .prompt_sources import validate_content_input_profile, validate_report_expression_profile
     input_profile = validate_content_input_profile(manifest)
     expression_profile = validate_report_expression_profile(manifest)
     from .prompt_sources import validate_report_prompt_profile, CONCISE_PROMPTS
@@ -957,7 +955,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     from .prompt_sources import record_runtime_version
     from .task_state_delivery import HISTORY_FORMAT_VERSION
     runtime_version_ref = record_runtime_version(workspace.store)
-    from .prompt_sources import delegation_profile, SEPARATE_DESCRIPTION, validate_review_interface_profile
+    from .prompt_sources import delegation_profile, validate_review_interface_profile
     prompt_profile = delegation_profile(workspace.store)
     interface_profile = validate_review_interface_profile(workspace.store.manifest)
     from .acceptance import enabled

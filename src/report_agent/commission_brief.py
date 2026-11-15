@@ -1,6 +1,5 @@
 """Human checkpoint projection; detailed evidence remains in a bound appendix."""
 import json
-from html import escape
 from pathlib import Path
 from .store import digest
 from .commission_plan import boundary_display, unresolved_sources

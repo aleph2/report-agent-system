@@ -5,7 +5,7 @@ from . import plan_authority
 from .commission_requirements import requirements_ref
 from copy import deepcopy
 import re
-from .store import digest, encode
+from .store import digest
 from .commission_plan import SectionPlan
 from .errors import ActionRejected, ActionForbidden
 
@@ -116,7 +116,7 @@ def bind_composition(section, rules):
 
 def prepare_skeleton(cs, source_refs, spec=None):
     from .commission_requirements import read_requirements, _write_items
-    from .commission_planning import classified_item, reviewed_entry
+    from .commission_planning import classified_item
     from .content_store import Actor
     from .content_models import Ref
     record = read_requirements(cs)

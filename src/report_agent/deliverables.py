@@ -8,7 +8,7 @@ from pydantic import Field, TypeAdapter, ValidationError, model_validator
 from .content_inputs import BatchRef
 from .content_models import Contract, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
-from .store import digest, encode
+from .store import digest
 
 V4 = 'review-interfaces-v4'
 CONTRACT = 'deliverable-declaration-v1'

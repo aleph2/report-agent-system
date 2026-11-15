@@ -1,11 +1,7 @@
 """Opt-in, project-bound context for isolated native-review comparisons."""
 from __future__ import annotations
 
-from typing import Literal
-from hashlib import sha256
 
-from .errors import ActionRejected
-from .store import digest, encode
 
 
 GROUNDING_INSTRUCTION = """Support acceptance as well as requested revision with concise, locatable grounds

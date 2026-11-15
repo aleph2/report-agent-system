@@ -15,7 +15,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import SystemMessage
 
 from .prompt_sources import (load_prompt, native_reviewer, review_profile, source_manifest,
-                             delegation_profile, SEPARATE_DESCRIPTION, review_interface_profile,
+                             delegation_profile, review_interface_profile,
                              review_handoff_source, expression_source, report_expression_profile,
                              REPORT_EXPRESSION_V1)
 from .store import digest, encode

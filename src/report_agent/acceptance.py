@@ -1,7 +1,6 @@
 """Requirement-derived acceptance versions; storage facts are not semantic approval."""
 from __future__ import annotations
 from . import issue_state
-from . import legacy_state as legacy
 
 import hashlib
 import json

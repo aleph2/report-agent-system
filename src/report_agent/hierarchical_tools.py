@@ -3,12 +3,11 @@ from __future__ import annotations
 from . import legacy_state as legacy
 from . import report_state
 
-from pathlib import Path
 from typing import Annotated, Literal
 from pydantic import Field
 from langchain.tools import ToolRuntime
 
-from .content_models import Ref, ReviewSubmission, SCHEMA_VERSION, SnapshotReplacement
+from .content_models import Ref, SCHEMA_VERSION, SnapshotReplacement
 from .content_inputs import CommitObject
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
@@ -16,7 +15,6 @@ from .store import encode, digest
 from .content_delivery import current_delivery
 from .content_layout import LayoutOptions
 from .content_workbook import WorkbookSheet
-from .content_selection import ContentSelection, content_index, selected_content
 from .deliverables import DeliverableSelection, DeliverableHandle
 from .handoff_release import manifest as bound_manifest
 from .commission_plan import CommissionPlan
@@ -428,7 +426,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         return contents.operation(actor(), operation_id, request, select)
 
 
-    from .prompt_sources import native_reviewer, load_prompt, review_interface_profile, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, report_prompt_profile, report_rule_source, CONCISE_PROMPTS
+    from .prompt_sources import load_prompt, review_interface_profile, REVIEW_INTERFACE_V3, report_prompt_profile, report_rule_source
     interface = review_interface_profile(workspace.store)
     text_profile = report_prompt_profile(workspace.store)
     if interface == 'review-interfaces-v4':

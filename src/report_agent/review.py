@@ -1,17 +1,10 @@
 """Thin evidence and persistence adapter for DeepAgents' native rubric loop."""
 from . import issue_state
-from . import legacy_state as legacy
 from pathlib import Path
-from inspect import iscoroutinefunction
-from typing import Literal, NotRequired
 
-from deepagents import RubricMiddleware
-from deepagents.middleware.rubric import GRADER_SYSTEM_PROMPT, RubricState
-from langchain.agents import AgentState
-from langchain_core.messages import HumanMessage
-from langchain_core.tools import StructuredTool
+from deepagents.middleware.rubric import GRADER_SYSTEM_PROMPT
 
-from .store import digest, encode
+from .store import digest
 
 
 def load_rules():

@@ -5,7 +5,7 @@ from copy import deepcopy
 import json
 
 from .assessment_projection import assessment_receipt, draft_blocker, selected_assessment
-from .commission_plan import _confirmed, _state
+from .commission_plan import _confirmed
 from .content_models import ContentNode, Ref, refs_in
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode

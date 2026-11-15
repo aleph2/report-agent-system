@@ -8,7 +8,7 @@ from pydantic import Field, ValidationError
 
 from .calculations import sum_products
 from .content_models import Contract, SourceCitation
-from .errors import ActionForbidden, ActionRejected
+from .errors import ActionRejected
 from .method_pack import MethodPack, number
 
 
@@ -243,7 +243,6 @@ def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     plan = assert_writing_allowed(cs, db, actor)
     if not plan or not plan['payload'].get('method_pack'):
         raise ActionRejected('ASSESSMENT_METHOD_PACK_REQUIRED')
-    pack = plan['payload']['method_pack']
     choices = [b for b in plan['payload'].get('method_conventions', []) if b['key'] == 'weights']
     if len(choices) != 1 or assessment.get('weight_strategy_id') != choices[0]['strategy_id']:
         raise ActionRejected('ASSESSMENT_COMMISSION_STRATEGY_MISMATCH')
@@ -358,7 +357,6 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment=None,
 
 def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, native):
     from .content_models import ContentNode
-    from .store import digest
     pack = plan['payload']['method_pack']
     if not {'ranking', 'evaluation'} <= set(plan['payload'].get('table_specs', {})):
         raise ActionRejected('TABLE_SPEC_CONFIRMED_TYPE_REQUIRED')

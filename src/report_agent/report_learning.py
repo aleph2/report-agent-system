@@ -10,7 +10,6 @@ import asyncio
 import hashlib
 import json
 import os
-import shutil
 import sqlite3
 import time
 from datetime import datetime, timezone, timedelta

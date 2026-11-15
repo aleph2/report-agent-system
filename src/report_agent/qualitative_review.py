@@ -1,10 +1,8 @@
 """Frozen, slope-scoped Reviewer assignments over saved qualitative Writer rows."""
 from .writer_judgments import read_progress
-from contextlib import contextmanager
-from uuid import uuid4
 
 from .commission_plan import _state
-from .content_store import Actor, ContentStore
+from .content_store import Actor
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 

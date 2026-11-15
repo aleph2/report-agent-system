@@ -8,16 +8,14 @@ from typing import Annotated, Literal
 
 from pydantic import Field, ValidationError
 
-from .content_models import Contract, Ref, SourceCitation, InventoryObject
+from .content_models import Contract, Ref, SourceCitation
 from .errors import ActionForbidden, ActionRejected
 from .method_pack import MethodPack, reviewed_method_questions
 from .table_spec import TableSpec, validate_table_specs
-from .commission_plan import (_state, _set, _citations, ScopeBoundary, SourceSubstitution,
-                              Reconciliation, ResultBinding, LiteralReplacement, SourceView)
+from .commission_plan import (_state, _set, _citations, Reconciliation, ResultBinding, LiteralReplacement, SourceView)
 from .store import digest
 from .commission_requirements import Capability, publish_interpretation, save_revision
-from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventoryObject, PlanningSubstitution,
-    PlanningReconciliationInput, resolve_citations, model_value, reject, expose,
+from .planning_inputs import (BoundaryInput, PlanningCitation, PlanningInventoryObject, PlanningReconciliationInput, resolve_citations, model_value, reject, expose,
     numeric_literal_warnings, requirement_numeric_warnings)
 
 CATALOG = 'commission_reviewed_entries'
@@ -518,7 +516,6 @@ def _owner_rank_binding(conventions, indicators):
 
 def _assemble(cs, db):
     from .commission_requirements import read_requirements
-    from .commission_plan import CommissionPlan
     requirements = read_requirements(cs, db=db)
     draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
     items = draft['items']
@@ -774,7 +771,7 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
     return result
 
 def _save_item(cs, actor, db, kind, item):
-    from .commission_plan import SectionPlan, ScopeBoundary, Reconciliation, SourceSubstitution, _validate_sources, fixed_section_text
+    from .commission_plan import SectionPlan, ScopeBoundary, SourceSubstitution, _validate_sources, fixed_section_text
     from .content_models import InventoryObject
     value = deepcopy(item)
     if kind == 'section' and 'outline_anchor_id' in value:

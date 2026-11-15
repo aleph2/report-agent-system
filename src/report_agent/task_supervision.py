@@ -11,7 +11,6 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from .content_models import ArtifactRef, Contract, Ref
-from .content_store import ContentStore
 from .errors import ActionRejected
 from .store import encode, digest
 from .evidence_analysis import SourceTableView

@@ -119,7 +119,7 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
         own_primary, own_companion = delivery_scope(own_export)
         groups, history = defaultdict(list), []
         for review in reviews:
-            payload, rkey = review["payload"], _key(review["ref"])
+            payload = review["payload"]
             entries = [(i, i["assessment_kind"], i["criterion_ref"], i["scope"], i["target_ref"], idx) for idx, i in enumerate(payload["items"])]
             entries += [(c, c["kind"], None, "delivery:" + c["kind"], payload["target_ref"], None)
                         for c in payload.get("delivery_checks", [])]

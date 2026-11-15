@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import asyncio
 import re
 import json
 from contextlib import contextmanager
@@ -13,10 +12,9 @@ import httpx
 import openai
 from .request_budget import account_request, RequestBudgetExceeded, HOST_ADMISSION_REASONS, SCOPED_REQUEST_REASONS
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
-from .errors import ActionForbidden, ActionRejected, ModelRequestDeadlineExceeded
+from .errors import ActionForbidden, ActionRejected
 from .transport_observation import observation_scope, observe_model_boundary
 
 

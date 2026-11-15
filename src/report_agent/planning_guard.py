@@ -1,7 +1,6 @@
 """Persistent planning rejection containment on native middleware boundaries."""
 from . import issue_state
 from . import plan_inputs
-from . import legacy_state as legacy
 from . import plan_authority
 from .commission_requirements import requirements_ref
 from uuid import uuid4

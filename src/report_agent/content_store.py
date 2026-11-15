@@ -1,6 +1,5 @@
 """Project-local immutable objects and append-only review/handling records."""
 from __future__ import annotations
-from . import legacy_state as legacy
 from . import report_state
 
 import json
@@ -641,7 +640,7 @@ class ContentStore:
 
     def submit_review(self, actor, operation_id, submission, runtime_identity, delivery_export_ref=None,
                       *, review_message_binding=None, review_step=None):
-        from .prompt_sources import native_reviewer, review_profile
+        from .prompt_sources import native_reviewer
         from .handoff_release import manifest
         native = native_reviewer(self.store)
         mode = manifest(self.store).get('review_execution_mode')

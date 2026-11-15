@@ -1,13 +1,11 @@
 """Opt-in, task-bound content judgments. No separate agent or hidden review loop."""
 from .prompt_sources import load_prompt
-import json
 from typing import Literal
 
 from pydantic import Field
 
 from .content_models import Contract, Coverage, Finding, ReviewItem, CheckResult, Ref
 from .content_store import ContentStore
-from .content_tasks import bound_actor
 from .content_selection import ContentSelection
 from .errors import ActionForbidden, ActionRejected
 from .evidence_analysis import SourceSelection, selected_evidence, analyze_evidence_packet, model_identity
@@ -243,8 +241,6 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
         [{"kind": "saved_object", "object": cs.read(ref)} for ref in originals.values()])
     # Preserve all selected originals. Only the complete native request boundary
     # owns capacity; no material-only byte or character gate is applied here.
-    original_dependencies = {i: [{"requirement_ref": ref, "purpose": "Explicitly selected original Requirement."}]
-                            for i, ref in enumerate(originals.values())}
     evidence += original_material.evidence
     refs.update(originals)
     from .prompt_instructions import review_commission

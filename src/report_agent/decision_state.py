@@ -7,7 +7,7 @@ from typing import Annotated
 from pydantic import Field
 
 from .errors import ActionRejected
-from .store import digest, encode
+from .store import digest
 
 
 def completion_state_token(db):

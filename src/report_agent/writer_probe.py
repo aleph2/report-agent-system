@@ -13,7 +13,6 @@ import sqlite3
 from .assessment_completion import (read_finance, claim_launch, _save, saved_assessments)
 from .probe_budget import ProbeBudget
 from .token_budget import RequestBound, TokenBudget, token_budget, request_token_bound
-from .writer_indicator_steps import refusal_rows
 
 
 def _hash(data):

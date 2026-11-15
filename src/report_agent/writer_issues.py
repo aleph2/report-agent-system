@@ -1,6 +1,5 @@
 """Small Writer judgments; scope, source references and output positions are host-owned."""
 from . import issue_state, report_state
-from . import legacy_state as legacy
 import json
 import re
 from typing import Literal
@@ -119,7 +118,7 @@ def save_indicator_conflict(cs, db, actor, operation_id, bound, payload):
 
 
 def _write_issue(cs, db, actor, operation_id, bound, value):
-    from .commission_plan import _confirmed, _state
+    from .commission_plan import _confirmed
     citations = _sources(cs, db, actor, bound, value)
     issue = {k: getattr(value, k) for k in ('kind', 'basis', 'adopted_value', 'question', 'affects_level')}
     issue.update(object_label=bound['object']['label'], sources=_readable_sources(cs, db, citations),

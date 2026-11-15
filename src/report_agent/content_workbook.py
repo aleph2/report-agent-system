@@ -15,7 +15,7 @@ from .content_models import Ref
 from .content_export import _asset, _bytes
 from .errors import ActionForbidden, ActionRejected
 from . import content_layout as presentation
-from .material_issues import LABELS, validate_node, rendered_issues, table_header, validate_required_issues
+from .material_issues import LABELS, validate_node, table_header, validate_required_issues
 
 
 class WorkbookSheet(BaseModel):

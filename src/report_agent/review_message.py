@@ -1,14 +1,11 @@
 """Single-check message model and assembler for the existing ReviewRecord contract."""
-from copy import deepcopy
 import hashlib
 import json
-from typing import Annotated, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .content_tasks import bound_actor
 from .errors import ActionForbidden, ActionRejected
-from .store import digest, encode
+from .store import digest
 from .workspace import Workspace
 
 
