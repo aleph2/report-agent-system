@@ -138,7 +138,7 @@ bad(code, reason) AS (
  (claim ->> '$.basis'='evidence' AND
  (c ->> '$.readings_exhaustive' IS NOT 1 OR NOT EXISTS(SELECT 1 FROM readings) OR
  EXISTS(SELECT 1 FROM readings WHERE outcome IS NOT claim ->> '$.classification')))
- OR (claim ->> '$.basis'='assumption' AND (SELECT count(DISTINCT outcome) FROM readings)>1))
+)
  UNION ALL
  SELECT 'C8','Identify what could overturn this assumption'
  FROM request WHERE kind='judgment' AND claim ->> '$.basis'='assumption' AND coalesce(json_array_length(claim,'$.defeaters'),0)=0

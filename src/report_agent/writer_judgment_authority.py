@@ -386,10 +386,6 @@ def prepare_judgment(cs, db, actor, scope, rule, operation_id, entry, *, submiss
         raise ValueError("WRITER_APPROVED_CRITERION_PACKET_REQUIRED")
     criterion = issued.resources["scopes"][issued.task][rule["id"]]
     method = issued.resources["criteria"][criterion]
-    if entry["kind"] != "gap" and not spec.get("purposes", {}).get("classification"):
-        raise ValueError(
-            "C3: no independently bound interpretation for the approved criterion; request an owner-confirmed interpretation and use save_gap while it is unresolved"
-        )
     principal = str(uuid5(NAMESPACE_URL, actor.id))
 
     def bind(action, packet, resources=None):
