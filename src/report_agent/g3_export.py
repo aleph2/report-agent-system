@@ -344,8 +344,6 @@ def _merge_required(base, override, location):
             continue
         if key in base and base[key] != value:
             raise ActionRejected('G3_FORMAT_OVERRIDE_CONFLICT: ' + location + '.' + key)
-        if key in {'line_spacing_pt', 'space_before_lines', 'space_after_lines', 'first_line_indent_mm', 'first_line_indent_chars', 'hanging_indent_mm', 'left_indent_mm'} and key not in base and value:
-            raise ActionRejected('G3_FORMAT_OVERRIDE_CONFLICT: ' + location + '.' + key)
         result[key] = deepcopy(value)
     return result
 
@@ -455,9 +453,6 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
         for p in paragraphs:
             expected = existing.get(p['text'], _typography(font_size=12, first_line_indent_chars=2, alignment='justify'))
             existing[p['text']] = _merge_required(expected, p, key[1] + ':' + p['text'])
-        for field in ('table_line_spacing', 'table_alignment', 'table_cell_first_line_indent_mm', 'outer_border_style', 'outer_border_width_pt'):
-            if item.get(field) is not None and item[field] != base[field]:
-                raise ActionRejected('G3_FORMAT_OVERRIDE_CONFLICT: ' + key[1] + '.' + field)
         node_options[key] = _merge_required(prior, item, key[1])
         if existing:
             node_options[key]['paragraphs'] = list(existing.values())

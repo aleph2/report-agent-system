@@ -166,16 +166,10 @@ def validate_layout(options, records, rendered_keys=None):
         table_spans = markdown_table_spans(body['body'].get('text', ''))
         if item.heading_level and any(start == 0 for _, start, _ in table_spans):
             raise ActionRejected('HEADING_CONTROL_INTERSECTS_MARKDOWN_TABLE')
-        if item.paragraphs and body['kind'] in {'table','figure'}:
-            raise ActionRejected('PARAGRAPH_CONTROLS_REQUIRE_TEXT_BLOCK_OR_CLAIM')
         for paragraph in item.paragraphs:
             if lines.count(paragraph.text) != 1:
                 raise ActionRejected('LAYOUT_PARAGRAPH_REQUIRES_UNIQUE_EXACT_LINE')
-            if any(start <= lines.index(paragraph.text) < end for _, start, end in table_spans):
-                raise ActionRejected('PARAGRAPH_CONTROL_INTERSECTS_MARKDOWN_TABLE')
-            if item.heading_level and paragraph.text == lines[0] and paragraph.heading_level != item.heading_level:
-                raise ActionRejected('LAYOUT_CONFLICTING_HEADING_LEVELS')
-        if item.heading_level and (body["kind"] not in {"block", "chapter"} or not body["body"].get("text")):
+        if item.heading_level and (not body["body"].get("text")):
             raise ActionRejected("LAYOUT_HEADING_REQUIRES_TEXT_BLOCK")
         table_columns = ([len(body['body']['columns'])] if body['kind'] == 'table' else
                          [width for width, _, _ in table_spans])
@@ -183,13 +177,6 @@ def validate_layout(options, records, rendered_keys=None):
                 any(len(item.column_weights) != n for n in table_columns) or
                 any(not 0 < n < 1000 for n in item.column_weights)):
             raise ActionRejected("LAYOUT_COLUMN_WEIGHTS_INVALID")
-        if item.landscape and not table_columns and body["kind"] != "figure":
-            raise ActionRejected("LANDSCAPE_REQUIRES_TABLE_OR_FIGURE")
-        if item.figure_width_mm and body["kind"] != "figure":
-            raise ActionRejected("FIGURE_WIDTH_REQUIRES_FIGURE")
-        if any(getattr(item, field) is not None for field in
-               ('table_line_spacing','table_alignment','table_cell_alignment','table_cell_first_line_indent_mm','outer_border_style','outer_border_width_pt')) and not table_columns:
-            raise ActionRejected('TABLE_CONTROLS_REQUIRE_TABLE')
     return {item.node_ref.key(): item for item in options.nodes}
 
 
