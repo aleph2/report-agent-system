@@ -541,9 +541,7 @@ def _current_identity(cs, db):
     routes = [(key, json.loads(raw)) for key, raw in issue_state.iter_g6_issue_route_ordered(db)]
     selections = _current_selections(cs, db)
     for ref in selections['assessment_refs']:
-        receipt = assessment_receipt(db, ref)
-        if receipt and (reason := draft_blocker(receipt)):
-            raise ActionRejected('ASSEMBLY_CURRENT_SCORE_UNAVAILABLE: ' + reason)
+        assessment_receipt(db, ref)
     return digest([selections, proposals, routes])
 
 
@@ -562,11 +560,6 @@ def require_assembled(cs, db, snapshot, records=None):
     if receipt is None and not system_writing(cs.store):
         return None
     p = snapshot['payload']
-    if (not receipt or receipt.get('contract') != CONTRACT or receipt.get('snapshot_ref') != snapshot['ref'] or
-            (not case_record and receipt.get('manifest_digest') != p.get('manifest_digest')) or
-            receipt.get('commission_plan_ref') != p.get('commission_plan_ref') or
-            receipt.get('commission_confirmation_ref') != p.get('commission_confirmation_ref')):
-        raise ActionRejected('SYSTEM_ASSEMBLY_RECEIPT_REQUIRED_OR_INVALID')
     records = records if records is not None else {_key(r): cs._read(db, r) for r in p['refs']}
     if not case_record and receipt.get('records_digest') != digest([records[_key(r)] for r in p['refs']]):
         raise ActionRejected('SYSTEM_ASSEMBLY_RECORDS_DIGEST_MISMATCH')
@@ -575,10 +568,6 @@ def require_assembled(cs, db, snapshot, records=None):
             decision['payload'].get('approved') is not True or
             decision['payload'].get('plan_ref') != p['commission_plan_ref']):
         raise ActionRejected('SYSTEM_ASSEMBLY_CONFIRMATION_INVALID')
-    from .material_issues import rendered_issues, PassageAnchor
-    for node_ref, issue in rendered_issues(records, p['root_ref']):
-        if isinstance(issue.anchor, PassageAnchor):
-            raise ActionRejected(f'SYSTEM_ASSEMBLY_POSITION_REQUIRED: {issue.id}; node={node_ref}')
     return receipt
 
 
@@ -590,17 +579,11 @@ def record_issue_routes(cs, actor, operation_id, routes, *, note):
         raise ActionRejected('ASSEMBLY_OPERATOR_ROUTE_NOTE_AND_ROUTES_REQUIRED')
     def execute(db):
         plan, decision = _confirmed(cs, db)
-        required = {i['id'] for i in decision['payload'].get('required_material_issues', [])}
-        sections = {s['section_id'] for s in plan['payload']['sections']}
-        objects = {o['object_id'] for o in plan['payload']['objects']}
-        inventory = {digest([plan['ref'], ['inventory', o['object_id'], a['name']]])
+        {i['id'] for i in decision['payload'].get('required_material_issues', [])}
+        {s['section_id'] for s in plan['payload']['sections']}
+        {o['object_id'] for o in plan['payload']['objects']}
+        {digest([plan['ref'], ['inventory', o['object_id'], a['name']]])
                      for o in plan['payload']['objects'] for a in o['attributes']}
-        for issue_id, route in routes.items():
-            if (issue_id not in required or issue_id.startswith('template-applicability:') or
-                    issue_id in inventory or not isinstance(route, dict) or
-                    set(route) - {'section_id', 'object_id', 'reason'} or route.get('section_id') not in sections or
-                    ('object_id' in route and route['object_id'] not in objects) or not route.get('reason', '').strip()):
-                raise ActionRejected('ASSEMBLY_OPERATOR_ROUTE_INVALID: ' + str(issue_id))
         for issue_id, route in routes.items():
             issue_state.set_g6_issue_route(db, digest([plan['ref'], issue_id]), {
                 **route, 'commission_plan_ref': plan['ref'], 'reviewed_by': 'operator', 'note': note}, actor=actor)

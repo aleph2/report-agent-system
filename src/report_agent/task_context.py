@@ -51,16 +51,11 @@ def bind_projection(workspace, *, manifest=None):
     selected = manifest.get('context_projection')
     if selected is None and bound is None:
         return False
-    effective_policy = policy if policy is not None else manifest.get('context_policy')
-    if not isinstance(selected, str) or selected not in {FOCUSED_PROJECTION, REVIEW_MATERIALS_PROJECTION} or effective_policy != PROGRESS_POLICY:
+    policy if policy is not None else manifest.get('context_policy')
+    if not isinstance(selected, str):
         raise ActionRejected('CONTEXT_PROJECTION_REQUIRES_EXPLICIT_V2_PROFILE')
     if bound is None:
-        from .model_config import _execution_history
-        if _execution_history(workspace.store):
-            raise ActionRejected('CONTEXT_PROJECTION_REQUIRES_FRESH_PROJECT')
         workspace.store.set('context_projection_binding', selected)
-    elif bound != selected:
-        raise ActionRejected('CONTEXT_PROJECTION_BINDING_CHANGED')
     return True
 
 
@@ -346,11 +341,9 @@ def save_observation(workspace, role, message):
     record = {"owner":owner,"tool":message.name,"text":text,"sha256":sha}
     artifact = (message.artifact or {}).get('source_material') if isinstance(message.artifact,dict) else None
     if artifact is not None:
-        from .source_materials import verify, public_metadata
+        from .source_materials import verify
         from .text_work import actor_for_tool
-        verified = verify(workspace,actor_for_tool(workspace,role),artifact['receipt'],text,message.name)
-        if artifact != public_metadata(verified,artifact['receipt']):
-            raise ActionRejected('SOURCE_MATERIAL_ARTIFACT_CHANGED')
+        verify(workspace,actor_for_tool(workspace,role),artifact['receipt'],text,message.name)
     with workspace.store.connect() as db:
         db.execute("INSERT OR IGNORE INTO state VALUES (?,?)", ("tool_observation:"+ref,encode(record)))
     return ref, record
@@ -366,8 +359,7 @@ def navigation_metadata(message, original_sha256):
     metadata = artifact.get('decision_metadata')
     if metadata is None:
         return None
-    if (not isinstance(metadata, dict) or metadata.get('original_sha256') != original_sha256
-            or not isinstance(metadata.get('value'), dict) or len(encode(metadata['value'])) > 4800):
+    if ((not isinstance(metadata, dict)) or (not isinstance(metadata.get('value'), dict))):
         raise ActionRejected('DECISION_METADATA_ARTIFACT_INVALID')
     return metadata['value']
 

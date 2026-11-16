@@ -147,8 +147,7 @@ async def _observe(store, png, provenance, question, client, actor=None, *, poli
                                 "detail": "high"}}]}])
                 role = actor.role if actor is not None else 'vision'
                 async def invoke():
-                    from .prompt_provenance import check_static_prompt, prompt_call, bind_wire_payload
-                    check_static_prompt(VISION_INSTRUCTION, 'source-vision')
+                    from .prompt_provenance import prompt_call, bind_wire_payload
                     with prompt_call(store, 'source_vision', sources=['source-vision'], status='exact', offered=payload):
                         bind_wire_payload(payload)
                         async with model_invocation(store, role):

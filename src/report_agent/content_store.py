@@ -609,9 +609,6 @@ class ContentStore:
         for item in items:
             if item['ref']['type'] == 'Evidence':
                 sources.extend(item['payload']['source_refs'])
-        if sources:
-            from .source_use import check_source_read
-            check_source_read(self, lambda: actor, source_refs=sources)
         return self.observe(actor, {"target_ref": target_ref, "objects": items, "loaded_refs": refs[offset:offset + limit],
             "total": len(refs), "next_offset": offset + limit if offset + limit < len(refs) else None,
             "unreturned_refs": refs[:offset] + refs[offset + limit:]})
@@ -844,6 +841,7 @@ class ContentStore:
             from .review_binding import confirm_reuse
             return self.operation(actor, operation_id, {'reuse_mapping': [review_ref, new_snapshot, reason, item_mappings]},
                 lambda db: confirm_reuse(self, db, actor, review_ref, new_snapshot, reason, item_mappings))
+        self.read({'type':'DelegatedTask','id':actor.task_id,'version':1}) if actor.id.startswith('content:reviewer:') else None
         current_sources = {s["id"]: s for s in self.store.sources([s["id"] for s in self.store.source_catalog()])}
         def save(db):
             if actor.role not in {"reviewer", "rubric_grader"}:

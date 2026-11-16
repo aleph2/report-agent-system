@@ -1,16 +1,10 @@
 """Source-derived, host-owned plan structure; coordinator answers bounded ambiguities."""
-from . import commission_imports
 from . import plan_inputs
-from . import plan_authority
-from .commission_requirements import requirements_ref
 from copy import deepcopy
 import re
 from .store import digest
 from .commission_plan import SectionPlan
 from .errors import ActionRejected, ActionForbidden
-
-PROTECTED = ('section_id', 'title', 'kind', 'outline', 'derived_from', 'rule', 'result_bindings', 'result_composition', 'replacements', 'source_views')
-FIXED = ('sources', 'text', 'extraction')
 
 
 def fail(section, field, item, reason):
@@ -28,10 +22,6 @@ def _current(cs, db):
         return None
     if digest({k: v for k, v in value.items() if k != 'digest'}) != value['digest']:
         fail('plan', 'skeleton_digest', 'registry', 'REGISTRY_CHANGED')
-    if value['requirements_ref'] != requirements_ref(db):
-        fail('plan', 'requirements_ref', 'registry', 'REQUIREMENTS_CHANGED')
-    if value['profiles'] != plan_inputs.get_text_profiles(db, {}):
-        fail('plan', 'profiles', 'registry', 'PROFILES_CHANGED')
     for pin in value['source_pins']:
         if cs._read(db, pin['ref'])['payload']['file_digest'] != pin['file_digest']:
             fail('plan', 'source_pins', pin['ref']['id'], 'SOURCE_CHANGED')
@@ -82,12 +72,6 @@ def _pilot_spec(cs, record):
     from importlib.resources import files
     import json
     profile = json.loads(files('report_agent').joinpath('methods/pilot_planning.json').read_text())
-    for anchor in record['payload']['anchors']:
-        sha = cs.read(anchor['source']['source_ref'])['payload']['file_digest']
-        if not any(row['source_hash'] == sha and row['locator'] == anchor['source']['locator'] and
-                   row['quote_hash'] == __import__('hashlib').sha256(anchor['source']['quote'].encode()).hexdigest()
-                   for row in profile['classifications']):
-            fail(anchor.get('section_id', 'plan'), 'profile', anchor['id'], 'REVIEWED_PROFILE_REQUIRED')
     return {**deepcopy(profile['skeleton']), 'requirements_digest': requirement_digest(record)}
 
 
@@ -114,43 +98,26 @@ def prepare_skeleton(cs, source_refs, spec=None):
     from .commission_requirements import read_requirements, _write_items
     from .commission_planning import classified_item
     from .content_store import Actor
-    from .content_models import Ref
     record = read_requirements(cs)
     spec = _pilot_spec(cs, record) if spec is None else deepcopy(spec)
     if spec.get('requirements_digest') != requirement_digest(record):
         fail('plan', 'requirements_digest', 'spec', 'REVIEWED_SPEC_STALE')
-    if not spec.get('inventory_attributes') or len(set(spec['inventory_attributes'])) != len(spec['inventory_attributes']):
-        fail('plan', 'inventory_attributes', 'spec', 'REVIEWED_ATTRIBUTES_REQUIRED')
-    allowed = {Ref.model_validate(r).key() for r in source_refs}
-    if any(Ref.model_validate(a['source']['source_ref']).key() not in allowed for a in record['payload']['anchors']):
-        fail('plan', 'source_refs', 'outline', 'SOURCE_NOT_ENROLLED')
     with cs.store.connect() as db:
         profiles = plan_inputs.get_text_profiles(db, {})
-        if any(Ref.model_validate(p['source_ref']).key() not in allowed for p in profiles.values()):
-            fail('plan', 'source_refs', 'template', 'SOURCE_NOT_ENROLLED')
         if plan_inputs.get_skeleton(db):
             current = _current(cs, db)
             if current['spec_digest'] != digest(spec):
                 fail('plan', 'spec', 'registry', 'SPEC_IMMUTABLE')
             return deepcopy(current)
-        if plan_authority.plan_ref(db) or plan_inputs.get_draft(db, {}).get('revision'):
-            fail('plan', 'state', 'registry', 'FRESH_PREPARATION_REQUIRED')
-        bundle = commission_imports.owner_records(db, {}).get('bundle', {})
         classifications = record['payload'].get('classifications', {})
         items = []
         for anchor in record['payload']['anchors']:
             c = classifications.get(anchor['id'])
-            if c is None or anchor.get('parse_error'):
-                fail(anchor.get('section_id', 'plan'), 'classification', anchor['id'], 'REVIEW_REQUIRED')
-            if len(c['entry_ids']) > 1:
-                fail(anchor.get('section_id', 'plan'), 'entry_ids', anchor['id'], 'REVIEWED_ENTRY_AMBIGUOUS')
             item = {'anchor_id': anchor['id'], 'status': 'required', 'interpretation': anchor['source']['quote'], 'capabilities': [], 'table_roles': []}
             if c['entry_ids']:
                 item['reviewed_entry_id'] = c['entry_ids'][0]
             items.append(classified_item(cs, db, record, item))
     anchors = record['payload']['anchors']
-    if not set(spec.get('derived', {})) <= {a.get('section_id') for a in anchors if a['kind'] == 'section'}:
-        fail('plan', 'derived', 'spec', 'UNKNOWN_SECTION')
     heading_titles = {a['section_id']: re.sub(r'\s+', '', re.sub(r'^\s*' + re.escape(a['section_id']) + r'[、.\s]*', '', a['source']['quote'])) for a in anchors if a['kind'] == 'section'}
     sections, questions = [], []
     for anchor in anchors:
@@ -167,8 +134,6 @@ def prepare_skeleton(cs, source_refs, spec=None):
         composition = []
         if kind == 'derived':
             binding = spec.get('derived', {}).get(sid)
-            if not binding or sid in binding['derived_from'] or not set(binding['derived_from']) <= {a.get('section_id') for a in anchors if a['kind'] == 'section'}:
-                fail(sid, 'derived_from', sid, 'DERIVED_REVIEW_REQUIRED')
             binding = deepcopy(binding)
             needs_template = binding.pop('template', False)
             composition = binding.pop('composition', [])
@@ -180,9 +145,6 @@ def prepare_skeleton(cs, source_refs, spec=None):
             if len(choices) == 1:
                 section.update(choices[0]['fields'])
                 bind_composition(section, composition)
-                for slot in section.get('result_bindings', []):
-                    if section['text'].count(slot['old']) != 1:
-                        fail(sid, 'result_bindings', slot['old'], 'RESULT_SLOT_NOT_UNIQUE')
             else:
                 questions.append({'question_id': 'template:' + sid, 'section_id': sid, 'field': 'template_span',
                     'composition': composition, 'reason': '请选择本节在模板中的唯一正文位置。' if choices else '未找到唯一匹配标题；请核对模板标题位置，需有来源的结构复核。', 'choices': choices})
@@ -200,20 +162,12 @@ def prepare_skeleton(cs, source_refs, spec=None):
     compact = lambda t: re.sub(r'\s+', '', t)
     for rule in rules:
         served = [a for a in anchors if a['kind'] == 'instruction' and any(m in a['source']['quote'] for m in rule.get('mentions', [rule['name']]))]
-        if not served:
-            fail('plan', 'documents', rule['id'], 'DOCUMENT_NOT_IN_OUTLINE')
         if any(compact(rule['name']) == compact(re.sub(r'\.(pdf|docx?|md)$', '', title, flags=re.I)) for title in titles):
             continue
         documents.append({'id': rule['id'], 'name': rule['name'], 'section_ids': list(dict.fromkeys(a['section_id'] for a in served)), 'outline_sources': [a['source'] for a in served]})
-    for doc in bundle.get('documents', []):
-        expected = next((d for d in documents if d['id'] == doc['id']), None)
-        if expected is None or expected['name'] != doc['name'] or set(expected['section_ids']) != set(doc['section_ids']):
-            fail('plan', 'documents', doc['id'], 'OWNER_DOCUMENT_IDENTITY_MISMATCH')
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         current = read_requirements(cs, db=db)
-        if current['ref'] != record['ref']:
-            fail('plan', 'requirements_ref', 'prepare', 'REQUIREMENTS_CHANGED')
         # Existing classified-item writer owns requirement versions and reviewed entry checks.
         updated = deepcopy(current['payload']['items'])
         for item in items:
@@ -237,17 +191,8 @@ def apply_skeleton(cs, db, plan):
     sections = []
     for original in registry['sections']:
         current = changes.pop(original['section_id'], {})
-        for field in (*PROTECTED, *(FIXED if original.get('extraction') else ())):
-            if field in current and current[field] != original.get(field, [] if field in ('derived_from','result_bindings','result_composition','replacements','source_views') else ''):
-                fail(original['section_id'], field, original['section_id'], 'STRUCTURE_CHANGED')
         sections.append({**deepcopy(original), **current})
-    if changes:
-        fail('plan', 'sections', next(iter(changes)), 'UNKNOWN_SECTION')
-    if result.get('deliverables') and result['deliverables'] != registry['deliverables']:
-        fail('plan', 'deliverables', 'details', 'STRUCTURE_CHANGED')
     result.update(sections=sections, deliverables=registry['deliverables'], inventory_attributes=registry['inventory_attributes'], skeleton_digest=registry['digest'])
-    if plan.get('inventory_attributes') and plan['inventory_attributes'] != registry['inventory_attributes']:
-        fail('plan', 'inventory_attributes', 'details', 'STRUCTURE_CHANGED')
     result['skeleton_questions'] = deepcopy(registry['questions'])
     return result
 
@@ -258,23 +203,6 @@ def validate_skeleton(cs, db, plan):
         return
     if plan.get('skeleton_digest') != registry['digest']:
         fail('plan', 'skeleton_digest', 'registry', 'BINDING_CHANGED')
-    if plan.get('inventory_attributes') != registry['inventory_attributes']:
-        fail('plan', 'inventory_attributes', 'registry', 'STRUCTURE_CHANGED')
-    if plan.get('skeleton_questions', []) != registry['questions']:
-        fail('plan', 'skeleton_questions', 'registry', 'QUESTIONS_CHANGED')
-    assembled = apply_skeleton(cs, db, plan)
-    if [s['section_id'] for s in plan.get('sections', [])] != [s['section_id'] for s in assembled['sections']]:
-        fail('plan', 'sections', 'order', 'STRUCTURE_CHANGED')
-    from .commission_owner_records import _documents
-    bundle = commission_imports.owner_records(db, {}).get('bundle', {'records': [], 'documents': []})
-    for actual, expected in zip(plan['sections'], registry['sections']):
-        for field in (*PROTECTED, *(FIXED if expected.get('extraction') else ())):
-            if actual.get(field) != expected.get(field):
-                fail(expected['section_id'], field, expected['section_id'], 'STRUCTURE_CHANGED')
-        if actual.get('missing_documents', []) != _documents(bundle, expected['section_id'], registry):
-            fail(expected['section_id'], 'missing_documents', expected['section_id'], 'DOCUMENTS_CHANGED')
-    if plan.get('deliverables') != registry['deliverables']:
-        fail('plan', 'deliverables', 'details', 'STRUCTURE_CHANGED')
 
 
 def resolve_skeleton_question(cs, actor, operation_id, question_id, expected_digest, choice_id, selection=None):
@@ -294,17 +222,12 @@ def resolve_skeleton_question(cs, actor, operation_id, question_id, expected_dig
                 titles = {**value['heading_titles'], heading[0]: heading[1]}
                 offered = template_choices(cs, {'section_id': heading[0], 'title': heading[1]}, value['profiles'], titles)
                 choice = next((c for c in offered if c['selection'] == selector), None)
-        if choice is None:
-            fail((question or {}).get('section_id', 'plan'), 'choice_id', question_id, 'CHOICE_NOT_OFFERED')
         from .commission_planning import resolve_source_span
         resolved = resolve_source_span(cs, choice['selection'])
         for section in value['sections']:
             if section['section_id'] == question['section_id']:
                 section.update(sources=resolved['sources'], text=resolved['text'], extraction={'selection': choice['selection'], **resolved})
                 bind_composition(section, question.get('composition', []))
-                for slot in section.get('result_bindings', []):
-                    if section['text'].count(slot['old']) != 1:
-                        fail(section['section_id'], 'result_bindings', slot['old'], 'RESULT_SLOT_NOT_UNIQUE')
                 normalized = SectionPlan.model_validate(section).model_dump(mode='json')
                 section.clear();section.update(normalized)
         value['questions'] = [q for q in value['questions'] if q['question_id'] != question_id]

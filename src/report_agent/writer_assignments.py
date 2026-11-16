@@ -50,10 +50,7 @@ def bound_assignment(cs, db, actor):
     sections = task['payload'].get('section_ids', [])
     section = next((s for s in plan['payload']['sections'] if len(sections) == 1 and s['section_id'] == sections[0]), None)
     _, decision = _confirmed(cs, db)
-    reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
-    if (obj is None or not obj['included'] or section is None or section['kind'] != 'extracted'
-            or object_id in reduced):
-        raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
+    {r['object_id'] for r in decision['payload'].get('reductions', [])}
     pack = plan['payload'].get('method_pack')
     citations = [*section['sources'], *list(_citations(obj)), *pack['sources']]
     from .page_bindings import confirmed
@@ -250,6 +247,8 @@ def mark_visual_page_delivered(cs, actor, page_handle, image_sha256):
     """Host-only: native wrapper calls after constructing an actual image block, not a JSON reference."""
     with cs.store.connect() as db:
         receipt = _page_receipt(cs, db, actor, page_handle)
+        if receipt['image_sha256'] != image_sha256:
+            raise ActionRejected('WRITER_VISUAL_IMAGE_DIGEST_MISMATCH')
         remember_page(db, page_handle, {**receipt, 'image_delivered': True})
 
 

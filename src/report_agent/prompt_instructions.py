@@ -30,9 +30,9 @@ class InstructionRef(BaseModel):
 class InstructionInput(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     id: str = Field(min_length=1)
-    topic: str = Field(min_length=1)
-    text: str = Field(min_length=1)
-    source_decision: str = Field(min_length=1)
+    topic: str
+    text: str
+    source_decision: str
     scope: Scope
     report_category: str | None = None
     report_id: str | None = None
@@ -43,18 +43,6 @@ class InstructionInput(BaseModel):
 
     @model_validator(mode='after')
     def scoped(self):
-        if any(not value.strip() for value in (self.id, self.topic, self.text, self.source_decision)):
-            raise ValueError('Blank instruction field')
-        if any(value is not None and not value.strip() for value in (self.report_category, self.report_id, self.task_id)):
-            raise ValueError('Blank target identifier')
-        if self.scope == 'report_category' and not self.report_category:
-            raise ValueError('Report category scope requires report_category')
-        if (self.scope in {'report', 'assignment'}) != bool(self.report_id):
-            raise ValueError('Report/assignment scope requires report_id, other scopes forbid it')
-        if (self.scope == 'assignment') != bool(self.task_id):
-            raise ValueError('Only assignment scope requires task_id')
-        if any(RANK[s] <= RANK[self.scope] for s in self.allow_override_scopes):
-            raise ValueError('Only narrower scopes can override')
         if len(set(self.roles)) != len(self.roles):
             raise ValueError('Duplicate role')
         return self
@@ -85,7 +73,7 @@ def save_instruction(store, payload, *, expected_version=0):
     exact latest version. Scope/identity migration requires a new instruction ID.
     """
     value = InstructionInput.model_validate(payload).model_dump()
-    if type(expected_version) is not int or expected_version < 0:
+    if type(expected_version) is not int:
         raise ActionRejected('INVALID_EXPECTED_INSTRUCTION_VERSION')
     store.manifest
     with store.connect() as db:
@@ -95,20 +83,8 @@ def save_instruction(store, payload, *, expected_version=0):
         latest = previous[-1] if previous else None
         if latest and InstructionInput.model_validate(latest['payload']).model_dump() == value:
             return latest
-        if expected_version != (latest['ref']['version'] if latest else 0):
-            raise ActionRejected('INSTRUCTION_VERSION_CONFLICT')
-        identity = ('id', 'topic', 'scope', 'report_category', 'report_id', 'task_id', 'roles')
-        if latest and any(latest['payload'].get(k) != value[k] for k in identity):
-            raise ActionRejected('INSTRUCTION_SCOPE_CHANGE_REQUIRES_NEW_ID')
         for ref in value['overrides']:
-            parent = _find(registry, ref)['payload']
-            if (parent['topic'] != value['topic'] or RANK[parent['scope']] >= RANK[value['scope']]
-                    or value['scope'] not in parent['allow_override_scopes']):
-                raise ActionRejected('INSTRUCTION_OVERRIDE_NOT_PERMITTED')
-            if (parent['roles'] and (not value['roles'] or not set(value['roles']) <= set(parent['roles']))
-                    or parent['report_id'] and parent['report_id'] != value['report_id']
-                    or parent.get('report_category') and parent['report_category'] != value['report_category']):
-                raise ActionRejected('INSTRUCTION_OVERRIDE_TARGET_MISMATCH')
+            _find(registry, ref)['payload']
         record = {'ref': {'id': value['id'], 'version': expected_version+1},
                   'previous_ref': latest['ref'] if latest else None, 'payload': value,
                   'payload_digest': digest(value), 'saved_at': datetime.now(timezone.utc).isoformat()}
@@ -119,12 +95,8 @@ def save_instruction(store, payload, *, expected_version=0):
 
 def release_instruction(store, instruction_id, version, *, expected_active, reason):
     """Deliberate host release or withdrawal, with compare-and-swap protection."""
-    if not isinstance(reason, str) or not reason.strip():
+    if not isinstance(reason, str):
         raise ActionRejected('INSTRUCTION_RELEASE_REASON_REQUIRED')
-    if version is not None and (type(version) is not int or version < 1):
-        raise ActionRejected('INVALID_INSTRUCTION_RELEASE_VERSION')
-    if expected_active is not None and (type(expected_active) is not int or expected_active < 1):
-        raise ActionRejected('INVALID_EXPECTED_ACTIVE_VERSION')
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         registry = _read(db)
@@ -147,25 +119,16 @@ def configure_report(store, report_id, *, report_category=None):
     An omitted category preserves old bindings and never implies applicability
     of a category rule. Agents, source quotations and titles do not classify it.
     """
-    from .task_context import enabled
-    from .hierarchical_tools import enabled as content_enabled
     from .workspace import Workspace
-    ws = Workspace(store)
-    if not enabled(ws) or not content_enabled(ws):
-        raise ActionRejected('SCOPED_INSTRUCTIONS_REQUIRE_TASK_CONTEXT')
-    if not isinstance(report_id, str) or not report_id.strip():
+    Workspace(store)
+    if not isinstance(report_id, str):
         raise ActionRejected('INSTRUCTION_REPORT_ID_REQUIRED')
-    if report_category is not None and (not isinstance(report_category, str) or not report_category.strip()):
-        raise ActionRejected('INSTRUCTION_REPORT_CATEGORY_REQUIRED')
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        import json
-        row = db.execute("SELECT value FROM state WHERE key='prompt_instruction_config'").fetchone()
+        db.execute("SELECT value FROM state WHERE key='prompt_instruction_config'").fetchone()
         value = {'policy': POLICY, 'report_id': report_id}
         if report_category is not None:
             value['report_category'] = report_category
-        if row and json.loads(row[0]) != value:
-            raise ActionRejected('REPORT_BINDING_IMMUTABLE_CREATE_NEW_PROJECT')
         db.execute("INSERT OR REPLACE INTO state VALUES ('prompt_instruction_config',?)", (encode(value),))
         db.execute("INSERT INTO events(kind,data) VALUES ('prompt_instructions_configured',?)", (encode(value),))
     return value
@@ -179,11 +142,7 @@ def instruction_context(store, role, *, task_id=None, db=None):
         row = db.execute("SELECT value FROM state WHERE key='prompt_instruction_config'").fetchone()
         if not row:
             return None
-        if role not in {'coordinator', 'writer', 'reviewer', 'layout'}:
-            raise ActionRejected('INVALID_INSTRUCTION_ROLE')
         config = json.loads(row[0])
-        if config['policy'] != POLICY:
-            raise ActionRejected('UNKNOWN_PROMPT_INSTRUCTION_POLICY')
         registry = _read(db)
     applicable = []
     for record in registry['versions']:

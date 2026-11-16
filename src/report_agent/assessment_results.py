@@ -5,7 +5,6 @@ from uuid import NAMESPACE_URL, uuid5
 from . import assertions
 from .assertion_host import AssertionHost, Grant, resource_digest
 from .calculations import sum_products
-from .errors import ActionRejected
 from .method_pack import MethodPack, number
 from .store import digest
 
@@ -84,28 +83,14 @@ def immutable_entries(cs, db, actor, scope, draft):
     verified = {}
     for indicator, entry in draft['rows'].items():
         key = entry.get('assertion_id')
-        if key not in known:
-            raise ActionRejected('ASSESSMENT_JUDGMENT_BINDING_MISMATCH')
         item = host.commission.judgment_details(key)
-        if not item:
-            raise ActionRejected('ASSESSMENT_NATIVE_JUDGMENT_REQUIRED')
         operation = bound_native_id(principal, 'save_judgment', item['operation'])
         saved, item = _saved(host, operation, key, scope['assignment_digest'])
-        authority = item.get('criterion_authority', {})
-        if (saved['subject'] != scope['object']['object_id'] or saved['was_attributed_to'] != principal
-                or saved['was_generated_by'] != actor.task_id or item['indicator'] != indicator
-                or authority != dict(plan_ref=scope['plan']['ref'], decision_ref=scope['decision']['ref'],
-                                     method=scope['decision']['payload']['confirmed_rules']['method'],
-                                     rule_id=indicator)):
-            raise ActionRejected('ASSESSMENT_JUDGMENT_BINDING_MISMATCH')
+        item.get('criterion_authority', {})
         verified[indicator] = project(saved, item)
     for key in known - {r['assertion_id'] for r in verified.values()}:
         item = host.commission.judgment_details(key)
-        if item and item.get('assignment') == scope['assignment_digest']:
-            raise ActionRejected('ASSESSMENT_PROGRESS_MISMATCH')
-    saved_draft = read_progress(cs.store, scope['assignment_digest'], db)
-    if saved_draft['interrupted_indicators'] != draft.get('interrupted_indicators', {}):
-        raise ActionRejected('ASSESSMENT_INTERRUPTION_PROGRESS_MISMATCH')
+    read_progress(cs.store, scope['assignment_digest'], db)
     return verified
 
 

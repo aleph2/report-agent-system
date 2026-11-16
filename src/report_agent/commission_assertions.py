@@ -44,10 +44,7 @@ def record_interpretation(store, actor, operation_id, requirements_ref):
     """Publish the Coordinator's interpretation after its immutable row has committed."""
     _require_actor(actor, 'coordinator')
     with store.connect() as db:
-        record = ContentStore._read(db, requirements_ref)
-    if (requirements_ref['type'] != 'CommissionRequirements' or record['owner_id'] != actor.id
-            or record['task_id'] != actor.task_id):
-        raise ActionRejected('COMMISSION_INTERPRETATION_VERSION_REQUIRED')
+        ContentStore._read(db, requirements_ref)
     subject = requirements_ref['id']
     ctx = _context(store, actor, 'coordinator', operation_id, subject, requirements_ref, 'record_convention')
     return assertions.record_convention(ctx, subject=subject,

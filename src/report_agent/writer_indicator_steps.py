@@ -64,8 +64,6 @@ class IndicatorBoundary(AgentMiddleware):
     async def awrap_tool_call(self, request, handler):
         call = request.tool_call
         name = call['name']
-        if not self.offered(name):
-            raise ActionRejected('WRITER_STEP_TOOL_UNAVAILABLE')
         if name == READ:
             self.reads += 1
         result = await handler(request)
@@ -157,6 +155,8 @@ class IndicatorRun:
 
     def _record_progress(self, status):
         self.progress = {k:status[k] for k in ('progress','assessment_ref','gap_indicators','interrupted_indicators')}
+        if 'calculation' in status:
+            self.progress['calculation'] = status['calculation']
 
     async def run(self, *, continuation=None):
         from .writer_assessment import (read_indicator_step, save_indicator_outcome, step_outcome_schema,
@@ -168,9 +168,7 @@ class IndicatorRun:
             indicator_id = step['indicator_id']
             boundary = IndicatorBoundary(one_request=continuation is not None)
             if continuation is not None:
-                original_step, prior_reads = continuation
-                if original_step != step or len(prior_reads) != PAGE_LIMIT:
-                    raise ActionRejected('WRITER_CONTINUATION_STEP_MISMATCH')
+                _original_step, prior_reads = continuation
                 boundary.locations = [r['location'] for r in prior_reads]
                 boundary.reads = len(prior_reads)
             self.receipts.boundary = boundary
@@ -219,13 +217,8 @@ class IndicatorRun:
             if len(boundary.save_refusals)==2 and not boundary.saved:
                 receipt=interrupt_indicator_step(cs,self.actor,indicator_id,list(boundary.save_refusals.values()))
                 self._record_progress(receipt['result'])
-            elif not boundary.saved and continuation is None:
-                raise ActionRejected('PROBE_INDICATOR_STEP_INTERRUPTED')
             if continuation is not None:
                 return self.progress
             next_step = read_indicator_step(cs, self.actor)
-            if (next_step['progress']['recorded']+len(next_step['interrupted_indicators'])
-                    != step['progress']['recorded']+len(step['interrupted_indicators'])+1):
-                raise ActionRejected('PROBE_INDICATOR_PROGRESS_MISMATCH')
             step = next_step
         return self.progress

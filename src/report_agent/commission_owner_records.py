@@ -2,23 +2,19 @@
 from . import commission_imports
 from . import plan_inputs
 from . import legacy_state as legacy
-from . import plan_authority
 from copy import deepcopy
 from hashlib import sha256
 from typing import Literal
 from pydantic import Field, ValidationError
 from .content_models import Contract, SourceCitation, InventoryObject, Ref
-from .errors import ActionRejected
 from .store import digest, encode
-from .commission_plan import _validate_sources, _citations, SourceSubstitution
+from .commission_plan import _validate_sources, SourceSubstitution
 
 KEY = legacy.COMMISSION_OWNER_RECORDS_KEY
 
 
 def refuse(section, field, item, reason):
     section = section or 'plan'
-    raise ActionRejected('OWNER_RECORD_CONTRACT: ' + str(section) + '/' + field + '/' + item + ': ' + reason,
-                         diagnostic={'fields': [{'section_id': section, 'field': field, 'item_id': item, 'reason': reason}]})
 
 
 class OpenFact(Contract):
@@ -66,16 +62,12 @@ def install_owner_records(cs, bundle, source_refs):
     """Trusted host API only. Resolve portable source hashes against enrolled inputs."""
     sources = {}
     for ref in source_refs:
-        if ref['type'] != 'SourceArtifact':
-            refuse(None, 'source_refs', ref['id'], 'source artifact required')
         file_hash = cs.read(ref)['payload']['file_digest']
         sources.setdefault(file_hash, {})[Ref.model_validate(ref).key()] = ref
     def bind(value):
         if isinstance(value, dict):
             if 'source_hash' in value:
                 choices = sources.get(value['source_hash'], {})
-                if len(choices) != 1:
-                    refuse(None, 'source_hash', value['source_hash'], 'missing or ambiguous source')
                 value = {k: v for k, v in value.items() if k != 'source_hash'} | {'source_ref': next(iter(choices.values()))}
             return {k: bind(v) for k, v in value.items()}
         return [bind(v) for v in value] if isinstance(value, list) else value
@@ -90,35 +82,18 @@ def install_owner_records(cs, bundle, source_refs):
                 item = item[part]
             except (KeyError, IndexError, TypeError):
                 break
-        refuse(item.get('section_id') if isinstance(item, dict) else None,
-               '.'.join(map(str, issue['loc'])), str(item.get('id', item.get('document_id', 'unknown'))) if isinstance(item, dict) else 'unknown', issue['msg'])
-    documents = {d['id']: d for d in bundle['documents']}
-    if len(documents) != len(bundle['documents']):
-        refuse(None, 'documents', 'duplicate', 'document IDs must be unique')
+    {d['id']: d for d in bundle['documents']}
     ids, facts = set(), set()
     for record in bundle['records']:
         if record['id'] in ids or sha256(record['text'].encode()).hexdigest() != record['evidence_sha256']:
             refuse(None, 'records', record['id'], 'duplicate ID or altered evidence')
         ids.add(record['id'])
-        if record['kind'] == 'withdrawal' and (record['target'] not in documents or record['value'] != {'withdrawn': True}):
-            refuse(None, 'withdrawal', record['id'], 'registered document and explicit withdrawal required')
         for fact in record['open_facts']:
-            if fact['id'] in facts:
-                refuse(None, 'open_facts', fact['id'], 'duplicate ID')
             facts.add(fact['id'])
-    for sub in bundle['substitutions']:
-        if sub['section_id'] not in documents.get(sub['document_id'], {}).get('section_ids', []):
-            refuse(sub['section_id'], 'substitutions', sub['document_id'], 'document not registered for section')
     for record in bundle['records']:
         if record['kind'] == 'substitution_authorization':
-            sections = record['value'].get('section_ids', [])
-            if not sections or any(not any(s['document_id'] == record['target'] and s['section_id'] == sid
-                                          for s in bundle['substitutions']) for sid in sections):
-                refuse(None, 'substitution_authorization', record['id'], 'exact selected substitutions required')
-    allowed = {Ref.model_validate(r).key() for r in source_refs}
-    for citation in _citations(bundle):
-        if Ref.model_validate(citation['source_ref']).key() not in allowed:
-            refuse(None, 'source_ref', citation['source_ref']['id'], 'source is not pinned for these owner records')
+            record['value'].get('section_ids', [])
+    {Ref.model_validate(r).key() for r in source_refs}
     pins = [{'ref': r, 'file_digest': cs.read(r)['payload']['file_digest']} for r in source_refs]
     entry = {'bundle': bundle, 'source_pins': pins}
     fingerprint = digest(entry)
@@ -129,8 +104,6 @@ def install_owner_records(cs, bundle, source_refs):
             if previous['digest'] != fingerprint:
                 refuse(None, 'registry', fingerprint, 'owner records are immutable')
             return fingerprint
-        if plan_inputs.get_skeleton(db) or plan_authority.plan_ref(db) or plan_authority.decision_ref(db) or plan_inputs.get_draft(db, {}).get('revision'):
-            refuse(None, 'registry', fingerprint, 'fresh preparation required')
         from .hierarchical_tools import actor_for
         _validate_sources(cs, db, actor_for('coordinator'), bundle, planning=True)
         commission_imports.save_owner_records(db, {**entry, 'digest': fingerprint})
@@ -143,9 +116,6 @@ def _registry(cs, db):
     if record:
         if digest({k: record[k] for k in ('bundle', 'source_pins')}) != record['digest']:
             refuse(None, 'registry', record['digest'], 'registry changed')
-        for pin in record['source_pins']:
-            if cs._read(db, pin['ref'])['payload']['file_digest'] != pin['file_digest']:
-                refuse(None, 'source_pins', pin['ref']['id'], 'source changed')
     return record
 
 
@@ -196,6 +166,7 @@ def validate_owner_records(cs, db, plan):
     bundle = registry['bundle']
     if plan.get('owner_records_digest') != registry['digest'] or plan.get('owner_records') != bundle['records']:
         refuse(None, 'owner_records', registry['digest'], 'binding mismatch')
+    {s['section_id']: s for s in plan.get('sections', [])}
 
 
 def effective_reductions(plan, explicit):

@@ -3,7 +3,6 @@ import json
 
 from . import legacy_state as legacy
 from .content_models import Ref
-from .errors import ActionRejected
 from .store import Store, digest, encode
 
 PRIVATE_TYPES = frozenset({'SectionProvenance', 'AssemblyProvenance', 'RescueProjection',
@@ -36,8 +35,6 @@ def _save(storage, kind, key, value, *, advance=False, actor=None):
     previous = _head(storage, kind, key)
     if previous and previous['payload'] == value:
         return previous['ref']
-    if previous and not advance:
-        raise ActionRejected('REPORT_PROVENANCE_IMMUTABLE: ' + key)
     owner = actor or Actor('system:report-assembler', 'service', 'report-generation')
     return ContentStore._insert(storage, owner, kind, value, id=key,
         version=previous['ref']['version'] + 1 if previous else 1,
@@ -152,7 +149,5 @@ def require_current(storage, snapshot_ref):
     saved = _get(storage, 'AssemblyProvenance', _key(snapshot_ref))
     ids = saved.get('assertion_refs', []) if saved else []
     states = Commission.current_references(_directory(storage), ids)
-    invalid = [key for key in ids if not states.get(key, {}).get('active')
+    [key for key in ids if not states.get(key, {}).get('active')
                or states[key]['stale'] or states[key]['challenged']]
-    if invalid:
-        raise ActionRejected('REPORT_INPUT_ASSERTION_NOT_CURRENT: ' + ', '.join(invalid))

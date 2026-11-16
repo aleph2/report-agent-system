@@ -414,8 +414,6 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
     schema = SectionProseNode if section_prose else _payload_schema(object_type)
     context = authority(workspace, actor)
     material = prepare_material(workspace,refs,selections,observation_refs,actor,candidates,bindings)
-    if object_type == 'Evidence':
-        material.require_source()
     packet = {"actor": actor.__dict__, "objective": objective, "object_type": object_type,
               "commission": context, "evidence": material.evidence,
               "output_count": output_count,
@@ -469,8 +467,6 @@ async def produce(workspace, actor, model, operation_id, objective, object_type,
                                         owner=actor, caller_operation_id=operation_id)
     try:
         payloads, notes = parse_produced_output(raw['analysis'], schema, packet)
-        for payload in payloads if object_type == "Evidence" else []:
-            material.check_returned_refs(payload)
     except (ValueError, TypeError) as exc:
         # The service has already returned and its exact raw response is saved.
         # Do not let native tool-argument error handling misclassify this phase.

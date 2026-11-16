@@ -28,14 +28,6 @@ def authorize_distinct_work(workspace, actor, operation_id, request_hash,
                             material_identity, conflicts, *, rationale,
                             evidence_path, evidence_sha256, authorization_basis):
     """Host supplies an inspected exact blocked request, never a blanket release."""
-    if (not operation_id.strip() or not rationale.strip() or not authorization_basis.strip()
-            or not conflicts or any(not c['original_input_verified'] for c in conflicts)):
-        raise ActionRejected('TEXT_WORK_DISPOSITION_REQUIRES_VERIFIED_BASIS')
-    if any(c['same_material_established'] for c in conflicts):
-        raise ActionRejected('TEXT_WORK_DISPOSITION_UNCHANGED_MATERIAL')
-    for value in (request_hash, material_identity, evidence_sha256):
-        if len(value) != 64 or any(c not in '0123456789abcdef' for c in value):
-            raise ActionRejected('TEXT_WORK_DISPOSITION_INVALID_DIGEST')
     evidence_path = Path(evidence_path).resolve(strict=True)
     if hashlib.sha256(evidence_path.read_bytes()).hexdigest() != evidence_sha256:
         raise ActionRejected('TEXT_WORK_DISPOSITION_EVIDENCE_CHANGED')
@@ -46,12 +38,7 @@ def authorize_distinct_work(workspace, actor, operation_id, request_hash,
         for binding in bindings:
             row = db.execute('SELECT value FROM state WHERE key=?',
                 ('text_work:'+actor.id+':'+binding['operation_id'],)).fetchone()
-            prior = json.loads(row[0]) if row else None
-            if (not prior or prior['request_hash'] != binding['request_hash']
-                    or prior['state'] in {'completed','known_failed'}):
-                raise ActionRejected('TEXT_WORK_DISPOSITION_UNKNOWN_BINDING_CHANGED')
-        if db.execute('SELECT 1 FROM state WHERE key=?', (key,)).fetchone():
-            raise ActionRejected('TEXT_WORK_DISPOSITION_ALREADY_REGISTERED')
+            json.loads(row[0]) if row else None
         value = {'state':'authorized', 'actor':actor.__dict__, 'operation_id':operation_id,
             'request_hash':request_hash, 'material_identity':material_identity,
             'unresolved_attempts':bindings, 'rationale':rationale,

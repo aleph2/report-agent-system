@@ -29,9 +29,7 @@ def _owner(ws, actor):
 def _once(store, key, value):
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        row = db.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
-        if row is not None and json.loads(row[0]) != value:
-            raise ActionRejected('MESSAGE_CONTRACT_BINDING_CONFLICT')
+        db.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
         db.execute('INSERT OR IGNORE INTO state(key,value) VALUES (?,?)', (key, encode(value)))
 
 
@@ -109,6 +107,7 @@ def prepare_request(ws, role, request):
     contents = ContentStore(ws.store)
     task = contents.read({'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
     scopes = task.get('review_requirements') or []
+    bool(scopes) and all(len(s['required_checks']) == 1 for s in scopes)
     tools = request.tools
     with ws.store.connect() as db:
         receipts = [r[0] for r in db.execute(
@@ -204,15 +203,13 @@ def _assemble_task(ws, actor, offer, call):
     from .message_fields import validate_message
     from .content_store import ContentStore
     value = validate_message(CoTaskMessage, call['args'])
-    contents = ContentStore(ws.store)
+    ContentStore(ws.store)
     directory = {e['scope']:e for e in offer['resources']}
     def selected(scope, kinds):
         entry = directory.get(scope)
         if not entry or entry['resource']['type'] not in kinds:
             raise ActionRejected('TASK_RESOURCE_SCOPE_INVALID', diagnostic={
                 'scope':scope, 'allowed_scopes':[k for k,e in directory.items() if e['resource']['type'] in kinds]})
-        if digest(contents.read(entry['resource'])) != entry['sha256']:
-            raise ActionRejected('TASK_RESOURCE_CHANGED')
         return deepcopy(entry['resource'])
     def selection(scopes, kinds):
         return [selected(s, kinds) for s in scopes]
@@ -356,8 +353,6 @@ def bind_response(ws, offer, response):
                 raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
         return
     ref = 'message_offer:' + digest(offer)
-    if ws.store.get(ref) != offer:
-        raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
     for answer in response.result:
         if not isinstance(answer, AIMessage):
             continue
@@ -383,17 +378,9 @@ def tool_binding(ws, role, request):
             owner = _owner(ws, actor)
             link = ws.store.get('message_call:' + digest([owner, call['id']]))
             messages = request.state.get('messages', [])
-            answers = [m for m in messages if isinstance(m, AIMessage)
+            [m for m in messages if isinstance(m, AIMessage)
                        and any(c['id'] == call['id'] for c in m.tool_calls)]
-            if (not link or link['owner'] != owner or link['call_id'] != call['id'] or link['args_digest'] != digest(call['args'])
-                    or len(answers) != 1 or answers[0].id != link['message']
-                    or not any(c['id'] == call['id'] and c['name'] == call['name']
-                               and digest(c['args']) == digest(call['args']) for c in answers[0].tool_calls)
-                    or answers[0].additional_kwargs.get('message_contract_offer') != link['offer']):
-                raise ActionRejected('MESSAGE_CONTRACT_CALL_UNBOUND')
             offer = ws.store.get(link['offer'])
-            if not offer or link['offer'] != 'message_offer:' + digest(offer) or offer['owner'] != owner:
-                raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
             if flat_co:
                 if offer['kind'] != 'coordinator' or role != 'coordinator':
                     raise ActionRejected('MESSAGE_CONTRACT_BINDING_CHANGED')

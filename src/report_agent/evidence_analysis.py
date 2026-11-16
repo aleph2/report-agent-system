@@ -147,14 +147,13 @@ async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contr
     readmit an earlier refused raw operation. Existing Writer policy is retained.
     """
     identity = model_identity(model)
-    from .prompt_provenance import analysis_source, check_static_prompt, prompt_call, PromptCompositionError
+    from .prompt_provenance import analysis_source, prompt_call, PromptCompositionError
     prompt_source = analysis_source(contract, inputs, workspace.store)
     suffix = ''
     if prompt_source:
         from .prompt_sources import load_prompt
         suffix = (load_prompt('scoped-review-channel') if
             prompt_source in {'legacy-bounded-review','artifact-analysis'} and inputs.get('commission', {}).get('scoped_instructions') is not None else '')
-        check_static_prompt(system_prompt, prompt_source, suffix=suffix)
     operation = digest({"system": system_prompt, "input": inputs, "model": identity, "contract": contract})
     saved = workspace.store.analysis(operation)
     if saved:

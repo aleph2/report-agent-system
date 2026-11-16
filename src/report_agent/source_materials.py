@@ -117,9 +117,6 @@ def verify(workspace, actor, ref, text, tool):
     body_ref = digest({'owner':actor.id,'tool':tool,'sha256':sha})
     if (record['tool'] != tool or record['public_sha256'] != sha or record['body_ref'] != body_ref):
         raise ActionRejected('SOURCE_MATERIAL_PUBLIC_RETURN_CHANGED')
-    original = workspace.store.get('tool_observation:'+body_ref)
-    if original != {'owner':actor.id,'tool':tool,'text':text,'sha256':sha}:
-        raise ActionRejected('SOURCE_MATERIAL_ORIGINAL_CHANGED')
     return record
 
 

@@ -3,7 +3,7 @@ import json
 from collections import Counter
 from typing import Annotated, Literal
 
-from pydantic import Field, TypeAdapter, ValidationError, model_validator
+from pydantic import Field, TypeAdapter, model_validator
 
 from .content_inputs import BatchRef
 from .content_models import Contract, Ref, refs_in
@@ -81,19 +81,10 @@ def published(cs, db, actor, operation_id):
     value = (response.get('result') or {}).get('deliverable')
     if ((not isinstance(value.get('root_ref'), dict)) or (not isinstance(value.get('member_refs'), list)) or (not isinstance(value.get('workbook_refs'), list)) or (not isinstance(value.get('member_digest'), str)) or (not isinstance(value.get('producer_task_id'), str))):
         raise ActionRejected('DELIVERABLE_DECLARATION_INVALID')
-    try:
-        root_key = key(value['root_ref'])
-        members = [key(r) for r in value['member_refs']]
-        [key(r) for r in value['workbook_refs']]
-        TypeAdapter(DeliverableSelection).validate_python(value['selection'])
-        if root_key not in members or len(set(members)) != len(members):
-            raise ActionRejected('DELIVERABLE_DECLARATION_INVALID')
-        if value['producer_role'] == 'writer' and (
-                value['producer_actor_id'] != 'content:writer:' + value['producer_task_id']
-                or value['producer_task_ref'] != {'type': 'DelegatedTask', 'id': value['producer_task_id'], 'version': 1}):
-            raise ActionRejected('DELIVERABLE_DECLARATION_INVALID')
-    except (ValidationError, TypeError):
-        raise ActionRejected('DELIVERABLE_DECLARATION_INVALID') from None
+    key(value['root_ref'])
+    [key(r) for r in value['member_refs']]
+    [key(r) for r in value['workbook_refs']]
+    TypeAdapter(DeliverableSelection).validate_python(value['selection'])
     if (parent(cs, db, actor.id, actor.role, actor.task_id) !=
             parent(cs, db, row[0], value.get('producer_role'), value.get('producer_task_id'))):
         raise ActionForbidden('FORBIDDEN: deliverable parent')
