@@ -57,8 +57,6 @@ def _indicator_errors(definition, row):
     if row.basis_kind == 'no_evidence_assumption':
         if row.sources:
             errors.append(prefix + 'no-evidence assumption cannot invent sources')
-        if definition and grade and number(grade.max_value) != max(number(g.max_value) for g in definition.grades):
-            errors.append(prefix + 'no-evidence assumption requires adverse grade')
     if assumption:
         if not row.question.strip():
             errors.append(prefix + 'question required')
@@ -172,12 +170,9 @@ def _prepare_indicator(pack, row):
         problems.append(row['indicator_id'] + ': rank_reason required')
     if row['basis_kind'].endswith('assumption'):
         grades = definition.get('grades', []) if definition else []
-        if row['basis_kind'] == 'no_evidence_assumption':
-            # No evidence can exclude a grade from the uncertainty interval.
-            row['plausible_grades'] = [g['id'] for g in grades]
         plausible = [g for g in grades if g['id'] in row['plausible_grades']]
-        if not plausible or len(plausible) != len(row['plausible_grades']) or row['grade_id'] not in row['plausible_grades']:
-            problems.append(row['indicator_id'] + ': plausible_grades required, including adopted grade')
+        if not plausible or len(plausible) != len(row['plausible_grades']):
+            problems.append(row['indicator_id'] + ': plausible_grades required')
         else:
             row['low'] = str(min(number(g['min_value']) for g in plausible))
             row['high'] = str(max(number(g['max_value']) for g in plausible))

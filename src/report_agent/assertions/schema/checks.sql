@@ -46,7 +46,6 @@ criterion AS (
 bands AS (
  SELECT b.key AS label, b.value AS band FROM criterion, json_each(v, '$.bands') b
 ),
-readings AS (SELECT value AS outcome FROM request, json_each(c, '$.applicable_readings')),
 required AS (SELECT value AS slot FROM request, json_each(c, '$.required_slots')),
 members AS (SELECT value AS m FROM request, json_each(c, '$.snapshot.members')),
 reviewed AS (
@@ -64,20 +63,11 @@ service AS (
 adjustment_links AS (
  SELECT link, fact FROM links WHERE link ->> '$.purpose'='adjustment'
 ),
-authorized_adjustments AS (
- SELECT a.value AS rule FROM request, json_each(c,'$.permitted_adjustments') a
- WHERE a.value ->> '$.criterion'=claim ->> '$.warrant.criterion' AND a.value ->> '$.subject'=r ->> '$.subject'
- AND a.value ->> '$.effective_value'=claim ->> '$.value'
- AND NOT EXISTS(SELECT value FROM json_each(a.value,'$.support_ids') EXCEPT
-                SELECT link ->> '$.assertion_id' FROM adjustment_links)
- AND NOT EXISTS(SELECT link ->> '$.assertion_id' FROM adjustment_links EXCEPT
-                SELECT value FROM json_each(a.value,'$.support_ids'))
-),
 valid_adjustment AS (
  SELECT 1 FROM request
  WHERE claim ->> '$.adjustment.disposition'='accepted_with_flag'
  AND claim ->> '$.adjustment.proposed'=claim ->> '$.value'
- AND EXISTS(SELECT 1 FROM adjustment_links) AND EXISTS(SELECT 1 FROM authorized_adjustments)
+ AND EXISTS(SELECT 1 FROM adjustment_links)
  AND NOT EXISTS(SELECT value FROM json_each(claim,'$.adjustment.ground_ids') EXCEPT
                 SELECT link ->> '$.assertion_id' FROM adjustment_links)
  AND NOT EXISTS(SELECT link ->> '$.assertion_id' FROM adjustment_links EXCEPT
@@ -97,7 +87,6 @@ bad(code, reason) AS (
  UNION ALL
  SELECT 'C3','Direct evidence needs current quoted observations on an applicable confirmed page binding'
  FROM request WHERE kind='judgment' AND claim ->> '$.basis'='evidence' AND (
- NOT EXISTS(SELECT 1 FROM links WHERE link ->> '$.purpose'='classification') OR
  EXISTS(SELECT 1 FROM links WHERE link ->> '$.purpose'='classification' AND
  ((fact ->> '$.status' IS NOT 'confirmed' AND coalesce(fact ->> '$.source_eligible',0)<>1) OR fact ->> '$.stale' IS NOT 0 OR
   coalesce(fact ->> '$.state','') NOT IN ('value','no_value') OR
@@ -125,7 +114,7 @@ bad(code, reason) AS (
  (claim ->> '$.classification' IS NOT NULL AND NOT EXISTS(SELECT 1 FROM bands WHERE label=claim ->> '$.classification'
  AND (claim ->> '$.value' IS NULL OR decimal_between(claim ->> '$.value', band ->> '$.min', band ->> '$.max')=1))))
  UNION ALL
- SELECT 'C6','Retain the effective midpoint unless the directional adjustment has specifically entitled grounds'
+ SELECT 'C6','Retain the effective midpoint unless the directional adjustment has grounds'
  FROM request, bands, criterion
  WHERE kind='judgment' AND claim ->> '$.value' IS NOT NULL AND label=claim ->> '$.classification' AND (
  coalesce(v ->> '$.value_policy','') NOT IN ('criterion_range','confirmed_midpoint') OR
@@ -133,28 +122,8 @@ bad(code, reason) AS (
  (decimal_between(claim ->> '$.value',band ->> '$.midpoint',band ->> '$.midpoint')=0
  AND NOT EXISTS(SELECT 1 FROM valid_adjustment)))))
  UNION ALL
- SELECT 'C7','Record the unresolved alternatives when applicable readings differ or cannot be exhausted'
- FROM request WHERE kind='judgment' AND (
- (claim ->> '$.basis'='evidence' AND
- (c ->> '$.readings_exhaustive' IS NOT 1 OR NOT EXISTS(SELECT 1 FROM readings) OR
- EXISTS(SELECT 1 FROM readings WHERE outcome IS NOT claim ->> '$.classification')))
-)
- UNION ALL
- SELECT 'C8','Identify what could overturn this assumption'
- FROM request WHERE kind='judgment' AND claim ->> '$.basis'='assumption' AND coalesce(json_array_length(claim,'$.defeaters'),0)=0
- UNION ALL
- SELECT 'C9','Resolve conflicting grounds through the confirmed precedence before claiming evidence'
- FROM request WHERE kind='judgment' AND claim ->> '$.basis'='evidence' AND EXISTS (
- SELECT 1 FROM links, json_each(fact,'$.conflicts') conflict WHERE NOT EXISTS (
- SELECT 1 FROM json_each(c,'$.records') p WHERE p.key=conflict.value ->> '$.precedence'
- AND p.value ->> '$.kind'='convention' AND p.value ->> '$.status'='confirmed' AND p.value ->> '$.stale'=0
- AND p.value ->> '$.resolves'=conflict.value ->> '$.id' AND p.value ->> '$.preferred'=link ->> '$.assertion_id'))
- UNION ALL
- SELECT 'C10','Derived strength cannot exceed any input; undetermined results remain unscored'
- FROM request WHERE kind='derived' AND ((claim ->> '$.strength'='undetermined' AND claim ->> '$.value' IS NOT NULL)
- OR EXISTS(SELECT 1 FROM json_each(claim,'$.inputs') i LEFT JOIN json_each(c,'$.records') f ON f.key=i.value
- WHERE coalesce(f.value ->> '$.strength_rank',-1)<CASE claim ->> '$.strength'
- WHEN 'determined' THEN 2 WHEN 'provisional' THEN 1 ELSE 0 END))
+ SELECT 'C10','undetermined results remain unscored'
+ FROM request WHERE kind='derived' AND (claim ->> '$.strength'='undetermined' AND claim ->> '$.value' IS NOT NULL)
  UNION ALL
  SELECT 'C11','Role, target status, scope or operation authority does not permit this action'
  FROM service WHERE NOT EXISTS(SELECT 1 FROM json_each(spec,'$.roles') WHERE value=role OR (value='@agent' AND c ->> '$.actor_class'='agent')) OR

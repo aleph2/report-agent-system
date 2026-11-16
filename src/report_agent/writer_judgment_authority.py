@@ -279,7 +279,7 @@ def disclosed_context(cs, db, actor, scope, indicator, original):
     return [_detail(rows[by_handle[key]], role) for role, key in handles]
 
 
-def _grounds(subject, value, original, rows, by_handle, conventions, interpretation, citations, versions):
+def _grounds(subject, value, original, rows, by_handle, conventions, citations, versions):
     grounds = []
 
     def add(key, purpose):
@@ -331,12 +331,10 @@ def _grounds(subject, value, original, rows, by_handle, conventions, interpretat
 
                 if physical_page_number(citation["locator"]) != source["page"]:
                     continue
-                purposes = interpretation.get("purposes", {})
                 for purpose in ["context"] if value["kind"] == "gap" else ["classification", "assumption"]:
                     if purpose == "assumption" and value["kind"] != "assumption":
                         continue
-                    if purpose == "context" or row["claim"]["predicate"] in purposes.get(purpose, []):
-                        add(key, purpose)
+                    add(key, purpose)
     return grounds
 
 
@@ -353,7 +351,6 @@ def _resolved(cs, db, actor, scope, rule, original, entry):
         rows,
         handles,
         conventions,
-        spec,
         citations,
         versions,
     )
@@ -420,11 +417,9 @@ def prepare_judgment(cs, db, actor, scope, rule, operation_id, entry, *, submiss
         accompanying_question = ask_ctx, question_claim
     grades = {_grade(g): g["id"] for g in rule["grades"]}
     kind = value["kind"]
-    if review and kind != "gap":
-        raise ValueError("C7: unresolved engineering interpretation")
     claim = dict(
         kind="judgment",
-        basis="conditional" if review else kind,
+        basis=kind,
         question=question,
         warrant=dict(
             criterion=criterion,

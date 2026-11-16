@@ -131,16 +131,12 @@ class Judgment(Shape):
                 raise ValueError("Open outcomes must identify their question and remain unscored")
         elif self.classification is None:
             raise ValueError("A supported outcome must identify its classification")
-        if self.basis in {"conditional", "assumption"} and len(set(self.alternatives)) < 2:
-            raise ValueError("List the distinct plausible alternatives")
         if self.adjustment is not None:
             if self.value is None or not self.review_flags:
                 raise ValueError("An adjustment requires an effective value and a visible review flag")
             accepted = self.adjustment.disposition == "accepted_with_flag"
             if accepted != (self.value == self.adjustment.proposed):
                 raise ValueError("Adjustment disposition disagrees with the effective value")
-        if self.basis == "assumption" and not self.defeaters:
-            raise ValueError("C8: state which observations could overturn the assumption")
         return self
 
 

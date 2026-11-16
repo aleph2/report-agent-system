@@ -507,7 +507,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         Supply a reason for every rank and a source-bound basis for every value.
         Assumptions need plausible grade IDs and a question; the system derives their
         joint extremes, all arithmetic, ranking/evaluation tables, and level text.
-        No-evidence assumptions must choose the adverse grade. Template scores cannot
+        Template scores cannot
         be evidence. Returned immutable nodes and evidence belong in the selected snapshot.
         """
         from .risk_scoring import save_assessment

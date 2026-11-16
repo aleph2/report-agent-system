@@ -40,8 +40,6 @@ def validate_message(model, value):
                     correction = f'Provide {field}. ' + (issue['definition'] or {}).get('description','')
                 else:
                     correction = item['msg'] + ' ' + (issue['definition'] or {}).get('description','')
-                if item['type']=='adopted_grade_not_plausible':
-                    issue['field']=['plausible_grades']
                 issue['correction'] = correction.strip()
             issues.append(issue)
         fields = ', '.join(item['reason'] if 'related_fields' in item else str(item['field']) for item in issues)

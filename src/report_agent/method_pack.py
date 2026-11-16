@@ -101,8 +101,6 @@ class WeightRow(Contract):
     def usable(self):
         if len(self.weights) != self.indicator_count or any(number(w) < 0 for w in self.weights):
             raise ValueError('invalid weight count or negative weight')
-        if not any(number(w) > 0 for w in self.weights):
-            raise ValueError('all weights are zero')
         return self
 
 

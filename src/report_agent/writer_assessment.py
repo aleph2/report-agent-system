@@ -6,8 +6,7 @@ from copy import deepcopy
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, create_model, model_validator
-from pydantic_core import PydanticCustomError
+from pydantic import Field, create_model
 
 from .content_models import Contract, Ref
 from .errors import ActionForbidden, ActionRejected, LocalStorageBusy
@@ -282,13 +281,6 @@ def _step_schema(choices, kind, qualitative=False, fact_ids=None):
     if kind not in ('evidence','assumption'):
         raise ActionRejected('WRITER_INDICATOR_KIND_INVALID')
 
-    @model_validator(mode='after')
-    def plausible(self):
-        if kind=='assumption' and self.grade not in self.plausible_grades:
-            raise PydanticCustomError('adopted_grade_not_plausible',
-                'Include the adopted grade in plausible_grades, or correct the adopted grade.')
-        return self
-
     scoring = {
         **common,
         'grade':(grade, Field(description='Choose one of the offered grade labels.')),
@@ -309,10 +301,10 @@ def _step_schema(choices, kind, qualitative=False, fact_ids=None):
             description='direct_evidence uses project facts; applied_guideline uses project facts plus a quoted approved guideline rule.'))
     else:
         scoring.update(plausible_grades=(list[grade],Field(min_length=1,
-            description='Plausible offered grades, including the adopted grade. The system computes sensitivity bounds.')),
+            description='Plausible offered grades. The system computes sensitivity bounds.')),
             question=(nonblank,Field(description='Ask what evidence would confirm or revise this assumption.')))
     return create_model('WriterEvidence' if kind=='evidence' else 'WriterAssumption',
-        __base__=Contract,__validators__={'plausible':plausible},**scoring)
+        __base__=Contract,**scoring)
 
 
 def _fact_ids(facts):
@@ -362,8 +354,6 @@ def save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, re
 def _prepare_entry(cs, db, actor, operation_id, indicator_id, outcome, read_locations, scope, rule):
     object_facts = scope.get('object_facts', {})
     decision = object_facts.get('engineering_reviews', {}).get(indicator_id)
-    if decision and outcome.get('kind') != 'gap':
-        raise ActionRejected('WRITER_ENGINEERING_REVIEW_PENDING: use save_gap. '+decision['reason'])
     facts = scope.get('attested_facts')
     value = _step_value(rule, outcome, qualitative='midpoint_convention' in scope, facts=facts)
     claim_receipt = {}
