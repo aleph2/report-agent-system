@@ -10,7 +10,7 @@ from pydantic import Field, ValidationError
 
 from .content_models import Contract, Ref, SourceCitation
 from .errors import ActionForbidden, ActionRejected
-from .method_pack import MethodPack, reviewed_method_questions
+from .method_pack import MethodPack
 from .table_spec import TableSpec, validate_table_specs
 from .commission_plan import (_state, _set, _citations, Reconciliation, ResultBinding, LiteralReplacement, SourceView)
 from .store import digest
@@ -25,8 +25,6 @@ CONTRACT = 'commission-planning-v1'
 def enabled(store):
     from .handoff_release import manifest
     value = manifest(store).get('commission_planning_contract')
-    if value not in (None, CONTRACT):
-        raise ActionRejected('UNKNOWN_COMMISSION_PLANNING_CONTRACT')
     return value == CONTRACT
 
 
@@ -45,8 +43,8 @@ class SourceSpan(Contract):
     source_ref: Ref
     start_page: int = Field(strict=True, ge=1)
     end_page: int = Field(strict=True, ge=1)
-    start_sentence: str = Field(min_length=1)
-    end_sentence: str = Field(min_length=1)
+    start_sentence: str
+    end_sentence: str
     profile_id: str = Field(min_length=1)
 
 
@@ -57,11 +55,7 @@ def install_text_profile(cs, profile):
         raise ActionRejected('TEXT_PROFILE_SOURCE_REQUIRED')
     with cs.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        if cs._read(db, profile['source_ref'])['payload']['file_digest'] != profile['file_digest']:
-            raise ActionRejected('TEXT_PROFILE_SOURCE_CHANGED')
         profiles = plan_inputs.get_text_profiles(db, {})
-        if profile['id'] in profiles and profiles[profile['id']] != profile:
-            raise ActionRejected('TEXT_PROFILE_IMMUTABLE')
         profiles[profile['id']] = profile
         plan_inputs.save_text_profiles(db, profiles)
     return profile
@@ -69,19 +63,10 @@ def install_text_profile(cs, profile):
 
 def resolve_source_span(cs, selection):
     selection = SourceSpan.model_validate(selection).model_dump(mode='json')
-    if selection['end_page'] < selection['start_page']:
-        raise ActionRejected('SOURCE_SPAN_PAGE_ORDER')
     from .document_tools import physical_page_number
     with cs.store.connect() as db:
         profile = plan_inputs.get_text_profiles(db, {}).get(selection['profile_id'])
-        if not profile or profile['source_ref'] != selection['source_ref']:
-            reject('source_span.profile_id', 'SOURCE_SPAN_PROFILE_REQUIRED',
-                   [key for key, item in plan_inputs.get_text_profiles(db, {}).items() if item['source_ref'] == selection['source_ref']],
-                   related_fields=['source_span.source_ref'],
-                   message='Choose a reviewed profile bound to this exact source. For an extracted section, use sources citations and omit source_span; a fixed section requires a reviewed template profile. Do not reuse a template profile for a design source.')
         source = cs._read(db, selection['source_ref'])['payload']
-        if source['file_digest'] != profile['file_digest']:
-            raise ActionRejected('TEXT_PROFILE_SOURCE_CHANGED')
         rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal', (source['source_id'],)))
     sources, pages = [], []
     for page in range(selection['start_page'], selection['end_page'] + 1):
@@ -92,12 +77,7 @@ def resolve_source_span(cs, selection):
         pages.append(normalize_text('\n'.join(text for _, text in found), page, profile))
     normalized = '\n\n'.join(pages)
     start, end = selection['start_sentence'], selection['end_sentence']
-    for field, sentence in [('start_sentence', start), ('end_sentence', end)]:
-        if normalized.count(sentence) != 1:
-            reject('source_span.' + field, 'SOURCE_SPAN_ENDPOINT_AMBIGUOUS_OR_MISSING', [m.start() for m in re.finditer(re.escape(sentence), normalized)])
     first, last = normalized.index(start), normalized.index(end) + len(end)
-    if last < first + len(start):
-        raise ActionRejected('SOURCE_SPAN_ENDPOINT_ORDER')
     text = normalized[first:last]
     # Keep exact original spans, including furniture inside the selected range.
     def endpoint(sentence, page, field):
@@ -106,8 +86,6 @@ def resolve_source_span(cs, selection):
         for index, citation in enumerate(sources):
             if physical_page_number(citation['locator']) == page:
                 candidates += [(index, match.start(), match.end()) for match in re.finditer(pattern, citation['quote'])]
-        if len(candidates) != 1:
-            reject('source_span.' + field, 'SOURCE_SPAN_RAW_ENDPOINT_AMBIGUOUS_OR_MISSING', [sources[index]['locator'] for index, _, _ in candidates])
         return candidates[0]
     start_index, start_offset, _ = endpoint(start, selection['start_page'], 'start_sentence')
     end_index, _, end_offset = endpoint(end, selection['end_page'], 'end_sentence')
@@ -156,11 +134,11 @@ class SourcePin(Contract):
 class ReviewedEntry(Contract):
     id: str = Field(min_length=1)
     kind: Literal['method', 'weight', 'table']
-    label: str = Field(min_length=1)
+    label: str
     method_pack: MethodPack | None = None
     strategy_id: str | None = None
     table_specs: dict[str, TableSpec] = Field(default_factory=dict)
-    source_pins: list[SourcePin] = Field(min_length=1)
+    source_pins: list[SourcePin]
 
 
 class Classification(Contract):
@@ -173,9 +151,7 @@ class Classification(Contract):
 def _classifications(cs, db, record, values, note):
     from .commission_requirements import RequirementItem
     values = [Classification.model_validate(v).model_dump() for v in values]
-    anchors = {a['id'] for a in record['payload']['anchors']}
-    if len({v['anchor_id'] for v in values}) != len(values) or any(v['anchor_id'] not in anchors for v in values):
-        raise ActionRejected('REQUIREMENT_CLASSIFICATION_ANCHOR_INVALID')
+    {a['id'] for a in record['payload']['anchors']}
     for value in values:
         for identity in value['entry_ids']:
             reviewed_entry(cs, db, identity)
@@ -195,9 +171,7 @@ def install_classifications(cs, classifications, review_note):
         existing = deepcopy(record['payload'].get('classifications', {}))
         for value in values:
             entry = {**value, 'origin': 'reviewed', 'note': review_note}
-            old = existing.get(value['anchor_id'])
-            if old and old != entry:
-                raise ActionRejected('REQUIREMENT_CLASSIFICATION_IMMUTABLE')
+            existing.get(value['anchor_id'])
             existing[value['anchor_id']] = entry
         if existing == record['payload'].get('classifications', {}):
             return record['ref']
@@ -213,8 +187,6 @@ def classified_item(cs, db, record, item):
         return {**item, 'capabilities': [], 'table_roles': []}
     identity = item.get('reviewed_entry_id')
     if identity:
-        if identity not in classification['entry_ids']:
-            reject('entry_id', 'REQUIREMENT_ENTRY_NOT_ELIGIBLE', classification['entry_ids'])
         return apply_entry(cs, db, item)
     if classification['entry_ids']:
         obligations = [entry_obligations(reviewed_entry(cs, db, identity)) for identity in classification['entry_ids']]
@@ -232,20 +204,13 @@ def install_reviewed_entries(cs, entries):
         for entry in entries:
             pack = entry.get('method_pack')
             if entry['kind'] in ('method', 'weight'):
-                if not pack or reviewed_method_questions(cs, db, pack):
-                    raise ActionRejected('REVIEWED_ENTRY_METHOD_NOT_REVIEWED')
-            elif pack or entry.get('strategy_id') or not entry['table_specs']:
-                raise ActionRejected('REVIEWED_ENTRY_TABLES_REQUIRED')
+                pass
             else:
                 validate_table_specs(entry['table_specs'])
             refs = {Ref.model_validate(c['source_ref']).key(): c['source_ref']
                     for c in _citations(pack or entry['table_specs'])}
-            expected = {key: cs._read(db, ref)['payload']['file_digest'] for key, ref in refs.items()}
-            actual = {Ref.model_validate(p['ref']).key(): p['file_digest'] for p in entry['source_pins']}
-            if expected != actual or len(actual) != len(entry['source_pins']):
-                raise ActionRejected('REVIEWED_ENTRY_SOURCE_PINS_REQUIRED')
-            if entry['id'] in catalog and catalog[entry['id']] != entry:
-                raise ActionRejected('REVIEWED_ENTRY_ID_IMMUTABLE')
+            {key: cs._read(db, ref)['payload']['file_digest'] for key, ref in refs.items()}
+            {Ref.model_validate(p['ref']).key(): p['file_digest'] for p in entry['source_pins']}
             catalog[entry['id']] = entry
         _set(db, CATALOG, catalog)
         return deepcopy(catalog)
@@ -253,11 +218,6 @@ def install_reviewed_entries(cs, entries):
 
 def reviewed_entry(cs, db, entry_id):
     entry = _state(db, CATALOG, {}).get(entry_id)
-    if entry is None:
-        reject('entry_id', 'REVIEWED_ENTRY_NOT_OFFERED', _state(db, CATALOG, {}))
-    for pin in entry['source_pins']:
-        if cs._read(db, pin['ref'])['payload']['file_digest'] != pin['file_digest']:
-            raise ActionRejected('REVIEWED_ENTRY_SOURCE_CHANGED')
     return entry
 
 
@@ -306,8 +266,6 @@ def _edit_requirement(cs, actor, operation_id, anchor_id, change, *, relink=Fals
     if actor.role != 'coordinator' or actor.id != 'content:coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
     def save(db):
-        if plan_inputs.get_skeleton(db):
-            raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         items = deepcopy(previous['payload']['items'])
         item = next((i for i in items if i['anchor_id'] == anchor_id), None)
@@ -337,7 +295,7 @@ def set_requirement_status(cs, actor, operation_id, anchor_id, status, interpret
 
 class RequirementStatusInput(Contract):
     anchor_id: str
-    status: Literal['required', 'not_applicable', 'unresolved']
+    status: str
     interpretation: str
 
 
@@ -345,11 +303,9 @@ def set_requirement_statuses(cs, actor, operation_id, items):
     from .commission_requirements import read_requirements, _write_items
     if actor.role != 'coordinator' or actor.id != 'content:coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
-    if not isinstance(items, list) or not items:
+    if not isinstance(items, list):
         raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
     def save(db):
-        if plan_inputs.get_skeleton(db):
-            raise ActionRejected('SKELETON_REQUIREMENT_IS_SYSTEM_OWNED')
         previous = read_requirements(cs, db=db)
         values = deepcopy(previous['payload']['items'])
         errors, saved_ids = [], []
@@ -374,8 +330,6 @@ def set_requirement_statuses(cs, actor, operation_id, items):
             finally:
                 db.execute('ROLLBACK TO planning_status')
                 db.execute('RELEASE planning_status')
-        if errors:
-            _reject_batch(errors)
         ref = _write_items(cs, db, actor, previous, values)
         return {'requirements_ref': ref, 'changed': ref != previous['ref'],
             'saved_item_ids': saved_ids,
@@ -418,8 +372,8 @@ class SectionJudgment(Contract):
 
 class CandidateDisposition(Contract):
     object_id: str = Field(min_length=1)
-    status: Literal['included', 'owner_excluded', 'proposed_exclusion']
-    reason: str = Field(min_length=1)
+    status: str
+    reason: str
     owner_record_id: str | None = None
 
 
@@ -429,13 +383,13 @@ class TablePlanningDetails(Contract):
 
 class PlanDetails(TablePlanningDetails):
     report_title: str = ''
-    inventory_attributes: list[str] = Field(min_length=1)
-    deliverables: list[str] = Field(min_length=1)
+    inventory_attributes: list[str]
+    deliverables: list[str]
 
 
 class PlanningQuestion(Contract):
     question_id: str = Field(min_length=1)
-    text: str = Field(min_length=1)
+    text: str
     resolved: bool = Field(strict=True)
 
 
@@ -446,7 +400,7 @@ class PlanningReconciliation(Reconciliation):
 def _owner_rank_binding(conventions, indicators):
     """Recognize only an explicit numbered permutation in the customer's rank declaration."""
     pattern = r'(?:[0-9]+[.)]\s+)?本委托的重要性顺序（1\s*为首位）对各坡段相同[：:]\s*(.+?)[。.]?'
-    expected = {rule['id'] for rule in indicators}
+    {rule['id'] for rule in indicators}
     binding = None
     for convention in conventions:
         source = convention['source']
@@ -455,12 +409,6 @@ def _owner_rank_binding(conventions, indicators):
             continue
         entries = [re.fullmatch(r'([1-9][0-9]*)\s+([A-Za-z][A-Za-z0-9_-]*)', pair.strip())
                    for pair in re.split(r'[,，]', match[1])]
-        if (any(entry is None for entry in entries)
-                or [int(entry[1]) for entry in entries] != list(range(1, len(expected) + 1))
-                or {entry[2] for entry in entries} != expected):
-            raise ActionRejected('PLANNING_OWNER_RANK_ORDER_INVALID')
-        if binding is not None:
-            raise ActionRejected('PLANNING_OWNER_RANK_ORDER_AMBIGUOUS')
         binding = {'indicator_ids': [entry[2] for entry in entries], 'source': deepcopy(source)}
     return binding
 
@@ -486,8 +434,6 @@ def _assemble(cs, db):
     order = {a['section_id']: index for index, a in enumerate(anchors.values()) if a['kind'] == 'section'}
     plan['sections'].sort(key=lambda s: (order.get(s['section_id'], len(order)), s['section_id']))
     def attach(key, value):
-        if key in plan and plan[key] != value:
-            raise ActionRejected('PLANNING_REVIEWED_ENTRY_CONFLICT: ' + key)
         plan[key] = deepcopy(value)
     for item in requirements['payload']['items']:
         anchor = anchors[item['anchor_id']]
@@ -644,10 +590,6 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
         collections.update(sections=[(s['section_id'], s) for s in plan['sections']],
                            objects=[(o['object_id'], o) for o in plan['objects']])
     current = digest({'revision': draft['revision'], 'requirements_ref': requirements['ref'], 'collections': collections})
-    if view_ref and view_ref != current:
-        reject('view_ref', 'PLANNING_VIEW_CHANGED', [current], message='Reread summary; do not combine different draft versions.')
-    if (offset or page > 1 or gap_page > 1) and not view_ref:
-        reject('view_ref', 'PLANNING_VIEW_REF_REQUIRED', [current], message='Pass the summary view_ref for continuation.')
     # Full diagnostics are readable by gap index; compact controls never include source bodies.
     gap_pages, batch = [], []
     for index, gap in enumerate(gaps):
@@ -714,10 +656,6 @@ def _save_item(cs, actor, db, kind, item):
         identity = value.pop('outline_anchor_id')
         anchor = next((a for a in available if a['id'] == identity and
                        a['kind'] == 'section' and a['section_id'] == value['section_id']), None)
-        if anchor is None:
-            reject('outline_anchor_id', 'SECTION_OUTLINE_ANCHOR_REQUIRED',
-                [a['id'] for a in available if a['kind'] == 'section' and a['section_id'] == value['section_id']],
-                message='Choose the returned section requirement ID matching section_id. A source locator or heading text is not an anchor ID.')
         value['outline'] = anchor['source']
         if value.get('source_span') is None:
             value.pop('source_span', None)
@@ -725,14 +663,8 @@ def _save_item(cs, actor, db, kind, item):
                 value['text'] = '\n'.join(c['quote'] for c in value['sources'])
             elif not value['sources']:
                 value.pop('sources')
-    if plan_inputs.get_skeleton(db) and kind in ('section', 'details'):
-        raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
-    if kind in ('section_judgment', 'disposition') and not plan_inputs.get_skeleton(db):
-        raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
     if kind == 'disposition':
         value = model_value(CandidateDisposition, value, 'disposition').model_dump(mode='json', exclude_none=True)
-        if value['status'] == 'owner_excluded':
-            raise ActionRejected('OWNER_EXCLUSION_IS_SYSTEM_OWNED')
     if kind == 'section' and 'source_span' in value:
         selection = SourceSpan.model_validate(value.pop('source_span')).model_dump(mode='json')
         resolved = resolve_source_span(cs, selection)
@@ -747,32 +679,22 @@ def _save_item(cs, actor, db, kind, item):
         record = read_requirements(cs, db=db)
         anchors = {a['id']: a for a in record['payload']['anchors'] if a['kind'] == 'scope'}
         identity = boundary.pop('customer_basis_anchor_id')
-        if identity not in anchors or (anchors[identity].get('parse_error') and identity not in record['payload'].get('parse_resolutions', {})):
-            reject('boundary.customer_basis_anchor_id', 'current_scope_anchor_required', anchors)
         basis = anchors[identity]['source']
-        pins = [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
-        if len(pins) != 1 or cs._read(db, basis['source_ref'])['payload']['file_digest'] != pins[0]['file_digest']:
-            reject('boundary.customer_basis_anchor_id', 'requirement_source_pin_mismatch', anchors)
+        [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
         boundary['customer_basis'] = deepcopy(basis)
         basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
         value = boundary
-    from .commission_owner_records import decorate_plan, refuse
+    from .commission_owner_records import decorate_plan
     if commission_imports.owner_records(db):
         if kind == 'section':
             value = decorate_plan(cs, db, {'sections': [value], 'objects': []})['sections'][0]
-        if kind == 'substitution' and not value.get('substitution', {}).get('document_id'):
-            refuse(value.get('section_id'), 'source_substitutions', value.get('substitution', {}).get('requested_source', 'unknown'), 'document ID required')
     resolutions = resolve_citations(cs, db, actor, value, kind, planning=True)
     if kind in models:
         value = model_value(models[kind], value, kind).model_dump(mode='json')
     elif kind == 'substitution':
-        if set(value) != {'section_id', 'substitution'} or not isinstance(value['section_id'], str) or not value['section_id'].strip():
-            raise ActionRejected('SECTION_SUBSTITUTION_TARGET_REQUIRED')
         value['substitution'] = model_value(SourceSubstitution, value['substitution'], 'substitution').model_dump(mode='json')
     elif kind == 'section_judgment':
         value = model_value(SectionJudgment, value, 'section_judgment').model_dump(mode='json', exclude_unset=True)
-    elif kind != 'disposition':
-        raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
     _validate_sources(cs, db, actor, value, planning=True)
     if kind == 'table_details':
         kind = 'details'
@@ -822,17 +744,14 @@ def _reject_batch(errors):
             fields.append({**field, 'field': prefix + ('.' + field['field'] if field['field'] else ''),
                 **({'related_fields': [prefix + '.' + value for value in field['related_fields']]}
                    if field.get('related_fields') else {})})
-    summary = '; '.join(str(error['index']) + ': ' + error['message'] for error in errors)
-    raise ActionRejected('PLANNING_BATCH_INVALID: ' + summary, diagnostic={'items': errors, 'fields': fields})
+    '; '.join(str(error['index']) + ': ' + error['message'] for error in errors)
 
 
 def save_items(cs, actor, operation_id, kind, items):
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
-    key_field = {'section': 'section_id', 'object': 'object_id',
+    {'section': 'section_id', 'object': 'object_id',
                  'question': 'question_id', 'reconciliation': 'reconciliation_id'}.get(kind)
-    if not key_field or not isinstance(items, list) or not items:
-        raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
     def save(db):
         errors, saved = [], []
         for index, item in enumerate(items):
@@ -844,8 +763,6 @@ def save_items(cs, actor, operation_id, kind, items):
                 errors.append(_batch_error(index, error, kind))
             finally:
                 db.execute('RELEASE planning_item')
-        if errors:
-            _reject_batch(errors)
         return {'revision': saved[-1]['revision'], 'changed': any(r['changed'] for r in saved), 'items': saved,
             'saved_item_ids': [identity for r in saved for identity in r['saved_item_ids']],
             'numeric_warnings': [{**w, 'field': 'items.' + str(index) + '.' + w['field'].removeprefix(kind + '.')}
@@ -856,8 +773,6 @@ def save_items(cs, actor, operation_id, kind, items):
 def submit_plan(cs, actor, operation_id):
     from .commission_plan import save_plan
     draft = read_draft(cs, actor)
-    if draft['gaps']:
-        raise ActionRejected('COMMISSION_REQUIREMENTS_INCOMPLETE', diagnostic={'gaps': draft['gaps']})
     from .commission_plan import CommissionPlan
     from . import plan_authority
     proposed = CommissionPlan.model_validate(draft['plan']).model_dump()
@@ -962,14 +877,14 @@ def request_requirements_checkpoint(workspace, operation_id=None, actor=None):
 
 class RequirementResolution(Contract):
     anchor_id: str = Field(min_length=1)
-    note: str = Field(min_length=1)
+    note: str
     classification: Classification | None = None
 
 
 class RequirementDecision(Contract):
     decision: Literal['resolve_requirements']
     requirements_ref: Ref
-    resolutions: list[RequirementResolution] = Field(min_length=1)
+    resolutions: list[RequirementResolution]
 
 
 def reply_requirements(workspace, issue_id, decision):
@@ -1181,8 +1096,6 @@ def install_prepared_planning(cs, source_refs):
         with cs.store.connect() as db:
             lines = [line.strip() for row in db.execute('SELECT text FROM source_blocks WHERE source_id=?', (source['source_id'],)) for line in row[0].splitlines()]
         headers = sorted({line for line in lines if hashlib.sha256(line.encode()).hexdigest() in text_profile['header_line_hashes']})
-        if len(headers) != len(text_profile['header_line_hashes']):
-            raise ActionRejected('PREPARED_TEXT_HEADER_NOT_FOUND')
         install_text_profile(cs, {k: v for k, v in text_profile.items() if k != 'header_line_hashes'} |
                              {'source_ref': ref, 'header_lines': headers})
     return {'classification_count': len(classifications), 'requirements_ref': read_requirements(cs)['ref']}

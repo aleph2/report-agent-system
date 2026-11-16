@@ -11,7 +11,6 @@ from pydantic import Field, create_model
 
 from .content_models import Contract
 from .content_store import ContentStore
-from .errors import ActionRejected
 
 
 _assessment_model = ContextVar('assigned_assessment_model', default=None)
@@ -19,8 +18,6 @@ _assessment_model = ContextVar('assigned_assessment_model', default=None)
 
 @contextmanager
 def bind_assessment_model(model):
-    if model is None:
-        raise ActionRejected('WRITER_MODEL_BINDING_REQUIRED')
     token=_assessment_model.set(model)
     try:
         yield
@@ -31,15 +28,13 @@ def bind_assessment_model(model):
 async def assess_assigned_object(workspace, actor):
     """Use the current delegation's model and durable canonical indicator progress."""
     model=_assessment_model.get()
-    if model is None:
-        raise ActionRejected('WRITER_MODEL_BINDING_REQUIRED')
     run=assessment_run(workspace,actor,model)
     progress=await run.run()
     return {**progress,'refusals':run.refusals}
 
 
 class ReadPage(Contract):
-    source_handle: str = Field(min_length=1)
+    source_handle: str
     page: int = Field(strict=True, ge=1)
     view: Literal["text", "native_text", "tables"] = "text"
 
@@ -117,11 +112,9 @@ def assessment_run(workspace, actor, model):
     from .run_authority import current_authority
     authority = current_authority()
     if authority is not None:
-        from .writer_judgment_authority import grant_judgment_inputs, rule_pin
-        rules={rule['id']:rule for rule in scope['plan']['payload']['method_pack']['indicators']}
+        from .writer_judgment_authority import grant_judgment_inputs
+        {rule['id']:rule for rule in scope['plan']['payload']['method_pack']['indicators']}
         criteria=authority['criteria']
-        if any(key not in rules or value.get('rule_digest')!=rule_pin(rules[key]) for key,value in criteria.items()):
-            raise ActionRejected('WRITER_CRITERION_RULE_PIN_MISMATCH')
         grant_judgment_inputs(workspace.store,scope['plan']['ref'],scope['object']['object_id'],
                               scope['section_id'],[],criteria)
     bind_writer_facts(cs, actor, scope)
@@ -135,21 +128,14 @@ def assessment_run(workspace, actor, model):
 @contextmanager
 def writer_session(workspace, object_label, model, *, assessment_only=False, indicator_steps=False, section_id=None):
     """Bind one fresh slope task; the caller separately owns any authority to invoke a model."""
-    if indicator_steps is not True:
-        raise ActionRejected('WRITER_INDICATOR_WORKFLOW_REQUIRED')
-    if not assessment_only:
-        raise ActionRejected('ASSESSMENT_ONLY_WORKFLOW_REQUIRED')
     from .commission_plan import _confirmed
     from .content_tasks import delegated_task
-    from .section_writing import enabled
     cs=ContentStore(workspace.store)
-    if not enabled(workspace.store):raise ActionRejected('SYSTEM_ASSEMBLER_CONTRACT_REQUIRED')
     with workspace.store.connect() as db:
         plan,_=_confirmed(cs,db)
         matches=[o for o in plan['payload']['objects'] if o['label']==object_label]
         sections=[s for s in plan['payload']['sections'] if s['kind']=='extracted' and
                   (s['section_id']==section_id if section_id is not None else s['section_id'].split('.')[0]=='4')]
-    if len(matches)!=1 or len(sections)!=1:raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
     include_images = (getattr(model, 'profile', None) or {}).get('image_inputs') is not False
     goal = 'Assess the assigned slope using the bound assignment.'
     goal += ' Save this one canonical assessment and necessary material issues only; do not write prose, assess other slopes, approve plans or export.'

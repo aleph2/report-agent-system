@@ -13,8 +13,6 @@ def _grid(boxes, bbox):
     x0,y0,x1,y1=bbox
     rows=[0]*GRID
     for a,b,c,d in boxes:
-        if not all(math.isfinite(v) for v in (a,b,c,d)):
-            raise ValueError('Nonfinite geometry')
         left=max(0,min(GRID,math.floor((a-x0)*GRID/(x1-x0))))
         right=max(0,min(GRID,math.ceil((c-x0)*GRID/(x1-x0))))
         top=max(0,min(GRID,math.floor((b-y0)*GRID/(y1-y0))))
@@ -29,7 +27,6 @@ def observe(page):
     try:
         visible=page.crop(page.cropbox) if page.cropbox!=page.bbox else page
         bbox=visible.bbox
-        if bbox[2]<=bbox[0] or bbox[3]<=bbox[1]:raise ValueError('Empty page')
         box=lambda obj:(obj['x0'],obj['top'],obj['x1'],obj['bottom'])
         images=[box(obj) for obj in visible.images]
         vectors=[box(obj) for obj in visible.rects+visible.curves+visible.lines]

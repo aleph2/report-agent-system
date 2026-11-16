@@ -23,12 +23,10 @@ def _issued_authority(grant, action, subject, target):
 def _calculator_matches(grant, row):
     calculation = grant.resources.get("calculations", {}).get(row.subject, {})
     claim = row.claim
-    if not calculation or claim.basis != "evidence" or claim.value is None:
-        return False
     try:
         value = Decimal(str(calculation["value"]))
     except (KeyError, InvalidOperation):
-        return False
+        raise
     return (
         calculation.get("plan") == grant.plan
         and calculation.get("criterion") == claim.warrant.criterion

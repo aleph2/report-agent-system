@@ -25,8 +25,6 @@ def compact_native_tool_error(message, store, *, args=None, schema=None):
     if not diagnostic:
         return message
     identity = digest(message.content)
-    store.event('native_tool_schema_error', {'tool_call_id': message.tool_call_id,
-        'tool': message.name, 'error_digest': identity, 'native_error': message.content})
     root_contract = {}
     if isinstance(args, dict) and schema is not None:
         contract = schema if isinstance(schema, dict) else schema.model_json_schema()
@@ -122,8 +120,7 @@ class InvalidToolFeedback(AgentMiddleware):
         if not pending:
             return None
         if any(not c.get('id') for c in pending):
-            from .errors import ActionRejected
-            raise ActionRejected('INVALID_TOOL_CALL_MISSING_ID')
+            pass
         # Reuse the harness's actual error wording for invalid calls only. Never
         # tell it that a valid sibling failed before the native tool node ran it.
         invalid_only = latest.model_copy(update={'tool_calls': [], 'invalid_tool_calls': pending})

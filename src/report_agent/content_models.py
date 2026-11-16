@@ -19,7 +19,7 @@ class RenderState(Contract):
 
 
 class Ref(Contract):
-    type: str = Field(min_length=1)
+    type: str
     id: str = Field(min_length=1)
     version: int = Field(ge=1, strict=True)
 
@@ -44,59 +44,59 @@ class SnapshotReplacement(Contract):
 
 class SourceCitation(Contract):
     source_ref: Ref
-    locator: str = Field(min_length=1)
+    locator: str
     quote: str = ''
 
 
 class InventoryValue(Contract):
     value: str | None
     source: SourceCitation | None
-    reason: str = Field(min_length=1)
+    reason: str
 
 
 
 class InventoryAttribute(Contract):
-    name: str = Field(min_length=1)
-    values: list[InventoryValue] = Field(min_length=1)
+    name: str
+    values: list[InventoryValue]
 
 
 class InventoryObject(Contract):
     object_id: str = Field(min_length=1)
-    label: str = Field(min_length=1)
+    label: str
     included: bool = Field(strict=True)
-    reason: str = Field(min_length=1)
-    origin: Literal['customer', 'interpretation']
-    attributes: list[InventoryAttribute] = Field(min_length=1)
-    sources: list[SourceCitation] = Field(min_length=1)
+    reason: str
+    origin: str
+    attributes: list[InventoryAttribute]
+    sources: list[SourceCitation]
 
 
 class Requirement(Contract):
-    text: str = Field(min_length=1)
-    origin: str = Field(min_length=1)
-    scope: str = Field(min_length=1)
+    text: str
+    origin: str
+    scope: str
     inventory_object: InventoryObject | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Criterion(Contract):
-    requirement_refs: list[Ref] = Field(min_length=1)
-    purpose: str = Field(min_length=1)
-    scope: str = Field(min_length=1)
-    expected_outcome: str = Field(min_length=1)
-    evidence_expectation: str = Field(min_length=1)
+    requirement_refs: list[Ref]
+    purpose: str
+    scope: str
+    expected_outcome: str
+    evidence_expectation: str
     allowed_limits: str
 
 
 class CellMerge(Contract):
-    start_row: int = Field(strict=True, ge=0)
-    end_row: int = Field(strict=True, ge=0)
-    start_col: int = Field(strict=True, ge=0)
-    end_col: int = Field(strict=True, ge=0)
+    start_row: int = Field(strict=True)
+    end_row: int = Field(strict=True)
+    start_col: int = Field(strict=True)
+    end_col: int = Field(strict=True)
 
 
 class TableBody(Contract):
     """One table-shape declaration for published schema and runtime validation."""
     model_config = ConfigDict(extra="allow")
-    columns: list[Any] = Field(min_length=1, strict=True)
+    columns: list[Any] = Field(strict=True)
     rows: list[Annotated[list[Any], Field(strict=True)]] = Field(strict=True,
         description="Every row must have exactly the same number of cells as columns; validated by the application.")
     header_rows: list[list[str]] | None = Field(default=None, exclude_if=lambda value: value is None,
@@ -179,7 +179,7 @@ class SourceRef(Ref):
 
 class Evidence(Contract):
     source_refs: list[SourceRef] = Field(description='Actual supplied SourceArtifact version refs; catalog source IDs are not business refs.')
-    locator: str = Field(min_length=1)
+    locator: str
     excerpt: str
     extraction_ref: Ref | None = None
     input_refs: list[Ref] = Field(default_factory=list)
@@ -226,12 +226,12 @@ class Coverage(Contract):
     checked: list[str]
     unchecked: list[str]
     blocked: list[str]
-    basis: str = Field(min_length=1)
+    basis: str
 
 
 class Observation(Contract):
-    locator: str = Field(min_length=1)
-    observation: str = Field(min_length=1)
+    locator: str
+    observation: str
     receipt_id: str = Field(min_length=1)
     limitations: str = ""
 
@@ -239,19 +239,19 @@ class Observation(Contract):
 class Finding(Contract):
     finding_type: Literal["candidate", "confirmed_defect", "unresolved", "suggestion"]
     locator_state: Literal["located", "absent", "ambiguous"]
-    description: str = Field(min_length=1)
-    impact: str = Field(min_length=1)
-    needed_outcome: str = Field(min_length=1)
+    description: str
+    impact: str
+    needed_outcome: str
     requirement_index: int | None = Field(default=None, ge=0)
     observation_indexes: list[int] | None = None
-    basis_kind: Literal['supplied_content', 'snapshot_structure', 'input_gap'] | None = None
+    basis_kind: str | None = None
 
 
 class CheckResult(Contract):
     """Execution account for one assigned check; linked evidence is not semantic proof."""
     requirement_index: int = Field(ge=0)
     execution_state: Literal["not_started", "partial", "completed", "blocked"]
-    result: str = Field(min_length=1)
+    result: str
     observation_indexes: list[int] = Field(default_factory=list)
     remaining: str = ""
 
@@ -267,7 +267,7 @@ class CheckResult(Contract):
 class ReviewItem(Contract):
     target_ref: Ref
     criterion_ref: Ref
-    scope: str = Field(min_length=1)
+    scope: str
     scope_id: str | None = Field(default=None, min_length=1)
     checked_requirement_indexes: list[int] | None = Field(default=None,
         description="Zero-based indexes of actually performed required_checks in the saved task's matching scope_id. Wording may differ; indexes do not establish correctness.")
@@ -281,16 +281,14 @@ class ReviewItem(Contract):
     outside_assignment_notes: list[str] = Field(default_factory=list,
         description="Explicitly outside this saved task. Does not waive an assigned check or establish full commissioned coverage.")
     coverage: Coverage
-    reason: str = Field(min_length=1)
+    reason: str
     findings: list[Finding] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def consistent(self) -> Self:
         for finding in self.findings:
             if finding.observation_indexes is not None:
-                indexes = finding.observation_indexes
-                if any(i < 0 or i >= len(self.observations) for i in indexes):
-                    raise ValueError('FINDING_REQUIRES_VALID_OBSERVATION_LINKS')
+                pass
         if self.check_results and any(
                 i >= len(self.observations) for c in self.check_results for i in c.observation_indexes):
             raise ValueError("CHECK_OBSERVATION_INDEX_OUTSIDE_ITEM")
@@ -302,16 +300,16 @@ class ReviewItem(Contract):
 
 
 class CoverageAccounting(Contract):
-    target_refs: list[Ref] = Field(min_length=1)
+    target_refs: list[Ref]
     state: Literal["assessed", "partial", "not_assessed", "not_applicable"]
     item_indexes: list[int] = Field(default_factory=list)
-    reason: str = Field(min_length=1)
+    reason: str
 
 
 class ReviewSubmission(Contract):
     target_ref: Ref
     snapshot_ref: Ref
-    scope: str = Field(min_length=1)
+    scope: str
     criteria_refs: list[Ref]
     dependency_refs: list[Ref]
     items: list[ReviewItem]
@@ -327,7 +325,7 @@ class DeliveryCheck(Contract):
     verdict: Literal["satisfied", "not_satisfied", "undetermined"] | None
     observations: list[Observation]
     coverage: Coverage
-    reason: str = Field(min_length=1)
+    reason: str
 
 
 

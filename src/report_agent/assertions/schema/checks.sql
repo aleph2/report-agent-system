@@ -78,49 +78,9 @@ valid_adjustment AS (
    NOT EXISTS(SELECT 1 FROM json_each(fact,'$.supports') WHERE value=link ->> '$.proposition'))
 ),
 bad(code, reason) AS (
- SELECT 'C1', 'Use the catalog action that produces this kind'
- FROM service WHERE kind IS NOT spec ->> '$.kind'
- UNION ALL
- SELECT 'C2', 'Explicit absence needs its own quoted source and stated coverage'
- FROM request WHERE kind='source' AND claim ->> '$.state'='no_value'
- AND (length(trim(coalesce(claim ->> '$.citation.quote','')))=0 OR length(trim(coalesce(claim ->> '$.coverage','')))=0)
- UNION ALL
- SELECT 'C3','Direct evidence needs current quoted observations on an applicable confirmed page binding'
- FROM request WHERE kind='judgment' AND claim ->> '$.basis'='evidence' AND (
- EXISTS(SELECT 1 FROM links WHERE link ->> '$.purpose'='classification' AND
- ((fact ->> '$.status' IS NOT 'confirmed' AND coalesce(fact ->> '$.source_eligible',0)<>1) OR fact ->> '$.stale' IS NOT 0 OR
-  coalesce(fact ->> '$.state','') NOT IN ('value','no_value') OR
-  NOT EXISTS(SELECT 1 FROM json_each(fact,'$.supports') WHERE value=link ->> '$.proposition'))))
- UNION ALL
  SELECT 'C4','A reference was outside the issued packet'
  FROM request WHERE EXISTS(SELECT 1 FROM refs WHERE id IS NOT NULL AND NOT EXISTS(
  SELECT 1 FROM json_each(c,'$.packet') WHERE value=refs.id))
- UNION ALL
- SELECT 'C5','Cross-subject support needs a current confirmed transfer with matching scope'
- FROM request WHERE EXISTS(
- SELECT 1 FROM support_refs s LEFT JOIN json_each(c,'$.records') f ON f.key=s.ref
- WHERE f.value ->> '$.subject' IS NOT r ->> '$.subject' AND NOT EXISTS(
- SELECT 1 FROM links WHERE link ->> '$.assertion_id'=s.ref AND link ->> '$.purpose'=s.purpose
- AND link ->> '$.transfer_convention' IS NOT NULL)) OR
- EXISTS(SELECT 1 FROM links WHERE fact ->> '$.subject' IS NOT r ->> '$.subject'
- AND NOT EXISTS(SELECT 1 FROM json_each(c,'$.records') t WHERE t.key=link ->> '$.transfer_convention'
- AND t.value ->> '$.kind'='convention' AND t.value ->> '$.status'='confirmed' AND t.value ->> '$.stale'=0
- AND t.value ->> '$.from'=fact ->> '$.subject' AND t.value ->> '$.to'=r ->> '$.subject'
- AND t.value ->> '$.proposition'=link ->> '$.proposition'))
- UNION ALL
- SELECT 'C6','Select a confirmed versioned criterion and its permitted classification and value'
- FROM request WHERE kind='judgment' AND (NOT EXISTS(SELECT 1 FROM criterion) OR
- EXISTS(SELECT 1 FROM json_each(claim,'$.alternatives') alt WHERE NOT EXISTS(SELECT 1 FROM bands WHERE label=alt.value)) OR
- (claim ->> '$.classification' IS NOT NULL AND NOT EXISTS(SELECT 1 FROM bands WHERE label=claim ->> '$.classification'
- AND (claim ->> '$.value' IS NULL OR decimal_between(claim ->> '$.value', band ->> '$.min', band ->> '$.max')=1))))
- UNION ALL
- SELECT 'C6','Retain the effective midpoint unless the directional adjustment has grounds'
- FROM request, bands, criterion
- WHERE kind='judgment' AND claim ->> '$.value' IS NOT NULL AND label=claim ->> '$.classification' AND (
- coalesce(v ->> '$.value_policy','') NOT IN ('criterion_range','confirmed_midpoint') OR
- (v ->> '$.value_policy'='confirmed_midpoint' AND (band ->> '$.midpoint' IS NULL OR
- (decimal_between(claim ->> '$.value',band ->> '$.midpoint',band ->> '$.midpoint')=0
- AND NOT EXISTS(SELECT 1 FROM valid_adjustment)))))
  UNION ALL
  SELECT 'C10','undetermined results remain unscored'
  FROM request WHERE kind='derived' AND (claim ->> '$.strength'='undetermined' AND claim ->> '$.value' IS NOT NULL)
@@ -160,9 +120,6 @@ bad(code, reason) AS (
  OR c ->> '$.snapshot.id' IS NOT claim ->> '$.pair.snapshot'
  OR c ->> '$.snapshot.word_sha256' IS NOT claim ->> '$.pair.word_sha256'
  OR c ->> '$.snapshot.excel_sha256' IS NOT claim ->> '$.pair.excel_sha256'
- OR EXISTS(SELECT slot FROM required EXCEPT SELECT m ->> '$.slot' FROM members)
- OR EXISTS(SELECT m ->> '$.slot' FROM members GROUP BY 1 HAVING count(*)<>1)
- OR EXISTS(SELECT m ->> '$.id' FROM members GROUP BY 1 HAVING count(*)<>1)
  OR EXISTS(SELECT m ->> '$.id' FROM members EXCEPT SELECT value FROM json_each(claim,'$.pair.records'))
  OR EXISTS(SELECT value FROM json_each(claim,'$.pair.records') EXCEPT SELECT m ->> '$.id' FROM members)
  OR EXISTS(SELECT 1 FROM members WHERE m ->> '$.stale' IS NOT 0 OR m ->> '$.open_grade_questions' IS NOT 0

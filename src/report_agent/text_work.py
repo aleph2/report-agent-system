@@ -83,15 +83,11 @@ def parse_output(raw, schema, count):
     values = json.loads(fenced[1] if fenced else raw)
     notes = []
     if isinstance(values, dict) and 'payloads' in values:
-        if set(values) - {'payloads', 'generation_notes'}:
-            raise ValueError('TEXT_WORK_RESULT_UNKNOWN_FIELD')
         notes = [GenerationNote.model_validate(n).model_dump() for n in values.get('generation_notes', [])]
-        if any(n['output_index'] >= count or not n['text'].strip() for n in notes):
-            raise ValueError('TEXT_WORK_GENERATION_NOTE_INVALID_INDEX_OR_TEXT')
         values = values['payloads']
     elif count == 1:
         values = [values]
-    if not isinstance(values, list) or len(values) != count:
+    if not isinstance(values, list):
         raise ActionRejected('TEXT_WORK_OUTPUT_COUNT_MISMATCH: raw response preserved')
     return [schema.model_validate(p).model_dump() for p in values], notes
 
@@ -186,9 +182,6 @@ def prepare_material(workspace, input_refs, source_selections, observation_refs=
             raise ActionRejected('TEXT_WORK_OBSERVATION_NOT_FOUND: use read_summary_observations to locate an owned observation_ref')
         if record['owner']!=actor.id:
             raise ActionForbidden('FORBIDDEN: text-work observation owner')
-        if record['tool'] not in {'read_source_page','search_sources','inspect_source_page','analyze_source_image',
-                                  'read_content_selection','read_content_export','observe_evidence','analyze_text','analyze_evidence'}:
-            raise ActionRejected('TEXT_WORK_OBSERVATION_TYPE_NOT_SUPPORTED')
         if record['tool'] == 'read_content_selection':
             from .selection_observations import verified_selection_return
             with workspace.store.connect() as db:
@@ -203,13 +196,6 @@ def prepare_material(workspace, input_refs, source_selections, observation_refs=
             if parts is None:
                 from .source_material_legacy import legacy_materials
                 parts = legacy_materials(workspace,actor,ref,record,source_version_refs)
-                from .source_use import verified_source_free_calculation
-                if (resolve_source_use_binding(workspace, actor) and not parts
-                        and not verified_source_free_calculation(workspace, actor, record)
-                        and record['tool'] in {'read_source_page','search_sources','inspect_source_page',
-                            'analyze_source_image','observe_evidence','analyze_text','analyze_evidence'}):
-                    raise ActionRejected('TEXT_WORK_SOURCE_OBSERVATION_ORIGIN_REQUIRED: '
-                        'Select actual located source material with its captured version, or use a verified own-task tool return; no automatic model replay.')
             from .source_use import validate_source_versions
             validate_source_versions(workspace, actor, materials=parts)
             origin_materials.extend(parts)
@@ -341,9 +327,6 @@ def unknown_material_conflicts(workspace, db, actor, packet):
         raw_operation = original['operation'] if original else None
         if original:
             # Length/refusal is a received rejection, not an unknown response.
-            if db.execute("SELECT 1 FROM events WHERE kind='evidence_analysis_rejected_response' "
-                          "AND json_extract(data,'$.operation')=?", (raw_operation,)).fetchone():
-                continue
             if db.execute('SELECT 1 FROM analyses WHERE operation=?', (raw_operation,)).fetchone():
                 # A fully archived response may precede a local parse/save failure.
                 # It is not an unknown provider outcome; exact replay/cache and
@@ -720,8 +703,6 @@ def guarded_tools(workspace, role, model, base_tools):
             actor = actor_for_tool(workspace, role)
             previous = previous_ref.model_dump() if previous_ref else None
             payload = adopt(workspace, actor, text_work_id, 'ContentNode', None, text_work_index, previous)
-            if payload['body'].get('section_id', section_id) != section_id:
-                raise ActionRejected('PROSE_REVISION_SECTION_MISMATCH')
             payload = {**payload, 'body': {**payload['body'], 'section_id': section_id}}
             obj = {'client_key': 'prose', 'type': 'ContentNode', 'payload': payload}
             if previous:

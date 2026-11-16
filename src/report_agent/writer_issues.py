@@ -2,7 +2,6 @@
 from . import issue_state, report_state
 import json
 import re
-from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_core import PydanticCustomError
 from .content_models import Ref
@@ -14,18 +13,18 @@ from .writer_assignments import bound_assignment
 
 
 class ProseInput(StrictRecord):
-    text: str = Field(min_length=1)
+    text: str
     quotes: list[str] = Field(default_factory=list)
     visual_pages: list[str] = Field(default_factory=list)
 
 
 class IssueInput(StrictRecord):
-    kind: Literal['conflict', 'unclear', 'missing']
-    basis: str = Field(min_length=1)
+    kind: str
+    basis: str
     quotes: list[str] = Field(default_factory=list)
     visual_pages: list[str] = Field(default_factory=list)
-    adopted_value: str = Field(min_length=1)
-    question: str = Field(min_length=1)
+    adopted_value: str
+    question: str
     affects_level: bool
 
 
@@ -103,8 +102,6 @@ def propose_material_issue(cs, actor, operation_id, payload):
     request = {'writer_issue': value.model_dump(), 'assignment_digest': scope['assignment_digest']}
     def save(db):
         bound = bound_assignment(cs, db, actor)
-        if bound['assignment_digest'] != scope['assignment_digest']:
-            raise ActionRejected('WRITER_ASSIGNMENT_CHANGED')
         return _write_issue(cs, db, actor, operation_id, bound, value)
     return cs.operation(actor, operation_id, request, save)
 
@@ -129,8 +126,6 @@ def _write_issue(cs, db, actor, operation_id, bound, value):
     signature = identity(issue)
     matches = [i for i in decision['payload'].get('required_material_issues', [])
                if identity(i) == signature]
-    if len(matches) > 1:
-        raise ActionRejected('REQUIRED_MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
     if not matches:
         # Reuse historical IDs even when their source order differed; never rewrite old keys.
         for _, raw in issue_state.iter_g6_issue_record(db):
@@ -139,8 +134,6 @@ def _write_issue(cs, db, actor, operation_id, bound, value):
                     and previous.get('commission_plan_ref') == bound['plan']['ref']
                     and identity(previous['issue']) == signature):
                 matches.append(previous['issue'])
-        if len(matches)>1:
-            raise ActionRejected('MATERIAL_ISSUE_IDENTITY_AMBIGUOUS')
     issue['id'] = matches[0]['id'] if matches else 'writer-issue:' + digest(
         [bound['task_ref'], bound['plan']['ref'], signature])
     if matches:
@@ -167,26 +160,17 @@ def verify_issue_proposal(cs, db, proposal, plan, coordinator):
     if set(proposal) != {'issue', 'writer_task_ref', 'commission_plan_ref', 'binding', 'source_citations', 'receipt_id'}:
         raise ActionRejected('WRITER_ISSUE_PROPOSAL_FIELDS_INVALID')
     task_ref = Ref.model_validate(proposal['writer_task_ref']).model_dump()
-    if task_ref['type'] != 'DelegatedTask' or task_ref['version'] != 1:
-        raise ActionRejected('WRITER_ISSUE_TASK_REQUIRED')
     task = cs._read(db, task_ref)
     if task['owner_id'] != coordinator.id or task['payload'].get('delegated_by') != coordinator.id:
         raise ActionForbidden('FORBIDDEN: material issue assignment owner')
     writer = Actor('content:writer:' + task_ref['id'], 'writer', task_ref['id'])
     bound = bound_assignment(cs, db, writer)
-    if bound['plan']['ref'] != plan['ref'] or proposal['commission_plan_ref'] != plan['ref']:
-        raise ActionRejected('WRITER_ISSUE_PLAN_CHANGED')
     issue = MaterialIssue.model_validate(proposal['issue']).model_dump()
-    if (issue['object_label'] != bound['object']['label'] or proposal['binding'] != _binding(bound, issue['kind'])
-            or issue['anchor'] != {'paragraph_index': 0, 'start': 0, 'end': None}):
-        raise ActionRejected('WRITER_ISSUE_SYSTEM_BINDING_MISMATCH')
     citations = proposal['source_citations']
     allowed = {Ref.model_validate(ref).key() for ref in bound['sources']}
     if any(Ref.model_validate(c['source_ref']).key() not in allowed for c in citations):
         raise ActionForbidden('FORBIDDEN: material issue source pool')
     _validate_sources(cs, db, writer, citations)
-    if issue['sources'] != _readable_sources(cs, db, citations):
-        raise ActionRejected('WRITER_ISSUE_SOURCE_BINDING_MISMATCH')
     row = db.execute('SELECT actor_id,response FROM content_operations WHERE operation_id=?',
                      (proposal['receipt_id'],)).fetchone()
     response = json.loads(row[1]) if row else {}

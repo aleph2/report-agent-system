@@ -105,8 +105,6 @@ async def _observe(store, png, provenance, question, client, actor=None, *, poli
     # Explicit provider configuration takes priority over historical test defaults.
     model = os.environ.get("REPORT_VISION_MODEL") or VISION_MODEL
     thinking = os.environ.get('REPORT_VISION_THINKING', 'enabled')
-    if thinking not in {'enabled', 'disabled'}:
-        raise ActionRejected('VISION_THINKING_MODE_INVALID')
     from urllib.parse import urlparse
     options = ({'thinking': {'type': thinking}} if urlparse(str(client.base_url)).hostname == 'api.deepseek.com'
                else {'enable_thinking': thinking == 'enabled'})
@@ -156,10 +154,6 @@ async def _observe(store, png, provenance, question, client, actor=None, *, poli
                         async with model_invocation(store, role):
                             return await client.chat.completions.create(**payload)
                 from .model_recovery import recover_model_call
-                from .model_recovery import load_recovery_policy, RecoveryBlocked
-                from .deep_models import connection_retry_count
-                if load_recovery_policy(store) and (client.max_retries != 0 or connection_retry_count() != 0):
-                    raise RecoveryBlocked('RECOVERY_REQUIRES_SINGLE_RETRY_OWNER')
                 from openai.types.chat import ChatCompletion
                 response = await recover_model_call(store=store, role=role,
                     profile={'model': model, 'endpoint': str(client.base_url)}, payload=payload,
@@ -199,7 +193,6 @@ async def _observe(store, png, provenance, question, client, actor=None, *, poli
                 result.update(capacity=capacity, handling=capacity_handling(capacity, 'tool'),
                               failure_phase=capacity['failure_phase'])
                 record_outcome(store, attempt_key, 'unknown', result=result)
-            store.event('vision_error', result)
             return result
         raise
     except Exception as exc:

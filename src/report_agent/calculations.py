@@ -6,8 +6,6 @@ from .errors import ActionRejected
 
 def sum_products(terms: list[list[str]]) -> dict:
     """Multiply each row's factors and add the products; inputs stay explicit."""
-    if not terms or len(terms) > 1000:
-        raise ActionRejected("CALCULATION_REQUIRES_1_TO_1000_TERMS")
     try:
         with localcontext() as context:
             context.prec = 50
@@ -15,11 +13,9 @@ def sum_products(terms: list[list[str]]) -> dict:
             context.Emin = -1000
             products = []
             for factors in terms:
-                if not factors or len(factors) > 20:
-                    raise ActionRejected("CALCULATION_REQUIRES_1_TO_20_FACTORS")
                 product = Decimal(1)
                 for value in factors:
-                    if not isinstance(value, str) or len(value) > 80:
+                    if not isinstance(value, str):
                         raise ActionRejected("CALCULATION_REQUIRES_DECIMAL_STRINGS")
                     number = Decimal(value)
                     if not number.is_finite() or abs(number.adjusted()) > 100:

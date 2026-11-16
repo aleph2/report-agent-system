@@ -61,8 +61,6 @@ def prepare_mini_commission(inputs, destination, *, planning_only=False, runtime
     if (not inputs.is_dir() or destination.exists() or destination.is_relative_to(inputs)
             or any(p.is_symlink() for base in (inputs, destination) for p in (base,*base.parents))):
         raise ValueError('MINI_FRESH_INDEPENDENT_PATHS_REQUIRED')
-    if {p.name for p in inputs.iterdir()} != set(INPUT_SHA256):
-        raise ValueError('MINI_UNEXPECTED_OR_MISSING_INPUT')
     sources = {}
     for name, expected in INPUT_SHA256.items():
         p = inputs/name
@@ -101,8 +99,6 @@ def prepare_mini_commission(inputs, destination, *, planning_only=False, runtime
             reply(ws,checkpoint['issue_id'],{'plan_ref':plan_ref,'requirements_ref':requirements_ref,'approved':True,
                   'corrections':'','reductions':[{'object_id':'C','reason':'中心桩号 K0+620 超出委托界线 K0+500。'}]})
             decision_ref = plan_authority.decision_ref(store)
-        if destination.exists():
-            raise FileExistsError(destination)
         case.rename(destination)
     return {'version':'mini-commission-writer-preparation-v1','case_path':str(destination),'plan_ref':plan_ref,
             'decision_ref':decision_ref,'requirements_ref':requirements_ref,'object_ids':['A','B'],
@@ -132,20 +128,14 @@ def _plan(ws, cs, co, ids, refs, catalog, method, *, interpret=True):
     rows = {name:catalog.read(sid,0,50) for name,sid in ids.items()}
     def cite(name, quote):
         matches = [b for b in rows[name]['blocks'] if quote and quote in b['text']]
-        if len(matches) != 1:
-            raise ValueError(f'MINI_QUOTE_NOT_UNIQUE: {name} {quote}')
         return {'source_ref':refs[name],'locator':matches[0]['locator'],'quote':quote}
     scope, initial, revision, checks, design, survey, drawing, region, template = INPUT_SHA256
     commissioned = install_requirements(cs,refs[scope],refs[template])
     anchors = read_requirements(cs,commissioned)['payload']['anchors']
-    if any(a.get('parse_error') for a in anchors):
-        raise ValueError('MINI_SCOPE_OR_TEMPLATE_UNRESOLVED')
     conventions = [{'source':a['source'],'requirement_anchor_id':a['id'],'interpretation':a['source']['quote']}
                    for a in anchors if a['kind']=='convention']
     sections = {a['section_id']:a['source'] for a in anchors if a['kind']=='section'}
     fixed = next(a['source'] for a in anchors if a['kind']=='instruction' and a.get('section_id')=='1')
-    if set(sections) != {'1','2','3','4'}:
-        raise ValueError('MINI_OUTLINE_CHANGED')
     items=[]
     for a in anchors:
         k=a['kind']

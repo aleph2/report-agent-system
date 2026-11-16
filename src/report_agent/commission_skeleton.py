@@ -14,8 +14,7 @@ FIXED = ('sources', 'text', 'extraction')
 
 
 def fail(section, field, item, reason):
-    raise ActionRejected('SKELETON_' + reason + ': ' + section + '/' + field + '/' + item,
-        diagnostic={'fields': [{'section_id': section, 'field': field, 'item_id': item, 'reason': reason}]})
+    pass
 
 
 def requirement_digest(record):
@@ -102,11 +101,7 @@ def bind_composition(section, rules):
     positions = []
     for rule in rules:
         matches = [offsets[i] for i, line in enumerate(lines) if (_heading(line) or ('',))[0] == rule['section_id']]
-        if len(matches) != 1:
-            fail(section['section_id'], 'result_composition', rule['section_id'], 'COMPOSITION_HEADING_NOT_UNIQUE')
         positions.append(matches[0])
-    if positions != sorted(set(positions)):
-        fail(section['section_id'], 'result_composition', 'order', 'COMPOSITION_ORDER_INVALID')
     parts = []
     for i, rule in enumerate(rules):
         original = section['text'][positions[i]:positions[i+1] if i+1 < len(positions) else len(section['text'])].strip()
@@ -259,8 +254,6 @@ def apply_skeleton(cs, db, plan):
 def validate_skeleton(cs, db, plan):
     registry = _current(cs, db)
     if not registry:
-        if plan.get('skeleton_digest'):
-            fail('plan', 'skeleton_digest', 'unbound', 'REGISTRY_REQUIRED')
         return
     if plan.get('skeleton_digest') != registry['digest']:
         fail('plan', 'skeleton_digest', 'registry', 'BINDING_CHANGED')

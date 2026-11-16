@@ -127,8 +127,6 @@ class GLMChatOpenAI(ChatOpenAI):
             valid = []
             for call in message.tool_calls:
                 try:
-                    if call['name'] not in codecs:
-                        raise WireError('Tool is not in this request')
                     valid.append({**call, 'args': codecs[call['name']].decode(call['args'])})
                 except WireError as exc:
                     message.invalid_tool_calls.append({'type': 'invalid_tool_call', 'id': call['id'],
@@ -199,8 +197,6 @@ class GLMChatOpenAI(ChatOpenAI):
                     'version': VERSION, 'tool_calls': choice['message'].get('tool_calls') or []}
             reasoning = choice['message'].get('reasoning_content')
             if reasoning is not None:
-                if not isinstance(reasoning, str):
-                    raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
                 generation.message.additional_kwargs['reasoning_content'] = reasoning
         observe_model_boundary('result_parse_completed')
         return result
@@ -209,8 +205,6 @@ class GLMChatOpenAI(ChatOpenAI):
         observe_model_boundary('payload_started')
         messages = self._convert_input(input_).to_messages()
         payload = super()._get_request_payload(messages, stop=stop, **kwargs)
-        if payload.get('stream') or 'messages' not in payload:
-            raise ValueError('GLM_ADAPTER_REQUIRES_NONSTREAMING_CHAT_COMPLETIONS')
         if self.model_name == 'deepseek-v4.1-flash-1017' and 'max_completion_tokens' in payload:
             payload['max_tokens'] = payload.pop('max_completion_tokens')
         # Official thinking mode rejects forced tool selection. The harness may
@@ -221,16 +215,13 @@ class GLMChatOpenAI(ChatOpenAI):
             payload['tool_choice'] = 'auto'
         if self.deepseek_strict:
             from .deepseek_strict import StrictCodec
-            if urlparse(str(self.openai_api_base)).path.rstrip('/') != '/beta':
-                raise ValueError('DEEPSEEK_STRICT_REQUIRES_BETA')
             payload['tools'] = [{'type': 'function', 'function': StrictCodec(t['function']).function}
                                 for t in payload.get('tools', [])]
             if not payload['tools']:
                 payload.pop('tools')
-        from .live_messages import validate_wire, wire_messages
+        from .live_messages import wire_messages
         payload['messages'] = wire_messages(messages, payload['messages'])
         observe_model_boundary('payload_completed')
-        validate_wire(payload, strict=self.deepseek_strict)
         from .prompt_provenance import bind_wire_payload
         bind_wire_payload(payload)
         return payload

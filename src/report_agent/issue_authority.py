@@ -6,7 +6,6 @@ from . import assertions, issue_state
 from .assertion_host import AssertionHost, Grant
 from .assertions.launch import Commission
 from .content_store import Actor, ContentStore
-from .errors import ActionRejected
 from .operation_identity import bound_native_id
 from .store import encode
 
@@ -43,8 +42,6 @@ def record_answer(store, issue, message, resolved):
         else:
             active = [body for action, body, state in Commission.issue_actions(store.root)
                       if action == 'decide' and body['subject'] == subject and state['active']]
-            if len(active) > 1:
-                raise ActionRejected('ISSUE_MULTIPLE_ACTIVE_ANSWERS: ' + identity)
             target = active[0]['id'] if active else None
         if target:
             ctx = _context(store, identity, 'retract', retract_operation, target)
@@ -68,8 +65,6 @@ def answers(storage):
         if (action == 'decide' and state['active'] and not state['stale'] and not state['challenged']
                 and body['claim']['target'] in questions):
             identity = body['subject'].split('/', 1)[1]
-            if selected[identity] is not None:
-                raise ActionRejected('ISSUE_MULTIPLE_ACTIVE_ANSWERS: ' + identity)
             selected[identity] = json.loads(body['claim']['reason'])
     if not selected:
         return {}

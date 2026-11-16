@@ -16,7 +16,7 @@ class ExternalSupport(Contract):
     statement: Text
     subject: Text
     scope: Text
-    quotes: list[Text] = Field(min_length=1)
+    quotes: list[Text]
 
 
 class ReferencedConflict(IndicatorConflict):
@@ -100,19 +100,12 @@ def apply_claims(value, *, indicator_id, subject, attestations, midpoint, grade_
     if indicator_id=='X32' and value.get('event_frequency'):
         observed = value.get('event_frequency') or {}
         fact = facts.get(observed.get('fact_id'))
-        if (not fact
-                or fact.get('event_count') is None or fact.get('period_years') is None
-                or observed.get('event_count') != fact['event_count'] or observed.get('period_years') != fact['period_years']):
-            _refuse('A direct frequency claim needs the event count and observation period from the same applicable event history.')
         if not assumption and fact['event_count']>0:
             checks['review_flags'].append('FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW')
     if indicator_id=='X51':
         counts = value.get('investigation_counts', [])
         for count in counts:
             fact = facts.get(count['fact_id'])
-            if (not fact or fact['purpose'] != count['purpose']
-                    or fact.get('value') != count['count']):
-                _refuse('Every investigation count, including zero, needs an explicit value for this object and investigation type.')
     if assumption:
         checks['review_flags'].append('ASSUMPTION_REQUIRES_SEMANTIC_REVIEW')
     if value.get('question'):

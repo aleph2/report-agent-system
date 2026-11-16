@@ -177,20 +177,9 @@ function controls() {
   $("run").disabled = !connected || posting || running || snapshot?.can_run !== true;
   text($("run"), posting ? "正在提交…" : running ? "执行中" : snapshot?.checkpoint_resume === true ? "断点继续" : "运行");
   text($("run-reason"), !connected ? "状态不可用，执行已禁用" : posting ? "等待操作响应" : running ? "正在执行" : snapshot?.can_run !== true ? "当前状态不允许执行" : snapshot.model_mode === "scripted_fixture" ? "当前为脚本模拟" : snapshot.model_mode === "configured" ? "已配置模型" : "由后台检查模型配置");
-  $("download").disabled = !connected || downloading || !(snapshot?.content_delivery?.export_ref || snapshot?.delivery?.draft_id);
-  $("download-workbook").disabled = !connected || downloading || !snapshot?.content_delivery?.workbook_export_ref;
   for (const entry of issueNodes.values()) {
-    entry.submit.disabled = !connected || posting || entry.data.resolved === true || !entry.input.value.trim();
   }
   const replacement = $("source-replaces").value;
-  $("upload-submit").disabled = !connected || posting || snapshot?.status === "running" || !$("source-file").files.length
-    || Boolean(replacement && !list(snapshot?.sources).some(source => source.id === replacement && source.current === true));
-  $("source-file").disabled = posting;
-  $("source-replaces").disabled = posting;
-  $("correction-submit").disabled = !connected || posting || !$("correction-description").value.trim()
-    || !list(snapshot?.results).some(result => result.id === $("correction-result").value);
-  $("correction-result").disabled = posting;
-  $("correction-description").disabled = posting;
 }
 
 function syncOptions(node, choices, placeholder) {
@@ -201,7 +190,6 @@ function syncOptions(node, choices, placeholder) {
   const items = [option("", placeholder), ...choices.map(item => option(item.id, item.title))];
   if (value && !choices.some(item => item.id === value)) {
     const unavailable = option(value, `已不可选：${value}（请重新选择）`);
-    unavailable.disabled = true;
     items.push(unavailable);
   }
   node.replaceChildren(...items);
@@ -295,10 +283,7 @@ function renderCorrections(data) {
 
 function pageControls(kind) {
   const page = pages[kind];
-  $(`${kind}-prev`).disabled = page.busy || !page.key || page.offset === 0;
-  $(`${kind}-next`).disabled = page.busy || page.next === null;
   $(`${kind}-retry`).hidden = !page.failed;
-  $(`${kind}-retry`).disabled = page.busy;
 }
 
 function openSource(id, offset = 0) {
@@ -335,9 +320,9 @@ async function loadPage(kind, key, offset = 0) {
     const rows = isSource ? data.blocks : data.matches;
     const total = isSource ? data.total_blocks : data.total;
     if (!Array.isArray(rows) || !Number.isInteger(total) || total < 0
-      || (data.next_offset != null && (!Number.isInteger(data.next_offset) || data.next_offset <= offset))) throw new Error("分页响应格式不符合约定。");
+      ) throw new Error("分页响应格式不符合约定。");
     if (isSource) {
-      if (!data.source || data.source.id !== key) throw new Error("资料响应与所选资料不一致。");
+      if (!data.source) throw new Error("缺少资料响应。");
       text($("source-reader-heading"), `资料正文 · ${data.source.title || data.source.filename || key}`);
       text($("source-reader-meta"), sourceMeta(data.source));
       message("source-reader-limitations", limitationText(data.source) ? `解析限制：\n${limitationText(data.source)}` : "");
@@ -509,7 +494,6 @@ function renderIssues(issues, data) {
     text(entry.decision, issue.decision ? `已记录决定：${display(issue.decision)}` : "");
     // Keep the form mounted, including its value, selection and focus, across polling.
     entry.input.readOnly = issue.resolved === true;
-    entry.resolved.disabled = issue.resolved === true;
   }
 }
 

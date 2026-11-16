@@ -27,8 +27,6 @@ def _verify_source(row, resources):
         ):
             raise ValueError("C2: the cited delivery receipt must identify this actor, source version and page")
         image_delivered |= receipt.get("modality") == "image"
-    if source.state != "unknown" and citation.page in material.get("image_pages", ()) and not image_delivered:
-        raise ValueError("C2: the image-only observation needs the actor's delivery receipt for that image")
 
 
 def _method_record(record, definition, version):

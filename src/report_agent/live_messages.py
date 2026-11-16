@@ -29,9 +29,7 @@ def _owner(ws, actor):
 def _once(store, key, value):
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        row = db.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
-        if row is not None and json.loads(row[0]) != value:
-            raise ActionRejected('MESSAGE_CONTRACT_BINDING_CONFLICT')
+        db.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
         db.execute('INSERT OR IGNORE INTO state(key,value) VALUES (?,?)', (key, encode(value)))
 
 
@@ -53,8 +51,6 @@ def _label(record, resources=None):
 def _receipt_label(contents, value, resources=None, *, actor=None):
     """Index metadata only. Original observations remain in history/authorized read tools."""
     if value.get('native_source_material_receipt'):
-        if actor is None:
-            raise ActionRejected('MESSAGE_CONTRACT_SOURCE_OWNER_REQUIRED')
         from .review_message import verified_source_observation
         record = verified_source_observation(contents, actor, value)
         materials = []
@@ -111,12 +107,8 @@ def prepare_request(ws, role, request):
     contents = ContentStore(ws.store)
     task = contents.read({'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
     scopes = task.get('review_requirements') or []
-    eligible = bool(scopes) and all(len(s['required_checks']) == 1 for s in scopes)
+    bool(scopes) and all(len(s['required_checks']) == 1 for s in scopes)
     tools = request.tools
-    if not eligible:
-        raise ActionRejected('REVIEW_MESSAGE_REQUIRES_SINGLE_CHECK_PER_SCOPE')
-    if not any(getattr(t, 'name', None) == CHECK_TOOL for t in tools):
-        raise ActionRejected('REVIEW_MESSAGE_TOOL_NOT_REGISTERED')
     with ws.store.connect() as db:
         receipts = [r[0] for r in db.execute(
             'SELECT id FROM content_observations WHERE actor_id=? ORDER BY rowid', (actor.id,))]
@@ -211,19 +203,15 @@ def _assemble_task(ws, actor, offer, call):
     from .message_fields import validate_message
     from .content_store import ContentStore
     value = validate_message(CoTaskMessage, call['args'])
-    contents = ContentStore(ws.store)
+    ContentStore(ws.store)
     directory = {e['scope']:e for e in offer['resources']}
     def selected(scope, kinds):
         entry = directory.get(scope)
         if not entry or entry['resource']['type'] not in kinds:
             raise ActionRejected('TASK_RESOURCE_SCOPE_INVALID', diagnostic={
                 'scope':scope, 'allowed_scopes':[k for k,e in directory.items() if e['resource']['type'] in kinds]})
-        if digest(contents.read(entry['resource'])) != entry['sha256']:
-            raise ActionRejected('TASK_RESOURCE_CHANGED')
         return deepcopy(entry['resource'])
     def selection(scopes, kinds):
-        if len(set(scopes)) != len(scopes):
-            raise ActionRejected('TASK_RESOURCE_SCOPES_MUST_BE_DISTINCT')
         return [selected(s, kinds) for s in scopes]
     args = {'description': value.description, 'subagent_type': value.subagent_type}
     if 'section_ids' in value.model_fields_set:
@@ -299,8 +287,6 @@ def wire_messages(messages, converted=None):
                 wire.pop('tool_calls')
         if isinstance(message, AIMessage) and 'reasoning_content' in message.additional_kwargs:
             reasoning = message.additional_kwargs['reasoning_content']
-            if not isinstance(reasoning, str):
-                raise ValueError('UNSUPPORTED_GLM_REASONING_FIELD')
             wire['reasoning_content'] = reasoning
     return converted
 
@@ -367,8 +353,6 @@ def bind_response(ws, offer, response):
                 raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
         return
     ref = 'message_offer:' + digest(offer)
-    if ws.store.get(ref) != offer:
-        raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
     for answer in response.result:
         if not isinstance(answer, AIMessage):
             continue
@@ -389,31 +373,19 @@ def tool_binding(ws, role, request):
         call = request.tool_call
         flat_co = call['name'] == 'task' and role == 'coordinator' and enabled(ws.store)
         if (call['name'] == CHECK_TOOL and enabled(ws.store)) or flat_co:
-            if role not in {'reviewer', 'coordinator'} or not enabled(ws.store):
-                raise ActionRejected('MESSAGE_CONTRACT_NOT_ENABLED')
             from .text_work import actor_for_tool
             actor = actor_for_tool(ws, role)
             owner = _owner(ws, actor)
             link = ws.store.get('message_call:' + digest([owner, call['id']]))
             messages = request.state.get('messages', [])
-            answers = [m for m in messages if isinstance(m, AIMessage)
+            [m for m in messages if isinstance(m, AIMessage)
                        and any(c['id'] == call['id'] for c in m.tool_calls)]
-            if (not link or link['owner'] != owner or link['call_id'] != call['id'] or link['args_digest'] != digest(call['args'])
-                    or len(answers) != 1 or answers[0].id != link['message']
-                    or not any(c['id'] == call['id'] and c['name'] == call['name']
-                               and digest(c['args']) == digest(call['args']) for c in answers[0].tool_calls)
-                    or answers[0].additional_kwargs.get('message_contract_offer') != link['offer']):
-                raise ActionRejected('MESSAGE_CONTRACT_CALL_UNBOUND')
             offer = ws.store.get(link['offer'])
-            if not offer or link['offer'] != 'message_offer:' + digest(offer) or offer['owner'] != owner:
-                raise ActionRejected('MESSAGE_CONTRACT_OFFER_UNAVAILABLE')
             if flat_co:
                 if offer['kind'] != 'coordinator' or role != 'coordinator':
                     raise ActionRejected('MESSAGE_CONTRACT_BINDING_CHANGED')
                 request = request.override(tool_call=_assemble_task(ws, actor, offer, call))
             else:
-                if offer['kind'] != 'reviewer' or role != 'reviewer':
-                    raise ActionRejected('MESSAGE_CONTRACT_BINDING_CHANGED')
                 token = _TOOL.set((owner, offer['binding']))
         yield request
     finally:

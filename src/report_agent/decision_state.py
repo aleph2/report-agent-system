@@ -227,16 +227,13 @@ def compact_context(context):
 
 def read_state(workspace, role, path, offset=0, limit=20, characters=6000, expected_state_digest=None):
     from .task_context import exact_task_context
-    if (type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 50
-            or type(characters) is not int or not 1 <= characters <= 6000):
+    if ((type(offset) is not int) or (type(limit) is not int) or (type(characters) is not int)):
         raise ActionRejected('INVALID_STATE_PAGE')
     state = exact_task_context(workspace, role)  # Enforces server-bound actor/task.
     if state.get('assignment', {}).get('review_submission_contract') is not None:
         from .review_scope_selectors import requirements_view
         state = {**state, 'assignment': {**state['assignment'],
             'review_requirements': requirements_view(state['assignment'])}}
-    if expected_state_digest is not None and expected_state_digest != state['state_digest']:
-        raise ActionRejected('STATE_CHANGED_READ_CURRENT_PACKET')
     value = state
     for index, key in enumerate(path):
         if isinstance(value,dict) and isinstance(key,str) and key in value:

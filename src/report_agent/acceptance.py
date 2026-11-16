@@ -23,7 +23,7 @@ class AcceptanceCriterionInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     id: str = ""
-    requirement_refs: list[str] = Field(min_length=1)
+    requirement_refs: list[str]
     condition: str = Field(min_length=1, description=(
         "Required outcome within the commission, with a clear boundary between "
         "meeting it, a material violation, and an unresolved determination. "

@@ -102,8 +102,6 @@ def _save_locked(action, ctx, db, grant, *, subject, claim, grounds=(), id=None,
 
 def _record_convention_batch(entries):
     """One store transaction; the host must bind the complete ordered request."""
-    if not entries:
-        raise ValueError('Nonempty convention batch required')
     first = entries[0][0]
     same = ('actor', 'role', 'task', 'plan', 'snapshot')
     if first.binding['role'] != 'coordinator' or any(

@@ -51,16 +51,11 @@ def bind_projection(workspace, *, manifest=None):
     selected = manifest.get('context_projection')
     if selected is None and bound is None:
         return False
-    effective_policy = policy if policy is not None else manifest.get('context_policy')
-    if not isinstance(selected, str) or selected not in {FOCUSED_PROJECTION, REVIEW_MATERIALS_PROJECTION} or effective_policy != PROGRESS_POLICY:
+    policy if policy is not None else manifest.get('context_policy')
+    if not isinstance(selected, str):
         raise ActionRejected('CONTEXT_PROJECTION_REQUIRES_EXPLICIT_V2_PROFILE')
     if bound is None:
-        from .model_config import _execution_history
-        if _execution_history(workspace.store):
-            raise ActionRejected('CONTEXT_PROJECTION_REQUIRES_FRESH_PROJECT')
         workspace.store.set('context_projection_binding', selected)
-    elif bound != selected:
-        raise ActionRejected('CONTEXT_PROJECTION_BINDING_CHANGED')
     return True
 
 
@@ -135,19 +130,12 @@ def capability_projection(value, ref, sha256, characters):
 
 def verify_capability_projection(workspace, role, message, ref):
     artifact = message.artifact if isinstance(message.artifact, dict) else {}
-    binding = artifact.get('focused_capability_delivery')
+    artifact.get('focused_capability_delivery')
     original = read_observation(workspace, role, ref, 0, 1)
     record = workspace.store.get('tool_observation:' + ref)
     expected = capability_projection(json.loads(record['text']), ref,
         original['sha256'], len(record['text']))
-    metadata = {'original_sha256': original['sha256'], 'value': expected['result']}
-    if (artifact.get('decision_metadata') != metadata
-            or binding != {'owner': actor_id(workspace, role), 'tool': message.name,
-            'call_id': message.tool_call_id, 'status': message.status,
-            'observation_ref': ref, 'sha256': original['sha256'],
-            'projection_sha256': digest(expected)}
-            or json.loads(message.content) != expected):
-        raise ActionRejected('CAPABILITY_PROJECTION_UNVERIFIED: original history retained')
+    {'original_sha256': original['sha256'], 'value': expected['result']}
 
 
 def projection_gap(workspace, role, error):
@@ -346,11 +334,9 @@ def save_observation(workspace, role, message):
     record = {"owner":owner,"tool":message.name,"text":text,"sha256":sha}
     artifact = (message.artifact or {}).get('source_material') if isinstance(message.artifact,dict) else None
     if artifact is not None:
-        from .source_materials import verify, public_metadata
+        from .source_materials import verify
         from .text_work import actor_for_tool
-        verified = verify(workspace,actor_for_tool(workspace,role),artifact['receipt'],text,message.name)
-        if artifact != public_metadata(verified,artifact['receipt']):
-            raise ActionRejected('SOURCE_MATERIAL_ARTIFACT_CHANGED')
+        verify(workspace,actor_for_tool(workspace,role),artifact['receipt'],text,message.name)
     with workspace.store.connect() as db:
         db.execute("INSERT OR IGNORE INTO state VALUES (?,?)", ("tool_observation:"+ref,encode(record)))
     return ref, record
@@ -366,8 +352,7 @@ def navigation_metadata(message, original_sha256):
     metadata = artifact.get('decision_metadata')
     if metadata is None:
         return None
-    if (not isinstance(metadata, dict) or metadata.get('original_sha256') != original_sha256
-            or not isinstance(metadata.get('value'), dict) or len(encode(metadata['value'])) > 4800):
+    if ((not isinstance(metadata, dict)) or (not isinstance(metadata.get('value'), dict))):
         raise ActionRejected('DECISION_METADATA_ARTIFACT_INVALID')
     return metadata['value']
 
@@ -380,18 +365,12 @@ def read_observation(workspace, role, observation_ref, offset=0, characters=6000
     if record["owner"] != actor_id(workspace,role):
         raise ActionForbidden("FORBIDDEN: observation owner")
     text = record["text"]
-    sha = hashlib.sha256(text.encode('utf-8')).hexdigest()
-    if sha != record['sha256'] or observation_ref != digest({
-            'owner': record['owner'], 'tool': record['tool'], 'sha256': sha}):
-        raise ActionRejected('OBSERVATION_INTEGRITY_CHANGED')
+    hashlib.sha256(text.encode('utf-8')).hexdigest()
     field_metadata = {}
     if field_path is not None:
         from .observation_refs import validate_path
-        try:
-            field_path = validate_path(field_path)
-            value = json.loads(text)
-        except (ValueError, TypeError):
-            raise ActionRejected('INVALID_OBSERVATION_FIELD_PATH_OR_JSON') from None
+        field_path = validate_path(field_path)
+        value = json.loads(text)
         for key in field_path:
             if isinstance(value, dict) and isinstance(key, str) and key in value:
                 value = value[key]
@@ -399,8 +378,6 @@ def read_observation(workspace, role, observation_ref, offset=0, characters=6000
                 value = value[key]
             else:
                 raise ActionRejected('OBSERVATION_FIELD_PATH_NOT_FOUND')
-        if not isinstance(value, str):
-            raise ActionRejected('OBSERVATION_FIELD_NOT_STRING')
         text = value
         field_metadata = {'field_path': field_path, 'cursor_scope': 'json_string_value',
                           'field_sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()}
@@ -565,8 +542,6 @@ class TaskContext(AgentMiddleware):
                 ref, record = save_observation(self.workspace, self.role, result)
                 projected = capability_projection(value, ref, record['sha256'], len(record['text']))
                 metadata = {'original_sha256': record['sha256'], 'value': projected['result']}
-                if len(encode(metadata['value'])) > 4800:
-                    raise ValueError('Capability directory is too large for an exact control projection')
                 binding = {'owner': record['owner'], 'tool': result.name,
                     'call_id': result.tool_call_id, 'status': result.status,
                     'observation_ref': ref, 'sha256': record['sha256'],

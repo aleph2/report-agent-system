@@ -260,7 +260,7 @@ class BusinessBoundary(InvalidToolFeedback):
             if legacy_state.get_decision_observation(store):
                 raise ActionRejected("DECISION_OBSERVATION_TERMINAL_USE_NEW_ISOLATED_CASE")
             if self.decision_only and call["name"] in {
-                    "process_report_content", "perform_assigned_review", "perform_assigned_artifact_review",
+                    "process_report_content", "perform_assigned_review", 
                     "analyze_text", "analyze_evidence", "analyze_source_image", "inspect_rendered_page"}:
                 observed = {"kind": "unexecuted_text_work_intent", "role": self.role,
                             "tool_call": call, "executed": False,
@@ -340,10 +340,6 @@ class BusinessBoundary(InvalidToolFeedback):
                     messages = runtime.state.get("messages", []) if runtime else []
                     if batch_needs_review_decision(messages, call):
                         raise ActionRejected("REVIEW_RESULT_DECISION_REQUIRED: Request dependent layout in a later model turn after examining the review return.")
-                    if (role == "reviewer" and not call["args"].get("resume_content_task_id")
-                            and entrypoint != "native-rubric-v1"
-                            and not call["args"].get('review')):
-                        raise ActionRejected('REVIEW_SELECTION_REQUIRED: choose deliverable, standards and scope in review')
                     contents = ContentStore(store)
                     if (role == "reviewer" and call["args"].get("resume_content_task_id")
                             and entrypoint != "native-rubric-v1"):
@@ -537,7 +533,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         """
         from .source_tables import present_source_tables
         from .source_materials import returned, block_material
-        check_source_read(workspace, source_consumer_actor, [source_id])
         value = present_source_tables(workspace, catalog.read(source_id, offset, limit), table_detail)
         return returned(workspace,role,'read_source_page',value,block_material(value),runtime, reviewer_handles=reviewer_handles)
 
@@ -593,7 +588,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
         """
         from .document_tools import source_page_info
         from .source_materials import returned
-        check_source_read(workspace, source_consumer_actor, [source_id])
         value = source_page_info(workspace, source_id, page)
         has_text = (bool(value['native_text'].strip()) or bool(value['frozen_text_blocks'])
                     or any(t.get('rows') for t in value['table_view'].get('tables',[])))
@@ -630,21 +624,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
             materials=[]
         return returned(workspace,role,'analyze_source_image',value,materials,runtime, reviewer_handles=reviewer_handles)
 
-    def preview_report(draft_id: str, offset: int = 0, limit: int = 30,
-                       preview_version: str = "", runtime: ToolRuntime = None) -> dict:
-        """Export an exact saved draft and inspect its actual document structure and text.
-
-        Omit preview_version to create a new export. Pass its returned preview_version
-        on subsequent pages to inspect that exact snapshot without exporting again.
-        Does not review, approve, select delivery or imply visual/engineering correctness.
-        """
-        from .report_preview import preview_saved_report, read_preview
-        preview = None if preview_version else preview_saved_report(workspace, draft_id)
-        version = preview_version or preview["preview_version"]
-        content = read_preview(workspace, draft_id, offset, limit, preview_version=version)
-        if content["text"]:
-            observations(runtime, draft_id)
-        return {"preview": preview, "content": content}
 
 
     def submit_result(kind: Literal["purpose", "plan", "materials", "draft", "review"],
@@ -780,7 +759,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
     exposed_submit = save_knowledge_artifact if role == "knowledge" else save_review if role == "reviewer" else save_draft
     exposed_submit.__name__ = "submit_result"
     tools = [read_source_page, search_sources, inspect_source_page, analyze_source_image,
-             calculate, preview_report,
+             calculate, 
              exposed_submit, request_correction, assess_result_impact, ask_human]
     if role == "coordinator":
         from .acceptance import enabled

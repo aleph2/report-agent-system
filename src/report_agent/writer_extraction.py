@@ -27,12 +27,9 @@ def tools(workspace, actor):
         grant = Grant(str(uuid5(NAMESPACE_URL, actor.id)), actor.role, actor.task_id,
                       scope["assignment_digest"] + ":" + call, digest(scope["plan"]["ref"]),
                       frozenset({scope["object"]["object_id"]}), frozenset(packet), frozenset({action}), resources=resources or {})
-        try:
-            return getattr(assertions, action)(
-                AssertionHost(cs.store.root).issue_once(grant,action,call),
-                subject=scope["object"]["object_id"],claim=claim)
-        except (ValueError, PermissionError) as error:
-            raise ActionRejected(str(error)) from error
+        return getattr(assertions, action)(
+            AssertionHost(cs.store.root).issue_once(grant,action,call),
+            subject=scope["object"]["object_id"],claim=claim)
 
     def assert_source(source_handle: str, page: int, quote: str, predicate: str,
                       state: Literal["value","no_value","unknown"], coverage: str,

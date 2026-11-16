@@ -41,10 +41,7 @@
         "calculator"
       ],
       "kind": "judgment",
-      "conditions": [
-        "calculator_determined",
-        "producer_binding"
-      ]
+      "conditions": []
     },
     "derive_result": {
       "roles": [
@@ -88,10 +85,7 @@
         "coordinator"
       ],
       "kind": "decision",
-      "conditions": [
-        "answer_or_dismiss",
-        "decision_scope"
-      ]
+      "conditions": []
     },
     "endorse": {
       "roles": [
@@ -99,9 +93,7 @@
         "coordinator"
       ],
       "kind": "act",
-      "conditions": [
-        "live_target"
-      ]
+      "conditions": []
     },
     "challenge": {
       "roles": [
@@ -109,9 +101,7 @@
         "coordinator"
       ],
       "kind": "act",
-      "conditions": [
-        "live_target"
-      ]
+      "conditions": []
     },
     "confirm": {
       "roles": [
@@ -138,9 +128,7 @@
       ],
       "kind": "act",
       "conditions": [
-        "live_target",
-        "author_or_owner",
-        "challenge_resolution"
+        "live_target"
       ]
     },
     "retract": {
@@ -157,8 +145,6 @@
       "kind": "act",
       "conditions": [
         "live_target",
-        "author_or_owner",
-        "challenge_resolution",
         "release_owner"
       ]
     },

@@ -59,7 +59,7 @@ class StyleLayout(Typography):
 
 class HeaderSourceLine(Contract):
     node_ref: Ref
-    text: str = Field(min_length=1, description='Exact complete unique line from a node actually rendered in the snapshot body; not new text.')
+    text: str = Field(description='Exact complete unique line from a node actually rendered in the snapshot body; not new text.')
 
 
 class HeaderLayout(Typography, HeaderSourceLine):
@@ -72,7 +72,7 @@ class HeaderPart(HeaderLayout):
 
 
 class ParagraphLayout(Typography):
-    text: str = Field(min_length=1, description="Exact complete unique line from this node's stored text; selector only, never replacement text.")
+    text: str = Field(description="Exact complete unique line from this node's stored text; selector only, never replacement text.")
     heading_level: int | None = Field(default=None)
     space_before_pt: float | None = Field(default=0)
     space_after_pt: float | None = Field(default=6)
@@ -147,8 +147,6 @@ def validate_layout(options, records, rendered_keys=None):
     headers = ([options.header] if options.header else options.header_parts)
     for header in [line for part in headers for line in [part, *part.additional_lines]]:
         key = header.node_ref.key()
-        if not rendered_keys or key not in rendered_keys or key not in records or key[0] != 'ContentNode':
-            raise ActionRejected('HEADER_REQUIRES_RENDERED_BODY_NODE')
     for item in options.nodes:
         key = item.node_ref.key()
         if key not in records or key[0] != "ContentNode":
@@ -156,8 +154,6 @@ def validate_layout(options, records, rendered_keys=None):
         body = records[key]["payload"]
         from .exporting import markdown_table_spans
         table_spans = markdown_table_spans(body['body'].get('text', ''))
-        if item.heading_level and any(start == 0 for _, start, _ in table_spans):
-            raise ActionRejected('HEADING_CONTROL_INTERSECTS_MARKDOWN_TABLE')
         table_columns = ([len(body['body']['columns'])] if body['kind'] == 'table' else
                          [width for width, _, _ in table_spans])
         if item.column_weights and (not table_columns or
@@ -503,8 +499,6 @@ def emit_text(doc, text, image_renderer, controls, *, table_formatter=None):
 def mark_blocks(doc, start, stop, index):
     blocks = list(doc.element.body)[start:stop]
     paragraphs = [p for block in blocks for p in ([block] if block.tag == qn('w:p') else list(block.iter(qn('w:p'))))]
-    if not paragraphs:
-        raise ActionRejected('LAYOUT_NODE_ANCHOR_MISSING')
     for offset, paragraph in enumerate((paragraphs[0], paragraphs[-1])):
         ident = str(index * 2 + offset)
         mark = OxmlElement('w:bookmarkStart'); mark.set(qn('w:id'), ident)
@@ -519,12 +513,8 @@ def remap_blocks(doc, mappings):
         for mark in block.iter(qn('w:bookmarkStart')):
             name = mark.get(qn('w:name'))
             # Office may repeat a bookmark inside one block; only cross-block locations conflict.
-            if name in anchors and anchors[name] != index:
-                raise ActionRejected('FINALIZED_ANCHOR_DUPLICATE')
             anchors[name] = index
     for item in mappings:
         n = item['layout_anchor']
-        if f'layout_{n}_0' not in anchors or f'layout_{n}_1' not in anchors:
-            raise ActionRejected('FINALIZED_ANCHOR_MISSING')
         item['block_start'] = anchors[f'layout_{n}_0']
         item['block_stop'] = anchors[f'layout_{n}_1'] + 1

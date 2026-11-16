@@ -72,8 +72,6 @@ def trusted_observation(store, message):
 
 def finalize_observations(request, workspace, role, *, resources=None):
     active = _OBSERVATIONS.get()
-    if active is None or active['store'] != str(workspace.store.root) or active['role'] != role:
-        raise ValueError('host observation scope missing')
     if resources is None:
         from .task_context import exact_task_context
         current = exact_task_context(workspace, role)

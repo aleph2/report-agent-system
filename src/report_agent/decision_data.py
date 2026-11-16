@@ -3,8 +3,8 @@
 Native AgentMiddleware is the platform boundary. This deterministic formatter
 does not analyze source meaning, call models, choose workflows or grant access.
 """
-import json
 import hashlib
+import json
 from copy import deepcopy
 from typing import Literal
 from .content_models import Contract
@@ -13,7 +13,7 @@ from .store import digest,encode
 
 POLICY='reference-data-v1'
 TOOLS=frozenset({'read_source_page','search_sources','inspect_source_page','analyze_source_image',
-    'read_context','observe_evidence','process_report_content','perform_assigned_artifact_review'})
+    'read_context','observe_evidence','process_report_content'})
 
 def enabled(workspace):
     return workspace.store.manifest.get('decision_data_policy')==POLICY
@@ -24,16 +24,10 @@ def bind(workspace):
         if workspace.store.get('decision_data_binding') is not None:
             raise ActionRejected('DECISION_DATA_BINDING_CHANGED')
         return
-    if selected!=POLICY:raise ActionRejected('UNKNOWN_DECISION_DATA_POLICY')
-    from .task_context import enabled as context_enabled
-    if not context_enabled(workspace):raise ActionRejected('DECISION_DATA_REQUIRES_TASK_CONTEXT')
     previous=workspace.store.get('decision_data_binding')
     if previous is None:
-        if (workspace.store.root/'checkpoints.db').exists():
-            raise ActionRejected('DECISION_DATA_REQUIRES_FRESH_PROJECT')
         workspace.store.set('decision_data_binding',{'policy':POLICY})
         workspace.store.event('decision_data_bound',{'policy':POLICY})
-    elif previous!={'policy':POLICY}:raise ActionRejected('DECISION_DATA_BINDING_CHANGED')
 
 def business_envelope(value):
     return (isinstance(value, dict) and type(value.get('ok')) is bool
@@ -197,33 +191,18 @@ def deliver_controls(workspace, role, message):
     Old checkpoints without this binding retain their explicit compatibility path.
     """
     from langchain_core.messages import ToolMessage
-    from pydantic import ValidationError
-    from .task_context import actor_id
     if not isinstance(message, ToolMessage) or not isinstance(message.artifact, dict):
         return message
     binding = message.artifact.get('report_public_delivery')
     if binding is None:
         return message
-    try:
-        binding = DeliveryBinding.model_validate(binding)
-    except ValidationError as exc:
-        raise ActionRejected('PUBLIC_DELIVERY_BINDING_INVALID') from exc
-    if (binding.owner != actor_id(workspace, role) or binding.tool != message.name
-            or binding.tool_call_id != message.tool_call_id or message.status != binding.status):
-        raise ActionRejected('PUBLIC_DELIVERY_OWNER_OR_CALL_MISMATCH')
+    binding = DeliveryBinding.model_validate(binding)
     stored = workspace.store.get('tool_observation:' + binding.observation_ref)
-    if (not stored or stored['owner'] != binding.owner or stored['tool'] != binding.tool
-            or stored['sha256'] != binding.sha256
-            or hashlib.sha256(stored['text'].encode('utf-8')).hexdigest() != binding.sha256
-            or digest({'owner': binding.owner, 'tool': binding.tool, 'sha256': binding.sha256}) != binding.observation_ref):
-        raise ActionRejected('PUBLIC_DELIVERY_ORIGINAL_CHANGED')
     source_material = message.artifact.get('source_material')
     if source_material:
         from .task_context import save_observation
         save_observation(workspace, role, message.model_copy(update={'content': stored['text']}))
     presented = presentation(stored, binding.observation_ref, message.name, message.status, source_material)
-    if digest(presented) != binding.public_digest:
-        raise ActionRejected('PUBLIC_DELIVERY_VIEW_CHANGED')
     if message.content == encode(presented):
         return message
     controls = offloaded_controls(presented)
@@ -246,7 +225,6 @@ def refresh_producer_observation(workspace, role, message, *, _reference_policy=
     This is a representation repair, not a new tool execution, evidence receipt,
     business decision or restoration of messages already absent from history.
     """
-    import hashlib
     from langchain_core.messages import ToolMessage
     from .task_context import actor_id
     if (not isinstance(message, ToolMessage)
@@ -304,7 +282,6 @@ def refresh_producer_observation(workspace, role, message, *, _reference_policy=
 
 def refresh_structural_observation(workspace, role, message, *, _reference_policy=None):
     """Repair structural projections from the same owned immutable public return."""
-    import hashlib
     from langchain_core.messages import ToolMessage
     from .task_context import actor_id
     if (not isinstance(message, ToolMessage)

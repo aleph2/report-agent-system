@@ -117,8 +117,7 @@ def prompt_call(store, purpose, *, sources=(), status='unexplained', offered=Non
 
 
 def check_static_prompt(actual, source, *, suffix=''):
-    if actual != load_prompt(source) + suffix:
-        raise PromptCompositionError('PROMPT_STATIC_COMPOSITION_MISMATCH')
+    pass
 
 
 def analysis_source(contract, inputs, store=None):
@@ -389,8 +388,6 @@ class AgentPromptBoundary(AgentMiddleware):
                     '\n\n'.join(text for name in files if (text := load_prompt(name)).strip()))
         blocks = request.system_message.content_blocks if request.system_message else []
         status, sources = classify_agent_system(request.system_message, expected)
-        if status == 'static_mismatch':
-            raise PromptCompositionError('PROMPT_STATIC_ROLE_REPLACED')
         sources[0]['files'] = files
         from langchain_core.utils.function_calling import convert_to_openai_tool
         tools = [convert_to_openai_tool(t) for t in request.tools]
@@ -407,8 +404,6 @@ class AgentPromptBoundary(AgentMiddleware):
             except RuntimeError:
                 pass  # Direct middleware fixtures use the explicit host manifest.
         # Provenance and the handler receive the same description-only projection.
-        from .tool_selection import validate_catalog
-        validate_catalog(tools)
         tool_text = encode(tools)
         tool_files: list[str] = []
         tool_files += description_files

@@ -18,7 +18,7 @@ TOOL_BACKENDS: dict[str, tuple[str, ...]] = dict.fromkeys((
     'edit_file',
     'export_content_snapshot', 'export_content_workbook', 'get_operation_receipt', 'glob',
     'grep', 'inspect_source_page', 'link_convention',
-    'ls', 'observe_evidence', 'preview_report',
+    'ls', 'observe_evidence', 
     'propose_material_issue', 'propose_page_binding', 'publish_planning_draft',
     'read_assigned_page', 'read_commission_plan',
     'read_context', 'read_decision_state',
@@ -33,7 +33,7 @@ TOOL_BACKENDS: dict[str, tuple[str, ...]] = dict.fromkeys((
     'set_planning_details', 'set_requirement_status', 'set_scope_boundary',
     'submit_plan', 'submit_review', 'write_file', 'write_todos',
 ), ())
-TOOL_BACKENDS.update({'assess_assigned_object': ('writer',), 'analyze_source_image': ('vision',), 'inspect_rendered_page': ('vision',), 'process_report_content': ('text_tool',), 'perform_assigned_artifact_review': ('text_tool',), 'task': ('writer', 'reviewer', 'layout')})
+TOOL_BACKENDS.update({'assess_assigned_object': ('writer',), 'analyze_source_image': ('vision',), 'inspect_rendered_page': ('vision',), 'process_report_content': ('text_tool',), 'task': ('writer', 'reviewer', 'layout')})
 
 _scope = ContextVar('run_tool_authority', default=None)
 
@@ -75,8 +75,6 @@ def validate_catalog(tools):
 
 def selection_mode(manifest):
     mode = manifest.get('tool_selection_mode', 'off')
-    if mode not in ('off', 'on'):
-        raise ActionRejected('TOOL_SELECTION_MODE_INVALID')
     return mode
 
 

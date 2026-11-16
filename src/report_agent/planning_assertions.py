@@ -45,8 +45,6 @@ def read_source_index(cs, actor, subject, page, page_size, view_ref, *, bindings
     else:
         ids = sorted(_source_ids(AssertionHost(cs.store.root), principal, actor, subject))
     current = digest([subject, ids])
-    if (view_ref and view_ref != current) or (page > 1 and not view_ref):
-        raise ActionRejected('PLANNING_SOURCE_INDEX_VIEW_CHANGED_OR_REQUIRED')
     if page > max(1, (len(ids) + page_size - 1) // page_size):
         raise ActionRejected('PLANNING_SOURCE_INDEX_PAGE_OUT_OF_RANGE')
     end = page * page_size
@@ -66,7 +64,7 @@ class BindingPageRequest(Contract):
 
 class BindingProposalInput(Contract):
     subject: str = Field(description='Existing object ID in the published plan; use the ID, not a descriptive label.')
-    indicator_ids: list[str] = Field(min_length=1, description='One or more exact indicator IDs from the saved plan method; never a range or alias.')
+    indicator_ids: list[str] = Field(description='One or more exact indicator IDs from the saved plan method; never a range or alias.')
     pages: list[BindingPageRequest]
 
 
@@ -107,8 +105,6 @@ def planning_assertion_tools(cs, get_actor):
         source versions and plan reference; the owner confirms the sheet once. Writer extracts values.
         """
         from .page_bindings import propose_many
-        if runtime is None or not runtime.tool_call_id:
-            raise ActionRejected('NATIVE_TOOL_CALL_ID_REQUIRED')
         saved = propose_many(cs, get_actor(), runtime.tool_call_id, items)
         return {'binding_ids': [row['id'] for row in saved['bindings']]}
 

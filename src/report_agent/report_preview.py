@@ -216,7 +216,7 @@ def read_preview(workspace: Workspace, draft_id: str, offset: int = 0, limit: in
     Follow next_offset until null. Does not re-export or call a renderer/model.
     """
     _checked_draft(workspace, draft_id)
-    if type(offset) is not int or type(limit) is not int or offset < 0 or not 1 <= limit <= MAX_READ:
+    if (type(offset) is not int) or (type(limit) is not int):
         raise ActionRejected("PREVIEW_INVALID_RANGE")
     if not isinstance(preview_version, str):
         raise ActionRejected("PREVIEW_INVALID_VERSION")

@@ -13,8 +13,6 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
     definitions = {i['id']: i for i in plan['method_pack']['indicators']}
     bands = {b['level']: b for b in plan['method_pack']['risk_bands']}
     threshold = next((b for b in bands.values() if b['level'] in ('Ⅲ', 'III')), None)
-    if threshold is None:
-        raise ActionRejected('COMPOSITION_SPECIAL_LEVEL_III_REQUIRED')
     objects = {o['object_id']: o for o in plan['objects']}
     if not set(bound) <= objects.keys():
         raise ActionRejected('COMPOSITION_UNKNOWN_OBJECT')
@@ -39,8 +37,6 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
         return '含假设取值，补充资料后须复核。' if any(r['basis_kind'].endswith('assumption') for r in result['rows']) else ''
     citations = []
     for result in bound.values():
-        if result.get('status') != 'unscored' and result['adopted']['level'] not in bands:
-            raise ActionRejected('COMPOSITION_UNKNOWN_RISK_LEVEL')
         for row in display_rows(result, plan['method_pack']):
             for c in row['sources']:
                 if c not in citations:
@@ -50,7 +46,6 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
         if kind == 'source':
             text = adopted.get(sid, part['text'])
             anchor = (text.splitlines()[0] if text.splitlines() else '') if positional_anchors else next((line.strip() for line in text.splitlines() if line.strip() and text.count(line.strip()) == 1), None)
-            if not anchor:raise ActionRejected('TEMPLATE_MATERIAL_ISSUE_ANCHOR_REQUIRED: ' + sid)
             issue = frozen_issues.get('template-applicability:' + sid) or template_issue(part, [], next((c['choice'] for c in template_decisions if c['section_id'] == sid), None))
             issue = {**issue, 'adopted_value': anchor, 'anchor': {'paragraph_index': 0, 'start': 0, 'end': None} if positional_anchors else {'text': anchor}, 'affects_level': False}
             node('block', {'text': text, 'material_issues': [issue]}, section['sources'])

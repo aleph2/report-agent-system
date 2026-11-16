@@ -6,7 +6,6 @@ agent workflow or a layout correctness judgment.
 """
 import json
 
-from .errors import ActionRejected
 from .store import digest
 
 
@@ -37,8 +36,6 @@ def _fingerprint(config):
 def status(db):
     configured = db.execute("SELECT value FROM state WHERE key='layout_revision_limit'").fetchone()
     limit = json.loads(configured[0]) if configured else None
-    if limit is not None and (type(limit) is not int or limit < 0):
-        raise ActionRejected("INVALID_LAYOUT_REVISION_LIMIT")
     previous, count, initial, latest = None, 0, None, None
     for row in db.execute("SELECT data FROM content_versions WHERE type='ExportArtifact' ORDER BY rowid"):
         record = json.loads(row[0])

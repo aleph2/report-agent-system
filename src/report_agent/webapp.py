@@ -118,15 +118,11 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
     def content_review_status(offset: int = 0, limit: int = 20):
         from .content_store import ContentStore
         from .review_status import read_status
-        from .errors import ActionRejected
         selected = legacy.get_content_delivery(ws.store)
         if not selected:
             raise HTTPException(404, "NO_CONTENT_DELIVERY")
-        try:
-            return read_status(ContentStore(ws.store), selected["snapshot_ref"],
-                               export_ref=selected["export_ref"], offset=offset, limit=limit)
-        except ActionRejected as exc:
-            raise HTTPException(400, str(exc)) from None
+        return read_status(ContentStore(ws.store), selected["snapshot_ref"],
+                           export_ref=selected["export_ref"], offset=offset, limit=limit)
 
     @app.get("/api/content/delivery")
     def content_delivery_file(companion: bool = False, expected_export_id: str | None = None):
@@ -135,22 +131,14 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
         selected = legacy.get_content_delivery(ws.store)
         if not selected:
             raise HTTPException(404, "NO_CONTENT_DELIVERY")
-        if expected_export_id is not None and expected_export_id != selected['export_ref']['id']:
-            raise HTTPException(409, 'DELIVERY_SELECTION_CHANGED')
         contents = ContentStore(ws.store)
         ref = selected.get('workbook_export_ref') if companion else selected['export_ref']
         if ref is None:
             raise HTTPException(404, 'NO_COMPANION_WORKBOOK')
         artifact = contents.read(ref)['payload']
-        if artifact.get('snapshot_ref') != selected['snapshot_ref'] or (companion and (
-                not artifact.get('file_ref', '').endswith('.xlsx') or
-                artifact.get('export_config', {}).get('report_export_ref') != selected['export_ref'])):
-            raise HTTPException(409, 'DELIVERY_VERSION_MISMATCH')
         suffix = Path(artifact['file_ref']).suffix
         media = {'.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
-        if suffix not in media:
-            raise HTTPException(400, 'DELIVERY_FORMAT_UNSUPPORTED')
         return Response(_bytes(ws.store, artifact["file_ref"], artifact["file_digest"]),
             media_type=media[suffix],
             headers={"Content-Disposition": f'attachment; filename="review-draft{suffix}"'})
@@ -167,19 +155,13 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
     async def run():
         nonlocal worker
         from .deep_runtime import require_native_runtime
-        try:
-            require_native_runtime(ws)
-        except ValueError as exc:
-            raise HTTPException(409, str(exc)) from None
+        require_native_runtime(ws)
         if worker and not worker.done():
             raise HTTPException(409, "PROJECT_ALREADY_RUNNING")
         if not can_run():
             raise HTTPException(409, "MODEL_NOT_CONFIGURED_OR_FIXTURE_READ_ONLY")
-        try:
-            with ws.store.run_lock():
-                pass
-        except RuntimeError as exc:
-            raise HTTPException(409, str(exc)) from None
+        with ws.store.run_lock():
+            pass
         # Explicit user action only. Status polling never dispatches work.
         ws.store.set("run_request_error", None)
         worker = asyncio.create_task(run_guarded())
@@ -187,10 +169,7 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
 
     @app.post("/api/issues/{issue_id}/decision")
     def decision(issue_id: str, body: Decision):
-        try:
-            return ws.decide_issue(issue_id, body.message, resolved=body.resolved)
-        except (ValueError, RuntimeError) as exc:
-            raise HTTPException(409, str(exc)) from None
+        return ws.decide_issue(issue_id, body.message, resolved=body.resolved)
 
     @app.post("/api/sources")
     async def import_source(request: Request, filename: str, replaces_id: str = ""):
@@ -201,39 +180,24 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
             if len(content) + len(chunk) > MAX_UPLOAD_BYTES:
                 raise HTTPException(413, "UPLOAD_TOO_LARGE")
             content.extend(chunk)
-        try:
-            return await asyncio.to_thread(Catalog(ws.store).import_file, filename, bytes(content), replaces_id)
-        except (ValueError, RuntimeError) as exc:
-            raise HTTPException(409, str(exc)) from None
+        return await asyncio.to_thread(Catalog(ws.store).import_file, filename, bytes(content), replaces_id)
 
     @app.get("/api/sources/{source_id}")
     def source_page(source_id: str, offset: int = 0, limit: int = 10):
-        try:
-            return Catalog(ws.store).read(source_id, offset, limit)
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from None
+        return Catalog(ws.store).read(source_id, offset, limit)
 
     @app.get("/api/library/search")
     def search(q: str, offset: int = 0, limit: int = 10):
-        try:
-            return Catalog(ws.store).search(q, offset, limit)
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from None
+        return Catalog(ws.store).search(q, offset, limit)
 
     @app.post("/api/corrections")
     def correction(body: Correction):
-        try:
-            with ws.store.run_lock():
-                return ws.request_correction(body.result_id, body.description)
-        except (ValueError, RuntimeError) as exc:
-            raise HTTPException(409, str(exc)) from None
+        with ws.store.run_lock():
+            return ws.request_correction(body.result_id, body.description)
 
     @app.get("/api/export/{draft_id}")
     def export(draft_id: str):
-        try:
-            data = export_docx(ws, draft_id)
-        except ValueError as exc:
-            raise HTTPException(404, str(exc)) from None
+        data = export_docx(ws, draft_id)
         return Response(data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         headers={"Content-Disposition": 'attachment; filename="report-draft.docx"'})
 

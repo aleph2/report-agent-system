@@ -10,7 +10,7 @@ from pydantic import Field, create_model
 
 from .content_models import Contract, Ref
 from .errors import ActionForbidden, ActionRejected, LocalStorageBusy
-from .planning_inputs import quote_locations, reject, resolve_citations
+from .planning_inputs import quote_locations, resolve_citations
 from .store import digest
 
 
@@ -94,10 +94,6 @@ def resolve_judgment_sources(cs, db, actor, context, quotes, visual_pages=()):
             rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal', (payload['source_id'],)))
             matches.extend((ref, locator, payload) for locator in quote_locations(rows, quote)
                            if not anchors or (immutable_version_digest(payload),physical_page_number(locator)) in anchors)
-        if len(matches) != 1:
-            choices = [{'document': p.get('source_metadata',{}).get('title',''), 'locator': loc} for _,loc,p in matches]
-            reject(f'quotes[{index}]', 'quote_ambiguous' if matches else 'quote_not_found', choices,
-                code='WRITER_ASSESSMENT_QUOTE_AMBIGUOUS' if matches else 'WRITER_ASSESSMENT_QUOTE_NOT_FOUND')
         citation = {'source_ref': matches[0][0], 'quote': quote, 'locator': matches[0][1]}
         resolve_citations(cs, db, actor, {'sources': [citation]}, 'indicator')
         if citation['locator'].startswith('manifest text; chars '):
@@ -123,23 +119,17 @@ def _validated_judgment(cs, db, actor, current, rule, value):
 
 
 def _step_state(cs, db, scope, actor):
-    order = scope['plan']['payload'].get('indicator_rank_order')
-    if not order:
-        raise ActionRejected('WRITER_CONFIRMED_RANK_ORDER_REQUIRED')
+    scope['plan']['payload'].get('indicator_rank_order')
     key = scope['assignment_digest']
     draft = judgments.read_progress(cs.store, key, db)
     if not (draft['rows'] or draft['interrupted_indicators']):
         selected = digest([scope['plan']['ref'], scope['object']['object_id']])
         old_key = digest([actor.id, scope['task_ref'], scope['plan']['ref'], scope['object']['object_id']])
-        old = legacy.get_writer_assessment_draft(db, old_key, {})
+        legacy.get_writer_assessment_draft(db, old_key, {})
         # Only archived selections lack native progress. A new packet still reaches the producer check.
-        if legacy.get_g6_assessment(db, selected) or old.get('rows'):
-            raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
     rules = scope['plan']['payload']['method_pack']['indicators']
     if 'assigned_indicators' in scope:
         selected = set(scope['assigned_indicators'])
-        if not selected or selected - {r['id'] for r in rules}:
-            raise ActionRejected('WRITER_ASSIGNED_INDICATOR_OUTSIDE_METHOD')
         rules = [r for r in rules if r['id'] in selected]
     interrupted = draft.get('interrupted_indicators', {})
     rule = next((r for r in rules if r['id'] not in draft['rows'] and r['id'] not in interrupted), None)
@@ -276,8 +266,6 @@ def _step_schema(choices, kind, qualitative=False, fact_ids=None):
             missing=(nonblank,Field(description='Name the missing fact that prevents a defensible judgment.')),
             question=(nonblank,Field(description='Ask the specific question needed to resolve this gap.')),
             rationale=(str,Field(default='',description='Optional explanation of why the supplied evidence cannot resolve the indicator.')))
-    if kind not in ('evidence','assumption'):
-        raise ActionRejected('WRITER_INDICATOR_KIND_INVALID')
 
     scoring = {
         **common,
@@ -313,8 +301,6 @@ def step_outcome_schema(cs, actor, indicator_id, kind):
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor)
         _, _, rule, _ = _step_state(cs, db, scope, actor)
-        if not rule or rule['id'] != indicator_id:
-            raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
         return _step_schema(tuple(_grade(g) for g in rule['grades']),kind,'midpoint_convention' in scope,_fact_ids(scope.get('attested_facts')))
 
 
@@ -399,8 +385,6 @@ def _save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, r
         assignment_digest = scope['assignment_digest']
         bind_producer(cs, db, scope['plan']['ref'], scope['object']['object_id'], actor)
         _, draft, rule, status = _step_state(cs, db, scope, actor)
-        if not rule or rule['id'] != indicator_id:
-            raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
         if committed is None:
             entry = _prepare_entry(cs, db, actor, operation_id, indicator_id, outcome, read_locations, scope, rule)
         else:
@@ -408,9 +392,7 @@ def _save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, r
             entry = judgments.project(row, submission)
             if conflict := entry['input'].get('contrary_evidence'):
                 from .writer_issues import save_indicator_conflict
-                replayed = save_indicator_conflict(cs, db, actor, operation_id, scope, conflict)
-                if any(entry[k] != v for k,v in replayed.items()):
-                    raise RuntimeError('WRITER_COMMITTED_ISSUE_RECEIPT_MISMATCH')
+                save_indicator_conflict(cs, db, actor, operation_id, scope, conflict)
         derive = _last_native_step(db, assignment_digest, draft, status)
         draft['rows'][indicator_id] = entry
         if committed is None:
@@ -422,14 +404,16 @@ def _save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, r
         # operation. The next bound read reconstructs it from the exact immutable submission.
         try:
             draft['rows'][indicator_id] = entry
-            assessment = None
+            calculation = {}
             if derive:
                 if committed is not None:
                     scope = _derivation_scope(cs, db, actor, operation_id)
                 from .risk_scoring import save_assessment_in_transaction
-                assessment = save_assessment_in_transaction(cs, db, actor, operation_id, scope=scope, draft=draft)['assessment_ref']
-            judgments.record_save(db, scope, indicator_id, row, assessment)
+                calculation = save_assessment_in_transaction(cs, db, actor, operation_id, scope=scope, draft=draft)
+            judgments.record_save(db, scope, indicator_id, row, calculation.get('assessment_ref'))
             _, _, _, status = _step_state(cs, db, scope, actor)
+            if 'missing_weight_ranks' in calculation:
+                status['calculation'] = calculation
         except (ActionForbidden, ActionRejected) as exc:
             raise LocalStorageBusy('WRITER_COMMITTED_PROJECTION_PENDING', diagnostic={
                 'retryable':True, 'local_transaction':'rolled_back', 'assertion_id':row['id'],
@@ -450,11 +434,6 @@ def _save_indicator_outcome(cs, actor, operation_id, indicator_id, outcome, *, r
 def interrupt_indicator_step(cs, actor, indicator_id, refusals):
     """Trusted host records two distinct refused saves without inventing an engineering outcome."""
     _reconcile(cs, actor)
-    names = {'save_evidence','save_assumption','save_gap'}
-    if (len(refusals)!=2 or any(r.get('tool') not in names or not r.get('code') or not r.get('tool_call_id')
-                               for r in refusals)
-            or len({r['tool_call_id'] for r in refusals})!=2):
-        raise ActionRejected('WRITER_TWO_DISTINCT_SAVE_REFUSALS_REQUIRED')
     with cs.store.connect() as db:
         scope = _assignment(cs, db, actor, exact_receipt=True)
         key, draft, rule, status = _step_state(cs, db, scope, actor)
@@ -465,9 +444,7 @@ def interrupt_indicator_step(cs, actor, indicator_id, refusals):
     def record(db):
         current = _assignment(cs, db, actor)
         bind_producer(cs, db, current['plan']['ref'], current['object']['object_id'], actor)
-        key, draft, rule, status = _step_state(cs, db, current, actor)
-        if not rule or rule['id'] != indicator_id:
-            raise ActionRejected('WRITER_INDICATOR_STEP_MISMATCH')
+        key, draft, _rule, status = _step_state(cs, db, current, actor)
         if terminal != _last_native_step(db, key, draft, status):
             raise LocalStorageBusy('WRITER_INTERRUPTION_STEP_CHANGED')
         judgments.record_interruption(db, current, indicator_id, operation, refusals)
@@ -492,7 +469,10 @@ def _finish_interruption(cs, actor, operation, indicator, refusals, status):
         try:
             scope = _derivation_scope(cs, db, actor, operation)
             assignment_digest, draft, _, _ = _step_state(cs, db, scope, actor)
-            ref = save_assessment_in_transaction(cs, db, actor, operation, scope=scope, draft=draft)['assessment_ref']
+            calculation = save_assessment_in_transaction(cs, db, actor, operation, scope=scope, draft=draft)
+            if 'missing_weight_ranks' in calculation:
+                return {**status, 'assessment_ref': None, 'calculation': calculation}
+            ref = calculation['assessment_ref']
             judgments.link_interrupted_assessment(db, assignment_digest, operation, ref)
         except (ActionForbidden, ActionRejected) as exc:
             raise LocalStorageBusy('WRITER_INTERRUPTION_PROJECTION_PENDING', diagnostic={

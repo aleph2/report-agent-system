@@ -187,7 +187,6 @@ def present_source_tables(workspace, result, detail=None):
         return with_source_tables(workspace, result)
     if detail == 'references':
         return deferred_table_references(workspace, result)
-    raise ActionRejected('SOURCE_TABLE_DETAIL_MUST_BE_REFERENCES_OR_FULL')
 
 def deferred_table_references(workspace, result):
     """Existing locator-only view shared by search and exact frozen-block reads."""

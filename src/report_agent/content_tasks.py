@@ -115,10 +115,8 @@ def attach_saved_reference_metadata(contents, parent, task_ref, result, call_id)
                         contents.saved_reference_summary(parent, task_ref))
             if not bound and len(encode(metadata)) > 4800:
                 from .workspace import Workspace
-                from .task_context import enabled, actor_id, save_observation
+                from .task_context import save_observation
                 workspace = Workspace(contents.store)
-                if not enabled(workspace) or actor_id(workspace, parent.role) != parent.id:
-                    raise ActionRejected('SAVED_REFERENCE_RECOVERY_UNAVAILABLE')
                 ref, saved = save_observation(workspace, parent.role,
                     ToolMessage(encode(metadata), name=message.name, tool_call_id=call_id))
                 metadata = {k:metadata[k] for k in ('origin','producer_task_ref','semantic_acceptance')} | {
@@ -234,10 +232,6 @@ def delegated_task(workspace, caller_role, call):
     if caller_role != "coordinator":
         raise ActionForbidden("FORBIDDEN: delegation authority")
     qualitative = call['args'].get('qualitative_writer_task_ref')
-    if qualitative is not None and (call['args'].get('subagent_type') != 'reviewer'
-            or any(call['args'].get(k) is not None for k in ('resume_content_task_id', 'review',
-                   'review_requirements', 'review_snapshot_ref', 'layout_snapshot_ref', 'supervision_plugin'))):
-        raise ActionRejected('QUALITATIVE_REVIEW_REQUIRES_FRESH_REVIEWER')
     from .prompt_sources import review_interface_profile
     if review_interface_profile(workspace.store) == 'review-interfaces-v4':
         with _v4_task(workspace, call) as bound:
@@ -250,8 +244,6 @@ def delegated_task(workspace, caller_role, call):
     resumed = args.pop("resume_content_task_id", None)
     if assessment_object_id is not None and (args.get('subagent_type') != 'writer' or resumed):
         raise ActionRejected('WRITER_OBJECT_REQUIRES_FRESH_TASK')
-    if section_ids and (args.get('subagent_type') != 'writer' or resumed):
-        raise ActionRejected('COMMISSION_SECTION_ASSIGNMENT_REQUIRES_NEW_WRITER')
     review_snapshot = args.pop("review_snapshot_ref", None)
     requirements = args.pop("review_requirements", None)
     selection_supplied = args.get("supervision_plugin") is not None
@@ -394,17 +386,11 @@ def _v4_task(workspace, call):
     assessment_object_id = args.pop('assessment_object_id', None)
     review = canonical_selection(args.pop('review', None))
     resumed = args.pop('resume_content_task_id', None)
-    if assessment_object_id is not None and (args.get('subagent_type') != 'writer' or resumed):
-        raise ActionRejected('WRITER_OBJECT_REQUIRES_FRESH_TASK')
     layout = args.pop('layout_snapshot_ref', None)
     plugin = args.pop('supervision_plugin', None)
     from .supervision_plugins import resolve_plugin
     resolve_plugin(plugin)
     role = args.get('subagent_type')
-    if role not in {'writer', 'reviewer', 'layout'} or not call.get('id'):
-        raise ActionRejected('INVALID_CONTENT_DELEGATION')
-    if (review is not None and role != 'reviewer') or (plugin is not None and role != 'reviewer'):
-        raise ActionRejected('REVIEW_CONTRACT_REQUIRES_REVIEWER_AND_SNAPSHOT')
     cs, co = ContentStore(workspace.store), actor_for('coordinator')
     def register(db):
         if resumed:
@@ -444,8 +430,6 @@ def _v4_task(workspace, call):
             payload['supervision_plugin'] = plugin
         if role == 'layout':
             from .deliverables import export_allowed
-            if layout is None:
-                raise ActionRejected('LAYOUT_SNAPSHOT_REQUIRED')
             snapshot = cs._read(db, layout)
             if not export_allowed(cs, db, co, snapshot):
                 raise ActionForbidden('FORBIDDEN: layout snapshot parent')

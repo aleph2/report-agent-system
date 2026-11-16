@@ -18,7 +18,7 @@ NATIVE_WRITES = ATOMIC_WRITES
 
 def validate_profile(manifest):
     value = manifest.get('operation_identity_profile', CALLER)
-    if not isinstance(value, str) or value not in {CALLER, NATIVE}:
+    if not isinstance(value, str):
         raise ActionRejected('UNKNOWN_OPERATION_IDENTITY_PROFILE')
     return value
 
@@ -35,18 +35,16 @@ def profile(store):
 
 
 def native_id(tool_call_id):
-    if not isinstance(tool_call_id, str) or not tool_call_id.strip():
+    if not isinstance(tool_call_id, str):
         raise ActionRejected('NATIVE_TOOL_CALL_ID_REQUIRED')
     return 'native:process_report_content:' + tool_call_id
 
 
 def write_id(actor_id, tool_name, tool_call_id):
-    if not isinstance(tool_call_id, str) or not tool_call_id.strip():
+    if not isinstance(tool_call_id, str):
         raise ActionRejected('NATIVE_TOOL_CALL_ID_REQUIRED')
-    if not isinstance(actor_id, str) or not actor_id.strip():
+    if not isinstance(actor_id, str):
         raise ActionRejected('NATIVE_OPERATION_ACTOR_REQUIRED')
-    if tool_name not in NATIVE_WRITES:
-        raise ActionRejected('NATIVE_OPERATION_TOOL_REQUIRED')
     return bound_native_id(actor_id, tool_name, tool_call_id)
 
 

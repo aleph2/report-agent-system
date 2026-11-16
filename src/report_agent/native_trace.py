@@ -56,8 +56,6 @@ async def read_trace(saver, thread_id, *, before=None, checkpoint_id=None,
     """Page native checkpoints in one server-bound execution thread."""
     if saver is None or not thread_id:
         raise ActionRejected("NATIVE_TRACE_REQUIRES_CHECKPOINTER_AND_THREAD")
-    if not 1 <= limit <= 100 or not 1 <= content_limit <= 16000 or content_offset < 0:
-        raise ActionRejected("INVALID_TRACE_PAGE")
     if before and checkpoint_id:
         raise ActionRejected("TRACE_USE_CHECKPOINT_OR_BEFORE")
     config = {"configurable": {"thread_id": thread_id}}

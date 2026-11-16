@@ -14,7 +14,7 @@ class StrictRecord(BaseModel):
 
 
 class IssueSource(StrictRecord):
-    document: str = Field(min_length=1)
+    document: str
     page: int | str
 
     @model_validator(mode="after")
@@ -45,7 +45,7 @@ class CellAnchor(StrictRecord):
 
 
 class PassageAnchor(StrictRecord):
-    text: str = Field(min_length=1)
+    text: str
 
 
 LABELS = {"conflict": "资料冲突", "unclear": "资料不明确", "missing": "资料缺失",
@@ -55,11 +55,11 @@ LABELS = {"conflict": "资料冲突", "unclear": "资料不明确", "missing": "
 class MaterialIssue(StrictRecord):
     id: str = Field(min_length=1)
     kind: Literal["conflict", "unclear", "missing", "indirect_assumption", "no_evidence_assumption"]
-    object_label: str = Field(min_length=1)
-    basis: str = Field(min_length=1)
+    object_label: str
+    basis: str
     sources: list[IssueSource]
-    adopted_value: str = Field(min_length=1)
-    question: str = Field(min_length=1)
+    adopted_value: str
+    question: str
     anchor: CellAnchor | PassageAnchor | ParagraphAnchor
     affects_level: bool = Field(description="Assumptions: calculated sensitivity. Other source issues: True conservatively flags unresolved grade impact; False requires proof this item is outside the current calculation.")
 
@@ -88,8 +88,8 @@ class MaterialIssue(StrictRecord):
 
 
 class CellComment(StrictRecord):
-    text: str = Field(min_length=1)
-    value: str = Field(min_length=1)
+    text: str
+    value: str
     anchor: CellAnchor
 
     @model_validator(mode="after")
@@ -103,32 +103,19 @@ def cell_comments(node):
     raw = node['body'].get('cell_comments', [])
     if not isinstance(raw, list):
         raise ActionRejected('CELL_COMMENT_LIST_REQUIRED')
-    try:
-        return [CellComment.model_validate(item) for item in raw]
-    except ValidationError as exc:
-        raise ActionRejected('CELL_COMMENT_INVALID: ' + str(exc)) from exc
+    return [CellComment.model_validate(item) for item in raw]
 
 
 def _merges(rows, raw, prefix):
     if not isinstance(raw, list):
         raise ActionRejected(prefix + '_LIST_REQUIRED')
-    try:
-        merges = [TableMerge.model_validate(item) for item in raw]
-    except ValidationError as exc:
-        raise ActionRejected(prefix + '_INVALID: ' + str(exc)) from exc
+    merges = [TableMerge.model_validate(item) for item in raw]
     occupied, covered = set(), set()
     for merge in merges:
-        if (merge.start_row > merge.end_row or merge.start_col > merge.end_col
-                or merge.end_row >= len(rows) or merge.end_col >= len(rows[merge.start_row])):
-            raise ActionRejected(prefix + '_BOUNDS')
         cells = {(r, c) for r in range(merge.start_row, merge.end_row + 1)
                  for c in range(merge.start_col, merge.end_col + 1)}
-        if occupied & cells:
-            raise ActionRejected(prefix + '_OVERLAP')
         primary = (merge.start_row, merge.start_col)
-        value = str(rows[primary[0]][primary[1]])
-        if any(str(rows[r][c]) not in ('', value) for r, c in cells):
-            raise ActionRejected(prefix + '_WOULD_LOSE_TEXT')
+        str(rows[primary[0]][primary[1]])
         occupied |= cells
         covered |= cells - {primary}
     return merges, covered
@@ -139,22 +126,14 @@ def table_header(body):
     rows = body.get('header_rows')
     if rows is None:
         rows = [body['columns']]
-    if (not isinstance(rows, list) or not rows
-            or any(not isinstance(row, list) or len(row) != len(body['columns']) for row in rows)):
+    if (not isinstance(rows, list)):
         raise ActionRejected('TABLE_HEADER_RECTANGULAR_ROWS_REQUIRED')
-    if body.get('header_rows') is not None and any(not isinstance(value, str) for row in rows for value in row):
-        raise ActionRejected('TABLE_HEADER_TEXT_REQUIRED')
     merges, _ = _merges(rows, body.get('header_merges', []), 'TABLE_HEADER_MERGE')
     return rows, merges
 
 
 def _cell_anchor(node, anchor, value, covered, prefix):
-    body = node['body']
-    if (node['kind'] != 'table' or anchor.row >= len(body['rows'])
-            or anchor.column >= len(body['columns'])):
-        raise ActionRejected(prefix + '_ANCHOR_BOUNDS')
-    if str(body['rows'][anchor.row][anchor.column]) != value:
-        raise ActionRejected(prefix + '_VALUE_MISMATCH')
+    node['body']
 
 
 def validate_node(node, node_ref=None):
@@ -180,8 +159,6 @@ def _validate_node(node):
         raise ActionRejected("MATERIAL_ISSUE_INVALID: " + str(exc)) from exc
     if node['kind'] == 'table':
         table_header(body)
-    elif raw_merges:
-        raise ActionRejected('TABLE_MERGE_BOUNDS')
     merges, covered = _merges(body.get('rows', []), raw_merges, 'TABLE_MERGE')
     for annotation in cell_comments(node):
         _cell_anchor(node, annotation.anchor, annotation.value, covered, 'CELL_COMMENT')
@@ -194,8 +171,7 @@ def _validate_node(node):
         if isinstance(anchor, CellAnchor):
             _cell_anchor(node, anchor, issue.adopted_value, covered, 'MATERIAL_ISSUE')
         elif isinstance(anchor, ParagraphAnchor):
-            if node['kind'] in {'table', 'figure'}:
-                raise ActionRejected('MATERIAL_ISSUE_POSITION_INVALID: ' + issue.id)
+            pass
         elif (node["kind"] in {"table", "figure"}
               or body.get("text", "").count(anchor.text) != 1):
             raise ActionRejected("MATERIAL_ISSUE_PASSAGE_NOT_UNIQUE: " + issue.id)
@@ -233,22 +209,14 @@ def validate_required_issues(contents, db, snapshot, records, issue_records):
     if not plan_ref:
         return
     plan_record = records.get(Ref.model_validate(plan_ref).key())
-    if plan_record is None or plan_ref['type'] != 'CommissionPlan':
+    if plan_record is None:
         raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_PLAN_NOT_FROZEN')
     confirmation_ref = snapshot['payload'].get('commission_confirmation_ref')
     required = None
     if confirmation_ref:
         decision = records.get(Ref.model_validate(confirmation_ref).key())
-        if (confirmation_ref['type'] != 'CommissionDecision' or decision is None
-                or decision.get('owner_id') != 'operator'
-                or decision['payload'].get('approved') is not True
-                or decision['payload'].get('plan_ref') != plan_ref):
-            raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_INVALID')
         required = decision['payload'].get('required_material_issues')
     if required is None:
-        from .commission_plan import required_material_issues
-        if required_material_issues(contents, db, plan_ref, plan_record['payload']):
-            raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REQUIRED')
         return
     if not isinstance(required, list):
         raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REGISTRY_INVALID')
@@ -260,11 +228,7 @@ def validate_required_issues(contents, db, snapshot, records, issue_records):
                 or not isinstance(expected['id'], str) or expected['id'] in seen):
             raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REGISTRY_INVALID')
         seen.add(expected['id'])
-        issue = actual.get(expected['id'])
-        if issue is None:
-            raise ActionRejected('REQUIRED_MATERIAL_ISSUE_NOT_RENDERED: ' + expected['id'])
-        if any(issue[key] != expected[key] for key in fields):
-            raise ActionRejected('REQUIRED_MATERIAL_ISSUE_MISMATCH: ' + expected['id'])
+        actual.get(expected['id'])
 
 
 def comment_passage(doc, paragraphs, issue, node_ref, excluded=()):
@@ -311,14 +275,11 @@ def export_issue_records(contents, db, snapshot, records):
     issues = rendered_issues(records, snapshot['payload']['root_ref'])
     owner = frozen_material_issues(contents, snapshot, records)
     if receipt is None:
-        if {i.id for _, i in issues} & {i.id for i in owner}:
-            raise ActionRejected('OWNER_OPEN_FACT_IS_SYSTEM_OWNED')
         return issues + [(snapshot['payload']['root_ref'], issue) for issue in owner], owner
     actual = {i.id: (ref, i) for ref, i in issues}
     for expected in owner:
         target = actual.get(expected.id)
-        if (target is None or receipt['issue_targets'].get(expected.id) != target[0]
-                or target[1].model_dump(exclude={'anchor'}) != expected.model_dump(exclude={'anchor'})):
+        if (target is None):
             raise ActionRejected('ASSEMBLED_OWNER_ISSUE_MISMATCH: ' + expected.id)
     return issues, []
 

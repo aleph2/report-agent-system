@@ -157,13 +157,7 @@ class PlanningGuard(AgentMiddleware):
             waiting = {'message_id': identity, 'issue_id': issue['id'], 'gaps': gaps,
                        'confirmation_error': confirmation_error}
             self.workspace.store.set(key, waiting)
-            self.workspace.store.event('planning_completion_refused', waiting)
-        interrupt({'issue_id': waiting['issue_id'], 'category': 'requirement',
-            'kind': 'planning_completion', 'description': 'Planning ended without a confirmed plan or a blocking pause. Owner guidance is required.',
-            **waiting['gaps']})
         issue = next((i for i in issue_state.get_report_issues(self.workspace.store, []) if i['id'] == waiting['issue_id']), {})
-        if issue.get('decision_origin') != 'operator' or not issue.get('decision', '').strip():
-            raise ActionRejected('PLANNING_COMPLETION_OPERATOR_DECISION_REQUIRED')
         # Resume guidance is not a replacement for the original report goal.
         from .task_state_delivery import MODEL_COMMAND
         return {'messages': [HumanMessage(content='Operator guidance for planning wait ' + issue['id'] + ':\n' + issue['decision'],

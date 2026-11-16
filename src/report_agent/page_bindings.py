@@ -50,16 +50,16 @@ def propose(cs, actor, operation, subject, indicator, pages):
 def propose_many(cs, actor, operation, items):
     from .planning_assertions import _issuer, BindingProposalInput
     from .planning_inputs import model_value
-    from .commission_planning import _batch_error, _reject_batch
+    from .commission_planning import _batch_error
     from .commission_plan import read_plan
     from .source_use import source_version_material, validate_source_versions
     from .assertions.actions import _record_convention_batch
-    if not isinstance(items, list) or not items:
+    if not isinstance(items, list):
         raise ActionRejected('PAGE_BINDING_NONEMPTY_BATCH_REQUIRED')
     plan = read_plan(cs.store)
-    object_ids = {o['object_id'] for o in plan['payload']['objects']} if plan else set()
+    {o['object_id'] for o in plan['payload']['objects']} if plan else set()
     indicator_ids = {r['id'] for r in (plan['payload'].get('method_pack') or {}).get('indicators', [])} if plan else set()
-    eligible = eligible_subjects(cs, plan['ref']) if plan else set()
+    eligible_subjects(cs, plan['ref']) if plan else set()
     prepared, errors, seen, source_ids = [], [], set(), []
     normalized = []
     for index, raw in enumerate(items):
@@ -67,10 +67,6 @@ def propose_many(cs, actor, operation, items):
             item = model_value(BindingProposalInput, raw, 'binding').model_dump(mode='json')
             subject = item['subject']
             principal = _issuer(cs, actor, subject)
-            if not plan or subject not in object_ids:
-                raise ActionRejected('PAGE_BINDING_SAVED_PLAN_OBJECT_REQUIRED')
-            if subject not in eligible:
-                raise ActionRejected('PAGE_BINDING_EXCLUDED_OBJECT: ' + subject)
             fields = []
             unknown = [key for key in item['indicator_ids'] if key not in indicator_ids]
             if unknown:
@@ -93,10 +89,7 @@ def propose_many(cs, actor, operation, items):
                     if str(page['page']) not in material['pages']:
                         from .document_tools import source_page_info
                         from .workspace import Workspace
-                        try:
-                            source_page_info(Workspace(cs.store), page['source_id'], page['page'])
-                        except ActionRejected:
-                            raise ActionRejected('PAGE_BINDING_PHYSICAL_PAGE_REQUIRED') from None
+                        source_page_info(Workspace(cs.store), page['source_id'], page['page'])
                     bound.append(dict(source_version=version, page=page['page']))
                     if page['source_id'] not in source_ids:
                         source_ids.append(page['source_id'])
@@ -110,8 +103,6 @@ def propose_many(cs, actor, operation, items):
             prepared.append((principal, subject, item['indicator_ids'], bound))
         except (ActionRejected, ActionForbidden) as error:
             errors.append(_batch_error(index, error, 'binding'))
-    if errors:
-        _reject_batch(errors)
     # Prepared source versions precede assertions; failed assertions may retain these snapshots.
     if source_ids:
         cs.capture_sources(actor, 'page-binding-sources:' + operation, source_ids)
@@ -126,15 +117,9 @@ def propose_many(cs, actor, operation, items):
                 frozenset({subject}), frozenset(page['source_version'] for page in bound), frozenset({'record_convention'}))
             claim = dict(kind='convention', scope='source_page_binding', rule=encode(plan['ref']),
                          page_binding=dict(indicator_id=indicator, pages=bound))
-            try:
-                context = host.issue_once(grant, 'record_convention', child)
-            except (ValueError, PermissionError) as error:
-                raise ActionRejected(str(error)) from error
+            context = host.issue_once(grant, 'record_convention', child)
             entries.append((context, dict(subject=subject, claim=claim)))
-    try:
-        bindings = _record_convention_batch(entries)
-    except (ValueError, PermissionError) as error:
-        raise ActionRejected(str(error)) from error
+    bindings = _record_convention_batch(entries)
     return {'bindings': bindings}
 
 

@@ -8,14 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class SurveyExtent(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
-    upslope_h: float = Field(gt=0, allow_inf_nan=False)
-    downslope_h: float = Field(gt=0, allow_inf_nan=False)
+    upslope_h: float = Field(allow_inf_nan=False)
+    downslope_h: float = Field(allow_inf_nan=False)
 
 
 class FacilityLocation(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     side: Literal['upslope','downslope']
-    distance_h: float = Field(ge=0, allow_inf_nan=False)
+    distance_h: float = Field(allow_inf_nan=False)
 
 
 class FactAttestation(BaseModel):
@@ -23,13 +23,13 @@ class FactAttestation(BaseModel):
 
     model_config = ConfigDict(extra='forbid', strict=True)
     fact_id: str = Field(min_length=1)
-    subject: str = Field(min_length=1)
+    subject: str
     applies_to: list[str]
     related_to: list[str] = Field(default_factory=list)
     source_class: Literal['initial','revision','requirements','design','survey','drawing','regional']
     state: Literal['known','unknown','explicit_absence']
     coverage: Literal['object','region','document']
-    coverage_detail: str = Field(min_length=1)
+    coverage_detail: str
     purpose: Literal['geometry','material','weathering','slope_structure','construction_date','revision_scope',
         'review_instruction','slope_ratio','bench_count','engineering_measure','location',
         'survey_section_count','borehole_count','test_pit_count','survey_coverage',
@@ -37,13 +37,13 @@ class FactAttestation(BaseModel):
         'rainfall','hazard_event','hazard_frequency','hazard_season','facility_presence',
         'drawing_reference','drawing_contents','design_file_coverage']
     indicator_ids: list[str]
-    document: str = Field(min_length=1)
+    document: str
     page: int = Field(ge=1)
-    quote: str = Field(min_length=1)
+    quote: str
     value: str | int | float | None
     unit: str | None = None
-    event_count: int | None = Field(default=None, ge=0)
-    period_years: int | None = Field(default=None, gt=0)
+    event_count: int | None = Field(default=None)
+    period_years: int | None = Field(default=None)
     months: list[Annotated[int, Field(ge=1,le=12)]] = Field(default_factory=list)
     survey_extent: SurveyExtent | None = None
     facility_location: FacilityLocation | None = None
@@ -51,21 +51,12 @@ class FactAttestation(BaseModel):
 
     @model_validator(mode='after')
     def observation_bounds(self):
-        if self.state=='unknown' and (self.value is not None or self.event_count is not None):
-            raise ValueError('Unknown facts cannot carry a measured value or count')
-        if self.purpose=='hazard_frequency' and (
-                self.event_count is None or self.period_years is None or not self.applies_to):
-            raise ValueError('A frequency requires an applicable event count and observation period')
-        if self.purpose=='drawing_contents' and not self.visual_verified:
-            raise ValueError('Drawing contents require verified inspection')
         return self
 
 
 def load_attestations(path):
     rows = [FactAttestation.model_validate(row).model_dump(mode='json')
             for row in json.loads(Path(path).read_bytes())]
-    if len({row['fact_id'] for row in rows}) != len(rows):
-        raise ValueError('DUPLICATE_ATTESTED_FACT_ID')
     return rows
 
 

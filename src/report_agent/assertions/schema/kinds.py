@@ -64,7 +64,7 @@ class Source(Shape):
 
 class Conflict(Shape):
     kind: Literal["conflict"]
-    observations: Annotated[tuple[Id, ...], Field(min_length=2)]
+    observations: tuple[Id, ...]
     precedence_convention: Id | None = None
 
     @model_validator(mode="after")

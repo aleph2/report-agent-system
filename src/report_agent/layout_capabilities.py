@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from .content_layout import LayoutOptions
-from .errors import ActionForbidden, ActionRejected
+from .errors import ActionForbidden
 
 
 def capabilities():
@@ -44,8 +44,6 @@ def capabilities():
 
 
 def refresh_directory(store, data):
-    if not capabilities()['directory_refresh']['available']:
-        raise ActionRejected('DIRECTORY_REFRESH_DEPENDENCY_UNAVAILABLE')
     from . import office_finalize
     with tempfile.TemporaryDirectory(prefix='directory-', dir=store.root) as temporary:
         folder = Path(temporary).resolve()
@@ -68,7 +66,6 @@ def refresh_directory(store, data):
             except OSError:
                 # Failure to save an auxiliary log must not mask the tool outcome.
                 pass
-            raise ActionRejected('DIRECTORY_REFRESH_FAILED')
         receipt = json.loads(target.with_suffix('.finalize.json').read_text(encoding='utf-8'))
         return target.read_bytes(), receipt
 
@@ -81,8 +78,6 @@ def request_extension(contents, actor, operation_id, snapshot_ref, problem, atte
             raise ActionForbidden('FORBIDDEN: layout capability request scope')
     elif actor.role != 'coordinator' or snapshot['owner_id'] != actor.id:
         raise ActionForbidden('FORBIDDEN: capability request owner')
-    if not attempted or not evidence or not requested_operation.strip():
-        raise ActionRejected('CAPABILITY_REQUEST_REQUIRES_ATTEMPTS_EVIDENCE_AND_OPERATION')
     return contents.handoff(actor, operation_id, snapshot_ref, problem, evidence,
         'Development capability assessment requested; no automatic implementation or report approval.',
         details={'kind':'layout_capability_request','requested_operation':requested_operation,

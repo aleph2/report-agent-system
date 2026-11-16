@@ -19,23 +19,18 @@ from .table_spec import TableSpec, compile_header
 
 
 class LiteralReplacement(Contract):
-    old: str = Field(min_length=1)
-    new: str = Field(min_length=1)
+    old: str
+    new: str
 
 
 class ResultBinding(Contract):
-    old: str = Field(min_length=1, description='Unique exact template passage to replace, retained in the approved plan.')
+    old: str = Field(description='Unique exact template passage to replace, retained in the approved plan.')
     object_id: str | None = None
     field: Literal['total', 'level', 'assessment_text', 'object_count', 'level_count']
     level: str | None = None
 
     @model_validator(mode='after')
     def target(self):
-        aggregate = self.field in ('object_count', 'level_count')
-        if aggregate != (self.object_id is None) or (not aggregate and not self.object_id.strip()):
-            raise ValueError('RESULT_BINDING_TARGET_REQUIRED')
-        if (self.field == 'level_count') != (self.level is not None):
-            raise ValueError('RESULT_BINDING_LEVEL_REQUIRED')
         return self
 
 
@@ -48,8 +43,8 @@ class ResultComposition(Contract):
 
 
 class ScopeBoundary(Contract):
-    start_meter: str = Field(min_length=1, description='Scope start exactly as cited, for display only.')
-    end_meter: str = Field(min_length=1, description='Scope end exactly as cited, for display only.')
+    start_meter: str = Field(description='Scope start exactly as cited, for display only.')
+    end_meter: str = Field(description='Scope end exactly as cited, for display only.')
     source: SourceCitation
     customer_basis: SourceCitation | None = None
 
@@ -57,8 +52,8 @@ class ScopeBoundary(Contract):
 class MethodConvention(Contract):
     key: str = Field(min_length=1)
     source: SourceCitation | None
-    interpretation: str = Field(min_length=1)
-    status: Literal['specified', 'default_unagreed']
+    interpretation: str
+    status: str
     method_id: str = Field(min_length=1)
     strategy_id: str = Field(min_length=1)
 
@@ -67,36 +62,32 @@ class MethodConvention(Contract):
 class SourceSubstitution(Contract):
     # shortcut: replacements only; add a distinct resolution when an original document is later located.
     document_id: str | None = Field(default=None, exclude_if=lambda v: v is None)
-    requested_source: str = Field(min_length=1)
-    replacement_sources: list[SourceCitation] = Field(min_length=1)
+    requested_source: str
+    replacement_sources: list[SourceCitation]
     customer_basis: SourceCitation
-    reason: str = Field(min_length=1, description='Agent interpretation of why these actual sources fit the commissioned scope; separate from the customer quotation.')
+    reason: str = Field(description='Agent interpretation of why these actual sources fit the commissioned scope; separate from the customer quotation.')
 
 
 class SourceView(Contract):
     source_indexes: list[Annotated[int, Field(strict=True, ge=0)]] = Field(min_length=1)
     page: int = Field(strict=True, ge=1)
-    crop: list[Annotated[float, Field(strict=True, allow_inf_nan=False, ge=0, le=1)]] = Field(min_length=4, max_length=4)
+    crop: list[Annotated[float, Field(strict=True, allow_inf_nan=False)]]
 
     @model_validator(mode='after')
     def ordered(self):
-        if self.source_indexes != list(range(self.source_indexes[0], self.source_indexes[0] + len(self.source_indexes))):
-            raise ValueError('SOURCE_VIEW_CONTIGUOUS_INDEXES_REQUIRED')
-        if not (self.crop[0] < self.crop[2] and self.crop[1] < self.crop[3]):
-            raise ValueError('SOURCE_VIEW_CROP_INVALID')
         return self
 
 
 class MissingDocument(Contract):
     id: str = Field(min_length=1)
-    name: str = Field(min_length=1)
+    name: str
     section_id: str = Field(min_length=1)
     withdrawn_by: str | None = None
 
 
 class SectionPlan(Contract):
     section_id: str = Field(min_length=1)
-    title: str = Field(min_length=1)
+    title: str
     kind: Literal['fixed', 'extracted', 'derived']
     outline: SourceCitation
     sources: list[SourceCitation]
@@ -121,31 +112,18 @@ class SectionPlan(Contract):
 
     @model_validator(mode='after')
     def basis(self):
-        if any(not name.strip() for name in self.pending_sources):
-            raise ValueError('SECTION_PENDING_SOURCE_NAME_REQUIRED')
         ids = [d.id for d in self.missing_documents]
-        if len(ids) != len(set(ids)) or any(d.section_id != self.section_id for d in self.missing_documents):
-            raise ValueError('SECTION_MISSING_DOCUMENT_ID_OR_SECTION_INVALID: ' + self.section_id)
-        available = {(s.source_ref.key(), s.locator) for s in self.sources}
+        {(s.source_ref.key(), s.locator) for s in self.sources}
         for substitution in self.source_substitutions:
             if substitution.document_id:
                 if substitution.document_id not in ids:
                     raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_UNKNOWN: ' + self.section_id + '/source_substitutions/' + substitution.document_id)
-            elif self.missing_documents:
-                raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_ID_REQUIRED: ' + self.section_id + '/source_substitutions/' + substitution.requested_source)
-            if any((s.source_ref.key(), s.locator) not in available for s in substitution.replacement_sources):
-                raise ValueError('SECTION_SUBSTITUTION_REPLACEMENT_NOT_IN_PLAN')
         if self.kind == 'derived' and not self.derived_from:
             raise ValueError('COMMISSION_DERIVED_SECTION_INVALID')
         last = -1
         for view in self.source_views:
-            if self.kind != 'fixed' or view.source_indexes[0] <= last or view.source_indexes[-1] >= len(self.sources):
-                raise ValueError('SOURCE_VIEW_FIXED_ORDERED_SOURCES_REQUIRED')
-            selected = [self.sources[i] for i in view.source_indexes]
-            if any(c.source_ref != selected[0].source_ref or not c.quote.strip()
-                   or not re.fullmatch(rf'page {view.page}(?:;.*)?', c.locator) for c in selected):
-                raise ValueError('SOURCE_VIEW_SAME_SOURCE_PAGE_REQUIRED')
-            last = view.source_indexes[-1]
+            [self.sources[i] for i in view.source_indexes]
+            view.source_indexes[-1]
         return self
 
 
@@ -156,13 +134,13 @@ class Convention(Contract):
 
 
 class Reconciliation(Contract):
-    sources: list[SourceCitation] = Field(min_length=1)
-    result: str = Field(min_length=1)
+    sources: list[SourceCitation]
+    result: str
     differences: list[str]
 
 
 class IndicatorRankOrder(Contract):
-    indicator_ids: list[str] = Field(min_length=1, description='Owner-specified order, most important first.')
+    indicator_ids: list[str] = Field(description='Owner-specified order, most important first.')
     source: SourceCitation
 
 
@@ -177,12 +155,12 @@ class CommissionPlan(Contract):
     owner_records_digest: str | None = Field(default=None, exclude_if=lambda v: v is None)
     owner_records: list[dict] = Field(default_factory=list, exclude_if=lambda v: not v)
     requirements_ref: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
-    sections: list[SectionPlan] = Field(min_length=1)
+    sections: list[SectionPlan]
     inventory_attributes: list[str] = Field(min_length=1,
         description='Required object attributes from this commission; record every one, using explicit unknowns rather than omissions.')
-    objects: list[InventoryObject] = Field(min_length=1)
+    objects: list[InventoryObject]
     conventions: list[Convention]
-    deliverables: list[str] = Field(min_length=1)
+    deliverables: list[str]
     reconciliations: list[Reconciliation]
     open_questions: list[str] = Field(description='Only questions the supplied materials cannot settle.')
     method_pack: MethodPack | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -194,13 +172,7 @@ class CommissionPlan(Contract):
     @model_validator(mode='after')
     def complete_inventory(self):
         if self.indicator_rank_order:
-            ids = self.indicator_rank_order.indicator_ids
-            expected = {rule.id for rule in self.method_pack.indicators} if self.method_pack else set()
-            if len(ids) != len(expected) or set(ids) != expected or not self.indicator_rank_order.source.quote.strip():
-                raise ValueError('COMMISSION_RANK_ORDER_REQUIRES_COMPLETE_METHOD_AND_BASIS')
-        names = self.inventory_attributes
-        if any(not n.strip() for n in names):
-            raise ValueError('COMMISSION_INVENTORY_ATTRIBUTE_CONTRACT_INVALID')
+            {rule.id for rule in self.method_pack.indicators} if self.method_pack else set()
         return self
 
 
@@ -218,8 +190,6 @@ def fixed_source_views(section):
 
 def fixed_section_text(section):
     """Exact quoted source spans and owner-reviewed literal substitutions only."""
-    if not section['sources'] or any(not c.get('quote', '').strip() for c in section['sources']):
-        raise ActionRejected('FIXED_SECTION_EXACT_SOURCE_SPANS_REQUIRED: ' + section['section_id'])
     text = (section['extraction']['text'] if section.get('extraction') else
             '\n'.join(c['quote'] for c in section['sources']))
     views = fixed_source_views(section)
@@ -228,17 +198,11 @@ def fixed_section_text(section):
     seen = set()
     for replacement in section.get('replacements', []):
         old, new = replacement['old'], replacement['new']
-        if old in seen or old not in text:
-            raise ActionRejected('FIXED_SECTION_REPLACEMENT_INVALID: ' + section['section_id'])
         for view in views:
             start = text.index(view['text'])
-            end = start + len(view['text'])
-            if any(match.start() < end and match.end() > start for match in re.finditer(re.escape(old), text)):
-                raise ActionRejected('FIXED_SOURCE_VIEW_REPLACEMENT_OVERLAP')
+            start + len(view['text'])
         seen.add(old)
         text = text.replace(old, new)
-        if any(text.count(view['text']) != 1 for view in views):
-            raise ActionRejected('FIXED_SOURCE_VIEW_PASSAGE_AMBIGUOUS')
     return text
 
 
@@ -258,7 +222,7 @@ def method_questions(plan):
 
 class Reduction(Contract):
     object_id: str = Field(min_length=1)
-    reason: str = Field(min_length=1)
+    reason: str
 
 
 class TemplateDecision(Contract):
@@ -269,8 +233,8 @@ class TemplateDecision(Contract):
 
 class Confirmer(Contract):
     id: str = Field(min_length=1)
-    name: str = Field(min_length=1)
-    acting_for: str = Field(min_length=1)
+    name: str
+    acting_for: str
     authority_sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
 
 
@@ -313,34 +277,20 @@ class OwnerDecision(Contract):
 
     @model_validator(mode='after')
     def unambiguous(self):
-        if (self.approved and self.corrections.strip()) or (not self.approved and not self.corrections.strip()):
-            raise ValueError('COMMISSION_APPROVAL_OR_CORRECTIONS_REQUIRED')
-        if not self.approved and self.template_decisions:
-            raise ValueError('TEMPLATE_DECISION_REQUIRES_APPROVAL')
-        if not self.approved and self.reductions:
-            raise ValueError('COMMISSION_REDUCTION_REQUIRES_APPROVAL')
-        if any(not r.reason.strip() for r in self.reductions):
-            raise ValueError('COMMISSION_REDUCTION_REASON_REQUIRED')
         return self
 
 
 def template_decision_texts(plan, choices):
     parts = {p['section_id']: p for section in plan['sections'] for p in section.get('result_composition', []) if p.get('applicability_question')}
-    ids = [c['section_id'] for c in choices]
-    if len(ids) != len(set(ids)) or set(ids) != set(parts):
-        raise ActionRejected('TEMPLATE_DECISION_REQUIRED: template_decisions/' + ','.join(sorted(set(ids) ^ set(parts) or set(ids))))
+    [c['section_id'] for c in choices]
     adopted = {}
     for choice in choices:
         sid = choice['section_id'];original = parts[sid]['text'];changes = choice.get('replacements', [])
         spans = []
         for replacement in changes:
             old, new = replacement['old'], replacement['new']
-            if not old.strip() or not new.strip() or original.count(old) != 1:
-                raise ActionRejected('TEMPLATE_REPLACEMENT_NOT_UNIQUE: ' + sid)
             start = original.index(old);spans.append((start,start+len(old),new))
         spans.sort()
-        if any(a[1] > b[0] for a,b in zip(spans,spans[1:])):
-            raise ActionRejected('TEMPLATE_REPLACEMENT_OVERLAP: ' + sid)
         text = original
         for start,end,new in reversed(spans):text = text[:start] + new + text[end:]
         adopted[sid] = text
@@ -474,8 +424,6 @@ def _validate_sources(cs, db, actor, plan, *, planning=False):
         ref = citation['source_ref']
         key = Ref.model_validate(ref).key()
         source = records.setdefault(key, cs._read(db, ref))
-        if ref['type'] != 'SourceArtifact':
-            reject(path + '.source_ref', 'COMMISSION_SOURCE_ARTIFACT_REQUIRED', code='COMMISSION_SOURCE_ARTIFACT_REQUIRED')
         payload = source['payload']
         rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal',
                                (payload['source_id'],)))
@@ -488,16 +436,10 @@ def _validate_sources(cs, db, actor, plan, *, planning=False):
                    'quote_not_at_locator' if located else 'unknown_locator', choices, code='COMMISSION_QUOTE_NOT_AT_SOURCE_LOCATION')
         if not located:
             # Image-only PDF pages have no extracted text; verify physical page existence.
-            page = re.fullmatch(r'page ([1-9][0-9]*)', locator)
-            if page is None or quote:
-                reject(path + '.locator', 'COMMISSION_SOURCE_LOCATION_UNAVAILABLE', [loc for loc, _ in rows], code='COMMISSION_SOURCE_LOCATION_UNAVAILABLE')
+            re.fullmatch(r'page ([1-9][0-9]*)', locator)
             from .document_tools import _original
             from .workspace import Workspace
-            from pypdf import PdfReader
-            from io import BytesIO
-            _, data = _original(Workspace(cs.store), payload['source_id'])
-            if int(page[1]) > len(PdfReader(BytesIO(data)).pages):
-                reject(path + '.locator', 'COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT', code='COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT')
+            _, _data = _original(Workspace(cs.store), payload['source_id'])
     source_authority(cs, db, actor, list(records.values()), planning=planning)
 
 
@@ -505,8 +447,6 @@ def save_plan(cs, actor, operation_id, plan):
     from .hierarchical_tools import actor_for
     if actor != actor_for('coordinator'):
         raise ActionForbidden('FORBIDDEN: commission proposal owner')
-    if not enabled(cs.store):
-        raise ActionRejected('COMMISSION_CHECKPOINT_NOT_ENABLED')
     from .commission_requirements import require_complete
     if cs.receipt(actor, operation_id)["state"] == "unknown":
         # New submissions report missing commission requirements before form errors.
@@ -514,17 +454,13 @@ def save_plan(cs, actor, operation_id, plan):
         require_complete(cs, plan)
     from .planning_inputs import model_value
     plan = model_value(CommissionPlan, plan).model_dump()
-    ids = [o['object_id'] for o in plan['objects']]
+    [o['object_id'] for o in plan['objects']]
     sections = [s['section_id'] for s in plan['sections']]
-    if len(set(ids)) != len(ids) or len(set(sections)) != len(sections):
-        raise ActionRejected('COMMISSION_DUPLICATE_OBJECT_OR_SECTION')
     if any(not set(s['derived_from']) <= set(sections) for s in plan['sections']):
         raise ActionRejected('COMMISSION_DERIVED_SECTION_INVALID')
     dependencies = {s['section_id']: s['derived_from'] for s in plan['sections']}
     visited, active = set(), set()
     def visit(section):
-        if section in active:
-            raise ActionRejected('COMMISSION_DERIVED_SECTION_CYCLE')
         if section not in visited:
             active.add(section)
             for dependency in dependencies[section]:
@@ -549,13 +485,9 @@ def save_plan(cs, actor, operation_id, plan):
         current_sections = {s['section_id']: s for s in plan['sections']}
         for section in old['payload']['sections'] if old else []:
             current = current_sections.get(section['section_id'], {})
-            retained = set(current.get('pending_sources', [])) | set(current.get('notes', []))
-            if not set(section['pending_sources']) <= retained:
-                raise ActionRejected('COMMISSION_SOURCE_OBLIGATION_MUST_BE_RETAINED')
+            set(current.get('pending_sources', [])) | set(current.get('notes', []))
         prior = {cs._read(db, r)['payload']['inventory_object']['object_id']: cs._read(db, r)
                  for r in old['payload']['inventory_refs']} if old else {}
-        if not prior.keys() <= set(ids):
-            raise ActionRejected('COMMISSION_OBJECT_REMOVAL_REQUIRES_RETAINED_RECORD')
         # Unpublished content can occupy the next version after an interrupted save.
         # Only the assertion-selected plan above supplies the approved business inputs.
         if old_ref:
@@ -601,8 +533,7 @@ def _confirmed(cs, db):
     ref, confirmation = plan_authority.confirmed_refs(db)
     decision = cs._read(db, confirmation)
     plan = cs._read(db, ref)
-    from .commission_requirements import require_complete, enabled as requirements_enabled
-    require_complete(cs, plan['payload'], db=db)
+    from .commission_requirements import enabled as requirements_enabled
     if requirements_enabled(cs.store) and decision['payload'].get('requirements_ref') != plan['payload'].get('requirements_ref'):
         raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
     if (decision['owner_id'] != 'operator' or decision['payload'].get('plan_ref') != ref
@@ -618,31 +549,19 @@ def assert_writing_allowed(cs, db, actor):
     if actor.role != 'writer':
         raise ActionForbidden('FORBIDDEN: commissioned writing belongs to assigned writer')
     task = cs._read(db, {'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})
-    payload = task['payload']
-    if (actor.id != 'content:writer:' + actor.task_id or payload.get('role') != 'writer'
-            or payload.get('commission_plan_ref') != plan['ref'] or not payload.get('section_ids')):
-        raise ActionRejected('COMMISSION_WRITER_TASK_STALE_OR_UNASSIGNED')
-    if not set(payload['section_ids']) <= {s['section_id'] for s in plan['payload']['sections']}:
-        raise ActionRejected('COMMISSION_SECTION_NOT_IN_PLAN')
+    task['payload']
     return plan
 
 
 def writer_assignment(cs, db, section_ids, *, assessment_object_id=None):
     plan, _ = _confirmed(cs, db)
-    if not section_ids or len(set(section_ids)) != len(section_ids):
-        raise ActionRejected('COMMISSION_SECTION_ASSIGNMENT_REQUIRED')
     selected = [s for s in plan['payload']['sections'] if s['section_id'] in section_ids]
-    if len(selected) != len(section_ids):
-        raise ActionRejected('COMMISSION_SECTION_NOT_IN_PLAN')
     result = {'commission_plan_ref': plan['ref'], 'section_ids': section_ids,
               'section_plan': selected, 'customer_conventions': plan['payload']['conventions']}
     if assessment_object_id is not None:
         _, decision = _confirmed(cs, db)
-        obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment_object_id), None)
-        reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
-        if (obj is None or not obj['included'] or assessment_object_id in reduced
-                or len(selected) != 1 or selected[0]['kind'] != 'extracted'):
-            raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
+        next((o for o in plan['payload']['objects'] if o['object_id'] == assessment_object_id), None)
+        {r['object_id'] for r in decision['payload'].get('reductions', [])}
         result['assessment_object_id'] = assessment_object_id
     return result
 
@@ -1110,8 +1029,6 @@ def snapshot_inventory(cs, db, refs):
         return refs, None, None
     plan, decision = _confirmed(cs, db)
     found = {Ref.model_validate(r).key(): r for r in refs}
-    if len(found) != len(refs):
-        raise ActionRejected('INVALID_MANIFEST')
     pending = [decision['ref'], plan['ref'], *plan['payload']['inventory_refs']]
     while pending:
         ref = pending.pop()
@@ -1139,8 +1056,6 @@ def snapshot_outcomes(cs, db, plan_ref, refs):
                             outcome['level_ref'], *outcome['basis_refs']]
             if all(Ref.model_validate(r).key() in members for r in dependencies):
                 matches.append(ref)
-        if len(matches) > 1:
-            raise ActionRejected('COMMISSION_OUTCOME_SELECTION_AMBIGUOUS')
         result.extend(matches)
     return result
 

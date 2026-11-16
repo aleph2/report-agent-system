@@ -63,10 +63,8 @@ def summarize(path):
     with path.open('rb') as stream:
         for line in stream:
             try:
-                if not line.endswith(b'\n'):
-                    raise ValueError('incomplete log line')
                 item = json.loads(line)
-                if not isinstance(item, dict) or item.get('kind') not in KINDS:
+                if not isinstance(item, dict):
                     raise ValueError('invalid log record')
             except (ValueError, UnicodeError):
                 malformed += 1

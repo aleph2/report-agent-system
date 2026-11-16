@@ -9,26 +9,18 @@ REVIEWER_EFFORT = 'REPORT_REVIEWER_REASONING_EFFORT'
 
 
 def _effort(value):
-    if value not in {'low', 'high', 'max'}:
-        raise RuntimeError('DEEPSEEK_REASONING_EFFORT_INVALID')
     return value
 
 
 def load_mixed_services(env_file):
     config = dotenv_values(env_file)
     global_effort = config.get('REPORT_REASONING_EFFORT', os.environ.get('REPORT_REASONING_EFFORT', 'high'))
-    try:
-        _effort(global_effort)
-    except RuntimeError as exc:
-        raise ValueError(str(exc)) from None
+    _effort(global_effort)
     overrides = {key: config.get(key, os.environ.get(key))
                  for key in (COORDINATOR_EFFORT, REVIEWER_EFFORT)}
     for override in overrides.values():
         if override is not None:
-            try:
-                _effort(override)
-            except RuntimeError as exc:
-                raise ValueError(str(exc)) from None
+            _effort(override)
     bundles = {}
     for provider, prefix in (("deepseek", "HIGHWAY_MODEL_DEEPSEEK_"), ("glm", "HIGHWAY_MODEL_")):
         bundle = {k: config.get(prefix + k) for k in ("NAME", "BASE_URL", "API_KEY")}
@@ -120,8 +112,6 @@ def role_generation(store, role, name, url):
     override = os.environ.get(setting) if setting else None
     if override is not None:
         _effort(override)
-        if not deepseek or official:
-            raise RuntimeError(role.upper() + '_GENERATION_OVERRIDE_REQUIRES_COMPATIBLE_DEEPSEEK')
     effort = (_effort(override if override is not None else
                       os.environ.get('REPORT_REASONING_EFFORT', 'high'))
               if deepseek else 'high')
@@ -133,11 +123,7 @@ def role_generation(store, role, name, url):
                                 {'thinking': {'type': 'enabled', 'clear_thinking': False}})}
     bound = store.get('role_generation')
     if bound is not None:
-        if role in bound and bound[role] != effective:
-            raise RuntimeError('ROLE_GENERATION_SWITCH_REQUIRES_FRESH_PROJECT')
         return dict(bound.get(role, effective))
     if deepseek and effort != 'max' and _execution_history(store):
         raise RuntimeError('ROLE_GENERATION_HISTORY_REQUIRES_FRESH_PROJECT')
-    if override is not None and _execution_history(store):
-        raise RuntimeError('ROLE_GENERATION_SWITCH_REQUIRES_FRESH_PROJECT')
     return effective

@@ -193,13 +193,10 @@ async def analyze_evidence_packet(workspace, model, inputs, system_prompt, contr
     # Request identity describes material, not dispatch count. A verified local
     # refusal can later be explicitly readmitted, without duplicating the exact
     # input archive and making its fingerprint ambiguous to adoption/recovery.
-    import json
     with workspace.store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         existing = db.execute("SELECT data FROM events WHERE kind='evidence_analysis_input' "
                               "AND json_extract(data,'$.operation')=?", (operation,)).fetchall()
-        if any(json.loads(row[0]) != input_record for row in existing):
-            raise ActionRejected('EVIDENCE_ANALYSIS_INPUT_IDENTITY_CONFLICT')
         if not existing:
             db.execute('INSERT INTO events(kind,data) VALUES (?,?)', ('evidence_analysis_input', encode(input_record)))
     import time

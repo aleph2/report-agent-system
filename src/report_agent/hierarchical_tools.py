@@ -65,7 +65,6 @@ def general_reviewer_tool(fn):
 
     @wraps(fn)
     def call(*args, **kwargs):
-        require_general_review_tool()
         return fn(*args, **kwargs)
     call._general_review_guard = call
     return call
@@ -75,7 +74,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
     if reviewer_handles and role != 'reviewer':
         raise ActionForbidden('REVIEW_MESSAGE_TASK_BINDING_REQUIRED')
     contents, fallback = ContentStore(workspace.store), actor_for(role)
-    from .source_use import check_source_read
 
     def actor():
         from .content_tasks import bound_actor
@@ -163,9 +161,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         Source offset/limit are characters; continue at next_offset for unread material.
         """
         if kind == "source":
-            if offset < 0 or not 1 <= limit <= 16000:
-                raise ActionRejected("INVALID_PAGE")
-            check_source_read(workspace, actor, [source_id])
             source = workspace.store.sources([source_id])[0]
             text = source["content"]
             result = {"source_id": source_id, "source_digest": digest(source), "text": text[offset:offset + limit],

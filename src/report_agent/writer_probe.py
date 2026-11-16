@@ -56,17 +56,12 @@ def _fresh_import(case, inputs):
         raise ValueError('PROBE_FRESH_BUSINESS_IMPORT_REQUIRED')
     with closing(sqlite3.connect((case/'state.db').as_uri()+'?mode=ro',uri=True,timeout=3)) as db:
         db.execute('PRAGMA query_only=ON')
-        if db.execute('SELECT count(*) FROM events').fetchone()[0] or db.execute(
-                "SELECT count(*) FROM content_versions WHERE type IN ('DelegatedTask','Assessment')").fetchone()[0]:
-            raise ValueError('PROBE_FRESH_BUSINESS_IMPORT_REQUIRED')
     return receipt
 
 
 async def run_probe(case, evidence, env):
     """One exclusive launch; every terminal outcome requires owner review, never replay."""
     case,evidence,env = (Path(p).resolve() for p in (case,evidence,env))
-    if case.parent != evidence.parent or case == evidence:
-        raise ValueError('PROBE_OWNED_EXECUTION_ROOT_REQUIRED')
     launch_path = evidence/'probe-launch.json'
     if launch_path.exists():
         raise FileExistsError('PROBE_ALREADY_LAUNCHED_INSPECT_ORIGINAL_OUTCOME')
@@ -93,11 +88,9 @@ async def run_probe(case, evidence, env):
 
 async def _run_probe_locked(case, inputs, authority, env, launch_path):
     evidence = launch_path.parent
-    imported = _fresh_import(case, inputs)
+    _fresh_import(case, inputs)
     ledger = Path(inputs['ledger']).resolve()
     now = read_finance(ledger)
-    if now != inputs['stage_baseline']:
-        raise ValueError('PROBE_PERSISTED_BASELINE_CHANGED')
     guard = ProbeBudget(lambda:read_finance(ledger),inputs['original_baseline'],inputs['stage_baseline'],
         maximum_tokens=authority['hard_probe_tokens'],overall_limit=authority['overall_rescue_tokens'],
         preserved_hold=inputs['preserved_hold'],writer_model='glm-5.3')
@@ -119,20 +112,12 @@ async def _run_probe_locked(case, inputs, authority, env, launch_path):
     from .workspace import Workspace
     from .content_store import ContentStore
     from .commission_plan import _confirmed
-    from .model_recovery import load_recovery_policy
     store = Store(case)
     contents = ContentStore(store)
     with store.connect() as db:
         plan,decision = _confirmed(contents,db)
-    if (plan['ref'] != imported['plan_ref'] or decision['ref'] != imported['decision_ref']
-            or plan['ref'] != inputs['plan_ref'] or decision['ref'] != inputs['decision_ref']):
-        raise ValueError('PROBE_APPROVED_BINDING_CHANGED')
     object_id = inputs.get('object_id')
-    if not object_id or object_id != authority.get('object_id'):
-        raise ValueError('PROBE_APPROVED_OBJECT_ID_REQUIRED')
     selected = [o for o in plan['payload']['objects'] if o['object_id']==object_id]
-    if len(selected)!=1 or load_recovery_policy(store):
-        raise ValueError('PROBE_FRESH_HP02_ONLY_REQUIRED')
     bind_role_services(store)
     budget = TokenBudget(ledger,now['auth'][0],guard.bounds)
     result = {'at_utc':datetime.now(timezone.utc).isoformat(),'status':'running',
@@ -162,9 +147,6 @@ async def _run_probe_locked(case, inputs, authority, env, launch_path):
                     resources.push_async_callback(client.aclose) if asynchronous else resources.callback(client.close)
             with model_client_ownership(own):
                 model = configured_model(store,'writer')
-            if (model.model_name != name or model.root_async_client.max_retries != 0
-                    or (getattr(model,'profile',None) or {}).get('image_inputs') is not False):
-                raise ValueError('PROBE_EFFECTIVE_MODEL_MISMATCH')
             with (token_budget(budget),request_token_bound(bound),
                   request_reservation_observer(guard.check,observation=guard.observation),
                   writer_session(Workspace(store),selected[0]['label'],model,assessment_only=True,

@@ -46,22 +46,22 @@ class PlanningInventoryValue(InventoryValue):
 
 
 class PlanningInventoryAttribute(InventoryAttribute):
-    values: list[PlanningInventoryValue] = Field(min_length=1)
+    values: list[PlanningInventoryValue]
 
 
 class PlanningInventoryObject(InventoryObject):
-    attributes: list[PlanningInventoryAttribute] = Field(min_length=1)
-    sources: list[PlanningCitation] = Field(min_length=1)
+    attributes: list[PlanningInventoryAttribute]
+    sources: list[PlanningCitation]
 
 
 class PlanningSubstitution(SourceSubstitution):
-    replacement_sources: list[PlanningCitation] = Field(min_length=1)
+    replacement_sources: list[PlanningCitation]
     customer_basis: QuotedPlanningCitation
 
 
 class PlanningReconciliationInput(Reconciliation):
     reconciliation_id: str = Field(min_length=1)
-    sources: list[PlanningCitation] = Field(min_length=1)
+    sources: list[PlanningCitation]
 
 
 def citation_paths(value, path=''):
@@ -103,13 +103,11 @@ def resolve_citations(cs, db, actor, value, root, *, planning=False):
     changes = []
     for path, citation in citation_paths(value, root):
         source = cs._read(db, citation['source_ref'])
-        if citation['source_ref']['type'] != 'SourceArtifact':
-            reject(path + '.source_ref', 'source_artifact_required')
         from .deliverables import source_authority
         try:
             source_authority(cs, db, actor, [source], planning=planning)
-        except ActionRejected as error:
-            reject(path + '.source_ref', str(error))
+        except ActionRejected:
+            raise
         rows = list(db.execute('SELECT locator,text FROM source_blocks WHERE source_id=? ORDER BY ordinal', (source['payload']['source_id'],)))
         locator, quote = citation.get('locator', ''), citation.get('quote', '')
         located = [text for loc, text in rows if locator and (loc == locator or loc.startswith(locator + ';'))]
@@ -118,13 +116,8 @@ def resolve_citations(cs, db, actor, value, root, *, planning=False):
         if not quote.strip():
             if locator:
                 continue  # Canonical validator also supports existing image-only page citations.
-            reject(path + '.quote', 'quote_required_for_automatic_location')
         matches = quote_locations(rows, quote)
-        if len(matches) != 1:
-            reject(path + '.quote', 'quote_not_found' if not matches else 'quote_ambiguous', matches)
-        selected = [text for loc, text in rows if loc == matches[0] or loc.startswith(matches[0] + ';')]
-        if quote not in ''.join(selected):
-            reject(path + '.quote', 'quote_spans_distinct_locations: cite a quote within one returned location', matches)
+        [text for loc, text in rows if loc == matches[0] or loc.startswith(matches[0] + ';')]
         citation['locator'] = matches[0]
         changes.append({'field': path + '.locator', 'original_locator': locator,
                         'resolved_locator': matches[0], 'reason': 'unique_exact_quote',
@@ -256,9 +249,7 @@ def expose(function):
             if error.diagnostic:
                 raise
             code = str(error).split(':', 1)[0]
-            field = ERROR_FIELDS.get(code)
-            if field:
-                reject(field, code)
+            ERROR_FIELDS.get(code)
             raise
     checked.message_model = model
     return checked

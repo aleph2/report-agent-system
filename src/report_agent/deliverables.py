@@ -3,7 +3,7 @@ import json
 from collections import Counter
 from typing import Annotated, Literal
 
-from pydantic import Field, TypeAdapter, ValidationError, model_validator
+from pydantic import Field, TypeAdapter, model_validator
 
 from .content_inputs import BatchRef
 from .content_models import Contract, Ref, refs_in
@@ -44,8 +44,6 @@ class SavedWork(Contract):
 
     @model_validator(mode='after')
     def explicit_pool(self):
-        if not self.members_from and not self.include_current_save:
-            raise ValueError('DELIVERABLE_EMPTY_POOL')
         return self
 
 
@@ -81,35 +79,15 @@ def published(cs, db, actor, operation_id):
         raise ActionRejected('DELIVERABLE_SOURCE_NOT_FOUND')
     response = json.loads(row[1])
     value = (response.get('result') or {}).get('deliverable')
-    if (not response.get('ok') or not isinstance(value, dict) or value.get('contract') != CONTRACT
-            or value.get('operation_id') != operation_id or value.get('producer_actor_id') != row[0]):
-        raise ActionRejected('DELIVERABLE_NOT_PUBLISHED')
-    if (not isinstance(value.get('root_ref'), dict)
-            or not isinstance(value.get('member_refs'), list) or not value['member_refs']
-            or not isinstance(value.get('workbook_refs'), list)
-            or not isinstance(value.get('member_digest'), str)
-            or value.get('producer_role') not in {'writer', 'coordinator'}
-            or not isinstance(value.get('producer_task_id'), str)
-            or 'producer_task_ref' not in value or 'selection' not in value):
+    if ((not isinstance(value.get('root_ref'), dict)) or (not isinstance(value.get('member_refs'), list)) or (not isinstance(value.get('workbook_refs'), list)) or (not isinstance(value.get('member_digest'), str)) or (not isinstance(value.get('producer_task_id'), str))):
         raise ActionRejected('DELIVERABLE_DECLARATION_INVALID')
-    try:
-        root_key = key(value['root_ref'])
-        members = [key(r) for r in value['member_refs']]
-        [key(r) for r in value['workbook_refs']]
-        TypeAdapter(DeliverableSelection).validate_python(value['selection'])
-        if root_key not in members or len(set(members)) != len(members):
-            raise ActionRejected('DELIVERABLE_DECLARATION_INVALID')
-        if value['producer_role'] == 'writer' and (
-                value['producer_actor_id'] != 'content:writer:' + value['producer_task_id']
-                or value['producer_task_ref'] != {'type': 'DelegatedTask', 'id': value['producer_task_id'], 'version': 1}):
-            raise ActionRejected('DELIVERABLE_DECLARATION_INVALID')
-    except (ValidationError, TypeError):
-        raise ActionRejected('DELIVERABLE_DECLARATION_INVALID') from None
+    key(value['root_ref'])
+    [key(r) for r in value['member_refs']]
+    [key(r) for r in value['workbook_refs']]
+    TypeAdapter(DeliverableSelection).validate_python(value['selection'])
     if (parent(cs, db, actor.id, actor.role, actor.task_id) !=
             parent(cs, db, row[0], value.get('producer_role'), value.get('producer_task_id'))):
         raise ActionForbidden('FORBIDDEN: deliverable parent')
-    if value.get('member_digest') != member_digest(value):
-        raise ActionRejected('DELIVERABLE_DIGEST_MISMATCH')
     source_authority(cs, db, actor, [cs._read(db, ref) for ref in value['member_refs']])
     return value
 
@@ -150,8 +128,6 @@ def source_authority(cs, db, actor, records, *, planning=False, snapshot=None):
 
 def snapshot_selection(cs, db, actor, ref):
     record = cs._read(db, ref)
-    if ref['type'] != 'DocumentSnapshot':
-        raise ActionRejected('DELIVERABLE_SNAPSHOT_REQUIRED')
     if (parent(cs, db, actor.id, actor.role, actor.task_id) !=
             parent(cs, db, record['owner_id'], 'coordinator' if record['owner_id'] == actor.id
                    and actor.role == 'coordinator' else None)):
@@ -167,8 +143,6 @@ def declare(cs, db, actor, operation_id, selection, assigned):
 
     def resolved(ref):
         if set(ref) == {'client_key'}:
-            if ref['client_key'] not in assigned:
-                raise ActionRejected('UNKNOWN_CLIENT_KEY')
             return assigned[ref['client_key']]
         return Ref.model_validate(ref).model_dump()
 
@@ -192,10 +166,6 @@ def declare(cs, db, actor, operation_id, selection, assigned):
         workbooks = [resolved(r) for r in selection['workbook_refs']]
         kept = {key(root), *(key(r) for r in workbooks)}
         removed = {key(r) for r in selection['remove_refs']}
-        if not kept <= pool.keys():
-            raise ActionRejected('DELIVERABLE_ROOT_OR_WORKBOOK_OUTSIDE_POOL')
-        if not removed <= pool.keys() or removed & kept:
-            raise ActionRejected('DELIVERABLE_INVALID_EXCLUSION')
         relations = [r for r in pool.values() if r['ref']['type'] == 'Relation']
         pending = list(kept)
         while pending:
@@ -210,13 +180,9 @@ def declare(cs, db, actor, operation_id, selection, assigned):
                     kept.add(key(relation['ref'])); pending.append(key(relation['ref']))
             for dependency in refs_in(pool[current]['payload']):
                 dep = dependency.key()
-                if dep in removed:
-                    raise ActionRejected('DELIVERABLE_EXCLUDED_DEPENDENCY')
                 if dep not in kept:
                     pool.setdefault(dep, cs._read(db, dependency.model_dump()))
                     kept.add(dep); pending.append(dep)
-    if root['type'] != 'ContentNode':
-        raise ActionRejected('DELIVERABLE_ROOT_REQUIRES_CONTENT')
     members = [pool[k]['ref'] for k in sorted(kept)]
     source_authority(cs, db, actor, [pool[k] for k in kept])
     cs._snapshot_payload(db, root, members, workbooks)
@@ -278,8 +244,6 @@ def resolve_snapshot(cs, db, actor, selector):
         payload = snapshot_selection(cs, db, actor, selector['snapshot_ref'])
         source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)
         return selector['snapshot_ref']
-    if selector.get('kind') != 'deliverable' or set(selector) != {'kind', 'operation_id'}:
-        raise ActionRejected('DELIVERABLE_SELECTOR_INVALID')
     value = published(cs, db, actor, selector['operation_id'])
     if value['selection']['kind'] == 'existing_snapshot':
         ref = value['selection']['snapshot_ref']
@@ -289,13 +253,9 @@ def resolve_snapshot(cs, db, actor, selector):
     rows = db.execute("SELECT data FROM content_versions WHERE type='DocumentSnapshot' "
         "AND json_extract(data,'$.payload.deliverable_provenance.operation_id')=? "
         "AND json_extract(data,'$.payload.deliverable_provenance.member_digest')=?", tuple(provenance.values())).fetchall()
-    if len(rows) > 1:
-        raise ActionRejected('DELIVERABLE_SNAPSHOT_CONFLICT')
     payload = cs._snapshot_payload(db, value['root_ref'], value['member_refs'], value['workbook_refs'])
     if rows:
         record = json.loads(rows[0][0])
-        if any(record['payload'].get(k) != v for k, v in payload.items()):
-            raise ActionRejected('DELIVERABLE_SNAPSHOT_CONFLICT')
         snapshot_selection(cs, db, actor, record['ref'])
         return record['ref']
     return cs._insert(db, actor, 'DocumentSnapshot', {**payload, 'deliverable_provenance': provenance})

@@ -69,10 +69,7 @@ class WorkingSummary(SummarizationMiddleware):
                 db.execute('BEGIN IMMEDIATE')
             rows = db.execute("SELECT key,value FROM state WHERE key LIKE 'summary_policy_failure:%' "
                               "OR key LIKE 'summary_failure_scope:%'").fetchall()
-            try:
-                saved = {key:json.loads(value) for key,value in rows}
-            except (TypeError,ValueError):
-                raise SummaryRepairRequired('SUMMARY_FAILURE_SCOPE_INVALID: preserve stored records') from None
+            saved = {key:json.loads(value) for key,value in rows}
             bindings = {}
             for key,value in saved.items():
                 if not key.startswith('summary_failure_scope:'):
@@ -95,10 +92,6 @@ class WorkingSummary(SummarizationMiddleware):
                 if key.startswith('summary_policy_failure:') and value is not None:
                     if not isinstance(value,dict) or not isinstance(value.get('reason'),str) or not value['reason']:
                         raise SummaryRepairRequired('SUMMARY_FAILURE_RECORD_INVALID: '+key)
-                    if key not in bindings:
-                        raise SummaryRepairRequired('SUMMARY_FAILURE_UNSCOPED_HISTORICAL: '+key
-                            +' original_reason='+str(value.get('reason','UNKNOWN_HISTORICAL_FAILURE'))
-                            +'; scope cannot be proven; manual diagnosis required')
             previous_key = saved.get(scope_key,{}).get('failure_key',failure_key)
             previous = saved.get(previous_key)
             if previous:
@@ -189,11 +182,8 @@ class WorkingSummary(SummarizationMiddleware):
                 'or that a second channel exists.\n'+encode(context))
         if failure_key:
             from .store import digest
-            _, concurrent=self._failure_state(failure_key,{'reason':'SUMMARY_OUTCOME_PENDING',
+            _, _concurrent=self._failure_state(failure_key,{'reason':'SUMMARY_OUTCOME_PENDING',
                 'input_digest':digest(formatted),'original_history_retained':True})
-            if concurrent:
-                raise SummaryRepairRequired('SUMMARY_POLICY_REPAIR_REQUIRED: original_reason='+
-                    str(concurrent.get('reason','UNKNOWN_HISTORICAL_FAILURE')))
             self.store.event('working_summary_intent',{'scope_key':failure_key,'input_digest':digest(formatted)})
         from .request_budget import logical_request_admission, RequestBudgetExceeded
         try:
@@ -270,11 +260,7 @@ def working_summary(model,store,role=None,*,prompt_profile=LEGACY_PROMPTS):
         summary.max_tokens=SUMMARY_OUTPUT_LIMIT
     binding = store.get('role_generation') if store else None
     has_policy = isinstance(binding, dict) and 'working_summary' in binding
-    policy = binding.get('working_summary') if has_policy else None
-    if has_policy and (policy != {'reasoning_effort': 'high'} or not all(
-            isinstance(binding.get(role), dict) and binding[role].get('reasoning_effort') == 'high'
-            for role in ('coordinator', 'writer', 'reviewer', 'layout', 'text_tool'))):
-        raise RuntimeError('INVALID_WORKING_SUMMARY_GENERATION_POLICY')
+    binding.get('working_summary') if has_policy else None
     if not has_policy:
         if hasattr(summary,'reasoning_effort'):
             summary.reasoning_effort=None

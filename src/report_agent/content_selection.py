@@ -66,8 +66,6 @@ def selected_content(workspace, snapshot_ref, selections):
 
 
 def content_index(contents, snapshot_ref, offset=0, limit=20):
-    if isinstance(offset, bool) or isinstance(limit, bool) or offset < 0 or not 1 <= limit <= 100:
-        raise ActionRejected("INVALID_PAGE")
     snapshot, _ = snapshot_members(contents, snapshot_ref)
     refs = snapshot["payload"]["refs"]
     relations = [contents.read(r) for r in refs if r["type"] == "Relation"]

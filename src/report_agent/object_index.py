@@ -8,10 +8,8 @@ from .store import digest, encode
 
 def object_index(contents, offset=0, limit=20, object_type='', owner_id='',
                  current_only=False, inventory_digest=''):
-    if type(offset) is not int or type(limit) is not int or offset < 0 or not 1 <= limit <= 20:
+    if (type(offset) is not int) or (type(limit) is not int):
         raise ActionRejected('INVALID_OBJECT_INDEX_PAGE: offset>=0, limit=1..20')
-    if offset and not inventory_digest:
-        raise ActionRejected('OBJECT_INDEX_DIGEST_REQUIRED: use the first page inventory_digest')
     # One SQLite read snapshot keeps versions and heads coherent. No writes,
     # observation receipts, inferred roots or automatic descendants are produced.
     with contents.store.connect() as db:
@@ -31,8 +29,6 @@ def object_index(contents, offset=0, limit=20, object_type='', owner_id='',
         {'ref': r['ref'], 'payload_digest': r['payload_digest'],
          'owner_id': r['owner_id'], 'task_id': r['task_id'],
          'head_version': heads[(r['ref']['type'], r['ref']['id'])]} for r in selected]})
-    if inventory_digest and inventory_digest != fingerprint:
-        raise ActionRejected('OBJECT_INDEX_CHANGED: restart at offset=0 without inventory_digest; do not combine pages')
     offset = min(offset, len(selected))
     result = {'inventory_digest': fingerprint, 'filters': filters,
               'total': len(selected), 'offset': offset, 'next_offset': None,
@@ -59,8 +55,6 @@ def object_index(contents, offset=0, limit=20, object_type='', owner_id='',
         # Complete identities are never shortened or split over JSON fragments.
         if len(encode(result)) > 5800:
             result['objects'].pop()
-            if not result['objects']:
-                raise ActionRejected('OBJECT_INDEX_METADATA_ENTRY_TOO_LARGE')
             result['next_offset'] = offset + len(result['objects'])
             break
     return result

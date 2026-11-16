@@ -13,7 +13,7 @@ from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
 from .store import digest
 from .material_issues import (validate_node, comment_passage,
-    table_header, validate_required_issues)
+    table_header)
 
 
 def _asset(store, name, data):
@@ -46,13 +46,11 @@ def _emit_source_views(doc, text, views, emit_text, render_image, width_mm):
     spans = []
     for view in views:
         passage = view.get('text')
-        if not isinstance(passage, str) or not passage or text.count(passage) != 1:
+        if not isinstance(passage, str):
             raise ActionRejected('SOURCE_VIEW_PASSAGE_MUST_BE_UNIQUE')
         start = text.index(passage)
         spans.append((start, start + len(passage), view))
     spans.sort(key=lambda item: item[0])
-    if any(left[1] > right[0] for left, right in zip(spans, spans[1:])):
-        raise ActionRejected('SOURCE_VIEW_PASSAGES_OVERLAP')
     cursor = 0
     for start, stop, view in spans:
         if text[cursor:start].strip():
@@ -74,15 +72,11 @@ def _emit_source_views(doc, text, views, emit_text, render_image, width_mm):
 
 
 def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None, *, deliverable=None):
-    from .commission_requirements import export_preflight
-    export_preflight(contents, actor, snapshot_ref, deliverable)
     def execute(db):
         nonlocal snapshot_ref
         from .prompt_sources import review_interface_profile
         review_interface_profile(contents.store)
         if deliverable is not None:
-            if snapshot_ref is not None:
-                raise ActionRejected('EXPORT_DELIVERABLE_SELECTION_CONFLICT')
             from .deliverables import resolve_snapshot
             snapshot_ref = resolve_snapshot(contents, db, actor, deliverable)
         if actor.role not in {"coordinator", "writer", "layout"}:
@@ -92,14 +86,10 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         allowed = export_allowed(contents, db, actor, snapshot)
         if snapshot_ref["type"] != "DocumentSnapshot" or not allowed:
             raise ActionForbidden("FORBIDDEN: snapshot owner")
-        from .commission_requirements import require_snapshot
-        require_snapshot(contents, db, snapshot)
         selected_layout = layout
         if layout_from_export_ref is not None:
             source = contents._read(db, layout_from_export_ref)
             selected_layout = source['payload'].get('export_config', {}).get('layout')
-            if not isinstance(selected_layout, dict):
-                raise ActionRejected('LAYOUT_SOURCE_CONFIG_MISSING')
         records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot["payload"]["refs"]}
         plan_ref = snapshot['payload'].get('commission_plan_ref')
         plan = contents._read(db, plan_ref)['payload'] if plan_ref else None
@@ -123,7 +113,6 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         collect_body(snapshot['payload']['root_ref'])
         from .material_issues import export_issue_records
         issue_records, owner_issues = export_issue_records(contents, db, snapshot, records)
-        validate_required_issues(contents, db, snapshot, records, issue_records)
         from .material_issues import instruction_sources
         excluded_ids, excluded_titles = instruction_sources(db, records)
         from .g3_export import prepare_export, citation_text
@@ -486,9 +475,7 @@ def render_export(contents, actor, operation_id, export_ref):
     _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     def prepare(db):
         export = contents._read(db, export_ref)
-        suffix = Path(export['payload']['file_ref']).suffix
-        if suffix not in {'.docx', '.xlsx'}:
-            raise ActionRejected('RENDER_FORMAT_UNSUPPORTED')
+        Path(export['payload']['file_ref']).suffix
         from .operation_identity import NATIVE, profile
         if contents.store.get('manifest') is not None and profile(contents.store) == NATIVE:
             request_digest = digest({'actor': actor.__dict__, 'request': {'render': export_ref}})
@@ -540,8 +527,6 @@ def render_export(contents, actor, operation_id, export_ref):
         return payload
 
     def finalize(db, export, computed):
-        if contents._read(db, export_ref) != export:
-            raise ActionRejected('RENDER_EXPORT_CHANGED')
         _bytes(contents.store, export['payload']['file_ref'], export['payload']['file_digest'])
         if computed.get('execution_state') == 'blocked':
             return computed

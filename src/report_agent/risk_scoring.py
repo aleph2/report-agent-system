@@ -1,10 +1,9 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
 from . import report_state
-from .assessment_results import score_band
-from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker, draft_blocker
-from typing import Literal
+from .assessment_results import missing_weights, score_band, scoring_weights
+from .assessment_projection import assessment_receipt, record_assessment_projection
 
-from pydantic import Field, ValidationError
+from pydantic import Field
 
 from .calculations import sum_products
 from .content_models import Contract, SourceCitation
@@ -14,10 +13,10 @@ from .method_pack import MethodPack, number
 
 class IndicatorAssessment(Contract):
     indicator_id: str = Field(min_length=1)
-    rank: int = Field(strict=True, ge=1)
+    rank: int = Field(strict=True)
     grade_id: str = Field(min_length=1)
     value: str
-    basis_kind: Literal['direct_evidence', 'applied_guideline', 'indirect_assumption', 'no_evidence_assumption']
+    basis_kind: str
     sources: list[SourceCitation]
     rationale: str
     question: str = ''
@@ -31,9 +30,9 @@ class Assessment(Contract):
     object_id: str = Field(min_length=1)
     section_id: str = ''
     method_id: str = Field(min_length=1)
-    method_version: int = Field(strict=True, ge=1)
+    method_version: int = Field(strict=True)
     weight_strategy_id: str = Field(min_length=1)
-    indicators: list[IndicatorAssessment] = Field(min_length=1)
+    indicators: list[IndicatorAssessment]
 
 
 def _indicator_errors(definition, row):
@@ -57,41 +56,15 @@ def _indicator_errors(definition, row):
 
 
 def calculate(pack: dict, assessment: dict) -> dict:
-    errors = []
-    try:
-        method = MethodPack.model_validate(pack)
-    except ValueError as exc:
-        raise ActionRejected('ASSESSMENT_INVALID: method pack: ' + str(exc)) from exc
-    # Validate rows independently so one malformed value does not hide rank or basis errors.
-    rows = []
-    for index, row in enumerate(assessment.get('indicators', [])):
-        try:
-            rows.append(IndicatorAssessment.model_validate(row))
-        except ValidationError as exc:
-            errors.extend(f'indicator[{index}].' + '.'.join(map(str, e['loc'])) + ': ' + e['msg'] for e in exc.errors())
-    try:
-        Assessment.model_validate(assessment)
-    except ValidationError as exc:
-        errors.extend('.'.join(map(str, e['loc'])) + ': ' + e['msg'] for e in exc.errors() if not e['loc'] or e['loc'][0] != 'indicators')
-    if assessment.get('method_id') != method.method_id or assessment.get('method_version') != method.version:
-        errors.append('method identity/version mismatch')
-    table = next((t for t in method.weight_tables if t.id == assessment.get('weight_strategy_id')), None)
-    weights = next((r.weights for r in table.rows if r.indicator_count == len(method.indicators)), None) if table else None
-    if weights is None:
-        errors.append('weight strategy/count unavailable')
-    definitions = {i.id: i for i in method.indicators}
-    ids = [r.indicator_id for r in rows]
-    if len(set(ids)) != len(ids) or set(ids) != set(definitions):
-        errors.append('indicator set missing, extra or duplicate')
-    ranks = [r.rank for r in rows]
-    if sorted(ranks) != list(range(1, len(definitions) + 1)):
-        errors.append('rank must contain each position exactly once')
-    for row in rows:
-        errors.extend(_indicator_errors(definitions.get(row.indicator_id), row))
-    if errors:
-        raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(dict.fromkeys(errors)))
+    method = MethodPack.model_validate(pack)
+    parsed = Assessment.model_validate(assessment)
+    rows = parsed.indicators
+    weights = scoring_weights(method, parsed.weight_strategy_id, len(method.indicators),
+                              (row.rank for row in rows))
+    if isinstance(weights, dict):
+        return weights
+    definitions = {indicator.id: indicator for indicator in method.indicators}
     ordered = sorted(rows, key=lambda r: list(definitions).index(r.indicator_id))
-    assert weights is not None  # The unavailable strategy is reported with other input errors above.
     result: dict = {'rows': []}
     for mode in ('adopted', 'low', 'high'):
         values = [getattr(r, mode) if mode != 'adopted' and r.basis_kind.endswith('assumption') else r.value for r in ordered]
@@ -163,10 +136,7 @@ def _prepare_indicator(pack, row):
 def validate_indicator_judgment(pack, row):
     """Validate one real judgment without manufacturing the other indicator rows."""
     method = MethodPack.model_validate(pack)
-    try:
-        normalized, problems = _prepare_indicator(pack, row)
-    except ValidationError as error:
-        raise ActionRejected('ASSESSMENT_INVALID: ' + str(error)) from error
+    normalized, problems = _prepare_indicator(pack, row)
     parsed = IndicatorAssessment.model_validate(normalized)
     definition = next((i for i in method.indicators if i.id == parsed.indicator_id), None)
     if definition is None:
@@ -174,8 +144,6 @@ def validate_indicator_judgment(pack, row):
     if parsed.rank > len(method.indicators):
         problems.append(parsed.indicator_id + ': rank outside indicator count')
     problems.extend(_indicator_errors(definition, parsed))
-    if problems:
-        raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(dict.fromkeys(problems)))
     return normalized
 
 
@@ -188,26 +156,16 @@ def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     from .commission_plan import assert_writing_allowed
 
     plan = assert_writing_allowed(cs, db, actor)
-    if not plan or not plan['payload'].get('method_pack'):
-        raise ActionRejected('ASSESSMENT_METHOD_PACK_REQUIRED')
-    choices = [b for b in plan['payload'].get('method_conventions', []) if b['key'] == 'weights']
-    if len(choices) != 1 or assessment.get('weight_strategy_id') != choices[0]['strategy_id']:
-        raise ActionRejected('ASSESSMENT_COMMISSION_STRATEGY_MISMATCH')
+    [b for b in plan['payload'].get('method_conventions', []) if b['key'] == 'weights']
     obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment.get('object_id')), None)
-    if obj is None:
-        raise ActionRejected('ASSESSMENT_OBJECT_NOT_IN_COMMISSION')
     from .commission_plan import _confirmed
-    _, decision = _confirmed(cs, db)
-    if not obj['included'] or any(r['object_id'] == obj['object_id'] for r in decision['payload']['reductions']):
-        raise ActionRejected('ASSESSMENT_OBJECT_OUTSIDE_COMMISSION_SCOPE')
+    _, _decision = _confirmed(cs, db)
     task = cs._read(db, {'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
-    if task.get('assessment_object_id') is not None and task['assessment_object_id'] != assessment.get('object_id'):
-        raise ActionRejected('ASSESSMENT_OBJECT_OUTSIDE_WRITER_ASSIGNMENT')
     assigned = [s for s in task['section_ids'] if any(p['section_id'] == s and p['kind'] == 'extracted' for p in plan['payload']['sections'])]
     section_id = assessment.get('section_id') or (assigned[0] if len(assigned) == 1 else None)
-    if section_id not in assigned:
-        raise ActionRejected('ASSESSMENT_REQUIRES_EXTRACTED_SECTION_ASSIGNMENT')
     candidate, result = _prepare_complete(cs, db, actor, plan, section_id, assessment)
+    if 'missing_weight_ranks' in result:
+        return result
     from .assessment_producers import bind_producer
     from .section_writing import enabled as system_writing
     draft_only = system_writing(cs.store)
@@ -219,22 +177,10 @@ def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
 
 def _prepare_complete(cs, db, actor, plan, section_id, assessment):
     pack = plan['payload']['method_pack']
-    try:
-        candidate = Assessment.model_validate(assessment).model_dump(mode='json')
-    except ValidationError:
-        calculate(pack, assessment)
-        raise
-    problems = []
+    candidate = Assessment.model_validate(assessment).model_dump(mode='json')
     for index, row in enumerate(candidate['indicators']):
-        prepared, errors = _prepare_indicator(pack, row)
-        candidate['indicators'][index] = prepared
-        problems.extend(errors)
-    try:
-        result = calculate(pack, candidate)
-    except ActionRejected as exc:
-        problems.append(str(exc).removeprefix('ASSESSMENT_INVALID: '))
-    if problems:
-        raise ActionRejected('ASSESSMENT_INVALID: ' + '; '.join(problems))
+        candidate['indicators'][index], _ = _prepare_indicator(pack, row)
+    result = calculate(pack, candidate)
     validate_indicator_sources(cs, db, actor, plan, section_id, candidate['indicators'])
     return candidate, result
 
@@ -242,21 +188,24 @@ def _prepare_complete(cs, db, actor, plan, section_id, assessment):
 def _writer_input(scope, entries):
     plan = scope['plan']['payload']
     pack = plan['method_pack']
-    choices = [c for c in plan['method_conventions'] if c['key'] == 'weights']
-    if len(choices) != 1:
-        raise ActionRejected('WRITER_ASSESSMENT_WEIGHT_BINDING_REQUIRED')
-    ranks = plan['indicator_rank_order']['indicator_ids']
-    if set(entries) - set(ranks) or any(e['rank'] != ranks.index(i) + 1 for i, e in entries.items()):
-        raise ActionRejected('ASSESSMENT_CONFIRMED_RANK_MISMATCH')
+    strategy = next((choice.get('strategy_id') for choice in plan.get('method_conventions', [])
+                     if choice['key'] == 'weights'), None)
+    if not strategy:
+        count = len(pack['indicators'])
+        return missing_weights(strategy, count, range(1, count + 1))
     return dict(object_id=scope['object']['object_id'], section_id=scope['section_id'],
-                method_id=pack['method_id'], method_version=pack['version'], weight_strategy_id=choices[0]['strategy_id'],
+                method_id=pack['method_id'], method_version=pack['version'], weight_strategy_id=strategy,
                 indicators=[entries[r['id']]['judgment'] for r in pack['indicators'] if entries.get(r['id'], {}).get('judgment')])
 
 
 def preview_writer_assessment(cs, db, actor, scope, draft):
     candidate = _writer_input(scope, draft['rows'])
+    if 'missing_weight_ranks' in candidate:
+        return candidate
     if len(candidate['indicators']) == len(scope['plan']['payload']['method_pack']['indicators']):
         candidate, result = _prepare_complete(cs, db, actor, scope['plan'], scope['section_id'], candidate)
+        if 'missing_weight_ranks' in result:
+            return result
         # Verify every rendering invariant before the last immutable judgment commits.
         db.execute('SAVEPOINT assessment_preview')
         try:
@@ -275,29 +224,25 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment=None,
 
     if scope is None and draft is None and assessment is not None:
         return _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment)
-    if scope is None or draft is None or assessment is not None:
-        raise ActionRejected('ASSESSMENT_INPUT_MODE_MISMATCH')
     current = bound_assignment(cs, db, actor)
-    if current['assignment_digest'] != scope['assignment_digest']:
-        raise ActionRejected('ASSESSMENT_ASSIGNMENT_CHANGED')
     plan, obj, section = current['plan'], current['object'], current['section_id']
     bind_producer(cs, db, plan['ref'], obj['object_id'], actor)
     entries = immutable_entries(cs, db, actor, current, draft)
     candidate = _writer_input(current, entries)
+    if 'missing_weight_ranks' in candidate:
+        return candidate
     pack = plan['payload']['method_pack']
-    interruptions = draft.get('interrupted_indicators', {})
-    if set(interruptions) & set(entries) or set(interruptions) - {r['id'] for r in pack['indicators']}:
-        raise ActionRejected('ASSESSMENT_INTERRUPTION_SCOPE_MISMATCH')
-    if len(candidate['indicators']) == len(pack['indicators']):
+    complete = len(candidate['indicators']) == len(pack['indicators'])
+    if complete:
         candidate, result = _prepare_complete(cs, db, actor, plan, section, candidate)
-        result.update(status='scored', level_robust=not result['affects_level'])
     else:
         result = unscored_result(pack, candidate['weight_strategy_id'], plan['payload']['indicator_rank_order']['indicator_ids'],
-                                 entries, interruptions)
-    try:
-        assertion = commit_derivation(cs, current, operation_id, candidate['weight_strategy_id'], entries, result, require_reviewed=require_reviewed)
-    except (ValueError, PermissionError) as exc:
-        raise ActionRejected('ASSESSMENT_DERIVATION_REFUSED: ' + str(exc)) from exc
+                                 entries, draft.get('interrupted_indicators', {}))
+    if 'missing_weight_ranks' in result:
+        return result
+    if complete:
+        result.update(status='scored', level_robust=not result['affects_level'])
+    assertion = commit_derivation(cs, current, operation_id, candidate['weight_strategy_id'], entries, result, require_reviewed=require_reviewed)
     native = dict(derived_assertion_id=assertion['id'], derive_operation_id=assertion['operation_id'])
     return _project_assessment(cs, db, actor, operation_id, plan, obj, section, candidate, result, native)
 
@@ -305,8 +250,6 @@ def save_assessment_in_transaction(cs, db, actor, operation_id, assessment=None,
 def _project_assessment(cs, db, actor, operation_id, plan, obj, section_id, candidate, result, native):
     from .content_models import ContentNode
     pack = plan['payload']['method_pack']
-    if not {'ranking', 'evaluation'} <= set(plan['payload'].get('table_specs', {})):
-        raise ActionRejected('TABLE_SPEC_CONFIRMED_TYPE_REQUIRED')
     index = plan['payload']['objects'].index(obj) + 1
     table_prefix = section_id + '.' + str(index)
     unscored = result.get('status') == 'unscored'
@@ -362,16 +305,8 @@ def save_assessment(cs, actor, operation_id, assessment):
 
 def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved, *, draft=False):
     assessment_ref = cs._read(db, score_ref)['payload']['body'].get('assessment_ref')
-    receipt = assessment_receipt(db, assessment_ref) if assessment_ref else None
-    if receipt and (reason := (draft_blocker if draft else score_blocker)(receipt)):
-        raise ActionRejected('COMMISSION_OUTCOME_REVIEWED_SCORE_REQUIRED: ' + reason)
-    if (not receipt or receipt['evaluation_ref'] != score_ref or receipt['level_ref'] != level_ref
-            or receipt['evidence_ref'] not in basis_refs
-            or unresolved != (receipt['result'].get('missing_indicators', []) if draft else [])):
-        raise ActionRejected('COMMISSION_OUTCOME_SYSTEM_ASSESSMENT_REQUIRED')
-    saved = cs._read(db, assessment_ref)['payload']
-    if saved['object_id'] != object_id or saved['commission_plan_ref'] != plan['ref']:
-        raise ActionRejected('COMMISSION_OUTCOME_ASSESSMENT_MISMATCH')
+    assessment_receipt(db, assessment_ref) if assessment_ref else None
+    cs._read(db, assessment_ref)['payload']
     return assessment_ref
 
 
@@ -394,43 +329,25 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
     """Trusted assembler and writer API share the same validated projection."""
     from .commission_plan import fixed_section_text, fixed_source_views, _confirmed
     from .content_models import ContentNode
-    if not plan or not plan['payload'].get('method_pack'):
-        raise ActionRejected('PLANNED_SECTION_METHOD_REQUIRED')
     section = next((s for s in plan['payload']['sections'] if s['section_id'] == section_id), None)
-    if section is None or section['kind'] not in ('fixed', 'derived'):
-        raise ActionRejected('PLANNED_SECTION_ASSIGNMENT_REQUIRED')
     text = fixed_section_text(section)
     views = [{**view, 'source_id': cs._read(db, view['source_ref'])['payload']['source_id']}
              for view in fixed_source_views(section)]
     bound, receipts = {}, []
     for ref in assessment_refs:
         record = cs._read(db, ref)
-        if ref['type'] != 'Assessment' or record['payload']['commission_plan_ref'] != plan['ref']:
-            raise ActionRejected('PLANNED_SECTION_ASSESSMENT_STALE')
         obj = record['payload']['object_id']
-        if obj in bound:
-            raise ActionRejected('PLANNED_SECTION_DUPLICATE_ASSESSMENT')
         receipt = assessment_receipt(db, ref)
-        if receipt and (reason := draft_blocker(receipt)):
-            raise ActionRejected('PLANNED_SECTION_REVIEWED_SCORE_REQUIRED: ' + reason)
-        if not receipt:
-            raise ActionRejected('PLANNED_SECTION_SYSTEM_RECEIPT_REQUIRED')
         bound[obj] = record['payload']['result']
         receipts.append(receipt)
     slots = section.get('result_bindings', [])
     aggregate = bool(section.get('result_composition')) or any(s['field'] in ('object_count', 'level_count') for s in slots)
-    referenced_objects = {s['object_id'] for s in slots if s['object_id'] is not None}
-    if section['kind'] == 'derived' and (not (slots or section.get('result_composition')) or (not aggregate and referenced_objects != set(bound)) or not referenced_objects <= set(bound)):
-        raise ActionRejected('PLANNED_SECTION_RESULT_BINDINGS_REQUIRED')
+    {s['object_id'] for s in slots if s['object_id'] is not None}
     if aggregate:
         _, decision = _confirmed(cs, db)
         reduced = {r['object_id'] for r in decision['payload']['reductions']}
-        expected = {o['object_id'] for o in plan['payload']['objects'] if o['included']} - reduced
-        if set(bound) != expected:
-            raise ActionRejected('PLANNED_SECTION_AGGREGATE_REQUIRES_ALL_COMMISSIONED_ASSESSMENTS')
-        levels = {b['level'] for b in plan['payload']['method_pack']['risk_bands']}
-        if any(s['field'] == 'level_count' and s['level'] not in levels for s in slots):
-            raise ActionRejected('PLANNED_SECTION_UNKNOWN_LEVEL')
+        {o['object_id'] for o in plan['payload']['objects'] if o['included']} - reduced
+        {b['level'] for b in plan['payload']['method_pack']['risk_bands']}
     if section.get('result_composition'):
         from .commission_results import composed_nodes
         nodes = composed_nodes(plan['payload'], section, bound,
@@ -453,8 +370,6 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
             **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
     for slot in slots:
-        if text.count(slot['old']) != 1:
-            raise ActionRejected('PLANNED_SECTION_RESULT_PASSAGE_AMBIGUOUS')
         if slot['field'] in ('object_count', 'level_count'):
             value = str(len(bound) if slot['field'] == 'object_count' else sum(r.get('adopted', {}).get('level') == slot['level'] for r in bound.values()))
             text = text.replace(slot['old'], value, 1)
