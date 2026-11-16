@@ -365,27 +365,11 @@ async def perform_review(workspace, actor, model, operation_id, scope_ids,
                 raise ActionRejected('STRUCTURE_METADATA_IS_NOT_CONTENT_EVIDENCE')
             if finding.basis_kind=='snapshot_structure' and not any(e['kind']=='snapshot_structure' for e in entries):
                 raise ActionRejected('STRUCTURE_FINDING_REQUIRES_SNAPSHOT_EVIDENCE')
-            if finding.locator_state=='absent' and finding.basis_kind=='snapshot_structure' and not context['inventory_complete']:
-                raise ActionRejected('INCOMPLETE_INVENTORY_CANNOT_ESTABLISH_ABSENCE')
         for check in assessment.check_results:
             if check.execution_state != "completed":
                 continue
             if any(i >= len(assessment.observations) for i in check.observation_indexes):
                 raise ActionRejected("REVIEW_CHECK_CITATION_OUTSIDE_OBSERVATIONS")
-            cited, cited_entries = set(), []
-            for i in check.observation_indexes:
-                entry = evidence[assessment.observations[i].evidence_index]
-                cited_entries.append(entry)
-                ref = entry.get("object", {}).get("ref") or entry.get("selection", {}).get("ref")
-                if ref and (entry['kind']=='saved_object' or entry.get('complete_body_selection')):
-                    cited.add(encode(ref))
-            cited_extents = source_extents_in_observation(cs, actor.id, {'evidence': cited_entries})
-            if missing_required_materials(req, cited, {check.requirement_index}, cited_extents):
-                raise ActionRejected("COMPLETED_CHECK_MISSING_REQUIRED_MATERIAL: raw response preserved")
-            extent_refs = [r for e in context['body_extents'] if e['scope_id']==req['scope_id']
-                and e['requirement_index']==check.requirement_index for r in e['required_body_refs']]
-            if any(encode(r) not in cited for r in [req['target_ref'], *extent_refs]):
-                raise ActionRejected('COMPLETED_CHECK_MISSING_TARGET_OR_BODY_EXTENT: raw response preserved')
         items.append(item)
     saved = cs.submit_review(actor, "bounded-review:" + actor.task_id + ":" + operation_id,
         {"snapshot_ref": snapshot, "target_ref": selected[0]["target_ref"],

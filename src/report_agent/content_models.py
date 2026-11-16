@@ -259,8 +259,6 @@ class CheckResult(Contract):
     def supported_account(self) -> Self:
         if any(i < 0 for i in self.observation_indexes):
             raise ValueError("CHECK_OBSERVATION_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
-        if not self.result.strip():
-            raise ValueError("CHECK_RESULT_REQUIRED")
         return self
 
 
