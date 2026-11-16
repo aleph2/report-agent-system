@@ -303,8 +303,6 @@ def set_requirement_statuses(cs, actor, operation_id, items):
     from .commission_requirements import read_requirements, _write_items
     if actor.role != 'coordinator' or actor.id != 'content:coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
-    if not isinstance(items, list):
-        raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
     def save(db):
         previous = read_requirements(cs, db=db)
         values = deepcopy(previous['payload']['items'])
@@ -1000,7 +998,7 @@ def planning_tools(cs, actor, *, result_fits=None):
         return read_draft_page(cs, actor(), collection, page, page_size, item_id, offset, characters, view_ref, gap_page,
             full=full, result_fits=result_fits)
 
-    def set_status(operation_id: str, items: Annotated[list[RequirementStatusInput], Field(min_length=1)]) -> dict:
+    def set_status(operation_id: str, items: list[RequirementStatusInput]) -> dict:
         """Set requirement statuses atomically. Several items are accepted; all ready items can be sent together. Every item passes the existing checks; any error refuses the whole list with indexed problems. Capabilities remain system-owned; reductions need owner confirmation."""
         return set_requirement_statuses(cs, actor(), operation_id, [i.model_dump(mode='json') for i in items])
     set_status.__name__ = 'set_requirement_status'

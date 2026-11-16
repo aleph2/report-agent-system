@@ -326,10 +326,6 @@ class BusinessBoundary(InvalidToolFeedback):
                             # Native ToolNode owns unregistered-tool feedback;
                             # do not create business task state before it runs.
                             return await handler(request)
-                        from .prompt_sources import review_profile, report_prompt_profile
-                        review_interface_profile(store)
-                        review_profile(store)
-                        report_prompt_profile(store)
                     from .content_tasks import delegated_task, invocation_binding
                     from .content_store import ContentStore
                     from .task_supervision import batch_needs_review_decision, task_status

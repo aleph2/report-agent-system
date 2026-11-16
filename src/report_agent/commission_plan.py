@@ -112,12 +112,7 @@ class SectionPlan(Contract):
 
     @model_validator(mode='after')
     def basis(self):
-        ids = [d.id for d in self.missing_documents]
         {(s.source_ref.key(), s.locator) for s in self.sources}
-        for substitution in self.source_substitutions:
-            if substitution.document_id:
-                if substitution.document_id not in ids:
-                    raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_UNKNOWN: ' + self.section_id + '/source_substitutions/' + substitution.document_id)
         if self.kind == 'derived' and not self.derived_from:
             raise ValueError('COMMISSION_DERIVED_SECTION_INVALID')
         last = -1

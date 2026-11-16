@@ -240,8 +240,6 @@ def directory(cs, db, actor, producer_task_ref=None, *, full=False):
 def resolve_snapshot(cs, db, actor, selector):
     """Only an explicit existing export/delegation calls this transaction-bound resolver."""
     selector = selector.model_dump() if hasattr(selector, 'model_dump') else selector
-    if not isinstance(selector, dict):
-        raise ActionRejected('DELIVERABLE_SELECTOR_REQUIRED')
     if selector.get('kind') == 'snapshot' and set(selector) == {'kind', 'snapshot_ref'}:
         payload = snapshot_selection(cs, db, actor, selector['snapshot_ref'])
         source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)

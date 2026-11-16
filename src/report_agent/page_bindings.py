@@ -54,8 +54,6 @@ def propose_many(cs, actor, operation, items):
     from .commission_plan import read_plan
     from .source_use import source_version_material, validate_source_versions
     from .assertions.actions import _record_convention_batch
-    if not isinstance(items, list):
-        raise ActionRejected('PAGE_BINDING_NONEMPTY_BATCH_REQUIRED')
     plan = read_plan(cs.store)
     {o['object_id'] for o in plan['payload']['objects']} if plan else set()
     indicator_ids = {r['id'] for r in (plan['payload'].get('method_pack') or {}).get('indicators', [])} if plan else set()

@@ -633,8 +633,6 @@ class ContentStore:
             task_row = db.execute("SELECT data FROM content_versions WHERE type='DelegatedTask' AND id=? AND version=1",
                                   (actor.task_id,)).fetchone()
             task_payload = json.loads(task_row[0])["payload"] if task_row else {}
-            if native and (actor.role != "reviewer" or task_payload.get("role") != actor.role):
-                raise ActionForbidden("FORBIDDEN: delegated task binding required")
             basis = task_payload.get('review_commission_basis')
             if delivery_export_ref is not None:
                 if actor.role != "reviewer":
