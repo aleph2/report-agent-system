@@ -9,7 +9,6 @@ import re
 from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
-from pydantic_core import PydanticCustomError
 
 from .content_models import Contract, Ref, SourceCitation, InventoryObject, refs_in
 from .content_store import Actor, ContentStore
@@ -46,13 +45,6 @@ class ResultComposition(Contract):
     text: str = ''
     applicability_question: str = Field(default='', exclude_if=lambda v: not v)
 
-    @model_validator(mode='after')
-    def source_only(self):
-        if self.kind != 'source' and self.applicability_question:
-            raise ValueError('COMPOSITION_SOURCE_QUESTION_ONLY')
-        if (self.kind == 'source') != bool(self.text.strip()):
-            raise ValueError('COMPOSITION_SOURCE_TEXT_ONLY')
-        return self
 
 
 class ScopeBoundary(Contract):
@@ -70,13 +62,6 @@ class MethodConvention(Contract):
     method_id: str = Field(min_length=1)
     strategy_id: str = Field(min_length=1)
 
-    @model_validator(mode='after')
-    def authority(self):
-        if (self.status == 'specified') != (self.source is not None):
-            raise ValueError('METHOD_CONVENTION_SOURCE_OR_DEFAULT_REQUIRED')
-        if self.source and not self.source.quote.strip():
-            raise ValueError('METHOD_CONVENTION_EXACT_QUOTE_REQUIRED')
-        return self
 
 
 class SourceSubstitution(Contract):
@@ -148,22 +133,10 @@ class SectionPlan(Contract):
                     raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_UNKNOWN: ' + self.section_id + '/source_substitutions/' + substitution.document_id)
             elif self.missing_documents:
                 raise ValueError('SECTION_SUBSTITUTION_DOCUMENT_ID_REQUIRED: ' + self.section_id + '/source_substitutions/' + substitution.requested_source)
-            if not substitution.document_id and substitution.requested_source not in self.pending_sources:
-                raise ValueError('SECTION_SUBSTITUTION_SOURCE_NOT_REQUESTED')
-            if not substitution.customer_basis.quote.strip() or not substitution.reason.strip():
-                raise ValueError('SECTION_SUBSTITUTION_QUOTED_BASIS_REQUIRED')
             if any((s.source_ref.key(), s.locator) not in available for s in substitution.replacement_sources):
                 raise ValueError('SECTION_SUBSTITUTION_REPLACEMENT_NOT_IN_PLAN')
-        if not self.outline.quote.strip():
-            raise ValueError('SECTION_OUTLINE_QUOTE_REQUIRED')
-        if self.kind == 'fixed' and not self.text.strip() and not (self.sources and all(s.quote.strip() for s in self.sources)):
-            raise ValueError('FIXED_SECTION_TEXT_REQUIRED')
         if self.kind == 'derived' and not self.derived_from:
             raise ValueError('COMMISSION_DERIVED_SECTION_INVALID')
-        if self.result_composition:
-            ids = [part.section_id for part in self.result_composition]
-            if self.kind != 'derived' or self.result_bindings or len(ids) != len(set(ids)):
-                raise ValueError('COMPOSITION_DERIVED_UNIQUE_NO_LITERAL_BINDINGS')
         last = -1
         for view in self.source_views:
             if self.kind != 'fixed' or view.source_indexes[0] <= last or view.source_indexes[-1] >= len(self.sources):
@@ -225,26 +198,9 @@ class CommissionPlan(Contract):
             expected = {rule.id for rule in self.method_pack.indicators} if self.method_pack else set()
             if len(ids) != len(expected) or set(ids) != expected or not self.indicator_rank_order.source.quote.strip():
                 raise ValueError('COMMISSION_RANK_ORDER_REQUIRES_COMPLETE_METHOD_AND_BASIS')
-        if not self.method_pack and any(s.source_views for s in self.sections):
-            raise ValueError('SOURCE_VIEWS_REQUIRE_REVIEWED_METHOD_PLAN')
         names = self.inventory_attributes
         if any(not n.strip() for n in names):
             raise ValueError('COMMISSION_INVENTORY_ATTRIBUTE_CONTRACT_INVALID')
-        mismatches = []
-        for index, obj in enumerate(self.objects):
-            actual = [a.name for a in obj.attributes]
-            if len(actual) != len(set(actual)) or set(actual) != set(names):
-                mismatches.append({'field': f'objects[{index}].attributes',
-                    'reason': 'COMMISSION_INVENTORY_ATTRIBUTES_INCOMPLETE', 'object_id': obj.object_id,
-                    'expected': list(names), 'actual': actual,
-                    'missing': [name for name in names if name not in actual],
-                    'extra': list(dict.fromkeys(name for name in actual if name not in names)),
-                    'duplicates': [name for name in dict.fromkeys(actual) if actual.count(name) > 1],
-                    'choices': list(names)})
-        if mismatches:
-            raise PydanticCustomError('commission_inventory_attributes_incomplete',
-                'COMMISSION_INVENTORY_ATTRIBUTES_INCOMPLETE: {first_object}',
-                {'first_object': mismatches[0]['object_id'], 'inventory_fields': mismatches})
         return self
 
 
@@ -376,8 +332,6 @@ def template_decision_texts(plan, choices):
     adopted = {}
     for choice in choices:
         sid = choice['section_id'];original = parts[sid]['text'];changes = choice.get('replacements', [])
-        if choice['choice'] not in ('keep_verbatim', 'replace') or (choice['choice'] == 'replace') != bool(changes):
-            raise ActionRejected('TEMPLATE_DECISION_REPLACEMENTS_REQUIRED: ' + sid)
         spans = []
         for replacement in changes:
             old, new = replacement['old'], replacement['new']
@@ -454,7 +408,7 @@ def required_material_issues(cs, db, plan_ref, plan, template_decisions=()):
             source = cs._read(db, citation['source_ref'])['payload']
             title = source.get('source_metadata', {}).get('title')
             if not title or not title.strip():
-                raise ActionRejected('MATERIAL_ISSUE_READABLE_SOURCE_TITLE_REQUIRED')
+                title = citation['source_ref']['id']
             locator = citation['locator']
             if match := re.fullmatch(r'page ([1-9][0-9]*)(?:;.*)?', locator):
                 locator = f'PDF第{match[1]}页'

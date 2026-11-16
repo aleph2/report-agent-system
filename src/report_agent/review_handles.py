@@ -195,9 +195,8 @@ def read_tools(contents, actor, tools):
     class HandleContentSelection(ContentSelection):
         ref: Ref | str
 
-    names = {'read_context', 'read_content_index', 'read_content_selection', 'observe_evidence',
-             'read_content_export', 'inspect_rendered_page', 'read_source_page', 'search_sources',
-             'inspect_source_page', 'analyze_source_image', 'analyze_evidence'}
+    names = {'read_context', 'observe_evidence', 'read_source_page', 'search_sources',
+             'inspect_source_page', 'analyze_source_image'}
 
     def wrap(fn):
         signature = inspect.signature(fn)

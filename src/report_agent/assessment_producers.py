@@ -17,8 +17,6 @@ def bind_producer(cs, db, plan_ref, object_id, actor, *, bulk=False, draft_only=
     if row and row[0] != actor.id:
         raise ActionForbidden("FORBIDDEN: assessment producer ownership")
     if row and row[1]:
-        if bulk:
-            raise ActionRejected("ASSESSMENT_NATIVE_INPUTS_REQUIRED")
         return
     if not row:
         historic = legacy.get_g6_assessment_producer(db, key) or selected_assessment(db, plan_ref, object_id)

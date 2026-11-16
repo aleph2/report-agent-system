@@ -215,7 +215,7 @@ def read_status(contents, snapshot_ref, target_ref=None, export_ref=None, offset
             "selected_delivery_export_refs": ([r for r in (selected["export_ref"], selected.get("workbook_export_ref")) if r is not None]
                                               if selected and same_selection else []),
             "draft_selection_is_not_approval": True,
-            "note": "An applicability mismatch alone does not prove files changed. select_content_delivery can save an explicitly intended valid draft pair without prior approval. Selection creates no review and waives no source, scope, version or withdrawal checks."}
+            "note": "An applicability mismatch alone does not prove files changed. Selection creates no review and waives no source, scope, version or withdrawal checks."}
     return {**query_context, "snapshot_ref": snapshot_ref, "export_ref": export_ref,
         **({"workbook_export_ref": scope_companion} if scope_companion is not None else {}), "objects": output,
         "total": len(inventory), "offset": offset, "returned_refs": page,

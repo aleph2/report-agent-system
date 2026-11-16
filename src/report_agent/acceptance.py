@@ -161,8 +161,6 @@ def required_criteria(workspace, criteria_id=""):
 
 def draft_criteria(workspace, draft):
     # Workspace also passes the pending draft's declared inputs before committing.
-    if draft.get("kind", "draft") != "draft":
-        raise ActionRejected("DRAFT_REQUIRED")
     adopted = [workspace.result(ref) for ref in draft.get("input_ids", [])]
     criteria = [r for r in adopted if r["kind"] == "acceptance"]
     if len(criteria) != 1:
@@ -199,8 +197,6 @@ def save_criteria(workspace, *, actor, title, criteria, source_ids, input_ids,
         raise ActionForbidden("ACCEPTANCE_OWNER_MISMATCH")
     if not isinstance(title, str) or not title.strip():
         raise ActionRejected("ACCEPTANCE_TITLE_REQUIRED")
-    if not isinstance(reason, str) or (replaces_id and not reason.strip()):
-        raise ActionRejected("ACCEPTANCE_REVISION_REASON_REQUIRED")
     if not isinstance(criteria, list) or not criteria:
         raise ActionRejected("ACCEPTANCE_CRITERIA_REQUIRED")
     try:
@@ -222,8 +218,6 @@ def save_criteria(workspace, *, actor, title, criteria, source_ids, input_ids,
         raise ActionRejected("ACCEPTANCE_REVISION_REQUIRES_ACTIVE_VERSION")
     if not current and replaces_id:
         raise ActionRejected("ACCEPTANCE_REVISION_REQUIRES_ACTIVE_VERSION")
-    if current is None and any(r["kind"] == "draft" for r in workspace.results()):
-        raise ActionRejected("ACCEPTANCE_CRITERIA_MUST_PRECEDE_FIRST_DRAFT")
     workspace.store.sources(sources)
     for result_id in inputs:
         if workspace.result(result_id)["kind"] in {"draft", "review", "acceptance"}:

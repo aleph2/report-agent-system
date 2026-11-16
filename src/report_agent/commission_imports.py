@@ -1,8 +1,8 @@
 """Immutable host inputs for commission planning. Owner authority is recorded separately."""
-from . import legacy_state as legacy
+from functools import partial
 from .content_store import ContentStore
 from .errors import ActionRejected
-from .plan_inputs import _head, _save
+from .plan_inputs import _get, _head, _save
 from .store import Store
 
 
@@ -16,14 +16,8 @@ def _record(storage, kind):
     return _head(storage, kind)
 
 
-def source_roles(storage, default=None):
-    record = _record(storage, "CommissionSourceRoles")
-    return record["payload"] if record else legacy.historical_commission_source_roles(storage, default)
-
-
-def owner_records(storage, default=None):
-    record = _record(storage, "CommissionOwnerRecords")
-    return record["payload"] if record else legacy.get_commission_owner_records(storage, default)
+source_roles = partial(_get, "CommissionSourceRoles")
+owner_records = partial(_get, "CommissionOwnerRecords")
 
 
 def source_policy_ref(storage):

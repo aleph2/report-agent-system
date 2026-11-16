@@ -39,8 +39,6 @@ def composed_nodes(plan, section, bound, template_decisions=(), applicability_is
         return '含假设取值，补充资料后须复核。' if any(r['basis_kind'].endswith('assumption') for r in result['rows']) else ''
     citations = []
     for result in bound.values():
-        if len(display_rows(result, plan['method_pack'])) != len(definitions) or {r['indicator_id'] for r in display_rows(result, plan['method_pack'])} != definitions.keys():
-            raise ActionRejected('COMPOSITION_COMPLETE_INDICATORS_REQUIRED')
         if result.get('status') != 'unscored' and result['adopted']['level'] not in bands:
             raise ActionRejected('COMPOSITION_UNKNOWN_RISK_LEVEL')
         for row in display_rows(result, plan['method_pack']):

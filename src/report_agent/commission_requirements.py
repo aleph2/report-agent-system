@@ -271,7 +271,7 @@ def install_requirements(cs, scope_ref, outline_ref):
 
 
 def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
-    from .commission_planning import classified_item, enabled as planning_enabled
+    from .commission_planning import classified_item
     previous_ref = previous['ref']
     if requirements_ref(db) != previous_ref:
         raise ActionRejected('COMMISSION_REQUIREMENTS_VERSION_STALE')
@@ -286,19 +286,6 @@ def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
     ids = [i['anchor_id'] for i in items]
     if len(ids) != len(set(ids)) or set(ids) != set(anchors):
         raise ActionRejected('COMMISSION_REQUIREMENTS_ANCHOR_SET_MISMATCH')
-    resolutions = previous['payload'].get('parse_resolutions', {})
-    if any(anchors[i['anchor_id']].get('parse_error') and i['anchor_id'] not in resolutions
-           and i['status'] != 'unresolved' for i in items):
-        raise ActionRejected('COMMISSION_REQUIREMENTS_PARSE_UNRESOLVED')
-    for item in items:
-        anchor = anchors[item['anchor_id']]
-        roles = item.get('table_roles', [])
-        if (any(not role.strip() for role in roles)
-                or item['status'] == 'required' and 'table_specs' in item['capabilities'] and not roles):
-            raise ActionRejected('COMMISSION_REQUIREMENTS_TABLE_ROLES_REQUIRED')
-        if (item['status'] == 'required' and not item['capabilities'] and anchor['kind'] != 'instruction'
-                and not planning_enabled(cs.store)):
-            raise ActionRejected('COMMISSION_REQUIREMENTS_CAPABILITY_REQUIRED')
     if items == previous['payload']['items']:
         return previous_ref
     return save_revision(cs, db, actor, previous_ref, {**previous['payload'], 'items': items})

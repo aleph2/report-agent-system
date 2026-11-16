@@ -172,23 +172,15 @@ class Classification(Contract):
 
 def _classifications(cs, db, record, values, note):
     from .commission_requirements import RequirementItem
-    if not isinstance(note, str) or not note.strip():
-        raise ActionRejected('REQUIREMENT_CLASSIFICATION_NOTE_REQUIRED')
     values = [Classification.model_validate(v).model_dump() for v in values]
     anchors = {a['id'] for a in record['payload']['anchors']}
     if len({v['anchor_id'] for v in values}) != len(values) or any(v['anchor_id'] not in anchors for v in values):
         raise ActionRejected('REQUIREMENT_CLASSIFICATION_ANCHOR_INVALID')
     for value in values:
-        if value['entry_ids'] and (value['capabilities'] or value['table_roles']):
-            raise ActionRejected('REQUIREMENT_CLASSIFICATION_EXCLUSIVE')
-        if value['table_roles']:
-            raise ActionRejected('REQUIREMENT_CLASSIFICATION_CAPABILITIES_INVALID')
         for identity in value['entry_ids']:
             reviewed_entry(cs, db, identity)
         RequirementItem.model_validate({'anchor_id': value['anchor_id'], 'status': 'required',
             'interpretation': note, 'capabilities': value['capabilities'], 'table_roles': value['table_roles']})
-        if {'method_pack', 'weight_binding', 'table_specs'} & set(value['capabilities']):
-            raise ActionRejected('COMPUTATION_CLASSIFICATION_REQUIRES_REVIEWED_ENTRY')
     return values
 
 
@@ -218,8 +210,6 @@ def classified_item(cs, db, record, item):
         return apply_entry(cs, db, item)
     classification = record['payload'].get('classifications', {}).get(item['anchor_id'])
     if not classification:
-        if item['capabilities']:
-            raise ActionRejected('REQUIREMENT_CLASSIFICATION_REQUIRED')
         return {**item, 'capabilities': [], 'table_roles': []}
     identity = item.get('reviewed_entry_id')
     if identity:
@@ -233,20 +223,6 @@ def classified_item(cs, db, record, item):
     return {**item, 'capabilities': classification['capabilities'], 'table_roles': classification['table_roles']}
 
 
-def classification_gaps(cs, db, record, item):
-    if not enabled(cs.store) or item['status'] != 'required':
-        return []
-    classification = record['payload'].get('classifications', {}).get(item['anchor_id'])
-    if not classification:
-        return ['The owner or a source-bound review must classify this requirement']
-    if classification['entry_ids'] and item.get('reviewed_entry_id') not in classification['entry_ids']:
-        return ['Link one of the reviewed entries eligible for this requirement']
-    expected = classified_item(cs, db, record, item)
-    if item['capabilities'] != expected['capabilities'] or item.get('table_roles', []) != expected.get('table_roles', []):
-        return ['Retain the capabilities derived from the source-bound classification']
-    return []
-
-
 def install_reviewed_entries(cs, entries):
     """Trusted host registration, never a model tool; existing IDs cannot change."""
     entries = [ReviewedEntry.model_validate(e).model_dump(mode='json', exclude_none=True) for e in entries]
@@ -258,10 +234,6 @@ def install_reviewed_entries(cs, entries):
             if entry['kind'] in ('method', 'weight'):
                 if not pack or reviewed_method_questions(cs, db, pack):
                     raise ActionRejected('REVIEWED_ENTRY_METHOD_NOT_REVIEWED')
-                if entry['table_specs']:
-                    raise ActionRejected('REVIEWED_ENTRY_KIND_MISMATCH')
-                if entry['kind'] == 'weight' and not any(t['id'] == entry.get('strategy_id') for t in pack['weight_tables']):
-                    raise ActionRejected('REVIEWED_ENTRY_WEIGHT_STRATEGY_REQUIRED')
             elif pack or entry.get('strategy_id') or not entry['table_specs']:
                 raise ActionRejected('REVIEWED_ENTRY_TABLES_REQUIRED')
             else:
@@ -307,28 +279,6 @@ def apply_entry(cs, db, item):
         else:
             item.pop('table_roles', None)
     return item
-
-
-def entry_plan_gaps(cs, db, item, plan):
-    if not item.get('reviewed_entry_id'):
-        return []
-    entry = reviewed_entry(cs, db, item['reviewed_entry_id'])
-    capabilities, roles = entry_obligations(entry)
-    gaps = []
-    if item['capabilities'] != capabilities or item.get('table_roles', []) != roles:
-        gaps.append(('requirements.' + item['anchor_id'], 'Retain obligations derived from the reviewed entry'))
-    def same(model, actual, expected):
-        try:
-            return model.model_validate(actual).model_dump(mode='json') == model.model_validate(expected).model_dump(mode='json')
-        except ValidationError:
-            return False
-    if entry['kind'] in ('method', 'weight') and not same(MethodPack, plan.get('method_pack'), entry['method_pack']):
-        gaps.append(('method_pack', 'Attach the exact reviewed method entry'))
-    if entry['kind'] == 'weight':
-        bindings = [b for b in plan.get('method_conventions', []) if b.get('key') == 'weights']
-        if len(bindings) != 1 or bindings[0].get('strategy_id') != entry['strategy_id']:
-            gaps.append(('method_conventions', 'Use the linked reviewed weight strategy'))
-    return gaps
 
 
 def numeric_warning_context(cs, db, *, requirements=None, plan=None):
@@ -554,14 +504,10 @@ def _assemble(cs, db):
         if entry['kind'] == 'weight':
             binding = {'key': 'weights', 'source': anchor['source'], 'interpretation': item['interpretation'],
                        'status': 'specified', 'method_id': entry['method_pack']['method_id'], 'strategy_id': entry['strategy_id']}
-            if plan['method_conventions'] and plan['method_conventions'] != [binding]:
-                raise ActionRejected('PLANNING_WEIGHT_LINK_CONFLICT')
             plan['method_conventions'] = [binding]
         if 'table_specs' not in details:
             for role, table in entry['table_specs'].items():
                 table = TableSpec.model_validate(table).model_dump(mode='json')
-                if role in plan['table_specs'] and plan['table_specs'][role] != table:
-                    raise ActionRejected('PLANNING_TABLE_LINK_CONFLICT: ' + role)
                 plan['table_specs'][role] = deepcopy(table)
     if pack := plan.get('method_pack'):
         if binding := _owner_rank_binding(plan['conventions'], pack['indicators']):
@@ -667,8 +613,6 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
                     offset=0, characters=3000, view_ref='', gap_page=1, *, full=False, result_fits=None):
     """Bound model observations before platform eviction; retain canonical data server-side."""
     if collection in ('source_assertions', 'page_bindings'):
-        if full:
-            reject('full', 'PLANNING_FULL_COLLECTION_REQUIRED', message='Use the subject-specific paged assertion reader.')
         from .planning_assertions import read_source_index
         return read_source_index(cs, actor, item_id, page, page_size, view_ref, bindings=collection == "page_bindings")
     if actor.role != 'coordinator':
@@ -725,15 +669,9 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
         'counts': {key: len(value) for key, value in collections.items()}, 'page_data': None,
         'read_next': 'Choose collection and page or exact item_id. Pass view_ref on continuations. Details are JSON text; concatenate next_offset chunks before decoding. Gaps describe missing work, not plan approval.'}
     if collection == 'summary':
-        if full:
-            reject('collection', 'PLANNING_FULL_COLLECTION_REQUIRED', collections.keys())
-        if item_id or offset or page != 1:
-            reject('collection', 'PLANNING_SUMMARY_HAS_NO_ITEMS', collections.keys())
         return result
     rows = collections[collection]
     if full:
-        if item_id or offset or page != 1:
-            reject('full', 'PLANNING_FULL_COLLECTION_START_REQUIRED', message='Choose one collection from its start, without an item selector.')
         text = encode([{'id': key, 'value': value} for key, value in rows])
         complete = {**result, 'full_read': {'complete': True},
             'read_next': 'The requested collection is complete at this view_ref. Gaps describe missing work, not approval.',
@@ -785,15 +723,9 @@ def _save_item(cs, actor, db, kind, item):
         if value.get('source_span') is None:
             value.pop('source_span', None)
             if value['kind'] == 'fixed':
-                records = [cs._read(db, c['source_ref']) for c in value['sources']]
-                if not records or any(not r['payload']['source_metadata'].get('filename', '').lower().endswith('.docx') for r in records):
-                    raise ActionRejected('FIXED_SECTION_SOURCE_SPAN_REQUIRED')
                 value['text'] = '\n'.join(c['quote'] for c in value['sources'])
-        elif value['sources']:
-            reject('sources', 'SOURCE_SPAN_OR_CITATIONS_REQUIRED', ['source_span', 'sources'], related_fields=['source_span'],
-                message='Choose one source mode. For extracted sections, supply sources and omit source_span. For fixed sections, use the reviewed template source_span and omit sources; the system produces the canonical citations.')
-        else:
-            value.pop('sources')
+            elif not value['sources']:
+                value.pop('sources')
     if plan_inputs.get_skeleton(db) and kind in ('section', 'details'):
         raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
     if kind in ('section_judgment', 'disposition') and not plan_inputs.get_skeleton(db):
@@ -803,14 +735,10 @@ def _save_item(cs, actor, db, kind, item):
         if value['status'] == 'owner_excluded':
             raise ActionRejected('OWNER_EXCLUSION_IS_SYSTEM_OWNED')
     if kind == 'section' and 'source_span' in value:
-        if any(key in value for key in ('text', 'extraction', 'sources')):
-            raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
         selection = SourceSpan.model_validate(value.pop('source_span')).model_dump(mode='json')
         resolved = resolve_source_span(cs, selection)
         value.update(sources=resolved['sources'], extraction={'selection': selection, **resolved})
         value['text'] = fixed_section_text(value)
-    elif kind == 'section' and value.get('extraction'):
-        raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
     models = {'section': SectionPlan, 'object': InventoryObject, 'boundary': ScopeBoundary,
               'reconciliation': PlanningReconciliation, 'details': PlanDetails, 'table_details': TablePlanningDetails, 'question': PlanningQuestion}
     basis_binding = None

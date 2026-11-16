@@ -42,8 +42,6 @@ class GradeBand(Contract):
 
     @model_validator(mode='after')
     def bounds(self):
-        if number(self.min_value) > number(self.max_value):
-            raise ValueError('reversed grade bounds')
         return self
 
 
@@ -71,11 +69,6 @@ class IndicatorRule(Contract):
         ordered = sorted(self.grades, key=lambda g: number(g.min_value))
         if any(number(a.max_value) >= number(b.min_value) for a, b in zip(ordered, ordered[1:])):
             raise ValueError('overlapping grade bands')
-        if self.presentation_rows:
-            if not self.display_label or self.category_display_label is None:
-                raise ValueError('METHOD_DISPLAY_LABEL_REQUIRED')
-            if {r.grade_id for r in self.presentation_rows} != {g.id for g in self.grades}:
-                raise ValueError('METHOD_PRESENTATION_GRADE_COVERAGE')
         return self
 
 
@@ -134,9 +127,6 @@ class MethodPack(Contract):
         for a, b in zip(bands, bands[1:]):
             if number(a.upper) != number(b.lower) or a.upper_inclusive == b.lower_inclusive:
                 raise ValueError('gap or overlap in risk bands')
-        if any(i.presentation_rows for i in self.indicators):
-            if not self.presentation_sources or not all(i.presentation_rows for i in self.indicators):
-                raise ValueError('METHOD_PRESENTATION_SOURCE_AND_COMPLETE_ROWS_REQUIRED')
         return self
 
 

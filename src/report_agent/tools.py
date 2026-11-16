@@ -5,12 +5,6 @@ from .store import Store, digest
 
 
 def material_tools(store: Store, analysis: TextAnalysis, *, owner: str):
-    def project_status() -> dict:
-        """Read the goal, source coverage, saved materials and unresolved issues."""
-        result = store.status()
-        store.event("tool", {"name": "project_status"})
-        return result
-
     def read_sources(source_ids: list[str]) -> dict:
         """Read selected source IDs in this project; return original text and coverage."""
         result = store.sources(source_ids)
@@ -62,4 +56,4 @@ def material_tools(store: Store, analysis: TextAnalysis, *, owner: str):
         store.event("tool", {"name": "report_issue", **issue})
         return {"recorded": True, "resolved": False, "decision": "human for source issues, operator for system failure"}
 
-    return [project_status, read_sources, search_materials, analyze_sources, save_material, select_result, report_issue]
+    return [read_sources, search_materials, analyze_sources, save_material, select_result, report_issue]

@@ -13,28 +13,27 @@ from .store import digest, encode
 
 TOOL_BACKENDS: dict[str, tuple[str, ...]] = dict.fromkeys((
     'add_object', 'add_reconciliation', 'add_section',
-    'add_substitution', 'ask', 'ask_human', 'assert_source',
-    'assess_change_impact', 'calculate', 'calculate_assessment', 'capture_review_sources',
-    'confirm_review_reuse', 'content_status', 'correct_own_review', 'edit_file',
+    'ask_human', 'assert_source',
+    'calculate', 'calculate_assessment',
+    'edit_file',
     'export_content_snapshot', 'export_content_workbook', 'get_operation_receipt', 'glob',
-    'grep', 'import_source_versions', 'inspect_source_page', 'link_convention',
-    'list_supervision_plugins', 'ls', 'observe_evidence', 'preview_report',
-    'project_status', 'propose_material_issue', 'propose_page_binding', 'publish_planning_draft',
-    'read_assigned_page', 'read_commission_plan', 'read_content_export', 'read_content_index',
-    'read_content_selection', 'read_context', 'read_decision_state', 'read_delivery_review_context',
+    'grep', 'inspect_source_page', 'link_convention',
+    'ls', 'observe_evidence', 'preview_report',
+    'propose_material_issue', 'propose_page_binding', 'publish_planning_draft',
+    'read_assigned_page', 'read_commission_plan',
+    'read_context', 'read_decision_state',
     'read_execution_trace', 'read_feedback', 'read_file', 'read_layout_capabilities',
     'read_object_index', 'read_planning_draft', 'read_prepared_method',
-    'read_qualitative_row', 'read_result', 'read_review_obligation_coverage', 'read_review_status',
-    'read_source_page', 'read_summary_observations', 'read_task_assignment', 'read_task_supervision',
-    'read_tool_observation', 'record_conflict', 'record_execution_decision', 'record_handoff',
-    'record_qualitative_finding', 'render_content_export', 'request_layout_capability', 'request_requirement_resolution',
+    'read_source_page', 'read_summary_observations',
+    'read_tool_observation', 'record_handoff',
+    'request_layout_capability', 'request_requirement_resolution',
     'request_system_delivery', 'resolve_skeleton_choice', 'review_carried_items', 'save_assumption',
     'save_commission_plan', 'save_evidence', 'save_gap', 'save_section_prose',
-    'search_sources', 'select_content_delivery', 'set_candidate_disposition',
+    'search_sources', 'set_candidate_disposition',
     'set_planning_details', 'set_requirement_status', 'set_scope_boundary',
     'submit_plan', 'submit_review', 'write_file', 'write_todos',
 ), ())
-TOOL_BACKENDS.update({'assess_assigned_object': ('writer',), 'analyze_source_image': ('vision',), 'inspect_rendered_page': ('vision',), 'analyze_text': ('text_tool',), 'analyze_evidence': ('text_tool',), 'process_report_content': ('text_tool',), 'perform_assigned_review': ('text_tool',), 'perform_assigned_artifact_review': ('text_tool',), 'task': ('writer', 'reviewer', 'layout')})
+TOOL_BACKENDS.update({'assess_assigned_object': ('writer',), 'analyze_source_image': ('vision',), 'process_report_content': ('text_tool',), 'perform_assigned_artifact_review': ('text_tool',), 'task': ('writer', 'reviewer', 'layout')})
 
 _scope = ContextVar('run_tool_authority', default=None)
 

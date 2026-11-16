@@ -51,13 +51,6 @@ def selected_plugin(contract):
     return resolve_plugin(plugin_id)
 
 
-def plugin_catalog():
-    return {"optional": True, "default": None,
-            "plugins": [{"id": p.id, "description": p.description,
-                         "requires_check_evidence": p.requires_check_evidence} for p in PLUGINS.values()],
-            "limitation": "Selection changes supervision behavior, not permissions, standards or evidence of correctness. Existing tasks retain their selected policy."}
-
-
 async def _resume_original_checkpoint(contents, actor, call, previous, runtime):
     """Consume authority admission for the original reserved native child head."""
     from .store import digest

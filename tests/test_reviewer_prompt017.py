@@ -13,7 +13,7 @@ from test_review_feedback import ws, no_network, save, select, verdict
 def _current_scoped_review_protocol(tmp_path):
     """Literal inputs and scripted judgment; no report-quality claim."""
     import json
-    from report_agent.bounded_review import ORGANIZER_PROMPT, TOOL_PROMPT, Assessments
+    from report_agent.bounded_review import TOOL_PROMPT, Assessments
     from report_agent.content_store import ContentStore
     from report_agent.task_supervision import ReviewRequirement
     from test_task_supervision import ws as native_fixture
@@ -40,7 +40,7 @@ def _current_scoped_review_protocol(tmp_path):
         expected = role_prompt('reviewer')
         if expected:
             assert system.startswith(expected)
-        assert ORGANIZER_PROMPT not in system and GRADER_SYSTEM_PROMPT not in system
+        assert GRADER_SYSTEM_PROMPT not in system
         observed["organizer"] = system
         return invoke("perform_assigned_review", operation_id="effective-prompt-check", scope_ids=["rule-comparison"],
             source_selections=[], content_selections=[])

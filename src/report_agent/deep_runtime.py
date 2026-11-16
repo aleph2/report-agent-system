@@ -556,10 +556,6 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
             store.set(key, seen)
         return seen
 
-    def project_status() -> dict:
-        """Observe project goal, source catalog, saved results, issues and feedback."""
-        return project_view(workspace)
-
     def read_source_page(source_id: str,
             offset: Annotated[int, Field(ge=0, strict=True, description="Zero-based frozen text-block offset, not a physical or printed PDF page number.")] = 0,
             limit: Annotated[int, Field(ge=1, le=50, strict=True, description="Number of frozen text blocks, from 1 to 50; not characters or PDF pages.")] = 10,
@@ -828,7 +824,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
 
     exposed_submit = save_knowledge_artifact if role == "knowledge" else save_review if role == "reviewer" else save_draft
     exposed_submit.__name__ = "submit_result"
-    tools = [project_status, read_source_page, search_sources, inspect_source_page, analyze_source_image,
+    tools = [read_source_page, search_sources, inspect_source_page, analyze_source_image,
              calculate, preview_report,
              exposed_submit, request_correction, assess_result_impact, ask_human]
     if role == "coordinator":
@@ -861,7 +857,7 @@ def business_tools(workspace: Workspace, role: str, knowledge, text_model, *, re
     if content_enabled(workspace):
         # Reuse bounded original-source observations. Legacy writes and delivery
         # selection cannot bypass the versioned contract or reviewer ownership.
-        allowed = {"project_status", "read_source_page", "search_sources", "inspect_source_page",
+        allowed = {"read_source_page", "search_sources", "inspect_source_page",
                    "analyze_source_image", "calculate"}
         if role == "coordinator":
             allowed.add("ask_human")

@@ -303,7 +303,7 @@ def classify_agent_system(system, expected):
     """
     from langchain.agents.middleware.todo import WRITE_TODOS_SYSTEM_PROMPT
     blocks = system.content_blocks if system else []
-    sources = [{'source':'configured_role_files', 'sha256':hashlib.sha256(expected.encode()).hexdigest()}]
+    sources: list[dict] = [{'source':'configured_role_files', 'sha256':hashlib.sha256(expected.encode()).hexdigest()}]
     parts = (system.additional_kwargs if system else {}).get('report_system_contributions', [])
     declared = [p for p in parts if p.get('placement') != 'tail']
     native_todo = {WRITE_TODOS_SYSTEM_PROMPT, '\n\n'+WRITE_TODOS_SYSTEM_PROMPT}
@@ -374,7 +374,7 @@ class AgentPromptBoundary(AgentMiddleware):
                               else report_expression_profile(self.workspace.store))
         from .prompt_sources import (role_sources, describe_current_tools,
             report_prompt_profile, report_rule_source, LEGACY_PROMPTS, CONCISE_PROMPTS,
-            REVIEW_INTERFACE_V3, submit_review_source, validate_review_submission_contract)
+            submit_review_source, validate_review_submission_contract)
         from .handoff_release import manifest as bound_manifest
         text_profile = (LEGACY_PROMPTS if independent_prompt else self.prompt_profile
             if self.prompt_profile is not None else report_prompt_profile(self.workspace.store))
@@ -410,8 +410,7 @@ class AgentPromptBoundary(AgentMiddleware):
         from .tool_selection import validate_catalog
         validate_catalog(tools)
         tool_text = encode(tools)
-        tool_files = [('native-content-index-tool-v4' if text_profile == CONCISE_PROMPTS else 'native-content-index-tool')] if any(
-            t.get('function', {}).get('name') == 'read_content_index' for t in tools) and native_reviewer(self.workspace.store) else []
+        tool_files: list[str] = []
         tool_files += description_files
         if any(t.get('function', {}).get('name') == 'write_todos'
                and t['function'].get('description') == load_prompt('review-work-units-tool').strip()
@@ -423,17 +422,11 @@ class AgentPromptBoundary(AgentMiddleware):
                 tool_files.append(review_handoff_source(interface, text_profile))
                 if interface == 'review-interfaces-v4':
                     tool_files.append(report_rule_source('native-task-description-v4', text_profile))
-        if interface == REVIEW_INTERFACE_V3:
-            names = {t.get('function', {}).get('name') for t in tools}
-            if 'read_decision_state' in names:
-                tool_files.append('state-paths-v3')
         if interface == 'review-interfaces-v4':
             names = {t.get('function', {}).get('name') for t in tools}
-            tool_files += [report_rule_source(source, text_profile) if name != 'confirm_review_reuse' else source for name, source in {
-                'select_content_delivery':'select-content-delivery-v4',
+            tool_files += [report_rule_source(source, text_profile) for name, source in {
                 'submit_review':submit_review_source(LEGACY_PROMPTS,
                     submission_contract if self.role == 'reviewer' else None),
-                'confirm_review_reuse':'native-review-reuse-v4',
                 'commit_objects':'deliverable-save-tool-v4'}.items() if name in names]
             if 'export_content_workbook' in names:
                 tool_files.append('export-content-workbook-v4')

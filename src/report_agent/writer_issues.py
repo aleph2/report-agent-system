@@ -57,7 +57,7 @@ def _readable_sources(cs, db, citations):
         payload = cs._read(db, citation['source_ref'])['payload']
         title = payload.get('source_metadata', {}).get('title', '')
         if not title.strip():
-            raise ActionRejected('MATERIAL_ISSUE_READABLE_SOURCE_TITLE_REQUIRED')
+            title = citation['source_ref']['id']
         locator = citation['locator']
         if match := re.fullmatch(r'page ([1-9][0-9]*)(?:;.*)?', locator):
             locator = f'PDF第{match[1]}页'
@@ -178,8 +178,6 @@ def verify_issue_proposal(cs, db, proposal, plan, coordinator):
     if bound['plan']['ref'] != plan['ref'] or proposal['commission_plan_ref'] != plan['ref']:
         raise ActionRejected('WRITER_ISSUE_PLAN_CHANGED')
     issue = MaterialIssue.model_validate(proposal['issue']).model_dump()
-    if issue['kind'] not in ('conflict', 'unclear', 'missing'):
-        raise ActionRejected('WRITER_ISSUE_ASSUMPTIONS_REQUIRE_ASSESSMENT')
     if (issue['object_label'] != bound['object']['label'] or proposal['binding'] != _binding(bound, issue['kind'])
             or issue['anchor'] != {'paragraph_index': 0, 'start': 0, 'end': None}):
         raise ActionRejected('WRITER_ISSUE_SYSTEM_BINDING_MISMATCH')

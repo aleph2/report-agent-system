@@ -1,19 +1,15 @@
 """Case-local immutable input versions used to assemble a commission proposal."""
 from functools import partial
 import json
+from typing import overload
 
-from . import legacy_state as legacy
 from .store import Store
 
 
-_LEGACY_READERS = {
-    "PlanSkeleton": legacy.get_commission_skeleton,
-    "PlanDraft": legacy.get_commission_planning_draft,
-    "PlanTextProfiles": legacy.get_commission_text_profiles,
-}
+_PLAN_INPUTS = ("PlanSkeleton", "PlanDraft", "PlanTextProfiles")
 
 
-PRIVATE_INPUT_TYPES = frozenset(_LEGACY_READERS) | {"CommissionSourceRoles", "CommissionOwnerRecords", "CommissionSourceUsePolicy", "CommissionSourceManifest"}
+PRIVATE_INPUT_TYPES = frozenset(_PLAN_INPUTS) | {"CommissionSourceRoles", "CommissionOwnerRecords", "CommissionSourceUsePolicy", "CommissionSourceManifest"}
 PRIVATE_INPUT_TYPES |= {'IssueWaits', 'IssueRecord', 'IssueBinding', 'IssueRoute', 'IssueAnswer', 'ImportedSourceReadFacts'}
 
 
@@ -26,12 +22,20 @@ def _head(db, kind):
     return json.loads(row[0]) if row else None
 
 
+@overload
+def _get[T](kind, storage, default: T) -> dict | T: ...
+
+
+@overload
+def _get(kind, storage, default: None = None) -> dict | None: ...
+
+
 def _get(kind, storage, default=None):
     if isinstance(storage, Store):
         with storage.connect() as db:
             return _get(kind, db, default)
     record = _head(storage, kind)
-    return record["payload"] if record else _LEGACY_READERS[kind](storage, default)
+    return record["payload"] if record else default
 
 
 def _save(kind, db, value, *, actor=None):
@@ -54,8 +58,8 @@ save_text_profiles = partial(_save, "PlanTextProfiles")
 
 
 def current_refs(db):
-    """Read existing version refs without materializing historical inputs."""
-    return [record["ref"] for kind in _LEGACY_READERS if (record := _head(db, kind))]
+    """Read the current version references."""
+    return [record["ref"] for kind in _PLAN_INPUTS if (record := _head(db, kind))]
 
 
 def frozen_refs(db):
@@ -65,9 +69,5 @@ def frozen_refs(db):
         record = _head(db, kind)
         if record:
             refs.append(record["ref"])
-        else:
-            value = _LEGACY_READERS[kind](db)
-            if value is not None:
-                refs.append(_save(kind, db, value))
     from . import commission_imports
     return refs + commission_imports.frozen_refs(db)

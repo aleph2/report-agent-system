@@ -13,9 +13,7 @@ from .store import digest,encode
 
 POLICY='reference-data-v1'
 TOOLS=frozenset({'read_source_page','search_sources','inspect_source_page','analyze_source_image',
-    'read_context','read_result','observe_evidence','read_content_selection','read_content_export',
-    'analyze_text','analyze_evidence','process_report_content','content_status','perform_assigned_review',
-    'perform_assigned_artifact_review'})
+    'read_context','observe_evidence','process_report_content','perform_assigned_artifact_review'})
 
 def enabled(workspace):
     return workspace.store.manifest.get('decision_data_policy')==POLICY

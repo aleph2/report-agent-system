@@ -211,9 +211,9 @@ def content_review_capability_issue(requirement):
     return {'code': 'BOUNDED_TOOL_SUPPORTS_NODE_CONTENT_ONLY',
             'scope_id': requirement['scope_id'], 'target_ref': target,
             'assessment_kind': requirement['assessment_kind'],
-            'tool': 'perform_assigned_review', 'supported_target_types': ['ContentNode'],
+            'supported_target_types': ['ContentNode'],
             'model_called': False,
-            'reason': f"Unsupported review route: assessment_kind={requirement['assessment_kind']}, target type={target['type']}. perform_assigned_review requires assessment_kind=content and target type ContentNode.",
+            'reason': f"Unsupported review route: assessment_kind={requirement['assessment_kind']}, target type={target['type']}.",
             'correction': 'The Coordinator must explicitly correct the task target or choose a compatible review route. Changing selections or operation_id does not change the saved target. Preserve the original checks, evidence requirements and versions; no automatic target conversion.'}
 
 

@@ -639,8 +639,8 @@ def guarded_tools(workspace, role, model, base_tools):
         Criterion requires requirement_refs (saved Requirement Ref objects), purpose,
         scope, expected_outcome, evidence_expectation, allowed_limits. Source IDs,
         SourceArtifact refs and operator instruction IDs are not Requirement refs.
-        exact current input_refs are in read_decision_state; use content_status for
-        more. Relation requires subject_ref,predicate,object_ref,provenance_kind;
+        Exact current input_refs are in read_decision_state.
+        Relation requires subject_ref,predicate,object_ref,provenance_kind;
         contains also position. Use {client_key:key} for new refs within this batch.
         Reuse an operation_id only with identical arguments; correcting a known
         failure needs a new operation ID. Inspect unknown writes before retrying.

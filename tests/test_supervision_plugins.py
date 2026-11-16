@@ -7,8 +7,8 @@ from report_agent import deep_runtime
 from report_agent.content_tasks import delegated_task
 from report_agent.content_models import ReviewItem
 from report_agent.errors import ActionRejected, ActionForbidden
-from report_agent.hierarchical_tools import actor_for, content_tools
-from report_agent.supervision_plugins import delegated_return, plugin_catalog
+from report_agent.hierarchical_tools import actor_for
+from report_agent.supervision_plugins import delegated_return
 from report_agent.task_supervision import reconcile, obligation_coverage
 from test_task_supervision import ws, offline, review_call, save_review, global_reviewer_steps
 from test_deep_runtime import Driver
@@ -153,12 +153,8 @@ async def test_v2_plugin_completes_only_one_followup_with_real_linked_result(ws)
         assert cs.store.get("content_task_followup:" + actor.task_id)["state"] == "returned"
 
 
-def test_plugin_catalog_and_obligation_inventory_are_optional_coordinator_tools(ws):
+def test_delegation_updates_obligation_inventory(ws):
     cs, _, refs, snapshot, _ = seed(ws)
-    assert plugin_catalog()["default"] is None
-    tools = {t.__name__ for t in content_tools(ws, "coordinator")}
-    assert {"list_supervision_plugins", "read_review_obligation_coverage"} <= tools
-    assert "list_supervision_plugins" not in {t.__name__ for t in content_tools(ws, "reviewer")}
     before = obligation_coverage(cs, snapshot)
     assert refs["k"] in before["criteria_without_assignment"]
     with delegated_task(ws, "coordinator", evidence_call(snapshot, refs)):

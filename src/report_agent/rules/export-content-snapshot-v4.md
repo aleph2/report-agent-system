@@ -13,7 +13,7 @@ column_weights set table proportions, landscape isolates a table/figure on wide 
 Directory refresh is layout.refresh_toc, inside layout; top-level refresh_toc or
 refresh_toc_default is unsupported. To change only refresh, read the prior ExportArtifact
 object's export_config.layout and retain its nodes/styles/headings before changing this
-field. read_content_export returns parsed content, not the saved layout configuration.
+field.
 To reuse saved layout exactly, pass layout_from_export_ref naming an exact Word
 ExportArtifact instead of layout. The server validates its saved configuration against
 this target snapshot; it never remaps node versions or chooses latest.

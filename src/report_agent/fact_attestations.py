@@ -56,14 +56,6 @@ class FactAttestation(BaseModel):
         if self.purpose=='hazard_frequency' and (
                 self.event_count is None or self.period_years is None or not self.applies_to):
             raise ValueError('A frequency requires an applicable event count and observation period')
-        if self.event_count is not None and self.purpose not in ('hazard_event','hazard_frequency'):
-            raise ValueError('Event counts belong only to event observations')
-        if self.visual_verified and (self.source_class!='drawing' or self.purpose!='drawing_contents'):
-            raise ValueError('Visual verification applies only to observed drawing contents')
-        if (self.survey_extent or self.facility_location) and self.purpose!='facility_presence':
-            raise ValueError('Facility survey and location measurements require a facility observation')
-        if self.months and self.purpose!='hazard_season':
-            raise ValueError('Season months must be tied to a hazard-season observation')
         if self.purpose=='drawing_contents' and not self.visual_verified:
             raise ValueError('Drawing contents require verified inspection')
         return self

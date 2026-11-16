@@ -13,9 +13,7 @@ from .store import Store, encode
 _MISSING = object()
 
 COMMISSION_REQUIREMENTS_KEY = 'commission_requirements'
-COMMISSION_SKELETON_KEY = 'commission_skeleton'
 COMMISSION_OWNER_RECORDS_KEY = 'commission_owner_records'
-COMMISSION_PLANNING_DRAFT_KEY = 'commission_planning_draft'
 
 
 def _get(storage: Store | sqlite3.Connection, key: str, default: Any) -> Any:
@@ -69,18 +67,6 @@ def get_commission_confirmation(storage, default=_MISSING):
     return _get(storage, 'commission_confirmation', default)
 
 
-def get_commission_skeleton(storage, default=_MISSING):
-    return _get(storage, COMMISSION_SKELETON_KEY, default)
-
-
-def get_commission_planning_draft(storage, default=_MISSING):
-    return _get(storage, COMMISSION_PLANNING_DRAFT_KEY, default)
-
-
-def get_commission_text_profiles(storage, default=_MISSING):
-    return _get(storage, 'commission_text_profiles', default)
-
-
 def get_commission_requirements(storage, default=_MISSING):
     return _get(storage, COMMISSION_REQUIREMENTS_KEY, default)
 
@@ -92,14 +78,6 @@ def get_commission_requirements_checkpoint(storage, suffix, default=_MISSING):
 def get_commission_source_roles(storage, default=None):
     from .commission_imports import source_roles
     return source_roles(storage, default)
-
-
-def historical_commission_source_roles(storage, default=_MISSING):
-    return _get(storage, 'commission_source_roles', default)
-
-
-def get_commission_owner_records(storage, default=_MISSING):
-    return _get(storage, COMMISSION_OWNER_RECORDS_KEY, default)
 
 
 def get_commission_checkpoint(storage, suffix, default=_MISSING):

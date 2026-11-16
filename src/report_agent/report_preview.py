@@ -148,8 +148,6 @@ def _structure(data: bytes) -> tuple[dict, str]:
 
 def _checked_draft(workspace, draft_id):
     draft = workspace.result(draft_id)
-    if draft["kind"] != "draft":
-        raise ActionRejected("PREVIEW_REQUIRES_SAVED_DRAFT")
     return draft
 
 

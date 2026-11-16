@@ -144,33 +144,20 @@ class LayoutOptions(Contract):
 
 
 def validate_layout(options, records, rendered_keys=None):
-    if options.header and options.header_parts:
-        raise ActionRejected('HEADER_CONTROLS_CONFLICT')
     headers = ([options.header] if options.header else options.header_parts)
     for header in [line for part in headers for line in [part, *part.additional_lines]]:
         key = header.node_ref.key()
         if not rendered_keys or key not in rendered_keys or key not in records or key[0] != 'ContentNode':
             raise ActionRejected('HEADER_REQUIRES_RENDERED_BODY_NODE')
-        if records[key]['payload']['kind'] in {'table', 'figure'}:
-            raise ActionRejected('HEADER_REQUIRES_RENDERED_TEXT_NODE')
-        lines = records[key]['payload']['body'].get('text', '').split('\n')
-        if lines.count(header.text) != 1:
-            raise ActionRejected('HEADER_REQUIRES_UNIQUE_EXACT_LINE')
     for item in options.nodes:
         key = item.node_ref.key()
         if key not in records or key[0] != "ContentNode":
             raise ActionRejected("LAYOUT_REQUIRES_UNIQUE_SNAPSHOT_NODE")
         body = records[key]["payload"]
-        lines = body['body'].get('text', '').split('\n')
         from .exporting import markdown_table_spans
         table_spans = markdown_table_spans(body['body'].get('text', ''))
         if item.heading_level and any(start == 0 for _, start, _ in table_spans):
             raise ActionRejected('HEADING_CONTROL_INTERSECTS_MARKDOWN_TABLE')
-        for paragraph in item.paragraphs:
-            if lines.count(paragraph.text) != 1:
-                raise ActionRejected('LAYOUT_PARAGRAPH_REQUIRES_UNIQUE_EXACT_LINE')
-        if item.heading_level and (not body["body"].get("text")):
-            raise ActionRejected("LAYOUT_HEADING_REQUIRES_TEXT_BLOCK")
         table_columns = ([len(body['body']['columns'])] if body['kind'] == 'table' else
                          [width for width, _, _ in table_spans])
         if item.column_weights and (not table_columns or
@@ -501,9 +488,6 @@ def emit_text(doc, text, image_renderer, controls, *, table_formatter=None):
 
     def format_paragraph(p, lines):
         matched = [selected[line] for line in lines if line in selected]
-        styles = [item.model_dump(exclude={'text'}) for item in matched]
-        if styles and any(style != styles[0] for style in styles[1:]):
-            raise ActionRejected('CONFLICTING_LAYOUT_FOR_SAME_RENDERED_PARAGRAPH')
         if matched:
             item = matched[0]
             if item.heading_level:

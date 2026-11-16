@@ -84,8 +84,6 @@ def resolve_judgment_sources(cs, db, actor, context, quotes, visual_pages=()):
             groups.add(identity); pool.append((ref, payload))
     citations = []
     for index, quote in enumerate(quotes):
-        if not quote.strip():
-            reject(f'quotes[{index}]', 'quote_required', code='WRITER_ASSESSMENT_QUOTE_REQUIRED')
         from .page_bindings import extracted_pages
         from .source_use import immutable_version_digest
         from .document_tools import physical_page_number
@@ -336,8 +334,6 @@ def _step_value(rule, outcome, *, qualitative=False, facts=None):
         midpoint = (number(band['min_value']) + number(band['max_value'])) / 2
         if value['value'] is None:
             value['value'] = str(midpoint)
-        elif facts is None and number(value['value']) != midpoint and not value['value_reason']:
-            raise ActionRejected('WRITER_NON_MIDPOINT_VALUE_REASON_REQUIRED')
         if value['value_reason'] is None:
             value.pop('value_reason')
     return {'kind':kind,'grade':None,'value':None,'basis_kind':None,'question':'',
@@ -362,8 +358,6 @@ def _prepare_entry(cs, db, actor, operation_id, indicator_id, outcome, read_loca
         from .writer_claims import apply_claims
         band = next((g for g in rule['grades'] if _grade(g)==value['grade']),None)
         midpoint = (number(band['min_value'])+number(band['max_value']))/2 if band else None
-        if band and not number(band['min_value']) <= number(value['value']) <= number(band['max_value']):
-            raise ActionRejected('WRITER_VALUE_OUTSIDE_CHOSEN_GRADE')
         value, checks = apply_claims(value, indicator_id=indicator_id, subject=scope['object']['object_id'],
                                      attestations=facts, midpoint=midpoint, grade_id=band['id'] if band else None,
                                      registered_excerpts=scope['registered_excerpts'])

@@ -47,8 +47,6 @@ def validate_prose(cs, db, actor, node, previous_ref=None):
     section = next((s for s in plan['payload']['sections'] if s['section_id'] == sid), None)
     if section is None or section['kind'] != 'extracted' or sid not in task['section_ids']:
         raise ActionRejected('PROSE_ASSIGNED_EXTRACTED_SECTION_REQUIRED')
-    if node['kind'] != 'block' or set(node['body']) != {'text', 'section_id'} or node.get('qualifiers'):
-        raise ActionRejected('PROSE_ONLY_SYSTEM_OWNS_STRUCTURE_AND_ANCHORS')
     current = report_state.prose_ref(db, prose_selection_key(cs, db, actor, plan['ref'], sid))
     if current and current != previous_ref:
         raise ActionRejected('PROSE_CURRENT_VERSION_REQUIRED', diagnostic={'section_id': sid, 'current_ref': current})

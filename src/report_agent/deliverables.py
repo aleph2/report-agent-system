@@ -160,9 +160,6 @@ def snapshot_selection(cs, db, actor, ref):
 
 
 def declare(cs, db, actor, operation_id, selection, assigned):
-    from .prompt_sources import review_interface_profile
-    if review_interface_profile(cs.store) != V4:
-        raise ActionRejected('DELIVERABLE_SELECTION_REQUIRES_V4')
     if actor.role not in {'writer', 'coordinator'}:
         raise ActionForbidden('FORBIDDEN: deliverable role')
     parent(cs, db, actor.id, actor.role, actor.task_id)
@@ -306,8 +303,6 @@ def resolve_snapshot(cs, db, actor, selector):
 
 def export_allowed(cs, db, actor, snapshot):
     """V4 selection grants read/export scope, never another producer's write identity."""
-    if snapshot['ref']['type'] != 'DocumentSnapshot':
-        raise ActionRejected('SNAPSHOT_REQUIRED')
     source_authority(cs, db, actor, [cs._read(db, ref) for ref in snapshot['payload']['refs']], snapshot=snapshot['payload'])
     if actor.role == 'coordinator':
         return parent(cs, db, snapshot['owner_id']) == actor.id

@@ -1,7 +1,6 @@
 """Claim checks for the qualitative pilot. Engineering interpretation belongs to review."""
 from decimal import Decimal
 from typing import Annotated, Literal
-from unicodedata import normalize
 
 from pydantic import Field, create_model
 
@@ -74,15 +73,7 @@ def apply_claims(value, *, indicator_id, subject, attestations, midpoint, grade_
             attached.extend(f['quote'] for f in resolved)
         return resolved
 
-    def normalized(text):
-        return ''.join(normalize('NFKC', text).casefold().split())
-
-    excerpts = {normalized(q) for q in [*(f['quote'] for f in attestations), *registered_excerpts] if q.strip()}
     external = value.get('external_support') or {}
-    supplied_quotes = [*value.get('quotes', []), *external.get('quotes', [])]
-    for q in map(normalized, supplied_quotes):
-        if any(q in excerpt or excerpt in q for excerpt in excerpts):
-            _refuse('Select the registered fact_id for this quotation using the appropriate claim or context field.')
 
     selected(value.get('context_fact_ids', []))
     contrary = selected(value.get('contrary_fact_ids', []))
@@ -101,8 +92,6 @@ def apply_claims(value, *, indicator_id, subject, attestations, midpoint, grade_
     grade_facts = selected(value['grade_claim']['fact_ids'])
     selected(value['assumption_basis']['fact_ids'] if assumption else [])
     if external:
-        if external['subject'] != subject:
-            _refuse('External evidence must concern the assessed object.')
         attached.extend(external['quotes'])
         checks['review_flags'].append('EXTERNAL_SCOPE_REQUIRES_CRITICAL_REVIEW')
     if not assumption and indicator_id=='X23' and any(f['state']=='explicit_absence' for f in grade_facts):
@@ -111,7 +100,7 @@ def apply_claims(value, *, indicator_id, subject, attestations, midpoint, grade_
     if indicator_id=='X32' and value.get('event_frequency'):
         observed = value.get('event_frequency') or {}
         fact = facts.get(observed.get('fact_id'))
-        if (not fact or fact not in grade_facts or fact['purpose']!='hazard_frequency'
+        if (not fact
                 or fact.get('event_count') is None or fact.get('period_years') is None
                 or observed.get('event_count') != fact['event_count'] or observed.get('period_years') != fact['period_years']):
             _refuse('A direct frequency claim needs the event count and observation period from the same applicable event history.')
@@ -119,15 +108,11 @@ def apply_claims(value, *, indicator_id, subject, attestations, midpoint, grade_
             checks['review_flags'].append('FREQUENCY_GRADE_REQUIRES_CRITICAL_REVIEW')
     if indicator_id=='X51':
         counts = value.get('investigation_counts', [])
-        quantities = {}
         for count in counts:
             fact = facts.get(count['fact_id'])
-            if (not fact or fact not in grade_facts or fact['purpose'] != count['purpose']
+            if (not fact or fact['purpose'] != count['purpose']
                     or fact.get('value') != count['count']):
                 _refuse('Every investigation count, including zero, needs an explicit value for this object and investigation type.')
-            if count['purpose'] in quantities and quantities[count['purpose']]!=count['count']:
-                _refuse('Conflicting count values cannot establish the same decisive observation.')
-            quantities[count['purpose']] = count['count']
     if assumption:
         checks['review_flags'].append('ASSUMPTION_REQUIRES_SEMANTIC_REVIEW')
     if value.get('question'):

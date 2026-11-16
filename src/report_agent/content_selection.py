@@ -19,8 +19,6 @@ class ContentSelection(BaseModel):
 
 def snapshot_members(contents, snapshot_ref):
     ref = Ref.model_validate(snapshot_ref).model_dump()
-    if ref["type"] != "DocumentSnapshot":
-        raise ActionRejected("CONTENT_SELECTION_REQUIRES_SNAPSHOT")
     snapshot = contents.read(ref)
     return snapshot, {Ref.model_validate(r).key() for r in snapshot["payload"]["refs"]}
 
@@ -54,8 +52,6 @@ def selected_content(workspace, snapshot_ref, selections):
             values = body["text"]
             view = {"text": values[start:start + selection.limit]}
         total = len(values)
-        if start >= total and not (start == 0 and total == 0):
-            raise ActionRejected("CONTENT_SELECTION_EMPTY_RANGE")
         end = min(start + selection.limit, total)
         result.append({"kind": "content_node_selection", "selection": selection.model_dump(),
             "snapshot_ref": snapshot["ref"], "manifest_digest": snapshot["payload"]["manifest_digest"],

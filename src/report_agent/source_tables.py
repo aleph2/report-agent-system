@@ -82,8 +82,6 @@ def source_tables(workspace, source_id, pages, *, compact=False):
     pages = list(dict.fromkeys(pages))
     if not pages:
         return []
-    if any(type(p) is not int or p < 1 for p in pages):
-        raise ActionRejected("SOURCE_PAGE_REQUIRES_POSITIVE_INTEGER")
     base = {"source_id": source_id, "derived": True,
             "extractor": {"name": "pdfplumber", "version": pdfplumber.__version__,
                           "settings": dict(SETTINGS), "text_settings": "library defaults"},

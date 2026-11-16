@@ -85,8 +85,6 @@ def _text_projection(text, sid, title):
     if first.rstrip('\r\n') == sid + ' ' + title:
         removed = {'start': 0, 'end': len(first), 'text': first}
         text = text[len(first):]
-    if not text.strip():
-        raise ActionRejected('RESCUE_HEADING_ONLY_REQUIRES_SYSTEM_SECTION: ' + sid)
     return text, removed
 
 
@@ -154,8 +152,6 @@ def _project(cs, db, source, section, dispositions, required):
                 raise ActionRejected('RESCUE_CAVEAT_NOT_PRESERVED: ' + issue['id'])
             if any(IssueSource.model_validate(s).readable() not in allowed_sources for s in issue['sources']):
                 raise ActionRejected('RESCUE_ISSUE_SOURCE_NOT_BOUND: ' + issue['id'])
-            if not issue['sources'] and issue['kind'] != 'no_evidence_assumption':
-                raise ActionRejected('RESCUE_ISSUE_SOURCE_REQUIRED: ' + issue['id'])
             registry = required.get(issue['id'])
             if registry and any(issue[k] != registry[k] for k in ('id', 'kind', 'object_label', 'basis', 'sources', 'question')):
                 raise ActionRejected('RESCUE_REQUIRED_ISSUE_FIELDS_CHANGED: ' + issue['id'])
@@ -271,8 +267,6 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
                     replacement = _assessment_replacement(cs, db, source, section, plan, assessment_replacements[ref['id']])
                     sentence = replacement['removed_result_span']['text']
                     payload['body']['text'] = payload['body']['text'][:-len(sentence)]
-                    if not payload['body']['text'].strip():
-                        raise ActionRejected('RESCUE_RESULT_SITE_FACTS_REQUIRED')
                 prepared.append((sid, snapshot, source, task, payload, removed, accounting, dispositions, replacement))
         if set(qualifier_dispositions) - {key[1] for key in selected}:
             raise ActionRejected('RESCUE_DISPOSITIONS_OUTSIDE_SELECTED_NODES')

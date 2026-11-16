@@ -278,13 +278,7 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             completed.add(sid)
     source['structural_parent_refs'] = structural_parents
     source['site_objects'] = site_objects
-    for ref_key, object_id in site_objects.items():
-        if object_id not in assessments:
-            problem('object_prose_assessment_missing', object_id=object_id)
     missing_prose = [sid for sid, section in sections.items() if section['kind'] == 'extracted' and sid not in selected]
-    for sid, bound in selected.items():
-        if not bound and sid not in structural_parents and not any(a[2] == sid for a in assessments.values()):
-            problem('empty_extracted_section', section_id=sid)
     required = {i['id']: i for i in decision['payload'].get('required_material_issues', [])}
     full_issues = {}
     for record in records.values():

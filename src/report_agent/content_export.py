@@ -102,14 +102,9 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
             raise ActionForbidden("FORBIDDEN: snapshot owner")
         from .commission_requirements import require_snapshot
         require_snapshot(contents, db, snapshot)
-        if layout is not None and layout_from_export_ref is not None:
-            raise ActionRejected("LAYOUT_AND_SOURCE_MUTUALLY_EXCLUSIVE")
         selected_layout = layout
         if layout_from_export_ref is not None:
             source = contents._read(db, layout_from_export_ref)
-            if (layout_from_export_ref['type'] != 'ExportArtifact' or
-                    not source['payload'].get('file_ref', '').endswith('.docx')):
-                raise ActionRejected('LAYOUT_SOURCE_REQUIRES_WORD_EXPORT')
             selected_layout = source['payload'].get('export_config', {}).get('layout')
             if not isinstance(selected_layout, dict):
                 raise ActionRejected('LAYOUT_SOURCE_CONFIG_MISSING')
@@ -146,10 +141,6 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         root_key = Ref.model_validate(snapshot['payload']['root_ref']).key()
         title_pages = [ref for _, ref in sorted(edges.get(root_key, []), key=lambda pair: pair[0])
                        if method_pack and records[Ref.model_validate(ref).key()]['payload']['body'].get('page_role') == 'title_page']
-        if options.cover_vertical_alignment and records[Ref.model_validate(snapshot['payload']['root_ref']).key()]['payload']['kind'] != 'report':
-            raise ActionRejected('COVER_ALIGNMENT_REQUIRES_REPORT_ROOT')
-        if options.refresh_toc and records[Ref.model_validate(snapshot['payload']['root_ref']).key()]['payload']['kind'] != 'report':
-            raise ActionRejected('DIRECTORY_REFRESH_REQUIRES_REPORT_ROOT')
         from .layout_revision import check as check_layout_revision
         export_config = {"exporter_digest": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                          "layout_engine_digest": hashlib.sha256(Path(presentation.__file__).read_bytes()).hexdigest(),
@@ -198,8 +189,6 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
                 continue
             node = record["payload"]
             if node['body'].get('source_views'):
-                if not plan or not plan.get('method_pack'):
-                    raise ActionRejected('SOURCE_VIEWS_REQUIRE_G3_PLAN')
                 image_sources.update(view['source_id'] for view in node['body']['source_views'])
             if node["kind"] == "figure":
                 image_sources.add(node["body"]["source_id"])
@@ -424,8 +413,6 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         data = buffer.getvalue()
         finalization = None
         if options.refresh_toc:
-            if not options.toc:
-                raise ActionRejected('TOC_REFRESH_REQUIRES_TOC')
             from .layout_capabilities import refresh_directory
             data, finalization = refresh_directory(contents.store, data)
             presentation.remap_blocks(Document(BytesIO(data)), mappings)
@@ -485,8 +472,6 @@ def _require_review_export(scope, export_ref):
 def read_export(contents, actor, export_ref):
     _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     record = contents.read(export_ref)
-    if export_ref["type"] != "ExportArtifact":
-        raise ActionRejected("EXPORT_REQUIRED")
     data = _bytes(contents.store, record["payload"]["file_ref"], record["payload"]["file_digest"])
     if record['payload']['file_ref'].endswith('.xlsx'):
         from .content_workbook import read_workbook
@@ -509,8 +494,6 @@ def render_export(contents, actor, operation_id, export_ref):
     _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     def prepare(db):
         export = contents._read(db, export_ref)
-        if export_ref["type"] != "ExportArtifact":
-            raise ActionRejected("EXPORT_REQUIRED")
         suffix = Path(export['payload']['file_ref']).suffix
         if suffix not in {'.docx', '.xlsx'}:
             raise ActionRejected('RENDER_FORMAT_UNSUPPORTED')
@@ -588,8 +571,6 @@ async def inspect_render(contents, actor, render_ref, page, question, client=Non
         if review_interface_profile(contents.store) == 'review-interfaces-v4':
             raise ActionForbidden("FORBIDDEN: coordinator delegates page inspection")
     record = contents.read(render_ref)
-    if render_ref["type"] != "RenderArtifact" or not question.strip():
-        raise ActionRejected("RENDER_AND_QUESTION_REQUIRED")
     scope = _reviewer_export_scope(contents, actor)
     if scope is not None:
         from .review_work_units import material_allowed

@@ -75,8 +75,6 @@ def refresh_directory(store, data):
 
 def request_extension(contents, actor, operation_id, snapshot_ref, problem, attempted, requested_operation, evidence):
     snapshot = contents.read(snapshot_ref)
-    if snapshot_ref['type'] != 'DocumentSnapshot':
-        raise ActionRejected('SNAPSHOT_REQUIRED')
     if actor.role == 'layout':
         task = contents.read({'type':'DelegatedTask','id':actor.task_id,'version':1})
         if actor.id != 'content:layout:'+actor.task_id or task['payload'].get('layout_snapshot_ref') != snapshot_ref:

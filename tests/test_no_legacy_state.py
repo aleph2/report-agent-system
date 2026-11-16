@@ -151,8 +151,7 @@ HISTORICAL_READERS = {"writer_assessment_draft:", "writer_indicator_steps:", "wr
                       "assessment_receipt:", "g6_assessment:", "g6_assessment_producer:"}
 
 
-M4_HISTORICAL_READERS = {"commission_plan", "commission_confirmation", "commission_skeleton",
-                         "commission_planning_draft", "commission_text_profiles"}
+M4_HISTORICAL_READERS = {"commission_plan", "commission_confirmation"}
 
 
 @pytest.mark.parametrize("family", sorted(M4_HISTORICAL_READERS))
@@ -180,8 +179,7 @@ def test_old_writer_keys_are_readable_without_a_write_accessor(tmp_path, family)
 
 
 M5_HISTORICAL_READERS = {
-    "commission_requirements", "commission_requirements_checkpoint:", "commission_owner_records",
-    "commission_source_roles", "commission_checkpoint:",
+    "commission_requirements", "commission_requirements_checkpoint:", "commission_checkpoint:",
 }
 
 M6_HISTORICAL_READERS = {'report_issues', 'g6_issue_record:', 'g6_issue_binding:', 'g6_issue_route:'}
@@ -189,7 +187,7 @@ M6_HISTORICAL_READERS = {'report_issues', 'g6_issue_record:', 'g6_issue_binding:
 
 @pytest.mark.parametrize("family", sorted(M5_HISTORICAL_READERS))
 def test_old_commission_key_is_readable_without_a_write_accessor(tmp_path, family):
-    from report_agent import commission_assertions, commission_imports, commission_requirements, legacy_state
+    from report_agent import commission_assertions, commission_requirements, legacy_state
     from report_agent.store import Store
 
     store = Store(tmp_path)
@@ -208,10 +206,7 @@ def test_old_commission_key_is_readable_without_a_write_accessor(tmp_path, famil
         assert commission_assertions.checkpoint(store, kind, issue) == old
         assert commission_assertions.checkpoint_answer(store, kind, issue) is None
     else:
-        readers = {"commission_requirements": commission_requirements.requirements_ref,
-                   "commission_source_roles": commission_imports.source_roles,
-                   "commission_owner_records": commission_imports.owner_records}
-        assert readers[family](store) == old
+        assert commission_requirements.requirements_ref(store) == old
     assert store.get(raw_key) == old
     assert not (tmp_path / "assertions.sqlite3").exists()
 

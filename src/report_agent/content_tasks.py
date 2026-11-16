@@ -7,7 +7,7 @@ from pydantic import Field, create_model
 
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
-from .prompt_sources import BOUNDED_REVIEW, NATIVE_REVIEW, load_prompt
+from .prompt_sources import NATIVE_REVIEW, REVIEW_INTERFACE_V4
 
 
 _binding = ContextVar("content_task_binding", default=None)
@@ -170,45 +170,6 @@ def _documented_field(model, name, annotation=None, description=None):
     return (info.annotation if annotation is None else annotation, info)
 
 
-def _native_review_requirement(*, clarified=False):
-    """Project documentation without mutating shared contracts or validators."""
-    from .task_supervision import (ReviewRequirement, RequiredReviewMaterial,
-                                   ArtifactCheckScope, ContentCheckScope)
-    field = _documented_field
-    if not clarified:
-        material = create_model("NativeRequiredReviewMaterial", __base__=RequiredReviewMaterial,
-            **{name: field(RequiredReviewMaterial, name) for name in ("refs", "source_spans")})
-        fields = {name: field(ReviewRequirement, name) for name in
-                  ("target_ref", "material_refs", "source_ranges", "content_check_scopes")}
-        fields["required_materials"] = field(ReviewRequirement, "required_materials", list[material])
-        return create_model("NativeReviewRequirement", __base__=ReviewRequirement, **fields)
-    index_description = (
-        "Zero-based index into required_checks of this ReviewRequirement, not the outer "
-        "review_requirements position; must be less than len(required_checks).")
-    material = create_model("NativeRequiredReviewMaterial", __base__=RequiredReviewMaterial,
-        **{name: field(RequiredReviewMaterial, name) for name in ("refs", "source_spans")},
-        requirement_index=field(RequiredReviewMaterial, "requirement_index", description=index_description))
-    artifact_scope = create_model("NativeArtifactCheckScope", __base__=ArtifactCheckScope,
-        requirement_index=field(ArtifactCheckScope, "requirement_index", description=index_description))
-    content_scope = create_model("NativeContentCheckScope", __base__=ContentCheckScope,
-        requirement_index=field(ContentCheckScope, "requirement_index", description=index_description))
-    fields = {name: field(ReviewRequirement, name) for name in
-              ("material_refs", "source_ranges")}
-    fields["target_ref"] = field(ReviewRequirement, "target_ref", description=_NATIVE_SNAPSHOT_TARGET)
-    fields["required_materials"] = field(ReviewRequirement, "required_materials", list[material])
-    fields["content_check_scopes"] = field(ReviewRequirement, "content_check_scopes", list[content_scope],
-        "Optional declared content extents. The same local check may name different nodes; "
-        "the (requirement_index, exact node_ref) pair must be unique. Declared versions and "
-        "permissions remain binding. Omission does not establish that any body was read or verified.")
-    fields["artifact_check_scopes"] = field(ReviewRequirement, "artifact_check_scopes", list[artifact_scope],
-        "Optional per-check artifact extents; at most one explicit extent per local required_checks "
-        "index in this ReviewRequirement. Export structure needs the actual export read; render "
-        "checks need the listed full pages. For a check comparing multiple assigned artifacts, "
-        "omit its explicit extent to retain full assigned artifact coverage. Omission never "
-        "removes required_checks, exact versions, permissions or whole-item completion duties.")
-    return create_model("NativeReviewRequirement", __base__=ReviewRequirement, **fields)
-
-
 def native_review_submission_schema(*, v4=False, scope_selectors=False):
     """Native tool documentation only; preserve the original save validators."""
     from .content_models import ReviewSubmission, ReviewItem, CheckResult, Finding
@@ -246,12 +207,10 @@ def native_review_submission_schema(*, v4=False, scope_selectors=False):
         items=field(ReviewSubmission, "items", list[item]))
 
 
-def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-interfaces-v1',
+def task_tool(tool, *, review_profile=NATIVE_REVIEW, interface_profile=REVIEW_INTERFACE_V4,
               subagent_descriptions=(), prompt_profile='legacy-v1'):
     """Extend only the coordinator-facing native schema, not the native executor."""
-    if interface_profile == 'review-interfaces-v4':
-        if review_profile != NATIVE_REVIEW:
-            raise ActionRejected('REVIEW_INTERFACE_PROFILE_REQUIRES_NATIVE_HIERARCHICAL')
+    if interface_profile == REVIEW_INTERFACE_V4:
         from .co_review_message import CoTaskMessage
         from .native_operation_tools import MessageTool
         field = deepcopy(tool.args_schema.model_fields['description'])
@@ -267,38 +226,7 @@ def task_tool(tool, *, review_profile=BOUNDED_REVIEW, interface_profile='review-
                         'as resume_task_scope to continue its original producer with unchanged permissions and assignment. '
                         'A new task, even of the same role, cannot overwrite that work. '
                         'Continuation restores business identity, not the entire earlier conversation.\n\n'+descriptions)
-    if review_profile not in {BOUNDED_REVIEW, NATIVE_REVIEW}:
-        raise ActionRejected("UNKNOWN_REVIEW_EXECUTION_PROFILE")
-    from .prompt_sources import REVIEW_INTERFACE_V1, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, review_handoff_source
-    if interface_profile not in {REVIEW_INTERFACE_V1, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3}:
-        raise ActionRejected('UNKNOWN_REVIEW_INTERFACE_PROFILE')
-    if interface_profile in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3} and review_profile != NATIVE_REVIEW:
-        raise ActionRejected('REVIEW_INTERFACE_PROFILE_REQUIRES_NATIVE_HIERARCHICAL')
-    from .content_models import Ref
-    from .task_supervision import ReviewRequirement
-    schema = create_model("ContentTaskToolSchema", __base__=tool.args_schema,
-        section_ids=(list[str], Field(default_factory=list,
-            description='Saved section IDs for a new writer under the confirmed commission plan; omit for other roles and continuation.')),
-        review_snapshot_ref=(Ref | None, Field(default=None,
-            description="Reviewer assignment's exact version-bound snapshot. Required with review_requirements. This is a version anchor; bounded content target_ref must be a ContentNode, not this DocumentSnapshot.")),
-        review_requirements=(list[ReviewRequirement] | None, Field(default=None,
-            description="Explicit review outcomes: exact target/criterion, scope_id, required_checks and optional whole-body read refs. For bounded-tool review, declare required_materials for every check: refs require exact local object payloads; source_spans require exact version-bound original text blocks. Both lists empty means unresolved. material_refs and top-level source_ranges are additional eligible pools, not substitutes for required dependencies. Use content_check_scopes to declare needed local or full contains-subtree bodies; bind needed descendants to this scope's material pool. Containers do not stand for child bodies. Task data fixes single/cross-node scope; these are not acceptance judgments or per-node call limits.")),
-        supervision_plugin=(str | None, Field(default=None,
-            description="Optional server-registered reviewer supervision plugin. Omit for no supervision on new tasks; use list_supervision_plugins to inspect choices. Resumed tasks retain their existing selection.")),
-        layout_snapshot_ref=(Ref | None, Field(default=None,
-            description="For a layout task, grant presentation-only export access to this exact coordinator-owned snapshot. Required on new layout tasks.")),
-        resume_content_task_id=(str | None, Field(default=None,
-            description="Existing server-issued content task ID to continue its owned work; omit for a new independent task.")))
-    description = tool.description + "\nContent tasks have persistent owners. Use resume_content_task_id to ask the original producer to revise its saved work; new tasks cannot overwrite it."
-    if review_profile == NATIVE_REVIEW:
-        snapshot = deepcopy(schema.model_fields["review_snapshot_ref"])
-        requirements = deepcopy(schema.model_fields["review_requirements"])
-        snapshot.description = requirements.description = None
-        schema = create_model("NativeContentTaskToolSchema", __base__=schema,
-            review_snapshot_ref=(snapshot.annotation, snapshot),
-            review_requirements=(list[_native_review_requirement(clarified=interface_profile in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3})] | None, requirements))
-        description = load_prompt(review_handoff_source(interface_profile)).strip() + "\n\n" + description
-    return tool.model_copy(update={"args_schema": schema, "description": description})
+    raise ActionRejected("UNKNOWN_REVIEW_INTERFACE_PROFILE")
 
 
 @contextmanager
@@ -468,8 +396,6 @@ def _v4_task(workspace, call):
     resumed = args.pop('resume_content_task_id', None)
     if assessment_object_id is not None and (args.get('subagent_type') != 'writer' or resumed):
         raise ActionRejected('WRITER_OBJECT_REQUIRES_FRESH_TASK')
-    if section_ids and (args.get('subagent_type') != 'writer' or resumed):
-        raise ActionRejected('COMMISSION_SECTION_ASSIGNMENT_REQUIRES_NEW_WRITER')
     layout = args.pop('layout_snapshot_ref', None)
     plugin = args.pop('supervision_plugin', None)
     from .supervision_plugins import resolve_plugin
@@ -477,8 +403,6 @@ def _v4_task(workspace, call):
     role = args.get('subagent_type')
     if role not in {'writer', 'reviewer', 'layout'} or not call.get('id'):
         raise ActionRejected('INVALID_CONTENT_DELEGATION')
-    if 'review_snapshot_ref' in args or 'review_requirements' in args:
-        raise ActionRejected('V4_REQUIRES_BUSINESS_REVIEW_SELECTION')
     if (review is not None and role != 'reviewer') or (plugin is not None and role != 'reviewer'):
         raise ActionRejected('REVIEW_CONTRACT_REQUIRES_REVIEWER_AND_SNAPSHOT')
     cs, co = ContentStore(workspace.store), actor_for('coordinator')

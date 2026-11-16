@@ -69,10 +69,6 @@ class MaterialIssue(StrictRecord):
             raise ValueError("blank issue field")
         if any(not source.document.strip() for source in self.sources):
             raise ValueError("blank source document")
-        if self.kind == "indirect_assumption" and not self.sources:
-            raise ValueError("indirect assumption requires source pages")
-        if self.kind == "no_evidence_assumption" and self.sources:
-            raise ValueError("no-evidence assumption cannot claim source evidence")
         return self
 
     def source_text(self, excluded=()):
@@ -142,8 +138,6 @@ def table_header(body):
     """Shared header projection; all body anchors remain zero-based data indices."""
     rows = body.get('header_rows')
     if rows is None:
-        if body.get('header_merges'):
-            raise ActionRejected('TABLE_HEADER_ROWS_REQUIRED')
         rows = [body['columns']]
     if (not isinstance(rows, list) or not rows
             or any(not isinstance(row, list) or len(row) != len(body['columns']) for row in rows)):
@@ -159,8 +153,6 @@ def _cell_anchor(node, anchor, value, covered, prefix):
     if (node['kind'] != 'table' or anchor.row >= len(body['rows'])
             or anchor.column >= len(body['columns'])):
         raise ActionRejected(prefix + '_ANCHOR_BOUNDS')
-    if (anchor.row, anchor.column) in covered:
-        raise ActionRejected(prefix + '_MERGED_AWAY_ANCHOR')
     if str(body['rows'][anchor.row][anchor.column]) != value:
         raise ActionRejected(prefix + '_VALUE_MISMATCH')
 

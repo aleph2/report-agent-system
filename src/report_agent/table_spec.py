@@ -254,7 +254,7 @@ def assessment_tables(cs, db, plan, assessment_ref, table_records, result, label
         for citation in row['sources']:
             title = cs._read(db, citation['source_ref'])['payload']['source_metadata'].get('title')
             if not title:
-                raise ActionRejected('ASSESSMENT_READABLE_SOURCE_TITLE_REQUIRED')
+                title = citation['source_ref']['id']
             sources.append({'document': title, 'page': citation['locator']})
             if citation not in citations:
                 citations.append(citation)

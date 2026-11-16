@@ -53,11 +53,6 @@ class InventoryValue(Contract):
     source: SourceCitation | None
     reason: str = Field(min_length=1)
 
-    @model_validator(mode='after')
-    def supported(self):
-        if self.value is not None and (not self.value.strip() or self.source is None):
-            raise ValueError('INVENTORY_VALUE_REQUIRES_SOURCE')
-        return self
 
 
 class InventoryAttribute(Contract):

@@ -1,6 +1,5 @@
 """Business tools bound by the server to a project and a responsible actor."""
 from __future__ import annotations
-from . import legacy_state as legacy
 from . import report_state
 
 from typing import Annotated, Literal
@@ -12,7 +11,6 @@ from .content_inputs import CommitObject
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
 from .store import encode, digest
-from .content_delivery import current_delivery
 from .content_layout import LayoutOptions
 from .content_workbook import WorkbookSheet
 from .deliverables import DeliverableSelection, DeliverableHandle
@@ -96,17 +94,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         "role": role, "service": (workspace.store.get("role_model_services") or {}).get(role),
         "prompt_hash": digest(role_prompt(effective_role, **role_options))
             if role in {"coordinator", "writer", "reviewer", "rubric_grader", "layout"} else None}
-
-    def content_status() -> dict:
-        """Observe content state; not an approval. For pageable complete object identities,
-        types, owners, versions and relations use read_object_index, even before a snapshot exists.
-        """
-        return {"actor": actor().__dict__, "objects": [{k: r[k] for k in ("ref", "previous_ref", "owner_id", "task_id", "payload_digest")} for r in contents.list_objects()],
-                "delivery": legacy.get_content_delivery(workspace.store), "final_review": legacy.get_content_final_review(workspace.store),
-                "current_review": current_delivery(workspace.store),
-                "execution_decision": workspace.store.get("content_execution_decision"),
-                "goal": bound_manifest(workspace.store)["goal"], "scope_instruction": bound_manifest(workspace.store).get("scope_instruction"),
-                "sources": workspace.store.source_catalog()}
 
     def read_object_index(offset: Annotated[int, Field(ge=0)] = 0,
                           limit: Annotated[int, Field(ge=1, le=20)] = 20,
@@ -508,7 +495,7 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         from .writer_runtime import assess_assigned_object as assess
         return await assess(workspace,actor())
 
-    common = [content_status, read_object_index, read_context,
+    common = [read_object_index, read_context,
               observe_evidence, read_feedback, record_handoff,
               get_operation_receipt,
               read_layout_capabilities]

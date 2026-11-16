@@ -77,8 +77,8 @@ def submit_review_source(prompt_profile=LEGACY_PROMPTS, review_submission_contra
 
 def validate_report_expression_profile(manifest):
     from .errors import ActionRejected
-    value = manifest.get('report_expression_profile', REPORT_EXPRESSION_V1)
-    if not isinstance(value, str) or value not in {REPORT_EXPRESSION_V1, READER_EXPRESSION_V2}:
+    value = manifest.get('report_expression_profile', READER_EXPRESSION_V2)
+    if value != READER_EXPRESSION_V2:
         raise ActionRejected('UNKNOWN_REPORT_EXPRESSION_PROFILE')
     return value
 
@@ -95,15 +95,15 @@ def report_expression_profile(store):
 
 
 def expression_source(name, profile=REPORT_EXPRESSION_V1):
-    if profile == READER_EXPRESSION_V2 and name in {'content-writer', 'text-work', 'qualifier-work'}:
+    if profile == READER_EXPRESSION_V2 and name in {'text-work', 'qualifier-work'}:
         return name + '-v2'
     return name
 
 
 def validate_content_input_profile(manifest):
     from .errors import ActionRejected
-    value = manifest.get('content_input_profile', CONTENT_INPUT_V1)
-    if not isinstance(value, str) or value not in {CONTENT_INPUT_V1, RELATION_ENDPOINTS_V2}:
+    value = manifest.get('content_input_profile', RELATION_ENDPOINTS_V2)
+    if value != RELATION_ENDPOINTS_V2:
         raise ActionRejected('UNKNOWN_CONTENT_INPUT_PROFILE')
     return value
 
@@ -274,10 +274,9 @@ def record_runtime_version(store):
 
 
 def review_profile(store):
-    # Absent mode belongs to older projects. Never migrate a saved case on read.
     from .handoff_release import manifest
-    value = manifest(store).get('review_execution_mode', BOUNDED_REVIEW)
-    if value not in {NATIVE_REVIEW, BOUNDED_REVIEW}:
+    value = manifest(store).get('review_execution_mode', NATIVE_REVIEW)
+    if value != NATIVE_REVIEW:
         from .errors import ActionRejected
         raise ActionRejected('UNKNOWN_REVIEW_EXECUTION_PROFILE')
     return value
@@ -296,10 +295,10 @@ def separate_description_supported(manifest):
 def validate_delegation_profile(manifest):
     """Thin host configuration selection, not a new review protocol or migration."""
     from .errors import ActionRejected
-    value = manifest.get('delegation_prompt_profile', FULL_ROLE_DESCRIPTION)
-    if not isinstance(value, str) or value not in {FULL_ROLE_DESCRIPTION, SEPARATE_DESCRIPTION}:
+    value = manifest.get('delegation_prompt_profile', SEPARATE_DESCRIPTION)
+    if value != SEPARATE_DESCRIPTION:
         raise ActionRejected('UNKNOWN_DELEGATION_PROMPT_PROFILE')
-    if value == SEPARATE_DESCRIPTION and not separate_description_supported(manifest):
+    if not separate_description_supported(manifest):
         raise ActionRejected('DELEGATION_PROMPT_PROFILE_REQUIRES_NATIVE_HIERARCHICAL')
     return value
 
@@ -311,12 +310,10 @@ def delegation_profile(store):
 
 def validate_review_interface_profile(manifest):
     from .errors import ActionRejected
-    value = manifest.get('review_interface_profile', REVIEW_INTERFACE_V1)
-    if not isinstance(value, str) or value not in {REVIEW_INTERFACE_V1, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, REVIEW_INTERFACE_V4}:
+    value = manifest.get('review_interface_profile', REVIEW_INTERFACE_V4)
+    if value != REVIEW_INTERFACE_V4:
         raise ActionRejected('UNKNOWN_REVIEW_INTERFACE_PROFILE')
-    if value in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3} and not separate_description_supported(manifest):
-        raise ActionRejected('REVIEW_INTERFACE_PROFILE_REQUIRES_NATIVE_HIERARCHICAL')
-    if value == REVIEW_INTERFACE_V4 and (not separate_description_supported(manifest)
+    if (not separate_description_supported(manifest)
             or manifest.get('delegation_prompt_profile') != SEPARATE_DESCRIPTION
             or manifest.get('operation_identity_profile') != 'native-tool-runtime-v1'):
         raise ActionRejected('REVIEW_INTERFACE_V4_REQUIRES_NATIVE_RELEASE')
@@ -334,7 +331,7 @@ def review_interface_profile(store):
         metadata = {}
     if 'report_review_interface_profile' in metadata:
         value = metadata['report_review_interface_profile']
-        if value not in {REVIEW_INTERFACE_V1, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3, REVIEW_INTERFACE_V4}:
+        if value != REVIEW_INTERFACE_V4:
             from .errors import ActionRejected
             raise ActionRejected('UNKNOWN_REVIEW_INTERFACE_PROFILE')
         return value
@@ -342,14 +339,11 @@ def review_interface_profile(store):
 
 
 def review_handoff_source(interface_profile, prompt_profile=LEGACY_PROMPTS):
-    if interface_profile == REVIEW_INTERFACE_V4:
-        return report_rule_source('native-review-handoff-v4', prompt_profile)
-    return 'native-review-handoff-v2' if interface_profile in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3} else 'native-review-handoff'
+    return report_rule_source('native-review-handoff-v4', prompt_profile)
 
 
 def role_sources(role, expression_profile, interface_profile, prompt_profile=LEGACY_PROMPTS,
                  review_submission_contract=None):
-    # Historical interface profiles still select tool contracts, never role prose.
     if role not in {'coordinator', 'writer', 'reviewer', 'layout'}:
         raise ValueError('UNKNOWN_AGENT_ROLE')
     return ['agent-common', 'agent-' + role.replace('_', '-')]
@@ -392,7 +386,7 @@ def describe_current_tools(tools):
     for tool in result:
         function = tool.get('function', {})
         name = function.get('name')
-        if name in {'read_decision_state', 'read_source_page', 'analyze_evidence',
+        if name in {'read_decision_state', 'read_source_page',
                     'process_report_content', 'commit_objects'}:
             source = 'tool-' + name.replace('_', '-')
             function['description'] = load_prompt(source).strip()

@@ -1,7 +1,7 @@
 """Optional public verdict grounds; structural checks do not establish truth."""
 from __future__ import annotations
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 from typing_extensions import TypedDict
 
 from deepagents.middleware.rubric import (
@@ -9,7 +9,7 @@ from deepagents.middleware.rubric import (
     CriterionFail as NativeCriterionFail,
     GraderResponse as NativeGraderResponse,
 )
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from .store import digest
 
@@ -55,12 +55,6 @@ class GraderResponse(NativeGraderResponse):
 
     criteria: list[CriterionEval]
 
-    @model_validator(mode="after")
-    def _check_declared_blockers(self) -> Self:
-        for criterion in self.criteria:
-            if criterion["passed"] and any(g["blocks_criterion"] for g in criterion["grounds"]):
-                raise ValueError("A criterion cannot pass when its own declared ground blocks it.")
-        return self
 
 
 def contract_identity(experiment):

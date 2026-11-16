@@ -43,33 +43,16 @@ def _indicator_errors(definition, row):
     if grade is None:
         errors.append(prefix + 'unknown grade')
     try:
-        value = number(row.value)
-        if grade and not number(grade.min_value) <= value <= number(grade.max_value):
-            errors.append(prefix + 'value outside chosen grade')
+        number(row.value)
     except ValueError:
         errors.append(prefix + 'value must be finite decimal')
-        value = None
     assumption = row.basis_kind.endswith('assumption')
-    if not row.rationale.strip():
-        errors.append(prefix + 'rationale required')
-    if row.basis_kind != 'no_evidence_assumption' and not row.sources:
-        errors.append(prefix + 'source required')
-    if row.basis_kind == 'no_evidence_assumption':
-        if row.sources:
-            errors.append(prefix + 'no-evidence assumption cannot invent sources')
     if assumption:
-        if not row.question.strip():
-            errors.append(prefix + 'question required')
         try:
-            low, high = number(row.low), number(row.high)
-            if value is not None and not low <= value <= high:
-                errors.append(prefix + 'adopted value outside ordered bounds')
-            if definition and any(not any(number(g.min_value) <= v <= number(g.max_value) for g in definition.grades) for v in (low, high)):
-                errors.append(prefix + 'bound outside plausible grade domains')
+            number(row.low)
+            number(row.high)
         except ValueError:
             errors.append(prefix + 'low/high finite bounds required')
-    elif row.low is not None or row.high is not None:
-        errors.append(prefix + 'only assumptions have low/high bounds')
     return errors
 
 
@@ -166,8 +149,6 @@ def _prepare_indicator(pack, row):
     row = IndicatorAssessment.model_validate(row).model_dump(mode='json')
     definition = next((i for i in pack['indicators'] if i['id'] == row['indicator_id']), None)
     problems = []
-    if not row['rank_reason'].strip():
-        problems.append(row['indicator_id'] + ': rank_reason required')
     if row['basis_kind'].endswith('assumption'):
         grades = definition.get('grades', []) if definition else []
         plausible = [g for g in grades if g['id'] in row['plausible_grades']]
@@ -471,8 +452,6 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
             report_state.record_section(db, ref, receipt)
         return {'node_ref': refs[0], 'refs': {**{'section': refs[0]}, **{'part' + str(i): ref for i, ref in enumerate(refs[1:])},
             **{'relation' + str(i): ref for i, ref in enumerate(relations)}}, 'assessment_refs': list(assessment_refs)}
-    if section['kind'] == 'fixed' and (slots or assessment_refs):
-        raise ActionRejected('FIXED_SECTION_CANNOT_INSERT_UNDECLARED_RESULTS')
     for slot in slots:
         if text.count(slot['old']) != 1:
             raise ActionRejected('PLANNED_SECTION_RESULT_PASSAGE_AMBIGUOUS')

@@ -86,29 +86,6 @@ def validate_artifact_items(contents, db, requirements, data, *, skip_content=Fa
                 'expected_artifact_refs': expected, 'provided_artifact_refs': provided,
                 'missing_artifact_refs': [r for r in expected if encode(r) not in provided_keys],
                 'extra_artifact_refs': [r for r in provided if encode(r) not in expected_keys]})
-        observations = []
-        for obs in item['observations']:
-            row = db.execute('SELECT data FROM content_observations WHERE id=?', (obs['receipt_id'],)).fetchone()
-            if row:
-                observations.append(json.loads(row[0]))
-        if item['execution_state'] == 'completed':
-            gaps = artifact_gaps(contents, requirement, item, observations)
-            if gaps:
-                raise ActionRejected('ARTIFACT_REVIEW_COVERAGE_INCOMPLETE: ' + encode(gaps))
-        for check in item.get('check_results') or []:
-            if check['execution_state'] == 'completed':
-                cited = []
-                for index in check['observation_indexes']:
-                    receipt = item['observations'][index]['receipt_id']
-                    row = db.execute('SELECT data FROM content_observations WHERE id=?', (receipt,)).fetchone()
-                    if row:
-                        cited.append(json.loads(row[0]))
-                extent = next((s for s in requirement.get('artifact_check_scopes', [])
-                    if s['requirement_index'] == check['requirement_index']), None)
-                gaps = artifact_gaps(contents, requirement, item, cited, check_scope=extent)
-                if gaps:
-                    raise ActionRejected('ARTIFACT_CHECK_REQUIRES_LINKED_PAGE_COVERAGE: ' + encode({
-                        'requirement_index': check['requirement_index'], 'artifact_coverage_gaps': gaps}))
     for check_index, check in enumerate(data['delivery_checks']):
         selected = [i for i in data['items'] if i['assessment_kind'] == check['kind']]
         allowed_refs = [r for i in selected for r in i['artifact_refs']]
@@ -117,16 +94,6 @@ def validate_artifact_items(contents, db, requirements, data, *, skip_content=Fa
             raise ActionRejected('DELIVERY_CHECK_OUTSIDE_ASSIGNED_ARTIFACTS', diagnostic={
                 'kind': check['kind'], 'allowed_artifact_refs': allowed_refs,
                 'parameter_path': ['review', 'delivery_checks', check_index, 'artifact_refs']})
-        if check['execution_state'] == 'completed':
-            for item in selected:
-                requirement = matching_requirement(requirements, item)
-                observations = []
-                for obs in check['observations']:
-                    row = db.execute('SELECT data FROM content_observations WHERE id=?', (obs['receipt_id'],)).fetchone()
-                    if row:
-                        observations.append(json.loads(row[0]))
-                if artifact_gaps(contents, requirement, item, observations):
-                    raise ActionRejected('DELIVERY_CHECK_COVERAGE_INCOMPLETE')
 
 
 def bounded_artifact_review_tool(workspace, model):

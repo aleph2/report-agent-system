@@ -143,8 +143,7 @@ def snapshot_assignment_inventory(contents):
             'criteria_count':len(coverage['criteria']),
             'criteria_without_assignment':missing[:20],
             'criteria_without_assignment_total':len(missing),
-            'criteria_without_assignment_partial':len(missing)>20,
-            'coverage_tool':{'name':'read_review_obligation_coverage','arguments':{'snapshot_ref':ref}}})
+            'criteria_without_assignment_partial':len(missing)>20})
     return {'selection':'selected_delivery' if selected else 'available_current_heads_not_selected',
         'snapshots':snapshots, 'catalog_total':total, 'catalog_complete':len(refs)==total,
         'catalog_tool':{'name':'read_object_index','arguments':{
@@ -285,7 +284,4 @@ def state_tool(workspace, role):
         This is bookkeeping, not a business observation or completed check.
         """
         return read_state(workspace,role,path,offset,limit,characters,expected_state_digest)
-    from .prompt_sources import review_interface_profile, REVIEW_INTERFACE_V3, load_prompt
-    if review_interface_profile(workspace.store) == REVIEW_INTERFACE_V3:
-        read_decision_state.__doc__ = load_prompt('state-paths-v3')
     return read_decision_state

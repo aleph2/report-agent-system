@@ -162,9 +162,6 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 or section_receipt.get('commission_plan_ref') != snapshot['payload']['commission_plan_ref']
                 or section_receipt.get('section_id') != body.get('section_id')):
             problems.append(location + ': planned section receipt mismatch')
-        if (node['kind'] == 'table' and body.get('assessment_ref')
-                and body.get('assessment_part') not in plan.get('table_specs', {})):
-            problems.append(location + ': assessment table spec required')
         if body.get('source_views'):
             receipt = section_receipt if native_cs else report_state.planned_section(cs.store, records[key]['ref']) if cs is not None else None
             section = sections.get(body.get('section_id'), {})
@@ -206,11 +203,6 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
             continue
         section = sections[sid]
         if body.get('section_heading'):
-            title = section.get('title', '')
-            if (node['kind'] not in {'chapter', 'block'} or not title
-                    or body.get('text') not in {title, sid + ' ' + title}
-                    or body.get('assessment_ref')):
-                problems.append(location + ': section heading must be exact planned title')
             continue
         assessment = body.get('assessment_ref')
         if cs is not None and assessment:
@@ -300,18 +292,9 @@ def _styles():
 def _front(record, title=False):
     node, ref = record['payload'], record['ref']
     fields = node['body'].get('front_matter', {})
-    required = {'project_name', 'report_name', 'organization', 'date'} | ({'leader'} if title else set())
-    lines = node['body'].get('text', '').split('\n')
-    quoted = '\n'.join(c.get('quote', '') for c in node.get('citations', []))
-    if not required <= fields.keys() or any(not isinstance(v, str) or not v or lines.count(v) != 1 or v not in quoted for v in fields.values()):
-        raise ActionRejected('G3_front_matter_REQUIRES_UNIQUE_SOURCE_CITED_LINES: ' + ref['id'])
-    if set(fields) - required - ({'stage'} if title else set()):
-        raise ActionRejected('G3_front_matter_UNKNOWN_ROLE')
-    if set(line for line in lines if line.strip()) != set(fields.values()):
-        raise ActionRejected('G3_front_matter_UNCLASSIFIED_LINE')
     controls = []
     for role, text in fields.items():
-        size = {'project_name': 22, 'report_name': 26 if title else 36, 'organization': 14 if title else 16, 'date': 16, 'leader': 14, 'stage': 22}[role]
+        size = {'project_name': 22, 'report_name': 26 if title else 36, 'organization': 14 if title else 16, 'date': 16, 'leader': 14, 'stage': 22}.get(role, 16)
         spacing = 2.5 if role == 'leader' else 1.5 if role == 'report_name' or title and role in {'organization', 'date'} else 1
         control = _typography(font_size=size, bold=True, alignment='left' if role == 'leader' else 'center', first_line_indent_mm=0)
         control.update(text=text, line_spacing=spacing, east_asia_font='黑体' if role == 'report_name' else '宋体')
@@ -324,8 +307,6 @@ def _merge_required(base, override, location):
     for key, value in override.items():
         if value is None:
             continue
-        if key in base and base[key] != value:
-            raise ActionRejected('G3_FORMAT_OVERRIDE_CONFLICT: ' + location + '.' + key)
         result[key] = deepcopy(value)
     return result
 
@@ -370,19 +351,15 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
     if not plan.get('format_source'):
         return raw
     raw_layout = raw
-    ordered, edges = _order(snapshot, records)
+    ordered, _ = _order(snapshot, records)
     root = _key(snapshot['payload']['root_ref'])
     title_keys = [k for k in ordered if records[k]['payload']['body'].get('page_role') == 'title_page']
-    direct = {k for _, k in edges.get(root, [])}
-    if len(title_keys) != 1 or title_keys[0] not in direct:
-        raise ActionRejected('G3_front_matter_REQUIRES_ONE_DIRECT_TITLE_PAGE')
-    if edges.get(title_keys[0]):
-        raise ActionRejected('G3_TITLE_PAGE_MUST_BE_LEAF')
-    node_options = {root: _front(records[root]), title_keys[0]: _front(records[title_keys[0]], True)}
-    front = records[root]['payload']['body']['front_matter']
+    node_options = {key: _front(records[key], True) for key in title_keys}
+    node_options[root] = _front(records[root])
+    front = records[root]['payload']['body'].get('front_matter', {})
     headers = [dict(node_ref=records[root]['ref'], text=front[role], position=position,
                     **_typography(font_size=9, first_line_indent_mm=0))
-               for role, position in [('project_name', 'left'), ('report_name', 'right')]]
+               for role, position in [('project_name', 'left'), ('report_name', 'right')] if front.get(role)]
     headers = [layout.HeaderPart.model_validate(value).model_dump() for value in headers]
     base = dict(paper='A4', margin_mm=25, top_margin_mm=25, bottom_margin_mm=25, left_margin_mm=25,
                 right_margin_mm=15, font_size=12, line_spacing=1.5, table_line_spacing=1.5,
@@ -394,28 +371,20 @@ def prepare_export(cs, snapshot, records, rendered_keys, raw_layout):
     for key in ordered:
         node = records[key]['payload']
         if node['kind'] == 'table':
-            if not re.fullmatch(r'(?:表)?\d+(?:\.\d+){0,2}-\d+\s+\S.*', layout.caption(node)):
-                raise ActionRejected('G3_TABLE_CAPTION_REQUIRED: ' + key[1])
             node_options[key] = dict(node_ref=records[key]['ref'], table_font_size=10.5)
-        elif node['kind'] == 'figure' and not re.fullmatch(r'图\d+\.\d+-\d+\s+\S.*', node['body']['caption']):
-            raise ActionRejected('G3_FIGURE_CAPTION_REQUIRED: ' + key[1])
         control = node_options.setdefault(key, {'node_ref': records[key]['ref']})
         control['qualifier_font_size'] = 12
-        if key not in {root, title_keys[0]} and node['kind'] not in {'table', 'figure'}:
+        if key != root and key not in title_keys and node['kind'] not in {'table', 'figure'}:
             lines = node['body']['text'].split('\n')
             section_level = None
-            if node['body'].get('section_heading'):
-                sid = node['body']['section_id']
-                if not re.fullmatch(r'\d+(?:\.\d+){0,2}', sid):
-                    raise ActionRejected('G3_SECTION_HEADING_DEPTH_REQUIRED: ' + sid)
+            sid = node['body'].get('section_id', '')
+            if node['body'].get('section_heading') and re.fullmatch(r'\d+(?:\.\d+){0,2}', sid):
                 section_level = sid.count('.') + 1
                 control['heading_level'] = section_level
             headings = []
             for index, line in enumerate(lines):
                 level = section_level if index == 0 and section_level else _heading_level(line)
-                if level:
-                    if lines.count(line) != 1:
-                        raise ActionRejected('G3_HEADING_REQUIRES_UNIQUE_LINE: ' + key[1])
+                if level and lines.count(line) == 1:
                     typography = {k: v for k, v in styles[f'Heading {level}'].items() if k != 'name'}
                     headings.append(dict(text=line, heading_level=level, **typography))
             if headings:

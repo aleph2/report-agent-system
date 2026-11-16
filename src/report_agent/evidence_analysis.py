@@ -75,8 +75,6 @@ def selected_evidence(workspace, source_selections, result_selections, snapshot_
     for raw in source_selections:
         selection = SourceSelection.model_validate(raw)
         page = catalog.read(selection.source_id, selection.offset, selection.limit)
-        if not page["blocks"]:
-            raise ActionRejected("EVIDENCE_SOURCE_SELECTION_EMPTY")
         # Same mechanical observation capability as source-reading tools. No new
         # extraction model, semantic selection, OCR or source search occurs here.
         if selection.table_detail is None or selection.table_detail == 'full':

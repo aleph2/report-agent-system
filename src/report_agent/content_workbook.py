@@ -84,8 +84,6 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
                     for r in [sheet['table_ref'],*sheet.get('note_refs',[])]}
         if selected != declared:
             raise ActionRejected('WORKBOOK_CHANNEL_SELECTION_MISMATCH')
-    if issue_records and not report_export_ref:
-        raise ActionRejected('WORD_EXPORT_REQUIRED_FOR_MATERIAL_ISSUES')
     if system_companion and not report_export_ref:
         raise ActionRejected('WORD_EXPORT_REQUIRED')
     if report_export_ref:

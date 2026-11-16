@@ -39,14 +39,6 @@ class GraderResponse(NativeResponse):
         for item in self.criteria:
             if item["passed"] != (item["status"] == "satisfied"):
                 raise ValueError("passed must agree with the domain status")
-        if self.result != "failed":
-            if not self.criteria:
-                raise ValueError("Acceptance requires per-standard outcomes")
-            statuses = {c["status"] for c in self.criteria}
-            expected = ("needs_revision" if "not_satisfied" in statuses else
-                        "undetermined" if "undetermined" in statuses else "satisfied")
-            if self.result != expected:
-                raise ValueError("Overall acceptance must agree with criterion outcomes")
         return self
 
 

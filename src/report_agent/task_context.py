@@ -27,9 +27,7 @@ POLICY = "stateful-tools-v1"
 PROGRESS_POLICY = "stateful-tools-v2"
 FOCUSED_PROJECTION = 'focused-v1'
 REVIEW_MATERIALS_PROJECTION = 'review-materials-v1'
-NAVIGATION_TOOLS = frozenset({"read_file", "grep", "glob", "ls", "project_status",
-    "content_status", "read_task_supervision", "read_review_status", "read_content_index",
-    "read_decision_state", "read_task_assignment", "read_review_obligation_coverage",
+NAVIGATION_TOOLS = frozenset({"read_file", "grep", "glob", "ls", "read_decision_state",
     "read_execution_trace"})
 
 
@@ -56,8 +54,6 @@ def bind_projection(workspace, *, manifest=None):
     effective_policy = policy if policy is not None else manifest.get('context_policy')
     if not isinstance(selected, str) or selected not in {FOCUSED_PROJECTION, REVIEW_MATERIALS_PROJECTION} or effective_policy != PROGRESS_POLICY:
         raise ActionRejected('CONTEXT_PROJECTION_REQUIRES_EXPLICIT_V2_PROFILE')
-    if selected == REVIEW_MATERIALS_PROJECTION and manifest.get('review_interface_profile') != 'review-interfaces-v4':
-        raise ActionRejected('REVIEW_MATERIALS_REQUIRES_V4_PROFILE')
     if bound is None:
         from .model_config import _execution_history
         if _execution_history(workspace.store):
@@ -223,7 +219,7 @@ def exact_task_context(workspace, role):
         'title':v['payload'].get('source_metadata',{}).get('title')}
         for v in (json.loads(r[0]) for r in rows[:20])]
     result['input_refs_partial']=len(rows)>20
-    result['ref_namespace_note']='Criterion.requirement_refs accepts saved Requirement refs, not source_id, SourceArtifact or operator instruction IDs. Source selections use source_id; artifact dependencies use full business refs. Use content_status for further input refs.'
+    result['ref_namespace_note']='Criterion.requirement_refs accepts saved Requirement refs, not source_id, SourceArtifact or operator instruction IDs. Source selections use source_id; artifact dependencies use full business refs.'
     from .decision_data import enabled as reference_data, POLICY as DATA_POLICY
     if reference_data(workspace):
         result['decision_data']={'policy':DATA_POLICY,
@@ -518,8 +514,6 @@ class TaskContext(AgentMiddleware):
             context['current_user_task'] = user_task['text']
         if self.review_materials and self.role == 'reviewer':
             task = exact['assignment']
-            if task.get('review_interface_profile') != 'review-interfaces-v4':
-                raise ActionRejected('REVIEW_MATERIALS_REQUIRES_V4_ASSIGNMENT')
             context['review_materials'] = complete_review_materials(self.workspace, task)
             context['assignment'] = {k: v for k, v in task.items()
                 if k not in {'review_requirements', 'review_commission_basis'}}

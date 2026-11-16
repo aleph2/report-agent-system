@@ -59,7 +59,6 @@ class Assessments(Contract):
 TOOL_PROMPT = load_prompt('legacy-bounded-review')
 
 
-ORGANIZER_PROMPT = load_prompt('legacy-review-organizer')
 
 
 async def perform_review(workspace, actor, model, operation_id, scope_ids,

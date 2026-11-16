@@ -35,7 +35,7 @@ def input_shape(model, overrides=None, descriptions=None):
 
 
 CriterionInput = input_shape(Criterion, {'requirement_refs': list[RequirementRef]}, descriptions={
-    'requirement_refs': 'Exact Requirement refs returned by import_source_versions; source IDs or SourceArtifact refs are not Requirement refs.'})
+    'requirement_refs': 'Exact Requirement refs; source IDs or SourceArtifact refs are not Requirement refs.'})
 NodeInput = input_shape(ContentNode)
 EvidenceInput = input_shape(Evidence, {
     'source_refs': list[SourceRef], 'input_refs': list[BatchRef], 'extraction_ref': BatchRef | None})

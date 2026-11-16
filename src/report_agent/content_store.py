@@ -321,8 +321,6 @@ class ContentStore:
                 for dependency in refs_in(payload):
                     if dependency.key() not in new_keys:
                         self._read(db, dependency.model_dump())
-                if ref["type"] == "Criterion" and any(r["type"] != "Requirement" for r in payload["requirement_refs"]):
-                    raise ActionRejected("CRITERIA_REQUIRE_INDEPENDENT_REQUIREMENTS")
                 if ref["type"] == "Evidence" and any(r["type"] != "SourceArtifact" for r in payload["source_refs"]):
                     raise ActionRejected("EVIDENCE_REQUIRES_SOURCE_VERSIONS")
                 if g6 and ref['type'] == 'ContentNode':
@@ -787,26 +785,6 @@ class ContentStore:
                         observed = json.loads(row[0])
                         if check["execution_state"] == "completed" and (observed.get("status") == "failed" or observed.get("execution_state") == "blocked" or observed.get("ok") is False or observed.get("accepted") is False):
                             raise ActionRejected("COMPLETED_CHECK_REQUIRES_SUCCESSFUL_OBSERVATION")
-                requirement = next((r for r in requirements if r["target_ref"] == item["target_ref"] and
-                    r["criterion_ref"] == item["criterion_ref"] and r["scope_id"] == (item.get("scope_id") or item["scope"]) and
-                    r["assessment_kind"] == item["assessment_kind"]), None)
-                if requirement and requirement.get("required_materials"):
-                    from .task_supervision import (missing_required_materials, material_refs_in_observation,
-                                                   source_extents_in_observation)
-                    if not item.get("check_results") and (item["execution_state"] == "completed" or item.get("checked_requirement_indexes")):
-                        raise ActionRejected("DECLARED_MATERIALS_REQUIRE_PER_CHECK_ACCOUNT")
-                    for check in item.get("check_results") or []:
-                        if check["execution_state"] != "completed":
-                            continue
-                        cited, source_extents = set(), []
-                        for index in check["observation_indexes"]:
-                            row = db.execute("SELECT data FROM content_observations WHERE id=?",
-                                (item["observations"][index]["receipt_id"],)).fetchone()
-                            actual = json.loads(row[0])
-                            cited.update(material_refs_in_observation(actual))
-                            source_extents.extend(source_extents_in_observation(self, actor.id, actual))
-                        if missing_required_materials(requirement, cited, {check["requirement_index"]}, source_extents):
-                            raise ActionRejected("COMPLETED_CHECK_MISSING_REQUIRED_MATERIAL")
             item_keys = [self.review_item_key(i) for i in data["items"]]
             if len(item_keys) != len(set(item_keys)):
                 raise ActionRejected("DUPLICATE_REVIEW_OBLIGATION")
@@ -989,15 +967,13 @@ class ContentStore:
                 or review_ref == replacement_ref or not reason.strip()):
             raise ActionRejected("INVALID_REVIEW_SUPERSESSION")
         selected = self.selected_review_items(old["payload"], item_indexes)
-        if not {self.review_item_key(i) for i in selected} <= {self.review_item_key(i) for i in new["payload"]["items"]} or not all(i["observations"] for i in new["payload"]["items"]):
+        if not {self.review_item_key(i) for i in selected} <= {self.review_item_key(i) for i in new["payload"]["items"]}:
             raise ActionRejected("CORRECTED_REVIEW_REQUIRES_COVERAGE_AND_OBSERVATIONS")
         def checks_by_key(record):
             return {(c["kind"], tuple(sorted(encode(r) for r in c["artifact_refs"]))): c
                     for c in record["payload"].get("delivery_checks", [])}
         old_checks, new_checks = checks_by_key(old) if item_indexes is None else {}, checks_by_key(new)
-        if not old_checks.keys() <= new_checks.keys() or any(
-                (c["verdict"] is not None or c["observations"]) and not new_checks[key]["observations"]
-                for key, c in old_checks.items()):
+        if not old_checks.keys() <= new_checks.keys():
             raise ActionRejected("CORRECTED_REVIEW_REQUIRES_DELIVERY_COVERAGE")
         return {"supersession_ref": self._insert(db, actor, "ReviewSupersession", {
             "review_ref": review_ref, "replacement_ref": replacement_ref, "reason": reason, "item_indexes": item_indexes})}

@@ -128,7 +128,8 @@ def install_carryover(cs, package, source_refs):
             if previous['digest'] != fingerprint:
                 raise ActionRejected('CARRYOVER_PACKAGE_IMMUTABLE')
             return fingerprint
-        if not plan_inputs.get_skeleton(db) or plan_inputs.get_draft(db, {}).get('revision') or plan_authority.plan_ref(db) or plan_authority.decision_ref(db):
+        current_skeleton = plan_inputs.get_skeleton(db)
+        if not current_skeleton or plan_inputs.get_draft(db, {}).get('revision') or plan_authority.plan_ref(db) or plan_authority.decision_ref(db):
             raise ActionRejected('CARRYOVER_FRESH_SKELETON_REQUIRED')
         _validate_sources(cs, db, actor_for('coordinator'), mapped, planning=True)
         items, proposals = {}, []
@@ -152,7 +153,7 @@ def install_carryover(cs, package, source_refs):
             question = PlanningQuestion.model_validate({'question_id':'carryover-'+str(i+1),'text':value,'resolved':False}).model_dump(mode='json')
             add('question', question['question_id'], question)
             items.setdefault('question', {})[question['question_id']] = question
-        skeleton = {s['section_id']:s for s in plan_inputs.get_skeleton(db)['sections']}
+        skeleton = {s['section_id']:s for s in current_skeleton['sections']}
         for value in mapped['section_source_choices']:
             if set(value) != {'section_id','sources','examples','rule'} or value['section_id'] not in skeleton:
                 raise ActionRejected('CARRYOVER_SECTION_JUDGMENT_INVALID')
