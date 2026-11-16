@@ -1,7 +1,7 @@
 """Paged actor-owned recovery of public returns selected for native compaction."""
 import json
 from typing import Annotated
-from pydantic import Field
+from pydantic import Field, ValidationError
 from langchain_core.messages import AIMessage, ToolMessage
 from .errors import ActionRejected
 from .observation_refs import ObservationRefPrefix, validate_prefix
@@ -22,29 +22,36 @@ def _verify_delivery(workspace, role, message, call, ref):
             'exact-public-result-v2','metadata_and_literal_fragments'}:
         from .decision_data import deliver_controls
         artifact = message.artifact if isinstance(message.artifact,dict) else {}
-        artifact.get('report_public_delivery')
+        binding = artifact.get('report_public_delivery')
+        if not isinstance(binding,dict) or binding.get('observation_ref') != ref:
+            raise ActionRejected('RETURN_DELIVERY_BINDING_MISSING: original history retained')
         # The existing delivery verifier binds owner/call/status, immutable
         # original bytes and the public projection digest. A representation
         # string alone must never waive raw-range verification.
         deliver_controls(workspace,role,message)
         return
-    packet = json.loads(message.content)
-    args = call['args']
-    expected = read_observation(workspace, role, ref,
-        args.get('offset',0) if message.name=='read_tool_observation' else 0,
-        args.get('characters',6000) if message.name=='read_tool_observation' else 6000,
-        args.get('field_path') if message.name=='read_tool_observation' else None)
-    if message.additional_kwargs.get('report_preview_cleared'):
-        prior = packet['previously_presented_range']
-        valid = ('text' not in packet and packet.get('preview_cleared') is True
-            and packet.get('observation_ref')==ref and packet.get('sha256')==expected['sha256']
-            and prior==delivery and all(delivery.get(k)==expected.get(k) for k in (
-                'offset','end','field_path','field_sha256','cursor_scope','complete_tool_result','complete_field'))
-            and delivery.get('characters')==len(expected['text']))
-    else:
-        all(packet.get(k)==expected.get(k) for k in (
-            'observation_ref','sha256','text','offset','end','total_characters','next_offset',
-            'field_path','field_sha256','cursor_scope','complete_field','complete_tool_result'))
+    try:
+        packet = json.loads(message.content)
+        args = call['args']
+        expected = read_observation(workspace, role, ref,
+            args.get('offset',0) if message.name=='read_tool_observation' else 0,
+            args.get('characters',6000) if message.name=='read_tool_observation' else 6000,
+            args.get('field_path') if message.name=='read_tool_observation' else None)
+        if message.additional_kwargs.get('report_preview_cleared'):
+            prior = packet['previously_presented_range']
+            valid = ('text' not in packet and packet.get('preview_cleared') is True
+                and packet.get('observation_ref')==ref and packet.get('sha256')==expected['sha256']
+                and prior==delivery and all(delivery.get(k)==expected.get(k) for k in (
+                    'offset','end','field_path','field_sha256','cursor_scope','complete_tool_result','complete_field'))
+                and delivery.get('characters')==len(expected['text']))
+        else:
+            valid = all(packet.get(k)==expected.get(k) for k in (
+                'observation_ref','sha256','text','offset','end','total_characters','next_offset',
+                'field_path','field_sha256','cursor_scope','complete_field','complete_tool_result'))
+        if not valid:
+            raise ValueError('range mismatch')
+    except (ValueError,TypeError,KeyError,AttributeError):
+        raise ActionRejected('RETURN_DELIVERY_UNVERIFIED: original history retained') from None
 
 
 def capture(workspace, role, messages, *, phase='summary_compaction'):
@@ -132,9 +139,12 @@ def capture(workspace, role, messages, *, phase='summary_compaction'):
                             or delivered['result'] != {'snapshot_structure':expected}):
                         raise ActionRejected('RETURN_NAVIGATION_RECEIPT_MISMATCH: original history retained')
                     record['navigation_receipt_id'] = delivered['receipt_id']
+                elif delivered != expected:
+                    raise ActionRejected('RETURN_NAVIGATION_IDENTITY_MISMATCH: original history retained')
                 record['navigation_page'] = expected
         records.append(record)
         seen.add(identity)
+    if len(records)>4096:raise ActionRejected('SUMMARY_RECOVERY_INDEX_LIMIT: original history retained')
     if records != workspace.store.get(key(workspace,role),[]):
         workspace.store.set(key(workspace,role),records)
         workspace.store.event('summary_recovery_captured',{'actor_id':actor_id(workspace,role),'total':len(records)})
@@ -207,8 +217,13 @@ def recovery_tool(workspace,role):
         Inspect full returned identities and ambiguity; a prefix is lookup-only and
         must never be passed to reading/production as if it were an exact identity.
         Offsets count filtered records. This index is not a completed business check."""
+        if type(offset)!=int or offset<0 or type(limit)!=int or not 1<=limit<=20:
+            raise ActionRejected('INVALID_SUMMARY_INDEX_RANGE: offset must be >=0 and limit must be 1..20 records; use next_offset')
         if observation_ref_prefix is not None:
-            observation_ref_prefix = validate_prefix(observation_ref_prefix)
+            try:
+                observation_ref_prefix = validate_prefix(observation_ref_prefix)
+            except ValidationError as error:
+                raise ActionRejected('INVALID_OBSERVATION_LOOKUP_PREFIX: expected 1..64 lowercase hex characters; no guessing or padding') from error
         records=workspace.store.get(key(workspace,role),[])
         if observation_ref_prefix is None:
             return {'observations':records[offset:offset+limit],'total':len(records),

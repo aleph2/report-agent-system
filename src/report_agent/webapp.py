@@ -118,11 +118,15 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
     def content_review_status(offset: int = 0, limit: int = 20):
         from .content_store import ContentStore
         from .review_status import read_status
+        from .errors import ActionRejected
         selected = legacy.get_content_delivery(ws.store)
         if not selected:
             raise HTTPException(404, "NO_CONTENT_DELIVERY")
-        return read_status(ContentStore(ws.store), selected["snapshot_ref"],
-                           export_ref=selected["export_ref"], offset=offset, limit=limit)
+        try:
+            return read_status(ContentStore(ws.store), selected["snapshot_ref"],
+                               export_ref=selected["export_ref"], offset=offset, limit=limit)
+        except ActionRejected as exc:
+            raise HTTPException(400, str(exc)) from None
 
     @app.get("/api/content/delivery")
     def content_delivery_file(companion: bool = False, expected_export_id: str | None = None):
@@ -155,13 +159,19 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
     async def run():
         nonlocal worker
         from .deep_runtime import require_native_runtime
-        require_native_runtime(ws)
+        try:
+            require_native_runtime(ws)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
         if worker and not worker.done():
             raise HTTPException(409, "PROJECT_ALREADY_RUNNING")
         if not can_run():
             raise HTTPException(409, "MODEL_NOT_CONFIGURED_OR_FIXTURE_READ_ONLY")
-        with ws.store.run_lock():
-            pass
+        try:
+            with ws.store.run_lock():
+                pass
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from None
         # Explicit user action only. Status polling never dispatches work.
         ws.store.set("run_request_error", None)
         worker = asyncio.create_task(run_guarded())
@@ -169,7 +179,10 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
 
     @app.post("/api/issues/{issue_id}/decision")
     def decision(issue_id: str, body: Decision):
-        return ws.decide_issue(issue_id, body.message, resolved=body.resolved)
+        try:
+            return ws.decide_issue(issue_id, body.message, resolved=body.resolved)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(409, str(exc)) from None
 
     @app.post("/api/sources")
     async def import_source(request: Request, filename: str, replaces_id: str = ""):
@@ -180,24 +193,39 @@ def create_app(project: Path, model_factory=None, *, allow_fixture_run=False):
             if len(content) + len(chunk) > MAX_UPLOAD_BYTES:
                 raise HTTPException(413, "UPLOAD_TOO_LARGE")
             content.extend(chunk)
-        return await asyncio.to_thread(Catalog(ws.store).import_file, filename, bytes(content), replaces_id)
+        try:
+            return await asyncio.to_thread(Catalog(ws.store).import_file, filename, bytes(content), replaces_id)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(409, str(exc)) from None
 
     @app.get("/api/sources/{source_id}")
     def source_page(source_id: str, offset: int = 0, limit: int = 10):
-        return Catalog(ws.store).read(source_id, offset, limit)
+        try:
+            return Catalog(ws.store).read(source_id, offset, limit)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
 
     @app.get("/api/library/search")
     def search(q: str, offset: int = 0, limit: int = 10):
-        return Catalog(ws.store).search(q, offset, limit)
+        try:
+            return Catalog(ws.store).search(q, offset, limit)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
 
     @app.post("/api/corrections")
     def correction(body: Correction):
-        with ws.store.run_lock():
-            return ws.request_correction(body.result_id, body.description)
+        try:
+            with ws.store.run_lock():
+                return ws.request_correction(body.result_id, body.description)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(409, str(exc)) from None
 
     @app.get("/api/export/{draft_id}")
     def export(draft_id: str):
-        data = export_docx(ws, draft_id)
+        try:
+            data = export_docx(ws, draft_id)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from None
         return Response(data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         headers={"Content-Disposition": 'attachment; filename="report-draft.docx"'})
 

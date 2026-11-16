@@ -21,7 +21,7 @@ SUPPORTED = frozenset({'read_tool_observation','read_content_index'})
 
 def progress_signals(observations, *, window):
     """Compare public call observations; these signals never stop or replay work."""
-    if type(window) is not int:
+    if type(window) is not int or window < 2:
         raise ValueError('PROGRESS_WINDOW_MUST_BE_AT_LEAST_TWO')
     fields = ('role', 'purpose', 'task_id', 'phase')
     groups = {}
@@ -55,8 +55,14 @@ def progress_signals(observations, *, window):
 def validate_policy(workspace):
     value = workspace.store.manifest.get('execution_progress_policy')
     if value is None: return None
-    if ((not isinstance(value, dict)) or (any(type(value[k]) is not int for k in value))):
+    if (not isinstance(value,dict) or set(value)!={'version','window','repeats','after_notice'}
+            or any(type(value[k]) is not int for k in value)
+            or value['version']!=1 or not 2<=value['repeats']<=value['window']<=256
+            or not 1<=value['after_notice']<=8):
         raise ActionRejected('PROGRESS_POLICY_INVALID')
+    from .task_context import progress_enabled
+    if not progress_enabled(workspace):
+        raise ActionRejected('PROGRESS_POLICY_REQUIRES_STATEFUL_V2')
     return dict(value)
 
 
@@ -90,7 +96,9 @@ def _host_actor(workspace, scope):
     actor=Actor(scope['id'],scope['role'],scope['task_id'])
     if actor.role=='coordinator':
         yield actor; return
-    ContentStore(workspace.store).read({'type':'DelegatedTask','id':actor.task_id,'version':1})
+    task=ContentStore(workspace.store).read({'type':'DelegatedTask','id':actor.task_id,'version':1})
+    if task['payload']['role']!=actor.role or actor.id!='content:'+actor.role+':'+actor.task_id:
+        raise ActionRejected('PROGRESS_RECOVERY_TASK_CHANGED')
     token=_binding.set((str(workspace.store.root.resolve()),actor,scope.get('invocation',{})))
     try: yield actor
     finally: _binding.reset(token)
@@ -374,18 +382,26 @@ def _condition(workspace,episode,condition):
     if condition.get('kind')=='effective_instruction':
         context=_instructions(workspace,episode['scope'])
         ref=condition.get('ref')
+        if (not context or ref in episode['initial_effective_refs']
+                or ref not in [r['ref'] for r in context['effective']]):
+            raise ActionRejected('PROGRESS_RECOVERY_INSTRUCTION_NOT_NEW_EFFECTIVE')
         return {'kind':'effective_instruction','ref':ref,'context_digest':context['digest']}
     if condition.get('kind')=='authorized_material':
         cs=ContentStore(workspace.store); obj=cs.read(condition['ref'])
         binding=episode['binding'] or {}
+        if obj['ref']['type']!='SourceArtifact' or condition.get('target_ref')!=binding.get('root_ref'):
+            raise ActionRejected('PROGRESS_RECOVERY_MATERIAL_RELATION_REQUIRED')
         from .source_use import validate_source_versions
         with _host_actor(workspace,episode['scope']) as actor:
             authorized=validate_source_versions(workspace,actor,source_refs=[obj['ref']])
         if authorized is None:raise ActionRejected('PROGRESS_RECOVERY_MATERIAL_NOT_AUTHORIZED')
         members=cs.read(binding['snapshot_ref'])['payload']['refs']
-        [cs.read(r) for r in members if r['type']=='SourceArtifact']
+        previous=[cs.read(r) for r in members if r['type']=='SourceArtifact']
         # Renaming/re-importing identical file bytes changes source metadata and
         # payload identity, but does not create a new recovery condition.
+        if any(obj['payload_digest']==old['payload_digest'] or
+                obj['payload']['file_digest']==old['payload']['file_digest'] for old in previous):
+            raise ActionRejected('PROGRESS_RECOVERY_UNCHANGED_MATERIAL')
         # Only existing actor-owned, origin-issued return receipts count as
         # already received outside the snapshot. Catalog enrollment, arbitrary
         # prose and another actor's observations are not evidence of reception.
@@ -397,9 +413,12 @@ def _condition(workspace,episode,condition):
                 if row['status']!='success' or row.get('receiving_actor')!=actor.id:continue
                 saved=workspace.store.get('tool_observation:'+row['observation_ref'])
                 if not saved or saved['sha256']!=row['sha256']:continue
-                owned_materials(workspace,actor,row['observation_ref'],saved['text'],saved['tool']) or []
+                materials=owned_materials(workspace,actor,row['observation_ref'],saved['text'],saved['tool']) or []
+                if any(m['file_digest']==obj['payload']['file_digest'] for m in materials):
+                    raise ActionRejected('PROGRESS_RECOVERY_UNCHANGED_MATERIAL')
         return {'kind':'authorized_material','ref':obj['ref'],'payload_digest':obj['payload_digest'],
             'target_ref':condition['target_ref'],'source_use_ref':authorized}
+    raise ActionRejected('PROGRESS_RECOVERY_CONDITION_UNSUPPORTED')
 
 
 def _resources(episode,maximum):

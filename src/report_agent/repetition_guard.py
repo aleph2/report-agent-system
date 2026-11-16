@@ -164,3 +164,4 @@ class KnownWriteRepetition:
             "request_digest": armed["proof"]["request_digest"], "state_digest": armed["state"],
             "observed_call_ids": armed["observed_call_ids"], "attempted_call_id": call["id"],
             "advisory_delivered": True, "attempted_write_executed": False})
+        raise RuntimeError("REPEATED_ACTION_WITHOUT_STATE_PROGRESS")
