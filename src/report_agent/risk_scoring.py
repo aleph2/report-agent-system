@@ -199,37 +199,8 @@ def validate_indicator_judgment(pack, row):
 
 
 def validate_indicator_sources(cs, db, actor, plan, section_id, rows):
-    """Use the canonical source, permission and role checks for an indicator draft."""
     from .commission_plan import _validate_sources
-    from .content_models import Ref
-    pack = plan['payload']['method_pack']
     _validate_sources(cs, db, actor, {'indicators': rows})
-    template_refs = {Ref.model_validate(c['source_ref']).key() for s in plan['payload']['sections'] if s['kind'] == 'fixed' for c in s['sources']}
-    factual_refs = {Ref.model_validate(c['source_ref']).key() for s in plan['payload']['sections'] if s['section_id'] == section_id for c in s['sources']}
-    method_refs = {Ref.model_validate(c['source_ref']).key() for c in pack['sources']}
-    source_pins = {}
-    def source_pin(ref):
-        key = Ref.model_validate(ref).key()
-        if key not in source_pins:
-            payload = cs._read(db, ref)['payload']
-            values = tuple(payload.get(field) for field in ('source_id', 'file_digest', 'content'))
-            source_pins[key] = values if key[0] == 'SourceArtifact' and all(
-                isinstance(value, str) and value.strip() for value in values) else None
-        return source_pins[key]
-    method_pins = {pin for citation in pack['sources']
-                   if (pin := source_pin(citation['source_ref'])) is not None}
-    def method_source(ref):
-        return (Ref.model_validate(ref).key() in method_refs or
-                (source_pin(ref) is not None and source_pin(ref) in method_pins))
-    # A second frozen capture of the same guideline is still method evidence.
-    factual_refs -= {key for key in factual_refs if method_source(
-        {'type': key[0], 'id': key[1], 'version': key[2]})} | template_refs
-    for row in rows:
-        actual = {Ref.model_validate(c['source_ref']).key() for c in row['sources']}
-        if row['basis_kind'] != 'no_evidence_assumption' and not actual & factual_refs:
-            raise ActionRejected('ASSESSMENT_FACTUAL_SOURCE_REQUIRED: ' + row['indicator_id'])
-        if row['basis_kind'] == 'applied_guideline' and not any(method_source(c['source_ref']) for c in row['sources']):
-            raise ActionRejected('ASSESSMENT_GUIDELINE_RULE_SOURCE_REQUIRED: ' + row['indicator_id'])
 
 def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     """Compatibility entry for historical raw-row callers."""

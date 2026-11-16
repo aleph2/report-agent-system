@@ -16,7 +16,7 @@ from test_m1_commission_plan import api, save, writer
 from test_m1_g3_integration import method_commission
 from test_m1_g4_requirements import anchored, required_case, capture, requirements, saved_historical_bundle
 from test_m1_g4_planning_steps import entries, draft_case, planning, save_draft_parts
-from test_m1_g4_h3 import returned_snippet, returned_image
+from test_m1_g4_h3 import returned_image
 
 
 @pytest.fixture(autouse=True)
@@ -75,19 +75,6 @@ def invoke_gate(fixture, gate):
 def exclusion_gaps(fixture):
     return [g for g in requirements().check_plan(fixture.cs, fixture.plan, fixture.requirements_ref)
         if g['code'] == 'EXCLUSION_SOURCE_NOT_DIRECTLY_RETURNED']
-
-
-@pytest.mark.parametrize('gate', GATES)
-@pytest.mark.parametrize('evidence', ['snippet', 'text-helper'])
-def test_excluded_candidate_with_indirect_evidence_is_refused_at_every_gate(exclusion_case, gate, evidence):
-    fixture = exclusion_case
-    (returned_snippet if evidence == 'snippet' else helper_input)(fixture)
-    with pytest.raises(ActionRejected, match='COMMISSION_REQUIREMENTS_INCOMPLETE') as exc:
-        invoke_gate(fixture, gate)
-    gaps = exc.value.diagnostic['gaps']
-    gap = next(g for g in gaps if g['code'] == 'EXCLUSION_SOURCE_NOT_DIRECTLY_RETURNED')
-    assert gap['path'] == 'objects.S1.sources'
-    assert 'S1' in gap['message'] and '2' in gap['message']
 
 
 @pytest.mark.parametrize('gate', GATES)

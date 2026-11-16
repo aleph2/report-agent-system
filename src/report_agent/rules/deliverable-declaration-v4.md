@@ -1,5 +1,5 @@
 When saving intended output, include deliverable_selection in the ordinary
-commit_objects or save_text_node call. Choose existing_snapshot to name an exact
+commit_objects call. Choose existing_snapshot to name an exact
 saved Snapshot, or saved_work to identify the intended report root and the finite
 saved-result/deliverable/Snapshot pools from which it is composed. Client keys
 refer to objects in that same save; include_current_save adds that save's returned

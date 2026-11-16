@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 from langchain.tools import ToolRuntime
 
-from .content_models import Ref, SCHEMA_VERSION, SnapshotReplacement
+from .content_models import Ref, SCHEMA_VERSION
 from .content_inputs import CommitObject
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
@@ -155,18 +155,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             return contents.commit(actor(), operation_id, values)
         return contents.commit(actor(), operation_id, values, deliverable_selection=deliverable_selection)
 
-    def save_text_node(operation_id: str, text: str,
-                       kind: Literal["report", "chapter", "block", "cell", "claim"],
-                       claim_kind: Literal["fact", "calculation", "inference", "recommendation", "structure"],
-                       qualifications: str, previous_ref: Ref | None = None) -> dict:
-        """Save one owned text node with flat arguments, avoiding a nested batch payload.
-        Returns its exact ref. Qualifications describe conditions/limits. This does not
-        create evidence links, publish a report or declare review acceptance. Use
-        commit_objects for structured tables, evidence, relations or atomic batches.
-        previous_ref revises only your own exact version; omit to create a new node.
-        """
-        return save_owned_text(operation_id, text, kind, claim_kind, qualifications, previous_ref)
-
     def save_owned_text(operation_id, text, kind, claim_kind, qualifications, previous_ref=None,
                         deliverable_selection=None):
         obj = {"client_key": "text", "type": "ContentNode", "payload": {
@@ -179,53 +167,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         if deliverable_selection is None:
             return contents.commit(actor(), operation_id, [obj])
         return contents.commit(actor(), operation_id, [obj], deliverable_selection=deliverable_selection)
-
-    def freeze_snapshot(operation_id: str, root_ref: Ref, refs: list[Ref], workbook_refs: list[Ref] | None = None) -> dict:
-        """Freeze an explicit complete version manifest, including criteria and reference closure.
-        This validates structure, not correctness. Export need not wait for all reviews.
-        Manifest members may only be Requirement, Criterion, SourceArtifact, Evidence,
-        ContentNode or Relation, with exactly one selected version per logical object.
-        Tasks, snapshots, exports and review records are not manifest members.
-
-        root_ref and contains relations define report prose. Optional workbook_refs
-        explicitly register workbook-only table or text-block nodes in the same
-        manifest. They must be detached from the report tree, without contains
-        parents/children; undeclared detached presentation nodes remain rejected.
-        This keeps separate workbook notes outside Word without changing content
-        or ownership. An XLSX export must select all and only the registered
-        workbook_refs when this channel is declared. Choose applicability and
-        organization from the assignment; registration is not semantic approval.
-        """
-        return contents.freeze(actor(), operation_id, root_ref.model_dump(), [r.model_dump() for r in refs],
-                               [r.model_dump() for r in workbook_refs] if workbook_refs else None)
-
-    def freeze_snapshot_with_receipts(operation_id: str, root_ref: Ref, refs: list[Ref],
-            workbook_refs: list[Ref] | None = None, saved_receipt_ids: list[str] | None = None) -> dict:
-        """Freeze exact explicit references and selected successful save receipts."""
-        return contents.freeze(actor(), operation_id, root_ref.model_dump(), [r.model_dump() for r in refs],
-            [r.model_dump() for r in workbook_refs] if workbook_refs else None, saved_receipt_ids)
-
-    def derive_snapshot(operation_id: str, base_snapshot_ref: Ref, additional_refs: list[Ref],
-                        replacements: list[SnapshotReplacement] | None = None,
-                        workbook_refs: list[Ref] | None = None) -> dict:
-        """Create a snapshot from an exact immutable base and explicit saved version deltas.
-
-        Existing members need not be copied into arguments. additional_refs adds exact
-        new members; replacements maps exact base previous_ref to new_ref of the same
-        logical type/id. Explicitly replace affected relations too: no dependencies,
-        current heads, content, layout or engineering choices are inferred.
-        workbook_refs omitted inherits the base channel (mapped by replacements);
-        an explicit list replaces its declaration. Root follows explicit replacement.
-        All original freeze ownership, closure, tree and workbook constraints apply.
-        No members are removed; use freeze_snapshot for a different full manifest.
-        Old content ownership, snapshots, exports and reviews remain unchanged.
-        This creates no export and grants no semantic or engineering acceptance.
-        """
-        return contents.derive_snapshot(actor(), operation_id, base_snapshot_ref.model_dump(),
-            [r.model_dump() for r in additional_refs],
-            [r.model_dump() for r in replacements] if replacements is not None else None,
-            [r.model_dump() for r in workbook_refs] if workbook_refs is not None else None)
-
 
     def observe_evidence(kind: Literal["source", "calculation"], source_id: str = "", offset: int = 0,
                          limit: int = 12000, terms: list[list[str]] | None = None,
@@ -426,26 +367,17 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         return contents.operation(actor(), operation_id, request, select)
 
 
-    from .prompt_sources import load_prompt, review_interface_profile, REVIEW_INTERFACE_V3, report_prompt_profile, report_rule_source
+    from .prompt_sources import load_prompt, review_interface_profile, report_prompt_profile, report_rule_source
     interface = review_interface_profile(workspace.store)
     text_profile = report_prompt_profile(workspace.store)
     if interface == 'review-interfaces-v4':
-        old_commit, old_save = commit_objects, save_text_node
+        old_commit = commit_objects
         def commit_with_selection(operation_id: str, objects: list[CommitObject],
                                   deliverable_selection: DeliverableSelection | None = None) -> dict:
             return commit_owned(operation_id, objects, deliverable_selection)
         commit_with_selection.__name__ = 'commit_objects'
         commit_with_selection.__doc__ = old_commit.__doc__ + '\n\n' + load_prompt(report_rule_source('deliverable-save-tool-v4', text_profile))
-        def save_with_selection(operation_id: str, text: str,
-                kind: Literal['report', 'chapter', 'block', 'cell', 'claim'],
-                claim_kind: Literal['fact', 'calculation', 'inference', 'recommendation', 'structure'],
-                qualifications: str, previous_ref: Ref | None = None,
-                deliverable_selection: DeliverableSelection | None = None) -> dict:
-            return save_owned_text(operation_id, text, kind, claim_kind, qualifications,
-                                   previous_ref, deliverable_selection)
-        save_with_selection.__name__ = 'save_text_node'
-        save_with_selection.__doc__ = old_save.__doc__ + '\n\n' + load_prompt(report_rule_source('deliverable-save-tool-v4', text_profile))
-        commit_objects, save_text_node = commit_with_selection, save_with_selection
+        commit_objects = commit_with_selection
         def export_with_selection(operation_id: str, snapshot_ref: Ref | None = None,
                 layout: LayoutOptions | None = None, layout_from_export_ref: Ref | None = None,
                 deliverable: DeliverableHandle | None = None) -> dict:
@@ -468,10 +400,6 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
         workbook_with_selection.__name__ = 'export_content_workbook'
         workbook_with_selection.__doc__ = load_prompt('export-content-workbook-v4')
         export_content_snapshot, export_content_workbook = export_with_selection, workbook_with_selection
-    if interface == REVIEW_INTERFACE_V3:
-        freeze_snapshot_with_receipts.__name__ = 'freeze_snapshot'
-        freeze_snapshot_with_receipts.__doc__ = load_prompt('freeze-receipts-v3')
-        freeze_snapshot = freeze_snapshot_with_receipts
     def read_commission_plan() -> dict:
         """Read the current source-linked proposal, inventory and conventions; this is not owner approval."""
         actor()
@@ -600,17 +528,16 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             tools = read_tools(contents, actor, tools)
         return [general_reviewer_tool(tool) for tool in tools] if role == 'reviewer' else tools
     if role in {"coordinator", "writer"}:
-        common += [commit_objects, save_text_node, freeze_snapshot, derive_snapshot, export_content_snapshot, export_content_workbook]
+        common += [commit_objects, export_content_snapshot, export_content_workbook]
     if role == "layout":
         common += [export_content_snapshot, request_layout_capability]
     if role == "coordinator":
         if bound_manifest(workspace.store).get("review_entrypoint") != "native-rubric-v1":
-            common.remove(save_text_node)
             commit_objects.__doc__ += "\nYour coordinator binding may commit Criterion, Evidence and Relation; delegate all ContentNode creation/revision to writer."
     from .section_writing import enabled as system_writing
     if system_writing(workspace.store):
-        system_owned = {'commit_objects', 'save_text_node', 'freeze_snapshot', 'derive_snapshot',
-                        'export_content_workbook', 'materialize_planned_section', 'record_assessment_outcome', 'calculate_assessment'}
+        system_owned = {'commit_objects', 'export_content_workbook', 'materialize_planned_section',
+                        'record_assessment_outcome', 'calculate_assessment'}
         if role in {'coordinator', 'writer'}:
             system_owned.add('export_content_snapshot')
         common = [tool for tool in common if tool.__name__ not in system_owned]

@@ -1,12 +1,8 @@
 """Synthetic native interfaces and real export bytes; no paid/semantic acceptance."""
-import json
 from copy import deepcopy
 from io import BytesIO
 
 import pytest
-from docx import Document
-from openpyxl import load_workbook
-from langchain_core.messages import AIMessage
 
 from report_agent.content_models import Ref
 from pydantic import ValidationError
@@ -15,10 +11,7 @@ from report_agent.content_workbook import export_workbook
 from report_agent.hierarchical_tools import actor_for, content_tools
 from report_agent.store import digest
 from report_agent.errors import ActionRejected, ActionForbidden
-from report_agent.deep_runtime import run_report
 from test_hierarchical_content import ws, seed
-from test_decision_data import activate
-from test_deep_runtime import Driver, invoke, observation
 
 
 def workbook(cs, actor):
@@ -28,51 +21,6 @@ def workbook(cs, actor):
          'qualifiers':{},'claim_kind':'structure'}},
         {'client_key':'note','type':'ContentNode','payload':{'kind':'block',
          'body':{'text':'ONLY_XLSX_NOTE'},'qualifiers':{},'claim_kind':'structure'}}])['result']['refs']
-
-
-async def test_registered_197_member_base_two_additions_word_excel_exact_pair(ws):
-    cs,actor,refs,base,members=seed(ws)
-    extras=cs.commit(actor,'large-base-members',[{'client_key':str(i),'type':'ContentNode',
-        'payload':{'kind':'claim','body':{'text':f'Explicit dependency {i}'},
-        'qualifiers':{},'claim_kind':'fact'}} for i in range(197-len(members))])['result']['refs']
-    base=cs.freeze(actor,'large-base',refs['root'],members+list(extras.values()))['result']['snapshot_ref']
-    original=deepcopy(cs.read(base)); added=workbook(cs,actor); activate(ws)
-    saved={}
-    def word(messages):
-        r=observation(messages,'derive_snapshot'); assert r['ok'],r
-        saved['snapshot']=r['result']['snapshot_ref']
-        return invoke('export_content_snapshot',operation_id='derived-word',snapshot_ref=saved['snapshot'])
-    def excel(messages):
-        r=observation(messages,'export_content_snapshot'); assert r['ok'],r
-        saved['word']=r['result']['export_ref']
-        return invoke('export_content_workbook',operation_id='derived-excel',snapshot_ref=saved['snapshot'],
-            sheets=[{'name':'Issues','table_ref':added['table'],'note_refs':[added['note']]}],
-            report_export_ref=saved['word'])
-    def done(messages):
-        r=observation(messages,'export_content_workbook');assert r['ok'],r
-        saved['excel']=r['result']['export_ref'];return AIMessage(content='Exported fixture; no semantic judgment.')
-    driver=Driver(coordinator=[invoke('derive_snapshot',operation_id='derive-native',base_snapshot_ref=base,
-        additional_refs=list(added.values()),workbook_refs=list(added.values())),word,excel,done])
-    await run_report(ws,driver)
-    schema=next(t for t in driver.bindings['coordinator'][0] if t['name']=='derive_snapshot')
-    serialized=json.dumps(schema)
-    assert all(x in serialized for x in ('previous_ref','new_ref','base_snapshot_ref','additional_refs'))
-    assert 'refs' not in schema['parameters']['properties']
-    result=cs.read(saved['snapshot']);assert len(result['payload']['refs'])==199
-    assert cs.read(base)==original
-    assert all(cs.read(r)['owner_id']==actor.id for r in members)
-    word_record=cs.read(saved['word'])['payload'];excel_record=cs.read(saved['excel'])['payload']
-    assert word_record['snapshot_ref']==excel_record['snapshot_ref']==saved['snapshot']
-    doc=Document(ws.store.root/word_record['file_ref'])
-    assert 'ONLY_XLSX' not in '\n'.join(p.text for p in doc.paragraphs)
-    book=load_workbook(ws.store.root/excel_record['file_ref'])
-    values=str(list(book.active.values));book.close()
-    assert 'ONLY_XLSX' in values and 'ONLY_XLSX_NOTE' in values
-    again=cs.derive_snapshot(actor,'derive-native',base,list(added.values()),workbook_refs=list(added.values()))
-    assert again['result']['snapshot_ref']==saved['snapshot']
-    events=[e for e in ws.store.events() if e['kind']=='snapshot_derived']
-    assert len(events)==1 and events[0]['data']['base_manifest_digest']==original['payload']['manifest_digest']
-    assert cs.receipt(actor,'derive-native')['response']==again
 
 
 def test_replacements_require_exact_base_and_explicit_updated_relations(ws):

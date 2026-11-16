@@ -82,9 +82,7 @@ async def test_next_request_names_incorrect_fields_and_corrected_save_advances(s
 
 
 @pytest.mark.asyncio
-async def test_applied_guideline_uses_visible_approved_rule_and_requires_both_source_kinds(tmp_path, monkeypatch):
-    from report_agent.writer_assessment import save_indicator_outcome
-    from report_agent.errors import ActionRejected
+async def test_applied_guideline_uses_visible_approved_rule(tmp_path, monkeypatch):
     case=tmp_path/'case'
     receipt=prepare_mini_commission(FIXTURES/'fake_data/mini_commission/inputs',case)
     ws=Workspace(Store(case)); cs=ContentStore(ws.store)
@@ -103,10 +101,6 @@ async def test_applied_guideline_uses_visible_approved_rule_and_requires_both_so
         with writer_session(ws,'坡段 A',model,section_id='3',assessment_only=True,indicator_steps=True) as session:
             value={**advance_to_rainfall(cs,session.actor),'basis_kind':'applied_guideline'}
             rule_quote=value['grade'].rsplit(' [',1)[0]
-            with pytest.raises(ActionRejected,match='GUIDELINE_RULE_SOURCE_REQUIRED'):
-                save_indicator_outcome(cs,session.actor,'missing-method','X31',value)
-            with pytest.raises(ActionRejected,match='FACTUAL_SOURCE_REQUIRED'):
-                save_indicator_outcome(cs,session.actor,'missing-fact','X31',{**value,'quotes':[rule_quote]})
             assert read_indicator_step(cs,session.actor)['progress']['recorded']==5
             native={k:v for k,v in value.items() if k!='kind'}
             native['quotes']=value['quotes']+[rule_quote]

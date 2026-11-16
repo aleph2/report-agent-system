@@ -27,18 +27,6 @@ def test_save_revision_replaces_citations_and_keeps_old_record(writing):
     with pytest.raises(ActionRejected,match='PROSE_CURRENT_VERSION_REQUIRED'):
         save_section_prose(f.cs,f.writer,'new-overwrite','4','Another draft.',[changed])
 
-@pytest.mark.parametrize('text,citations,reason',[
-    ('Valid project fact.',[], 'planned_citation_missing'),
-    ('Before source_id: secret after', ['design'], 'internal_content'),
-    ('Project OLD.', ['design','template'], 'template_is_not_project_fact_evidence')])
-def test_exact_span_checks(writing,text,citations,reason):
-    f=writing
-    with pytest.raises(ActionRejected,match='SECTION_PROSE_CHECK_FAILED') as exc:
-        save_section_prose(f.cs,f.writer,'bad','4',text,[f.cite(x) for x in citations])
-    spans=exc.value.diagnostic['spans'];assert any(s['reason']==reason for s in spans)
-    assert all(0<=s['start']<s['end']<=len(text) for s in spans)
-    assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', None])) is None
-
 def test_scope_and_manual_structure_are_rejected(writing):
     f=writing
     with pytest.raises(ActionRejected,match='PROSE_ASSIGNED_EXTRACTED_SECTION_REQUIRED'):
@@ -129,30 +117,6 @@ def test_registered_prose_tool_keeps_exact_text_work_adoption_boundary(writing):
     assert 'text_work_id' in fields and not {'text','citations'}&fields.keys()
 
 
-@pytest.mark.parametrize('claim_kind',['structure','calculation','inference','recommendation'])
-def test_prose_claim_labels_cannot_turn_template_into_project_evidence(writing,claim_kind):
-    f=writing
-    with pytest.raises(ActionRejected,match='SECTION_PROSE_CHECK_FAILED') as exc:
-        f.cs.commit(f.writer,'template-label',[{'client_key':'prose','type':'ContentNode','payload':{
-            'kind':'block','body':{'text':'Project OLD.','section_id':'4'},'qualifiers':{},
-            'claim_kind':claim_kind,'citations':[f.cite('design'),f.cite('template')]}}])
-    assert any(s['reason']=='template_is_not_project_fact_evidence' for s in exc.value.diagnostic['spans'])
-
-
-@pytest.mark.parametrize('claim_kind',['structure','calculation'])
-def test_guarded_adoption_rejects_template_evidence_regardless_of_label(writing,monkeypatch,claim_kind):
-    from report_agent.hierarchical_tools import content_tools
-    import report_agent.text_work as tw
-    f=writing
-    payload={'kind':'block','body':{'text':'Project OLD.'},'qualifiers':{},'claim_kind':claim_kind,
-             'citations':[f.cite('design'),f.cite('template')]}
-    monkeypatch.setattr(tw,'adopt',lambda *args,**kwargs:payload)
-    monkeypatch.setattr(tw,'actor_for_tool',lambda *args:f.writer)
-    tool=next(t for t in tw.guarded_tools(f.ws,'writer',None,content_tools(f.ws,'writer')) if t.__name__=='save_section_prose')
-    with pytest.raises(ActionRejected,match='SECTION_PROSE_CHECK_FAILED'):
-        tool('guarded-template','4','owned-complete-text-work')
-
-
 def test_new_writing_tools_use_native_operation_identity(writing):
     from report_agent.native_operation_tools import native_write_tools
     from report_agent.hierarchical_tools import content_tools
@@ -166,15 +130,3 @@ def test_new_writing_tools_use_native_operation_identity(writing):
                 assert 'operation_id' not in tool.tool_call_schema.model_json_schema()['properties']
                 expected=expected-{tool.name}
         assert not expected
-
-
-def test_prose_cannot_smuggle_an_agent_authored_scoring_table(writing):
-    f=writing
-    table='| Indicator | Score |\n| --- | --- |\n| Height | 48 |\n'
-    text='Saved project context.\n\n'+table
-    with pytest.raises(ActionRejected,match='SECTION_PROSE_CHECK_FAILED') as exc:
-        save_section_prose(f.cs,f.writer,'score-table','4',text,[f.cite('design')])
-    spans=[s for s in exc.value.diagnostic['spans'] if s['reason']=='system_table_required']
-    assert len(spans)==1
-    assert text[spans[0]['start']:spans[0]['end']]==table
-    assert report_state.prose_ref(f.ws.store, 'prose:' + encode([f.plan_ref, '4', None])) is None

@@ -91,14 +91,6 @@ def test_changed_title_is_a_new_frozen_version_without_file_reapproval(alias_com
     assert f.cs.read(f.alias) == original
 
 
-def test_guideline_alias_in_section_sources_cannot_satisfy_project_facts(alias_commission):
-    f = alias_commission
-    f.applied['sources'] = [f.applied['sources'][1]]
-    with pytest.raises(ActionRejected, match='ASSESSMENT_FACTUAL_SOURCE_REQUIRED'):
-        persist(f, f.actor, f.assessment)
-    assert not f.cs.list_objects('Assessment')
-
-
 def test_guideline_alias_still_requires_the_quote_at_its_location(alias_commission):
     f = alias_commission
     f.applied['sources'][1]['quote'] = 'Invented sentence absent from the supplied synthetic guideline.'

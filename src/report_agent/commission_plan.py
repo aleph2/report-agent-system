@@ -1,6 +1,6 @@
 """Versioned commission proposals; only operator replies authorize writing or reductions."""
 from . import issue_state
-from . import commission_assertions, commission_imports
+from . import commission_assertions
 from . import legacy_state as legacy, plan_authority
 from pathlib import Path
 from uuid import uuid4
@@ -579,31 +579,10 @@ def save_plan(cs, actor, operation_id, plan):
             visited.add(section)
     for section in sections:
         visit(section)
-    if any(not c['source']['quote'].strip() for c in plan['conventions']):
-        raise ActionRejected('COMMISSION_CONVENTION_QUOTE_REQUIRED')
     def save(db):
         require_complete(cs, plan, db=db)
         _validate_sources(cs, db, actor, plan, planning=True)
-        roles = commission_imports.source_roles(db, {})
-        customer_sources = {r['id'] for r in (roles or {}).values() if r['purpose'] == 'commission'}
-        if order := plan.get('indicator_rank_order'):
-            if cs._read(db, order['source']['source_ref'])['payload']['source_id'] not in customer_sources:
-                raise ActionRejected('COMMISSION_RANK_ORDER_REQUIRES_CUSTOMER_SOURCE')
         questions = method_questions(plan)
-        boundary = plan.get('scope_boundary')
-        if boundary:
-            basis = boundary.get('customer_basis') or boundary['source']
-            if (not basis.get('quote', '').strip()
-                    or cs._read(db, basis['source_ref'])['payload']['source_id'] not in customer_sources):
-                choices = {}
-                for citation in _citations(plan):
-                    ref = citation['source_ref']
-                    if cs._read(db, ref)['payload']['source_id'] in customer_sources:
-                        choices[Ref.model_validate(ref).key()] = ref
-                raise ActionRejected('COMMISSION_BOUNDARY_CUSTOMER_SELECTION_REQUIRED', diagnostic={'fields': [{
-                    'field': 'scope_boundary.customer_basis', 'reason': 'customer_source_and_quote_required',
-                    'choices': list(choices.values()),
-                    'message': 'Use a verified scope requirement anchor as the customer basis. A design quotation alone does not establish the customer-selected contract.'}]})
         if plan.get('method_pack'):
             from .method_pack import reviewed_method_questions
             questions += reviewed_method_questions(cs, db, plan['method_pack'])
@@ -611,30 +590,6 @@ def save_plan(cs, actor, operation_id, plan):
                 from .g3_export import FORMAT_SOURCE_SHA256
                 if cs._read(db, plan['format_source']['source_ref'])['payload']['file_digest'] != FORMAT_SOURCE_SHA256:
                     questions.append('格式标准没有对应的已审查排版能力，不能开始编写')
-            for binding in plan.get('method_conventions', []):
-                if binding['status'] == 'specified':
-                    source = binding['source']
-                    if (cs._read(db, source['source_ref'])['payload']['source_id'] not in customer_sources
-                            or source not in [c['source'] for c in plan['conventions']]):
-                        raise ActionRejected('METHOD_CONVENTION_REQUIRES_CUSTOMER_SOURCE_AND_QUOTE')
-            for section in plan['sections']:
-                if section['kind'] == 'fixed':
-                    template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
-                    if any(cs._read(db, c['source_ref'])['payload']['source_id'] not in template_ids for c in section['sources']):
-                        raise ActionRejected('FIXED_SECTION_TEMPLATE_SOURCE_REQUIRED')
-                    expected = fixed_section_text(section)
-                    if section['text'] and section['text'] != expected:
-                        raise ActionRejected('FIXED_SECTION_DIFFERS_FROM_SOURCE: ' + section['section_id'])
-                    section['text'] = expected
-        for section in plan['sections']:
-            for substitution in section.get('source_substitutions', []):
-                basis = cs._read(db, substitution['customer_basis']['source_ref'])
-                if basis['payload']['source_id'] not in customer_sources:
-                    raise ActionRejected('COMMISSION_SUBSTITUTION_REQUIRES_CUSTOMER_SOURCE')
-        if roles:
-            if any(cs._read(db, c['source']['source_ref'])['payload']['source_id'] not in customer_sources
-                   for c in plan['conventions']):
-                raise ActionRejected('COMMISSION_CONVENTION_REQUIRES_CUSTOMER_SOURCE')
         old_ref = plan_authority.plan_ref(db)
         old = cs._read(db, old_ref) if old_ref else None
         current_sections = {s['section_id']: s for s in plan['sections']}

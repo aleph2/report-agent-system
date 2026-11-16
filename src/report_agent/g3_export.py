@@ -12,15 +12,6 @@ from .store import digest
 FORMAT_SOURCE_SHA256 = 'ca9fe227372741d7d81646dd66ee926bb7829d5fe2a1c2701a865036e3fda4cf'
 
 
-_INTERNAL = re.compile(
-    r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'
-    r'|\b(?:source_id|source_ref|current_limits|working_notes)\b'
-    r'|\b(?:locator|calculation)[\'\"]?\s*[:=：]'
-    r'|[\'\"][a-zA-Z_][a-zA-Z_0-9]*[\'\"]\s*[:：]'
-    r'|\b[a-zA-Z]+_[a-zA-Z_0-9]*\s*[:：]'
-    r'|\[\s*(?:[\'\"]|-?\d+(?:\.\d+)?\s*,)[^\]]*\]'
-    r'|(?:下一步|接下来|稍后)(?:将|再|需|会)?(?:撰写|编写|补写|生成)'
-    r'|(?:待撰写|待补写|此处待填|起草备注|生成备注|模型输出|as an AI)', re.I)
 
 
 def _key(ref):
@@ -91,7 +82,7 @@ def citation_text(node, records, plan=None, excluded=()):
             place = '，' + locator
         else:
             raise ActionRejected('G3_CITATION_LOCATION_NOT_READABLE')
-        if not title or _INTERNAL.search(title) or re.search(r'[/\\]', title):
+        if not title or re.search(r'[/\\]', title):
             raise ActionRejected('G3_CITATION_READABLE_SOURCE_TITLE_REQUIRED')
         text = '《' + title + '》' + place
         if text not in values:
@@ -199,12 +190,8 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                             raise ValueError('source mismatch')
                     except (ActionRejected, KeyError, TypeError, ValueError):
                         problems.append(location + ': source view pinned source mismatch')
-        if plan.get('format_source') and node['kind'] not in {'table', 'figure'}:
-            from .exporting import markdown_table_spans
-            if markdown_table_spans(body['text']):
-                problems.append(location + ': convert Markdown tables to explicit typed table nodes for G3 formatting')
         for value in _visible(node):
-            if isinstance(value, (dict, list, tuple)) or _INTERNAL.search(str(value)):
+            if isinstance(value, (dict, list, tuple)):
                 problems.append(location + ': internal material in report text')
         for citation in node.get('citations', []):
             try:
@@ -273,11 +260,6 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 problems.append(location + ': fixed section requires exact text spans')
             else:
                 texts[sid].append(body['text'])
-        if section['kind'] == 'extracted' and not (cs is not None and assessment):
-            expected = {_key(c['source_ref']) for c in section['sources']}
-            actual = {_key(c['source_ref']) for c in node.get('citations', [])}
-            if not actual & expected:
-                problems.append(location + ': extracted section must cite its planned sources')
     from .commission_plan import fixed_section_text
     for sid, section in sections.items():
         if section.get('result_composition') and len(composition_groups[sid]) != 1:

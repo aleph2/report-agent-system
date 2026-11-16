@@ -595,13 +595,6 @@ def _gaps(cs, plan, db):
         gaps = [{'anchor_id': None, 'path': f.get('section_id', 'plan') + '.' + f.get('field', 'plan'),
                  'code': f.get('reason', 'PLAN_INCOMPLETE'), 'message': str(error), 'item_id': f.get('item_id')}
                 for f in fields] or [{'anchor_id': None, 'path': 'plan', 'code': 'PLAN_INCOMPLETE', 'message': str(error)}]
-    for question in plan.get('skeleton_questions', []):
-        gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + question['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': question['reason']})
-    draft = plan_inputs.get_draft(db, {'items': {}})
-    for value in draft['items'].get('substitution', {}).values():
-        if value['section_id'] not in {s['section_id'] for s in plan['sections']}:
-            gaps.append({'anchor_id': None, 'path': 'substitutions.' + value['section_id'],
-                         'code': 'SUBSTITUTION_SECTION_REQUIRED', 'message': 'Add the section named by this substitution'})
     try:
         CommissionPlan.model_validate(plan)
     except ValidationError as error:
@@ -805,12 +798,6 @@ def _save_item(cs, actor, db, kind, item):
         raise ActionRejected('SKELETON_STRUCTURE_IS_SYSTEM_OWNED')
     if kind in ('section_judgment', 'disposition') and not plan_inputs.get_skeleton(db):
         raise ActionRejected('SKELETON_REGISTRY_REQUIRED')
-    if kind == 'section_judgment':
-        if set(value) - {'section_id', 'sources', 'examples', 'notes'}:
-            raise ActionRejected('SKELETON_JUDGMENT_FIELDS_ONLY')
-        original = next((s for s in plan_inputs.get_skeleton(db)['sections'] if s['section_id'] == value.get('section_id')), None)
-        if not original or original['kind'] == 'fixed' or original.get('extraction'):
-            raise ActionRejected('SKELETON_JUDGMENT_SECTION_INVALID')
     if kind == 'disposition':
         value = model_value(CandidateDisposition, value, 'disposition').model_dump(mode='json', exclude_none=True)
         if value['status'] == 'owner_excluded':
@@ -1200,14 +1187,6 @@ def planning_tools(cs, actor, *, result_fits=None):
         """Add or revise source comparisons atomically by stable IDs. Several items are accepted; all ready items can be sent together. Preserve factual differences and interpretations; any invalid comparison refuses the whole list with indexed problems."""
         return save_items(cs, actor(), operation_id, 'reconciliation', [i.model_dump(mode='json') for i in items])
 
-    def add_question(operation_id: str, items: Annotated[list[PlanningQuestion], Field(min_length=1)]) -> dict:
-        """Add, revise or answer questions atomically by stable IDs. Several items are accepted; all ready items can be sent together. Any invalid question refuses the whole list. This records planning progress, not owner authorization."""
-        return save_items(cs, actor(), operation_id, 'question', [i.model_dump(mode='json') for i in items])
-
-    def set_section_judgment(operation_id: str, judgment: SectionJudgment) -> dict:
-        """Attach section evidence and notes; outline, fixed text and result bindings are system-owned."""
-        return save_item(cs, actor(), operation_id, 'section_judgment', judgment.model_dump(mode='json', exclude_unset=True))
-
     def set_candidate_disposition(operation_id: str, disposition: CandidateDisposition) -> dict:
         """State included or proposed exclusion with a reason. Proposed exclusion always creates an owner question; owner records are attached by the system."""
         return save_item(cs, actor(), operation_id, 'disposition', disposition.model_dump(mode='json', exclude_none=True))
@@ -1230,10 +1209,10 @@ def planning_tools(cs, actor, *, result_fits=None):
                 return save_item(cs, actor(), operation_id, 'table_details', details.model_dump(mode='json'))
             return publish_planning_draft(operation_id)
         publish_with_tables.__name__ = publish_planning_draft.__name__
-        return assertion_tools + [expose(f) for f in [publish_with_tables, read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
-            set_candidate_disposition, resolve_skeleton_choice, add_reconciliation, add_question, review_carried_items]]
+        return assertion_tools + [expose(f) for f in [publish_with_tables, read_planning_draft, set_scope_boundary, add_object,
+            set_candidate_disposition, resolve_skeleton_choice, add_reconciliation, review_carried_items]]
     return assertion_tools + [expose(function) for function in [publish_planning_draft, read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
-            add_object, add_section, add_reconciliation, add_question]]
+            add_object, add_section, add_reconciliation]]
 
 
 def install_prepared_planning(cs, source_refs):

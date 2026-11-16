@@ -4,15 +4,15 @@ from .errors import ActionRejected
 CALLER = 'caller-operation-v1'
 NATIVE = 'native-tool-runtime-v1'
 ATOMIC_WRITES = frozenset({
-    'import_source_versions', 'capture_review_sources', 'commit_objects', 'save_text_node',
-    'freeze_snapshot', 'derive_snapshot', 'submit_review', 'record_handoff',
+    'import_source_versions', 'capture_review_sources', 'commit_objects',
+    'submit_review', 'record_handoff',
     'save_section_prose', 'propose_material_issue', 'request_system_delivery',
     'save_indicator_outcome', 'save_evidence', 'save_assumption', 'save_gap',
     'confirm_review_reuse', 'correct_own_review', 'record_qualitative_finding', 'export_content_snapshot',
     'export_content_workbook', 'request_layout_capability', 'select_content_delivery',
     'record_execution_decision', 'save_commission_plan', 'record_assessment_outcome',
     'set_requirement_status', 'link_convention', 'set_scope_boundary', 'set_planning_details',
-    'publish_planning_draft', 'add_object', 'add_section', 'add_substitution', 'add_reconciliation', 'add_question', 'submit_plan', 'request_requirement_resolution'})
+    'publish_planning_draft', 'add_object', 'add_section', 'add_substitution', 'add_reconciliation', 'submit_plan', 'request_requirement_resolution'})
 NATIVE_WRITES = ATOMIC_WRITES | {'render_content_export'}
 
 

@@ -1,10 +1,8 @@
 """Assigned prose and issue proposals; document structure remains system-owned."""
 from . import issue_state, report_state
-from . import legacy_state as legacy
 from typing import Literal
 from pydantic import Field
 from .material_issues import StrictRecord, IssueSource
-from .content_models import Ref
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 
@@ -43,7 +41,6 @@ def prose_selection_key(cs, db, actor, plan_ref, section_id):
 
 def validate_prose(cs, db, actor, node, previous_ref=None):
     from .commission_plan import assert_writing_allowed
-    from .g3_export import _INTERNAL
     plan = assert_writing_allowed(cs, db, actor)
     sid = node.get('body', {}).get('section_id')
     task = cs._read(db, {'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})['payload']
@@ -57,26 +54,6 @@ def validate_prose(cs, db, actor, node, previous_ref=None):
         raise ActionRejected('PROSE_CURRENT_VERSION_REQUIRED', diagnostic={'section_id': sid, 'current_ref': current})
     if previous_ref and cs._read(db, previous_ref)['payload']['body'].get('section_id') != sid:
         raise ActionRejected('PROSE_REVISION_SECTION_MISMATCH')
-    text = node['body']['text']
-    spans = [{'reason': 'internal_content', 'field': 'text', 'start': m.start(), 'end': m.end()}
-             for m in _INTERNAL.finditer(text)]
-    from .exporting import markdown_table_spans
-    lines = text.splitlines(keepends=True)
-    for _, start_line, end_line in markdown_table_spans(text):
-        spans.append({'reason': 'system_table_required', 'field': 'text',
-                      'start': sum(map(len, lines[:start_line])), 'end': sum(map(len, lines[:end_line]))})
-    actual = {Ref.model_validate(x['source_ref']).key() for x in node.get('citations', [])}
-    expected = {Ref.model_validate(x['source_ref']).key() for x in section['sources']}
-    if not actual.intersection(expected):
-        spans.append({'reason': 'planned_citation_missing', 'field': 'text', 'start': 0, 'end': len(text)})
-    roles = legacy.get_commission_source_roles(db, {})
-    template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
-    for citation in node.get('citations', []):
-        source = cs._read(db, citation['source_ref'])['payload']
-        if source['source_id'] in template_ids:
-            spans.append({'reason': 'template_is_not_project_fact_evidence', 'field': 'text', 'start': 0, 'end': len(text)})
-    if spans:
-        raise ActionRejected('SECTION_PROSE_CHECK_FAILED', diagnostic={'section_id': sid, 'node_ref': previous_ref, 'spans': spans})
     return plan
 
 

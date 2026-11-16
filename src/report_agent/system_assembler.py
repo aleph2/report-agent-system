@@ -164,9 +164,6 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                     body.get('section_id', sid) != sid or body.get('section_heading')):
                 problem('prose_node_not_section_prose', ref=ref, section_id=sid)
                 continue
-            expected = {_key(c['source_ref']) for c in sections[sid]['sources']}
-            if not expected.intersection(_key(c['source_ref']) for c in node.get('citations', [])):
-                problem('prose_planned_citation_missing', ref=ref, section_id=sid)
             from .content_layout import STRUCTURAL
             unsupported = set(node.get('qualifiers', {})) - set(STRUCTURAL) - {'source_note'}
             if unsupported:

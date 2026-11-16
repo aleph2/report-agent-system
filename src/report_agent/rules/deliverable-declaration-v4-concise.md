@@ -1,4 +1,4 @@
-Include deliverable_selection in the ordinary commit_objects or save_text_node call
+Include deliverable_selection in the ordinary commit_objects call
 when declaring intended output. existing_snapshot names an exact saved Snapshot.
 saved_work selects an explicit report root and finite saved-result/deliverable/Snapshot
 pools, plus companion workbook roots and deliberate removed refs when needed. Client keys

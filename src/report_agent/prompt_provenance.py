@@ -425,8 +425,6 @@ class AgentPromptBoundary(AgentMiddleware):
                     tool_files.append(report_rule_source('native-task-description-v4', text_profile))
         if interface == REVIEW_INTERFACE_V3:
             names = {t.get('function', {}).get('name') for t in tools}
-            if 'freeze_snapshot' in names:
-                tool_files.append('freeze-receipts-v3')
             if 'read_decision_state' in names:
                 tool_files.append('state-paths-v3')
         if interface == 'review-interfaces-v4':
@@ -436,8 +434,7 @@ class AgentPromptBoundary(AgentMiddleware):
                 'submit_review':submit_review_source(LEGACY_PROMPTS,
                     submission_contract if self.role == 'reviewer' else None),
                 'confirm_review_reuse':'native-review-reuse-v4',
-                'commit_objects':'deliverable-save-tool-v4',
-                'save_text_node':'deliverable-save-tool-v4'}.items() if name in names]
+                'commit_objects':'deliverable-save-tool-v4'}.items() if name in names]
             if 'export_content_workbook' in names:
                 tool_files.append('export-content-workbook-v4')
             if 'export_content_snapshot' in names:

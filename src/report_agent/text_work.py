@@ -11,7 +11,7 @@ import re
 from typing import Annotated, Any, Literal
 
 from pydantic import Field, create_model, ValidationError
-from typing import Annotated
+from collections.abc import Callable
 from langchain.tools import ToolRuntime
 
 from .content_models import Contract, ContentNode, Evidence, Ref, TextEvidence, SourceRef
@@ -696,22 +696,9 @@ def guarded_tools(workspace, role, model, base_tools):
             return by_name['commit_objects'](operation_id, values, deliverable_selection=deliverable_selection)
         return by_name["commit_objects"](operation_id, values)
 
-    def save_guarded(operation_id: str, text_work_id: str, previous_ref: Ref | None = None,
-                     text_work_index: int = 0, deliverable_selection=None) -> dict:
-        """Adopt one exact independent ContentNode result with the writer's ownership.
-        No body/qualifier override is accepted. previous_ref keeps ordinary CAS and
-        revision limits; this does not publish or create evidence links.
-        """
-        return commit_guarded(operation_id, [AdoptionObject(client_key="text", type="ContentNode",
-            text_work_id=text_work_id, previous_ref=previous_ref, text_work_index=text_work_index)], deliverable_selection)
-
     def commit_objects(operation_id: str, objects: list[GuardedObject]) -> dict:
         return commit_guarded(operation_id, objects)
     commit_objects.__doc__ = commit_guarded.__doc__
-
-    def save_text_node(operation_id: str, text_work_id: str, previous_ref: Ref | None = None, text_work_index: int = 0) -> dict:
-        return save_guarded(operation_id, text_work_id, previous_ref, text_work_index)
-    save_text_node.__doc__ = save_guarded.__doc__
 
     from .prompt_sources import review_interface_profile, load_prompt
     if review_interface_profile(workspace.store) == 'review-interfaces-v4':
@@ -720,16 +707,12 @@ def guarded_tools(workspace, role, model, base_tools):
                                   deliverable_selection: DeliverableSelection | None = None) -> dict:
             return commit_guarded(operation_id, objects, deliverable_selection)
         commit_with_selection.__name__, commit_with_selection.__doc__ = 'commit_objects', commit_guarded.__doc__ + save_note
-        def save_with_selection(operation_id: str, text_work_id: str, previous_ref: Ref | None = None,
-                text_work_index: int = 0, deliverable_selection: DeliverableSelection | None = None) -> dict:
-            return save_guarded(operation_id, text_work_id, previous_ref, text_work_index, deliverable_selection)
-        save_with_selection.__name__, save_with_selection.__doc__ = 'save_text_node', save_guarded.__doc__ + save_note
-        commit_objects, save_text_node = commit_with_selection, save_with_selection
+        commit_objects = commit_with_selection
 
     from .prompt_sources import content_input_profile, RELATION_ENDPOINTS_V2
     if content_input_profile(workspace.store) == RELATION_ENDPOINTS_V2:
         commit_objects.__annotations__['objects'] = list[GuardedObjectV2]
-    replacements = {"commit_objects": commit_objects, "save_text_node": save_text_node}
+    replacements: dict[str, Callable[..., Any]] = {"commit_objects": commit_objects}
     if 'save_section_prose' in by_name:
         def save_section_prose(operation_id: str, section_id: str, text_work_id: str,
                                previous_ref: Ref | None = None, text_work_index: int = 0) -> dict:
@@ -750,7 +733,7 @@ def guarded_tools(workspace, role, model, base_tools):
             return ContentStore(workspace.store).commit(actor, operation_id, [obj])
         replacements['save_section_prose'] = save_section_prose
 
-    result = [replacements.get(t.__name__, t) for t in base_tools]
+    result = [replacements.get(t.__name__) or t for t in base_tools]
     if role in {"writer"}:
         from .operation_identity import profile, NATIVE, native_id
         if profile(workspace.store) == NATIVE:

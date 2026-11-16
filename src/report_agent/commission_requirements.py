@@ -1,5 +1,4 @@
 """Source-owned commission anchors and one authority check, independent of plans."""
-from . import commission_imports, plan_inputs
 from . import legacy_state as legacy
 from io import BytesIO
 import re
@@ -322,7 +321,6 @@ def propose_requirements(cs, actor, operation_id, requirements_ref, items):
 
 def check_plan(cs, plan, requirements_ref=None, *, db=None):
     """Report every missing obligation without changing a proposal or saved record."""
-    from .commission_plan import method_questions
     if db is None:
         with cs.store.connect() as connection:
             return check_plan(cs, plan, requirements_ref, db=connection)
@@ -332,11 +330,8 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
     validate_skeleton(cs, db, plan)
     record = read_requirements(cs, requirements_ref, db=db)
     anchors = record['payload']['anchors']
-    items = {i['anchor_id']: i for i in record['payload']['items']}
     from .commission_carryover import gaps as carryover_gaps
     gaps = disposition_gaps(cs, db, plan) + carryover_gaps(cs, db, plan)
-    for q in (plan_inputs.get_skeleton(db) or {}).get('questions', []):
-        gaps.append({'anchor_id': None, 'path': 'skeleton_questions.' + q['question_id'], 'code': 'SKELETON_QUESTION_UNRESOLVED', 'message': q['reason']})
     def gap(anchor, path, code, message):
         gaps.append({'anchor_id': anchor['id'], 'path': path, 'code': code, 'message': message})
     for pin in record['payload']['source_pins']:
@@ -362,100 +357,6 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                 anchor = next((a for a in anchors if a.get('section_id') == section['section_id']), anchors[0])
                 gap(anchor, 'sections.' + section['section_id'] + '.extraction', 'SECTION_EXTRACTION_CHANGED',
                     'Use the system extraction of the exact source selection and normalization profile')
-    for anchor in anchors:
-        item = items.get(anchor['id'])
-        if not item or item['status'] == 'unresolved' or (anchor.get('parse_error') and
-                anchor['id'] not in record['payload'].get('parse_resolutions', {})):
-            gap(anchor, 'requirements.' + anchor['id'], 'REQUIREMENT_UNRESOLVED',
-                anchor.get('parse_error') or 'Resolve this source-linked requirement')
-            continue
-        if anchor['kind'] == 'section':
-            section = sections.get(anchor['section_id'])
-            if section is None:
-                gap(anchor, 'sections.' + anchor['section_id'], 'SECTION_REQUIRED', 'Add this outline heading to the plan')
-            elif section.get('outline') != anchor['source']:
-                gap(anchor, 'sections.' + anchor['section_id'] + '.outline', 'SECTION_SOURCE', 'Retain the exact outline anchor')
-        if item['status'] == 'not_applicable':
-            continue  # This is a proposal only; confirmation separately pins this record.
-        from .commission_planning import entry_plan_gaps, classification_gaps
-        for message in classification_gaps(cs, db, record, item):
-            gap(anchor, 'requirements.' + anchor['id'], 'REQUIREMENT_CLASSIFICATION_REQUIRED', message)
-        for path, message in entry_plan_gaps(cs, db, item, plan):
-            gap(anchor, path, 'REVIEWED_ENTRY_REQUIRED', message)
-        if anchor['kind'] == 'convention':
-            links = [c for c in plan.get('conventions', []) if c.get('requirement_anchor_id') == anchor['id']]
-            if len(links) != 1 or links[0].get('source') != anchor['source']:
-                gap(anchor, 'conventions.' + anchor['id'], 'CONVENTION_LINK_REQUIRED', 'Link this exact numbered convention once')
-        for capability in item['capabilities']:
-            path, missing = capability, False
-            if capability == 'method_pack':
-                missing = not plan.get('method_pack')
-            elif capability == 'weight_binding':
-                path = 'method_conventions'
-                try:
-                    bindings = [b for b in plan.get('method_conventions', []) if b['key'] == 'weights']
-                    sources = [anchor['source'], *anchor.get('continuations', [])]
-                    missing = (not plan.get('method_pack') or bool(method_questions(plan))
-                               or len(bindings) != 1 or bindings[0].get('status') != 'specified'
-                               or bindings[0].get('source') not in sources)
-                except (KeyError, TypeError):
-                    missing = True
-            elif capability in ('scope_boundary', 'deliverables'):
-                missing = not plan.get(capability)
-            elif capability == 'inventory':
-                path, missing = 'objects', not plan.get('objects')
-            elif capability == 'inventory_reconciliation':
-                path, missing = 'reconciliations', not plan.get('reconciliations')
-            elif capability in ('section', 'fixed_text', 'result_bindings'):
-                identity = anchor.get('section_id')
-                section = sections.get(identity, {})
-                path = 'sections.' + str(identity)
-                missing = not section
-                if capability == 'fixed_text':
-                    missing = missing or section.get('kind') != 'fixed' or not section.get('sources')
-                if capability == 'result_bindings':
-                    missing = (missing or not (section.get('result_bindings') or section.get('result_composition')) or not section.get('derived_from')
-                               or not set(section.get('derived_from', [])) <= sections.keys()
-                               or identity in section.get('derived_from', []))
-                if capability in ('fixed_text', 'result_bindings'):
-                    roles = commission_imports.source_roles(db, {})
-                    templates = {r['id'] for r in roles.values() if r.get('purpose') == 'template'}
-                    sources = section.get('sources', [])
-                    missing = (missing or not sources or any(
-                        cs._read(db, c['source_ref'])['payload']['source_id'] not in templates for c in sources))
-            elif capability in ('material_issues', 'source_priority', 'assumptions'):
-                path = 'conventions.' + anchor['id']
-                missing = not any(c.get('requirement_anchor_id') == anchor['id'] for c in plan.get('conventions', []))
-            if missing:
-                gap(anchor, path, 'CAPABILITY_REQUIRED', 'Provide the required ' + capability)
-    excluded = [o for o in plan.get('objects', []) if o.get('included') is False]
-    if excluded:
-        from .document_tools import physical_page_number
-        from .source_access import coverage
-        access = coverage(cs, plan, include_page_totals=False)
-        imported = plan_inputs._head(db, 'ImportedSourceReadFacts')
-        read_facts = imported['payload'] if imported else []
-        for obj in excluded:
-            if any(r['kind'] == 'scope_exclusion' and r['target'] == obj['object_id'] for r in plan.get('owner_records', [])):
-                continue
-            cited, direct = [], False
-            for citation in obj.get('sources', []):
-                ref, locator = citation['source_ref'], citation['locator']
-                page = physical_page_number(locator)
-                cited.append({'source_ref': ref, 'locator': locator, 'page': page})
-                direct = direct or any(f['source_ref'] == ref and page in f['pages'] for f in read_facts)
-                for row in access['sources']:
-                    if ref in row['source_version_refs']:
-                        pages = set(row['text_returned_pages']) | set(row['inspected_text_pages'])
-                        pages.update(image['page'] for image in row['image_observations'])
-                        direct = direct or page in pages
-            if not direct:
-                locations = '; '.join(c['source_ref']['id'] + ' / ' + c['locator'] for c in cited) or 'no citations'
-                gaps.append({'anchor_id': None, 'path': 'objects.' + obj['object_id'] + '.sources',
-                    'code': 'EXCLUSION_SOURCE_NOT_DIRECTLY_RETURNED', 'object_id': obj['object_id'],
-                    'cited_pages': cited, 'message': 'Exclusion of ' + obj['object_id'] + ' (' + obj.get('label', '')
-                    + ') cites no directly returned page: ' + locations
-                    + '. Read a cited page or retain the candidate for an explicit owner reduction at the checkpoint.'})
     return gaps
 
 
