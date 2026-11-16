@@ -4,6 +4,7 @@ import json
 
 from .content_inputs import SourceRef
 from .content_store import ContentStore
+from .errors import ActionRejected
 from .store import digest, encode
 
 @dataclass(frozen=True)
@@ -37,6 +38,8 @@ def compile_material(workspace, actor, evidence, source_version_refs=(), source_
         obj = cs.read(ref)
         source = workspace.store.sources([obj['payload']['source_id']])[0]
         payload = cs.source_payload(source)
+        if obj['payload'] != payload:
+            raise ActionRejected('TEXT_WORK_SOURCE_VERSION_NOT_CURRENT_FOR_SELECTION')
         matching = [part for part in source_materials
             if part['source_id']==source['id'] and part['source_payload_digest']==digest(payload)]
         result.append({'kind':'source_version_binding','object':{
