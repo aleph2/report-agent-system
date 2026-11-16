@@ -223,7 +223,7 @@ class Commission:
             states = assertion_states(db)
             return [(json.loads(body), states[key]) for key, body in db.execute(
                 """SELECT id,body FROM assertions WHERE
-                body ->> '$.claim.scope'='source_page_binding' OR body ->> '$.claim.kind'='source'""")]
+                body ->> '$.claim.scope'='source_page_binding' OR (role='writer' AND body ->> '$.claim.kind'='source')""")]
 
     @staticmethod
     def issue_records(directory):
