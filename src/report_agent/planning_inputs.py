@@ -6,7 +6,7 @@ from functools import wraps
 from inspect import signature
 import re
 from unicodedata import normalize
-from typing import get_type_hints
+from typing import NoReturn, get_type_hints
 
 from pydantic import Field, ValidationError, create_model
 
@@ -15,7 +15,7 @@ from .commission_plan import SourceSubstitution, Reconciliation
 from .errors import ActionRejected
 
 
-def reject(field, reason, choices=(), *, message=None, related_fields=(), code=None):
+def reject(field, reason, choices=(), *, message=None, related_fields=(), code=None) -> NoReturn:
     issue = {'field': field, 'reason': reason, 'choices': list(choices)}
     if message:
         issue['message'] = message
@@ -155,14 +155,13 @@ ERROR_FIELDS = {
     'SOURCE_SPAN_ENDPOINT_AMBIGUOUS_OR_MISSING': 'source_span.start_sentence',
     'SOURCE_SPAN_ENDPOINT_ORDER': 'source_span.end_sentence',
     'SOURCE_SPAN_RAW_ENDPOINT_AMBIGUOUS_OR_MISSING': 'source_span.start_sentence',
-    'SECTION_SOURCE_OR_PENDING_SOURCE_REQUIRED': 'sources',
     'SECTION_PENDING_SOURCE_NAME_REQUIRED': 'pending_sources',
     'SECTION_SOURCE_RESOLUTION_DUPLICATE': 'pending_sources',
     'SECTION_SUBSTITUTION_NOT_REQUESTED': 'source_substitutions',
     'SECTION_SUBSTITUTION_REPLACEMENT_NOT_IN_PLAN': 'sources',
     'SECTION_OUTLINE_QUOTE_REQUIRED': 'outline',
     'FIXED_SECTION_TEXT_REQUIRED': 'source_span',
-    'DERIVED_SECTION_RULE_REQUIRED': 'rule',
+    'COMMISSION_DERIVED_SECTION_INVALID': 'derived_from',
     'SOURCE_VIEW_FIXED_ORDERED_SOURCES_REQUIRED': 'source_views',
     'SOURCE_VIEW_SAME_SOURCE_PAGE_REQUIRED': 'source_views',
     'SOURCE_VIEW_CONTIGUOUS_INDEXES_REQUIRED': 'source_indexes',

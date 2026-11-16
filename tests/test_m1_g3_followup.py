@@ -299,19 +299,6 @@ def test_conditional_horizontal_merge_requires_empty_saved_field_and_preserves_t
         saved.render()
 
 
-def test_optional_record_contract_checks_capability_without_hardcoding_report_fields():
-    from report_agent.table_spec import validate_table_specs
-    specs = {'custom_role': alternate_table_spec()}
-    contract = {'rows': {'measurements.rows': ['asset_label', 'rank', 'measurement']},
-                'values': ['measurements.number', 'object_label']}
-    assert validate_table_specs(specs, record_contract=contract)['custom_role']['table_type'] == 'asset_summary'
-    contract['rows']['measurements.rows'].remove('measurement')
-    with pytest.raises((ValueError, ActionRejected), match='TABLE_SPEC'):
-        validate_table_specs(specs, record_contract=contract)
-    # The structure itself is still generic; only this record producer lacks the field.
-    assert validate_table_specs(specs)['custom_role']['table_type'] == 'asset_summary'
-
-
 def test_overlapping_projection_merges_refuse_even_when_all_text_is_identical():
     saved = SavedTableRecords()
     spec = saved.plan['table_specs']['asset_summary']
@@ -531,21 +518,11 @@ def test_declined_checkpoint_never_emits_approved_confirmation_checklist(method_
 
 def test_source_pilot_keeps_literal_headers_six_x22_rows_and_unchanged_arithmetic():
     """Literal oracle independently checked against guideline PDF pages18/19/24."""
-    from report_agent.table_spec import read_prepared_tables, compile_header
     from report_agent.method_pack import bind_guideline
     guideline = {'type': 'SourceArtifact', 'id': 'actual-guideline', 'version': 1}
     template = {'type': 'SourceArtifact', 'id': 'actual-template', 'version': 1}
     guideline_hash = 'f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98'
     template_hash = 'be51ef3a26782a4c1563c4e496ec0f59828610e1841892c23d72ba43e0e26c99'
-    specs = read_prepared_tables(guideline, guideline_hash, template, template_hash)
-    evaluation = compile_header(specs['evaluation'])
-    assert evaluation['header_rows'] == [
-        ['分类', '评估指标', '分级', '', '基本分值（Rᵢⱼ）', '', '权重系数（γᵢⱼ）', '评估分值（Xᵢⱼ）', '说明'],
-        ['', '', '', '', '分值范围', '取值', '', '', '']]
-    assert {'start_row': 0, 'end_row': 1, 'start_col': 2, 'end_col': 3} in evaluation['header_merges']
-    assert compile_header(specs['ranking'])['header_rows'] == [['序号', '评估指标', '权重系数']]
-    assert specs['evaluation']['level_labels'] == {
-        'I': 'Ⅰ级（低度风险）', 'II': 'Ⅱ级（中度风险）', 'III': 'Ⅲ级（高度风险）', 'IV': 'Ⅳ级（极高风险）'}
     v1 = bind_guideline(guideline, guideline_hash)
     v2 = bind_guideline(guideline, guideline_hash, template, template_hash)
     assert v1['version'] == 1 and v2['version'] == 2
@@ -562,23 +539,20 @@ def test_source_pilot_keeps_literal_headers_six_x22_rows_and_unchanged_arithmeti
     assert descriptions[2:4] == ['坡体中存在顺坡向缓倾的硬性结构面或组合体'] * 2
     assert descriptions[4:] == ['坡体中存在其他方向结构面，且贯通和发育', '坡体中其他方向的结构面，不贯通，不发育']
     with pytest.raises(ValueError, match='HASH'):
-        read_prepared_tables(guideline, guideline_hash, template, '0' * 64)
-    with pytest.raises(ValueError, match='HASH'):
         bind_guideline(guideline, guideline_hash, template, '0' * 64)
 
 
-@pytest.mark.parametrize('tool_name', ['read_prepared_method', 'read_prepared_tables'])
-def test_prepared_adapters_bind_both_actual_source_hashes(method_commission, monkeypatch, tool_name):
+def test_prepared_adapters_bind_both_actual_source_hashes(method_commission, monkeypatch):
     from langchain_core.tools import StructuredTool
     from report_agent.hierarchical_tools import content_tools
-    from report_agent import method_pack, table_spec
+    from report_agent import method_pack
+    tool_name = 'read_prepared_method'
     fixture = method_commission
     calls = []
     def capture(*args):
         calls.append(args)
         return {'prepared': tool_name}
-    monkeypatch.setattr(method_pack if tool_name == 'read_prepared_method' else table_spec,
-                        'bind_guideline' if tool_name == 'read_prepared_method' else 'read_prepared_tables', capture)
+    monkeypatch.setattr(method_pack, 'bind_guideline', capture)
     function = next(t for t in content_tools(fixture.ws, 'coordinator') if t.__name__ == tool_name)
     result = StructuredTool.from_function(function).invoke({
         'source_ref': fixture.sources['guideline'], 'template_ref': fixture.sources['template']})
@@ -593,4 +567,4 @@ def test_prepared_adapters_bind_both_actual_source_hashes(method_commission, mon
 def test_prepared_capability_tools_do_not_expand_role_permissions(method_commission, role):
     from report_agent.hierarchical_tools import content_tools
     names = {t.__name__ for t in content_tools(method_commission.ws, role)}
-    assert not {'read_prepared_method', 'read_prepared_tables'} & names
+    assert 'read_prepared_method' not in names

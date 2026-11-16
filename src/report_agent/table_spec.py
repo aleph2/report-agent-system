@@ -1,7 +1,6 @@
 """Small source-bound table specifications projecting immutable saved records."""
 from __future__ import annotations
 
-from copy import deepcopy
 import math
 import re
 from string import Formatter
@@ -120,26 +119,8 @@ def column_keys(spec):
     return [key for leaf in _leaves(spec.headers) for key in leaf.columns]
 
 
-def validate_table_specs(specs, record_contract=None):
-    """Validate structure, then optional caller-supplied saved-record field capability."""
-    parsed = {role: TableSpec.model_validate(spec) for role, spec in specs.items()}
-    types = [spec.table_type for spec in parsed.values()]
-    if len(types) != len(set(types)):
-        raise ValueError('TABLE_SPEC_DUPLICATE_TYPE')
-    if record_contract is not None:
-        for spec in parsed.values():
-            if not set(spec.caption_bindings.values()) <= set(record_contract['values']):
-                raise ValueError('TABLE_SPEC_UNKNOWN_CAPTION_BINDING')
-            for group in spec.row_groups:
-                allowed = record_contract['rows'].get(group.binding)
-                required = set(spec.column_bindings.values()) | {s.binding for s in spec.sort}
-                for rule in group.merges:
-                    required.update(rule.group_by)
-                    if rule.when_empty:
-                        required.add(rule.when_empty)
-                if allowed is None or not required <= set(allowed):
-                    raise ValueError('TABLE_SPEC_UNKNOWN_ROW_BINDING: ' + group.binding)
-    return {role: spec.model_dump(mode='json') for role, spec in parsed.items()}
+def validate_table_specs(specs):
+    return {role: TableSpec.model_validate(spec).model_dump(mode='json') for role, spec in specs.items()}
 
 
 def compile_header(spec):
@@ -292,19 +273,3 @@ def assessment_tables(cs, db, plan, assessment_ref, table_records, result, label
             'affects_level': result.get('affects_level', not result.get('level_robust', False))})
     bodies['evaluation']['material_issues'] = issues
     return bodies['ranking'], bodies['evaluation'], citations
-
-
-def read_prepared_tables(guideline_ref, guideline_digest, template_ref, template_digest):
-    import json
-    from importlib.resources import files
-    data = json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text(encoding='utf-8'))
-    refs = {'guideline': guideline_ref, 'template': template_ref}
-    hashes = {'guideline': guideline_digest, 'template': template_digest}
-    for role, expected in data['source_hashes'].items():
-        if hashes[role] != expected:
-            raise ValueError('TABLE_SPEC_SOURCE_HASH_MISMATCH: ' + role)
-    specs = deepcopy(data['table_specs'])
-    for spec in specs.values():
-        spec['sources'] = [{'source_ref': refs[role], 'locator': f'page {page}', 'quote': ''}
-                           for role, pages in spec.pop('source_pages').items() for page in pages]
-    return validate_table_specs(specs)

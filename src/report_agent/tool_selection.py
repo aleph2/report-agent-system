@@ -23,7 +23,7 @@ TOOL_BACKENDS = dict.fromkeys((
     'read_assigned_page', 'read_commission_plan', 'read_content_export', 'read_content_index',
     'read_content_selection', 'read_context', 'read_decision_state', 'read_delivery_review_context',
     'read_execution_trace', 'read_feedback', 'read_file', 'read_layout_capabilities',
-    'read_object_index', 'read_planning_draft', 'read_prepared_method', 'read_prepared_tables',
+    'read_object_index', 'read_planning_draft', 'read_prepared_method',
     'read_qualitative_row', 'read_result', 'read_review_obligation_coverage', 'read_review_status',
     'read_source_page', 'read_summary_observations', 'read_task_assignment', 'read_task_supervision',
     'read_tool_observation', 'record_conflict', 'record_execution_decision', 'record_handoff',

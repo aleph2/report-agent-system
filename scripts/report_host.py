@@ -162,7 +162,8 @@ def prepare():
  requirements_ref=install_requirements(contents,captured[0],captured[1] if outline else None)
  from importlib.resources import files
  from report_agent.commission_planning import install_prepared_planning
- prepared_hashes=json.loads(files('report_agent').joinpath('methods/high_slope_tables.json').read_text(encoding='utf-8'))['source_hashes'].values()
+ guideline=json.loads(files('report_agent').joinpath('methods/high_slope_guideline.json').read_text(encoding='utf-8'))
+ prepared_hashes=(guideline['metadata']['file_sha256'],guideline['presentation_source']['file_sha256'])
  prepared_ids=[value['id'] for value in inputs.values() if value['sha256'] in prepared_hashes]
  prepared_refs=(contents.capture_sources(Actor('host','host','commission-prepared-data'),'host-prepared-planning-sources',prepared_ids)['result']['source_refs'] if prepared_ids else [])
  planning_preparation=install_prepared_planning(contents,[*captured,*prepared_refs])

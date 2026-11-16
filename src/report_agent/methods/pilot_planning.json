@@ -6,11 +6,6 @@
       "label": "《指南》指标体系法"
     },
     {
-      "id": "pilot-assessment-tables-v1",
-      "kind": "table",
-      "label": "《指南》表3-2及模板排序、风险评价表"
-    },
-    {
       "id": "pilot-weights-v2",
       "kind": "weight",
       "label": "《指南》表A.3-1",
@@ -60,9 +55,7 @@
       "locator": "line 21; chars 1-26",
       "quote_hash": "a5e973c79854406e485f507c66b7f7c049818ae62f30d54ce4371b5588ee4cde",
       "kind": "convention",
-      "entry_ids": [
-        "pilot-assessment-tables-v1"
-      ],
+      "entry_ids": [],
       "capabilities": [],
       "table_roles": []
     },

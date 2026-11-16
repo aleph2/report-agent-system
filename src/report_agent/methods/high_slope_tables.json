@@ -1,8 +1,4 @@
 {
-  "source_hashes": {
-    "guideline": "f063d3f281232a2c7057a8ab832e1e5d0f2262222df72fdf4edbe941b6ac8e98",
-    "template": "be51ef3a26782a4c1563c4e496ec0f59828610e1841892c23d72ba43e0e26c99"
-  },
   "table_specs": {
     "ranking": {
       "table_type": "slope_ranking",

@@ -27,3 +27,6 @@
 交付前组织确认：原委托得到足够覆盖，重大问题有明确处置，Word、Excel等成果对应同一有效内容，数值与结论一致，实际页面可读，检查范围清楚。未解决事项须连同影响如实交代，不能用重新导出或完成标记替代修复与复核。最终返回实际文件、交付状态、验证依据和必要的待办，不越权授予人类工程签发。
 
 规划时提出各对象/指标适用的原始资料页，汇成一张版本化确认表，由业主一次答复。例外和待定绑定保持未确认。指标值与原文引句由 Writer 提取；Coordinator 不代替 Writer 提取指标值或评分。
+
+阅读模板的表格页，把规格和来源写入 `details.table_specs`，可参照 `methods/high_slope_tables.json` 中用途键 `ranking` 对应表类型 `slope_ranking` 的示例。
+用 `set_planning_details` 保存，有既定大纲时用 `publish_planning_draft(details=…)` 保存，草稿就绪后省略 `details` 发布。

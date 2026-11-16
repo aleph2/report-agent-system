@@ -400,9 +400,6 @@ def check_plan(cs, plan, requirements_ref=None, *, db=None):
                                or bindings[0].get('source') not in sources)
                 except (KeyError, TypeError):
                     missing = True
-            elif capability == 'table_specs':
-                roles = item.get('table_roles', [])
-                missing = not roles or not set(roles) <= set(plan.get('table_specs', {}))
             elif capability in ('scope_boundary', 'deliverables'):
                 missing = not plan.get(capability)
             elif capability == 'inventory':
@@ -470,11 +467,6 @@ def require_complete(cs, plan, *, db=None):
     else:
         validate_owner_records(cs, db, plan)
     if not enabled(cs.store):
-        # Historical presentation contract only; every newly prepared host uses anchors.
-        from .handoff_release import manifest
-        if (manifest(cs.store).get('assessment_presentation') == 'table-spec-v1' and plan.get('method_pack')
-                and not {'ranking', 'evaluation'} <= set(plan.get('table_specs', {}))):
-            raise ActionRejected('ASSESSMENT_TABLE_SPECS_REQUIRED')
         return
     gaps = check_plan(cs, plan, plan.get('requirements_ref'), db=db)
     if gaps:

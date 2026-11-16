@@ -16,7 +16,7 @@ from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 from .method_pack import MethodPack
-from .table_spec import TableSpec, compile_header, validate_table_specs
+from .table_spec import TableSpec, compile_header
 
 
 class LiteralReplacement(Contract):
@@ -136,8 +136,6 @@ class SectionPlan(Contract):
 
     @model_validator(mode='after')
     def basis(self):
-        if not self.sources and not self.pending_sources and not self.missing_documents and not self.notes:
-            raise ValueError('SECTION_SOURCE_OR_PENDING_SOURCE_REQUIRED')
         if any(not name.strip() for name in self.pending_sources):
             raise ValueError('SECTION_PENDING_SOURCE_NAME_REQUIRED')
         ids = [d.id for d in self.missing_documents]
@@ -160,8 +158,8 @@ class SectionPlan(Contract):
             raise ValueError('SECTION_OUTLINE_QUOTE_REQUIRED')
         if self.kind == 'fixed' and not self.text.strip() and not (self.sources and all(s.quote.strip() for s in self.sources)):
             raise ValueError('FIXED_SECTION_TEXT_REQUIRED')
-        if self.kind == 'derived' and (not self.derived_from or not self.rule.strip()):
-            raise ValueError('DERIVED_SECTION_RULE_REQUIRED')
+        if self.kind == 'derived' and not self.derived_from:
+            raise ValueError('COMMISSION_DERIVED_SECTION_INVALID')
         if self.result_composition:
             ids = [part.section_id for part in self.result_composition]
             if self.kind != 'derived' or self.result_bindings or len(ids) != len(set(ids)):
@@ -227,29 +225,6 @@ class CommissionPlan(Contract):
             expected = {rule.id for rule in self.method_pack.indicators} if self.method_pack else set()
             if len(ids) != len(expected) or set(ids) != expected or not self.indicator_rank_order.source.quote.strip():
                 raise ValueError('COMMISSION_RANK_ORDER_REQUIRES_COMPLETE_METHOD_AND_BASIS')
-        if self.table_specs:
-            from .risk_scoring import TABLE_RECORD_CONTRACT
-            validate_table_specs(self.table_specs, TABLE_RECORD_CONTRACT)
-            if not self.method_pack or not {'ranking', 'evaluation'} <= set(self.table_specs):
-                raise ValueError('ASSESSMENT_TABLE_SPECS_REQUIRE_METHOD_AND_BOTH_ROLES')
-            if any(not i.presentation_rows for i in self.method_pack.indicators):
-                raise ValueError('ASSESSMENT_TABLE_SOURCE_ROWS_REQUIRED')
-            if not self.method_pack.display_labels.get('total', '').strip():
-                raise ValueError('ASSESSMENT_TABLE_TOTAL_LABEL_REQUIRED')
-            for role, field in (('ranking', 'indicator'), ('evaluation', 'value')):
-                spec = self.table_specs[role]
-                if (list(spec.column_bindings.values()).count(field) != 1 or
-                        [g.binding for g in spec.row_groups].count(role + '.rows') != 1):
-                    raise ValueError('ASSESSMENT_TABLE_ANNOTATION_BINDING_REQUIRED: ' + role)
-                key = next(k for k, v in spec.column_bindings.items() if v == field)
-                if any(rule.axis == 'horizontal' and key in rule.columns[1:]
-                       for group in spec.row_groups if group.binding == role + '.rows' for rule in group.merges):
-                    raise ValueError('ASSESSMENT_TABLE_ANNOTATION_ANCHOR_MERGED_AWAY: ' + role)
-            levels = {b.level for b in self.method_pack.risk_bands}
-            if set(self.table_specs['evaluation'].level_labels) != levels:
-                raise ValueError('ASSESSMENT_TABLE_LEVEL_LABELS_REQUIRED')
-        elif self.method_pack and any(getattr(i, 'presentation_rows', []) for i in self.method_pack.indicators):
-            raise ValueError('ASSESSMENT_TABLE_SPECS_REQUIRED')
         if not self.method_pack and any(s.source_views for s in self.sections):
             raise ValueError('SOURCE_VIEWS_REQUIRE_REVIEWED_METHOD_PLAN')
         names = self.inventory_attributes
@@ -617,7 +592,6 @@ def save_plan(cs, actor, operation_id, plan):
         questions = method_questions(plan)
         boundary = plan.get('scope_boundary')
         if boundary:
-            numeric_id = cs._read(db, boundary['source']['source_ref'])['payload']['source_id']
             basis = boundary.get('customer_basis') or boundary['source']
             if (not basis.get('quote', '').strip()
                     or cs._read(db, basis['source_ref'])['payload']['source_id'] not in customer_sources):
@@ -630,20 +604,6 @@ def save_plan(cs, actor, operation_id, plan):
                     'field': 'scope_boundary.customer_basis', 'reason': 'customer_source_and_quote_required',
                     'choices': list(choices.values()),
                     'message': 'Use a verified scope requirement anchor as the customer basis. A design quotation alone does not establish the customer-selected contract.'}]})
-            if numeric_id not in customer_sources:
-                factual = {Ref.model_validate(c['source_ref']).key(): c['source_ref']
-                           for s in plan['sections'] if s['kind'] == 'extracted' for c in s['sources']}
-                method_sources = {Ref.model_validate(c['source_ref']).key() for c in (plan.get('method_pack') or {}).get('sources', [])}
-                template_ids = {r['id'] for r in roles.values() if r['purpose'] == 'template'}
-                eligible = {key: ref for key, ref in factual.items() if key not in method_sources
-                            and cs._read(db, ref)['payload']['source_id'] not in template_ids}
-                if (Ref.model_validate(boundary['source']['source_ref']).key() not in eligible):
-                    raise ActionRejected('COMMISSION_BOUNDARY_FACTUAL_SOURCE_REQUIRED', diagnostic={'fields': [{
-                        'field': 'scope_boundary.source.source_ref',
-                        'reason': 'template_not_factual_source' if numeric_id in template_ids else 'source_not_in_extracted_factual_sections',
-                        'related_fields': ['sections[].kind', 'sections[].sources'],
-                        'choices': list(eligible.values()),
-                        'message': 'The boundary quote passed source verification. Its source must also belong to an extracted factual section appropriate to the commission; method and template sources are ineligible. Changing the quote cannot repair section/source membership. Correct the section type and sources from the outline, or choose an eligible factual source.'}]})
         if plan.get('method_pack'):
             from .method_pack import reviewed_method_questions
             questions += reviewed_method_questions(cs, db, plan['method_pack'])

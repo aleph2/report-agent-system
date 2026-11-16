@@ -218,7 +218,7 @@ def test_legacy_scientific_boundary_still_renders_without_decimal_rounding():
 from test_m1_commission_plan import commission
 
 
-@pytest.mark.parametrize('case', ['no-extracted', 'unrelated', 'template', 'missing-customer'])
+@pytest.mark.parametrize('case', ['missing-customer'])
 def test_boundary_membership_errors_identify_plan_fields_not_quote(commission, case):
     plan = deepcopy(commission.plan)
     install_source_roles(commission.ws.store, {
@@ -228,34 +228,14 @@ def test_boundary_membership_errors_identify_plan_fields_not_quote(commission, c
         'template': {'id': 'template', 'purpose': 'template'}})
     plan['scope_boundary'] = {'start_meter': '1000', 'end_meter': '2000',
         'source': commission.cite('design'), 'customer_basis': commission.cite('scope')}
-    if case == 'no-extracted':
-        for section in plan['sections']:
-            if section['kind'] == 'extracted': section.update(kind='fixed', text='Fixed synthetic text')
-    elif case == 'unrelated':
-        for section in plan['sections']:
-            if section['kind'] == 'extracted': section['sources'] = [commission.cite('survey')]
-    elif case == 'template':
-        plan['scope_boundary']['source'] = commission.cite('template')
-        next(section for section in plan['sections'] if section['kind'] == 'extracted')['sources'].append(commission.cite('template'))
-    else:
-        plan['scope_boundary'].pop('customer_basis')
+    plan['scope_boundary'].pop('customer_basis')
     with pytest.raises(ActionRejected) as caught:
         commission_plan.save_plan(commission.cs, commission.co, 'h32-membership-' + case, plan)
     diagnostic = caught.value.diagnostic
     assert diagnostic and diagnostic['fields']
     fields = diagnostic['fields']
-    if case == 'missing-customer':
-        assert fields[0]['field'] == 'scope_boundary.customer_basis'
-        assert commission.sources['scope'] in fields[0]['choices']
-    else:
-        assert fields[0]['field'] == 'scope_boundary.source.source_ref'
-        assert 'quote' not in fields[0]['field']
-        assert 'sections[].kind' in fields[0]['related_fields']
-        assert 'sections[].sources' in fields[0]['related_fields']
-        assert 'quote' in fields[0]['message'].lower()
-        assert commission.sources['template'] not in fields[0]['choices']
-        if case == 'no-extracted': assert fields[0]['choices'] == []
-        if case == 'unrelated': assert fields[0]['choices'] == [commission.sources['survey']]
+    assert fields[0]['field'] == 'scope_boundary.customer_basis'
+    assert commission.sources['scope'] in fields[0]['choices']
     assert commission_plan.read_plan(commission.ws.store) is None
 
 

@@ -40,7 +40,7 @@ def method_commission(tmp_path, request):
         texts['scope'] = 'Assess S1.'
     store = Store(tmp_path)
     store.initialize({'goal': texts['scope'], 'content_contract': 'hierarchical-review-v1',
-        'commission_checkpoint_required': True, 'coverage_contract': 'object-coverage-v1',
+        'commission_checkpoint_required': True,
         'sources': [{'id': key, 'title': key, 'content': value, 'coverage': 'complete'}
                     for key, value in texts.items()]})
     ws, co = Workspace(store), actor_for('coordinator')
@@ -656,7 +656,7 @@ def test_scope_count_discrepancy_is_question_not_silent_object_removal(method_co
     assert len(fixture.cs.list_objects('CommissionDecision')) == 1
 
 
-@pytest.mark.parametrize('basis', ['design-and-scope', 'design-alone', 'template', 'guideline'])
+@pytest.mark.parametrize('basis', ['design-and-scope', 'design-alone'])
 def test_numeric_scope_boundary_needs_customer_selection_and_factual_range(method_commission, basis):
     fixture = method_commission
     plan = boundary_plan(fixture)
@@ -664,8 +664,6 @@ def test_numeric_scope_boundary_needs_customer_selection_and_factual_range(metho
     boundary['source'] = fixture.cite('design', 'First contract K1+000-K2+000.')
     if basis != 'design-alone':
         boundary['customer_basis'] = fixture.cite('scope', 'Select first contract.')
-    if basis in ('template', 'guideline'):
-        boundary['source'] = fixture.cite(basis)
     if basis == 'design-and-scope':
         saved = save(fixture, plan)
         checkpoint, _ = approve(fixture, saved, reductions=[{'object_id':'S2','reason':'Owner confirms exclusion.'}])

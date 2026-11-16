@@ -51,7 +51,7 @@ def five(tmp_path, monkeypatch, request):
         texts['scope'] += ' ' + rank_quote
     store = Store(tmp_path)
     store.initialize({'goal':texts['scope'],'content_contract':'hierarchical-review-v1',
-        'commission_checkpoint_required':True,'coverage_contract':'object-coverage-v1',
+        'commission_checkpoint_required':True,
         'sources':[{'id':name,'title':name,'content':text,'coverage':'complete'} for name,text in texts.items() if name != 'design']})
     ws, co = Workspace(store), actor_for('coordinator'); cs = ContentStore(store)
     pdf_id = Catalog(store).import_file('design.pdf', pdf_bytes([texts['design']]))['source']['id']

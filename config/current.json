@@ -25,7 +25,6 @@
   },
   "manifest_profiles": {
     "content_contract": "hierarchical-review-v1",
-    "coverage_contract": "object-coverage-v1",
     "review_entrypoint": "delegated-reviewer-v1",
     "review_execution_mode": "native-reviewer-v2",
     "delegation_prompt_profile": "separate-description-v1",
@@ -35,7 +34,6 @@
     "content_input_profile": "relation-endpoints-v2",
     "report_expression_profile": "reader-expression-v2",
     "context_projection": "review-materials-v1",
-    "history_projection_profile": "exact-history-v1",
     "review_submission_contract": "task-scope-selectors-v1"
   },
   "grant_token_limit": 200000000,

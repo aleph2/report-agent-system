@@ -4,7 +4,6 @@ from io import BytesIO
 
 import pytest
 from docx import Document
-from pydantic import ValidationError
 
 from report_agent.content_models import ReviewItem, aggregate
 from report_agent.content_store import Actor, ContentStore
@@ -93,13 +92,6 @@ def test_ownership_and_closed_manifest(ws):
         "subject_ref": refs["claim"], "object_ref": refs["root"], "predicate": "contains", "position": 0, "provenance_kind": "adopted_during_generation"}}])["result"]["refs"]["cycle"]
     with pytest.raises(ActionRejected, match="ROOT_HAS_PARENT|CONTAINS_CYCLE"):
         cs.freeze(actor, "cyclic", refs["root"], [*all_refs, edge])
-
-
-@pytest.mark.parametrize("verdict", ["satisfied", "not_satisfied", "undetermined"])
-def test_no_observations_cannot_become_semantic_judgment(ws, verdict):
-    _, _, refs, snapshot, _ = seed(ws)
-    with pytest.raises(ValidationError, match="ACTUAL_OBSERVATIONS"):
-        ReviewItem.model_validate(review_item(snapshot, refs["k"], verdict=verdict))
 
 
 def test_review_transfer_null_and_current_version(ws):

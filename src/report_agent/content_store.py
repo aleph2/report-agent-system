@@ -440,11 +440,8 @@ class ContentStore:
         if workbook_refs:
             payload['workbook_refs'] = sorted(workbook_refs,key=lambda r:Ref.model_validate(r).key())
             payload['manifest_digest'] = digest({'refs':ordered,'workbook_refs':payload['workbook_refs']})
-        if self.store.manifest.get("coverage_contract"):
-            from .review_coverage import CONTRACT
-            if self.store.manifest["coverage_contract"] != CONTRACT:
-                raise ActionRejected("UNKNOWN_COVERAGE_CONTRACT")
-            payload["coverage_contract"] = CONTRACT
+        from .review_coverage import CONTRACT
+        payload["coverage_contract"] = CONTRACT
         if commission_plan_ref:
             from .commission_plan import snapshot_outcomes
             payload['commission_plan_ref'] = commission_plan_ref

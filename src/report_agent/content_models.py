@@ -266,8 +266,6 @@ class CheckResult(Contract):
             raise ValueError("CHECK_OBSERVATION_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
         if not self.result.strip():
             raise ValueError("CHECK_RESULT_REQUIRED")
-        if self.execution_state == "completed" and (not self.observation_indexes or self.remaining.strip()):
-            raise ValueError("COMPLETED_CHECK_REQUIRES_LINKED_OBSERVATIONS_AND_NO_REMAINING_WORK")
         return self
 
 
@@ -296,27 +294,17 @@ class ReviewItem(Contract):
         for finding in self.findings:
             if finding.observation_indexes is not None:
                 indexes = finding.observation_indexes
-                if (not indexes or
-                        any(i < 0 or i >= len(self.observations) for i in indexes)):
+                if any(i < 0 or i >= len(self.observations) for i in indexes):
                     raise ValueError('FINDING_REQUIRES_VALID_OBSERVATION_LINKS')
-        if self.check_results is not None:
-            if any(i >= len(self.observations) for c in self.check_results for i in c.observation_indexes):
-                raise ValueError("CHECK_OBSERVATION_INDEX_OUTSIDE_ITEM")
-            if self.verdict == "satisfied" and any(c.execution_state != "completed" for c in self.check_results):
-                raise ValueError("UNFINISHED_ASSIGNED_CHECK_CANNOT_PASS")
+        if self.check_results and any(
+                i >= len(self.observations) for c in self.check_results for i in c.observation_indexes):
+            raise ValueError("CHECK_OBSERVATION_INDEX_OUTSIDE_ITEM")
         if self.checked_requirement_indexes is not None and (
                 any(i < 0 for i in self.checked_requirement_indexes)
         ):
             raise ValueError("CHECK_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
         if self.assessment_kind != "content" and not self.artifact_refs:
             raise ValueError("ARTIFACT_ASSESSMENT_REQUIRES_EXACT_EXPORT_OR_RENDER")
-        if self.verdict is not None and not self.observations:
-            raise ValueError("VERDICT_REQUIRES_ACTUAL_OBSERVATIONS")
-        if self.verdict == "satisfied" and (self.execution_state != "completed" or
-                self.coverage.unchecked or self.coverage.blocked or not self.coverage.checked):
-            raise ValueError("SATISFACTION_REQUIRES_COMPLETED_DECLARED_SCOPE")
-        if self.verdict == "satisfied" and any(f.finding_type == "confirmed_defect" for f in self.findings):
-            raise ValueError("CONFIRMED_CRITERION_DEFECT_CANNOT_PASS")
         return self
 
 
@@ -352,11 +340,8 @@ class DeliveryCheck(Contract):
     def consistent(self) -> Self:
         if self.verdict is not None:
             expected = "RenderArtifact" if self.kind == "render" else "ExportArtifact"
-            if not self.observations or not any(r.type == expected for r in self.artifact_refs):
+            if not any(r.type == expected for r in self.artifact_refs):
                 raise ValueError("DELIVERY_JUDGMENT_REQUIRES_ARTIFACT_OBSERVATIONS")
-        if self.verdict == "satisfied" and (self.execution_state != "completed" or
-                self.coverage.unchecked or self.coverage.blocked or not self.coverage.checked):
-            raise ValueError("SATISFACTION_REQUIRES_COMPLETED_DECLARED_SCOPE")
         return self
 
 

@@ -202,12 +202,12 @@ async def test_current_real_profile_writer_sdk_reopens_same_owner_without_replay
 
     seed(ws)
     literal = 'deepcut ' + 'x' * 7500 + ' END'
-    operational = dict(content_contract='hierarchical-review-v1', coverage_contract='object-coverage-v1',
+    operational = dict(content_contract='hierarchical-review-v1',
         review_entrypoint='delegated-reviewer-v1', review_execution_mode='native-reviewer-v2',
         delegation_prompt_profile='separate-description-v1', context_policy='stateful-tools-v2',
         review_interface_profile='review-interfaces-v4', operation_identity_profile='native-tool-runtime-v1',
         content_input_profile='relation-endpoints-v2', report_expression_profile='reader-expression-v2',
-        context_projection='review-materials-v1', history_projection_profile='exact-history-v1',
+        context_projection='review-materials-v1',
         tool_discovery_profile='agent-search-v2', review_submission_contract='task-scope-selectors-v1')
     ws.store.set('manifest', dict(operational, synthetic=True, goal='Continue the same saved producer work.',
         sources=[dict(id='s', title='Synthetic', content='\n'.join([literal]*10), coverage='partial')]))

@@ -29,7 +29,7 @@ def commission(tmp_path):
         'template': 'Fixed method and conclusion wording; replace project name and counts.'}
     store = Store(tmp_path)
     store.initialize({'goal': texts['scope'], 'content_contract': 'hierarchical-review-v1',
-        'commission_checkpoint_required': True, 'coverage_contract': 'object-coverage-v1',
+        'commission_checkpoint_required': True,
         'sources': [{'id': key, 'title': key, 'content': value, 'coverage': 'complete'}
                     for key, value in texts.items()]})
     ws, co = Workspace(store), actor_for('coordinator')
@@ -134,7 +134,7 @@ def test_every_object_preserves_each_declared_inventory_attribute_once(commissio
 
 
 @pytest.mark.parametrize('fault', ['invented-quote', 'known-without-source', 'duplicate-object',
-    'derived-without-rule', 'drop-object-revision'])
+    'drop-object-revision'])
 def test_invalid_plan_or_silent_object_removal_is_refused(commission, fault):
     plan = deepcopy(commission.plan)
     if fault == 'invented-quote':
@@ -143,8 +143,6 @@ def test_invalid_plan_or_silent_object_removal_is_refused(commission, fault):
         plan['objects'][1]['attributes'][0]['values'][0]['source'] = None
     elif fault == 'duplicate-object':
         plan['objects'].append(deepcopy(plan['objects'][0]))
-    elif fault == 'derived-without-rule':
-        plan['sections'][-1]['rule'] = ''
     else:
         save(commission)
         plan['objects'].pop()

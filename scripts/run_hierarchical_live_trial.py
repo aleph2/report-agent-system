@@ -64,7 +64,7 @@ def prepare(baseline, destination):
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
     manifest = {k: v for k, v in manifest.items() if k in {"goal", "sources", "scope_instruction"}}
-    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1",
+    manifest.update(content_contract="hierarchical-review-v1",
                     trial_service="deepseek-official", review_entrypoint="delegated-reviewer-v1")
     store = Store(destination)
     store.initialize(manifest)
@@ -126,7 +126,7 @@ def prepare_inputs_only(baseline, destination):
     receipt = prepare_clean(baseline, destination)
     store = Store(destination)
     manifest = store.manifest
-    manifest.update(content_contract="hierarchical-review-v1", coverage_contract="object-coverage-v1",
+    manifest.update(content_contract="hierarchical-review-v1",
                     trial_service="deepseek-official", review_entrypoint="delegated-reviewer-v1")
     store.set("manifest", manifest)
     with store.connect() as db:

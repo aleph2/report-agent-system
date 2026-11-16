@@ -328,9 +328,6 @@ def entry_plan_gaps(cs, db, item, plan):
         bindings = [b for b in plan.get('method_conventions', []) if b.get('key') == 'weights']
         if len(bindings) != 1 or bindings[0].get('strategy_id') != entry['strategy_id']:
             gaps.append(('method_conventions', 'Use the linked reviewed weight strategy'))
-    for role, spec in entry['table_specs'].items():
-        if not same(TableSpec, plan.get('table_specs', {}).get(role), spec):
-            gaps.append(('table_specs.' + role, 'Attach the exact reviewed table specification'))
     return gaps
 
 
@@ -476,7 +473,11 @@ class CandidateDisposition(Contract):
     owner_record_id: str | None = None
 
 
-class PlanDetails(Contract):
+class TablePlanningDetails(Contract):
+    table_specs: dict[str, TableSpec] | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+class PlanDetails(TablePlanningDetails):
     report_title: str = ''
     inventory_attributes: list[str] = Field(min_length=1)
     deliverables: list[str] = Field(min_length=1)
@@ -521,12 +522,14 @@ def _assemble(cs, db):
     items = draft['items']
     plan = {key: list(items.get(kind, {}).values()) for kind, key in
             [('section', 'sections'), ('object', 'objects'), ('reconciliation', 'reconciliations'), ('question', 'open_questions')]}  # type: dict
-    plan.update(items.get('details', {}).get('details', {}))
+    details = items.get('details', {}).get('details', {})
+    plan.update(details)
     plan['open_questions'] = [q['text'] for q in plan['open_questions'] if not q['resolved']]
     plan['reconciliations'] = [{k: v for k, v in r.items() if k != 'reconciliation_id'} for r in plan['reconciliations']]
     plan['requirements_ref'] = requirements['ref']
     plan['conventions'] = []
-    plan['method_conventions'], plan['table_specs'] = [], {}
+    plan['method_conventions'] = []
+    plan.setdefault('table_specs', {})
     if items.get('boundary'):
         plan['scope_boundary'] = items['boundary']['boundary']
     anchors = {a['id']: a for a in requirements['payload']['anchors']}
@@ -554,11 +557,12 @@ def _assemble(cs, db):
             if plan['method_conventions'] and plan['method_conventions'] != [binding]:
                 raise ActionRejected('PLANNING_WEIGHT_LINK_CONFLICT')
             plan['method_conventions'] = [binding]
-        for role, table in entry['table_specs'].items():
-            table = TableSpec.model_validate(table).model_dump(mode='json')
-            if role in plan['table_specs'] and plan['table_specs'][role] != table:
-                raise ActionRejected('PLANNING_TABLE_LINK_CONFLICT: ' + role)
-            plan['table_specs'][role] = deepcopy(table)
+        if 'table_specs' not in details:
+            for role, table in entry['table_specs'].items():
+                table = TableSpec.model_validate(table).model_dump(mode='json')
+                if role in plan['table_specs'] and plan['table_specs'][role] != table:
+                    raise ActionRejected('PLANNING_TABLE_LINK_CONFLICT: ' + role)
+                plan['table_specs'][role] = deepcopy(table)
     if pack := plan.get('method_pack'):
         if binding := _owner_rank_binding(plan['conventions'], pack['indicators']):
             plan['indicator_rank_order'] = binding
@@ -821,7 +825,7 @@ def _save_item(cs, actor, db, kind, item):
     elif kind == 'section' and value.get('extraction'):
         raise ActionRejected('SECTION_OUTPUT_IS_SYSTEM_OWNED')
     models = {'section': SectionPlan, 'object': InventoryObject, 'boundary': ScopeBoundary,
-              'reconciliation': PlanningReconciliation, 'details': PlanDetails, 'question': PlanningQuestion}
+              'reconciliation': PlanningReconciliation, 'details': PlanDetails, 'table_details': TablePlanningDetails, 'question': PlanningQuestion}
     basis_binding = None
     if kind == 'boundary' and 'customer_basis_anchor_id' in value:
         from .commission_requirements import read_requirements
@@ -856,12 +860,16 @@ def _save_item(cs, actor, db, kind, item):
     elif kind != 'disposition':
         raise ActionRejected('PLANNING_ITEM_KIND_UNKNOWN')
     _validate_sources(cs, db, actor, value, planning=True)
+    if kind == 'table_details':
+        kind = 'details'
     key = (value['section_id'] if kind in ('section', 'section_judgment') else value['object_id'] if kind in ('object', 'disposition') else
            kind if kind in ('details', 'boundary') else
            value['section_id'] + ':' + value['substitution']['requested_source'] if kind == 'substitution' else
            value['question_id'] if kind == 'question' else value['reconciliation_id'])
     draft = plan_inputs.get_draft(db, {'revision': 0, 'items': {}})
     previous = draft['items'].setdefault(kind, {}).get(key)
+    if kind == 'details' and previous:
+        value = {**previous, **value}
     changed = previous != value
     if changed:
         draft['items'][kind][key] = value
@@ -1167,7 +1175,7 @@ def planning_tools(cs, actor, *, result_fits=None):
     set_status.__name__ = 'set_requirement_status'
 
     def link(operation_id: str, anchor_id: str, entry_id: str, interpretation: str) -> dict:
-        """Link one convention to an eligible reviewed entry ID. The system attaches its data and derives obligations; never transcribe methods, weights or tables."""
+        """Link one convention to an eligible reviewed entry ID. The system attaches its data and derives obligations; never transcribe methods or weights."""
         return link_convention(cs, actor(), operation_id, anchor_id, entry_id, interpretation)
     link.__name__ = 'link_convention'
 
@@ -1216,7 +1224,13 @@ def planning_tools(cs, actor, *, result_fits=None):
         return review(cs, actor(), operation_id, [r.model_dump(mode='json') for r in reviews])
 
     if plan_inputs.get_skeleton(cs.store):
-        return assertion_tools + [expose(f) for f in [publish_planning_draft, read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
+        def publish_with_tables(operation_id: str, details: TablePlanningDetails | None = None) -> dict:
+            """Supply details.table_specs to save table specifications in the draft. Omit details to publish the saved draft."""
+            if details is not None and details.table_specs is not None:
+                return save_item(cs, actor(), operation_id, 'table_details', details.model_dump(mode='json'))
+            return publish_planning_draft(operation_id)
+        publish_with_tables.__name__ = publish_planning_draft.__name__
+        return assertion_tools + [expose(f) for f in [publish_with_tables, read_planning_draft, set_scope_boundary, add_object, set_section_judgment,
             set_candidate_disposition, resolve_skeleton_choice, add_reconciliation, add_question, review_carried_items]]
     return assertion_tools + [expose(function) for function in [publish_planning_draft, read_planning_draft, set_status, link, set_scope_boundary, set_planning_details,
             add_object, add_section, add_reconciliation, add_question]]
@@ -1228,22 +1242,17 @@ def install_prepared_planning(cs, source_refs):
     import hashlib
     from importlib.resources import files
     from .method_pack import bind_guideline
-    from .table_spec import read_prepared_tables
     from .commission_requirements import read_requirements
     resources = files('report_agent').joinpath('methods')
-    tables = json.loads(resources.joinpath('high_slope_tables.json').read_text(encoding='utf-8'))
+    guideline = json.loads(resources.joinpath('high_slope_guideline.json').read_text(encoding='utf-8'))
     profile = json.loads(resources.joinpath('pilot_planning.json').read_text(encoding='utf-8'))
     sources = {cs.read(ref)['payload']['file_digest']: ref for ref in source_refs}
-    bound = {role: sources.get(sha) for role, sha in tables['source_hashes'].items()}
-    if all(bound.values()):
-        guide, template = bound['guideline'], bound['template']
-        gh, th = tables['source_hashes']['guideline'], tables['source_hashes']['template']
+    gh, th = guideline['metadata']['file_sha256'], guideline['presentation_source']['file_sha256']
+    guide, template = sources.get(gh), sources.get(th)
+    if guide and template:
         pack = bind_guideline(guide, gh, template, th)
-        specs = read_prepared_tables(guide, gh, template, th)
         pins = [{'ref': guide, 'file_digest': gh}, {'ref': template, 'file_digest': th}]
-        entries = [{**entry, 'source_pins': pins,
-                    **({'table_specs': specs} if entry['kind'] == 'table' else {'method_pack': pack})}
-                   for entry in profile['entries']]
+        entries = [{**entry, 'source_pins': pins, 'method_pack': pack} for entry in profile['entries']]
         install_reviewed_entries(cs, entries)
     record = read_requirements(cs)
     classifications = []

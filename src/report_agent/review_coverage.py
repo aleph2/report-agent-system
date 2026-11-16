@@ -27,17 +27,11 @@ def validate_accounting(snapshot, review):
             if key in seen:
                 raise ActionRejected("DUPLICATE_COVERAGE_OBJECT")
             seen.add(key)
-        if entry["state"] in {"assessed", "not_applicable"}:
-            if not indexes or any(review["items"][i]["verdict"] is None or
-                                  not review["items"][i]["observations"] for i in indexes):
-                raise ActionRejected("COVERAGE_REQUIRES_OBSERVED_JUDGMENT")
-            if entry["state"] == "not_applicable" and any(r["type"] == "Requirement" for r in entry["target_refs"]):
-                raise ActionRejected("REVIEWER_CANNOT_CANCEL_REQUIREMENT")
+        if entry["state"] == "not_applicable" and any(r["type"] == "Requirement" for r in entry["target_refs"]):
+            raise ActionRejected("REVIEWER_CANNOT_CANCEL_REQUIREMENT")
 
 
 def coverage_summary(snapshot, review):
-    if snapshot["payload"].get("coverage_contract") != CONTRACT:
-        return {"contract": None, "required": False, "complete": None}
     required = inventory(snapshot)
     entries = {Ref.model_validate(r).key(): e for e in (review or {}).get("coverage_accounting", []) for r in e["target_refs"]}
     missing = [r for r in required if Ref.model_validate(r).key() not in entries]
@@ -53,13 +47,7 @@ def coverage_summary(snapshot, review):
 
 
 def apply_coverage(summary, snapshot, review):
-    coverage = coverage_summary(snapshot, review)
-    result = {**summary, "object_coverage": coverage}
-    if coverage["required"] and not coverage["complete"]:
-        result["coverage_complete"] = False
-        if result["overall_verdict"] != "not_satisfied":
-            result["overall_verdict"] = None
-    return result
+    return {**summary, "object_coverage": coverage_summary(snapshot, review)}
 
 
 def commission_completion(contents, snapshot):

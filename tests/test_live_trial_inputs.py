@@ -48,7 +48,6 @@ def test_clean_import_keeps_exact_ocr_locations_and_excludes_feedback(tmp_path):
     assert fresh.get('content_final_review') is None
     assert fresh.get('rubric_reviews') is None
     assert not ContentStore(fresh).list_objects()
-    assert fresh.manifest['coverage_contract'] == 'object-coverage-v1'
     assert not (destination / 'checkpoints.db').exists()
 
 

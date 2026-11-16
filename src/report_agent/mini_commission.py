@@ -80,7 +80,7 @@ def prepare_mini_commission(inputs, destination, *, planning_only=False, runtime
         store.initialize({'goal':'按模拟委托范围对青禾路堑工程进行资料核对及评估。',
             'sources':[{'id':'system-method','title':METHOD_SOURCE_NAME,'filename':METHOD_SOURCE_NAME,
                         'content':method_text,'sha256':method_hash,'coverage':'complete'}],
-            'content_contract':'hierarchical-review-v1','coverage_contract':'object-coverage-v1',
+            'content_contract':'hierarchical-review-v1',
             'commission_checkpoint_required':True,'assembly_contract':'system-assembler-v1', **(runtime_profiles or {})})
         ws, cs, co = Workspace(store), ContentStore(store), actor_for('coordinator')
         ws.initialize()
