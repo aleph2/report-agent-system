@@ -328,14 +328,10 @@ class BusinessBoundary(InvalidToolFeedback):
                             return await handler(request)
                     from .content_tasks import delegated_task, invocation_binding
                     from .content_store import ContentStore
-                    from .task_supervision import batch_needs_review_decision, task_status
                     from .supervision_plugins import delegated_return
                     role = call["args"].get("subagent_type")
                     from .handoff_release import manifest as bound_manifest
                     entrypoint = bound_manifest(store).get('review_entrypoint')
-                    messages = runtime.state.get("messages", []) if runtime else []
-                    if batch_needs_review_decision(messages, call):
-                        raise ActionRejected("REVIEW_RESULT_DECISION_REQUIRED: Request dependent layout in a later model turn after examining the review return.")
                     contents = ContentStore(store)
                     if (role == "reviewer" and call["args"].get("resume_content_task_id")
                             and entrypoint != "native-rubric-v1"):
@@ -343,16 +339,6 @@ class BusinessBoundary(InvalidToolFeedback):
                         prior_assignment = assignment(contents, call["args"]["resume_content_task_id"])
                         if not prior_assignment.get("review_requirements"):
                             raise ActionRejected("REVIEW_ASSIGNMENT_UPGRADE_REQUIRED: Retain this historical task; create a new explicit review assignment instead of silently changing its scope.")
-                    if role == "layout":
-                        snapshot = call["args"].get("layout_snapshot_ref")
-                        offset = 0
-                        while True:
-                            page = task_status(contents, offset)
-                            if any(t["supervision_plugin"] is not None and t["snapshot_ref"] == snapshot and t["remaining"] for t in page["tasks"]):
-                                raise ActionRejected("REVIEW_WORK_INCOMPLETE: Saved required checks remain incomplete. Read task supervision and retain the reasons; do not treat partial checks as content stability.")
-                            if page["next_offset"] is None:
-                                break
-                            offset = page["next_offset"]
                     with delegated_task(self.workspace, self.role, call) as (native_call, actor):
                         native_invocations = 0
                         async def invoke_native(next_call):

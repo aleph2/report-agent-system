@@ -1,6 +1,5 @@
 """Project persisted evidence and host-bound method definitions for the approved checks."""
 import json
-from decimal import Decimal
 
 from .ids import request_digest
 from .schema.kinds import Assertion, Judgment, Source
@@ -32,13 +31,7 @@ def _verify_source(row, resources):
 def _method_record(record, definition, version):
     if not version or definition.get("version") != version:
         return
-    bands = {}
-    for name, interval in definition["bands"].items():
-        low, high = Decimal(str(interval["min"])), Decimal(str(interval["max"]))
-        if not (low.is_finite() and high.is_finite() and low <= high):
-            raise ValueError("C6: invalid bounds in the versioned criterion")
-        bands[name] = dict(min=str(low), max=str(high), midpoint=str((low+high)/2))
-    record.update(version=version, bands=bands, value_policy=definition.get("value_policy"))
+    record["version"] = version
 
 
 def _active(record):

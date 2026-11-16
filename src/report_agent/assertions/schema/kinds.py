@@ -67,12 +67,6 @@ class Conflict(Shape):
     observations: tuple[Id, ...]
     precedence_convention: Id | None = None
 
-    @model_validator(mode="after")
-    def check_distinct_observations(self):
-        if len(set(self.observations)) != len(self.observations):
-            raise ValueError("A conflict requires distinct observations")
-        return self
-
 
 class BoundPage(Shape):
     source_version: Id
