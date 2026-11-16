@@ -575,8 +575,6 @@ def record_issue_routes(cs, actor, operation_id, routes, *, note):
     """Trusted operator records locations only; no issue content or engineering decision changes."""
     if actor.id != 'operator' or actor.role != 'operator':
         raise ActionForbidden('FORBIDDEN: issue routes require trusted operator')
-    if (not isinstance(note, str)) or (not isinstance(routes, dict)):
-        raise ActionRejected('ASSEMBLY_OPERATOR_ROUTE_NOTE_AND_ROUTES_REQUIRED')
     def execute(db):
         plan, decision = _confirmed(cs, db)
         {i['id'] for i in decision['payload'].get('required_material_issues', [])}

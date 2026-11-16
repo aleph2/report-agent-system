@@ -105,8 +105,6 @@ def content_input_profile(store):
 
 
 def load_prompt(name):
-    if not isinstance(name, str):
-        raise ValueError('INVALID_INTERNAL_PROMPT_NAME')
     return (RULES / (name + '.md')).read_text(encoding='utf-8')
 
 

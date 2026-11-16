@@ -8,7 +8,7 @@ import re
 from unicodedata import normalize
 from typing import NoReturn, get_type_hints
 
-from pydantic import Field, ValidationError, create_model
+from pydantic import Field, create_model
 
 from .content_models import Contract, SourceCitation, InventoryValue, InventoryAttribute, InventoryObject
 from .commission_plan import SourceSubstitution, Reconciliation
@@ -132,39 +132,6 @@ PLANNING_TOOLS = {'read_planning_draft', 'set_requirement_status', 'link_convent
 
 
 # Domain rules cannot all be expressed as JSON Schema. Keep their repair paths explicit.
-ERROR_FIELDS = {
-    'COMMISSION_REQUIREMENT_ANCHOR_UNKNOWN': 'anchor_id',
-    'REQUIREMENT_CLASSIFICATION_REQUIRED': 'anchor_id',
-    'REQUIREMENT_ENTRY_NOT_ELIGIBLE': 'entry_id',
-    'REVIEWED_ENTRY_NOT_OFFERED': 'entry_id',
-    'REVIEWED_ENTRY_SOURCE_CHANGED': 'entry_id',
-    'SECTION_OUTLINE_ANCHOR_REQUIRED': 'outline_anchor_id',
-    'FIXED_SECTION_SOURCE_SPAN_REQUIRED': 'source_span',
-    'SOURCE_SPAN_OR_CITATIONS_REQUIRED': 'sources',
-    'SOURCE_SPAN_PAGE_ORDER': 'source_span.end_page',
-    'SOURCE_SPAN_PROFILE_REQUIRED': 'source_span.profile_id',
-    'TEXT_PROFILE_SOURCE_CHANGED': 'source_span.source_ref',
-    'SOURCE_SPAN_PAGE_TEXT_UNAVAILABLE': 'source_span.start_page',
-    'SOURCE_SPAN_ENDPOINT_AMBIGUOUS_OR_MISSING': 'source_span.start_sentence',
-    'SOURCE_SPAN_ENDPOINT_ORDER': 'source_span.end_sentence',
-    'SOURCE_SPAN_RAW_ENDPOINT_AMBIGUOUS_OR_MISSING': 'source_span.start_sentence',
-    'SECTION_PENDING_SOURCE_NAME_REQUIRED': 'pending_sources',
-    'SECTION_SOURCE_RESOLUTION_DUPLICATE': 'pending_sources',
-    'SECTION_SUBSTITUTION_NOT_REQUESTED': 'source_substitutions',
-    'SECTION_SUBSTITUTION_REPLACEMENT_NOT_IN_PLAN': 'sources',
-    'SECTION_OUTLINE_QUOTE_REQUIRED': 'outline',
-    'FIXED_SECTION_TEXT_REQUIRED': 'source_span',
-    'COMMISSION_DERIVED_SECTION_INVALID': 'derived_from',
-    'SOURCE_VIEW_FIXED_ORDERED_SOURCES_REQUIRED': 'source_views',
-    'SOURCE_VIEW_SAME_SOURCE_PAGE_REQUIRED': 'source_views',
-    'SOURCE_VIEW_CONTIGUOUS_INDEXES_REQUIRED': 'source_indexes',
-    'SOURCE_VIEW_CROP_INVALID': 'crop',
-    'RESULT_BINDING_TARGET_REQUIRED': 'object_id',
-    'RESULT_BINDING_LEVEL_REQUIRED': 'level',
-    'INVENTORY_VALUE_REQUIRES_SOURCE': 'source',
-}
-
-
 def inventory_error_fields(issue, prefix=''):
     """Expand only our own structured inventory error; never expose arbitrary exception context."""
     if issue['type'] != 'commission_inventory_attributes_incomplete':
@@ -174,23 +141,7 @@ def inventory_error_fields(issue, prefix=''):
 
 
 def model_value(model, value, prefix=''):
-    try:
-        return model.model_validate(value)
-    except ValidationError as error:
-        fields = []
-        for issue in error.errors(include_input=False, include_url=False):
-            path = '.'.join(str(x) for x in issue['loc'])
-            inventory = inventory_error_fields(issue, '.'.join(filter(None, [prefix, path])))
-            if inventory:
-                fields.extend(inventory)
-                continue
-            code = issue['msg'].removeprefix('Value error, ')
-            if code in ERROR_FIELDS:
-                path = '.'.join(filter(None, [path, ERROR_FIELDS[code]]))
-            fields.append({'field': '.'.join(filter(None, [prefix, path])) or prefix or 'input',
-                           'reason': code, 'choices': []})
-        summary = '; '.join(dict.fromkeys(field['field'] + ': ' + field['reason'] for field in fields))
-        raise ActionRejected('PLANNING_FIELDS_INVALID: ' + summary, diagnostic={'fields': fields}) from None
+    return model.model_validate(value)
 
 
 def compact_write_result(response, *, warning_count_only=False):
