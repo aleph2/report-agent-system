@@ -30,6 +30,8 @@ class ToolResultEditing(AgentMiddleware):
         for message in results:
             call = calls.get(message.tool_call_id, {})
             name = message.name or call.get("name")
+            if name not in allowed:
+                continue
             try:
                 value = json.loads(message.content) if isinstance(message.content, str) else None
             except (ValueError, TypeError):

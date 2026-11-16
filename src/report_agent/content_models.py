@@ -288,7 +288,9 @@ class ReviewItem(Contract):
     def consistent(self) -> Self:
         for finding in self.findings:
             if finding.observation_indexes is not None:
-                pass
+                indexes = finding.observation_indexes
+                if any(i < 0 or i >= len(self.observations) for i in indexes):
+                    raise ValueError('FINDING_REQUIRES_VALID_OBSERVATION_LINKS')
         if self.check_results and any(
                 i >= len(self.observations) for c in self.check_results for i in c.observation_indexes):
             raise ValueError("CHECK_OBSERVATION_INDEX_OUTSIDE_ITEM")

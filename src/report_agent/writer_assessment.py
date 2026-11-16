@@ -119,14 +119,15 @@ def _validated_judgment(cs, db, actor, current, rule, value):
 
 
 def _step_state(cs, db, scope, actor):
-    scope['plan']['payload'].get('indicator_rank_order')
     key = scope['assignment_digest']
     draft = judgments.read_progress(cs.store, key, db)
     if not (draft['rows'] or draft['interrupted_indicators']):
         selected = digest([scope['plan']['ref'], scope['object']['object_id']])
         old_key = digest([actor.id, scope['task_ref'], scope['plan']['ref'], scope['object']['object_id']])
-        legacy.get_writer_assessment_draft(db, old_key, {})
+        old = legacy.get_writer_assessment_draft(db, old_key, {})
         # Only archived selections lack native progress. A new packet still reaches the producer check.
+        if legacy.get_g6_assessment(db, selected) or old.get('rows'):
+            raise ActionRejected('WRITER_FRESH_INDICATOR_ASSIGNMENT_REQUIRED')
     rules = scope['plan']['payload']['method_pack']['indicators']
     if 'assigned_indicators' in scope:
         selected = set(scope['assigned_indicators'])

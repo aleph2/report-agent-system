@@ -11,6 +11,7 @@ from pydantic import Field, create_model
 
 from .content_models import Contract
 from .content_store import ContentStore
+from .errors import ActionRejected
 
 
 _assessment_model = ContextVar('assigned_assessment_model', default=None)
@@ -112,9 +113,11 @@ def assessment_run(workspace, actor, model):
     from .run_authority import current_authority
     authority = current_authority()
     if authority is not None:
-        from .writer_judgment_authority import grant_judgment_inputs
-        {rule['id']:rule for rule in scope['plan']['payload']['method_pack']['indicators']}
+        from .writer_judgment_authority import grant_judgment_inputs, rule_pin
+        rules={rule['id']:rule for rule in scope['plan']['payload']['method_pack']['indicators']}
         criteria=authority['criteria']
+        if any(key not in rules or value.get('rule_digest')!=rule_pin(rules[key]) for key,value in criteria.items()):
+            raise ActionRejected('WRITER_CRITERION_RULE_PIN_MISMATCH')
         grant_judgment_inputs(workspace.store,scope['plan']['ref'],scope['object']['object_id'],
                               scope['section_id'],[],criteria)
     bind_writer_facts(cs, actor, scope)

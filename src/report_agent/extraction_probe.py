@@ -12,6 +12,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pypdf import PdfReader, PdfWriter
 
 from . import plan_inputs
+from . import plan_authority
 from .assertion_host import AssertionHost
 from .catalog import Catalog
 from .commission_planning import save_item
@@ -89,10 +90,16 @@ def prepare(library, case, scope):
 
 
 def _inputs(case, scope):
-    _subject, documents = scope['subject'], scope['documents']
+    subject, documents = scope['subject'], scope['documents']
     receipt = json.loads((case / 'o6-inputs.json').read_bytes())
     cs, co = ContentStore(Store(case)), actor_for('coordinator')
-    plan_inputs.get_draft(cs.store, {}).get('items', {}).get('object', {})
+    if receipt['subject'] != subject or set(receipt['documents']) != set(documents):
+        raise ValueError('O6_INPUT_SCOPE_CHANGED')
+    if set(s['id'] for s in cs.store.source_catalog()) != set(documents):
+        raise ValueError('O6_MATERIAL_SCOPE_CHANGED')
+    objects = plan_inputs.get_draft(cs.store, {}).get('items', {}).get('object', {})
+    if set(objects) != {subject} or plan_authority.plan_ref(cs.store):
+        raise ValueError('O6_SUBJECT_SCOPE_CHANGED')
     validate_source_versions(cs, co, source_ids=list(documents))
     packet = []
     for key, (filename, pin, numbers) in documents.items():
@@ -104,8 +111,12 @@ def _inputs(case, scope):
                 or set(material['pages']) != {str(n) for n in numbers}
                 or sha256(file.read_bytes()).hexdigest() != doc['selected_pdf_sha256']):
             raise ValueError('O6_INPUT_PINS_CHANGED')
-        PdfReader(file)
+        excerpt = PdfReader(file)
+        if len(excerpt.pages) != len(numbers):
+            raise ValueError('O6_EXCERPT_PAGE_COUNT_CHANGED')
         for index, page in enumerate(numbers):
+            if (excerpt.pages[index].extract_text() or '') != material['pages'][str(page)]:
+                raise ValueError('O6_EXCERPT_TEXT_CHANGED')
             packet.append(dict(source_id=key, original_page=page, text=material['pages'][str(page)]))
     return cs, co, packet
 
@@ -129,6 +140,8 @@ async def extract(case, bound_model, scope) -> ExtractionReceipt:
     case = Path(case).resolve(strict=True)
     cs, co, pages = _inputs(case, scope)
     tools = planning_assertion_tools(cs, lambda: co)
+    if tuple(t.__name__ for t in tools) != ACTIONS:
+        raise ValueError('O6_UNEXPECTED_ACTION_SCOPE')
     line = ('按来源明示的事实使用工具保存可追溯记录，注意桩号、左右侧和工程对象。'
             '保留资料分歧，资料不足时说明具体未知项，完成提取后结束。' + LIMIT)
     subject = scope['subject']

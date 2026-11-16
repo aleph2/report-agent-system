@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+import re
 from io import BytesIO
 from pathlib import Path
 
@@ -19,13 +20,15 @@ from .material_issues import LABELS, validate_node, table_header
 
 class WorkbookSheet(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    name: str
+    name: str = Field(min_length=1, max_length=31)
     table_ref: Ref
     note_refs: list[Ref] = Field(default_factory=list,
         description='Optional frozen text ContentNodes to copy verbatim after this table, including correction notices and their qualifiers. Choose applicable notes; this tool never authors them.')
 
 
 def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_export_ref=None, *, deliverable=None):
+    from .commission_requirements import export_preflight
+    export_preflight(contents, actor, snapshot_ref, deliverable)
     request = {'workbook': snapshot_ref, 'sheets': sheets, 'report_export_ref': report_export_ref}
     if deliverable is not None:
         request['deliverable'] = deliverable
@@ -46,7 +49,9 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
     allowed = export_allowed(contents, db, actor, snapshot)
     if not system_companion and (actor.role not in {'coordinator', 'writer'} or snapshot_ref['type'] != 'DocumentSnapshot' or not allowed):
         raise ActionForbidden('FORBIDDEN: workbook snapshot owner')
-    {Ref.model_validate(r).key() for r in snapshot['payload']['refs']}
+    from .commission_requirements import require_snapshot
+    require_snapshot(contents, db, snapshot)
+    members = {Ref.model_validate(r).key() for r in snapshot['payload']['refs']}
     records = {Ref.model_validate(r).key(): contents._read(db, r) for r in snapshot['payload']['refs']}
     from .material_issues import export_issue_records
     issue_records, owner_issues = export_issue_records(contents, db, snapshot, records)
@@ -59,21 +64,29 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
     method_pack = plan.get('method_pack') if plan else None
     if method_pack:
         from .g3_export import _order
-        set(_order(snapshot, records)[0])
+        rendered = set(_order(snapshot, records)[0])
         selected = {Ref.model_validate(ref).key() for sheet in sheets
                     for ref in [sheet['table_ref'], *sheet.get('note_refs', [])]}
+        if not selected <= rendered:
+            raise ActionRejected('G3_WORKBOOK_NODE_NOT_RENDERED')
     clarification = bool(issue_records or method_pack or system_companion)
     channel = snapshot['payload'].get('workbook_refs')
     if channel:
-        {Ref.model_validate(r).key() for r in channel}
-        {Ref.model_validate(r).key() for sheet in sheets
+        declared = {Ref.model_validate(r).key() for r in channel}
+        selected = {Ref.model_validate(r).key() for sheet in sheets
                     for r in [sheet['table_ref'],*sheet.get('note_refs',[])]}
+        if selected != declared:
+            raise ActionRejected('WORKBOOK_CHANNEL_SELECTION_MISMATCH')
     if system_companion and not report_export_ref:
         raise ActionRejected('WORD_EXPORT_REQUIRED')
     if report_export_ref:
         linked = contents._read(db, report_export_ref)
         if system_companion and linked['created_by'] != actor.id:
             raise ActionForbidden('FORBIDDEN: companion export producer')
+        if report_export_ref['type'] != 'ExportArtifact' or not linked['payload']['file_ref'].endswith('.docx'):
+            raise ActionRejected('WORD_EXPORT_REQUIRED')
+        if linked['payload']['snapshot_ref'] != snapshot_ref:
+            raise ActionRejected('WORD_WORKBOOK_SNAPSHOT_MISMATCH')
         _bytes(contents.store, linked['payload']['file_ref'], linked['payload']['file_digest'])
     names = set()
     workbook, mappings = Workbook(), []
@@ -81,6 +94,8 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
     workbook.remove(workbook.active)
     def text(value):
         value = str(value) if value is not None else ''
+        if len(value) > 32767 or re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', value):
+            raise ActionRejected('WORKBOOK_CELL_TEXT_UNSUPPORTED')
         return value
     def qualifier_rows(node):
         lines = node['body']['text'].splitlines() if node['kind'] not in {'table', 'figure'} else []
@@ -93,8 +108,14 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
         return result
     for sheet in sheets:
         name, ref = sheet['name'], sheet['table_ref']
+        if not name.strip() or re.search(r'[\\/*?:\[\]]', name) or name.startswith("'") or name.endswith("'") or name.casefold() in names:
+            raise ActionRejected('INVALID_OR_DUPLICATE_SHEET_NAME')
         names.add(name.casefold())
+        if Ref.model_validate(ref).key() not in members or ref['type'] != 'ContentNode':
+            raise ActionRejected('TABLE_OUTSIDE_SNAPSHOT')
         node = contents._read(db, ref)['payload']
+        if node['kind'] != 'table':
+            raise ActionRejected('TABLE_NODE_REQUIRED')
         body = node['body']
         _, merges = validate_node(node, ref)
         rows = qualifier_rows(node)
@@ -116,7 +137,9 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
             rows.append([citation])
             annotation_rows.append((len(rows), 1))
         for note_ref in sheet.get('note_refs', []):
-            Ref.model_validate(note_ref).key()
+            key = Ref.model_validate(note_ref).key()
+            if key not in members or note_ref['type'] != 'ContentNode':
+                raise ActionRejected('NOTE_OUTSIDE_SNAPSHOT')
             note = contents._read(db, note_ref)['payload']
             start = len(rows) + 1
             rows += [[note_label, line] for line in note['body']['text'].split('\n')]
@@ -127,6 +150,8 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
             annotation_rows.extend((i, 2) for i in range(start, len(rows) + 1))
             mappings.append({'node_ref': note_ref, 'sheet': name, 'kind': 'note',
                              'row_start': start, 'row_stop': len(rows) + 1})
+        if len(rows) > 1048576 or max(map(len, rows)) > 16384:
+            raise ActionRejected('WORKBOOK_DIMENSIONS_UNSUPPORTED')
         ws = workbook.create_sheet(name)
         for row_index, row in enumerate(rows, 1):
             for col_index, value in enumerate(row, 1):
@@ -179,6 +204,8 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
                          'header_rows': header_count, 'data_rows': len(body['rows']), 'columns': len(body['columns'])})
     if clarification:
         name = '资料澄清清单'
+        if name.casefold() in names:
+            raise ActionRejected('INVALID_OR_DUPLICATE_SHEET_NAME: ' + name)
         ws = workbook.create_sheet(name)
         rows = [['编号', '类型', '边坡或章节', '文件与页码', '问题与依据', '采用值', '待确认问题', '答复', '影响等级']]
         ordered = sorted(issue_records, key=lambda pair: 0 if pair[1].kind == 'no_evidence_assumption' else 1)
@@ -187,6 +214,8 @@ def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_re
                          issue.adopted_value, issue.question, '', issue.impact_text()])
             mappings.append({'node_ref': ref, 'sheet': name, 'kind': 'material-issue',
                              'issue_id': issue.id, 'row_start': number + 1, 'row_stop': number + 2})
+        if len(rows) > 1048576:
+            raise ActionRejected('WORKBOOK_DIMENSIONS_UNSUPPORTED')
         for row_index, row in enumerate(rows, 1):
             for col_index, value in enumerate(row, 1):
                 cell = ws.cell(row_index, col_index, text(value))

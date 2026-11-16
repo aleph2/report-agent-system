@@ -39,7 +39,9 @@ def _origin(cs, db, snapshot_ref, source_ref, sid, plan, coordinator):
     node = source['payload']; body = node['body']
     titles = {s['section_id'] + ' ' + s['title']: s['section_id'] for s in plan['payload']['sections']}
     first = body['text'].splitlines()[0]
-    titles.get(first)
+    labelled = titles.get(first)
+    if labelled is not None and labelled != sid:
+        raise ActionRejected('RESCUE_SECTION_IDENTITY_AMBIGUOUS: ' + str(source_ref))
     parents = {}
     for ref in snapshot['payload']['refs']:
         if ref['type'] == 'Relation':
@@ -50,13 +52,19 @@ def _origin(cs, db, snapshot_ref, source_ref, sid, plan, coordinator):
     exact_ancestor = False
     while cursor != snapshot['payload']['root_ref']:
         key = _key(cursor)
+        if key in visited or key not in parents:
+            raise ActionRejected('RESCUE_SOURCE_NOT_IN_RENDERED_TREE: ' + str(source_ref))
         visited.add(key); cursor = parents[key]
         ancestor = cs._read(db, cursor)['payload']
         if ancestor['kind'] == 'report':
             continue
         ancestor_body = ancestor['body']
         exact_ancestor |= ancestor_body.get('text', '').splitlines()[:1] == [sid + ' ' + section['title']]
-        ancestor_body.get('section_id') or titles.get(ancestor_body.get('text', '').split('\n')[0])
+        ancestor_sid = ancestor_body.get('section_id') or titles.get(ancestor_body.get('text', '').split('\n')[0])
+        if ancestor_sid and ancestor_sid != sid and not sid.startswith(ancestor_sid + '.'):
+            raise ActionRejected('RESCUE_SECTION_ANCESTRY_CONFLICT: ' + str(source_ref))
+    if body.get('section_id') is None and labelled != sid and not exact_ancestor:
+        raise ActionRejected('RESCUE_SECTION_IDENTITY_AMBIGUOUS: ' + str(source_ref))
     return snapshot, source, task, section, decision
 
 
@@ -110,14 +118,20 @@ def _project(cs, db, source, section, dispositions, required):
             index = entry.get('index')
             slot = (key, index)
             supplied[slot] = entry
-    [{'ref': source['ref'], 'key': key, 'index': index} for key, index in expected.keys() - supplied.keys()]
-    _issue_sources(cs, db, source, section)
+    missing = [{'ref': source['ref'], 'key': key, 'index': index} for key, index in expected.keys() - supplied.keys()]
+    if missing:
+        raise ActionRejected('RESCUE_QUALIFIER_DISPOSITIONS_INCOMPLETE', diagnostic={'missing': missing})
+    allowed_sources = _issue_sources(cs, db, source, section)
     issues = deepcopy(node['body'].get('material_issues', [])); accounted = []
     for (key, index), value in expected.items():
         entry = supplied[(key, index)]; kind = entry.get('kind')
         if kind == 'visible_issue':
             issue = MaterialIssue.model_validate(entry.get('issue')).model_dump(mode='json')
-            required.get(issue['id'])
+            if any(IssueSource.model_validate(s).readable() not in allowed_sources for s in issue['sources']):
+                raise ActionRejected('RESCUE_ISSUE_SOURCE_NOT_BOUND: ' + issue['id'])
+            registry = required.get(issue['id'])
+            if registry and any(issue[k] != registry[k] for k in ('id', 'kind', 'object_label', 'basis', 'sources', 'question')):
+                raise ActionRejected('RESCUE_REQUIRED_ISSUE_FIELDS_CHANGED: ' + issue['id'])
             existing = next((i for i in issues if i['id'] == issue['id']), None)
             if existing is None:
                 issues.append(issue)
@@ -131,14 +145,18 @@ def _project(cs, db, source, section, dispositions, required):
                 planned = report_state.planned_section(db, replacement)
                 assessment = body.get('assessment_ref')
                 scored = assessment_receipt(db, assessment) if assessment else None
-                (planned and planned.get('node_ref') == replacement and
+                valid_planned = (planned and planned.get('node_ref') == replacement and
                     planned.get('commission_plan_ref') == plan_ref and
                     (report_state.native(db, 'SectionProvenance', replacement)
                      or planned.get('body_digest') == digest(body) or planned.get('text_digest') == digest(body.get('text'))))
-                (scored and scored.get(body.get('assessment_part', '') + '_ref') == replacement and
+                if scored and (blocker := score_blocker(scored)):
+                    raise ActionRejected('RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: ' + blocker)
+                valid_scored = (scored and scored.get(body.get('assessment_part', '') + '_ref') == replacement and
                     cs._read(db, assessment)['payload'].get('commission_plan_ref') == plan_ref)
+                if replacement['type'] != 'ContentNode' or not (valid_planned or valid_scored):
+                    raise ActionRejected('RESCUE_DIAGNOSTIC_SYSTEM_REPLACEMENT_REQUIRED: ' + key)
         else:
-            pass
+            raise ActionRejected('RESCUE_QUALIFIER_DISPOSITION_KIND_REQUIRED: ' + key)
         accounted.append({'key': key, 'index': index, 'original_value': deepcopy(value), 'disposition': deepcopy(entry)})
     node['kind'] = 'block'; node['body'].update(text=text, section_id=sid)
     node['qualifiers'] = {k: deepcopy(v) for k,v in node['qualifiers'].items() if k in STRUCTURAL or k == 'source_note' and isinstance(v, str)}
@@ -157,12 +175,24 @@ def _assessment_replacement(cs, db, source, section, plan, assessment_ref):
     matches = [obj for obj in plan['payload']['objects'] if obj['included'] and
         re.match(re.escape(obj['object_id'].split('-K', 1)[0]) + r'(?![A-Za-z0-9-])', text)]
     obj = matches[0]
-    cs._read(db, assessment_ref)['payload']
+    if assessment_ref.get('type') != 'Assessment':
+        raise ActionRejected('RESCUE_ASSESSMENT_REF_REQUIRED')
+    saved = cs._read(db, assessment_ref)['payload']
     receipt = assessment_receipt(db, assessment_ref)
-    score_blocker(receipt)
-    validate_outcome(cs, db, plan, obj['object_id'], receipt['evaluation_ref'],
+    if (not receipt or receipt.get('assessment_ref') != assessment_ref or
+            saved.get('commission_plan_ref') != plan['ref'] or saved.get('object_id') != obj['object_id']):
+        raise ActionRejected('RESCUE_ASSESSMENT_PLAN_OBJECT_RECEIPT_REQUIRED')
+    blocker = score_blocker(receipt)
+    if blocker:
+        raise ActionRejected('RESCUE_ASSESSMENT_SCORE_UNAVAILABLE: ' + blocker)
+    if any(cs._read(db, receipt[part + '_ref'])['payload']['body'].get('section_id') != section['section_id']
+            for part in ('evaluation', 'level')):
+        raise ActionRejected('RESCUE_ASSESSMENT_SECTION_MISMATCH')
+    checked = validate_outcome(cs, db, plan, obj['object_id'], receipt['evaluation_ref'],
         receipt['level_ref'], [receipt['evidence_ref']], [])
-    selected_assessment(db, plan['ref'], obj['object_id'])
+    current = selected_assessment(db, plan['ref'], obj['object_id'])
+    if checked != assessment_ref or current is not None and current != assessment_ref:
+        raise ActionRejected('RESCUE_ASSESSMENT_CANONICAL_REF_MISMATCH')
     pattern = r'本边坡综合得分F＝[0-9]+\.[0-9]{2}，风险等级(?:Ⅲ级，需|Ⅱ级，不需)开展专项施工安全风险评估。'
     found = list(re.finditer(pattern, text))
     span = {'start': found[0].start(), 'end': found[0].end(), 'text': found[0].group()}
@@ -221,12 +251,31 @@ def project_rescue_prose(cs, coordinator, operation_id, *, source_snapshot_ref, 
 def verify_projection(cs, db, record, sid, plan, co_actor):
     """Verify the exact derived copy and original assignment; never adopt producer identity."""
     receipt = report_state.projection(db, record['ref'])
-    report_state.native(db, 'RescueProjection', record['ref'])
-    _snapshot, source, _task, section, decision = _origin(cs, db, receipt['source_snapshot_ref'], receipt['source_ref'], sid, plan, co_actor)
+    native = report_state.native(db, 'RescueProjection', record['ref'])
+    if (not receipt or receipt.get('contract') != CONTRACT or receipt.get('projection_ref') != record['ref'] or
+            record.get('owner_id') != co_actor.id or record.get('created_by') != co_actor.id or
+            receipt.get('section_id') != sid or receipt.get('commission_plan_ref') != plan['ref']):
+        raise ActionRejected('RESCUE_PROJECTION_RECEIPT_REQUIRED_OR_INVALID')
+    if not native and receipt.get('payload_digest') != digest(record['payload']):
+        raise ActionRejected('RESCUE_PROJECTION_PAYLOAD_DIGEST_MISMATCH')
+    snapshot, source, task, section, decision = _origin(cs, db, receipt['source_snapshot_ref'], receipt['source_ref'], sid, plan, co_actor)
+    if (receipt.get('source_task_ref') != task['ref'] or (not native and (
+            receipt.get('source_snapshot_digest') != digest(snapshot['payload']) or
+            receipt.get('source_record_digest') != digest(source) or
+            receipt.get('source_task_digest') != digest(task)))):
+        raise ActionRejected('RESCUE_PROJECTION_SOURCE_DIGEST_MISMATCH')
     required = {i['id']:i for i in decision['payload'].get('required_material_issues', [])}
-    expected, _removed, _accounting = _project(cs, db, source, section, receipt['qualifier_dispositions'], required)
+    expected, removed, accounting = _project(cs, db, source, section, receipt['qualifier_dispositions'], required)
     replacement = receipt.get('assessment_replacement')
     if replacement is not None:
         checked = _assessment_replacement(cs, db, source, section, plan, replacement['assessment_ref'])
+        if replacement != checked:
+            raise ActionRejected('RESCUE_ASSESSMENT_REPLACEMENT_TRANSFORM_MISMATCH')
         expected['body']['text'] = expected['body']['text'][:-len(checked['removed_result_span']['text'])]
+    if record['payload'] != expected:
+        raise ActionRejected('RESCUE_PROJECTION_PAYLOAD_DIGEST_MISMATCH')
+    if (receipt.get('removed_structural_span') != removed or
+            receipt.get('archived_qualifiers') != source['payload']['qualifiers'] or
+            receipt.get('qualifier_accounting') != accounting):
+        raise ActionRejected('RESCUE_PROJECTION_TRANSFORM_MISMATCH')
     return receipt

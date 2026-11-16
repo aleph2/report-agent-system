@@ -50,7 +50,10 @@ def bound_assignment(cs, db, actor):
     sections = task['payload'].get('section_ids', [])
     section = next((s for s in plan['payload']['sections'] if len(sections) == 1 and s['section_id'] == sections[0]), None)
     _, decision = _confirmed(cs, db)
-    {r['object_id'] for r in decision['payload'].get('reductions', [])}
+    reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
+    if (obj is None or not obj['included'] or section is None or section['kind'] != 'extracted'
+            or object_id in reduced):
+        raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
     pack = plan['payload'].get('method_pack')
     citations = [*section['sources'], *list(_citations(obj)), *pack['sources']]
     from .page_bindings import confirmed
@@ -155,7 +158,9 @@ def _cached_index(cs, db, bound):
         actual = [(source['source_ref'], source['source_pin'], source['source_handle']) for source in index['sources']]
         valid = index['assignment_digest'] == bound['assignment_digest'] and actual == expected
     except (KeyError, TypeError):
-        pass
+        valid = False
+    if not valid:
+        raise ActionRejected('WRITER_ASSIGNMENT_INDEX_CHANGED')
     return index
 
 
@@ -215,7 +220,9 @@ def read_assigned_page(cs, actor, source_handle, page, *, include_image=True):
                'modality':'image',
                'image_sha256': image_sha256, 'image_delivered': False}
     with cs.store.connect() as db:
-        bound_assignment(cs, db, actor)
+        current = bound_assignment(cs, db, actor)
+        if current['assignment_digest'] != bound['assignment_digest']:
+            raise ActionRejected('WRITER_ASSIGNMENT_CHANGED_DURING_READ')
         remember_page(db, handle, receipt)
     return {**result, 'page_handle': handle, 'image_sha256': image_sha256,
             'image_data_url': 'data:image/png;base64,' + base64.b64encode(pixels).decode('ascii')}

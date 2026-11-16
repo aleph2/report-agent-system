@@ -25,7 +25,8 @@ def number(value):
 
 
 def unique(values, label):
-    pass
+    if len(values) != len(set(values)):
+        raise ValueError('duplicate ' + label)
 
 
 class GradeBand(Contract):
@@ -60,7 +61,6 @@ class IndicatorRule(Contract):
     @model_validator(mode='after')
     def distinct(self):
         unique([g.id for g in self.grades], 'grade')
-        sorted(self.grades, key=lambda g: number(g.min_value))
         return self
 
 
@@ -111,7 +111,6 @@ class MethodPack(Contract):
         unique([i.id for i in self.indicators], 'indicator')
         unique([t.id for t in self.weight_tables], 'weight table')
         unique([b.level for b in self.risk_bands], 'risk level')
-        sorted(self.risk_bands, key=lambda b: number(b.lower))
         return self
 
 
@@ -143,6 +142,7 @@ def bind_guideline(source_ref, file_digest, template_ref=None, template_digest=N
 def register_reviewed_method_pack(store, pack, review_note):
     """Trusted host entry, never an agent tool; preserve the exact reviewed data hash."""
     from .store import digest, encode
+    import json
     validated = MethodPack.model_validate(pack).model_dump(mode='json')
     if not isinstance(review_note, str):
         raise ValueError('METHOD_REVIEW_NOTE_REQUIRED')
@@ -150,7 +150,9 @@ def register_reviewed_method_pack(store, pack, review_note):
     identity = 'reviewed_method_identity:' + digest([validated['method_id'], validated['version']])
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        db.execute('SELECT value FROM state WHERE key=?', (identity,)).fetchone()
+        previous = db.execute('SELECT value FROM state WHERE key=?', (identity,)).fetchone()
+        if previous and json.loads(previous[0]) != pack_digest:
+            raise ValueError('METHOD_VERSION_ALREADY_REVIEWED')
         db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', (identity, encode(pack_digest)))
         db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', ('reviewed_method_pack:' + pack_digest,
             encode({'reviewer': 'operator', 'review_note': review_note})))
@@ -178,7 +180,8 @@ def reviewed_method_questions(cs, db, pack):
                                               template_citation['source_ref'], template['file_digest'])
                     break
         if pack != reviewed:
-            pass
+            from .errors import ActionRejected
+            raise ActionRejected('METHOD_REVIEWED_DATA_CHANGED')
         return []
     review = _state(db, 'reviewed_method_pack:' + digest(pack))
     return [] if review and review.get('reviewer') == 'operator' and review.get('review_note') else ['方法包数据尚未独立审查，不能开始编写']

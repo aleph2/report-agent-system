@@ -79,7 +79,7 @@ def citation_text(node, records, plan=None, excluded=()):
         elif re.fullmatch(r'[\u3400-\u9fff\d、，。；（）()\s.\-]+', locator):
             place = '，' + locator
         else:
-            pass
+            raise ActionRejected('G3_CITATION_LOCATION_NOT_READABLE')
         if not title or re.search(r'[/\\]', title):
             title = citation['source_ref']['id']
         text = '《' + title + '》' + place

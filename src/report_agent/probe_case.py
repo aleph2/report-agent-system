@@ -52,11 +52,15 @@ def _content_closure(db, state, plan_inputs_and_pins):
         ref = pending.pop()
         if ref.key() in records:
             continue
+        if ref.type not in BUSINESS_TYPES:
+            raise ValueError('PROBE_NONBUSINESS_DEPENDENCY')
         row = db.execute('SELECT rowid,data FROM content_versions WHERE type=? AND id=? AND version=?', ref.key()).fetchone()
         if row is None:
             raise ValueError('PROBE_BUSINESS_DEPENDENCY_MISSING')
         position, raw = row
         record = json.loads(raw)
+        if record['ref'] != ref.model_dump() or record['payload_digest'] != digest(record['payload']):
+            raise ValueError('PROBE_BUSINESS_INTEGRITY_MISMATCH')
         records[ref.key()] = record
         positions[ref.key()] = position
         pending.extend(refs_in(record))
@@ -72,14 +76,22 @@ def _page_evidence(directory, plan, decision):
     for action, body, status in rows:
         if action != 'decide' or not page_bindings.current(status) or body['claim']['reason'] != encode(decision):
             continue
-        question, _state = questions[body['claim']['target']]
+        question, state = questions[body['claim']['target']]
         checkpoint = json.loads(question['claim']['text'])
         if checkpoint.get('plan_ref') == plan and 'page_bindings' in checkpoint:
+            if not page_bindings.current(state):
+                raise ValueError('PROBE_PAGE_SHEET_NOT_CURRENT')
             sheets.append(checkpoint)
     if not sheets:
         return [], [], []
+    if len(sheets) != 1:
+        raise ValueError('PROBE_PAGE_SHEET_AMBIGUOUS')
     wanted = set(sheets[0]['page_bindings'])
     bindings = [(body, state) for body, state in Commission.page_records(directory) if body['id'] in wanted]
+    if {body['id'] for body, _ in bindings} != wanted or any(
+            body['claim'].get('rule') != encode(plan) or body['claim'].get('scope') != 'source_page_binding'
+            or state['stale'] or state['challenged'] for body, state in bindings):
+        raise ValueError('PROBE_PAGE_BINDING_IMPORT_MISMATCH')
     selected = [body for body, _ in bindings]
     archive = Path(directory) / 'page-actions.jsonl'
     # Only the disposable snapshot may initialize the assertion schema.
@@ -88,6 +100,8 @@ def _page_evidence(directory, plan, decision):
         entry = json.loads(line)
         body = entry.get('assertion')
         if body and body['claim'].get('target') in wanted:
+            if (entry['action'], entry['role']) not in {('confirm', 'owner'), ('retract', 'owner')}:
+                raise ValueError('PROBE_PAGE_HISTORY_UNSUPPORTED')
             selected.append(body)
     versions = {page['source_version'] for body, _ in bindings
                 for page in body['claim']['page_binding']['pages']}
@@ -98,6 +112,8 @@ def _page_evidence(directory, plan, decision):
             version = immutable_version_digest(record['payload'])
             if version in versions:
                 refs.append(record['ref']);found.add(version)
+    if found != versions:
+        raise ValueError('PROBE_PAGE_SOURCE_DEPENDENCY_MISSING')
     return selected, refs, bindings
 
 
@@ -119,12 +135,14 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                     or plan_authority.decision_ref(original) != expected_decision_ref):
                 raise ValueError('PROBE_APPROVED_PIN_MISMATCH')
             from .commission_requirements import requirements_ref
-            requirements_ref(original)
+            current_requirements = requirements_ref(original)
             original.backup(frozen)
-        page_actions, page_sources, _expected_bindings = _page_evidence(Path(folder), expected_plan_ref, expected_decision_ref)
+        page_actions, page_sources, expected_bindings = _page_evidence(Path(folder), expected_plan_ref, expected_decision_ref)
         frozen_sha = _sha(frozen_path)
         with _read(frozen_path) as frozen:
             state = legacy.read_probe_business_state(frozen)
+            if any(s.get('copied_path') or s.get('original_path') for s in state['manifest']['sources']):
+                raise ValueError('PROBE_MANIFEST_SOURCE_PATH_UNSUPPORTED')
             # Retired state keys from an old source never become authority in a new-format case.
             state.pop('commission_source_roles', None)
             state.pop('commission_owner_records', None)
@@ -141,10 +159,14 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
                 if authority:
                     key = 'source_use_authority:' + authority
                     row = frozen.execute('SELECT value FROM state WHERE key=?', (key,)).fetchone()
+                    if row is None:
+                        raise ValueError('PROBE_SOURCE_AUTHORITY_MISSING')
                     state[key] = json.loads(row[0])
             records = _content_closure(frozen, state, [expected_plan_ref, expected_decision_ref, legacy_owner, page_sources])
             plan = records[('CommissionPlan', expected_plan_ref['id'], expected_plan_ref['version'])]
             pinned = plan['payload'].get('requirements_ref')
+            if pinned and current_requirements != pinned:
+                raise ValueError('PROBE_APPROVED_REQUIREMENTS_MISMATCH')
             if legacy_requirements != pinned:
                 legacy_requirements = None
             historical = plan_authority.historical_refs(frozen) == (expected_plan_ref, expected_decision_ref)
@@ -215,7 +237,9 @@ def prepare_probe_case(source: Path, output: Path, *, expected_plan_ref, expecte
         if page_actions:
             from . import page_bindings
             Commission(output).import_plan_actions(Path(folder), lambda _: page_actions)
-            {body['id']: (body, state) for body, state in page_bindings.records(store, expected_plan_ref)}
+            actual = {body['id']: (body, state) for body, state in page_bindings.records(store, expected_plan_ref)}
+            if any(actual.get(body['id']) != (body, state) for body, state in expected_bindings):
+                raise ValueError('PROBE_PAGE_CONFIRMATION_STATE_CHANGED')
 
         source_blobs, copied_blobs = BlobStore(source), BlobStore(output)
         dependencies = {}

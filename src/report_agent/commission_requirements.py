@@ -19,8 +19,8 @@ Capability = Literal['method_pack', 'weight_binding', 'table_specs', 'scope_boun
 
 class RequirementItem(Contract):
     anchor_id: str = Field(min_length=1)
-    status: str
-    interpretation: str
+    status: Literal['required', 'not_applicable', 'unresolved']
+    interpretation: str = Field(min_length=1)
     capabilities: list[Capability]
     table_roles: list[str] = Field(default_factory=list, exclude_if=lambda value: not value)
     reviewed_entry_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -29,6 +29,8 @@ class RequirementItem(Contract):
 def enabled(store):
     from .handoff_release import manifest
     value = manifest(store).get('commission_requirements_contract')
+    if value not in (None, CONTRACT):
+        raise ActionRejected('UNKNOWN_COMMISSION_REQUIREMENTS_CONTRACT')
     return value == CONTRACT
 
 
@@ -49,6 +51,8 @@ def _blocks(cs, source):
 def _citation(ref, rows, text, locator=None):
     matching = [row for row in rows if (locator is None or row[1].split('; chars ')[0] == locator)
                 and text in row[2]]
+    if not matching:
+        raise ActionRejected('COMMISSION_ANCHOR_TEXT_NOT_LOCATED')
     return {'source_ref': ref, 'locator': matching[0][1], 'quote': text}
 
 
@@ -237,6 +241,8 @@ def read_requirements(cs, ref=None, *, db=None):
         with cs.store.connect() as connection:
             return read_requirements(cs, ref, db=connection)
     ref = ref or requirements_ref(db)
+    if not ref:
+        raise ActionRejected('COMMISSION_REQUIREMENTS_REQUIRED')
     if Ref.model_validate(ref).type != 'CommissionRequirements':
         raise ActionRejected('COMMISSION_REQUIREMENTS_REF_INVALID')
     return cs._read(db, ref)
@@ -253,6 +259,8 @@ def install_requirements(cs, scope_ref, outline_ref):
         old = requirements_ref(db)
         if old:
             payload = cs._read(db, old)['payload']
+            if payload['source_pins'] != pins or payload['anchors'] != anchors:
+                raise ActionRejected('COMMISSION_REQUIREMENTS_SOURCES_CHANGED')
             return old
         payload = {'contract': CONTRACT, 'source_pins': pins, 'anchors': anchors,
             'items': [{'anchor_id': a['id'], 'status': 'unresolved',
@@ -265,13 +273,19 @@ def install_requirements(cs, scope_ref, outline_ref):
 def _write_items(cs, db, actor, previous, items, *, relink_anchor=None):
     from .commission_planning import classified_item
     previous_ref = previous['ref']
+    if requirements_ref(db) != previous_ref:
+        raise ActionRejected('COMMISSION_REQUIREMENTS_VERSION_STALE')
     items = [RequirementItem.model_validate(i).model_dump() for i in items]
     old = {i['anchor_id']: i for i in previous['payload']['items']}
     for item in items:
-        old.get(item['anchor_id'], {}).get('reviewed_entry_id')
+        before = old.get(item['anchor_id'], {}).get('reviewed_entry_id')
+        if item['anchor_id'] != relink_anchor and before != item.get('reviewed_entry_id'):
+            raise ActionRejected('COMMISSION_REQUIREMENTS_EXPLICIT_LINK_REQUIRED')
     items = [classified_item(cs, db, previous, item) for item in items]
-    {a['id']: a for a in previous['payload']['anchors']}
-    [i['anchor_id'] for i in items]
+    anchors = {a['id']: a for a in previous['payload']['anchors']}
+    ids = [i['anchor_id'] for i in items]
+    if len(ids) != len(set(ids)) or set(ids) != set(anchors):
+        raise ActionRejected('COMMISSION_REQUIREMENTS_ANCHOR_SET_MISMATCH')
     if items == previous['payload']['items']:
         return previous_ref
     return save_revision(cs, db, actor, previous_ref, {**previous['payload'], 'items': items})
@@ -342,7 +356,9 @@ def require_complete(cs, plan, *, db=None):
         validate_owner_records(cs, db, plan)
     if not enabled(cs.store):
         return
-    check_plan(cs, plan, plan.get('requirements_ref'), db=db)
+    gaps = check_plan(cs, plan, plan.get('requirements_ref'), db=db)
+    if gaps:
+        raise ActionRejected('COMMISSION_REQUIREMENTS_INCOMPLETE', diagnostic={'gaps': gaps})
 
 
 def require_snapshot(cs, db, snapshot):
@@ -352,11 +368,19 @@ def require_snapshot(cs, db, snapshot):
     payload = snapshot['payload']
     plan_ref, decision_ref = payload.get('commission_plan_ref'), payload.get('commission_confirmation_ref')
     plan = cs._read(db, plan_ref) if plan_ref else {}
-    cs._read(db, decision_ref) if decision_ref else {}
+    decision = cs._read(db, decision_ref) if decision_ref else {}
     versioned_plan = bool(plan) and ('plan_input_refs' in plan
                                     or plan_authority.has_proposal(db, plan_ref))
     if not anchored and not versioned_plan:
         return  # Older snapshots use the existing material-issue and export checks.
+    if not plan or not decision:
+        raise ActionRejected('COMMISSION_REQUIREMENTS_SNAPSHOT_BINDING_REQUIRED')
+    if anchored:
+        require_complete(cs, plan['payload'], db=db)
+    if (decision['owner_id'] != 'operator' or not decision['payload'].get('approved')
+            or decision['payload'].get('plan_ref') != plan_ref
+            or (anchored and decision['payload'].get('requirements_ref') != plan['payload'].get('requirements_ref'))):
+        raise ActionRejected('COMMISSION_REQUIREMENTS_CONFIRMATION_REQUIRED')
     if versioned_plan:
         plan_authority.confirmed_refs(db, plan=plan_ref, decision=decision_ref)
 
@@ -373,6 +397,8 @@ def export_preflight(cs, actor, snapshot_ref, deliverable):
             if deliverable is not None:
                 snapshot_ref = resolve_snapshot(cs, db, actor, deliverable)
             record = cs._read(db, snapshot_ref)
+            if commission_checks:
+                require_snapshot(cs, db, record)
             if source_checks:
                 payload = record['payload']
                 source_authority(cs, db, actor, [cs._read(db, r) for r in payload['refs']], snapshot=payload)

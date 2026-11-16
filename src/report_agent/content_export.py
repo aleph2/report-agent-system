@@ -72,6 +72,8 @@ def _emit_source_views(doc, text, views, emit_text, render_image, width_mm):
 
 
 def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, layout_from_export_ref=None, *, deliverable=None):
+    from .commission_requirements import export_preflight
+    export_preflight(contents, actor, snapshot_ref, deliverable)
     def execute(db):
         nonlocal snapshot_ref
         from .prompt_sources import review_interface_profile
@@ -86,6 +88,8 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
         allowed = export_allowed(contents, db, actor, snapshot)
         if snapshot_ref["type"] != "DocumentSnapshot" or not allowed:
             raise ActionForbidden("FORBIDDEN: snapshot owner")
+        from .commission_requirements import require_snapshot
+        require_snapshot(contents, db, snapshot)
         selected_layout = layout
         if layout_from_export_ref is not None:
             source = contents._read(db, layout_from_export_ref)
@@ -475,7 +479,9 @@ def render_export(contents, actor, operation_id, export_ref):
     _require_review_export(_reviewer_export_scope(contents, actor), export_ref)
     def prepare(db):
         export = contents._read(db, export_ref)
-        Path(export['payload']['file_ref']).suffix
+        suffix = Path(export['payload']['file_ref']).suffix
+        if suffix not in {'.docx', '.xlsx'}:
+            raise ActionRejected('RENDER_FORMAT_UNSUPPORTED')
         from .operation_identity import NATIVE, profile
         if contents.store.get('manifest') is not None and profile(contents.store) == NATIVE:
             request_digest = digest({'actor': actor.__dict__, 'request': {'render': export_ref}})
@@ -527,6 +533,8 @@ def render_export(contents, actor, operation_id, export_ref):
         return payload
 
     def finalize(db, export, computed):
+        if contents._read(db, export_ref) != export:
+            raise ActionRejected('RENDER_EXPORT_CHANGED')
         _bytes(contents.store, export['payload']['file_ref'], export['payload']['file_digest'])
         if computed.get('execution_state') == 'blocked':
             return computed

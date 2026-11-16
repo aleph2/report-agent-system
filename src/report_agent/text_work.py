@@ -327,6 +327,9 @@ def unknown_material_conflicts(workspace, db, actor, packet):
         raw_operation = original['operation'] if original else None
         if original:
             # Length/refusal is a received rejection, not an unknown response.
+            if db.execute("SELECT 1 FROM events WHERE kind='evidence_analysis_rejected_response' "
+                          "AND json_extract(data,'$.operation')=?", (raw_operation,)).fetchone():
+                continue
             if db.execute('SELECT 1 FROM analyses WHERE operation=?', (raw_operation,)).fetchone():
                 # A fully archived response may precede a local parse/save failure.
                 # It is not an unknown provider outcome; exact replay/cache and

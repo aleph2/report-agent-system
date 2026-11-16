@@ -117,7 +117,8 @@ def prompt_call(store, purpose, *, sources=(), status='unexplained', offered=Non
 
 
 def check_static_prompt(actual, source, *, suffix=''):
-    pass
+    if actual != load_prompt(source) + suffix:
+        raise PromptCompositionError('PROMPT_STATIC_COMPOSITION_MISMATCH')
 
 
 def analysis_source(contract, inputs, store=None):

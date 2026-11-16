@@ -44,6 +44,8 @@ class CoTaskMessage(BaseModel):
         new_fields = {'snapshot_scope', 'commission_criterion_scopes', 'criterion_scopes', 'review_scope',
                       'target_scope', 'assessment_kind', 'artifact_scopes', 'supervision_plugin', 'content_extent', 'artifact_pages'}
         if self.resume_task_scope is not None:
+            if self.model_fields_set & new_fields or 'section_ids' in self.model_fields_set or self.assessment_object_id is not None:
+                raise ValueError('TASK_CONTINUATION_CANNOT_CHANGE_ASSIGNMENT')
             return self
         if self.subagent_type == 'reviewer':
             if self.snapshot_scope is None or not self.commission_criterion_scopes or self.review_scope is None:
@@ -61,6 +63,4 @@ class CoTaskMessage(BaseModel):
                     or (self.artifact_pages and (self.review_scope != 'targeted' or self.assessment_kind != 'render'
                         or len(self.artifact_scopes) != 1 or len(set(self.artifact_pages)) != len(self.artifact_pages)))):
                 raise ValueError('REVIEW_EXTENT_SELECTION_INVALID')
-        else:
-            new_fields - {'snapshot_scope'} if self.subagent_type == 'layout' else new_fields
         return self

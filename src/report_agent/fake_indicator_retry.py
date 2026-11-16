@@ -24,7 +24,8 @@ from .writer_runtime import writer_tools
 
 
 def require(check, reason):
-    pass
+    if not check:
+        raise ValueError(reason)
 
 
 def pinned_json(path, expected):

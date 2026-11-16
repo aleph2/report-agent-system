@@ -1,7 +1,7 @@
 """Agent-selected grades and ranks; system-owned exact arithmetic and sensitivity."""
 from . import report_state
 from .assessment_results import missing_weights, score_band, scoring_weights
-from .assessment_projection import assessment_receipt, record_assessment_projection
+from .assessment_projection import assessment_receipt, record_assessment_projection, score_blocker, draft_blocker
 
 from pydantic import Field
 
@@ -156,7 +156,6 @@ def _save_legacy_bulk_assessment(cs, db, actor, operation_id, assessment):
     from .commission_plan import assert_writing_allowed
 
     plan = assert_writing_allowed(cs, db, actor)
-    [b for b in plan['payload'].get('method_conventions', []) if b['key'] == 'weights']
     obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment.get('object_id')), None)
     from .commission_plan import _confirmed
     _, _decision = _confirmed(cs, db)
@@ -305,8 +304,16 @@ def save_assessment(cs, actor, operation_id, assessment):
 
 def validate_outcome(cs, db, plan, object_id, score_ref, level_ref, basis_refs, unresolved, *, draft=False):
     assessment_ref = cs._read(db, score_ref)['payload']['body'].get('assessment_ref')
-    assessment_receipt(db, assessment_ref) if assessment_ref else None
-    cs._read(db, assessment_ref)['payload']
+    receipt = assessment_receipt(db, assessment_ref) if assessment_ref else None
+    if receipt and (reason := (draft_blocker if draft else score_blocker)(receipt)):
+        raise ActionRejected('COMMISSION_OUTCOME_REVIEWED_SCORE_REQUIRED: ' + reason)
+    if (not receipt or receipt['evaluation_ref'] != score_ref or receipt['level_ref'] != level_ref
+            or receipt['evidence_ref'] not in basis_refs
+            or unresolved != (receipt['result'].get('missing_indicators', []) if draft else [])):
+        raise ActionRejected('COMMISSION_OUTCOME_SYSTEM_ASSESSMENT_REQUIRED')
+    saved = cs._read(db, assessment_ref)['payload']
+    if saved['object_id'] != object_id or saved['commission_plan_ref'] != plan['ref']:
+        raise ActionRejected('COMMISSION_OUTCOME_ASSESSMENT_MISMATCH')
     return assessment_ref
 
 
@@ -342,12 +349,8 @@ def create_planned_section_in_transaction(cs, db, actor, plan, section_id, asses
         receipts.append(receipt)
     slots = section.get('result_bindings', [])
     aggregate = bool(section.get('result_composition')) or any(s['field'] in ('object_count', 'level_count') for s in slots)
-    {s['object_id'] for s in slots if s['object_id'] is not None}
     if aggregate:
         _, decision = _confirmed(cs, db)
-        reduced = {r['object_id'] for r in decision['payload']['reductions']}
-        {o['object_id'] for o in plan['payload']['objects'] if o['included']} - reduced
-        {b['level'] for b in plan['payload']['method_pack']['risk_bands']}
     if section.get('result_composition'):
         from .commission_results import composed_nodes
         nodes = composed_nodes(plan['payload'], section, bound,

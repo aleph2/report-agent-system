@@ -5,6 +5,7 @@ from pathlib import Path
 from . import legacy_state as legacy
 from .assertions.launch import Commission
 from .content_store import ContentStore
+from .errors import ActionRejected
 from .store import digest, encode
 
 
@@ -41,7 +42,10 @@ def selected_assessment(db, plan_ref, object_id):
             (digest(plan_ref), object_id)).fetchone()
         if row:
             ref = json.loads(row[0])
-            ContentStore._read(db, ref)['payload']
+            payload = ContentStore._read(db, ref)['payload']
+            if (not payload.get('derived_assertion_id') or not payload.get('derive_operation_id')
+                    or payload.get('commission_plan_ref') != plan_ref or payload.get('object_id') != object_id):
+                raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
             return ref
     historic = legacy.get_g6_assessment(db, digest([plan_ref, object_id]))
     return historic if historic and not _native_started(db, plan_ref, object_id) else None
@@ -59,17 +63,28 @@ def assessment_receipt(db, assessment_ref):
         if not historic.get('result'):
             return {**historic, 'derivation_status': 'unverified'}
         payload = ContentStore._read(db, assessment_ref)['payload']
+        if (historic.get('assessment_ref') != assessment_ref or historic['result'] != payload.get('result')
+                or 'derived_assertion_id' in payload or 'derive_operation_id' in payload):
+            raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
         if _native_started(db, payload['commission_plan_ref'], payload['object_id']):
             return {**historic, 'derivation_status': 'superseded_by_native'}
         if (not historic['result'].get('status') and historic['result'].get('adopted')
                 and all(historic.get(k) for k in ('evidence_ref', 'level_ref', 'evaluation_ref'))):
             return {**historic, 'derivation_status': 'historical_scored'}
         return {**historic, 'derivation_status': 'unverified'}
-    _plan, subject, _native, raw = row
+    plan, subject, native, raw = row
     receipt = json.loads(raw)
+    if receipt.get('assessment_ref') != assessment_ref:
+        raise ActionRejected('ASSESSMENT_PROJECTION_REF_MISMATCH')
     payload = ContentStore._read(db, assessment_ref)['payload']
     has_native_pin = 'derived_assertion_id' in payload or 'derive_operation_id' in payload
+    if (has_native_pin != bool(native) or has_native_pin != ('derived_assertion_id' in receipt)
+            or has_native_pin != ('derive_operation_id' in receipt)
+            or payload.get('object_id') != subject or digest(payload.get('commission_plan_ref')) != plan):
+        raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
     if not has_native_pin:
+        if receipt.get('result') != payload.get('result'):
+            raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
         status = payload['result'].get('status')
         if _native_started(db, payload['commission_plan_ref'], subject):
             status = 'superseded_by_native'
@@ -83,9 +98,17 @@ def assessment_receipt(db, assessment_ref):
         return receipt
     case = Path(db.execute('PRAGMA database_list').fetchone()[2]).parent
     committed = Commission.committed_projection(case, receipt['derive_operation_id'], receipt['derived_assertion_id'])
-    _binding, assertion, state, inputs = committed
+    if not committed:
+        raise ActionRejected('ASSESSMENT_DERIVATION_MISSING')
+    binding, assertion, state, inputs = committed
     claim = assertion['claim']
     result = payload['result']
+    if (payload.get('derived_assertion_id') != assertion['id']
+            or payload.get('derive_operation_id') != assertion['operation_id']
+            or payload.get('object_id') != subject or digest(payload.get('commission_plan_ref')) != plan
+            or 'result' in receipt or binding['role'] != 'calculator'
+            or binding['plan'] != plan or assertion['subject'] != subject or claim['kind'] != 'derived'):
+        raise ActionRejected('ASSESSMENT_DERIVATION_PROJECTION_MISMATCH')
     status = claim['assessment']['status']
     if state['stale']:
         status = 'stale'

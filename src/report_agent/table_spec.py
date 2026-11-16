@@ -93,7 +93,9 @@ class TableSpec(Contract):
             for rule in group.merges:
                 if not set(rule.columns) <= set(keys):
                     raise ValueError('TABLE_SPEC_UNKNOWN_MERGE_COLUMN')
-                [keys.index(k) for k in rule.columns]
+                positions = [keys.index(k) for k in rule.columns]
+                if rule.axis == 'horizontal' and positions != list(range(positions[0], positions[-1] + 1)):
+                    raise ValueError('TABLE_SPEC_NONCONTIGUOUS_MERGE_COLUMNS')
         return self
 
 
@@ -154,7 +156,9 @@ def compile_table(spec, saved_table_records):
     rows, merges, origins, occupied = [], [], [], set()
     def merge(r0, r1, c0, c1):
         cells = {(r, c) for r in range(r0, r1 + 1) for c in range(c0, c1 + 1)}
-        rows[r0][c0]
+        first = rows[r0][c0]
+        if cells & occupied or any(rows[r][c] not in ('', first) for r, c in cells):
+            raise ActionRejected('TABLE_SPEC_MERGE_WOULD_ERASE_DATA_OR_OVERLAP')
         occupied.update(cells)
         merges.append(dict(start_row=r0, end_row=r1, start_col=c0, end_col=c1))
     for group in spec.row_groups:
@@ -226,6 +230,8 @@ def assessment_tables(cs, db, plan, assessment_ref, table_records, result, label
             sources.append({'document': title, 'page': citation['locator']})
             if citation not in citations:
                 citations.append(citation)
+        if row['basis_kind'] != 'missing' and not row['basis_kind'].endswith('assumption'):
+            continue
         positions = [n for n, origin in enumerate(origins['evaluation'])
                      if origin['binding'] == 'evaluation.rows' and
                      table_records['evaluation']['rows'][origin['index']]['indicator_id'] == row['indicator_id']]

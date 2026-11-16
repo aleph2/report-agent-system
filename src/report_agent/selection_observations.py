@@ -9,16 +9,26 @@ REPRESENTATION = 'selected-content-receipt-v1'
 
 def verified_selection_return(db, owner, observation_ref, text, sha256):
     """Recover only the exact owned public return backed by a real read receipt."""
-    row = db.execute('SELECT value FROM state WHERE key=?',
-                     ('tool_observation:' + observation_ref,)).fetchone()
-    json.loads(row[0]) if row else None
-    hashlib.sha256(text.encode('utf-8')).hexdigest()
-    original = json.loads(text)
-    row = db.execute('SELECT actor_id,data FROM content_observations WHERE id=?',
-                     (original['receipt_id'],)).fetchone()
-    if not row or row[0] != owner or json.loads(row[1]) != original['result']:
-        raise ValueError('read receipt mismatch')
-    return original['result']
+    from .errors import ActionRejected
+    try:
+        row = db.execute('SELECT value FROM state WHERE key=?',
+                         ('tool_observation:' + observation_ref,)).fetchone()
+        saved = json.loads(row[0]) if row else None
+        sha = hashlib.sha256(text.encode('utf-8')).hexdigest()
+        if (not saved or saved['owner'] != owner or saved['tool'] != 'read_content_selection'
+                or saved['text'] != text or saved['sha256'] != sha256 or sha != sha256
+                or observation_ref != digest({'owner':owner, 'tool':'read_content_selection', 'sha256':sha})):
+            raise ValueError('unverified public return')
+        original = json.loads(text)
+        if metadata(original) is None:
+            raise ValueError('not a successful selection return')
+        row = db.execute('SELECT actor_id,data FROM content_observations WHERE id=?',
+                         (original['receipt_id'],)).fetchone()
+        if not row or row[0] != owner or json.loads(row[1]) != original['result']:
+            raise ValueError('read receipt mismatch')
+        return original['result']
+    except (ValueError, TypeError, KeyError, AttributeError) as exc:
+        raise ActionRejected('TEXT_WORK_SELECTION_OBSERVATION_UNVERIFIED') from exc
 
 
 def metadata(value, maximum=4700):

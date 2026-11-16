@@ -26,6 +26,7 @@ PROBE_UNAVAILABLE_TOOLS = frozenset({'task', 'export_content_snapshot', 'export_
 def verified_vision_bound(proof, env_file, model, base_url):
     """Conservative documented service ceiling; not a measured small-image estimate."""
     import hashlib
+    from urllib.parse import urlparse
     from .token_budget import RequestBound
     import httpx
     sha=lambda value:hashlib.sha256(value).hexdigest()
@@ -35,6 +36,11 @@ def verified_vision_bound(proof, env_file, model, base_url):
               'env_sha256':host._sha(Path(env_file)),
               'base_url_sha256':sha(base_url.rstrip('/').encode()),
               'request_url_sha256':sha(str(httpx.URL(base_url.rstrip('/')+'/chat/completions')).encode())}
+    if (model!=VISION_MODEL or not (urlparse(base_url).hostname or '').endswith('.maas.aliyuncs.com')
+            or any(proof.get(k)!=v for k,v in expected.items())
+            or not {'https://help.aliyun.com/zh/model-studio/deepseek-v4-1-flash',
+                    'https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions'}<=set(proof.get('sources',[]))):
+        raise ValueError('FAKE_VISION_BOUND_PROOF_INVALID')
     return RequestBound(model,expected['request_url_sha256'],1_000_000,8_202,
         sha(json.dumps(proof,sort_keys=True,separators=(',',':')).encode()),
         image_max_edge=1024,wire_output_limit=8192)
@@ -93,6 +99,7 @@ async def launch(path,pin,prepared_pin,env_file):
     from .store import Store
     from .workspace import Workspace
     from .hierarchical_tools import actor_for
+    from .model_recovery import load_recovery_policy
     from .fake_draft_flow import plan
     from .tool_trace import ToolTrace,capture_tools,summarize_trace
     from . import page_bindings,plan_authority
@@ -110,10 +117,13 @@ async def launch(path,pin,prepared_pin,env_file):
     bound=visual_bound if smoke else verified_request_bound(authority['request_bound_proof'],env_file,*service[:2])
     policies=(visual_bound,) if smoke else (bound,visual_bound)
     os.environ['REPORT_VISION_THINKING']=authority['vision_thinking']
+    if deep_models.sdk_retry_count()!=0 or deep_models.connection_retry_count()!=2:
+        raise ValueError('FAKE_SERVICE_POLICY_REQUIRED')
     # One approved GLM service for every constructible role; the HTTP guard admits only planning.
     for role in ('COORDINATOR','WRITER','REVIEWER','TEXT_TOOL','LAYOUT','RUBRIC_GRADER','MATERIALS'):
         for suffix,value in zip(('MODEL','BASE_URL','API_KEY'),service):os.environ['REPORT_'+role+'_'+suffix]=value
     ws=Workspace(Store(case))
+    if load_recovery_policy(ws.store):raise ValueError('FAKE_RECOVERY_DISABLED_REQUIRED')
     budget=FakeFlowBudget(authority['grant_dir'],authority['run_id'],authority['fresh_comparison'],pin,
                           maximum_tokens=authority['per_run_tokens'],model_bounds={VISION_MODEL:visual_bound.total},
                           aggregate_tokens=authority['aggregate_tokens'])
@@ -137,6 +147,8 @@ async def launch(path,pin,prepared_pin,env_file):
                     clients.push_async_callback(client.aclose) if asynchronous else clients.callback(client.close)
             def factory(role):
                 model=deep_models.configured_model(ws.store,role)
+                if model.model_name!=host.MODEL or (model.profile or {}).get('image_inputs') is not False:
+                    raise ValueError('FAKE_PROBE_EFFECTIVE_MODEL_MISMATCH')
                 def admit(request):
                     if role not in {'coordinator','text_tool'}:raise RequestBudgetExceeded('FAKE_PROBE_COORDINATOR_ONLY')
                 async def admit_async(request):admit(request)

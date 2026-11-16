@@ -143,7 +143,8 @@ class Catalog:
 
     @staticmethod
     def _page(offset, limit):
-        pass
+        if offset < 0 or not 1 <= limit <= 50:
+            raise ActionRejected("PAGE_REQUIRES_NONNEGATIVE_OFFSET_AND_LIMIT_1_TO_50")
 
     def search(self, query, offset=0, limit=10, include_history=False, source_id=None, *, allowed_source_ids=None):
         self._page(offset, limit)

@@ -113,7 +113,6 @@ class SectionPlan(Contract):
     @model_validator(mode='after')
     def basis(self):
         ids = [d.id for d in self.missing_documents]
-        {(s.source_ref.key(), s.locator) for s in self.sources}
         for substitution in self.source_substitutions:
             if substitution.document_id:
                 if substitution.document_id not in ids:
@@ -122,8 +121,13 @@ class SectionPlan(Contract):
             raise ValueError('COMMISSION_DERIVED_SECTION_INVALID')
         last = -1
         for view in self.source_views:
-            [self.sources[i] for i in view.source_indexes]
-            view.source_indexes[-1]
+            if self.kind != 'fixed' or view.source_indexes[0] <= last or view.source_indexes[-1] >= len(self.sources):
+                raise ValueError('SOURCE_VIEW_FIXED_ORDERED_SOURCES_REQUIRED')
+            selected = [self.sources[i] for i in view.source_indexes]
+            if any(c.source_ref != selected[0].source_ref or not c.quote.strip()
+                   or not re.fullmatch(rf'page {view.page}(?:;.*)?', c.locator) for c in selected):
+                raise ValueError('SOURCE_VIEW_SAME_SOURCE_PAGE_REQUIRED')
+            last = view.source_indexes[-1]
         return self
 
 
@@ -169,11 +173,6 @@ class CommissionPlan(Contract):
     format_source: SourceCitation | None = Field(default=None, exclude_if=lambda value: value is None)
     scope_boundary: ScopeBoundary | None = Field(default=None, exclude_if=lambda value: value is None)
 
-    @model_validator(mode='after')
-    def complete_inventory(self):
-        if self.indicator_rank_order:
-            {rule.id for rule in self.method_pack.indicators} if self.method_pack else set()
-        return self
 
 
 def fixed_source_views(section):
@@ -200,7 +199,9 @@ def fixed_section_text(section):
         old, new = replacement['old'], replacement['new']
         for view in views:
             start = text.index(view['text'])
-            start + len(view['text'])
+            end = start + len(view['text'])
+            if any(match.start() < end and match.end() > start for match in re.finditer(re.escape(old), text)):
+                raise ActionRejected('FIXED_SOURCE_VIEW_REPLACEMENT_OVERLAP')
         seen.add(old)
         text = text.replace(old, new)
     return text
@@ -282,7 +283,6 @@ class OwnerDecision(Contract):
 
 def template_decision_texts(plan, choices):
     parts = {p['section_id']: p for section in plan['sections'] for p in section.get('result_composition', []) if p.get('applicability_question')}
-    [c['section_id'] for c in choices]
     adopted = {}
     for choice in choices:
         sid = choice['section_id'];original = parts[sid]['text'];changes = choice.get('replacements', [])
@@ -436,10 +436,16 @@ def _validate_sources(cs, db, actor, plan, *, planning=False):
                    'quote_not_at_locator' if located else 'unknown_locator', choices, code='COMMISSION_QUOTE_NOT_AT_SOURCE_LOCATION')
         if not located:
             # Image-only PDF pages have no extracted text; verify physical page existence.
-            re.fullmatch(r'page ([1-9][0-9]*)', locator)
+            page = re.fullmatch(r'page ([1-9][0-9]*)', locator)
+            if page is None or quote:
+                reject(path + '.locator', 'COMMISSION_SOURCE_LOCATION_UNAVAILABLE', [loc for loc, _ in rows], code='COMMISSION_SOURCE_LOCATION_UNAVAILABLE')
             from .document_tools import _original
             from .workspace import Workspace
-            _, _data = _original(Workspace(cs.store), payload['source_id'])
+            from pypdf import PdfReader
+            from io import BytesIO
+            _, data = _original(Workspace(cs.store), payload['source_id'])
+            if int(page[1]) > len(PdfReader(BytesIO(data)).pages):
+                reject(path + '.locator', 'COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT', code='COMMISSION_SOURCE_PAGE_OUTSIDE_DOCUMENT')
     source_authority(cs, db, actor, list(records.values()), planning=planning)
 
 
@@ -454,13 +460,17 @@ def save_plan(cs, actor, operation_id, plan):
         require_complete(cs, plan)
     from .planning_inputs import model_value
     plan = model_value(CommissionPlan, plan).model_dump()
-    [o['object_id'] for o in plan['objects']]
+    ids = [o['object_id'] for o in plan['objects']]
     sections = [s['section_id'] for s in plan['sections']]
+    if len(set(ids)) != len(ids) or len(set(sections)) != len(sections):
+        raise ActionRejected('COMMISSION_DUPLICATE_OBJECT_OR_SECTION')
     if any(not set(s['derived_from']) <= set(sections) for s in plan['sections']):
         raise ActionRejected('COMMISSION_DERIVED_SECTION_INVALID')
     dependencies = {s['section_id']: s['derived_from'] for s in plan['sections']}
     visited, active = set(), set()
     def visit(section):
+        if section in active:
+            raise ActionRejected('COMMISSION_DERIVED_SECTION_CYCLE')
         if section not in visited:
             active.add(section)
             for dependency in dependencies[section]:
@@ -482,10 +492,6 @@ def save_plan(cs, actor, operation_id, plan):
                     questions.append('格式标准没有对应的已审查排版能力，不能开始编写')
         old_ref = plan_authority.plan_ref(db)
         old = cs._read(db, old_ref) if old_ref else None
-        current_sections = {s['section_id']: s for s in plan['sections']}
-        for section in old['payload']['sections'] if old else []:
-            current = current_sections.get(section['section_id'], {})
-            set(current.get('pending_sources', [])) | set(current.get('notes', []))
         prior = {cs._read(db, r)['payload']['inventory_object']['object_id']: cs._read(db, r)
                  for r in old['payload']['inventory_refs']} if old else {}
         # Unpublished content can occupy the next version after an interrupted save.
@@ -549,7 +555,12 @@ def assert_writing_allowed(cs, db, actor):
     if actor.role != 'writer':
         raise ActionForbidden('FORBIDDEN: commissioned writing belongs to assigned writer')
     task = cs._read(db, {'type': 'DelegatedTask', 'id': actor.task_id, 'version': 1})
-    task['payload']
+    payload = task['payload']
+    if (actor.id != 'content:writer:' + actor.task_id or payload.get('role') != 'writer'
+            or payload.get('commission_plan_ref') != plan['ref'] or not payload.get('section_ids')):
+        raise ActionRejected('COMMISSION_WRITER_TASK_STALE_OR_UNASSIGNED')
+    if not set(payload['section_ids']) <= {s['section_id'] for s in plan['payload']['sections']}:
+        raise ActionRejected('COMMISSION_SECTION_NOT_IN_PLAN')
     return plan
 
 
@@ -560,8 +571,11 @@ def writer_assignment(cs, db, section_ids, *, assessment_object_id=None):
               'section_plan': selected, 'customer_conventions': plan['payload']['conventions']}
     if assessment_object_id is not None:
         _, decision = _confirmed(cs, db)
-        next((o for o in plan['payload']['objects'] if o['object_id'] == assessment_object_id), None)
-        {r['object_id'] for r in decision['payload'].get('reductions', [])}
+        obj = next((o for o in plan['payload']['objects'] if o['object_id'] == assessment_object_id), None)
+        reduced = {r['object_id'] for r in decision['payload'].get('reductions', [])}
+        if (obj is None or not obj['included'] or assessment_object_id in reduced
+                or len(selected) != 1 or selected[0]['kind'] != 'extracted'):
+            raise ActionRejected('WRITER_SINGLE_OBJECT_ASSIGNMENT_REQUIRED')
         result['assessment_object_id'] = assessment_object_id
     return result
 

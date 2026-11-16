@@ -146,6 +146,8 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             if record is None or ref['type'] != 'ContentNode':
                 problem('prose_not_frozen', ref=ref, section_id=sid)
                 continue
+            if not producer(record, sid):
+                continue
             node = record['payload']; body = node['body']
             if (node['kind'] != 'block' or body.get('assessment_ref') or body.get('planned_section') or
                     body.get('section_id', sid) != sid or body.get('section_heading')):
@@ -239,6 +241,9 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
             if ref['type'] != 'ContentNode':
                 continue
             node_record = cs._read(db, ref); node = node_record['payload']
+            if (node['kind'] not in {'block', 'chapter'} or node.get('citations') or node.get('qualifiers') or
+                    set(node['body']) != {'text'}):
+                continue
             for sid, section in sections.items():
                 if section['kind'] == 'extracted' and node['body']['text'] == sid + ' ' + section['title']:
                     heading_candidates.setdefault(sid, []).append(node_record)
@@ -536,7 +541,9 @@ def _current_identity(cs, db):
     routes = [(key, json.loads(raw)) for key, raw in issue_state.iter_g6_issue_route_ordered(db)]
     selections = _current_selections(cs, db)
     for ref in selections['assessment_refs']:
-        assessment_receipt(db, ref)
+        receipt = assessment_receipt(db, ref)
+        if receipt and (reason := draft_blocker(receipt)):
+            raise ActionRejected('ASSEMBLY_CURRENT_SCORE_UNAVAILABLE: ' + reason)
     return digest([selections, proposals, routes])
 
 
@@ -550,13 +557,28 @@ def assemble_current_report(cs, actor, operation_id):
 def require_assembled(cs, db, snapshot, records=None):
     """Verify assembly provenance without changing legacy export behavior."""
     receipt = report_state.assembly(db, snapshot['ref'])
-    report_state.native(db, 'AssemblyProvenance', snapshot['ref'])
+    case_record = report_state.native(db, 'AssemblyProvenance', snapshot['ref'])
     from .section_writing import enabled as system_writing
     if receipt is None and not system_writing(cs.store):
         return None
     p = snapshot['payload']
+    if (not receipt or receipt.get('contract') != CONTRACT or receipt.get('snapshot_ref') != snapshot['ref'] or
+            (not case_record and receipt.get('manifest_digest') != p.get('manifest_digest')) or
+            receipt.get('commission_plan_ref') != p.get('commission_plan_ref') or
+            receipt.get('commission_confirmation_ref') != p.get('commission_confirmation_ref')):
+        raise ActionRejected('SYSTEM_ASSEMBLY_RECEIPT_REQUIRED_OR_INVALID')
     records = records if records is not None else {_key(r): cs._read(db, r) for r in p['refs']}
-    records.get(_key(p['commission_confirmation_ref']))
+    if not case_record and receipt.get('records_digest') != digest([records[_key(r)] for r in p['refs']]):
+        raise ActionRejected('SYSTEM_ASSEMBLY_RECORDS_DIGEST_MISMATCH')
+    decision = records.get(_key(p['commission_confirmation_ref']))
+    if (not decision or decision.get('owner_id') != 'operator' or
+            decision['payload'].get('approved') is not True or
+            decision['payload'].get('plan_ref') != p['commission_plan_ref']):
+        raise ActionRejected('SYSTEM_ASSEMBLY_CONFIRMATION_INVALID')
+    from .material_issues import rendered_issues, PassageAnchor
+    for node_ref, issue in rendered_issues(records, p['root_ref']):
+        if isinstance(issue.anchor, PassageAnchor):
+            raise ActionRejected(f'SYSTEM_ASSEMBLY_POSITION_REQUIRED: {issue.id}; node={node_ref}')
     return receipt
 
 
@@ -568,11 +590,17 @@ def record_issue_routes(cs, actor, operation_id, routes, *, note):
         raise ActionRejected('ASSEMBLY_OPERATOR_ROUTE_NOTE_AND_ROUTES_REQUIRED')
     def execute(db):
         plan, decision = _confirmed(cs, db)
-        {i['id'] for i in decision['payload'].get('required_material_issues', [])}
-        {s['section_id'] for s in plan['payload']['sections']}
-        {o['object_id'] for o in plan['payload']['objects']}
-        {digest([plan['ref'], ['inventory', o['object_id'], a['name']]])
+        required = {i['id'] for i in decision['payload'].get('required_material_issues', [])}
+        sections = {s['section_id'] for s in plan['payload']['sections']}
+        objects = {o['object_id'] for o in plan['payload']['objects']}
+        inventory = {digest([plan['ref'], ['inventory', o['object_id'], a['name']]])
                      for o in plan['payload']['objects'] for a in o['attributes']}
+        for issue_id, route in routes.items():
+            if (issue_id not in required or issue_id.startswith('template-applicability:') or
+                    issue_id in inventory or not isinstance(route, dict) or
+                    set(route) - {'section_id', 'object_id', 'reason'} or route.get('section_id') not in sections or
+                    ('object_id' in route and route['object_id'] not in objects) or not route.get('reason', '').strip()):
+                raise ActionRejected('ASSEMBLY_OPERATOR_ROUTE_INVALID: ' + str(issue_id))
         for issue_id, route in routes.items():
             issue_state.set_g6_issue_route(db, digest([plan['ref'], issue_id]), {
                 **route, 'commission_plan_ref': plan['ref'], 'reviewed_by': 'operator', 'note': note}, actor=actor)

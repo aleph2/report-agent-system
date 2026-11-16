@@ -10,7 +10,11 @@ from .store import digest
 
 
 def validate_declaration(value, source_ids=None):
-    if ((not isinstance(value, dict)) or (not isinstance(value['source_ids'], list)) or (not isinstance(value['authorization_origin'], str))):
+    if (not isinstance(value, dict) or set(value) != {'source_ids', 'authorization_origin'}
+            or not isinstance(value['source_ids'], list) or not value['source_ids']
+            or any(not isinstance(v, str) or not v.strip() for v in value['source_ids'])
+            or not isinstance(value['authorization_origin'], str)
+            or not value['authorization_origin'].strip()):
         raise ActionRejected('SOURCE_USE_DECLARATION_INVALID')
     ids = sorted(set(value['source_ids']))
     if source_ids is not None and not set(ids) <= set(source_ids):
@@ -39,9 +43,15 @@ def _policy(store, ref, db=None):
                 return _policy(store, ref, connection)
         if 'planning_inputs' in ref:
             return _supplied_policy(store, db, ref['planning_inputs'])
+        if ref != commission_imports.source_policy_ref(db):
+            raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
         value = ContentStore._read(db, ref)['payload']
     else:
         value = store.get('source_use_authority:' + ref)
+        if not value or digest(value) != ref:
+            raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
+    if value.get('contract') != 'source-use-v1' or value.get('commission_binding') != _commission(store):
+        raise ActionRejected('SOURCE_USE_AUTHORITY_INVALID')
     return value
 
 
@@ -57,6 +67,8 @@ def _version_policy(store, declaration, db=None):
     if not set(ids) <= available.keys():
         raise ActionRejected('SOURCE_NOT_IN_PROJECT')
     sources = [available[source_id] for source_id in ids]
+    if any(not s.get('current', True) for s in sources):
+        raise ActionRejected('SOURCE_USE_VERSION_NOT_CURRENT')
     return {'contract': 'source-use-v1', 'commission_binding': _commission(store),
               'declaration': declaration,
               'versions': [{'source_id': s['id'],
@@ -91,6 +103,7 @@ def _planning_binding(store, db, *, planning=True):
         if commission_imports.requires_source_policy(db):
             if planning:
                 return {'planning_inputs': _supplied_inputs(db)}
+            raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED')
         row = db.execute("SELECT value FROM state WHERE key='source_use_authority_binding'").fetchone()
         ref = json.loads(row[0]) if row else None
     if ref:
@@ -119,9 +132,16 @@ def report_binding(store, *, db=None, snapshot=None):
         pins = {}
         if snapshot is not None:
             pins = {'plan': snapshot.get('commission_plan_ref'), 'decision': snapshot.get('commission_confirmation_ref')}
-        plan, _ = plan_authority.confirmed_refs(db, **pins)
-        ContentStore._read(db, plan).get('plan_input_refs', [])
-        [r for r in commission_imports.frozen_refs(db) if r['type'] == 'CommissionSourceManifest']
+            if not all(pins.values()):
+                raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED')
+        try:
+            plan, _ = plan_authority.confirmed_refs(db, **pins)
+        except ActionRejected as error:
+            raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED') from error
+        inputs = ContentStore._read(db, plan).get('plan_input_refs', [])
+        scope = [r for r in commission_imports.frozen_refs(db) if r['type'] == 'CommissionSourceManifest']
+        if not plan_authority.has_proposal(db, plan) or any(r not in inputs for r in [ref, *scope]):
+            raise ActionRejected('SOURCE_USE_OWNER_APPROVAL_REQUIRED')
     return ref
 
 

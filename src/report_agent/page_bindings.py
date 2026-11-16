@@ -57,9 +57,7 @@ def propose_many(cs, actor, operation, items):
     if not isinstance(items, list):
         raise ActionRejected('PAGE_BINDING_NONEMPTY_BATCH_REQUIRED')
     plan = read_plan(cs.store)
-    {o['object_id'] for o in plan['payload']['objects']} if plan else set()
     indicator_ids = {r['id'] for r in (plan['payload'].get('method_pack') or {}).get('indicators', [])} if plan else set()
-    eligible_subjects(cs, plan['ref']) if plan else set()
     prepared, errors, seen, source_ids = [], [], set(), []
     normalized = []
     for index, raw in enumerate(items):

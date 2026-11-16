@@ -9,7 +9,7 @@ import json
 from langchain_core.messages import ToolMessage
 
 from .content_store import ContentStore
-from .errors import ActionForbidden
+from .errors import ActionForbidden, ActionRejected
 from .store import digest, encode
 
 CONTRACT = 'source-material-v1'
@@ -109,11 +109,17 @@ def returned(workspace, role, tool, value, materials, runtime, *, reviewer_handl
 
 def verify(workspace, actor, ref, text, tool):
     record = workspace.store.get('source_material:'+ref)
+    if not record or digest(record) != ref or record.get('contract') != CONTRACT:
+        raise ActionRejected('SOURCE_MATERIAL_RECEIPT_INVALID')
     if record['actor'] != actor.__dict__:
         raise ActionForbidden('FORBIDDEN: source material belongs to another task')
     sha = hashlib.sha256(text.encode('utf-8')).hexdigest()
     body_ref = digest({'owner':actor.id,'tool':tool,'sha256':sha})
-    workspace.store.get('tool_observation:'+body_ref)
+    if (record['tool'] != tool or record['public_sha256'] != sha or record['body_ref'] != body_ref):
+        raise ActionRejected('SOURCE_MATERIAL_PUBLIC_RETURN_CHANGED')
+    original = workspace.store.get('tool_observation:'+body_ref)
+    if original != {'owner':actor.id,'tool':tool,'text':text,'sha256':sha}:
+        raise ActionRejected('SOURCE_MATERIAL_ORIGINAL_CHANGED')
     return record
 
 

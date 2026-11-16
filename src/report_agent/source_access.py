@@ -82,6 +82,8 @@ def coverage(cs, plan, *, include_page_totals=True):
                     state['inspected'].update(returned)
                 elif kind == 'model_image_interpretation':
                     status = part['coverage']['response_status']
+                    if status not in ('observed', 'incomplete'):
+                        continue
                     image = {'page': selection['page'], 'crop': selection.get('crop'), 'status': status}
                     state['images'][digest(image)] = image
                     returned = {image['page']}

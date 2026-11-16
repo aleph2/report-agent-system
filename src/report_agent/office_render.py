@@ -46,8 +46,9 @@ def convert_pdf(store, data, suffix):
                     continue
                 import pypdfium2 as pdfium
                 try:
-                    with pdfium.PdfDocument(pdf):
-                        pass
+                    with pdfium.PdfDocument(pdf) as document:
+                        if len(document) == 0:
+                            raise ValueError('Empty PDF')
                 except (pdfium.PdfiumError, ValueError):
                     failures.append({'engine': Path(executable).name, 'code': 'INVALID_PDF'})
                     continue

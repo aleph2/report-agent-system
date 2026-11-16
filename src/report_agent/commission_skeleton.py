@@ -14,7 +14,8 @@ FIXED = ('sources', 'text', 'extraction')
 
 
 def fail(section, field, item, reason):
-    pass
+    raise ActionRejected('SKELETON_' + reason + ': ' + section + '/' + field + '/' + item,
+        diagnostic={'fields': [{'section_id': section, 'field': field, 'item_id': item, 'reason': reason}]})
 
 
 def requirement_digest(record):

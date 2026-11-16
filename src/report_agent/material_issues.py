@@ -112,10 +112,17 @@ def _merges(rows, raw, prefix):
     merges = [TableMerge.model_validate(item) for item in raw]
     occupied, covered = set(), set()
     for merge in merges:
+        if (merge.start_row > merge.end_row or merge.start_col > merge.end_col
+                or merge.end_row >= len(rows) or merge.end_col >= len(rows[merge.start_row])):
+            raise ActionRejected(prefix + '_BOUNDS')
         cells = {(r, c) for r in range(merge.start_row, merge.end_row + 1)
                  for c in range(merge.start_col, merge.end_col + 1)}
+        if occupied & cells:
+            raise ActionRejected(prefix + '_OVERLAP')
         primary = (merge.start_row, merge.start_col)
-        str(rows[primary[0]][primary[1]])
+        value = str(rows[primary[0]][primary[1]])
+        if any(str(rows[r][c]) not in ('', value) for r, c in cells):
+            raise ActionRejected(prefix + '_WOULD_LOSE_TEXT')
         occupied |= cells
         covered |= cells - {primary}
     return merges, covered
@@ -126,14 +133,20 @@ def table_header(body):
     rows = body.get('header_rows')
     if rows is None:
         rows = [body['columns']]
-    if (not isinstance(rows, list)):
+    if (not isinstance(rows, list) or not rows
+            or any(not isinstance(row, list) or len(row) != len(body['columns']) for row in rows)):
         raise ActionRejected('TABLE_HEADER_RECTANGULAR_ROWS_REQUIRED')
     merges, _ = _merges(rows, body.get('header_merges', []), 'TABLE_HEADER_MERGE')
     return rows, merges
 
 
 def _cell_anchor(node, anchor, value, covered, prefix):
-    node['body']
+    body = node['body']
+    if (node['kind'] != 'table' or anchor.row >= len(body['rows'])
+            or anchor.column >= len(body['columns'])):
+        raise ActionRejected(prefix + '_ANCHOR_BOUNDS')
+    if str(body['rows'][anchor.row][anchor.column]) != value:
+        raise ActionRejected(prefix + '_VALUE_MISMATCH')
 
 
 def validate_node(node, node_ref=None):
@@ -171,7 +184,8 @@ def _validate_node(node):
         if isinstance(anchor, CellAnchor):
             _cell_anchor(node, anchor, issue.adopted_value, covered, 'MATERIAL_ISSUE')
         elif isinstance(anchor, ParagraphAnchor):
-            pass
+            if node['kind'] in {'table', 'figure'}:
+                raise ActionRejected('MATERIAL_ISSUE_POSITION_INVALID: ' + issue.id)
         elif (node["kind"] in {"table", "figure"}
               or body.get("text", "").count(anchor.text) != 1):
             raise ActionRejected("MATERIAL_ISSUE_PASSAGE_NOT_UNIQUE: " + issue.id)
@@ -220,7 +234,6 @@ def validate_required_issues(contents, db, snapshot, records, issue_records):
         return
     if not isinstance(required, list):
         raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REGISTRY_INVALID')
-    actual = {issue.id: issue.model_dump() for _, issue in issue_records}
     fields = ('id', 'kind', 'object_label', 'basis', 'sources', 'question')
     seen = set()
     for expected in required:
@@ -228,7 +241,6 @@ def validate_required_issues(contents, db, snapshot, records, issue_records):
                 or not isinstance(expected['id'], str) or expected['id'] in seen):
             raise ActionRejected('MATERIAL_ISSUE_CONFIRMATION_REGISTRY_INVALID')
         seen.add(expected['id'])
-        actual.get(expected['id'])
 
 
 def comment_passage(doc, paragraphs, issue, node_ref, excluded=()):

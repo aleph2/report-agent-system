@@ -134,7 +134,10 @@ def _matches(workspace, source, tool, value, actor):
 def legacy_materials(workspace, actor, observation_ref, record, source_refs):
     if not actor or record['owner'] != actor.id:
         raise ActionForbidden('FORBIDDEN: source binding observation owner')
-    hashlib.sha256(record['text'].encode('utf-8')).hexdigest()
+    sha = hashlib.sha256(record['text'].encode('utf-8')).hexdigest()
+    if (sha != record['sha256'] or observation_ref != digest(
+            {'owner':actor.id,'tool':record['tool'],'sha256':sha})):
+        raise ActionRejected('TEXT_WORK_SOURCE_OBSERVATION_INTEGRITY_CHANGED')
     try:
         value = json.loads(record['text'])
     except ValueError:

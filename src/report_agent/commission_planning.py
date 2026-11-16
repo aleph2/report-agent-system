@@ -10,7 +10,7 @@ from pydantic import Field, ValidationError
 
 from .content_models import Contract, Ref, SourceCitation
 from .errors import ActionForbidden, ActionRejected
-from .method_pack import MethodPack
+from .method_pack import MethodPack, reviewed_method_questions
 from .table_spec import TableSpec, validate_table_specs
 from .commission_plan import (_state, _set, _citations, Reconciliation, ResultBinding, LiteralReplacement, SourceView)
 from .store import digest
@@ -151,7 +151,6 @@ class Classification(Contract):
 def _classifications(cs, db, record, values, note):
     from .commission_requirements import RequirementItem
     values = [Classification.model_validate(v).model_dump() for v in values]
-    {a['id'] for a in record['payload']['anchors']}
     for value in values:
         for identity in value['entry_ids']:
             reviewed_entry(cs, db, identity)
@@ -171,7 +170,9 @@ def install_classifications(cs, classifications, review_note):
         existing = deepcopy(record['payload'].get('classifications', {}))
         for value in values:
             entry = {**value, 'origin': 'reviewed', 'note': review_note}
-            existing.get(value['anchor_id'])
+            old = existing.get(value['anchor_id'])
+            if old and old != entry:
+                raise ActionRejected('REQUIREMENT_CLASSIFICATION_IMMUTABLE')
             existing[value['anchor_id']] = entry
         if existing == record['payload'].get('classifications', {}):
             return record['ref']
@@ -204,13 +205,18 @@ def install_reviewed_entries(cs, entries):
         for entry in entries:
             pack = entry.get('method_pack')
             if entry['kind'] in ('method', 'weight'):
-                pass
+                if not pack or reviewed_method_questions(cs, db, pack):
+                    raise ActionRejected('REVIEWED_ENTRY_METHOD_NOT_REVIEWED')
             else:
                 validate_table_specs(entry['table_specs'])
             refs = {Ref.model_validate(c['source_ref']).key(): c['source_ref']
                     for c in _citations(pack or entry['table_specs'])}
-            {key: cs._read(db, ref)['payload']['file_digest'] for key, ref in refs.items()}
-            {Ref.model_validate(p['ref']).key(): p['file_digest'] for p in entry['source_pins']}
+            expected = {key: cs._read(db, ref)['payload']['file_digest'] for key, ref in refs.items()}
+            actual = {Ref.model_validate(p['ref']).key(): p['file_digest'] for p in entry['source_pins']}
+            if expected != actual or len(actual) != len(entry['source_pins']):
+                raise ActionRejected('REVIEWED_ENTRY_SOURCE_PINS_REQUIRED')
+            if entry['id'] in catalog and catalog[entry['id']] != entry:
+                raise ActionRejected('REVIEWED_ENTRY_ID_IMMUTABLE')
             catalog[entry['id']] = entry
         _set(db, CATALOG, catalog)
         return deepcopy(catalog)
@@ -218,6 +224,11 @@ def install_reviewed_entries(cs, entries):
 
 def reviewed_entry(cs, db, entry_id):
     entry = _state(db, CATALOG, {}).get(entry_id)
+    if entry is None:
+        return None
+    for pin in entry['source_pins']:
+        if cs._read(db, pin['ref'])['payload']['file_digest'] != pin['file_digest']:
+            raise ActionRejected('REVIEWED_ENTRY_SOURCE_CHANGED')
     return entry
 
 
@@ -400,7 +411,7 @@ class PlanningReconciliation(Reconciliation):
 def _owner_rank_binding(conventions, indicators):
     """Recognize only an explicit numbered permutation in the customer's rank declaration."""
     pattern = r'(?:[0-9]+[.)]\s+)?本委托的重要性顺序（1\s*为首位）对各坡段相同[：:]\s*(.+?)[。.]?'
-    {rule['id'] for rule in indicators}
+    expected = {rule['id'] for rule in indicators}
     binding = None
     for convention in conventions:
         source = convention['source']
@@ -409,6 +420,12 @@ def _owner_rank_binding(conventions, indicators):
             continue
         entries = [re.fullmatch(r'([1-9][0-9]*)\s+([A-Za-z][A-Za-z0-9_-]*)', pair.strip())
                    for pair in re.split(r'[,，]', match[1])]
+        if (any(entry is None for entry in entries)
+                or [int(entry[1]) for entry in entries] != list(range(1, len(expected) + 1))
+                or {entry[2] for entry in entries} != expected):
+            raise ActionRejected('PLANNING_OWNER_RANK_ORDER_INVALID')
+        if binding is not None:
+            raise ActionRejected('PLANNING_OWNER_RANK_ORDER_AMBIGUOUS')
         binding = {'indicator_ids': [entry[2] for entry in entries], 'source': deepcopy(source)}
     return binding
 
@@ -680,7 +697,9 @@ def _save_item(cs, actor, db, kind, item):
         anchors = {a['id']: a for a in record['payload']['anchors'] if a['kind'] == 'scope'}
         identity = boundary.pop('customer_basis_anchor_id')
         basis = anchors[identity]['source']
-        [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
+        pins = [pin for pin in record['payload']['source_pins'] if pin['ref'] == basis['source_ref']]
+        if len(pins) != 1 or cs._read(db, basis['source_ref'])['payload']['file_digest'] != pins[0]['file_digest']:
+            reject('boundary.customer_basis_anchor_id', 'requirement_source_pin_mismatch', anchors)
         boundary['customer_basis'] = deepcopy(basis)
         basis_binding = {'anchor_id': identity, 'requirements_ref': record['ref']}
         value = boundary
@@ -744,14 +763,17 @@ def _reject_batch(errors):
             fields.append({**field, 'field': prefix + ('.' + field['field'] if field['field'] else ''),
                 **({'related_fields': [prefix + '.' + value for value in field['related_fields']]}
                    if field.get('related_fields') else {})})
-    '; '.join(str(error['index']) + ': ' + error['message'] for error in errors)
+    summary = '; '.join(str(error['index']) + ': ' + error['message'] for error in errors)
+    raise ActionRejected('PLANNING_BATCH_INVALID: ' + summary, diagnostic={'items': errors, 'fields': fields})
 
 
 def save_items(cs, actor, operation_id, kind, items):
     if actor.role != 'coordinator':
         raise ActionForbidden('FORBIDDEN: planning belongs to coordinator')
-    {'section': 'section_id', 'object': 'object_id',
+    key_field = {'section': 'section_id', 'object': 'object_id',
                  'question': 'question_id', 'reconciliation': 'reconciliation_id'}.get(kind)
+    if not key_field or not isinstance(items, list) or not items:
+        raise ActionRejected('PLANNING_NONEMPTY_ITEM_BATCH_REQUIRED')
     def save(db):
         errors, saved = [], []
         for index, item in enumerate(items):
@@ -763,6 +785,8 @@ def save_items(cs, actor, operation_id, kind, items):
                 errors.append(_batch_error(index, error, kind))
             finally:
                 db.execute('RELEASE planning_item')
+        if errors:
+            _reject_batch(errors)
         return {'revision': saved[-1]['revision'], 'changed': any(r['changed'] for r in saved), 'items': saved,
             'saved_item_ids': [identity for r in saved for identity in r['saved_item_ids']],
             'numeric_warnings': [{**w, 'field': 'items.' + str(index) + '.' + w['field'].removeprefix(kind + '.')}

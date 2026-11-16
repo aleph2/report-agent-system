@@ -58,7 +58,8 @@ def report_rule_source(name, prompt_profile=LEGACY_PROMPTS):
 def submit_review_source(prompt_profile=LEGACY_PROMPTS, review_submission_contract=None):
     from .review_scope_selectors import CONTRACT
     if review_submission_contract not in (None, CONTRACT):
-        pass
+        from .errors import ActionRejected
+        raise ActionRejected('UNKNOWN_REVIEW_SUBMISSION_CONTRACT')
     return report_rule_source('native-submit-review-selectors' if review_submission_contract
                               else 'native-submit-review-v4', prompt_profile)
 
@@ -265,7 +266,8 @@ def review_profile(store):
     from .handoff_release import manifest
     value = manifest(store).get('review_execution_mode', NATIVE_REVIEW)
     if value != NATIVE_REVIEW:
-        pass
+        from .errors import ActionRejected
+        raise ActionRejected('UNKNOWN_REVIEW_EXECUTION_PROFILE')
     return value
 
 
@@ -313,7 +315,8 @@ def review_interface_profile(store):
     if 'report_review_interface_profile' in metadata:
         value = metadata['report_review_interface_profile']
         if value != REVIEW_INTERFACE_V4:
-            pass
+            from .errors import ActionRejected
+            raise ActionRejected('UNKNOWN_REVIEW_INTERFACE_PROFILE')
         return value
     return validate_review_interface_profile(bound)
 

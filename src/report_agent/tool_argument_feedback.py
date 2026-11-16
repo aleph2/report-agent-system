@@ -120,7 +120,8 @@ class InvalidToolFeedback(AgentMiddleware):
         if not pending:
             return None
         if any(not c.get('id') for c in pending):
-            pass
+            from .errors import ActionRejected
+            raise ActionRejected('INVALID_TOOL_CALL_MISSING_ID')
         # Reuse the harness's actual error wording for invalid calls only. Never
         # tell it that a valid sibling failed before the native tool node ran it.
         invalid_only = latest.model_copy(update={'tool_calls': [], 'invalid_tool_calls': pending})
