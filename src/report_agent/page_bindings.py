@@ -14,7 +14,7 @@ def records(store, plan_ref, subject=None):
     bindings = {row["id"] for row, _ in rows if row["claim"]["kind"] == "convention"
                 and row["claim"]["rule"] == encode(plan_ref)}
     return [(row, state) for row, state in rows if
-            (row["id"] in bindings or any(g["assertion_id"] in bindings for g in row["grounds"]))
+            (row["id"] in bindings or row["claim"]["kind"] != "convention")
             and (subject is None or row["subject"] == subject)]
 
 
