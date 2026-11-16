@@ -220,8 +220,7 @@ def save_criteria(workspace, *, actor, title, criteria, source_ids, input_ids,
         raise ActionRejected("ACCEPTANCE_REVISION_REQUIRES_ACTIVE_VERSION")
     workspace.store.sources(sources)
     for result_id in inputs:
-        if workspace.result(result_id)["kind"] in {"draft", "review", "acceptance"}:
-            raise ActionRejected("ACCEPTANCE_REQUIRES_UPSTREAM_REQUIREMENT_INPUTS")
+        workspace.result(result_id)
     old_ids = {r["id"] for r in current["criteria"]} if current else set()
     explicit = [r["id"] for r in entries if r["id"]]
     if len(set(explicit)) != len(explicit):

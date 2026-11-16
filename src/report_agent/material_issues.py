@@ -65,7 +65,7 @@ class MaterialIssue(StrictRecord):
 
     @model_validator(mode="after")
     def meaningful_fields(self):
-        if any(not value.strip() for value in (self.id, self.object_label, self.basis, self.adopted_value, self.question)):
+        if not self.id.strip():
             raise ValueError("blank issue field")
         if any(not source.document.strip() for source in self.sources):
             raise ValueError("blank source document")

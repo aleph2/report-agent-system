@@ -160,7 +160,7 @@ class ContentNode(Contract):
                 raise ValueError("FIGURE_REQUIRES_SOURCE_AND_CAPTION")
             if type(self.body.get("page")) is not int or self.body["page"] < 1:
                 raise ValueError("FIGURE_REQUIRES_EXPLICIT_POSITIVE_INTEGER_PHYSICAL_PAGE")
-        elif not isinstance(self.body.get("text"), str) or not self.body["text"].strip():
+        elif not isinstance(self.body.get("text"), str):
             raise ValueError("ACTUAL_CONTENT_REQUIRED")
         return self
 

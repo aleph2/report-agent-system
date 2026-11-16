@@ -139,7 +139,7 @@ class LearningLibrary:
                 verification, experience_id=None, expected_version=0):
         if kind not in {"project_fact", "customer_preference", "general_skill"}:
             raise ActionRejected("INVALID_EXPERIENCE_KIND")
-        if not all(isinstance(x, str) and x.strip() for x in (title, strategy, conditions, verification)):
+        if not all(isinstance(x, str) for x in (title, strategy, conditions, verification)):
             raise ActionRejected("EXPERIENCE_DESCRIPTION_REQUIRED")
         available = {f["id"] for f in self.feedback_items(scope)}
         if not feedback_ids or not set(feedback_ids) <= available:
