@@ -79,25 +79,17 @@ def export_snapshot(contents, actor, operation_id, snapshot_ref, layout=None, la
     def execute(db):
         nonlocal snapshot_ref
         from .prompt_sources import review_interface_profile
-        v4 = review_interface_profile(contents.store) == 'review-interfaces-v4'
+        review_interface_profile(contents.store)
         if deliverable is not None:
-            if not v4 or snapshot_ref is not None:
+            if snapshot_ref is not None:
                 raise ActionRejected('EXPORT_DELIVERABLE_SELECTION_CONFLICT')
             from .deliverables import resolve_snapshot
             snapshot_ref = resolve_snapshot(contents, db, actor, deliverable)
         if actor.role not in {"coordinator", "writer", "layout"}:
             raise ActionForbidden("FORBIDDEN: export producer")
         snapshot = contents._read(db, snapshot_ref)
-        delegated = False
-        if actor.role == "layout":
-            task = contents._read(db, {"type": "DelegatedTask", "id": actor.task_id, "version": 1})
-            delegated = (actor.id == "content:layout:" + actor.task_id and
-                task["payload"].get("role") == "layout" and
-                task["payload"].get("layout_snapshot_ref") == snapshot_ref)
-        allowed = delegated or actor.role != 'layout' and snapshot['owner_id'] == actor.id
-        if v4:
-            from .deliverables import export_allowed
-            allowed = export_allowed(contents, db, actor, snapshot)
+        from .deliverables import export_allowed
+        allowed = export_allowed(contents, db, actor, snapshot)
         if snapshot_ref["type"] != "DocumentSnapshot" or not allowed:
             raise ActionForbidden("FORBIDDEN: snapshot owner")
         from .commission_requirements import require_snapshot

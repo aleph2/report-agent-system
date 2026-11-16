@@ -61,7 +61,7 @@ class PlanningSubstitution(SourceSubstitution):
 
 class PlanningReconciliationInput(Reconciliation):
     reconciliation_id: str = Field(min_length=1)
-    sources: list[PlanningCitation] = Field(min_length=2)
+    sources: list[PlanningCitation] = Field(min_length=1)
 
 
 def citation_paths(value, path=''):

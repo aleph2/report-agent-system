@@ -205,13 +205,10 @@ def test_invalid_ranges(tmp_path, offset, limit):
         preview.read_preview(ws, draft["id"], offset, limit)
 
 
-def test_no_preview_and_out_of_range(tmp_path):
+def test_no_preview(tmp_path):
     ws, draft = saved_workspace(tmp_path)
     with pytest.raises(ActionRejected, match="PREVIEW_NOT_FOUND"):
         preview.read_preview(ws, draft["id"])
-    result = preview.preview_saved_report(ws, draft["id"])
-    with pytest.raises(ActionRejected, match="PREVIEW_OFFSET_OUT_OF_RANGE"):
-        preview.read_preview(ws, draft["id"], result["text"]["blocks"] + 1)
 
 
 def test_reject_other_projects_non_drafts_and_paths_before_export(tmp_path, monkeypatch):

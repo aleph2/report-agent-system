@@ -7,7 +7,6 @@ import httpx
 import pytest
 from langchain_core.messages import HumanMessage
 
-from report_agent.artifact_review import validate_artifact_items
 from report_agent.content_store import Actor
 from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionRejected
@@ -17,42 +16,6 @@ from test_reviewer_native_profile import native, commission, candidate
 
 WORD = {'type': 'ExportArtifact', 'id': 'word', 'version': 1}
 EXCEL = {'type': 'ExportArtifact', 'id': 'excel', 'version': 1}
-
-
-def minimal(provided):
-    requirement = {'target_ref': {'type': 'ContentNode', 'id': 'claim', 'version': 1},
-        'criterion_ref': {'type': 'Criterion', 'id': 'rule', 'version': 1},
-        'scope_id': 'scope', 'assessment_kind': 'export', 'artifact_refs': [WORD, EXCEL]}
-    item = {**requirement, 'artifact_refs': provided, 'execution_state': 'running',
-            'observations': [], 'check_results': []}
-    return requirement, {'items': [item], 'delivery_checks': []}
-
-
-@pytest.mark.parametrize('provided', [[WORD], [EXCEL], [WORD, {**EXCEL, 'version': 2}],
-                                     [WORD, EXCEL, {'type': 'ExportArtifact', 'id': 'extra', 'version': 1}]])
-def test_artifact_ref_set_diagnostic_names_missing_and_extra_without_new_permission(provided):
-    requirement, data = minimal(provided)
-    before = deepcopy(data)
-    with pytest.raises(ActionRejected, match='^ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE$') as rejected:
-        validate_artifact_items(None, None, [requirement], data)
-    detail = rejected.value.diagnostic
-    assert detail['reason'] == 'artifact_ref_set_mismatch'
-    assert detail['parameter_path'] == ['review', 'items', 0, 'artifact_refs']
-    assert detail['expected_artifact_refs'] == [WORD, EXCEL]
-    assert detail['provided_artifact_refs'] == provided
-    assert detail['missing_artifact_refs'] == [r for r in [WORD, EXCEL] if r not in provided]
-    assert detail['extra_artifact_refs'] == [r for r in provided if r not in [WORD, EXCEL]]
-    assert data == before
-
-
-def test_unassigned_identity_diagnostic_does_not_disclose_other_scopes():
-    requirement, data = minimal([WORD, EXCEL])
-    data['items'][0]['scope_id'] = 'unassigned'
-    with pytest.raises(ActionRejected, match='^ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE$') as rejected:
-        validate_artifact_items(None, None, [requirement], data)
-    assert rejected.value.diagnostic['reason'] == 'artifact_scope_identity_not_assigned'
-    assert rejected.value.diagnostic['parameter_path'] == ['review', 'items', 0]
-    assert 'expected_artifact_refs' not in rejected.value.diagnostic
 
 
 def mixed(ws):

@@ -72,10 +72,13 @@ def assigned_facts(cs, db, actor, scope, *, exact_receipt=False):
     def claim(key):
         return records[key]["claim"]
 
+    def cited(keys):
+        return (key for key in keys if claim(key).get("citation"))
+
     def source(key):
         item = claim(key)
-        citation = item.get("citation")
-        if not citation or citation["source_version"] not in allowed:
+        citation = item["citation"]
+        if citation["source_version"] not in allowed:
             raise ActionRejected("WRITER_FACT_SOURCE_OUTSIDE_ASSIGNMENT")
         return item, dict(document=index["documents"][citation["source_version"]],
                           page=citation["page"], quote=citation["quote"])
@@ -92,14 +95,16 @@ def assigned_facts(cs, db, actor, scope, *, exact_receipt=False):
                 "value": item["value"] if item["state"] != "no_value" else receipt["qualifiers"].get("value"),
                 "unit": item["unit"]}
 
+    object_keys = [*index["observations"], *(index["typed"] or ())]
+    unresolved = dict.fromkeys([*index["unknowns"], *(key for key in object_keys if not claim(key).get("citation"))])
     facts = {"source_roles": {name:claim(key)["rule"] for name,key in index["roles"].items()},
              "scope": claim(index["scope"])["rule"], "observations": [],
-             "unresolved": [claim(key)["predicate"] for key in index["unknowns"]]}
-    for key in index["observations"]:
+             "unresolved": [claim(key)["predicate"] for key in unresolved]}
+    for key in cited(index["observations"]):
         item, origin = source(key)
         facts["observations"].append({"applies_to": records[key]["subject"], "fact": item["value"], **origin})
     if index["typed"] is not None:
-        facts["attestations"] = [attestation(key) for key in index["typed"]]
+        facts["attestations"] = [attestation(key) for key in cited(index["typed"])]
     if index["reviews"] is not None:
         facts["engineering_reviews"] = {
             indicator: {"status":"deferred_to_engineering", "reason":claim(review["question"])["text"],
@@ -107,6 +112,6 @@ def assigned_facts(cs, db, actor, scope, *, exact_receipt=False):
             for indicator,review in index["reviews"].items()}
     return dict(object_facts=facts, midpoint_convention=claim(index["midpoint"])["rule"],
                 assigned_indicators=[claim(key)["rule"] for key in index["indicators"]],
-                attested_facts=[attestation(key) for key in index["all_typed"]] if index["typed"] is not None else None,
-                registered_excerpts=[source(key)[1]["quote"] for key in (*index["excerpts"], *index["all_typed"])],
+                attested_facts=[attestation(key) for key in cited(index["all_typed"])] if index["typed"] is not None else None,
+                registered_excerpts=[source(key)[1]["quote"] for key in cited([*index["excerpts"], *index["all_typed"]])],
                 register_sha256=index["register_sha256"])

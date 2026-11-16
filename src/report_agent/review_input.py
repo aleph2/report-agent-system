@@ -1,67 +1,7 @@
 """Exact task/snapshot material context. No retrieval index or semantic judge."""
 from .store import encode
-from .errors import ActionRejected
 
 MAX_STRUCTURE_NODES = 200
-
-
-def validate_native_submission(contents, db, actor, task, requirements, data):
-    """Mechanical task/extent checks for native saves, not a content judge.
-
-    The target is an identity anchor. Only explicitly declared material/body
-    extents require read evidence; do not demand a decorative target citation.
-    """
-    from .task_supervision import review_identity
-    import json
-    if actor.role != 'reviewer' or not task or not requirements:
-        raise ActionRejected('NATIVE_REVIEW_REQUIRES_ASSIGNED_REQUIREMENTS')
-    if task.get('review_snapshot_ref') != data['snapshot_ref']:
-        raise ActionRejected('REVIEW_SNAPSHOT_OUTSIDE_ASSIGNMENT')
-    if task.get('review_interface_profile') == 'review-interfaces-v4' and any(
-            ref not in [r['criterion_ref'] for r in requirements] for ref in data['criteria_refs']):
-        raise ActionRejected('REVIEW_CRITERION_OUTSIDE_ASSIGNED_SCOPE')
-    snapshot = contents.read(data['snapshot_ref'])
-    for item_index, item in enumerate(data['items']):
-        if task.get('review_interface_profile') == 'review-interfaces-v4' and not item.get('scope_id'):
-            raise ActionRejected('V4_ASSIGNED_SCOPE_ID_REQUIRED')
-        requirement = next((r for r in requirements if review_identity(r) == review_identity(item)), None)
-        if requirement is None:
-            raise ActionRejected('REVIEW_ITEM_OUTSIDE_ASSIGNMENT')
-        checks = item.get('check_results') or []
-        allowed = set(range(len(requirement['required_checks'])))
-        indexes = {c['requirement_index'] for c in checks}
-        if not indexes <= allowed or not set(item.get('checked_requirement_indexes') or []) <= allowed:
-            raise ActionRejected('REVIEW_CHECK_INDEX_OUTSIDE_ASSIGNMENT')
-        by_check = {c['requirement_index']:c for c in checks}
-        observed = {}
-        for index, observation in enumerate(item['observations']):
-            row = db.execute('SELECT actor_id,data FROM content_observations WHERE id=?',
-                (observation['receipt_id'],)).fetchone()
-            if row and row[0] == actor.id:
-                observed[index] = json.loads(row[1])
-        for finding_index, finding in enumerate(item['findings']):
-            index = finding.get('requirement_index')
-            if index not in allowed:
-                raise ActionRejected('REVIEW_FINDING_OUTSIDE_ASSIGNED_CHECK', diagnostic={
-                    'scope_id': requirement['scope_id'], 'allowed_requirement_indexes': sorted(allowed),
-                    'parameter_path': ['review', 'items', item_index, 'findings', finding_index, 'requirement_index']})
-            linked = finding.get('observation_indexes')
-            if not linked or index not in by_check or not set(linked) <= set(by_check[index]['observation_indexes']):
-                raise ActionRejected('REVIEW_FINDING_OUTSIDE_CHECK_OBSERVATIONS')
-            evidence = [observed[i] for i in linked if i in observed]
-            structures = [v['snapshot_structure'] for v in evidence if 'snapshot_structure' in v]
-            if finding['basis_kind'] == 'snapshot_structure':
-                if not structures or any(v.get('snapshot_ref') != data['snapshot_ref'] or
-                        v.get('manifest_digest') != snapshot['payload']['manifest_digest'] for v in structures):
-                    raise ActionRejected('STRUCTURE_FINDING_REQUIRES_SNAPSHOT_EVIDENCE')
-                if finding['locator_state'] == 'absent' and finding['finding_type'] == 'confirmed_defect':
-                    # Exact paged index coverage, not a new semantic completeness
-                    # marker. Metadata coverage still does not prove missing prose.
-                    nodes = [r for r in snapshot['payload']['refs'] if r['type'] == 'ContentNode']
-                    for page in structures:
-                        offset, returned = page['offset'], page['returned_refs']
-                        if (page['total_nodes'] != len(nodes) or returned != nodes[offset:offset+len(returned)]):
-                            raise ActionRejected('STRUCTURE_INDEX_OUTSIDE_SNAPSHOT')
 
 
 def snapshot_body_topology(contents, snapshot):

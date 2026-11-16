@@ -696,18 +696,14 @@ def guarded_tools(workspace, role, model, base_tools):
             return by_name['commit_objects'](operation_id, values, deliverable_selection=deliverable_selection)
         return by_name["commit_objects"](operation_id, values)
 
-    def commit_objects(operation_id: str, objects: list[GuardedObject]) -> dict:
-        return commit_guarded(operation_id, objects)
-    commit_objects.__doc__ = commit_guarded.__doc__
-
     from .prompt_sources import review_interface_profile, load_prompt
-    if review_interface_profile(workspace.store) == 'review-interfaces-v4':
-        save_note = '\n\n' + load_prompt('deliverable-save-tool-v4')
-        def commit_with_selection(operation_id: str, objects: list[GuardedObject],
-                                  deliverable_selection: DeliverableSelection | None = None) -> dict:
-            return commit_guarded(operation_id, objects, deliverable_selection)
-        commit_with_selection.__name__, commit_with_selection.__doc__ = 'commit_objects', commit_guarded.__doc__ + save_note
-        commit_objects = commit_with_selection
+    review_interface_profile(workspace.store)
+
+    def commit_objects(operation_id: str, objects: list[GuardedObject],
+                       deliverable_selection: DeliverableSelection | None = None) -> dict:
+        return commit_guarded(operation_id, objects, deliverable_selection)
+
+    commit_objects.__doc__ = commit_guarded.__doc__ + '\n\n' + load_prompt('deliverable-save-tool-v4')
 
     from .prompt_sources import content_input_profile, RELATION_ENDPOINTS_V2
     if content_input_profile(workspace.store) == RELATION_ENDPOINTS_V2:

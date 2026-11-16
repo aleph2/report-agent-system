@@ -38,19 +38,17 @@ def export_workbook(contents, actor, operation_id, snapshot_ref, sheets, report_
 
 def _export_workbook(contents, actor, db, snapshot_ref, sheets, report_export_ref=None, *, deliverable=None, system_companion=False):
     from .prompt_sources import review_interface_profile, report_expression_profile, READER_EXPRESSION_V2
-    v4 = review_interface_profile(contents.store) == 'review-interfaces-v4'
+    review_interface_profile(contents.store)
     expression = report_expression_profile(contents.store)
-    note_label = '备注' if expression == READER_EXPRESSION_V2 else 'Note'
+    note_label = '备注'
     if deliverable is not None:
-        if not v4 or snapshot_ref is not None:
+        if snapshot_ref is not None:
             raise ActionRejected('EXPORT_DELIVERABLE_SELECTION_CONFLICT')
         from .deliverables import resolve_snapshot
         snapshot_ref = resolve_snapshot(contents, db, actor, deliverable)
     snapshot = contents._read(db, snapshot_ref)
-    allowed = snapshot['owner_id'] == actor.id
-    if v4:
-        from .deliverables import export_allowed
-        allowed = export_allowed(contents, db, actor, snapshot)
+    from .deliverables import export_allowed
+    allowed = export_allowed(contents, db, actor, snapshot)
     if not system_companion and (actor.role not in {'coordinator', 'writer'} or snapshot_ref['type'] != 'DocumentSnapshot' or not allowed):
         raise ActionForbidden('FORBIDDEN: workbook snapshot owner')
     from .commission_requirements import require_snapshot

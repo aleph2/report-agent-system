@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 from langchain.tools import ToolRuntime
 
-from .content_models import Ref, SCHEMA_VERSION
+from .content_models import Ref, ReviewSubmission, SCHEMA_VERSION
 from .content_inputs import CommitObject
 from .content_store import Actor, ContentStore
 from .errors import ActionForbidden, ActionRejected
@@ -510,6 +510,17 @@ def content_tools(workspace, role, runtime_identity=None, *, reviewer_handles=Fa
             common += [record_assessment_outcome, calculate_assessment, materialize_planned_section]
     if role in {"reviewer", "rubric_grader"}:
         tools = common
+        if role == "reviewer":
+            async def inspect_rendered_page(render_ref: Ref, page: int, question: str) -> dict:
+                """Inspect one page of the assigned render and save the observation."""
+                from .content_export import inspect_render
+                return await inspect_render(contents, actor(), render_ref.model_dump(), page, question)
+
+            def submit_review(operation_id: str, review: ReviewSubmission) -> dict:
+                """Save the review, including incomplete or blocked checks."""
+                return contents.submit_review(actor(), operation_id, review.model_dump(), identity)
+
+            tools = [*tools, inspect_rendered_page, submit_review]
         if reviewer_handles:
             from .review_handles import read_tools
             tools = read_tools(contents, actor, tools)

@@ -302,10 +302,9 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
     from .commission_owner_records import material_issues
     for issue in material_issues(cs, plan['payload']):
         full_issues[issue.id] = issue.model_dump()
-    # Origin IDs bind deterministic locations; ambiguous plan prose never supplies a route.
     template_ids = {'template-applicability:' + p['section_id'] for s in sections.values()
                     for p in s.get('result_composition', []) if p.get('applicability_question')}
-    routes = {i: {'section_id': '1.3'} for i in full_issues if i.startswith('owner:')}
+    routes = {}
     inventory_ids = set()
     for obj in plan['payload']['objects']:
         for attribute in obj['attributes']:
@@ -317,12 +316,6 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 routes[issue_id] = {'section_id': assessments[obj['object_id']][2], 'object_id': obj['object_id']}
             elif obj['object_id'] not in expected_objects:
                 routes[issue_id] = {'section_id': '1.3'}
-    for proposal in typed_proposals:
-        issue_id, binding = proposal['issue']['id'], proposal['binding']
-        if issue_id in routes and routes[issue_id] != binding:
-            problem('issue_route_conflicts_with_system', issue_id=issue_id, expected=routes[issue_id], supplied=binding)
-        elif issue_id not in template_ids:
-            routes[issue_id] = binding
     for issue_id in required.keys() - routes.keys() - template_ids - inventory_ids:
         saved = issue_state.get_g6_issue_route(db, digest([plan['ref'], issue_id]))
         if saved is not None:
@@ -331,6 +324,15 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 problem('operator_issue_route_invalid', issue_id=issue_id)
             else:
                 routes[issue_id] = {k: saved[k] for k in ('section_id', 'object_id') if k in saved}
+    for issue_id in full_issues:
+        if issue_id.startswith('owner:'):
+            routes.setdefault(issue_id, {'section_id': '1.3'})
+    for proposal in typed_proposals:
+        issue_id, binding = proposal['issue']['id'], proposal['binding']
+        if issue_id in routes and routes[issue_id] != binding:
+            problem('issue_route_conflicts_with_system', issue_id=issue_id, expected=routes[issue_id], supplied=binding)
+        elif issue_id not in template_ids:
+            routes[issue_id] = binding
     missing_routes = sorted(required.keys() - routes.keys() - template_ids)
     missing_required_sections = sorted({r['section_id'] for r in routes.values() if r['section_id'] not in sections})
     for issue_id, route in routes.items():
@@ -350,8 +352,6 @@ def _prepare(cs, db, actor, source_snapshot_ref, prose_bindings, assessment_refs
                 set(binding) - {'section_id', 'object_id'} or
                 (obj is not None and (obj not in assessments or assessments[obj][2] != sid))):
             problem('issue_binding_invalid', issue_id=issue_id, section_id=sid, object_id=obj)
-        if issue_id.startswith('owner:') and (sid != '1.3' or obj is not None):
-            problem('owner_issue_requires_section_1_3', issue_id=issue_id)
         if issue_id in template_ids:
             problem('template_issue_routed_by_system', issue_id=issue_id)
     retained_issues = {i['id'] for nodes in selected.values() for record in nodes
@@ -610,7 +610,7 @@ def record_issue_routes(cs, actor, operation_id, routes, *, note):
         inventory = {digest([plan['ref'], ['inventory', o['object_id'], a['name']]])
                      for o in plan['payload']['objects'] for a in o['attributes']}
         for issue_id, route in routes.items():
-            if (issue_id not in required or issue_id.startswith(('owner:', 'template-applicability:')) or
+            if (issue_id not in required or issue_id.startswith('template-applicability:') or
                     issue_id in inventory or not isinstance(route, dict) or
                     set(route) - {'section_id', 'object_id', 'reason'} or route.get('section_id') not in sections or
                     ('object_id' in route and route['object_id'] not in objects) or not route.get('reason', '').strip()):

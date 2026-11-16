@@ -561,6 +561,8 @@ Reviewed: Python product modules in `src/report_agent` at 38a633d, excluding fak
 
 - [ ] **L1 Confirmer decisions as learning data.** Each owner/claude-advisor decision on a plan proposal becomes a feedback record in the existing learning library (`learning.py`), linked to the exact proposal it corrects, so the existing GEPA/evaluation path (`gepa_report_learning.py`, `learning_evaluation.py`) can improve Coordinator/Writer behaviour. This covers binding exceptions, scope dispositions, interpretation corrections and count corrections. Fake03 examples: B/X12 and B/X41 exceptions (A's values offered for B); `expected_object_count` invented twice (3, then 2); the 约定3 interpretation mixed in table formats twice. Publication stays an operator action, and no learned output may relax a D-item check or a money guard. First verify whether commission-reply decisions already reach the feedback store; connect them if not.
 
+- [ ] **L2 Review feedback.** Compare the delegated Reviewer with DeepAgents RubricMiddleware on the same saved drafts. Measure defects found, revisions that fix them, and model calls. Use the results to decide whether rubric feedback belongs in the learning stage.
+
 Already recorded elsewhere, not repeated: model profile literals (`input_capacity.profile_for_service`, about 13 files); stage handoff interfaces; moving the fake/probe harness out of the product package.
 
 

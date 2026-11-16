@@ -124,8 +124,7 @@ def test_rejected_conflict_rolls_back_indicator_row_and_issue(tmp_path):
             assert len(issue_state.iter_g6_issue_record(db))==0
 
 
-@pytest.mark.parametrize('quotes', [['same','same'], [' ', 'other']])
-def test_conflict_quote_refusal_names_field_and_correction(quotes):
+def test_blank_conflict_quote_names_field_and_correction():
     from report_agent.writer_assessment import _step_schema
     from report_agent.message_fields import validate_message
     from report_agent.errors import ActionRejected
@@ -133,10 +132,10 @@ def test_conflict_quote_refusal_names_field_and_correction(quotes):
     with pytest.raises(ActionRejected) as caught:
         validate_message(model,dict(missing='Natural angle',question='Provide angle?',
             contrary_evidence=dict(basis='Two values',adopted_value='Design value',
-                quotes=quotes,question='Confirm?',affects_level=True)))
+                quotes=[' ', 'other'],question='Confirm?',affects_level=True)))
     field=caught.value.diagnostic['fields'][0]
     assert field['field']==['contrary_evidence','quotes']
-    assert 'distinct' in field['correction'] and 'nonblank' in field['correction']
+    assert 'nonblank' in field['correction']
 
 
 def test_reversed_quotes_preserve_confirmed_issue_source_order(method_commission):

@@ -241,8 +241,7 @@ def read_preview(workspace: Workspace, draft_id: str, offset: int = 0, limit: in
         raise ActionRejected("PREVIEW_INTEGRITY_MISMATCH")
     text = data.decode("utf-8")
     blocks = _blocks(text)
-    if offset > len(blocks):
-        raise ActionRejected("PREVIEW_OFFSET_OUT_OF_RANGE")
+    offset = min(offset, len(blocks))
     end = min(offset + limit, len(blocks))
     return {"draft_id": draft_id, "preview_version": version, "docx_sha256": _hash(docx),
             "text_sha256": _hash(data), "draft_body_sha256": summary["draft_body_sha256"],

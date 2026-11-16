@@ -83,7 +83,9 @@ def citation_text(node, records, plan=None, excluded=()):
         else:
             raise ActionRejected('G3_CITATION_LOCATION_NOT_READABLE')
         if not title or re.search(r'[/\\]', title):
-            raise ActionRejected('G3_CITATION_READABLE_SOURCE_TITLE_REQUIRED')
+            title = citation['source_ref']['id']
+            if re.search(r'[/\\]', title):
+                raise ActionRejected('G3_CITATION_READABLE_SOURCE_TITLE_REQUIRED')
         text = '《' + title + '》' + place
         if text not in values:
             values.append(text)
@@ -128,7 +130,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 receipts[key] = assessment_receipt(db, ref)
         return receipts[key]
 
-    composition_groups = {sid: set() for sid, section in sections.items() if section.get('result_composition')}
+    composed_sections = set()
     outcomes = snapshot['payload'].get('commission_outcome_refs', [])
     if cs is not None:
         for outcome_ref in outcomes:
@@ -231,7 +233,7 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                             or (native_cs and saved['payload'] != cs.read(confirmation)['payload'])
                             or (not native_cs and receipt.get('decision_digest') != digest(saved['payload']))):
                         problems.append(location + ': derived template decision receipt mismatch')
-                composition_groups[sid].add(_key(receipt['group_ref']) if receipt.get('group_ref') else None)
+                composed_sections.add(sid)
                 group = report_state.planned_section(cs.store, receipt.get('group_ref'))
                 expected = [_key(r) for r in (group or {}).get('node_refs', [])]
                 if not expected or any(k not in selected for k in expected) or [k for k in ordered if k in expected] != expected:
@@ -254,8 +256,8 @@ def validate_export(cs, snapshot, records, rendered_keys=None):
                 texts[sid].append(body['text'])
     from .commission_plan import fixed_section_text
     for sid, section in sections.items():
-        if section.get('result_composition') and len(composition_groups[sid]) != 1:
-            problems.append(sid + ': exactly one complete derived composition required')
+        if section.get('result_composition') and sid not in composed_sections:
+            problems.append(sid + ': derived composition missing')
         if section['kind'] == 'fixed':
             try:
                 expected = fixed_section_text(section)

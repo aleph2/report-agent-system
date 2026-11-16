@@ -696,8 +696,7 @@ def read_draft_page(cs, actor, collection='summary', page=1, page_size=5, item_i
         selected = [{'id': key, 'value': value} for key, value in rows[(page - 1) * page_size:page * page_size]]
         next_page = page + 1 if page < total_pages else None
     text = encode(selected)
-    if offset > len(text):
-        reject('offset', 'PLANNING_OFFSET_OUT_OF_RANGE', [0, len(text)])
+    offset = min(offset, len(text))
     end = min(offset + characters, len(text))
     result['page_data'] = {'collection': collection, 'page': page, 'page_size': page_size,
         'item_id': item_id, 'total_items': len(rows), 'total_pages': total_pages,

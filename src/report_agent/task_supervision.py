@@ -674,6 +674,8 @@ def reconcile(contents, task_id):
         reads = review_read_refs(contents, record)
         evidence_requirement = {**requirement, "require_check_evidence": requirement.get("require_check_evidence", False) or bool(plugin and plugin.requires_check_evidence)}
         missing_checks, check_basis = missing_required_checks(evidence_requirement, item)
+        unavailable = set(record["payload"].get("unavailable_observation_receipts", []))
+        missing_receipts = [o["receipt_id"] for o in item["observations"] if o["receipt_id"] in unavailable]
         missing_reads = [r for r in requirement["required_read_refs"] if encode(r) not in reads]
         if required_source_spans([requirement]):
             # The new extent contract is per check, not a union of other checks'
@@ -739,7 +741,9 @@ def reconcile(contents, task_id):
             "unchecked": item["coverage"]["unchecked"], "blocked": item["coverage"]["blocked"],
             "check_results": item.get("check_results"),
             "outside_assignment_notes": item.get("outside_assignment_notes", []),
-            "evidence_level": "linked_observations" if check_basis == "per_check_linked_observations" else "declarations_and_access_receipts"})
+            "unavailable_observation_receipts": missing_receipts,
+            "evidence_level": ("reviewer_declaration" if missing_receipts else "linked_observations"
+                               if check_basis == "per_check_linked_observations" else "declarations_and_access_receipts")})
     return {"task_id": task_id, "snapshot_ref": snapshot_ref, "requirements": result,
             "supervision_plugin": plugin.id if plugin else None,
             "remaining": [r for r in result if r["state"] != "completed"],

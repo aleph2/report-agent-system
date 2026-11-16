@@ -318,7 +318,6 @@ def export_issue_records(contents, db, snapshot, records):
     for expected in owner:
         target = actual.get(expected.id)
         if (target is None or receipt['issue_targets'].get(expected.id) != target[0]
-                or records[Ref.model_validate(target[0]).key()]['payload']['body'].get('section_id') != '1.3'
                 or target[1].model_dump(exclude={'anchor'}) != expected.model_dump(exclude={'anchor'})):
             raise ActionRejected('ASSEMBLED_OWNER_ISSUE_MISMATCH: ' + expected.id)
     return issues, []

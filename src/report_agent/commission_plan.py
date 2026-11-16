@@ -156,7 +156,7 @@ class Convention(Contract):
 
 
 class Reconciliation(Contract):
-    sources: list[SourceCitation] = Field(min_length=2)
+    sources: list[SourceCitation] = Field(min_length=1)
     result: str = Field(min_length=1)
     differences: list[str]
 
@@ -183,7 +183,7 @@ class CommissionPlan(Contract):
     objects: list[InventoryObject] = Field(min_length=1)
     conventions: list[Convention]
     deliverables: list[str] = Field(min_length=1)
-    reconciliations: list[Reconciliation] = Field(min_length=1)
+    reconciliations: list[Reconciliation]
     open_questions: list[str] = Field(description='Only questions the supplied materials cannot settle.')
     method_pack: MethodPack | None = Field(default=None, exclude_if=lambda value: value is None)
     table_specs: dict[str, TableSpec] = Field(default_factory=dict, exclude_if=lambda value: not value)

@@ -184,8 +184,8 @@ def sheet_route(store, plan_ref):
 
 def extracted_pages(store, plan_ref, subject, quote, indicator=None):
     bindings = {r["id"] for r in confirmed(store,plan_ref,subject,indicator)}
-    return {(r["claim"]["citation"]["source_version"],r["claim"]["citation"]["page"])
+    return {(citation["source_version"],citation["page"])
             for r,state in records(store,plan_ref,subject)
             if r["claim"]["kind"] == "source" and current(state)
-            and r["claim"].get("citation",{}).get("quote") == quote
+            and (citation := r["claim"].get("citation")) and citation.get("quote") == quote
             and any(g["assertion_id"] in bindings for g in r["grounds"])}

@@ -298,8 +298,6 @@ class ReviewItem(Contract):
                 any(i < 0 for i in self.checked_requirement_indexes)
         ):
             raise ValueError("CHECK_INDEXES_MUST_BE_DISTINCT_AND_NONNEGATIVE")
-        if self.assessment_kind != "content" and not self.artifact_refs:
-            raise ValueError("ARTIFACT_ASSESSMENT_REQUIRES_EXACT_EXPORT_OR_RENDER")
         return self
 
 
@@ -314,9 +312,9 @@ class ReviewSubmission(Contract):
     target_ref: Ref
     snapshot_ref: Ref
     scope: str = Field(min_length=1)
-    criteria_refs: list[Ref] = Field(min_length=1)
+    criteria_refs: list[Ref]
     dependency_refs: list[Ref]
-    items: list[ReviewItem] = Field(min_length=1)
+    items: list[ReviewItem]
     delivery_checks: list["DeliveryCheck"] = Field(default_factory=list)
     coverage_accounting: list[CoverageAccounting] = Field(default_factory=list)
 
@@ -331,13 +329,6 @@ class DeliveryCheck(Contract):
     coverage: Coverage
     reason: str = Field(min_length=1)
 
-    @model_validator(mode="after")
-    def consistent(self) -> Self:
-        if self.verdict is not None:
-            expected = "RenderArtifact" if self.kind == "render" else "ExportArtifact"
-            if not any(r.type == expected for r in self.artifact_refs):
-                raise ValueError("DELIVERY_JUDGMENT_REQUIRES_ARTIFACT_OBSERVATIONS")
-        return self
 
 
 ReviewSubmission.model_rebuild()

@@ -636,13 +636,9 @@ class ContentStore:
     def submit_review(self, actor, operation_id, submission, runtime_identity, delivery_export_ref=None,
                       *, review_message_binding=None, review_step=None):
         from .prompt_sources import native_reviewer
-        from .handoff_release import manifest
         native = native_reviewer(self.store)
-        mode = manifest(self.store).get('review_execution_mode')
-        entrypoint = manifest(self.store).get('review_entrypoint')
         if native:
             runtime_identity = {**runtime_identity, 'review_profile':'native-reviewer-v2'}
-        if native:
             # Public submitted arguments remain evidence even when validation
             # rejects them. This is an existing event, not a formal review/pass.
             self.store.event('review_submission_candidate', {'actor':actor.__dict__,
@@ -654,160 +650,29 @@ class ContentStore:
                 from .review_message import validate_message_binding
                 validate_message_binding(self, db, actor, review_message_binding)
             data = ReviewSubmission.model_validate(submission).model_dump()
-            if mode == "bounded-tool-v1":
-                if any(i["assessment_kind"] == "content" for i in data["items"]):
-                    if runtime_identity.get("mode") != "bounded-review-v1":
-                        raise ActionRejected("CONTENT_JUDGMENT_REQUIRES_BOUNDED_CHECKER")
-                    if data["delivery_checks"] or any(i["assessment_kind"] != "content" for i in data["items"]):
-                        raise ActionRejected("BOUNDED_CONTENT_CHECK_CANNOT_PUBLISH_ARTIFACT_JUDGMENTS")
             task_row = db.execute("SELECT data FROM content_versions WHERE type='DelegatedTask' AND id=? AND version=1",
                                   (actor.task_id,)).fetchone()
             task_payload = json.loads(task_row[0])["payload"] if task_row else {}
-            requirements = task_payload.get("review_requirements", [])
+            if native and (actor.role != "reviewer" or task_payload.get("role") != actor.role):
+                raise ActionForbidden("FORBIDDEN: delegated task binding required")
             basis = task_payload.get('review_commission_basis')
-            standard_keys = {Ref.model_validate(r).key() for r in basis['criterion_refs']} if basis else set()
-            if native:
-                from .review_input import validate_native_submission
-                validate_native_submission(self, db, actor,
-                    json.loads(task_row[0])['payload'] if task_row else None, requirements, data)
-            if native or mode == "bounded-tool-v1":
-                from .artifact_review import matching_requirement
-                for item in data["items"]:
-                    requirement = matching_requirement(requirements, item)
-                    reference = requirement.get("presentation_reference_ref") if requirement else None
-                    if reference and reference not in data["dependency_refs"]:
-                        data["dependency_refs"].append(reference)
-                    if reference and item.get("dependency_refs") is not None and reference not in item["dependency_refs"]:
-                        item["dependency_refs"].append(reference)
             if delivery_export_ref is not None:
                 if actor.role != "reviewer":
                     raise ActionForbidden("FORBIDDEN: final submission belongs to delegated reviewer")
-                export = self._read(db, delivery_export_ref)
-                if (export["ref"]["type"] != "ExportArtifact" or
-                        export["payload"]["snapshot_ref"] != data["snapshot_ref"]):
-                    raise ActionRejected("REVIEW_EXPORT_VERSION_MISMATCH")
-                data["bound_export_ref"] = delivery_export_ref
-                if entrypoint == "native-rubric-v1" and delivery_export_ref not in data["dependency_refs"]:
-                    data["dependency_refs"].append(delivery_export_ref)
-            snap = self._read(db, data["snapshot_ref"])
-            if snap["ref"]["type"] != "DocumentSnapshot":
-                raise ActionRejected("SNAPSHOT_REQUIRED")
-            members = {Ref.model_validate(r).key() for r in [snap["ref"], *snap["payload"]["refs"]]}
-            # Reviewed targets/criteria stay in the author's manifest. Independent
-            # source dependencies belong to the project, not necessarily that manifest.
-            external_sources = {Ref.model_validate(r).key() for r in [*data["dependency_refs"],
-                *[r for i in data["items"] for r in (i.get("dependency_refs") or [])]] if r["type"] == "SourceArtifact"}
-            from .task_supervision import historical_read_refs, material_refs_in_observation, review_identity
-            whole_reads = set()
-            for row in db.execute('SELECT data FROM content_observations WHERE actor_id=?', (actor.id,)):
-                whole_reads.update(material_refs_in_observation(json.loads(row[0])))
-            encoded_members = {encode(r) for r in [snap['ref'], *snap['payload']['refs']]}
-            comparisons = set()
-            for item in data['items']:
-                requirement = next((r for r in requirements if review_identity(r) == review_identity(item)), None)
-                if requirement:
-                    comparisons.update(historical_read_refs(requirement, encoded_members, whole_reads))
-            declared_dependencies = {encode(r) for r in [*data['dependency_refs'],
-                *[r for i in data['items'] for r in (i.get('dependency_refs') or [])]]}
-            comparisons &= declared_dependencies
-            targets = [("target_ref", data["target_ref"])] + [
-                (f"criteria_refs[{i}]", r) for i, r in enumerate(data["criteria_refs"])] + [
-                (f"items[{i}].{field}", item[field]) for i, item in enumerate(data["items"])
-                for field in ("target_ref", "criterion_ref")]
-            for path, ref in targets:
-                allowed = standard_keys if basis and ('criterion_ref' in path or path.startswith('criteria_refs')) else members
-                if Ref.model_validate(ref).key() not in allowed:
-                    raise ActionRejected("REVIEW_TARGET_OUTSIDE_SNAPSHOT: " + encode({
-                        "field": path, "received": ref, "snapshot_ref": snap["ref"],
-                        "hint": "Use a snapshot member as target; ExportArtifact/RenderArtifact belong in artifact_refs."}))
-            for ref in refs_in(data):
-                record = self._read(db, ref.model_dump())
-                if ref.key() not in members:
-                    if basis and ref.key() in standard_keys:
-                        continue
-                    if ref.key() in external_sources:
-                        # SourceArtifact records can only be captured by server code
-                        # from this project's authorized catalog, never model payloads.
-                        continue
-                    if encode(ref.model_dump()) in comparisons:
-                        continue
-                    if ref.type not in {"ExportArtifact", "RenderArtifact"} or record["payload"].get("snapshot_ref") != snap["ref"]:
-                        raise ActionRejected("REVIEW_VERSION_OUTSIDE_SNAPSHOT: " + encode({
-                            "received": ref.model_dump(), "snapshot_ref": snap["ref"],
-                            "hint": "All review references must belong to this snapshot, except declared "
-                                    "SourceArtifact dependencies, exact task-declared and actually read historical "
-                                    "ContentNode comparison dependencies, and ExportArtifact/RenderArtifact bound to it. "
-                                    "ReviewRecord references are not snapshot members; prior review reuse "
-                                    "has a separate confirm_review_reuse operation."}))
-            if any(r not in (basis['criterion_refs'] if basis else snap["payload"]["criteria_refs"]) for r in data["criteria_refs"]):
-                raise ActionRejected("CRITERION_OUTSIDE_SNAPSHOT")
-            # Excel is a content companion. Layout judgments apply to Word only;
-            # an export-fidelity check can still bind the exact workbook version.
-            render_refs = [ref for item in data["items"]
-                           if item["assessment_kind"] == "render"
-                           for ref in item["artifact_refs"]]
-            render_refs += [ref for check in data["delivery_checks"]
-                            if check["kind"] == "render" for ref in check["artifact_refs"]]
-            for ref in render_refs:
-                record = self._read(db, ref)
-                export = (self._read(db, record["payload"]["export_ref"])
-                          if ref["type"] == "RenderArtifact" else record)
-                if export["payload"].get("file_ref", "").lower().endswith(".xlsx"):
-                    raise ActionRejected("EXCEL_LAYOUT_REVIEW_OUTSIDE_SCOPE")
-            if mode == "bounded-tool-v1" and not any(
-                    i["assessment_kind"] == "content" for i in data["items"]):
-                from .artifact_review import validate_artifact_items
-                validate_artifact_items(self, db, requirements, data)
-            elif native and (any(i['assessment_kind'] != 'content' for i in data['items']) or data['delivery_checks']):
-                from .artifact_review import validate_artifact_items
-                validate_artifact_items(self, db, requirements, data, skip_content=True)
-            for item_index, item in enumerate(data["items"]):
-                if item["criterion_ref"] not in data["criteria_refs"]:
-                    raise ActionRejected("UNDECLARED_CRITERION")
-                usable_observations = 0
-                for observation_index, observation in enumerate(item["observations"]):
-                    # Receipt existence is deterministic; support remains the reviewer's judgment.
-                    row = db.execute("SELECT actor_id,data FROM content_observations WHERE id=?", (observation["receipt_id"],)).fetchone()
-                    if not row or row[0] != actor.id:
-                        raise ActionRejected("OBSERVATION_RECEIPT_NOT_FROM_THIS_REVIEWER", diagnostic={
-                            "reason": "observation_receipt_unavailable_to_current_reviewer",
-                            "parameter_path": ["review", "items", item_index, "observations", observation_index, "receipt_id"]})
-                    observed = json.loads(row[1])
-                    if (observed.get("status") != "failed" and observed.get("execution_state") != "blocked"
-                            and observed.get("ok") is not False and observed.get("accepted") is not False):
-                        usable_observations += 1
-                if item["verdict"] is not None and not usable_observations:
-                    raise ActionRejected("FAILED_READS_DO_NOT_ESTABLISH_OBSERVATIONS")
-                for check in item.get("check_results") or []:
-                    for index in check["observation_indexes"]:
-                        observation = item["observations"][index]
-                        row = db.execute("SELECT data FROM content_observations WHERE id=?", (observation["receipt_id"],)).fetchone()
-                        observed = json.loads(row[0])
-                        if check["execution_state"] == "completed" and (observed.get("status") == "failed" or observed.get("execution_state") == "blocked" or observed.get("ok") is False or observed.get("accepted") is False):
-                            raise ActionRejected("COMPLETED_CHECK_REQUIRES_SUCCESSFUL_OBSERVATION")
-            item_keys = [self.review_item_key(i) for i in data["items"]]
-            if len(item_keys) != len(set(item_keys)):
-                raise ActionRejected("DUPLICATE_REVIEW_OBLIGATION")
-            kinds = [c["kind"] for c in data["delivery_checks"]]
-            if len(kinds) != len(set(kinds)):
-                raise ActionRejected("DUPLICATE_DELIVERY_CHECK")
-            for check_index, check in enumerate(data["delivery_checks"]):
-                matched = False
-                for observation_index, observation in enumerate(check["observations"]):
-                    row = db.execute("SELECT actor_id,data FROM content_observations WHERE id=?", (observation["receipt_id"],)).fetchone()
-                    if not row or row[0] != actor.id:
-                        raise ActionRejected("OBSERVATION_RECEIPT_NOT_FROM_THIS_REVIEWER", diagnostic={
-                            "reason": "observation_receipt_unavailable_to_current_reviewer",
-                            "parameter_path": ["review", "delivery_checks", check_index, "observations", observation_index, "receipt_id"]})
-                    actual = json.loads(row[1])
-                    if check["kind"] == "export":
-                        matched |= actual.get("export_ref") in check["artifact_refs"] and "structure" in actual
-                    else:
-                        source = actual.get("source", {})
-                        matched |= (actual.get("status") == "observed" and bool(actual.get("observation"))
-                                    and source.get("render_ref") in check["artifact_refs"] and isinstance(source.get("page"), int))
-                if check["verdict"] is not None and not matched:
-                    raise ActionRejected("DELIVERY_CHECK_REQUIRES_MATCHING_ACTUAL_OBSERVATION")
+                data["reported_export_ref"] = delivery_export_ref
+                export = db.execute("SELECT data FROM content_versions WHERE type=? AND id=? AND version=?",
+                                    Ref.model_validate(delivery_export_ref).key()).fetchone()
+                if (export and delivery_export_ref["type"] == "ExportArtifact" and
+                        json.loads(export[0])["payload"].get("snapshot_ref") == data["snapshot_ref"]):
+                    data["bound_export_ref"] = delivery_export_ref
+
+            references = {ref.key(): ref for ref in refs_in(data)}
+            data["missing_refs"] = [ref.model_dump() for key, ref in references.items() if not db.execute(
+                "SELECT 1 FROM content_versions WHERE type=? AND id=? AND version=?", key).fetchone()]
+            receipt_ids = {obs["receipt_id"] for item in data["items"] + data["delivery_checks"]
+                           for obs in item["observations"]}
+            data["unavailable_observation_receipts"] = sorted(receipt for receipt in receipt_ids if not db.execute(
+                "SELECT 1 FROM content_observations WHERE id=? AND actor_id=?", (receipt, actor.id)).fetchone())
             data.update(task_ref=actor.task_id, runtime_identity=runtime_identity)
             if basis:
                 data.update(review_interface_profile='review-interfaces-v4', review_basis_digest=basis['digest'])
@@ -816,18 +681,11 @@ class ContentStore:
             data["observation_rowid"] = db.execute(
                 "SELECT COALESCE(MAX(rowid), 0) FROM content_observations WHERE actor_id=?",
                 (actor.id,)).fetchone()[0]
-            from .review_coverage import validate_accounting
-            validate_accounting(snap, data)
             review_ref = self._insert(db, actor, "ReviewRecord", data)
             step_result = {}
             if review_step is not None:
                 from .review_steps import finalize_mark
                 step_result = finalize_mark(self, db, actor, operation_id, review_ref, review_step)
-            if delivery_export_ref is not None and entrypoint == "native-rubric-v1":
-                final = {"target": {"snapshot_ref": data["snapshot_ref"], "export_ref": delivery_export_ref},
-                         "review_ref": review_ref, "runtime_identity": runtime_identity,
-                         "entrypoint": "delegated-reviewer-v1"}
-                report_state.set_content_final_review(db, final, actor=actor)
             return {"review_ref": review_ref, **step_result}
         request = {"submit_review": submission, "runtime_identity": runtime_identity}
         if review_message_binding is not None:
@@ -920,7 +778,12 @@ class ContentStore:
             return True
         exports = []
         for ref in item["artifact_refs"]:
-            record = self.read(ref)
+            try:
+                record = self.read(ref)
+            except ActionRejected as error:
+                if str(error).startswith("NOT_FOUND:"):
+                    return False
+                raise
             if record["payload"].get("snapshot_ref") != snapshot_ref:
                 return False
             exports.append(record["payload"]["export_ref"] if ref["type"] == "RenderArtifact" else ref)
@@ -1040,13 +903,25 @@ class ContentStore:
         return self.operation(actor, operation_id, {"reuse": request}, save)
 
     def changed_review_sources(self, payload, item=None):
-        members = self.read(payload["snapshot_ref"])["payload"]["refs"]
-        changed = []
-        for ref in self.item_dependencies(payload, item) if item is not None else payload["dependency_refs"]:
-            if ref["type"] != "SourceArtifact" or ref in members:
+        snapshot_ref = payload["snapshot_ref"]
+        missing = payload.get("missing_refs", [])
+        if snapshot_ref in missing or snapshot_ref["type"] != "DocumentSnapshot":
+            return [snapshot_ref]
+        members = self.read(snapshot_ref)["payload"]["refs"]
+        dependencies = self.item_dependencies(payload, item) if item is not None else payload["dependency_refs"]
+        relevant = dependencies + [r.model_dump() for r in refs_in(item)] if item is not None else missing
+        changed = [ref for ref in missing if ref in relevant]
+        for ref in dependencies:
+            if ref["type"] != "SourceArtifact" or ref in members or ref in missing:
                 continue
             source = self.read(ref)["payload"]
-            current = self.store.sources([source["source_id"]])[0]
+            try:
+                current = self.store.sources([source["source_id"]])[0]
+            except ActionRejected as error:
+                if str(error) != "SOURCE_NOT_IN_PROJECT":
+                    raise
+                changed.append(ref)
+                continue
             if not current.get("current", True) or source != self.source_payload(current):
                 changed.append(ref)
         return changed

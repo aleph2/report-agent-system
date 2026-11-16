@@ -33,7 +33,7 @@ TOOL_BACKENDS: dict[str, tuple[str, ...]] = dict.fromkeys((
     'set_planning_details', 'set_requirement_status', 'set_scope_boundary',
     'submit_plan', 'submit_review', 'write_file', 'write_todos',
 ), ())
-TOOL_BACKENDS.update({'assess_assigned_object': ('writer',), 'analyze_source_image': ('vision',), 'process_report_content': ('text_tool',), 'perform_assigned_artifact_review': ('text_tool',), 'task': ('writer', 'reviewer', 'layout')})
+TOOL_BACKENDS.update({'assess_assigned_object': ('writer',), 'analyze_source_image': ('vision',), 'inspect_rendered_page': ('vision',), 'process_report_content': ('text_tool',), 'perform_assigned_artifact_review': ('text_tool',), 'task': ('writer', 'reviewer', 'layout')})
 
 _scope = ContextVar('run_tool_authority', default=None)
 

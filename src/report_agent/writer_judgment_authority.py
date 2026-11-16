@@ -248,6 +248,8 @@ def _inputs(cs, db, host, actor, scope, indicator):
         if row["claim"]["kind"] == "source" and current(state):
             rows[row["id"]] = {**row, "status": state["status"]}
     allowed = {immutable_version_digest(cs._read(db, ref)["payload"]) for ref in scope["sources"]}
+    rows = {key: row for key, row in rows.items() if row["claim"].get("citation")}
+    by_handle = {handle: key for handle, key in by_handle.items() if key in rows}
     if any((row["claim"].get("citation") or {}).get("source_version") not in allowed for row in rows.values()):
         raise ValueError("WRITER_JUDGMENT_SOURCE_OUTSIDE_ASSIGNMENT")
     return rows, by_handle, conventions, interpretation, review

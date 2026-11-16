@@ -326,53 +326,10 @@ class BusinessBoundary(InvalidToolFeedback):
                             # Native ToolNode owns unregistered-tool feedback;
                             # do not create business task state before it runs.
                             return await handler(request)
-                        from .content_tasks import task_tool
-                        from pydantic import ValidationError
-                        from langgraph.prebuilt.tool_node import ToolInvocationError
-                        from .tool_argument_feedback import compact_native_tool_error
-                        # The delegation guard reads business state before the native
-                        # handler. Validate against the same public schema first;
-                        # retain the original arguments and unset/default fields.
-                        from .prompt_sources import review_profile, review_interface_profile, report_prompt_profile, REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3
-                        interface = review_interface_profile(store)
-                        schema = task_tool(request.tool, review_profile=review_profile(store), interface_profile=interface,
-                            prompt_profile=report_prompt_profile(store)).tool_call_schema
-                        try:
-                            # The current flat message was validated before resource assembly.
-                            if interface != 'review-interfaces-v4':
-                                schema.model_validate(call["args"])
-                        except ValidationError as exc:
-                            error = ToolInvocationError(call["name"], exc, call["args"])
-                            message = ToolMessage(error.message, tool_call_id=call["id"],
-                                                  name=call["name"], status="error")
-                            native = compact_native_tool_error(message, store, args=call["args"], schema=schema)
-                            requirements = call["args"].get("review_requirements")
-                            schema_errors = exc.errors(include_input=False, include_context=False,
-                                                       include_url=False)
-                            if (isinstance(requirements, list) and any(
-                                    e["loc"] and e["loc"][0] == "review_requirements"
-                                    for e in schema_errors)):
-                                from .content_tasks import normalize_review_requirements
-                                try:
-                                    normalize_review_requirements(requirements)
-                                except ValidationError as domain:
-                                    from .task_supervision import review_contract_issues
-                                    detail = "INVALID_REVIEW_REQUIREMENTS: " + str(domain)
-                                    return ToolMessage(encode({
-                                        "accepted": False, "ok": False,
-                                        "code": "INVALID_REVIEW_REQUIREMENTS",
-                                        "message": detail,
-                                        "error": error_data(ActionRejected(detail)),
-                                        "retryable": False,
-                                        "receipt_id": call["args"].get("operation_id"),
-                                        "domain_validation_errors": domain.errors(
-                                            include_input=False, include_context=False, include_url=False),
-                                        **({'review_contract_issues': review_contract_issues(requirements)}
-                                           if interface in {REVIEW_INTERFACE_V2, REVIEW_INTERFACE_V3} else {}),
-                                        "native_validation": json.loads(native.content),
-                                        "native_schema_errors": schema_errors}),
-                                        tool_call_id=call["id"], name=call["name"], status="error")
-                            return native
+                        from .prompt_sources import review_profile, report_prompt_profile
+                        review_interface_profile(store)
+                        review_profile(store)
+                        report_prompt_profile(store)
                     from .content_tasks import delegated_task, invocation_binding
                     from .content_store import ContentStore
                     from .task_supervision import batch_needs_review_decision, task_status
@@ -385,10 +342,8 @@ class BusinessBoundary(InvalidToolFeedback):
                         raise ActionRejected("REVIEW_RESULT_DECISION_REQUIRED: Request dependent layout in a later model turn after examining the review return.")
                     if (role == "reviewer" and not call["args"].get("resume_content_task_id")
                             and entrypoint != "native-rubric-v1"
-                            and not call["args"].get('review' if interface == 'review-interfaces-v4' else 'review_requirements')):
-                        if interface == 'review-interfaces-v4':
-                            raise ActionRejected('REVIEW_SELECTION_REQUIRED: choose deliverable, standards and scope in review')
-                        raise ActionRejected("REVIEW_REQUIREMENTS_REQUIRED: Specify the exact assigned checks and snapshot; a free-text goal cannot be reconciled.")
+                            and not call["args"].get('review')):
+                        raise ActionRejected('REVIEW_SELECTION_REQUIRED: choose deliverable, standards and scope in review')
                     contents = ContentStore(store)
                     if (role == "reviewer" and call["args"].get("resume_content_task_id")
                             and entrypoint != "native-rubric-v1"):
@@ -954,18 +909,15 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     from .prompt_sources import delegation_profile, validate_review_interface_profile
     prompt_profile = delegation_profile(workspace.store)
     interface_profile = validate_review_interface_profile(workspace.store.manifest)
-    from .acceptance import enabled
     from .hierarchical_tools import enabled as content_enabled, role_prompt
     hierarchical = content_enabled(workspace)
     if not hierarchical or workspace.store.manifest.get("review_entrypoint") == "native-rubric-v1":
         raise ActionRejected("HISTORICAL_AGENT_EXECUTION_INACTIVE: use a fresh native hierarchical project with independent text tools; saved historical data remains readable")
-    acceptance = enabled(workspace) and not hierarchical
-    native_enabled = bool(rules) or acceptance or hierarchical
     if workspace.store.get("knowledge_enabled", True) is False:
         knowledge = None
     from .task_context import enabled as context_enabled, bind_projection
     bind_projection(workspace, manifest=manifest)
-    managed_context = hierarchical and context_enabled(workspace)
+    managed_context = context_enabled(workspace)
     register_harness_profile("openai", HarnessProfile(
         general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False)))
     backend = StateBackend()
@@ -986,7 +938,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                 FilesystemMiddleware(backend=backend, tools=["ls", "read_file", "write_file", "edit_file", "glob", "grep"]),
                 *(
                   [TodoListMiddleware()] if role == 'coordinator' else []),
-                *([ToolResultEditing(workspace, role), TaskContext(workspace, role)] if hierarchical and context_enabled(workspace) else []),
+                *([ToolResultEditing(workspace, role), TaskContext(workspace, role)] if context_enabled(workspace) else []),
                 *([ExecutionProgress(workspace,role)]
                     if workspace.store.manifest.get('execution_progress_policy') is not None else []),
                 # Use the already selected coordinator service for summaries.
@@ -998,18 +950,14 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
                                     interface_profile=interface_profile, prompt_profile=text_profile,
                                     review_submission_contract=submission_contract)]
 
-    def configured_prompt(role):
-        return role_prompt(role)
-
-    roles = {role: configured_prompt(role) for role in ("writer", "layout")}
+    roles = {role: role_prompt(role) for role in ("writer", "reviewer", "layout")}
     subagents = []
     for role, prompt in roles.items():
-        if hierarchical or not (native_enabled and role == "reviewer"):
-            model = model_factory(role)
-            subagents.append({"name": role, "description": load_prompt('agent-' + role),
-                "system_prompt": prompt, "model": model,
-                "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
-                "middleware": middleware(role, model=model)})
+        model = model_factory(role)
+        subagents.append({"name": role, "description": load_prompt('agent-' + role),
+            "system_prompt": prompt, "model": model,
+            "tools": business_tools(workspace, role, knowledge, model_factory("text_tool")),
+            "middleware": middleware(role, model=model)})
     from .native_trace import trace_tools
     coordinator_middleware = middleware("coordinator", tuple((s['name'], s['description']) for s in subagents))
     from deepagents.middleware.filesystem import FilesystemMiddleware as FilesystemMiddlewareType
@@ -1021,7 +969,7 @@ def build_agent(workspace, model_factory, checkpointer, knowledge=None, rules=""
     agent = create_deep_agent(model=model_factory("coordinator"),
                              tools=business_tools(workspace, "coordinator", knowledge, model_factory("text_tool"),
                                  planning_result_fits=planning_result_fits) + trace_tools(checkpointer),
-                             system_prompt=configured_prompt("coordinator"), subagents=subagents, backend=backend,
+                             system_prompt=role_prompt("coordinator"), subagents=subagents, backend=backend,
                              middleware=coordinator_middleware,
                              checkpointer=checkpointer, name="report_coordinator")
     from .failure_diagnostics import FailureDiagnostics

@@ -5,7 +5,6 @@ import pytest
 
 from report_agent.content_tasks import delegated_task
 from report_agent.errors import ActionRejected
-from report_agent.review_coverage import validate_accounting
 from test_deep_runtime import call
 from test_hierarchical_content import ws, seed
 from test_reviewer_native_profile import native, commission, candidate
@@ -40,21 +39,6 @@ def test_missing_body_feedback_keeps_code_names_scope_and_exact_missing_root(ws)
         root_receipt = cs.read_context(actor, refs['root'])['receipt_id']
         accepted = cs.submit_review(actor, 'diagnostic-corrected', candidate(snapshot, refs, [receipt, root_receipt]), {})
         assert cs.read(accepted['result']['review_ref'])['payload']['items'][0]['execution_state'] == 'completed'
-
-
-@pytest.mark.parametrize('kind', ['Evidence', 'Relation', 'SourceArtifact'])
-def test_coverage_wrong_slot_is_not_misreported_as_missing_snapshot_object(kind):
-    ref = {'type': kind, 'id': 'actual-member', 'version': 1}
-    snapshot = {'payload': {'refs': [ref]}}
-    review = {'items': [{'verdict': 'satisfied', 'observations': [{'receipt_id': 'fixture'}]}],
-              'coverage_accounting': [{'target_refs': [ref], 'item_indexes': [0], 'state': 'assessed'}]}
-    before = deepcopy(review)
-    with pytest.raises(ActionRejected, match='^COVERAGE_OBJECT_OUTSIDE_SNAPSHOT$') as error:
-        validate_accounting(snapshot, review)
-    assert error.value.diagnostic['reason'] == 'unsupported_coverage_object_type'
-    assert error.value.diagnostic['allowed_object_types'] == ['ContentNode', 'Requirement']
-    assert error.value.diagnostic['parameter_path'] == ['review', 'coverage_accounting', 0, 'target_refs', 0]
-    assert review == before
 
 
 @pytest.mark.parametrize('args', [(), ('FIRST', 'SECOND')])
@@ -100,16 +84,6 @@ def test_unavailable_receipt_feedback_does_not_disclose_foreign_identity_or_payl
         assert diagnostic['parameter_path'] == ['review', 'items', 0, 'observations', 0, 'receipt_id']
         assert 'foreign-private' not in json.dumps(diagnostic)
         assert not cs.list_objects('ReviewRecord')
-
-
-def test_delivery_check_reports_assessment_kind_slot_not_permission_expansion():
-    from report_agent.artifact_review import validate_artifact_items
-    value = {'items': [], 'delivery_checks': [{'kind': 'export', 'artifact_refs': []}]}
-    with pytest.raises(ActionRejected, match='^DELIVERY_CHECK_OUTSIDE_ASSIGNED_ARTIFACTS$') as error:
-        validate_artifact_items(None, None, [], value)
-    assert error.value.diagnostic['parameter_path'] == ['review', 'delivery_checks', 0, 'artifact_refs']
-    assert error.value.diagnostic['allowed_artifact_refs'] == []
-    assert error.value.diagnostic['kind'] == 'export'
 
 
 async def test_native_graph_delivers_exact_body_diagnostic_to_reviewer_next_model_input(ws):

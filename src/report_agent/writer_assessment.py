@@ -264,7 +264,7 @@ def _step_schema(choices, kind, qualitative=False, fact_ids=None):
         'quotes':(list[nonblank],Field(default_factory=list,
             description='Exact source quotations. The system resolves unique source locations.')),
         'contrary_evidence':(IndicatorConflict | None, Field(default=None,
-            description='An actual conflict with both quoted values and the adopted basis, for the material-issue record.'))
+            description='Record the conflicting values, their source quotations and the adopted basis.'))
     }
     typed_fields = {}
     if fact_ids is not None:

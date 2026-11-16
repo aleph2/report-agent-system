@@ -249,10 +249,10 @@ def read_state(workspace, role, path, offset=0, limit=20, characters=6000, expec
                 **({'available_keys': sorted(value)} if isinstance(value, dict) else
                    {'selected_type': type(value).__name__})})
     if isinstance(value,list):
-        if offset > len(value): raise ActionRejected('STATE_OFFSET_OUTSIDE_VALUE')
+        offset = min(offset, len(value))
         end = min(offset+limit,len(value)); page = value[offset:end]
     elif isinstance(value,str):
-        if offset > len(value): raise ActionRejected('STATE_OFFSET_OUTSIDE_VALUE')
+        offset = min(offset, len(value))
         end = min(offset+characters,len(value)); page = value[offset:end]
     else:
         if offset:

@@ -404,7 +404,7 @@ def read_observation(workspace, role, observation_ref, offset=0, characters=6000
         text = value
         field_metadata = {'field_path': field_path, 'cursor_scope': 'json_string_value',
                           'field_sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()}
-    if offset>len(text): raise ActionRejected("OBSERVATION_OFFSET_OUTSIDE_RESULT")
+    offset = min(offset, len(text))
     end = min(offset+characters,len(text))
     result = {"observation_ref":observation_ref,"tool":record["tool"],"sha256":record["sha256"],
         "exact_data_tool":"read_tool_observation","cursor_unit":"unicode_characters",

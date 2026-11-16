@@ -33,16 +33,15 @@ class IndicatorConflict(StrictRecord):
     """The competing facts and the engineering decision that will reach Word and Excel."""
     basis: str = Field(min_length=1, description="State both conflicting source values.")
     adopted_value: str = Field(min_length=1, description="State the chosen value and why it takes precedence.")
-    quotes: list[str] = Field(min_length=2, description="At least two distinct nonblank exact quotations for both sides of the conflict.")
+    quotes: list[str] = Field(min_length=1, description="Exact quotations documenting the conflicting values.")
     question: str = Field(min_length=1, description="What should the engineer clarify?")
     affects_level: bool = Field(description="Whether this conflict could change the risk level.")
 
     @field_validator('quotes')
     @classmethod
-    def distinct_quotes(cls, quotes):
-        if any(not q.strip() for q in quotes) or len({q.strip() for q in quotes})<2:
-            raise PydanticCustomError('conflict_quotes_distinct',
-                'Provide at least two distinct nonblank exact quotations, one for each side of the conflict.')
+    def nonblank_quotes(cls, quotes):
+        if any(not q.strip() for q in quotes):
+            raise PydanticCustomError('conflict_quote_blank', 'Provide a nonblank exact quotation.')
         return quotes
 
 

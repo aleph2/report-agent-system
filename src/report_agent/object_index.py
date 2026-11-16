@@ -33,8 +33,7 @@ def object_index(contents, offset=0, limit=20, object_type='', owner_id='',
          'head_version': heads[(r['ref']['type'], r['ref']['id'])]} for r in selected]})
     if inventory_digest and inventory_digest != fingerprint:
         raise ActionRejected('OBJECT_INDEX_CHANGED: restart at offset=0 without inventory_digest; do not combine pages')
-    if offset > len(selected):
-        raise ActionRejected('OBJECT_INDEX_OFFSET_OUT_OF_RANGE')
+    offset = min(offset, len(selected))
     result = {'inventory_digest': fingerprint, 'filters': filters,
               'total': len(selected), 'offset': offset, 'next_offset': None,
               'objects': [], 'available_types': available_types,

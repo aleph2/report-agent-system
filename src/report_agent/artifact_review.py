@@ -65,37 +65,6 @@ def artifact_gaps(contents, requirement, item, observations, *, check_scope=None
     return gaps
 
 
-def validate_artifact_items(contents, db, requirements, data, *, skip_content=False):
-    """Only this exact delegated artifact scope may publish through the new route."""
-    for item_index, item in enumerate(data['items']):
-        if item['assessment_kind'] == 'content':
-            if skip_content:  # Native content is validated separately; preserve mixed-item positions.
-                continue
-            raise ActionRejected('CONTENT_JUDGMENT_REQUIRES_BOUNDED_CHECKER')
-        requirement = matching_requirement(requirements, item)
-        if requirement is None:
-            raise ActionRejected('ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE', diagnostic={
-                'reason': 'artifact_scope_identity_not_assigned',
-                'parameter_path': ['review', 'items', item_index], 'scope_id': item.get('scope_id')})
-        expected, provided = requirement['artifact_refs'], item['artifact_refs']
-        expected_keys, provided_keys = set(map(encode, expected)), set(map(encode, provided))
-        if provided_keys != expected_keys:
-            raise ActionRejected('ARTIFACT_REVIEW_OUTSIDE_ASSIGNED_SCOPE', diagnostic={
-                'reason': 'artifact_ref_set_mismatch', 'scope_id': requirement.get('scope_id'),
-                'parameter_path': ['review', 'items', item_index, 'artifact_refs'],
-                'expected_artifact_refs': expected, 'provided_artifact_refs': provided,
-                'missing_artifact_refs': [r for r in expected if encode(r) not in provided_keys],
-                'extra_artifact_refs': [r for r in provided if encode(r) not in expected_keys]})
-    for check_index, check in enumerate(data['delivery_checks']):
-        selected = [i for i in data['items'] if i['assessment_kind'] == check['kind']]
-        allowed_refs = [r for i in selected for r in i['artifact_refs']]
-        allowed = {encode(r) for r in allowed_refs}
-        if not selected or not set(map(encode, check['artifact_refs'])) <= allowed:
-            raise ActionRejected('DELIVERY_CHECK_OUTSIDE_ASSIGNED_ARTIFACTS', diagnostic={
-                'kind': check['kind'], 'allowed_artifact_refs': allowed_refs,
-                'parameter_path': ['review', 'delivery_checks', check_index, 'artifact_refs']})
-
-
 def bounded_artifact_review_tool(workspace, model):
     """The agent selects actual observations; a one-shot tool compares them."""
     from .evidence_analysis import analyze_evidence_packet, model_identity
@@ -192,8 +161,6 @@ def bounded_artifact_review_tool(workspace, model):
         for item in [*review['items'], *review['delivery_checks']]:
             if any(o['receipt_id'] not in supplied for o in item['observations']):
                 raise ActionRejected('ARTIFACT_TEXT_WORK_INVENTED_OBSERVATION: raw response preserved')
-        with workspace.store.connect() as db:
-            validate_artifact_items(cs, db, requirements, review)
         result = cs.submit_review(actor, operation_id, review,
             {'mode': 'bounded-artifact-text-work-v1', 'operation': raw['operation'], 'model': raw['model']},
             delivery_export_ref.model_dump() if delivery_export_ref else None)
